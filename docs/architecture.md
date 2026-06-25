@@ -25,6 +25,18 @@ Initial API surface:
   - `GET /api/v1/config/mediamanagement`
   - `GET /api/v1/config/mediamanagement/{id}`
   - `PUT /api/v1/config/mediamanagement/{id}`
+  - `GET /api/v1/config/host`
+  - `GET /api/v1/config/host/{id}`
+  - `PUT /api/v1/config/host/{id}`
+  - `GET /api/v1/config/ui`
+  - `GET /api/v1/config/ui/{id}`
+  - `PUT /api/v1/config/ui/{id}`
+  - `GET /api/v1/config/downloadclient`
+  - `GET /api/v1/config/downloadclient/{id}`
+  - `PUT /api/v1/config/downloadclient/{id}`
+  - `GET /api/v1/config/indexer`
+  - `GET /api/v1/config/indexer/{id}`
+  - `PUT /api/v1/config/indexer/{id}`
   - `GET /api/v1/calendar`
   - `GET /api/v1/history`
   - `GET /api/v1/history/since`
@@ -59,6 +71,11 @@ Initial API surface:
   - `DELETE /api/v1/book/{id}`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/qualityprofile`
+  - `GET /api/v1/delayprofile`
+  - `POST /api/v1/delayprofile`
+  - `GET /api/v1/delayprofile/{id}`
+  - `PUT /api/v1/delayprofile/{id}`
+  - `DELETE /api/v1/delayprofile/{id}`
   - `GET /api/v1/qualitydefinition`
   - `PUT /api/v1/qualitydefinition/{id}`
   - `GET /api/v1/languageprofile`
@@ -109,6 +126,8 @@ Initial API surface:
   - `POST /api/v1/manualimport`
   - `GET /api/v1/command`
   - `POST /api/v1/command`
+  - `GET /api/v1/system/task`
+  - `GET /api/v1/system/task/{id}`
 - Librarry-native endpoints:
   - `GET /healthz`
   - `GET /api/v1/providers/health`
@@ -195,6 +214,13 @@ static defaults or echo create/update payloads in the expected API shape. The
 persisted source of truth still lives in Librarry's native settings, quality
 profiles, and integration configuration until each compatibility resource gets a
 dedicated storage model.
+
+Compatibility config endpoints for host, UI, download-client, and indexer
+settings mirror current Librarry environment/native config and echo update
+payloads for API callers. Delay profiles and system tasks are exposed in the
+same compatibility layer; tasks are derived from Librarry scheduler intervals
+for feed sync, missing-book monitoring, author refresh, failed-download
+recovery, and upgrade search.
 
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and

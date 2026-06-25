@@ -574,6 +574,83 @@ func TestCompatConfigEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatHostUIIndexerDownloadConfigAndTasks(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{
+			WebOrigin:              "*",
+			ListenAddr:             ":9090",
+			ProwlarrURL:            "http://prowlarr.local",
+			BookTorrentRoot:        "/downloads/books",
+			EbookCategory:          "books-ebook",
+			AudiobookCategory:      "books-audiobook",
+			FeedSyncEnabled:        true,
+			FeedSyncInterval:       15 * time.Minute,
+			MonitorEnabled:         true,
+			MonitorInterval:        30 * time.Minute,
+			AuthorMonitorEnabled:   true,
+			AuthorMonitorInterval:  6 * time.Hour,
+			FailedDownloadEnabled:  true,
+			FailedDownloadInterval: 30 * time.Minute,
+			UpgradeSearchEnabled:   true,
+			UpgradeSearchInterval:  12 * time.Hour,
+		},
+		Metadata: metadata.NewService(nil),
+	})
+
+	checks := []struct {
+		path string
+		want string
+	}{
+		{"/api/v1/config/host", `"port":9090`},
+		{"/api/v1/config/ui", `"theme":"auto"`},
+		{"/api/v1/config/downloadclient", `"librarryTorrentRoot":"/downloads/books"`},
+		{"/api/v1/config/indexer", `"rssSyncInterval":15`},
+		{"/api/v1/delayprofile", `"preferredProtocol":"torrent"`},
+		{"/api/v1/system/task", `"taskName":"RssSync"`},
+	}
+	for _, check := range checks {
+		req := httptest.NewRequest(http.MethodGet, check.path, nil)
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		if res.Code != http.StatusOK {
+			t.Fatalf("%s expected 200, got %d: %s", check.path, res.Code, res.Body.String())
+		}
+		if !strings.Contains(res.Body.String(), check.want) {
+			t.Fatalf("%s expected %s in response, got %s", check.path, check.want, res.Body.String())
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/config/host/1", strings.NewReader(`{"port":8081,"instanceName":"Test Librarry"}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"port":8081`) || !strings.Contains(res.Body.String(), `"instanceName":"Test Librarry"`) {
+		t.Fatalf("expected host config update echo, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/config/ui/1", strings.NewReader(`{"theme":"dark","showRelativeDates":false}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"theme":"dark"`) || !strings.Contains(res.Body.String(), `"showRelativeDates":false`) {
+		t.Fatalf("expected UI config update echo, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/delayprofile", strings.NewReader(`{"preferredProtocol":"usenet","usenetDelay":10,"torrentDelay":20}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"preferredProtocol":"usenet"`) || !strings.Contains(res.Body.String(), `"torrentDelay":20`) {
+		t.Fatalf("expected created delay profile, got %d: %s", res.Code, res.Body.String())
+	}
+
+	taskID := stableInt("RssSync")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/task/"+strconv.Itoa(taskID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"taskName":"RssSync"`) {
+		t.Fatalf("expected single system task, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestSettingsValidateEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),

@@ -67,6 +67,10 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/diskspace"},
 		{"method": "GET", "path": "/api/v1/config/naming"},
 		{"method": "GET", "path": "/api/v1/config/mediamanagement"},
+		{"method": "GET", "path": "/api/v1/config/host"},
+		{"method": "GET", "path": "/api/v1/config/ui"},
+		{"method": "GET", "path": "/api/v1/config/downloadclient"},
+		{"method": "GET", "path": "/api/v1/config/indexer"},
 		{"method": "GET", "path": "/api/v1/calendar"},
 		{"method": "GET", "path": "/api/v1/history"},
 		{"method": "GET", "path": "/api/v1/history/since"},
@@ -88,6 +92,7 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/book/lookup"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
+		{"method": "GET", "path": "/api/v1/delayprofile"},
 		{"method": "GET", "path": "/api/v1/qualitydefinition"},
 		{"method": "GET", "path": "/api/v1/languageprofile"},
 		{"method": "GET", "path": "/api/v1/metadataprofile"},
@@ -105,6 +110,7 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "POST", "path": "/api/v1/manualimport"},
 		{"method": "GET", "path": "/api/v1/command"},
 		{"method": "POST", "path": "/api/v1/command"},
+		{"method": "GET", "path": "/api/v1/system/task"},
 	})
 }
 
@@ -192,6 +198,54 @@ func (h *handler) compatUpdateMediaManagementConfig(w http.ResponseWriter, r *ht
 	var payload map[string]any
 	_ = json.NewDecoder(r.Body).Decode(&payload)
 	writeJSON(w, http.StatusOK, h.compatMediaManagementConfigRecord(payload))
+}
+
+func (h *handler) compatHostConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.compatHostConfigRecord(nil))
+}
+
+func (h *handler) compatUpdateHostConfig(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "host config")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, h.compatHostConfigRecord(payload))
+}
+
+func (h *handler) compatUIConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.compatUIConfigRecord(nil))
+}
+
+func (h *handler) compatUpdateUIConfig(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "UI config")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, h.compatUIConfigRecord(payload))
+}
+
+func (h *handler) compatDownloadClientConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.compatDownloadClientConfigRecord(nil))
+}
+
+func (h *handler) compatUpdateDownloadClientConfig(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "download client config")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, h.compatDownloadClientConfigRecord(payload))
+}
+
+func (h *handler) compatIndexerConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.compatIndexerConfigRecord(nil))
+}
+
+func (h *handler) compatUpdateIndexerConfig(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "indexer config")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, h.compatIndexerConfigRecord(payload))
 }
 
 func (h *handler) compatCalendar(w http.ResponseWriter, r *http.Request) {
@@ -732,6 +786,30 @@ func (h *handler) compatQualityProfiles(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, records)
 }
 
+func (h *handler) compatDelayProfiles(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{compatDelayProfileRecord(nil, 1)})
+}
+
+func (h *handler) compatDelayProfile(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatDelayProfileRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateDelayProfile(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "delay profile")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatDelayProfileRecord(payload, stablePayloadID(payload, "delay-profile")))
+}
+
+func (h *handler) compatUpdateDelayProfile(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "delay profile")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatDelayProfileRecord(payload, pathValueInt(r, "id")))
+}
+
 func (h *handler) compatQualityDefinitions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, compatQualityDefinitionRecords())
 }
@@ -1191,6 +1269,21 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, command)
 }
 
+func (h *handler) compatSystemTasks(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.compatSystemTaskRecords())
+}
+
+func (h *handler) compatSystemTask(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	for _, task := range h.compatSystemTaskRecords() {
+		if compatIDMatches(id, payloadString(task, "name"), payloadString(task, "taskName")) || payloadString(task, "id") == id {
+			writeJSON(w, http.StatusOK, task)
+			return
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "task not found"})
+}
+
 func (h *handler) compatDownloads(w http.ResponseWriter, r *http.Request) ([]acquisition.DownloadStatus, bool) {
 	if h.deps.Acquire == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
@@ -1454,6 +1547,103 @@ func (h *handler) compatMediaManagementConfigRecord(overrides map[string]any) ma
 		"enableMediaInfo":                        payloadBoolDefault(overrides, "enableMediaInfo", true),
 		"ebookRootFolderPath":                    defaultString(h.deps.Config.EbookLibraryRoot, "/data/media/books/ebooks"),
 		"audiobookRootFolderPath":                defaultString(h.deps.Config.AudiobookLibraryRoot, "/data/media/books/audiobooks"),
+	}
+}
+
+func (h *handler) compatHostConfigRecord(overrides map[string]any) map[string]any {
+	return map[string]any{
+		"id":                         1,
+		"bindAddress":                firstNonEmptyString(payloadString(overrides, "bindAddress"), "*"),
+		"port":                       payloadIntDefault(overrides, "port", compatListenPort(h.deps.Config.ListenAddr, 8080)),
+		"sslPort":                    payloadIntDefault(overrides, "sslPort", 9898),
+		"enableSsl":                  payloadBoolDefault(overrides, "enableSsl", false),
+		"launchBrowser":              payloadBoolDefault(overrides, "launchBrowser", false),
+		"authenticationMethod":       firstNonEmptyString(payloadString(overrides, "authenticationMethod"), "none"),
+		"authenticationRequired":     firstNonEmptyString(payloadString(overrides, "authenticationRequired"), "disabledForLocalAddresses"),
+		"username":                   payloadString(overrides, "username"),
+		"password":                   "",
+		"logLevel":                   firstNonEmptyString(payloadString(overrides, "logLevel"), "info"),
+		"consoleLogLevel":            firstNonEmptyString(payloadString(overrides, "consoleLogLevel"), "info"),
+		"branch":                     firstNonEmptyString(payloadString(overrides, "branch"), "main"),
+		"apiKey":                     payloadString(overrides, "apiKey"),
+		"sslCertPath":                payloadString(overrides, "sslCertPath"),
+		"sslCertPassword":            "",
+		"urlBase":                    payloadString(overrides, "urlBase"),
+		"instanceName":               firstNonEmptyString(payloadString(overrides, "instanceName"), "Librarry"),
+		"applicationUrl":             payloadString(overrides, "applicationUrl"),
+		"updateAutomatically":        payloadBoolDefault(overrides, "updateAutomatically", false),
+		"analyticsEnabled":           payloadBoolDefault(overrides, "analyticsEnabled", false),
+		"proxyEnabled":               payloadBoolDefault(overrides, "proxyEnabled", false),
+		"proxyType":                  firstNonEmptyString(payloadString(overrides, "proxyType"), "http"),
+		"proxyHostname":              payloadString(overrides, "proxyHostname"),
+		"proxyPort":                  payloadIntDefault(overrides, "proxyPort", 0),
+		"proxyUsername":              payloadString(overrides, "proxyUsername"),
+		"proxyPassword":              "",
+		"proxyBypassFilter":          payloadString(overrides, "proxyBypassFilter"),
+		"proxyBypassLocalAddresses":  payloadBoolDefault(overrides, "proxyBypassLocalAddresses", true),
+		"backupFolder":               firstNonEmptyString(payloadString(overrides, "backupFolder"), "Backups"),
+		"backupInterval":             payloadIntDefault(overrides, "backupInterval", 7),
+		"backupRetention":            payloadIntDefault(overrides, "backupRetention", 28),
+		"librarryConfigSource":       "env",
+		"librarryPersistedViaNative": false,
+	}
+}
+
+func (h *handler) compatUIConfigRecord(overrides map[string]any) map[string]any {
+	return map[string]any{
+		"id":                         1,
+		"firstDayOfWeek":             payloadIntDefault(overrides, "firstDayOfWeek", 0),
+		"calendarWeekColumnHeader":   firstNonEmptyString(payloadString(overrides, "calendarWeekColumnHeader"), "ddd M/D"),
+		"shortDateFormat":            firstNonEmptyString(payloadString(overrides, "shortDateFormat"), "yyyy-MM-dd"),
+		"longDateFormat":             firstNonEmptyString(payloadString(overrides, "longDateFormat"), "yyyy-MM-dd HH:mm"),
+		"timeFormat":                 firstNonEmptyString(payloadString(overrides, "timeFormat"), "HH:mm"),
+		"showRelativeDates":          payloadBoolDefault(overrides, "showRelativeDates", true),
+		"enableColorImpairedMode":    payloadBoolDefault(overrides, "enableColorImpairedMode", false),
+		"theme":                      firstNonEmptyString(payloadString(overrides, "theme"), "auto"),
+		"uiLanguage":                 payloadIntDefault(overrides, "uiLanguage", 1),
+		"expandBookByDefault":        payloadBoolDefault(overrides, "expandBookByDefault", false),
+		"librarryPersistedViaNative": false,
+	}
+}
+
+func (h *handler) compatDownloadClientConfigRecord(overrides map[string]any) map[string]any {
+	return map[string]any{
+		"id":                               1,
+		"downloadClientWorkingFolders":     payloadString(overrides, "downloadClientWorkingFolders"),
+		"enableCompletedDownloadHandling":  payloadBoolDefault(overrides, "enableCompletedDownloadHandling", true),
+		"removeCompletedDownloads":         payloadBoolDefault(overrides, "removeCompletedDownloads", false),
+		"autoRedownloadFailed":             payloadBoolDefault(overrides, "autoRedownloadFailed", h.deps.Config.FailedDownloadAutoGrab),
+		"checkForFinishedDownloadInterval": payloadIntDefault(overrides, "checkForFinishedDownloadInterval", 1),
+		"librarryTorrentRoot":              defaultString(h.deps.Config.BookTorrentRoot, acquisition.DefaultTorrentRoot),
+		"librarryEbookCategory":            defaultString(h.deps.Config.EbookCategory, acquisition.CategoryBooksEbook),
+		"librarryAudiobookCategory":        defaultString(h.deps.Config.AudiobookCategory, acquisition.CategoryBooksAudiobook),
+		"librarryPersistedViaNative":       false,
+	}
+}
+
+func (h *handler) compatIndexerConfigRecord(overrides map[string]any) map[string]any {
+	return map[string]any{
+		"id":                         1,
+		"minimumAge":                 payloadIntDefault(overrides, "minimumAge", 0),
+		"retention":                  payloadIntDefault(overrides, "retention", 0),
+		"maximumSize":                payloadIntDefault(overrides, "maximumSize", 0),
+		"rssSyncInterval":            payloadIntDefault(overrides, "rssSyncInterval", durationMinutes(h.deps.Config.FeedSyncInterval, 15)),
+		"preferIndexerFlags":         payloadBoolDefault(overrides, "preferIndexerFlags", false),
+		"allowHardcodedSubs":         payloadBoolDefault(overrides, "allowHardcodedSubs", true),
+		"availabilityDelay":          payloadIntDefault(overrides, "availabilityDelay", 0),
+		"librarryProwlarrUrl":        h.deps.Config.ProwlarrURL,
+		"librarryPersistedViaNative": false,
+	}
+}
+
+func (h *handler) compatSystemTaskRecords() []map[string]any {
+	now := time.Now().UTC()
+	return []map[string]any{
+		compatSystemTaskRecord(1, "RssSync", "Prowlarr feed sync", h.deps.Config.FeedSyncInterval, h.deps.Config.FeedSyncEnabled, now),
+		compatSystemTaskRecord(2, "MissingBookSearch", "Wanted item monitor", h.deps.Config.MonitorInterval, h.deps.Config.MonitorEnabled, now),
+		compatSystemTaskRecord(3, "RefreshAuthor", "Author metadata monitor", h.deps.Config.AuthorMonitorInterval, h.deps.Config.AuthorMonitorEnabled, now),
+		compatSystemTaskRecord(4, "FailedDownloadCheck", "Failed download recovery", h.deps.Config.FailedDownloadInterval, h.deps.Config.FailedDownloadEnabled, now),
+		compatSystemTaskRecord(5, "UpgradeSearch", "Wanted upgrade search", h.deps.Config.UpgradeSearchInterval, h.deps.Config.UpgradeSearchEnabled, now),
 	}
 }
 
@@ -2156,6 +2346,24 @@ func compatQualityProfileRecord(id int, profile wanted.QualityProfile) map[strin
 	}
 }
 
+func compatDelayProfileRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "delay-profile")
+	}
+	return map[string]any{
+		"id":                             id,
+		"preferredProtocol":              firstNonEmptyString(payloadString(payload, "preferredProtocol"), "torrent"),
+		"usenetDelay":                    payloadIntDefault(payload, "usenetDelay", 0),
+		"torrentDelay":                   payloadIntDefault(payload, "torrentDelay", 0),
+		"bypassIfHighestQuality":         payloadBoolDefault(payload, "bypassIfHighestQuality", true),
+		"bypassIfAboveCustomFormatScore": payloadBoolDefault(payload, "bypassIfAboveCustomFormatScore", false),
+		"minimumCustomFormatScore":       payloadIntDefault(payload, "minimumCustomFormatScore", 0),
+		"order":                          payloadIntDefault(payload, "order", 1),
+		"tags":                           compatPayloadIntArray(payload, "tags"),
+		"librarryEphemeral":              true,
+	}
+}
+
 func compatQualityDefinitionRecords() []map[string]any {
 	qualities := []struct {
 		id            int
@@ -2331,6 +2539,30 @@ func compatRemotePathMappingRecord(payload map[string]any, id int) map[string]an
 		"remotePath":        payloadString(payload, "remotePath"),
 		"localPath":         payloadString(payload, "localPath"),
 		"librarryEphemeral": true,
+	}
+}
+
+func compatSystemTaskRecord(id int, name string, description string, interval time.Duration, enabled bool, now time.Time) map[string]any {
+	intervalMinutes := durationMinutes(interval, 0)
+	lastExecution := now.Add(-time.Duration(intervalMinutes) * time.Minute)
+	nextExecution := now.Add(time.Duration(intervalMinutes) * time.Minute)
+	if intervalMinutes <= 0 {
+		lastExecution = time.Time{}
+		nextExecution = time.Time{}
+	}
+	return map[string]any{
+		"id":            id,
+		"name":          name,
+		"taskName":      name,
+		"interval":      intervalMinutes,
+		"lastExecution": nullableTaskTime(lastExecution),
+		"nextExecution": nullableTaskTime(nextExecution),
+		"lastStartTime": nullableTaskTime(lastExecution),
+		"lastDuration":  "00:00:00",
+		"queued":        false,
+		"started":       false,
+		"enabled":       enabled,
+		"description":   description,
 	}
 }
 
@@ -2573,6 +2805,40 @@ func maskedValue(value string) string {
 		return ""
 	}
 	return "********"
+}
+
+func compatListenPort(listenAddr string, fallback int) int {
+	value := strings.TrimSpace(listenAddr)
+	if value == "" {
+		return fallback
+	}
+	if strings.Contains(value, ":") {
+		parts := strings.Split(value, ":")
+		value = parts[len(parts)-1]
+	}
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
+}
+
+func durationMinutes(value time.Duration, fallback int) int {
+	if value <= 0 {
+		return fallback
+	}
+	minutes := int(value.Minutes())
+	if minutes <= 0 {
+		return fallback
+	}
+	return minutes
+}
+
+func nullableTaskTime(value time.Time) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value
 }
 
 func parseBoolDefault(value string, fallback bool) bool {
