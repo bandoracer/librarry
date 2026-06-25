@@ -69,6 +69,11 @@ Initial API surface:
   - `PUT /api/v1/book/{id}`
   - `PUT /api/v1/book/monitor`
   - `DELETE /api/v1/book/{id}`
+  - `GET /api/v1/bookfile`
+  - `GET /api/v1/bookfile/{id}`
+  - `PUT /api/v1/bookfile/{id}`
+  - `DELETE /api/v1/bookfile/{id}`
+  - `DELETE /api/v1/bookfile/bulk`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/delayprofile`
@@ -287,6 +292,14 @@ provided folder for supported ebook/audiobook candidates, and `POST
 path. The naming and media-management compatibility config endpoints reflect
 the active Librarry roots and naming templates; persisted Readarr-style config
 writes are still future work.
+
+The Readarr-compatible `/api/v1/bookfile` surface maps native Librarry file
+records back into Arr-style bookfile records with stable numeric IDs, nested
+book/author records, quality, size, path, and date metadata. `GET
+/api/v1/bookfile` supports book and author ID filtering, while `GET
+/api/v1/bookfile/{id}` returns a single mapped file. `PUT` and `DELETE` are
+accepted for client compatibility, but file retagging and deletion are still
+native-library service work items.
 
 Readarr-compatible calendar, history, and parse endpoints are derived from
 wanted items, Librarry history events, and title parsing. The web UI keeps using

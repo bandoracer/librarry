@@ -90,6 +90,11 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/author/lookup"},
 		{"method": "GET", "path": "/api/v1/book"},
 		{"method": "GET", "path": "/api/v1/book/lookup"},
+		{"method": "GET", "path": "/api/v1/bookfile"},
+		{"method": "GET", "path": "/api/v1/bookfile/{id}"},
+		{"method": "PUT", "path": "/api/v1/bookfile/{id}"},
+		{"method": "DELETE", "path": "/api/v1/bookfile/{id}"},
+		{"method": "DELETE", "path": "/api/v1/bookfile/bulk"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
 		{"method": "GET", "path": "/api/v1/delayprofile"},
@@ -719,6 +724,107 @@ func (h *handler) compatMonitorBooks(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) compatDeleteBook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatBookFiles(w http.ResponseWriter, r *http.Request) {
+	files, items, ok := h.compatBookFileSource(w, r)
+	if !ok {
+		return
+	}
+	records := make([]map[string]any, 0, len(files))
+	for _, file := range files {
+		item := wantedItemForFile(file, items)
+		if !bookFileMatchesQuery(r, file, item) {
+			continue
+		}
+		records = append(records, compatBookFileRecord(file, item))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatBookFile(w http.ResponseWriter, r *http.Request) {
+	file, item, ok := h.compatFindBookFile(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatBookFileRecord(file, item))
+}
+
+func (h *handler) compatUpdateBookFile(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	file, item, ok := h.compatFindBookFile(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	var payload map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+	record := compatBookFileRecord(file, item)
+	if payload != nil {
+		if qualityName := payloadQualityName(payload); qualityName != "" {
+			record["quality"] = compatReleaseQuality(qualityName)
+		}
+	}
+	record["librarryCompatibilityNote"] = "bookfile update is accepted for Readarr API compatibility; Librarry does not mutate library files through this endpoint yet"
+	writeJSON(w, http.StatusOK, record)
+}
+
+func (h *handler) compatDeleteBookFile(w http.ResponseWriter, r *http.Request) {
+	if _, _, ok := h.compatFindBookFile(w, r, r.PathValue("id")); !ok {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatDeleteBookFileBulk(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatBookFileSource(w http.ResponseWriter, r *http.Request) ([]library.FileRecord, []wanted.WantedItem, bool) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return nil, nil, false
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	files, err := h.deps.Library.ListFiles(r.Context(), library.FileListQuery{
+		Format: r.URL.Query().Get("format"),
+		Status: r.URL.Query().Get("status"),
+		Limit:  limit,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return nil, nil, false
+	}
+	return files, h.compatWantedItemsBestEffort(r), true
+}
+
+func (h *handler) compatFindBookFile(w http.ResponseWriter, r *http.Request, id string) (library.FileRecord, *wanted.WantedItem, bool) {
+	files, items, ok := h.compatBookFileSource(w, r)
+	if !ok {
+		return library.FileRecord{}, nil, false
+	}
+	for _, file := range files {
+		if compatIDMatches(id, file.ID, file.Path, file.Title, filepath.Base(file.Path)) {
+			return file, wantedItemForFile(file, items), true
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "book file not found"})
+	return library.FileRecord{}, nil, false
+}
+
+func (h *handler) compatWantedItemsBestEffort(r *http.Request) []wanted.WantedItem {
+	if h.deps.Wanted == nil {
+		return nil
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "")
+	if err != nil {
+		return nil
+	}
+	return items
 }
 
 func (h *handler) compatBookLookup(w http.ResponseWriter, r *http.Request) {
@@ -1829,6 +1935,161 @@ func compatManualImportBaseRecord(id int, path string, mediaFormat string, title
 	}
 }
 
+func compatBookFileRecord(file library.FileRecord, item *wanted.WantedItem) map[string]any {
+	recordID := stableInt(firstNonEmptyString(file.ID, file.Path))
+	title := defaultString(file.Title, strings.TrimSuffix(filepath.Base(file.Path), filepath.Ext(file.Path)))
+	authorName := file.AuthorName
+	if item != nil {
+		title = defaultString(item.Title, title)
+		authorName = defaultString(item.AuthorName, authorName)
+	}
+	format := blocklistFormat(file.MediaFormat, file.Extension, file.Path, item)
+	bookID := stableInt(title)
+	authorID := stableInt(authorName)
+	if item != nil {
+		bookID = stableInt(item.ID)
+		authorID = stableInt(item.AuthorName)
+	}
+	editionID := stableInt(firstNonEmptyString(file.EditionID, title, file.Path))
+	record := map[string]any{
+		"id":                  recordID,
+		"librarryId":          file.ID,
+		"bookId":              bookID,
+		"authorId":            authorID,
+		"editionId":           editionID,
+		"path":                file.Path,
+		"relativePath":        filepath.Base(file.Path),
+		"folderName":          filepath.Dir(file.Path),
+		"size":                file.SizeBytes,
+		"dateAdded":           file.CreatedAt,
+		"modified":            file.ModifiedAt,
+		"quality":             compatReleaseQuality(format),
+		"qualityCutoffNotMet": false,
+		"qualityWeight":       1,
+		"language":            map[string]any{"id": 1, "name": "English"},
+		"languages":           []map[string]any{{"id": 1, "name": "English"}},
+		"mediaInfo":           map[string]any{},
+		"book":                compatBookFileBookRecord(title, authorName, format, item),
+		"author":              compatBookFileAuthorRecord(authorName, item),
+		"edition": map[string]any{
+			"id":               editionID,
+			"foreignEditionId": firstNonEmptyString(file.EditionID, fileMetadataString(file, "editionId")),
+			"title":            title,
+			"format":           format,
+		},
+		"bookFileType":          format,
+		"calibreId":             0,
+		"partCount":             1,
+		"sceneName":             "",
+		"releaseGroup":          "",
+		"librarryMediaFormat":   file.MediaFormat,
+		"librarryImportStatus":  file.ImportStatus,
+		"librarrySourcePath":    file.SourcePath,
+		"librarryChecksum":      file.Checksum,
+		"librarryCompatibility": "readarr-bookfile",
+	}
+	if !file.UpdatedAt.IsZero() {
+		record["librarryUpdatedAt"] = file.UpdatedAt
+	}
+	return record
+}
+
+func compatBookFileBookRecord(title string, authorName string, format string, item *wanted.WantedItem) map[string]any {
+	if item != nil {
+		return compatBookRecord(*item)
+	}
+	return map[string]any{
+		"id":             stableInt(title),
+		"title":          title,
+		"authorTitle":    authorName,
+		"authorId":       stableInt(authorName),
+		"titleSlug":      slug(title),
+		"monitored":      false,
+		"anyEditionOk":   true,
+		"statistics":     map[string]any{"bookFileCount": 1},
+		"librarryFormat": format,
+	}
+}
+
+func compatBookFileAuthorRecord(authorName string, item *wanted.WantedItem) map[string]any {
+	if item != nil {
+		return map[string]any{
+			"id":         stableInt(item.AuthorName),
+			"authorName": item.AuthorName,
+			"titleSlug":  slug(item.AuthorName),
+			"monitored":  true,
+		}
+	}
+	return map[string]any{
+		"id":         stableInt(authorName),
+		"authorName": authorName,
+		"titleSlug":  slug(authorName),
+		"monitored":  false,
+	}
+}
+
+func wantedItemForFile(file library.FileRecord, items []wanted.WantedItem) *wanted.WantedItem {
+	for _, item := range items {
+		if compatIDMatches(firstNonEmptyString(file.EditionID, fileMetadataString(file, "editionId")), item.EditionID, item.WorkID, item.ID, item.SourceKey) {
+			matched := item
+			return &matched
+		}
+	}
+	fileTitle := strings.TrimSpace(file.Title)
+	fileAuthor := strings.TrimSpace(file.AuthorName)
+	fileFormat := blocklistFormat(file.MediaFormat, file.Extension, file.Path)
+	for _, item := range items {
+		if fileTitle != "" && !strings.EqualFold(fileTitle, strings.TrimSpace(item.Title)) {
+			continue
+		}
+		if fileAuthor != "" && !strings.EqualFold(fileAuthor, strings.TrimSpace(item.AuthorName)) {
+			continue
+		}
+		if strings.TrimSpace(item.Format) != "" && !strings.EqualFold(blocklistFormat(&item), fileFormat) {
+			continue
+		}
+		matched := item
+		return &matched
+	}
+	return nil
+}
+
+func bookFileMatchesQuery(r *http.Request, file library.FileRecord, item *wanted.WantedItem) bool {
+	if bookID := strings.TrimSpace(r.URL.Query().Get("bookId")); bookID != "" {
+		candidates := []string{file.ID, file.EditionID, file.Title, file.Path, filepath.Base(file.Path)}
+		if item != nil {
+			candidates = append(candidates, item.ID, item.WorkID, item.EditionID, item.SourceKey, item.Title)
+		}
+		if !compatIDMatches(bookID, candidates...) {
+			return false
+		}
+	}
+	if authorID := strings.TrimSpace(r.URL.Query().Get("authorId")); authorID != "" {
+		candidates := []string{file.AuthorName}
+		if item != nil {
+			candidates = append(candidates, item.AuthorName)
+		}
+		if !compatIDMatches(authorID, candidates...) {
+			return false
+		}
+	}
+	return true
+}
+
+func fileMetadataString(file library.FileRecord, key string) string {
+	if file.Metadata == nil {
+		return ""
+	}
+	value, ok := file.Metadata[key]
+	if !ok || value == nil {
+		return ""
+	}
+	if text, ok := value.(string); ok {
+		return strings.TrimSpace(text)
+	}
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(jsonString(value)), `"`), `"`))
+}
+
 func compatReleaseRecord(release acquisition.Release, item *wanted.WantedItem) map[string]any {
 	releaseID := firstNonEmptyString(release.ID, release.InfoHash, release.DownloadURL, release.Title)
 	title, authorName := compatReleaseTitleAndAuthor(release, item)
@@ -2905,6 +3166,18 @@ func payloadString(payload map[string]any, key string) string {
 	default:
 		return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(jsonString(typed)), `"`), `"`))
 	}
+}
+
+func payloadQualityName(payload map[string]any) string {
+	qualityName := nestedString(payload, "quality", "name")
+	if qualityName != "" {
+		return qualityName
+	}
+	quality, ok := payload["quality"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	return firstNonEmptyString(nestedString(quality, "quality", "name"), payloadString(quality, "name"))
 }
 
 func nestedString(payload map[string]any, objectKey string, key string) string {

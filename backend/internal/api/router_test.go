@@ -421,6 +421,83 @@ func TestCompatAuthorAndBookEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatBookFileEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  fakeLibrary{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookfile", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var list []map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0]["librarryId"] != "file-1" || list[0]["path"] != "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" {
+		t.Fatalf("unexpected bookfile list: %+v", list)
+	}
+	if int(list[0]["bookId"].(float64)) != stableInt("wanted-1") {
+		t.Fatalf("expected wanted book id, got %+v", list[0])
+	}
+
+	bookID := stableInt("wanted-1")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/bookfile?bookId="+strconv.Itoa(bookID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	list = nil
+	if err := json.NewDecoder(res.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected bookId-filtered file, got %+v", list)
+	}
+
+	fileID := stableInt("file-1")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/bookfile/"+strconv.Itoa(fileID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"relativePath":"Project Hail Mary.epub"`) || !strings.Contains(res.Body.String(), `"librarryImportStatus":"imported"`) {
+		t.Fatalf("expected single bookfile payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/bookfile/"+strconv.Itoa(fileID), strings.NewReader(`{"quality":{"quality":{"name":"Audiobook"}}}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"librarryCompatibilityNote"`) {
+		t.Fatalf("expected update compatibility echo, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/bookfile/"+strconv.Itoa(fileID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/bookfile/bulk", strings.NewReader(`{"bookFileIds":[`+strconv.Itoa(fileID)+`]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestCompatAuthorAndBookCreateEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -1589,10 +1666,13 @@ type fakeLibrary struct{}
 func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.FileRecord, error) {
 	return []library.FileRecord{{
 		ID:           "file-1",
+		EditionID:    "openlibrary:OL1M",
 		MediaFormat:  "ebook",
 		Path:         "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
 		Title:        "Project Hail Mary",
 		AuthorName:   "Andy Weir",
+		Extension:    ".epub",
+		SizeBytes:    7340032,
 		ImportStatus: "imported",
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
