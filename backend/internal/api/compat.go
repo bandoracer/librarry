@@ -66,7 +66,14 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/ping"},
 		{"method": "GET", "path": "/api/v1/system/status"},
 		{"method": "GET", "path": "/api/v1/health"},
+		{"method": "GET", "path": "/api/v1/system/backup"},
+		{"method": "GET", "path": "/api/v1/update"},
 		{"method": "GET", "path": "/api/v1/diskspace"},
+		{"method": "GET", "path": "/api/v1/filesystem"},
+		{"method": "GET", "path": "/api/v1/language"},
+		{"method": "GET", "path": "/api/v1/localization"},
+		{"method": "GET", "path": "/api/v1/log"},
+		{"method": "GET", "path": "/api/v1/log/file"},
 		{"method": "GET", "path": "/api/v1/config/naming"},
 		{"method": "GET", "path": "/api/v1/config/mediamanagement"},
 		{"method": "GET", "path": "/api/v1/config/host"},
@@ -104,11 +111,14 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/qualitydefinition"},
 		{"method": "GET", "path": "/api/v1/languageprofile"},
 		{"method": "GET", "path": "/api/v1/metadataprofile"},
+		{"method": "GET", "path": "/api/v1/metadata"},
+		{"method": "GET", "path": "/api/v1/metadata/schema"},
 		{"method": "GET", "path": "/api/v1/customformat"},
 		{"method": "GET", "path": "/api/v1/tag"},
 		{"method": "GET", "path": "/api/v1/restriction"},
 		{"method": "GET", "path": "/api/v1/notification"},
 		{"method": "GET", "path": "/api/v1/importlist"},
+		{"method": "GET", "path": "/api/v1/importlistexclusion"},
 		{"method": "GET", "path": "/api/v1/remotepathmapping"},
 		{"method": "GET", "path": "/api/v1/downloadclient"},
 		{"method": "GET", "path": "/api/v1/indexer"},
@@ -124,6 +134,129 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) compatSystemDuplicateRoutes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatSystemBackups(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatUpdates(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatLanguages(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatLanguageRecords())
+}
+
+func (h *handler) compatLocalization(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"language":        "Language",
+		"quality":         "Quality",
+		"author":          "Author",
+		"book":            "Book",
+		"books":           "Books",
+		"wanted":          "Wanted",
+		"queue":           "Queue",
+		"history":         "History",
+		"settings":        "Settings",
+		"downloadClient":  "Download Client",
+		"indexer":         "Indexer",
+		"rootFolder":      "Root Folder",
+		"manualImport":    "Manual Import",
+		"metadataProfile": "Metadata Profile",
+		"qualityProfile":  "Quality Profile",
+	})
+}
+
+func (h *handler) compatLocalizationOptions(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{{
+		"id":   "en",
+		"name": "English",
+	}})
+}
+
+func (h *handler) compatFilesystem(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimSpace(r.URL.Query().Get("path"))
+	if path == "" {
+		writeJSON(w, http.StatusOK, h.compatFilesystemRoots(r.Context()))
+		return
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		writeJSON(w, http.StatusOK, []map[string]any{})
+		return
+	}
+	if !info.IsDir() {
+		writeJSON(w, http.StatusOK, []map[string]any{compatFilesystemEntry(path, info)})
+		return
+	}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		writeJSON(w, http.StatusOK, []map[string]any{})
+		return
+	}
+	includeFiles := queryBoolDefault(r, "includeFiles", true)
+	records := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		info, statErr := entry.Info()
+		if statErr != nil {
+			continue
+		}
+		if !info.IsDir() && !includeFiles {
+			continue
+		}
+		records = append(records, compatFilesystemEntry(filepath.Join(path, entry.Name()), info))
+	}
+	sort.Slice(records, func(i, j int) bool {
+		leftType := payloadString(records[i], "type")
+		rightType := payloadString(records[j], "type")
+		if leftType != rightType {
+			return leftType == "folder"
+		}
+		return strings.ToLower(payloadString(records[i], "name")) < strings.ToLower(payloadString(records[j], "name"))
+	})
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatLogFiles(w http.ResponseWriter, r *http.Request) {
+	now := time.Now().UTC()
+	writeJSON(w, http.StatusOK, []map[string]any{{
+		"filename":      "librarry.txt",
+		"lastWriteTime": now,
+		"contentsUrl":   "/api/v1/log/file/librarry.txt",
+		"downloadUrl":   "/api/v1/log/file/librarry.txt",
+	}})
+}
+
+func (h *handler) compatLogFile(w http.ResponseWriter, r *http.Request) {
+	filename := strings.TrimSpace(r.PathValue("filename"))
+	if filename == "" {
+		filename = "librarry.txt"
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("Librarry compatibility log: " + filename + "\n"))
+}
+
+func (h *handler) compatLogs(w http.ResponseWriter, r *http.Request) {
+	records := []map[string]any{{
+		"id":        1,
+		"time":      time.Now().UTC(),
+		"level":     "info",
+		"logger":    "librarry.compat",
+		"message":   "Librarry compatibility log endpoint is available.",
+		"exception": "",
+		"method":    "",
+		"path":      "",
+	}}
+	page, pageSize := pageParams(r, len(records))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"page":          page,
+		"pageSize":      pageSize,
+		"sortKey":       defaultString(r.URL.Query().Get("sortKey"), "time"),
+		"sortDirection": defaultString(r.URL.Query().Get("sortDirection"), "descending"),
+		"totalRecords":  len(records),
+		"records":       pageRecords(records, page, pageSize),
+	})
 }
 
 func (h *handler) compatHealth(w http.ResponseWriter, r *http.Request) {
@@ -1143,6 +1276,34 @@ func (h *handler) compatUpdateMetadataProfile(w http.ResponseWriter, r *http.Req
 	h.writeCompatResourceUpdate(w, r, "metadata-profile", "metadata profile", compatMetadataProfileRecord)
 }
 
+func (h *handler) compatMetadataConsumers(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceList(w, r, "metadata-consumer", nil, compatMetadataConsumerRecord)
+}
+
+func (h *handler) compatMetadataConsumer(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceGet(w, r, "metadata-consumer", nil, compatMetadataConsumerRecord)
+}
+
+func (h *handler) compatCreateMetadataConsumer(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceCreate(w, r, "metadata-consumer", "metadata", compatMetadataConsumerRecord)
+}
+
+func (h *handler) compatUpdateMetadataConsumer(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceUpdate(w, r, "metadata-consumer", "metadata", compatMetadataConsumerRecord)
+}
+
+func (h *handler) compatMetadataSchema(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{compatMetadataConsumerSchemaRecord("Calibre")})
+}
+
+func (h *handler) compatMetadataTest(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTest(w, r, "metadata-consumer", "metadata", compatMetadataConsumerRecord)
+}
+
+func (h *handler) compatMetadataTestAll(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTestAll(w, r, "metadata-consumer", nil, compatMetadataConsumerRecord)
+}
+
 func (h *handler) compatCustomFormats(w http.ResponseWriter, r *http.Request) {
 	h.writeCompatResourceList(w, r, "custom-format", nil, compatCustomFormatRecord)
 }
@@ -1233,6 +1394,22 @@ func (h *handler) compatCreateImportList(w http.ResponseWriter, r *http.Request)
 
 func (h *handler) compatUpdateImportList(w http.ResponseWriter, r *http.Request) {
 	h.writeCompatResourceUpdate(w, r, "import-list", "import list", compatImportListRecord)
+}
+
+func (h *handler) compatImportListExclusions(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceList(w, r, "import-list-exclusion", nil, compatImportListExclusionRecord)
+}
+
+func (h *handler) compatImportListExclusion(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceGet(w, r, "import-list-exclusion", nil, compatImportListExclusionRecord)
+}
+
+func (h *handler) compatCreateImportListExclusion(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceCreate(w, r, "import-list-exclusion", "import list exclusion", compatImportListExclusionRecord)
+}
+
+func (h *handler) compatUpdateImportListExclusion(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceUpdate(w, r, "import-list-exclusion", "import list exclusion", compatImportListExclusionRecord)
 }
 
 func (h *handler) compatImportListSchema(w http.ResponseWriter, r *http.Request) {
@@ -2319,6 +2496,8 @@ func compatResourceTypeFromPath(path string) string {
 		return "language-profile"
 	case "metadataprofile":
 		return "metadata-profile"
+	case "metadata":
+		return "metadata-consumer"
 	case "customformat":
 		return "custom-format"
 	case "tag":
@@ -2329,6 +2508,8 @@ func compatResourceTypeFromPath(path string) string {
 		return "notification"
 	case "importlist":
 		return "import-list"
+	case "importlistexclusion":
+		return "import-list-exclusion"
 	case "remotepathmapping":
 		return "remote-path-mapping"
 	case "downloadclient":
@@ -2350,6 +2531,8 @@ func compatResourceRecordFuncForType(resourceType string) compatResourceRecordFu
 		return compatLanguageProfileRecord
 	case "metadata-profile":
 		return compatMetadataProfileRecord
+	case "metadata-consumer":
+		return compatMetadataConsumerRecord
 	case "custom-format":
 		return compatCustomFormatRecord
 	case "tag":
@@ -2360,6 +2543,8 @@ func compatResourceRecordFuncForType(resourceType string) compatResourceRecordFu
 		return compatNotificationRecord
 	case "import-list":
 		return compatImportListRecord
+	case "import-list-exclusion":
+		return compatImportListExclusionRecord
 	case "remote-path-mapping":
 		return compatRemotePathMappingRecord
 	case "download-client":
@@ -3879,6 +4064,24 @@ func compatMetadataProfileRecord(payload map[string]any, id int) map[string]any 
 	}
 }
 
+func compatMetadataConsumerRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "metadata-consumer")
+	}
+	implementation := firstNonEmptyString(payloadString(payload, "implementation"), payloadString(payload, "implementationName"), "Calibre")
+	return map[string]any{
+		"id":                 id,
+		"name":               firstNonEmptyString(payloadString(payload, "name"), implementation),
+		"implementation":     implementation,
+		"implementationName": firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
+		"configContract":     firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
+		"enable":             payloadBoolDefault(payload, "enable", false),
+		"fields":             compatPayloadArray(payload, "fields"),
+		"tags":               compatPayloadIntArray(payload, "tags"),
+		"librarryEphemeral":  true,
+	}
+}
+
 func compatCustomFormatRecord(payload map[string]any, id int) map[string]any {
 	if id <= 0 {
 		id = stablePayloadID(payload, "custom-format")
@@ -3960,6 +4163,26 @@ func compatImportListRecord(payload map[string]any, id int) map[string]any {
 	}
 }
 
+func compatImportListExclusionRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "import-list-exclusion")
+	}
+	authorName := firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "authorTitle"), nestedString(payload, "author", "authorName"))
+	bookTitle := firstNonEmptyString(payloadString(payload, "bookTitle"), payloadString(payload, "title"), nestedString(payload, "book", "title"))
+	return map[string]any{
+		"id":                id,
+		"foreignId":         firstNonEmptyString(payloadString(payload, "foreignId"), payloadString(payload, "foreignBookId"), payloadString(payload, "foreignAuthorId")),
+		"authorId":          payloadIntDefault(payload, "authorId", stableInt(authorName)),
+		"authorName":        authorName,
+		"bookId":            payloadIntDefault(payload, "bookId", stableInt(bookTitle)),
+		"bookTitle":         bookTitle,
+		"title":             firstNonEmptyString(bookTitle, authorName),
+		"monitored":         false,
+		"createdAt":         time.Now().UTC(),
+		"librarryEphemeral": true,
+	}
+}
+
 func compatRemotePathMappingRecord(payload map[string]any, id int) map[string]any {
 	if id <= 0 {
 		id = stablePayloadID(payload, "remote-path-mapping")
@@ -3994,6 +4217,77 @@ func compatSystemTaskRecord(id int, name string, description string, interval ti
 		"started":       false,
 		"enabled":       enabled,
 		"description":   description,
+	}
+}
+
+func (h *handler) compatFilesystemRoots(ctx context.Context) []map[string]any {
+	records, err := h.compatRootFolderRecords(ctx)
+	if err != nil || len(records) == 0 {
+		wd := mustGetwd()
+		return []map[string]any{{
+			"type":         "folder",
+			"name":         filepath.Base(wd),
+			"path":         wd,
+			"relativePath": "",
+			"extension":    "",
+			"size":         0,
+			"lastModified": time.Now().UTC(),
+			"isFile":       false,
+			"isFolder":     true,
+		}}
+	}
+	roots := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		path := payloadString(record, "path")
+		if path == "" {
+			continue
+		}
+		name := firstNonEmptyString(payloadString(record, "name"), filepath.Base(path), path)
+		roots = append(roots, map[string]any{
+			"type":         "folder",
+			"name":         name,
+			"path":         path,
+			"relativePath": "",
+			"extension":    "",
+			"size":         0,
+			"lastModified": time.Now().UTC(),
+			"isFile":       false,
+			"isFolder":     true,
+		})
+	}
+	return roots
+}
+
+func compatFilesystemEntry(path string, info os.FileInfo) map[string]any {
+	entryType := "file"
+	if info.IsDir() {
+		entryType = "folder"
+	}
+	return map[string]any{
+		"type":         entryType,
+		"name":         info.Name(),
+		"path":         path,
+		"relativePath": info.Name(),
+		"extension":    strings.TrimPrefix(filepath.Ext(info.Name()), "."),
+		"size":         info.Size(),
+		"lastModified": info.ModTime().UTC(),
+		"isFile":       !info.IsDir(),
+		"isFolder":     info.IsDir(),
+	}
+}
+
+func compatLanguageRecords() []map[string]any {
+	return []map[string]any{
+		{"id": 1, "name": "English", "nameLower": "english"},
+		{"id": 2, "name": "French", "nameLower": "french"},
+		{"id": 3, "name": "German", "nameLower": "german"},
+		{"id": 4, "name": "Spanish", "nameLower": "spanish"},
+		{"id": 5, "name": "Italian", "nameLower": "italian"},
+		{"id": 6, "name": "Japanese", "nameLower": "japanese"},
+		{"id": 7, "name": "Portuguese", "nameLower": "portuguese"},
+		{"id": 8, "name": "Polish", "nameLower": "polish"},
+		{"id": 9, "name": "Dutch", "nameLower": "dutch"},
+		{"id": 10, "name": "Chinese", "nameLower": "chinese"},
 	}
 }
 
@@ -4115,6 +4409,21 @@ func compatImportListSchemaRecord(implementation string) map[string]any {
 			map[string]any{"name": "metadataProfileId", "label": "Metadata Profile", "type": "select", "value": 1},
 		},
 	}, stableInt("import-list-schema:"+implementation))
+}
+
+func compatMetadataConsumerSchemaRecord(implementation string) map[string]any {
+	return compatMetadataConsumerRecord(map[string]any{
+		"name":               implementation,
+		"implementation":     implementation,
+		"implementationName": implementation,
+		"configContract":     implementation + "Settings",
+		"fields": []any{
+			map[string]any{"name": "host", "label": "Host", "type": "textbox", "value": ""},
+			map[string]any{"name": "port", "label": "Port", "type": "number", "value": 8080},
+			map[string]any{"name": "username", "label": "Username", "type": "textbox", "value": ""},
+			map[string]any{"name": "password", "label": "Password", "type": "password", "value": ""},
+		},
+	}, stableInt("metadata-schema:"+implementation))
 }
 
 func downloadClientFields(implementation string, host string, category string) []any {
@@ -4537,6 +4846,18 @@ func payloadBoolDefault(payload map[string]any, key string, fallback bool) bool 
 		return typed != 0
 	}
 	return fallback
+}
+
+func queryBoolDefault(r *http.Request, key string, fallback bool) bool {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func payloadIntDefault(payload map[string]any, key string, fallback int) int {

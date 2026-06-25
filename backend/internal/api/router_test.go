@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -655,6 +657,106 @@ func TestCompatArrResourceUtilityEndpointsPersist(t *testing.T) {
 	}
 	if len(compatResources.deletedResources) != 1 || compatResources.deletedResources[0] != "indexer:44" {
 		t.Fatalf("expected persisted indexer bulk delete, got %#v", compatResources.deletedResources)
+	}
+}
+
+func TestCompatOperationalSupportEndpoints(t *testing.T) {
+	tempDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(tempDir, "authors"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tempDir, "book.epub"), []byte("epub"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", EbookLibraryRoot: tempDir},
+		Metadata: metadata.NewService(nil),
+	})
+
+	checks := []struct {
+		path string
+		want string
+	}{
+		{"/api/v1/language", `"name":"English"`},
+		{"/api/v1/localization", `"book":"Book"`},
+		{"/api/v1/localization/options", `"id":"en"`},
+		{"/api/v1/system/backup", `[]`},
+		{"/api/v1/update", `[]`},
+		{"/api/v1/log", `"totalRecords":1`},
+		{"/api/v1/log/file", `"filename":"librarry.txt"`},
+		{"/api/v1/filesystem?path=" + tempDir + "&includeFiles=true", `"name":"book.epub"`},
+		{"/api/v1/filesystem?path=" + tempDir + "&includeFiles=false", `"name":"authors"`},
+	}
+	for _, check := range checks {
+		req := httptest.NewRequest(http.MethodGet, check.path, nil)
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		if res.Code != http.StatusOK {
+			t.Fatalf("%s expected 200, got %d: %s", check.path, res.Code, res.Body.String())
+		}
+		if !strings.Contains(res.Body.String(), check.want) {
+			t.Fatalf("%s expected %s, got %s", check.path, check.want, res.Body.String())
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/filesystem?path="+tempDir+"&includeFiles=false", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if strings.Contains(res.Body.String(), `"name":"book.epub"`) {
+		t.Fatalf("expected includeFiles=false to omit files, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/log/file/librarry.txt", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "Librarry compatibility log") {
+		t.Fatalf("expected log file body, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
+func TestCompatMetadataAndImportListExclusionEndpointsPersist(t *testing.T) {
+	compatResources := &fakeCompatResources{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Compat:   compatResources,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/metadata/schema", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"implementation":"Calibre"`) {
+		t.Fatalf("expected metadata schema, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/metadata", strings.NewReader(`{"name":"Calibre","implementation":"Calibre","enable":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"implementation":"Calibre"`) || !strings.Contains(res.Body.String(), `"librarryPersisted":true`) {
+		t.Fatalf("expected persisted metadata consumer, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/metadata/testall", strings.NewReader(`{}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"resourceType":"metadata-consumer"`) {
+		t.Fatalf("expected metadata testall result, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/importlistexclusion", strings.NewReader(`{"authorName":"Andy Weir","bookTitle":"Project Hail Mary","foreignId":"openlibrary:OL1W"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"bookTitle":"Project Hail Mary"`) || !strings.Contains(res.Body.String(), `"foreignId":"openlibrary:OL1W"`) {
+		t.Fatalf("expected persisted import list exclusion, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/importlistexclusion", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"authorName":"Andy Weir"`) {
+		t.Fatalf("expected import list exclusions, got %d: %s", res.Code, res.Body.String())
 	}
 }
 

@@ -17,7 +17,16 @@ Initial API surface:
   - `GET /api/v1/system/routes`
   - `GET /api/v1/system/routes/duplicate`
   - `GET /api/v1/health`
+  - `GET /api/v1/system/backup`
+  - `GET /api/v1/update`
   - `GET /api/v1/diskspace`
+  - `GET /api/v1/filesystem`
+  - `GET /api/v1/language`
+  - `GET /api/v1/localization`
+  - `GET /api/v1/localization/options`
+  - `GET /api/v1/log`
+  - `GET /api/v1/log/file`
+  - `GET /api/v1/log/file/{filename}`
   - `GET /api/v1/config/naming`
   - `GET /api/v1/config/naming/{id}`
   - `PUT /api/v1/config/naming/{id}`
@@ -94,6 +103,17 @@ Initial API surface:
   - `GET /api/v1/metadataprofile/{id}`
   - `PUT /api/v1/metadataprofile/{id}`
   - `DELETE /api/v1/metadataprofile/{id}`
+  - `GET /api/v1/metadata`
+  - `GET /api/v1/metadata/schema`
+  - `POST /api/v1/metadata/test`
+  - `POST /api/v1/metadata/testall`
+  - `POST /api/v1/metadata/action/{name}`
+  - `PUT /api/v1/metadata/bulk`
+  - `DELETE /api/v1/metadata/bulk`
+  - `POST /api/v1/metadata`
+  - `GET /api/v1/metadata/{id}`
+  - `PUT /api/v1/metadata/{id}`
+  - `DELETE /api/v1/metadata/{id}`
   - `GET /api/v1/customformat`
   - `POST /api/v1/customformat`
   - `GET /api/v1/customformat/{id}`
@@ -131,6 +151,11 @@ Initial API surface:
   - `GET /api/v1/importlist/{id}`
   - `PUT /api/v1/importlist/{id}`
   - `DELETE /api/v1/importlist/{id}`
+  - `GET /api/v1/importlistexclusion`
+  - `POST /api/v1/importlistexclusion`
+  - `GET /api/v1/importlistexclusion/{id}`
+  - `PUT /api/v1/importlistexclusion/{id}`
+  - `DELETE /api/v1/importlistexclusion/{id}`
   - `GET /api/v1/remotepathmapping`
   - `POST /api/v1/remotepathmapping`
   - `GET /api/v1/remotepathmapping/{id}`
@@ -276,12 +301,19 @@ Readarr-compatible root folders are persisted in Postgres through
 and audiobook roots as defaults, overlays persisted folders by path, and maps
 stored UUIDs to stable integer IDs for Arr-style clients.
 
+Readarr-compatible operational support endpoints expose filesystem browsing,
+languages, localization strings, logs, update records, and backup records. The
+current log, backup, and update endpoints are intentionally conservative
+compatibility surfaces: they satisfy normal client probes without pretending to
+run an in-app updater or backup manager.
+
 Common Arr resource endpoints are exposed for quality definitions, language
-profiles, metadata profiles, tags, custom formats, restrictions, notifications,
-import lists, and remote path mappings. These endpoints render useful defaults
-and persist create, update, and delete operations in `compat_resources` using
-the Readarr-style integer ID exposed to API clients. Resource payloads are kept
-as JSON so Librarry can preserve fields it does not natively interpret yet.
+profiles, metadata profiles, metadata consumers, tags, custom formats,
+restrictions, notifications, import lists, import-list exclusions, and remote
+path mappings. These endpoints render useful defaults and persist create,
+update, and delete operations in `compat_resources` using the Readarr-style
+integer ID exposed to API clients. Resource payloads are kept as JSON so
+Librarry can preserve fields it does not natively interpret yet.
 Download-client, indexer, notification, and import-list resources also expose
 Readarr-style schema, test, test-all, action, and bulk mutation endpoints so
 Arr clients that validate resource implementations before saving can complete

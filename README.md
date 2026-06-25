@@ -150,10 +150,13 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Readarr-compatible root folder list, lookup, create, and delete endpoints
   backed by Postgres, with environment-configured ebook/audiobook roots kept as
   defaults.
+- Readarr-compatible filesystem, language, localization, log, update, and backup
+  support endpoints for common Arr client probes.
 - Readarr-compatible resource catalog endpoints for quality definitions,
-  language profiles, metadata profiles, tags, custom formats, restrictions,
-  notifications, import lists, and remote path mappings, with create/update/list
-  and delete persisted in Postgres.
+  language profiles, metadata profiles, metadata consumers, tags, custom
+  formats, restrictions, notifications, import lists, import-list exclusions,
+  and remote path mappings, with create/update/list and delete persisted in
+  Postgres.
 - Readarr-compatible naming, media-management, host, UI, download-client, and
   indexer config endpoints with Postgres-backed compatible PUT/GET persistence,
   plus system-task endpoints derived from Librarry scheduler settings.
@@ -175,15 +178,17 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   stop, and delete actions.
 - Readarr-compatible API shim for common client probes and status views,
   including `/ping`, `/api/v1/system/status`, `/api/v1/health`,
-  `/api/v1/diskspace`, `/api/v1/rootfolder`, `/api/v1/queue`,
+  `/api/v1/system/backup`, `/api/v1/update`, `/api/v1/diskspace`,
+  `/api/v1/filesystem`, `/api/v1/language`, `/api/v1/localization`,
+  `/api/v1/log`, `/api/v1/rootfolder`, `/api/v1/queue`,
   `/api/v1/blocklist`, `/api/v1/blacklist`,
   `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/book`,
   `/api/v1/book/lookup`, `/api/v1/bookfile`, `/api/v1/calendar`, `/api/v1/history`,
   `/api/v1/rename`, `/api/v1/parse`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
   `/api/v1/qualityprofile`, `/api/v1/qualitydefinition`,
   `/api/v1/delayprofile`, `/api/v1/languageprofile`, `/api/v1/metadataprofile`,
-  `/api/v1/customformat`, `/api/v1/tag`, `/api/v1/restriction`,
-  `/api/v1/notification`, `/api/v1/importlist`,
+  `/api/v1/metadata`, `/api/v1/customformat`, `/api/v1/tag`, `/api/v1/restriction`,
+  `/api/v1/notification`, `/api/v1/importlist`, `/api/v1/importlistexclusion`,
   `/api/v1/remotepathmapping`, `/api/v1/downloadclient`, `/api/v1/indexer`,
   `/api/v1/release`, `/api/v1/command`, and `/api/v1/system/task`, plus
   read-compatible host, UI, naming, media-management, indexer, and
@@ -229,7 +234,16 @@ Important API surfaces:
   - `GET /api/v1/system/routes`
   - `GET /api/v1/system/routes/duplicate`
   - `GET /api/v1/health`
+  - `GET /api/v1/system/backup`
+  - `GET /api/v1/update`
   - `GET /api/v1/diskspace`
+  - `GET /api/v1/filesystem`
+  - `GET /api/v1/language`
+  - `GET /api/v1/localization`
+  - `GET /api/v1/localization/options`
+  - `GET /api/v1/log`
+  - `GET /api/v1/log/file`
+  - `GET /api/v1/log/file/{filename}`
   - `GET /api/v1/config/naming`
   - `GET /api/v1/config/naming/{id}`
   - `PUT /api/v1/config/naming/{id}`
@@ -306,6 +320,17 @@ Important API surfaces:
   - `GET /api/v1/metadataprofile/{id}`
   - `PUT /api/v1/metadataprofile/{id}`
   - `DELETE /api/v1/metadataprofile/{id}`
+  - `GET /api/v1/metadata`
+  - `GET /api/v1/metadata/schema`
+  - `POST /api/v1/metadata/test`
+  - `POST /api/v1/metadata/testall`
+  - `POST /api/v1/metadata/action/{name}`
+  - `PUT /api/v1/metadata/bulk`
+  - `DELETE /api/v1/metadata/bulk`
+  - `POST /api/v1/metadata`
+  - `GET /api/v1/metadata/{id}`
+  - `PUT /api/v1/metadata/{id}`
+  - `DELETE /api/v1/metadata/{id}`
   - `GET /api/v1/customformat`
   - `POST /api/v1/customformat`
   - `GET /api/v1/customformat/{id}`
@@ -343,6 +368,11 @@ Important API surfaces:
   - `GET /api/v1/importlist/{id}`
   - `PUT /api/v1/importlist/{id}`
   - `DELETE /api/v1/importlist/{id}`
+  - `GET /api/v1/importlistexclusion`
+  - `POST /api/v1/importlistexclusion`
+  - `GET /api/v1/importlistexclusion/{id}`
+  - `PUT /api/v1/importlistexclusion/{id}`
+  - `DELETE /api/v1/importlistexclusion/{id}`
   - `GET /api/v1/remotepathmapping`
   - `POST /api/v1/remotepathmapping`
   - `GET /api/v1/remotepathmapping/{id}`
