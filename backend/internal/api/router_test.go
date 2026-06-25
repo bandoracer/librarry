@@ -707,7 +707,7 @@ func TestUpgradeWantedEndpoint(t *testing.T) {
 	}
 }
 
-func TestHistoryEndpoint(t *testing.T) {
+func TestCompatHistoryCalendarAndParseEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
 		Config:   config.Config{WebOrigin: "*"},
@@ -722,8 +722,58 @@ func TestHistoryEndpoint(t *testing.T) {
 	if res.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), "wanted_searched") {
-		t.Fatalf("expected history event in response, got %s", res.Body.String())
+	if !strings.Contains(res.Body.String(), `"records"`) || !strings.Contains(res.Body.String(), `"librarryEventType":"wanted_searched"`) {
+		t.Fatalf("expected Readarr history records in response, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/history/since?date=2000-01-01", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"eventType":"bookSearch"`) {
+		t.Fatalf("expected Readarr history since records in response, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/calendar", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"title":"Project Hail Mary"`) || !strings.Contains(res.Body.String(), `"airDate"`) {
+		t.Fatalf("expected calendar records in response, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/parse?title=Andy%20Weir%20-%20Project%20Hail%20Mary", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"parsedTitle":"Project Hail Mary"`) || !strings.Contains(res.Body.String(), `"authorTitle":"Andy Weir"`) {
+		t.Fatalf("expected parse payload in response, got %s", res.Body.String())
+	}
+}
+
+func TestNativeHistoryEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/librarry/history?limit=5", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"events"`) || !strings.Contains(res.Body.String(), "wanted_searched") {
+		t.Fatalf("expected native history event in response, got %s", res.Body.String())
 	}
 }
 

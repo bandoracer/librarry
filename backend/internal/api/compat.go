@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -66,6 +67,12 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/diskspace"},
 		{"method": "GET", "path": "/api/v1/config/naming"},
 		{"method": "GET", "path": "/api/v1/config/mediamanagement"},
+		{"method": "GET", "path": "/api/v1/calendar"},
+		{"method": "GET", "path": "/api/v1/history"},
+		{"method": "GET", "path": "/api/v1/history/since"},
+		{"method": "GET", "path": "/api/v1/history/author"},
+		{"method": "GET", "path": "/api/v1/history/book"},
+		{"method": "GET", "path": "/api/v1/parse"},
 		{"method": "GET", "path": "/api/v1/rootfolder"},
 		{"method": "GET", "path": "/api/v1/queue"},
 		{"method": "GET", "path": "/api/v1/queue/status"},
@@ -168,6 +175,121 @@ func (h *handler) compatUpdateMediaManagementConfig(w http.ResponseWriter, r *ht
 	var payload map[string]any
 	_ = json.NewDecoder(r.Body).Decode(&payload)
 	writeJSON(w, http.StatusOK, h.compatMediaManagementConfigRecord(payload))
+}
+
+func (h *handler) compatCalendar(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	start := parseTimeQuery(r.URL.Query().Get("start"))
+	end := parseTimeQuery(r.URL.Query().Get("end"))
+	records := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		record := compatCalendarRecord(item)
+		airDate := calendarDateForItem(item)
+		if !timeInRange(airDate, start, end) {
+			continue
+		}
+		records = append(records, record)
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatHistory(w http.ResponseWriter, r *http.Request) {
+	events, ok := h.compatHistoryEvents(w, r)
+	if !ok {
+		return
+	}
+	records := compatHistoryRecords(events)
+	page, pageSize := pageParams(r, len(records))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"page":          page,
+		"pageSize":      pageSize,
+		"sortKey":       defaultString(r.URL.Query().Get("sortKey"), "date"),
+		"sortDirection": defaultString(r.URL.Query().Get("sortDirection"), "descending"),
+		"totalRecords":  len(records),
+		"records":       pageRecords(records, page, pageSize),
+	})
+}
+
+func (h *handler) compatHistorySince(w http.ResponseWriter, r *http.Request) {
+	events, ok := h.compatHistoryEvents(w, r)
+	if !ok {
+		return
+	}
+	since := parseTimeQuery(firstNonEmptyString(r.URL.Query().Get("date"), r.URL.Query().Get("since")))
+	records := make([]map[string]any, 0, len(events))
+	for _, event := range events {
+		if !since.IsZero() && event.CreatedAt.Before(since) {
+			continue
+		}
+		records = append(records, compatHistoryRecord(event))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatHistoryAuthors(w http.ResponseWriter, r *http.Request) {
+	events, ok := h.compatHistoryEvents(w, r)
+	if !ok {
+		return
+	}
+	seen := map[int]map[string]any{}
+	for _, event := range events {
+		record := compatHistoryRecord(event)
+		author, _ := record["author"].(map[string]any)
+		id, _ := author["id"].(int)
+		if id == 0 {
+			continue
+		}
+		seen[id] = author
+	}
+	writeJSON(w, http.StatusOK, mapsByIntKey(seen))
+}
+
+func (h *handler) compatHistoryBooks(w http.ResponseWriter, r *http.Request) {
+	events, ok := h.compatHistoryEvents(w, r)
+	if !ok {
+		return
+	}
+	seen := map[int]map[string]any{}
+	for _, event := range events {
+		record := compatHistoryRecord(event)
+		book, _ := record["book"].(map[string]any)
+		id, _ := book["id"].(int)
+		if id == 0 {
+			continue
+		}
+		seen[id] = book
+	}
+	writeJSON(w, http.StatusOK, mapsByIntKey(seen))
+}
+
+func (h *handler) compatParse(w http.ResponseWriter, r *http.Request) {
+	title := strings.TrimSpace(firstNonEmptyString(r.URL.Query().Get("title"), r.URL.Query().Get("term")))
+	if title == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "title is required"})
+		return
+	}
+	parsedTitle, parsedAuthor := parseCompatReleaseTitle(title)
+	format := firstNonEmptyString(r.URL.Query().Get("format"), "ebook")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"title":          title,
+		"parsedTitle":    parsedTitle,
+		"authorTitle":    parsedAuthor,
+		"author":         map[string]any{"id": stableInt(parsedAuthor), "authorName": parsedAuthor, "titleSlug": slug(parsedAuthor)},
+		"book":           map[string]any{"id": stableInt(parsedTitle), "title": parsedTitle, "authorTitle": parsedAuthor, "titleSlug": slug(parsedTitle)},
+		"books":          []map[string]any{{"id": stableInt(parsedTitle), "title": parsedTitle, "authorTitle": parsedAuthor, "titleSlug": slug(parsedTitle)}},
+		"quality":        map[string]any{"quality": map[string]any{"id": stableInt(format), "name": format}, "revision": map[string]any{"version": 1, "real": 0, "isRepack": false}},
+		"languages":      []map[string]any{{"id": 1, "name": "English"}},
+		"releaseTitle":   title,
+		"librarryParsed": true,
+	})
 }
 
 func (h *handler) compatRootFolders(w http.ResponseWriter, r *http.Request) {
@@ -751,6 +873,23 @@ func (h *handler) compatDownloads(w http.ResponseWriter, r *http.Request) ([]acq
 	return downloads, true
 }
 
+func (h *handler) compatHistoryEvents(w http.ResponseWriter, r *http.Request) ([]wanted.HistoryEvent, bool) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return nil, false
+	}
+	limit, _ := strconv.Atoi(firstNonEmptyString(r.URL.Query().Get("limit"), r.URL.Query().Get("pageSize")))
+	if limit <= 0 {
+		limit = 100
+	}
+	events, err := h.deps.Wanted.History(r.Context(), wanted.HistoryQuery{Limit: limit})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return nil, false
+	}
+	return events, true
+}
+
 func (h *handler) compatWantedItems(r *http.Request) []wanted.WantedItem {
 	if h.deps.Wanted == nil {
 		return nil
@@ -886,6 +1025,93 @@ func compatRootFolderRecord(id int, name string, path string) map[string]any {
 		"totalSpace":      total,
 		"unmappedFolders": []any{},
 	}
+}
+
+func compatCalendarRecord(item wanted.WantedItem) map[string]any {
+	date := calendarDateForItem(item)
+	return map[string]any{
+		"id":             stableInt(item.ID),
+		"title":          item.Title,
+		"authorTitle":    item.AuthorName,
+		"releaseDate":    date,
+		"airDate":        date.Format("2006-01-02"),
+		"airDateUtc":     date,
+		"monitored":      item.Status != "ignored",
+		"anyEditionOk":   true,
+		"qualityProfile": item.QualityProfile,
+		"status":         item.Status,
+		"author": map[string]any{
+			"id":         stableInt(item.AuthorName),
+			"authorName": item.AuthorName,
+			"titleSlug":  slug(item.AuthorName),
+			"monitored":  true,
+		},
+		"book":           compatBookRecord(item),
+		"librarryId":     item.ID,
+		"librarryFormat": item.Format,
+	}
+}
+
+func calendarDateForItem(item wanted.WantedItem) time.Time {
+	switch {
+	case item.LastSearchAt != nil:
+		return item.LastSearchAt.UTC()
+	case item.LastUpgradeSearchAt != nil:
+		return item.LastUpgradeSearchAt.UTC()
+	case !item.UpdatedAt.IsZero():
+		return item.UpdatedAt.UTC()
+	case !item.CreatedAt.IsZero():
+		return item.CreatedAt.UTC()
+	default:
+		return time.Now().UTC()
+	}
+}
+
+func compatHistoryRecords(events []wanted.HistoryEvent) []map[string]any {
+	records := make([]map[string]any, 0, len(events))
+	for _, event := range events {
+		records = append(records, compatHistoryRecord(event))
+	}
+	return records
+}
+
+func compatHistoryRecord(event wanted.HistoryEvent) map[string]any {
+	title := historyTitle(event)
+	authorName := historyAuthor(event)
+	bookID := stableInt(firstNonEmptyString(historyDataString(event, "wantedId"), event.EntityID, title))
+	record := map[string]any{
+		"id":          stableInt(firstNonEmptyString(event.ID, event.EventType+event.CreatedAt.Format(time.RFC3339Nano))),
+		"eventType":   compatHistoryEventType(event.EventType),
+		"sourceTitle": title,
+		"date":        event.CreatedAt,
+		"quality": map[string]any{
+			"quality":  map[string]any{"id": stableInt(historyDataString(event, "format")), "name": firstNonEmptyString(historyDataString(event, "format"), "ebook")},
+			"revision": map[string]any{"version": 1, "real": 0, "isRepack": false},
+		},
+		"languages": []map[string]any{{"id": 1, "name": "English"}},
+		"data":      historyData(event),
+		"author": map[string]any{
+			"id":         stableInt(authorName),
+			"authorName": authorName,
+			"titleSlug":  slug(authorName),
+		},
+		"book": map[string]any{
+			"id":          bookID,
+			"title":       title,
+			"authorTitle": authorName,
+			"titleSlug":   slug(title),
+		},
+		"librarryEventType": event.EventType,
+		"librarrySeverity":  event.Severity,
+		"librarryMessage":   event.Message,
+	}
+	if downloadID := historyDataString(event, "downloadId"); downloadID != "" {
+		record["downloadId"] = downloadID
+	}
+	if releaseID := historyDataString(event, "releaseId"); releaseID != "" {
+		record["releaseId"] = releaseID
+	}
+	return record
 }
 
 func compatManualImportReviewRecord(review library.ImportReview) map[string]any {
@@ -1522,6 +1748,131 @@ func renderCompatTemplate(template string, values map[string]string, spaceReplac
 		template = strings.ReplaceAll(template, " ", spaceReplacement)
 	}
 	return template
+}
+
+func compatHistoryEventType(eventType string) string {
+	switch strings.ToLower(strings.TrimSpace(eventType)) {
+	case "wanted_grabbed", "feed_grabbed", "upgrade_grabbed":
+		return "grabbed"
+	case "wanted_imported", "download_imported", "manual_imported":
+		return "downloadFolderImported"
+	case "download_failed", "wanted_grab_failed", "feed_grab_failed":
+		return "downloadFailed"
+	case "wanted_searched", "feed_sync", "upgrade_found":
+		return "bookSearch"
+	default:
+		return "unknown"
+	}
+}
+
+func historyTitle(event wanted.HistoryEvent) string {
+	return firstNonEmptyString(
+		historyDataString(event, "title"),
+		historyDataString(event, "bookTitle"),
+		historyDataString(event, "releaseTitle"),
+		event.Message,
+		event.EntityID,
+		"Unknown Book",
+	)
+}
+
+func historyAuthor(event wanted.HistoryEvent) string {
+	return firstNonEmptyString(
+		historyDataString(event, "authorName"),
+		historyDataString(event, "author"),
+		"Unknown Author",
+	)
+}
+
+func historyData(event wanted.HistoryEvent) map[string]any {
+	data := map[string]any{}
+	for key, value := range event.Data {
+		data[key] = value
+	}
+	data["message"] = event.Message
+	data["severity"] = event.Severity
+	data["entityType"] = event.EntityType
+	data["entityId"] = event.EntityID
+	return data
+}
+
+func historyDataString(event wanted.HistoryEvent, key string) string {
+	if event.Data == nil {
+		return ""
+	}
+	value, ok := event.Data[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case int:
+		return strconv.Itoa(typed)
+	case int64:
+		return strconv.FormatInt(typed, 10)
+	default:
+		return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(jsonString(typed), `"`), `"`))
+	}
+}
+
+func parseCompatReleaseTitle(value string) (string, string) {
+	value = strings.TrimSpace(value)
+	for _, separator := range []string{" - ", " -- ", " by "} {
+		parts := strings.SplitN(value, separator, 2)
+		if len(parts) != 2 {
+			continue
+		}
+		left := strings.TrimSpace(parts[0])
+		right := strings.TrimSpace(parts[1])
+		if left == "" || right == "" {
+			continue
+		}
+		if separator == " by " {
+			return left, right
+		}
+		return right, left
+	}
+	return strings.TrimSuffix(value, filepath.Ext(value)), ""
+}
+
+func parseTimeQuery(value string) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02", "2006-01-02 15:04:05"} {
+		parsed, err := time.Parse(layout, value)
+		if err == nil {
+			return parsed.UTC()
+		}
+	}
+	return time.Time{}
+}
+
+func timeInRange(value time.Time, start time.Time, end time.Time) bool {
+	if !start.IsZero() && value.Before(start) {
+		return false
+	}
+	if !end.IsZero() && value.After(end) {
+		return false
+	}
+	return true
+}
+
+func mapsByIntKey(values map[int]map[string]any) []map[string]any {
+	keys := make([]int, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Ints(keys)
+	records := make([]map[string]any, 0, len(keys))
+	for _, key := range keys {
+		records = append(records, values[key])
+	}
+	return records
 }
 
 func boolInt(value bool) int {

@@ -25,6 +25,12 @@ Initial API surface:
   - `GET /api/v1/config/mediamanagement`
   - `GET /api/v1/config/mediamanagement/{id}`
   - `PUT /api/v1/config/mediamanagement/{id}`
+  - `GET /api/v1/calendar`
+  - `GET /api/v1/history`
+  - `GET /api/v1/history/since`
+  - `GET /api/v1/history/author`
+  - `GET /api/v1/history/book`
+  - `GET /api/v1/parse`
   - `GET /api/v1/rootfolder`
   - `GET /api/v1/queue`
   - `GET /api/v1/queue/details`
@@ -79,7 +85,7 @@ Initial API surface:
   - `POST /api/v1/wanted/monitor`
   - `POST /api/v1/wanted/feed-sync`
   - `POST /api/v1/wanted/upgrades`
-  - `GET /api/v1/history`
+  - `GET /api/v1/librarry/history`
   - `GET /api/v1/library/files`
   - `GET /api/v1/library/import-reviews`
   - `POST /api/v1/library/scan`
@@ -185,6 +191,11 @@ provided folder for supported ebook/audiobook candidates, and `POST
 path. The naming and media-management compatibility config endpoints reflect
 the active Librarry roots and naming templates; persisted Readarr-style config
 writes are still future work.
+
+Readarr-compatible calendar, history, and parse endpoints are derived from
+wanted items, Librarry history events, and title parsing. The web UI keeps using
+the native `/api/v1/librarry/history` event feed so external Arr clients can use
+the Readarr-shaped `/api/v1/history` response.
 
 Completed-download import refreshes Librarry-tagged qBittorrent items, filters
 for completed torrents, locates the best supported ebook or audiobook file below

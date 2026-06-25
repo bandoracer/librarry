@@ -62,7 +62,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, qBittorrent controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls and simple active-queue rebalancing are implemented. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
-| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, naming/media-management config, root folders, queue, author/book list/create/lookup, manual import, missing wanted books, quality profiles, download clients, indexers, and basic commands. | Expand toward full OpenAPI compatibility, including durable author/book update/delete semantics, persistent config writes, import lists, notifications, remote path mappings, rename/retag, and Calibre endpoints. |
+| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, naming/media-management config, calendar, history, parse, root folders, queue, author/book list/create/lookup, manual import, missing wanted books, quality profiles, download clients, indexers, and basic commands. | Expand toward full OpenAPI compatibility, including durable author/book update/delete semantics, persistent config writes, import lists, notifications, remote path mappings, rename/retag, and Calibre endpoints. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, and queue unlinked files for review. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
@@ -103,6 +103,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   wanted item, with import/skip resolution from the UI.
 - Readarr-compatible manual import endpoints for pending reviews, folder scans,
   and selected-file imports.
+- Readarr-compatible calendar, history, and parse endpoints mapped from wanted
+  items and Librarry history events.
 - Configurable library naming templates for author folder, book folder, file
   name, and optional space replacement.
 - Failed-download recovery for qBittorrent error/missing-file states and stale
@@ -122,7 +124,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   including `/ping`, `/api/v1/system/status`, `/api/v1/health`,
   `/api/v1/diskspace`, `/api/v1/rootfolder`, `/api/v1/queue`,
   `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/book`,
-  `/api/v1/book/lookup`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
+  `/api/v1/book/lookup`, `/api/v1/calendar`, `/api/v1/history`,
+  `/api/v1/parse`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
   `/api/v1/qualityprofile`, `/api/v1/downloadclient`, `/api/v1/indexer`, and
   `/api/v1/command`, plus read-compatible naming and media-management config.
 - Docker Compose and TrueNAS custom-app deployment templates.
@@ -172,6 +175,12 @@ Important API surfaces:
   - `GET /api/v1/config/mediamanagement`
   - `GET /api/v1/config/mediamanagement/{id}`
   - `PUT /api/v1/config/mediamanagement/{id}`
+  - `GET /api/v1/calendar`
+  - `GET /api/v1/history`
+  - `GET /api/v1/history/since`
+  - `GET /api/v1/history/author`
+  - `GET /api/v1/history/book`
+  - `GET /api/v1/parse`
   - `GET /api/v1/rootfolder`
   - `GET /api/v1/queue`
   - `GET /api/v1/queue/details`
@@ -226,7 +235,7 @@ Important API surfaces:
   - `POST /api/v1/wanted/monitor`
   - `POST /api/v1/wanted/feed-sync`
   - `POST /api/v1/wanted/upgrades`
-  - `GET /api/v1/history`
+  - `GET /api/v1/librarry/history`
   - `GET /api/v1/library/files`
   - `GET /api/v1/library/import-reviews`
   - `POST /api/v1/library/scan`

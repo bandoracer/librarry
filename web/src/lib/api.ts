@@ -764,7 +764,7 @@ export async function runUpgradeSearch(options: {
 
 export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
   const params = new URLSearchParams({ limit: String(limit) });
-  const response = await fetch(`${apiBase}/api/v1/history?${params.toString()}`);
+  const response = await fetch(`${apiBase}/api/v1/librarry/history?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`History refresh failed: ${response.status}`);
   }
