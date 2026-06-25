@@ -59,6 +59,48 @@ Initial API surface:
   - `DELETE /api/v1/book/{id}`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/qualityprofile`
+  - `GET /api/v1/qualitydefinition`
+  - `PUT /api/v1/qualitydefinition/{id}`
+  - `GET /api/v1/languageprofile`
+  - `POST /api/v1/languageprofile`
+  - `GET /api/v1/languageprofile/{id}`
+  - `PUT /api/v1/languageprofile/{id}`
+  - `DELETE /api/v1/languageprofile/{id}`
+  - `GET /api/v1/metadataprofile`
+  - `POST /api/v1/metadataprofile`
+  - `GET /api/v1/metadataprofile/{id}`
+  - `PUT /api/v1/metadataprofile/{id}`
+  - `DELETE /api/v1/metadataprofile/{id}`
+  - `GET /api/v1/customformat`
+  - `POST /api/v1/customformat`
+  - `GET /api/v1/customformat/{id}`
+  - `PUT /api/v1/customformat/{id}`
+  - `DELETE /api/v1/customformat/{id}`
+  - `GET /api/v1/tag`
+  - `POST /api/v1/tag`
+  - `GET /api/v1/tag/{id}`
+  - `PUT /api/v1/tag/{id}`
+  - `DELETE /api/v1/tag/{id}`
+  - `GET /api/v1/restriction`
+  - `POST /api/v1/restriction`
+  - `GET /api/v1/restriction/{id}`
+  - `PUT /api/v1/restriction/{id}`
+  - `DELETE /api/v1/restriction/{id}`
+  - `GET /api/v1/notification`
+  - `POST /api/v1/notification`
+  - `GET /api/v1/notification/{id}`
+  - `PUT /api/v1/notification/{id}`
+  - `DELETE /api/v1/notification/{id}`
+  - `GET /api/v1/importlist`
+  - `POST /api/v1/importlist`
+  - `GET /api/v1/importlist/{id}`
+  - `PUT /api/v1/importlist/{id}`
+  - `DELETE /api/v1/importlist/{id}`
+  - `GET /api/v1/remotepathmapping`
+  - `POST /api/v1/remotepathmapping`
+  - `GET /api/v1/remotepathmapping/{id}`
+  - `PUT /api/v1/remotepathmapping/{id}`
+  - `DELETE /api/v1/remotepathmapping/{id}`
   - `GET /api/v1/downloadclient`
   - `GET /api/v1/indexer`
   - `GET /api/v1/release`
@@ -145,6 +187,14 @@ Readarr-compatible `/api/v1/blocklist` and legacy `/api/v1/blacklist` endpoints
 are populated from failed active downloads plus failed Librarry history events.
 The delete endpoints currently acknowledge compatibility clear requests; durable
 blocklist editing still needs a dedicated persisted blocklist model.
+
+Common Arr resource endpoints are exposed for quality definitions, language
+profiles, metadata profiles, tags, custom formats, restrictions, notifications,
+import lists, and remote path mappings. These endpoints currently provide
+static defaults or echo create/update payloads in the expected API shape. The
+persisted source of truth still lives in Librarry's native settings, quality
+profiles, and integration configuration until each compatibility resource gets a
+dedicated storage model.
 
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and

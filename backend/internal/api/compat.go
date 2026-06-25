@@ -88,6 +88,15 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/book/lookup"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
+		{"method": "GET", "path": "/api/v1/qualitydefinition"},
+		{"method": "GET", "path": "/api/v1/languageprofile"},
+		{"method": "GET", "path": "/api/v1/metadataprofile"},
+		{"method": "GET", "path": "/api/v1/customformat"},
+		{"method": "GET", "path": "/api/v1/tag"},
+		{"method": "GET", "path": "/api/v1/restriction"},
+		{"method": "GET", "path": "/api/v1/notification"},
+		{"method": "GET", "path": "/api/v1/importlist"},
+		{"method": "GET", "path": "/api/v1/remotepathmapping"},
 		{"method": "GET", "path": "/api/v1/downloadclient"},
 		{"method": "GET", "path": "/api/v1/indexer"},
 		{"method": "GET", "path": "/api/v1/release"},
@@ -721,6 +730,214 @@ func (h *handler) compatQualityProfiles(w http.ResponseWriter, r *http.Request) 
 		records = append(records, compatQualityProfileRecord(i+1, profile))
 	}
 	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatQualityDefinitions(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatQualityDefinitionRecords())
+}
+
+func (h *handler) compatUpdateQualityDefinition(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "quality definition")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatQualityDefinitionRecordFromPayload(pathValueInt(r, "id"), payload))
+}
+
+func (h *handler) compatLanguageProfiles(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{compatLanguageProfileRecord(nil, 1)})
+}
+
+func (h *handler) compatLanguageProfile(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatLanguageProfileRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateLanguageProfile(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "language profile")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatLanguageProfileRecord(payload, stablePayloadID(payload, "language-profile")))
+}
+
+func (h *handler) compatUpdateLanguageProfile(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "language profile")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatLanguageProfileRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatMetadataProfiles(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{compatMetadataProfileRecord(nil, 1)})
+}
+
+func (h *handler) compatMetadataProfile(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatMetadataProfileRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateMetadataProfile(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "metadata profile")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatMetadataProfileRecord(payload, stablePayloadID(payload, "metadata-profile")))
+}
+
+func (h *handler) compatUpdateMetadataProfile(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "metadata profile")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatMetadataProfileRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCustomFormats(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatCustomFormat(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatCustomFormatRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateCustomFormat(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "custom format")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatCustomFormatRecord(payload, stablePayloadID(payload, "custom-format")))
+}
+
+func (h *handler) compatUpdateCustomFormat(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "custom format")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatCustomFormatRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatTags(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{compatTagRecord(map[string]any{"label": "librarry"}, stableInt("librarry"))})
+}
+
+func (h *handler) compatTag(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatTagRecord(map[string]any{"id": r.PathValue("id"), "label": "librarry"}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateTag(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "tag")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatTagRecord(payload, stablePayloadID(payload, "tag")))
+}
+
+func (h *handler) compatUpdateTag(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "tag")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatTagRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatRestrictions(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatRestriction(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatRestrictionRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateRestriction(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "restriction")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatRestrictionRecord(payload, stablePayloadID(payload, "restriction")))
+}
+
+func (h *handler) compatUpdateRestriction(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "restriction")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatRestrictionRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatNotifications(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatNotification(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatNotificationRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateNotification(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "notification")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatNotificationRecord(payload, stablePayloadID(payload, "notification")))
+}
+
+func (h *handler) compatUpdateNotification(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "notification")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatNotificationRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatImportLists(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatImportList(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatImportListRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateImportList(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "import list")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatImportListRecord(payload, stablePayloadID(payload, "import-list")))
+}
+
+func (h *handler) compatUpdateImportList(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "import list")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatImportListRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatRemotePathMappings(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{})
+}
+
+func (h *handler) compatRemotePathMapping(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, compatRemotePathMappingRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatCreateRemotePathMapping(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "remote path mapping")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatRemotePathMappingRecord(payload, stablePayloadID(payload, "remote-path-mapping")))
+}
+
+func (h *handler) compatUpdateRemotePathMapping(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatObjectPayload(w, r, "remote path mapping")
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatRemotePathMappingRecord(payload, pathValueInt(r, "id")))
+}
+
+func (h *handler) compatDeleteResource(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) compatDownloadClients(w http.ResponseWriter, r *http.Request) {
@@ -1939,6 +2156,184 @@ func compatQualityProfileRecord(id int, profile wanted.QualityProfile) map[strin
 	}
 }
 
+func compatQualityDefinitionRecords() []map[string]any {
+	qualities := []struct {
+		id            int
+		name          string
+		weight        int
+		maxSize       int
+		preferredSize int
+	}{
+		{1, "Unknown", 0, 0, 0},
+		{2, "EPUB", 100, 750, 250},
+		{3, "MOBI", 90, 750, 250},
+		{4, "AZW3", 95, 750, 250},
+		{5, "PDF", 60, 2000, 500},
+		{6, "MP3", 80, 8192, 2048},
+		{7, "M4B", 100, 8192, 2048},
+		{8, "Audiobook", 90, 20000, 4096},
+	}
+	records := make([]map[string]any, 0, len(qualities))
+	for _, quality := range qualities {
+		records = append(records, map[string]any{
+			"id":            quality.id,
+			"quality":       map[string]any{"id": quality.id, "name": quality.name, "source": "librarry"},
+			"title":         quality.name,
+			"weight":        quality.weight,
+			"minSize":       0,
+			"maxSize":       quality.maxSize,
+			"preferredSize": quality.preferredSize,
+		})
+	}
+	return records
+}
+
+func compatQualityDefinitionRecordFromPayload(id int, payload map[string]any) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "quality-definition")
+	}
+	name := firstNonEmptyString(nestedString(payload, "quality", "name"), payloadString(payload, "title"), payloadString(payload, "name"), "Unknown")
+	return map[string]any{
+		"id":            id,
+		"quality":       map[string]any{"id": id, "name": name, "source": "librarry"},
+		"title":         name,
+		"weight":        payloadIntDefault(payload, "weight", id*10),
+		"minSize":       payloadIntDefault(payload, "minSize", 0),
+		"maxSize":       payloadIntDefault(payload, "maxSize", 0),
+		"preferredSize": payloadIntDefault(payload, "preferredSize", 0),
+	}
+}
+
+func compatLanguageProfileRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = 1
+	}
+	name := firstNonEmptyString(payloadString(payload, "name"), "English")
+	return map[string]any{
+		"id":             id,
+		"name":           name,
+		"upgradeAllowed": payloadBoolDefault(payload, "upgradeAllowed", true),
+		"cutoff":         map[string]any{"id": 1, "name": "English"},
+		"cutoffLanguage": map[string]any{"id": 1, "name": "English"},
+		"languages": []map[string]any{{
+			"language": map[string]any{"id": 1, "name": "English"},
+			"allowed":  true,
+		}},
+		"tags":              []int{},
+		"librarryEphemeral": true,
+	}
+}
+
+func compatMetadataProfileRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = 1
+	}
+	return map[string]any{
+		"id":                id,
+		"name":              firstNonEmptyString(payloadString(payload, "name"), "Standard"),
+		"minPopularity":     payloadIntDefault(payload, "minPopularity", 0),
+		"skipMissingDate":   payloadBoolDefault(payload, "skipMissingDate", false),
+		"skipMissingIsbn":   payloadBoolDefault(payload, "skipMissingIsbn", false),
+		"skipPartsAndSets":  payloadBoolDefault(payload, "skipPartsAndSets", false),
+		"tags":              []int{},
+		"librarryEphemeral": true,
+	}
+}
+
+func compatCustomFormatRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "custom-format")
+	}
+	return map[string]any{
+		"id":                              id,
+		"name":                            firstNonEmptyString(payloadString(payload, "name"), "Librarry Custom Format"),
+		"includeCustomFormatWhenRenaming": payloadBoolDefault(payload, "includeCustomFormatWhenRenaming", false),
+		"specifications":                  compatPayloadArray(payload, "specifications"),
+		"librarryEphemeral":               true,
+	}
+}
+
+func compatTagRecord(payload map[string]any, id int) map[string]any {
+	label := firstNonEmptyString(payloadString(payload, "label"), payloadString(payload, "name"), "librarry")
+	if id <= 0 {
+		id = stableInt(label)
+	}
+	return map[string]any{
+		"id":    id,
+		"label": label,
+	}
+}
+
+func compatRestrictionRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "restriction")
+	}
+	return map[string]any{
+		"id":                id,
+		"required":          payloadString(payload, "required"),
+		"ignored":           firstNonEmptyString(payloadString(payload, "ignored"), payloadString(payload, "mustNotContain")),
+		"tags":              compatPayloadIntArray(payload, "tags"),
+		"librarryEphemeral": true,
+	}
+}
+
+func compatNotificationRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "notification")
+	}
+	implementation := firstNonEmptyString(payloadString(payload, "implementation"), "Webhook")
+	return map[string]any{
+		"id":                 id,
+		"name":               firstNonEmptyString(payloadString(payload, "name"), implementation),
+		"implementation":     implementation,
+		"implementationName": firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
+		"configContract":     firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
+		"enable":             payloadBoolDefault(payload, "enable", false),
+		"onGrab":             payloadBoolDefault(payload, "onGrab", true),
+		"onReleaseImport":    payloadBoolDefault(payload, "onReleaseImport", true),
+		"onUpgrade":          payloadBoolDefault(payload, "onUpgrade", true),
+		"supportsOnGrab":     true,
+		"supportsOnDownload": true,
+		"fields":             compatPayloadArray(payload, "fields"),
+		"tags":               compatPayloadIntArray(payload, "tags"),
+		"librarryEphemeral":  true,
+	}
+}
+
+func compatImportListRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "import-list")
+	}
+	implementation := firstNonEmptyString(payloadString(payload, "implementation"), "ReadarrImportList")
+	return map[string]any{
+		"id":                 id,
+		"name":               firstNonEmptyString(payloadString(payload, "name"), implementation),
+		"implementation":     implementation,
+		"implementationName": firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
+		"configContract":     firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
+		"enable":             payloadBoolDefault(payload, "enable", false),
+		"rootFolderPath":     payloadString(payload, "rootFolderPath"),
+		"qualityProfileId":   payloadIntDefault(payload, "qualityProfileId", 1),
+		"metadataProfileId":  payloadIntDefault(payload, "metadataProfileId", 1),
+		"tags":               compatPayloadIntArray(payload, "tags"),
+		"fields":             compatPayloadArray(payload, "fields"),
+		"librarryEphemeral":  true,
+	}
+}
+
+func compatRemotePathMappingRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "remote-path-mapping")
+	}
+	return map[string]any{
+		"id":                id,
+		"host":              payloadString(payload, "host"),
+		"remotePath":        payloadString(payload, "remotePath"),
+		"localPath":         payloadString(payload, "localPath"),
+		"librarryEphemeral": true,
+	}
+}
+
 func compatDownloadClientRecord(id int, name string, protocol string, baseURL string, category string) map[string]any {
 	return map[string]any{
 		"id":                 id,
@@ -2312,6 +2707,71 @@ func payloadIntDefault(payload map[string]any, key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func decodeCompatObjectPayload(w http.ResponseWriter, r *http.Request, name string) (map[string]any, bool) {
+	defer r.Body.Close()
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid " + name + " payload"})
+		return nil, false
+	}
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	return payload, true
+}
+
+func pathValueInt(r *http.Request, key string) int {
+	value := strings.TrimSpace(r.PathValue(key))
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.Atoi(value)
+	if err == nil {
+		return parsed
+	}
+	return stableInt(value)
+}
+
+func stablePayloadID(payload map[string]any, fallback string) int {
+	id := payloadIntDefault(payload, "id", 0)
+	if id > 0 {
+		return id
+	}
+	return stableInt(firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "label"), fallback))
+}
+
+func compatPayloadArray(payload map[string]any, key string) []any {
+	if payload == nil {
+		return []any{}
+	}
+	if values, ok := payload[key].([]any); ok {
+		return values
+	}
+	return []any{}
+}
+
+func compatPayloadIntArray(payload map[string]any, key string) []int {
+	if payload == nil {
+		return []int{}
+	}
+	values, ok := payload[key].([]any)
+	if !ok {
+		return []int{}
+	}
+	ids := make([]int, 0, len(values))
+	for _, value := range values {
+		switch typed := value.(type) {
+		case float64:
+			ids = append(ids, int(typed))
+		case string:
+			if parsed, err := strconv.Atoi(strings.TrimSpace(typed)); err == nil {
+				ids = append(ids, parsed)
+			}
+		}
+	}
+	return ids
 }
 
 func manualImportPayloads(payload any) []map[string]any {

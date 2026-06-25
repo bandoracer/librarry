@@ -246,6 +246,75 @@ func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 	}
 }
 
+func TestCompatCatalogResourceEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+	})
+
+	checks := []struct {
+		path string
+		want string
+	}{
+		{"/api/v1/qualitydefinition", `"name":"EPUB"`},
+		{"/api/v1/languageprofile", `"name":"English"`},
+		{"/api/v1/metadataprofile", `"name":"Standard"`},
+		{"/api/v1/tag", `"label":"librarry"`},
+		{"/api/v1/customformat", `[]`},
+		{"/api/v1/restriction", `[]`},
+		{"/api/v1/notification", `[]`},
+		{"/api/v1/importlist", `[]`},
+		{"/api/v1/remotepathmapping", `[]`},
+	}
+	for _, check := range checks {
+		req := httptest.NewRequest(http.MethodGet, check.path, nil)
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		if res.Code != http.StatusOK {
+			t.Fatalf("%s expected 200, got %d: %s", check.path, res.Code, res.Body.String())
+		}
+		if !strings.Contains(res.Body.String(), check.want) {
+			t.Fatalf("%s expected %s in response, got %s", check.path, check.want, res.Body.String())
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/qualitydefinition/2", strings.NewReader(`{"title":"EPUB","weight":110,"maxSize":900}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"maxSize":900`) || !strings.Contains(res.Body.String(), `"weight":110`) {
+		t.Fatalf("expected quality definition update echo, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/tag", strings.NewReader(`{"label":"retail"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"label":"retail"`) {
+		t.Fatalf("expected created tag, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/notification", strings.NewReader(`{"name":"Webhook","implementation":"Webhook","enable":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"enable":true`) || !strings.Contains(res.Body.String(), `"implementation":"Webhook"`) {
+		t.Fatalf("expected created notification, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/remotepathmapping", strings.NewReader(`{"host":"qbittorrent","remotePath":"/downloads","localPath":"/data/downloads"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"remotePath":"/downloads"`) || !strings.Contains(res.Body.String(), `"localPath":"/data/downloads"`) {
+		t.Fatalf("expected created remote path mapping, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/customformat/1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger: slog.Default(),
