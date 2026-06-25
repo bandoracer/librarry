@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-librarry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-librarry}
+      POSTGRES_DB: ${POSTGRES_DB:-librarry}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-librarry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      LIBRARRY_LISTEN_ADDR: :8080
+      LIBRARRY_DATABASE_URL: ${LIBRARRY_DATABASE_URL:-postgres://librarry:librarry@postgres:5432/librarry?sslmode=disable}
+      LIBRARRY_MIGRATIONS_DIR: /app/backend/migrations
+      LIBRARRY_WEB_ORIGIN: ${LIBRARRY_WEB_ORIGIN:-http://127.0.0.1:5173}
+      LIBRARRY_HARDCOVER_TOKEN: ${LIBRARRY_HARDCOVER_TOKEN:-}
+      LIBRARRY_GOOGLE_BOOKS_API_KEY: ${LIBRARRY_GOOGLE_BOOKS_API_KEY:-}
+      LIBRARRY_PROWLARR_URL: ${LIBRARRY_PROWLARR_URL:-}
+      LIBRARRY_PROWLARR_API_KEY: ${LIBRARRY_PROWLARR_API_KEY:-}
+      LIBRARRY_QBITTORRENT_URL: ${LIBRARRY_QBITTORRENT_URL:-}
+      LIBRARRY_QBITTORRENT_USERNAME: ${LIBRARRY_QBITTORRENT_USERNAME:-}
+      LIBRARRY_QBITTORRENT_PASSWORD: ${LIBRARRY_QBITTORRENT_PASSWORD:-}
+      LIBRARRY_EBOOK_CATEGORY: ${LIBRARRY_EBOOK_CATEGORY:-books-ebook}
+      LIBRARRY_AUDIOBOOK_CATEGORY: ${LIBRARRY_AUDIOBOOK_CATEGORY:-books-audiobook}
+      LIBRARRY_BOOK_TORRENT_ROOT: ${LIBRARRY_BOOK_TORRENT_ROOT:-/data/torrents/books}
+    volumes:
+      - ${LIBRARRY_MEDIA_STACK_PATH:-/mnt/HDD_pool/vault/media-stack}:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres-data:

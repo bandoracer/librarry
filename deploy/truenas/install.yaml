@@ -1,0 +1,56 @@
+x-portals:
+  - name: Web UI
+    scheme: http
+    host: 192.168.1.221
+    port: 30200
+    path: /
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: librarry
+      POSTGRES_PASSWORD: change-me
+      POSTGRES_DB: librarry
+    volumes:
+      - /mnt/HDD_pool/vault/app-config/librarry/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U librarry"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: librarry-api:local
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      LIBRARRY_LISTEN_ADDR: :8080
+      LIBRARRY_DATABASE_URL: postgres://librarry:change-me@postgres:5432/librarry?sslmode=disable
+      LIBRARRY_MIGRATIONS_DIR: /app/backend/migrations
+      LIBRARRY_WEB_ORIGIN: http://192.168.1.221:30200
+      LIBRARRY_HARDCOVER_TOKEN:
+      LIBRARRY_GOOGLE_BOOKS_API_KEY:
+      LIBRARRY_PROWLARR_URL: http://192.168.1.221:30050
+      LIBRARRY_PROWLARR_API_KEY: change-me
+      LIBRARRY_QBITTORRENT_URL: http://192.168.1.221:30026
+      LIBRARRY_QBITTORRENT_USERNAME:
+      LIBRARRY_QBITTORRENT_PASSWORD:
+      LIBRARRY_EBOOK_CATEGORY: books-ebook
+      LIBRARRY_AUDIOBOOK_CATEGORY: books-audiobook
+      LIBRARRY_BOOK_TORRENT_ROOT: /data/torrents/books
+    volumes:
+      - /mnt/HDD_pool/vault/media-stack:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: librarry-web:local
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - 192.168.1.221:30200:80/tcp
+    depends_on:
+      - api
