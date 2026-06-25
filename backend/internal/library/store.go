@@ -122,6 +122,55 @@ func (s *Store) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecor
 	return files, rows.Err()
 }
 
+func (s *Store) FindFiles(ctx context.Context, ids []string, paths []string) ([]FileRecord, error) {
+	if !s.Configured() {
+		return nil, errors.New("library store is unavailable")
+	}
+	where, args := fileIdentifierWhere(ids, paths)
+	if len(where) == 0 {
+		return nil, errors.New("at least one file id or path is required")
+	}
+	sqlText := `
+		select
+			id, coalesce(edition_id::text, ''), media_format, path, source_path,
+			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
+			import_status, metadata, modified_at, created_at, updated_at
+		from files
+		where ` + strings.Join(where, " or ") + `
+		order by updated_at desc
+	`
+	rows, err := s.db.QueryContext(ctx, sqlText, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanFiles(rows)
+}
+
+func (s *Store) DeleteFiles(ctx context.Context, ids []string, paths []string) ([]FileRecord, error) {
+	if !s.Configured() {
+		return nil, errors.New("library store is unavailable")
+	}
+	where, args := fileIdentifierWhere(ids, paths)
+	if len(where) == 0 {
+		return nil, errors.New("at least one file id or path is required")
+	}
+	sqlText := `
+		delete from files
+		where ` + strings.Join(where, " or ") + `
+		returning
+			id, coalesce(edition_id::text, ''), media_format, path, source_path,
+			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
+			import_status, metadata, modified_at, created_at, updated_at
+	`
+	rows, err := s.db.QueryContext(ctx, sqlText, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanFiles(rows)
+}
+
 func (s *Store) CreateImportReview(ctx context.Context, review ImportReview) (ImportReview, error) {
 	if !s.Configured() {
 		return ImportReview{}, errors.New("library store is unavailable")
@@ -283,6 +332,18 @@ type fileScanner interface {
 	Scan(dest ...any) error
 }
 
+func scanFiles(rows *sql.Rows) ([]FileRecord, error) {
+	var files []FileRecord
+	for rows.Next() {
+		file, err := scanFile(rows)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+	return files, rows.Err()
+}
+
 func scanFile(row fileScanner) (FileRecord, error) {
 	var file FileRecord
 	var raw []byte
@@ -305,6 +366,47 @@ func scanFile(row fileScanner) (FileRecord, error) {
 		file.ModifiedAt = &value
 	}
 	return file, nil
+}
+
+func fileIdentifierWhere(ids []string, paths []string) ([]string, []any) {
+	args := []any{}
+	where := []string{}
+	idPlaceholders := placeholdersForValues(&args, compactStrings(ids))
+	if len(idPlaceholders) > 0 {
+		where = append(where, "id::text in ("+strings.Join(idPlaceholders, ",")+")")
+	}
+	pathPlaceholders := placeholdersForValues(&args, compactStrings(paths))
+	if len(pathPlaceholders) > 0 {
+		where = append(where, "path in ("+strings.Join(pathPlaceholders, ",")+")")
+	}
+	return where, args
+}
+
+func placeholdersForValues(args *[]any, values []string) []string {
+	placeholders := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		*args = append(*args, value)
+		placeholders = append(placeholders, "$"+strconv.Itoa(len(*args)))
+	}
+	return placeholders
+}
+
+func compactStrings(values []string) []string {
+	compacted := make([]string, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		compacted = append(compacted, value)
+	}
+	return compacted
 }
 
 func scanImportReview(row fileScanner) (ImportReview, error) {

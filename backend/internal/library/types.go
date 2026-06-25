@@ -83,6 +83,27 @@ type CompletedImportOutcome struct {
 	Results      []DownloadImportResult `json:"results"`
 }
 
+type DeleteFilesRequest struct {
+	IDs         []string `json:"ids,omitempty"`
+	Paths       []string `json:"paths,omitempty"`
+	DeleteFiles bool     `json:"deleteFiles,omitempty"`
+}
+
+type DeleteFilesOutcome struct {
+	Requested int                `json:"requested"`
+	Deleted   int                `json:"deleted"`
+	Skipped   int                `json:"skipped"`
+	Errored   int                `json:"errored"`
+	Files     []FileRecord       `json:"files"`
+	Results   []DeleteFileResult `json:"results"`
+}
+
+type DeleteFileResult struct {
+	File    FileRecord `json:"file"`
+	Status  string     `json:"status"`
+	Message string     `json:"message,omitempty"`
+}
+
 type DownloadImportResult struct {
 	Download   acquisition.DownloadStatus `json:"download"`
 	Status     string                     `json:"status"`

@@ -769,7 +769,21 @@ func (h *handler) compatUpdateBookFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatDeleteBookFile(w http.ResponseWriter, r *http.Request) {
-	if _, _, ok := h.compatFindBookFile(w, r, r.PathValue("id")); !ok {
+	file, _, ok := h.compatFindBookFile(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	outcome, err := h.deps.Library.DeleteFiles(r.Context(), library.DeleteFilesRequest{
+		IDs:         []string{file.ID},
+		Paths:       []string{file.Path},
+		DeleteFiles: parseBoolDefault(r.URL.Query().Get("deleteFiles"), false),
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
+		return
+	}
+	if outcome.Errored > 0 {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "book file delete failed", "outcome": outcome})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -779,6 +793,42 @@ func (h *handler) compatDeleteBookFileBulk(w http.ResponseWriter, r *http.Reques
 	defer r.Body.Close()
 	if h.deps.Library == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	var payload map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+	files, _, ok := h.compatBookFileSource(w, r)
+	if !ok {
+		return
+	}
+	ids := bookFileDeleteIDs(payload)
+	if len(ids) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	var deleteIDs []string
+	var deletePaths []string
+	for _, file := range files {
+		if bookFileMatchesAnyID(file, ids) {
+			deleteIDs = append(deleteIDs, file.ID)
+			deletePaths = append(deletePaths, file.Path)
+		}
+	}
+	if len(deleteIDs) == 0 && len(deletePaths) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	outcome, err := h.deps.Library.DeleteFiles(r.Context(), library.DeleteFilesRequest{
+		IDs:         deleteIDs,
+		Paths:       deletePaths,
+		DeleteFiles: payloadBoolDefault(payload, "deleteFiles", parseBoolDefault(r.URL.Query().Get("deleteFiles"), false)),
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
+		return
+	}
+	if outcome.Errored > 0 {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "book file delete failed", "outcome": outcome})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -2074,6 +2124,42 @@ func bookFileMatchesQuery(r *http.Request, file library.FileRecord, item *wanted
 		}
 	}
 	return true
+}
+
+func bookFileDeleteIDs(payload map[string]any) []string {
+	var ids []string
+	for _, key := range []string{"bookFileIds", "bookFileIDs", "ids", "bookFileId", "id"} {
+		for _, id := range compatPayloadIntArray(payload, key) {
+			ids = append(ids, strconv.Itoa(id))
+		}
+		if value := payloadString(payload, key); value != "" {
+			ids = append(ids, value)
+		}
+	}
+	return firstUniqueStrings(ids)
+}
+
+func bookFileMatchesAnyID(file library.FileRecord, ids []string) bool {
+	for _, id := range ids {
+		if compatIDMatches(id, file.ID, file.Path, file.Title, filepath.Base(file.Path)) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstUniqueStrings(values []string) []string {
+	unique := make([]string, 0, len(values))
+	seen := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		unique = append(unique, value)
+	}
+	return unique
 }
 
 func fileMetadataString(file library.FileRecord, key string) string {

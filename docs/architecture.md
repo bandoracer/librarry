@@ -163,6 +163,8 @@ Initial API surface:
   - `POST /api/v1/wanted/upgrades`
   - `GET /api/v1/librarry/history`
   - `GET /api/v1/library/files`
+  - `DELETE /api/v1/library/files/{id}`
+  - `POST /api/v1/library/files/delete`
   - `GET /api/v1/library/import-reviews`
   - `POST /api/v1/library/scan`
   - `POST /api/v1/library/import`
@@ -297,9 +299,10 @@ The Readarr-compatible `/api/v1/bookfile` surface maps native Librarry file
 records back into Arr-style bookfile records with stable numeric IDs, nested
 book/author records, quality, size, path, and date metadata. `GET
 /api/v1/bookfile` supports book and author ID filtering, while `GET
-/api/v1/bookfile/{id}` returns a single mapped file. `PUT` and `DELETE` are
-accepted for client compatibility, but file retagging and deletion are still
-native-library service work items.
+/api/v1/bookfile/{id}` returns a single mapped file. `DELETE` removes the native
+file record and honors `deleteFiles=true` for physical file removal. `PUT` is
+accepted for client compatibility, but file retagging is still a native-library
+service work item.
 
 Readarr-compatible calendar, history, and parse endpoints are derived from
 wanted items, Librarry history events, and title parsing. The web UI keeps using

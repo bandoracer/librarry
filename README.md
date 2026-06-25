@@ -17,10 +17,9 @@ book data is incomplete or ambiguous.
 > and manual file import are implemented. Completed qBittorrent downloads can be
 > imported into organized library roots. Readarr-compatible manual import can
 > list pending review items, scan a folder for candidates, and import selected
-> files. Readarr-compatible bookfile list/get endpoints map imported Librarry
-> files back to books, with update/delete accepted as compatibility-level
-> no-ops until native file mutation is implemented. Failed-download detection
-> and replacement search/grab are implemented.
+> files. Readarr-compatible bookfile endpoints map imported Librarry files back
+> to books, and delete bookfile records with optional physical file removal.
+> Failed-download detection and replacement search/grab are implemented.
 > Failed downloads and failed history events are exposed through
 > Readarr-compatible blocklist/blacklist endpoints. Score-based upgrade
 > search/grab is implemented. Pending import review for unlinked completed
@@ -117,8 +116,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Readarr-compatible manual import endpoints for pending reviews, folder scans,
   and selected-file imports.
 - Readarr-compatible bookfile endpoints for imported library files:
-  list/filter/get are mapped from native files, while update/delete currently
-  echo or no-op for client compatibility.
+  list/filter/get are mapped from native files, delete removes native file
+  records with optional physical file removal, and update currently echoes for
+  client compatibility.
 - Readarr-compatible calendar, history, and parse endpoints mapped from wanted
   items and Librarry history events.
 - Configurable library naming templates for author folder, book folder, file
@@ -346,6 +346,8 @@ Important API surfaces:
   - `POST /api/v1/wanted/upgrades`
   - `GET /api/v1/librarry/history`
   - `GET /api/v1/library/files`
+  - `DELETE /api/v1/library/files/{id}`
+  - `POST /api/v1/library/files/delete`
   - `GET /api/v1/library/import-reviews`
   - `POST /api/v1/library/scan`
   - `POST /api/v1/library/import`

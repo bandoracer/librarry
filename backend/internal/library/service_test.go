@@ -87,6 +87,23 @@ func TestAvailableDestinationAvoidsOverwrite(t *testing.T) {
 	}
 }
 
+func TestRemoveLibraryFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Book.epub")
+	if err := os.WriteFile(path, []byte("book"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeLibraryFile(path); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("expected file to be removed, stat err=%v", err)
+	}
+	if err := removeLibraryFile(path); err != nil {
+		t.Fatalf("expected missing file cleanup to succeed, got %v", err)
+	}
+}
+
 func TestIsCompletedDownload(t *testing.T) {
 	completedAt := time.Now().UTC()
 	if !isCompletedDownload(acquisition.DownloadStatus{Progress: 1}) {

@@ -49,6 +49,54 @@ func (s *Service) ListFiles(ctx context.Context, query FileListQuery) ([]FileRec
 	return s.store.ListFiles(ctx, query)
 }
 
+func (s *Service) DeleteFiles(ctx context.Context, request DeleteFilesRequest) (DeleteFilesOutcome, error) {
+	if !s.Available() {
+		return DeleteFilesOutcome{}, errors.New("library service requires database persistence")
+	}
+	ids := compactStrings(request.IDs)
+	paths := compactStrings(request.Paths)
+	if len(ids) == 0 && len(paths) == 0 {
+		return DeleteFilesOutcome{}, errors.New("at least one file id or path is required")
+	}
+	outcome := DeleteFilesOutcome{Requested: len(ids) + len(paths)}
+	candidates, err := s.store.FindFiles(ctx, ids, paths)
+	if err != nil {
+		return DeleteFilesOutcome{}, err
+	}
+	if len(candidates) == 0 {
+		outcome.Skipped = outcome.Requested
+		return outcome, nil
+	}
+
+	deleteIDs := make([]string, 0, len(candidates))
+	for _, file := range candidates {
+		if request.DeleteFiles {
+			if err := removeLibraryFile(file.Path); err != nil {
+				outcome.Errored++
+				outcome.Results = append(outcome.Results, DeleteFileResult{File: file, Status: "error", Message: err.Error()})
+				continue
+			}
+		}
+		deleteIDs = append(deleteIDs, file.ID)
+	}
+	if len(deleteIDs) == 0 {
+		return outcome, nil
+	}
+	deleted, err := s.store.DeleteFiles(ctx, deleteIDs, nil)
+	if err != nil {
+		return outcome, err
+	}
+	outcome.Deleted = len(deleted)
+	outcome.Files = deleted
+	for _, file := range deleted {
+		outcome.Results = append(outcome.Results, DeleteFileResult{File: file, Status: "deleted"})
+	}
+	if unmatched := outcome.Requested - outcome.Deleted - outcome.Errored; unmatched > 0 {
+		outcome.Skipped = unmatched
+	}
+	return outcome, nil
+}
+
 func (s *Service) ListImportReviews(ctx context.Context, query ReviewListQuery) ([]ImportReview, error) {
 	if !s.Available() {
 		return nil, errors.New("library service requires database persistence")
@@ -606,6 +654,17 @@ func copyOrMoveFile(source string, destination string, move bool) error {
 	}
 	if move {
 		return os.Remove(source)
+	}
+	return nil
+}
+
+func removeLibraryFile(path string) error {
+	path = filepath.Clean(strings.TrimSpace(path))
+	if path == "" || path == "." {
+		return errors.New("file path is required")
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
 	return nil
 }

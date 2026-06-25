@@ -422,12 +422,13 @@ func TestCompatAuthorAndBookEndpoints(t *testing.T) {
 }
 
 func TestCompatBookFileEndpoints(t *testing.T) {
+	deleteLibrary := &fakeDeleteLibrary{}
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
 		Config:   config.Config{WebOrigin: "*"},
 		Metadata: metadata.NewService(nil),
 		Wanted:   fakeWanted{},
-		Library:  fakeLibrary{},
+		Library:  deleteLibrary,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/bookfile", nil)
@@ -489,12 +490,18 @@ func TestCompatBookFileEndpoints(t *testing.T) {
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
 	}
+	if len(deleteLibrary.requests) != 1 || deleteLibrary.requests[0].IDs[0] != "file-1" || deleteLibrary.requests[0].DeleteFiles {
+		t.Fatalf("expected single DB-only delete request, got %+v", deleteLibrary.requests)
+	}
 
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/bookfile/bulk", strings.NewReader(`{"bookFileIds":[`+strconv.Itoa(fileID)+`]}`))
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/bookfile/bulk", strings.NewReader(`{"bookFileIds":[`+strconv.Itoa(fileID)+`],"deleteFiles":true}`))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(deleteLibrary.requests) != 2 || deleteLibrary.requests[1].IDs[0] != "file-1" || !deleteLibrary.requests[1].DeleteFiles {
+		t.Fatalf("expected bulk physical delete request, got %+v", deleteLibrary.requests)
 	}
 }
 
@@ -1195,6 +1202,30 @@ func TestLibraryFilesEndpoint(t *testing.T) {
 	}
 }
 
+func TestDeleteLibraryFileEndpoint(t *testing.T) {
+	deleteLibrary := &fakeDeleteLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  deleteLibrary,
+	})
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/library/files/file-1?deleteFiles=true", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(deleteLibrary.requests) != 1 || deleteLibrary.requests[0].IDs[0] != "file-1" || !deleteLibrary.requests[0].DeleteFiles {
+		t.Fatalf("expected native delete request, got %+v", deleteLibrary.requests)
+	}
+	if !strings.Contains(res.Body.String(), `"deleted":1`) {
+		t.Fatalf("expected delete outcome, got %s", res.Body.String())
+	}
+}
+
 func TestScanLibraryEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -1664,7 +1695,31 @@ func (fakeBlocklistWanted) History(context.Context, wanted.HistoryQuery) ([]want
 type fakeLibrary struct{}
 
 func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.FileRecord, error) {
-	return []library.FileRecord{{
+	return []library.FileRecord{fakeLibraryFile()}, nil
+}
+
+func (fakeLibrary) DeleteFiles(context.Context, library.DeleteFilesRequest) (library.DeleteFilesOutcome, error) {
+	file := fakeLibraryFile()
+	return library.DeleteFilesOutcome{
+		Requested: 1,
+		Deleted:   1,
+		Files:     []library.FileRecord{file},
+		Results:   []library.DeleteFileResult{{File: file, Status: "deleted"}},
+	}, nil
+}
+
+type fakeDeleteLibrary struct {
+	fakeLibrary
+	requests []library.DeleteFilesRequest
+}
+
+func (f *fakeDeleteLibrary) DeleteFiles(_ context.Context, request library.DeleteFilesRequest) (library.DeleteFilesOutcome, error) {
+	f.requests = append(f.requests, request)
+	return fakeLibrary{}.DeleteFiles(context.Background(), request)
+}
+
+func fakeLibraryFile() library.FileRecord {
+	return library.FileRecord{
 		ID:           "file-1",
 		EditionID:    "openlibrary:OL1M",
 		MediaFormat:  "ebook",
@@ -1676,7 +1731,7 @@ func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.
 		ImportStatus: "imported",
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
-	}}, nil
+	}
 }
 
 func (fakeLibrary) ListImportReviews(context.Context, library.ReviewListQuery) ([]library.ImportReview, error) {
