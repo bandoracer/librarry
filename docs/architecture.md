@@ -238,11 +238,10 @@ stored UUIDs to stable integer IDs for Arr-style clients.
 
 Common Arr resource endpoints are exposed for quality definitions, language
 profiles, metadata profiles, tags, custom formats, restrictions, notifications,
-import lists, and remote path mappings. These endpoints currently provide
-static defaults or echo create/update payloads in the expected API shape. The
-persisted source of truth still lives in Librarry's native settings, quality
-profiles, and integration configuration until each compatibility resource gets a
-dedicated storage model.
+import lists, and remote path mappings. These endpoints render useful defaults
+and persist create, update, and delete operations in `compat_resources` using
+the Readarr-style integer ID exposed to API clients. Resource payloads are kept
+as JSON so Librarry can preserve fields it does not natively interpret yet.
 
 Compatibility config endpoints for host, UI, download-client, and indexer
 settings mirror current Librarry environment/native config and echo update

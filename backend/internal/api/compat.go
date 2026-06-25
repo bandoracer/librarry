@@ -1042,234 +1042,165 @@ func (h *handler) compatQualityProfiles(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *handler) compatDelayProfiles(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{compatDelayProfileRecord(nil, 1)})
+	h.writeCompatResourceList(w, r, "delay-profile", []map[string]any{compatDelayProfileRecord(nil, 1)}, compatDelayProfileRecord)
 }
 
 func (h *handler) compatDelayProfile(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatDelayProfileRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "delay-profile", []map[string]any{compatDelayProfileRecord(nil, 1)}, compatDelayProfileRecord)
 }
 
 func (h *handler) compatCreateDelayProfile(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "delay profile")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatDelayProfileRecord(payload, stablePayloadID(payload, "delay-profile")))
+	h.writeCompatResourceCreate(w, r, "delay-profile", "delay profile", compatDelayProfileRecord)
 }
 
 func (h *handler) compatUpdateDelayProfile(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "delay profile")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatDelayProfileRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "delay-profile", "delay profile", compatDelayProfileRecord)
 }
 
 func (h *handler) compatQualityDefinitions(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatQualityDefinitionRecords())
+	h.writeCompatResourceList(w, r, "quality-definition", compatQualityDefinitionRecords(), compatQualityDefinitionCompatRecord)
 }
 
 func (h *handler) compatUpdateQualityDefinition(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "quality definition")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatQualityDefinitionRecordFromPayload(pathValueInt(r, "id"), payload))
+	h.writeCompatResourceUpdate(w, r, "quality-definition", "quality definition", compatQualityDefinitionCompatRecord)
 }
 
 func (h *handler) compatLanguageProfiles(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{compatLanguageProfileRecord(nil, 1)})
+	h.writeCompatResourceList(w, r, "language-profile", []map[string]any{compatLanguageProfileRecord(nil, 1)}, compatLanguageProfileRecord)
 }
 
 func (h *handler) compatLanguageProfile(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatLanguageProfileRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "language-profile", []map[string]any{compatLanguageProfileRecord(nil, 1)}, compatLanguageProfileRecord)
 }
 
 func (h *handler) compatCreateLanguageProfile(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "language profile")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatLanguageProfileRecord(payload, stablePayloadID(payload, "language-profile")))
+	h.writeCompatResourceCreate(w, r, "language-profile", "language profile", compatLanguageProfileRecord)
 }
 
 func (h *handler) compatUpdateLanguageProfile(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "language profile")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatLanguageProfileRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "language-profile", "language profile", compatLanguageProfileRecord)
 }
 
 func (h *handler) compatMetadataProfiles(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{compatMetadataProfileRecord(nil, 1)})
+	h.writeCompatResourceList(w, r, "metadata-profile", []map[string]any{compatMetadataProfileRecord(nil, 1)}, compatMetadataProfileRecord)
 }
 
 func (h *handler) compatMetadataProfile(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatMetadataProfileRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "metadata-profile", []map[string]any{compatMetadataProfileRecord(nil, 1)}, compatMetadataProfileRecord)
 }
 
 func (h *handler) compatCreateMetadataProfile(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "metadata profile")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatMetadataProfileRecord(payload, stablePayloadID(payload, "metadata-profile")))
+	h.writeCompatResourceCreate(w, r, "metadata-profile", "metadata profile", compatMetadataProfileRecord)
 }
 
 func (h *handler) compatUpdateMetadataProfile(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "metadata profile")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatMetadataProfileRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "metadata-profile", "metadata profile", compatMetadataProfileRecord)
 }
 
 func (h *handler) compatCustomFormats(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{})
+	h.writeCompatResourceList(w, r, "custom-format", nil, compatCustomFormatRecord)
 }
 
 func (h *handler) compatCustomFormat(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatCustomFormatRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "custom-format", nil, compatCustomFormatRecord)
 }
 
 func (h *handler) compatCreateCustomFormat(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "custom format")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatCustomFormatRecord(payload, stablePayloadID(payload, "custom-format")))
+	h.writeCompatResourceCreate(w, r, "custom-format", "custom format", compatCustomFormatRecord)
 }
 
 func (h *handler) compatUpdateCustomFormat(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "custom format")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatCustomFormatRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "custom-format", "custom format", compatCustomFormatRecord)
 }
 
 func (h *handler) compatTags(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{compatTagRecord(map[string]any{"label": "librarry"}, stableInt("librarry"))})
+	h.writeCompatResourceList(w, r, "tag", []map[string]any{compatTagRecord(map[string]any{"label": "librarry"}, stableInt("librarry"))}, compatTagRecord)
 }
 
 func (h *handler) compatTag(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatTagRecord(map[string]any{"id": r.PathValue("id"), "label": "librarry"}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "tag", []map[string]any{compatTagRecord(map[string]any{"label": "librarry"}, stableInt("librarry"))}, compatTagRecord)
 }
 
 func (h *handler) compatCreateTag(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "tag")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatTagRecord(payload, stablePayloadID(payload, "tag")))
+	h.writeCompatResourceCreate(w, r, "tag", "tag", compatTagRecord)
 }
 
 func (h *handler) compatUpdateTag(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "tag")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatTagRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "tag", "tag", compatTagRecord)
 }
 
 func (h *handler) compatRestrictions(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{})
+	h.writeCompatResourceList(w, r, "restriction", nil, compatRestrictionRecord)
 }
 
 func (h *handler) compatRestriction(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatRestrictionRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "restriction", nil, compatRestrictionRecord)
 }
 
 func (h *handler) compatCreateRestriction(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "restriction")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatRestrictionRecord(payload, stablePayloadID(payload, "restriction")))
+	h.writeCompatResourceCreate(w, r, "restriction", "restriction", compatRestrictionRecord)
 }
 
 func (h *handler) compatUpdateRestriction(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "restriction")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatRestrictionRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "restriction", "restriction", compatRestrictionRecord)
 }
 
 func (h *handler) compatNotifications(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{})
+	h.writeCompatResourceList(w, r, "notification", nil, compatNotificationRecord)
 }
 
 func (h *handler) compatNotification(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatNotificationRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "notification", nil, compatNotificationRecord)
 }
 
 func (h *handler) compatCreateNotification(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "notification")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatNotificationRecord(payload, stablePayloadID(payload, "notification")))
+	h.writeCompatResourceCreate(w, r, "notification", "notification", compatNotificationRecord)
 }
 
 func (h *handler) compatUpdateNotification(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "notification")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatNotificationRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "notification", "notification", compatNotificationRecord)
 }
 
 func (h *handler) compatImportLists(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{})
+	h.writeCompatResourceList(w, r, "import-list", nil, compatImportListRecord)
 }
 
 func (h *handler) compatImportList(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatImportListRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "import-list", nil, compatImportListRecord)
 }
 
 func (h *handler) compatCreateImportList(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "import list")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatImportListRecord(payload, stablePayloadID(payload, "import-list")))
+	h.writeCompatResourceCreate(w, r, "import-list", "import list", compatImportListRecord)
 }
 
 func (h *handler) compatUpdateImportList(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "import list")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatImportListRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "import-list", "import list", compatImportListRecord)
 }
 
 func (h *handler) compatRemotePathMappings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{})
+	h.writeCompatResourceList(w, r, "remote-path-mapping", nil, compatRemotePathMappingRecord)
 }
 
 func (h *handler) compatRemotePathMapping(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, compatRemotePathMappingRecord(map[string]any{"id": r.PathValue("id")}, pathValueInt(r, "id")))
+	h.writeCompatResourceGet(w, r, "remote-path-mapping", nil, compatRemotePathMappingRecord)
 }
 
 func (h *handler) compatCreateRemotePathMapping(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "remote path mapping")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusCreated, compatRemotePathMappingRecord(payload, stablePayloadID(payload, "remote-path-mapping")))
+	h.writeCompatResourceCreate(w, r, "remote-path-mapping", "remote path mapping", compatRemotePathMappingRecord)
 }
 
 func (h *handler) compatUpdateRemotePathMapping(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "remote path mapping")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, compatRemotePathMappingRecord(payload, pathValueInt(r, "id")))
+	h.writeCompatResourceUpdate(w, r, "remote-path-mapping", "remote path mapping", compatRemotePathMappingRecord)
 }
 
 func (h *handler) compatDeleteResource(w http.ResponseWriter, r *http.Request) {
+	resourceType := compatResourceTypeFromPath(r.URL.Path)
+	if resourceType != "" && h.deps.Compat != nil {
+		if _, err := h.deps.Compat.DeleteResource(r.Context(), resourceType, pathValueInt(r, "id")); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1800,6 +1731,202 @@ func (h *handler) defaultRootFolderRecords() []map[string]any {
 	return []map[string]any{
 		compatRootFolderRecord(1, "Ebooks", defaultString(h.deps.Config.EbookLibraryRoot, "/data/media/books/ebooks")),
 		compatRootFolderRecord(2, "Audiobooks", defaultString(h.deps.Config.AudiobookLibraryRoot, "/data/media/books/audiobooks")),
+	}
+}
+
+type compatResourceRecordFunc func(map[string]any, int) map[string]any
+
+func (h *handler) writeCompatResourceList(w http.ResponseWriter, r *http.Request, resourceType string, defaults []map[string]any, recordFn compatResourceRecordFunc) {
+	records, err := h.compatResourceRecords(r.Context(), resourceType, defaults, recordFn)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) writeCompatResourceGet(w http.ResponseWriter, r *http.Request, resourceType string, defaults []map[string]any, recordFn compatResourceRecordFunc) {
+	id := pathValueInt(r, "id")
+	record, ok, err := h.compatResourceRecord(r.Context(), resourceType, id, defaults, recordFn)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if !ok {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "resource not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, record)
+}
+
+func (h *handler) writeCompatResourceCreate(w http.ResponseWriter, r *http.Request, resourceType string, payloadName string, recordFn compatResourceRecordFunc) {
+	payload, ok := decodeCompatObjectPayload(w, r, payloadName)
+	if !ok {
+		return
+	}
+	if h.deps.Compat == nil {
+		writeJSON(w, http.StatusCreated, recordFn(payload, stablePayloadID(payload, resourceType)))
+		return
+	}
+	resource, err := h.deps.Compat.UpsertResource(r.Context(), compatdata.Resource{
+		ResourceType: resourceType,
+		Name:         compatResourceName(payload),
+		Payload:      payload,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatStoredResourceRecord(resource, recordFn))
+}
+
+func (h *handler) writeCompatResourceUpdate(w http.ResponseWriter, r *http.Request, resourceType string, payloadName string, recordFn compatResourceRecordFunc) {
+	payload, ok := decodeCompatObjectPayload(w, r, payloadName)
+	if !ok {
+		return
+	}
+	id := pathValueInt(r, "id")
+	if id <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "resource id is required"})
+		return
+	}
+	if h.deps.Compat == nil {
+		writeJSON(w, http.StatusOK, recordFn(payload, id))
+		return
+	}
+	resource, err := h.deps.Compat.UpsertResource(r.Context(), compatdata.Resource{
+		ResourceType: resourceType,
+		CompatID:     id,
+		Name:         compatResourceName(payload),
+		Payload:      payload,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, compatStoredResourceRecord(resource, recordFn))
+}
+
+func (h *handler) compatResourceRecords(ctx context.Context, resourceType string, defaults []map[string]any, recordFn compatResourceRecordFunc) ([]map[string]any, error) {
+	records := cloneCompatRecords(defaults)
+	if h.deps.Compat == nil {
+		return records, nil
+	}
+	resources, err := h.deps.Compat.ListResources(ctx, resourceType)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[int]int{}
+	for index, record := range records {
+		id := payloadIntDefault(record, "id", 0)
+		if id > 0 {
+			seen[id] = index
+		}
+	}
+	for _, resource := range resources {
+		record := compatStoredResourceRecord(resource, recordFn)
+		if index, ok := seen[resource.CompatID]; ok {
+			records[index] = record
+			continue
+		}
+		seen[resource.CompatID] = len(records)
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func (h *handler) compatResourceRecord(ctx context.Context, resourceType string, id int, defaults []map[string]any, recordFn compatResourceRecordFunc) (map[string]any, bool, error) {
+	if id <= 0 {
+		return nil, false, nil
+	}
+	if h.deps.Compat != nil {
+		resource, ok, err := h.deps.Compat.GetResource(ctx, resourceType, id)
+		if err != nil || ok {
+			if err != nil {
+				return nil, false, err
+			}
+			return compatStoredResourceRecord(resource, recordFn), true, nil
+		}
+	}
+	for _, record := range defaults {
+		if payloadIntDefault(record, "id", 0) == id {
+			return cloneCompatRecord(record), true, nil
+		}
+	}
+	if h.deps.Compat == nil {
+		return recordFn(map[string]any{"id": id}, id), true, nil
+	}
+	return nil, false, nil
+}
+
+func compatStoredResourceRecord(resource compatdata.Resource, recordFn compatResourceRecordFunc) map[string]any {
+	payload := cloneCompatRecord(resource.Payload)
+	payload["id"] = resource.CompatID
+	record := recordFn(payload, resource.CompatID)
+	record["librarryPersisted"] = true
+	delete(record, "librarryEphemeral")
+	return record
+}
+
+func compatQualityDefinitionCompatRecord(payload map[string]any, id int) map[string]any {
+	return compatQualityDefinitionRecordFromPayload(id, payload)
+}
+
+func cloneCompatRecords(records []map[string]any) []map[string]any {
+	if len(records) == 0 {
+		return []map[string]any{}
+	}
+	cloned := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		cloned = append(cloned, cloneCompatRecord(record))
+	}
+	return cloned
+}
+
+func cloneCompatRecord(record map[string]any) map[string]any {
+	cloned := map[string]any{}
+	for key, value := range record {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func compatResourceName(payload map[string]any) string {
+	return firstNonEmptyString(
+		payloadString(payload, "name"),
+		payloadString(payload, "label"),
+		payloadString(payload, "implementation"),
+		payloadString(payload, "host"),
+	)
+}
+
+func compatResourceTypeFromPath(path string) string {
+	path = strings.Trim(strings.TrimSpace(path), "/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 || parts[0] != "api" || parts[1] != "v1" {
+		return ""
+	}
+	switch strings.ToLower(parts[2]) {
+	case "delayprofile":
+		return "delay-profile"
+	case "languageprofile":
+		return "language-profile"
+	case "metadataprofile":
+		return "metadata-profile"
+	case "customformat":
+		return "custom-format"
+	case "tag":
+		return "tag"
+	case "restriction":
+		return "restriction"
+	case "notification":
+		return "notification"
+	case "importlist":
+		return "import-list"
+	case "remotepathmapping":
+		return "remote-path-mapping"
+	default:
+		return ""
 	}
 }
 

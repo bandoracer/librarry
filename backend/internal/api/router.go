@@ -76,6 +76,10 @@ type compatResourceService interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 	CreateRootFolder(ctx context.Context, folder compatdata.RootFolder) (compatdata.RootFolder, error)
 	DeleteRootFolder(ctx context.Context, id string) (bool, error)
+	ListResources(ctx context.Context, resourceType string) ([]compatdata.Resource, error)
+	GetResource(ctx context.Context, resourceType string, compatID int) (compatdata.Resource, bool, error)
+	UpsertResource(ctx context.Context, resource compatdata.Resource) (compatdata.Resource, error)
+	DeleteResource(ctx context.Context, resourceType string, compatID int) (bool, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {

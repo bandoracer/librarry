@@ -374,6 +374,79 @@ func TestCompatCatalogResourceEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatCatalogResourcePersistenceEndpoints(t *testing.T) {
+	compatResources := &fakeCompatResources{
+		resources: []compatdata.Resource{{
+			ResourceType: "remote-path-mapping",
+			CompatID:     55,
+			Name:         "qbittorrent",
+			Payload: map[string]any{
+				"host":       "qbittorrent",
+				"remotePath": "/downloads",
+				"localPath":  "/data/downloads",
+			},
+		}},
+	}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Compat:   compatResources,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tag", strings.NewReader(`{"label":"retail"}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"id":1`) || !strings.Contains(res.Body.String(), `"label":"retail"`) || !strings.Contains(res.Body.String(), `"librarryPersisted":true`) {
+		t.Fatalf("expected persisted created tag, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/tag", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"label":"librarry"`) || !strings.Contains(res.Body.String(), `"label":"retail"`) {
+		t.Fatalf("expected default and persisted tags, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/tag/1", strings.NewReader(`{"label":"priority"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"label":"priority"`) {
+		t.Fatalf("expected persisted tag update, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/tag/1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"label":"priority"`) {
+		t.Fatalf("expected persisted tag lookup, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/remotepathmapping/55", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"remotePath":"/downloads"`) || !strings.Contains(res.Body.String(), `"localPath":"/data/downloads"`) {
+		t.Fatalf("expected persisted remote path mapping, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/tag/1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(compatResources.deletedResources) != 1 || compatResources.deletedResources[0] != "tag:1" {
+		t.Fatalf("expected persisted delete, got %#v", compatResources.deletedResources)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/tag/1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected deleted resource to be missing, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger: slog.Default(),
@@ -1880,8 +1953,10 @@ func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.Histor
 }
 
 type fakeCompatResources struct {
-	roots   []compatdata.RootFolder
-	deleted []string
+	roots            []compatdata.RootFolder
+	deleted          []string
+	resources        []compatdata.Resource
+	deletedResources []string
 }
 
 func (f *fakeCompatResources) ListRootFolders(context.Context) ([]compatdata.RootFolder, error) {
@@ -1912,6 +1987,71 @@ func (f *fakeCompatResources) DeleteRootFolder(_ context.Context, id string) (bo
 		return true, nil
 	}
 	return false, nil
+}
+
+func (f *fakeCompatResources) ListResources(_ context.Context, resourceType string) ([]compatdata.Resource, error) {
+	var resources []compatdata.Resource
+	for _, resource := range f.resources {
+		if resource.ResourceType == resourceType {
+			resources = append(resources, cloneFakeCompatResource(resource))
+		}
+	}
+	return resources, nil
+}
+
+func (f *fakeCompatResources) GetResource(_ context.Context, resourceType string, compatID int) (compatdata.Resource, bool, error) {
+	for _, resource := range f.resources {
+		if resource.ResourceType == resourceType && resource.CompatID == compatID {
+			return cloneFakeCompatResource(resource), true, nil
+		}
+	}
+	return compatdata.Resource{}, false, nil
+}
+
+func (f *fakeCompatResources) UpsertResource(_ context.Context, resource compatdata.Resource) (compatdata.Resource, error) {
+	if resource.CompatID <= 0 {
+		for _, existing := range f.resources {
+			if existing.ResourceType == resource.ResourceType && existing.CompatID > resource.CompatID {
+				resource.CompatID = existing.CompatID
+			}
+		}
+		resource.CompatID++
+	}
+	if resource.ID == "" {
+		resource.ID = "compat-resource-" + strconv.Itoa(resource.CompatID)
+	}
+	if resource.Payload == nil {
+		resource.Payload = map[string]any{}
+	}
+	for index, existing := range f.resources {
+		if existing.ResourceType == resource.ResourceType && existing.CompatID == resource.CompatID {
+			f.resources[index] = cloneFakeCompatResource(resource)
+			return resource, nil
+		}
+	}
+	f.resources = append(f.resources, cloneFakeCompatResource(resource))
+	return resource, nil
+}
+
+func (f *fakeCompatResources) DeleteResource(_ context.Context, resourceType string, compatID int) (bool, error) {
+	for index, resource := range f.resources {
+		if resource.ResourceType != resourceType || resource.CompatID != compatID {
+			continue
+		}
+		f.deletedResources = append(f.deletedResources, resourceType+":"+strconv.Itoa(compatID))
+		f.resources = append(f.resources[:index], f.resources[index+1:]...)
+		return true, nil
+	}
+	return false, nil
+}
+
+func cloneFakeCompatResource(resource compatdata.Resource) compatdata.Resource {
+	cloned := resource
+	cloned.Payload = map[string]any{}
+	for key, value := range resource.Payload {
+		cloned.Payload[key] = value
+	}
+	return cloned
 }
 
 type fakeBlocklistWanted struct {
