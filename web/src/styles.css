@@ -800,6 +800,84 @@ button {
   font-style: normal;
 }
 
+.failed-download-results {
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.failed-download-summary {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
+.failed-download-summary strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.failed-download-summary span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failed-download-row {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.failed-download-row.error {
+  background: #fffafa;
+}
+
+.failed-download-row strong,
+.failed-download-row span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failed-download-row strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.failed-download-row span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.failed-download-row em {
+  border-radius: 999px;
+  background: #e7f7ed;
+  color: #0f6b2e;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.failed-download-row.error em {
+  background: #fff1f2;
+  color: #9f1239;
+}
+
 .download-state {
   border: 1px solid #b9dfc6;
   border-radius: 999px;
@@ -1271,7 +1349,7 @@ button {
 
 .download-actions {
   display: grid;
-  grid-template-columns: repeat(6, 36px);
+  grid-template-columns: repeat(7, 36px);
   gap: 6px;
 }
 
@@ -1446,8 +1524,22 @@ button {
     flex-direction: column;
   }
 
-  .feed-sync-summary span {
+  .feed-sync-summary span,
+  .failed-download-summary span {
     white-space: normal;
+  }
+
+  .failed-download-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .failed-download-row {
+    grid-template-columns: 1fr;
+  }
+
+  .failed-download-row em {
+    justify-self: start;
   }
 
   .feed-sync-row em {
@@ -1461,7 +1553,7 @@ button {
   }
 
   .download-actions {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
   }
 
   .secondary-action.compact {

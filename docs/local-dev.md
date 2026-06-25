@@ -70,6 +70,26 @@ Manual feed runs are available through `POST /api/v1/wanted/feed-sync`.
 `LIBRARRY_FEED_SYNC_AUTO_GRAB=false` keeps scheduled feed runs search-only while
 still recording feed releases, matched release decisions, and history.
 
+## Failed Downloads
+
+Failed-download recovery can run on an interval:
+
+```dotenv
+LIBRARRY_FAILED_DOWNLOAD_ENABLED=true
+LIBRARRY_FAILED_DOWNLOAD_INTERVAL=30m
+LIBRARRY_FAILED_DOWNLOAD_STALLED_AGE=24h
+LIBRARRY_FAILED_DOWNLOAD_LIMIT=50
+LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB=false
+LIBRARRY_FAILED_DOWNLOAD_REMOVE=false
+LIBRARRY_FAILED_DOWNLOAD_DELETE_FILES=false
+```
+
+Manual recovery runs are available through
+`POST /api/v1/downloads/recover-failed`. The recovery path detects
+qBittorrent error/missing-file states and stale stalled downloads with no
+seeders, marks the linked wanted item wanted again, searches for replacements,
+and only grabs or removes torrents when explicitly requested.
+
 ## Library Roots
 
 Library scans and manual imports use these roots by default:

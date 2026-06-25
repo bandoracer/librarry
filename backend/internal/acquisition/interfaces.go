@@ -68,11 +68,16 @@ type DownloadStatus struct {
 	Peers           int        `json:"peers,omitempty"`
 	AddedAt         *time.Time `json:"addedAt,omitempty"`
 	CompletedAt     *time.Time `json:"completedAt,omitempty"`
+	LastActivityAt  *time.Time `json:"lastActivityAt,omitempty"`
 	LastSeenAt      *time.Time `json:"lastSeenAt,omitempty"`
 	ImportStatus    string     `json:"importStatus,omitempty"`
 	ImportedFileID  string     `json:"importedFileId,omitempty"`
 	ImportedAt      *time.Time `json:"importedAt,omitempty"`
 	ImportError     string     `json:"importError,omitempty"`
+	FailureReason   string     `json:"failureReason,omitempty"`
+	FailedAt        *time.Time `json:"failedAt,omitempty"`
+	RetryCount      int        `json:"retryCount,omitempty"`
+	ReplacementID   string     `json:"replacementId,omitempty"`
 }
 
 type DownloadClient interface {

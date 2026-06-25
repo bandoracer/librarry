@@ -43,6 +43,7 @@ type wantedService interface {
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
 	Monitor(ctx context.Context, request wanted.MonitorRequest) (wanted.MonitorRun, error)
 	FeedSync(ctx context.Context, request wanted.FeedSyncRequest) (wanted.FeedSyncRun, error)
+	RecoverFailedDownloads(ctx context.Context, request wanted.FailedDownloadRequest) (wanted.FailedDownloadRun, error)
 	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
 }
 
@@ -68,6 +69,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
+	mux.HandleFunc("POST /api/v1/downloads/recover-failed", handler.recoverFailedDownloads)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
@@ -238,6 +240,27 @@ func (h *handler) downloadAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *handler) recoverFailedDownloads(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.FailedDownloadRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	if request.Trigger == "" {
+		request.Trigger = "manual"
+	}
+	run, err := h.deps.Wanted.RecoverFailedDownloads(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
+		return
+	}
+	writeJSON(w, http.StatusOK, run)
 }
 
 func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {

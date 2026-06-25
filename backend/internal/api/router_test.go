@@ -159,6 +159,26 @@ func TestFeedSyncWantedEndpoint(t *testing.T) {
 	}
 }
 
+func TestRecoverFailedDownloadsEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/recover-failed", strings.NewReader(`{"autoGrab":true,"downloadIds":["abc123"]}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"failedCount":1`) {
+		t.Fatalf("expected failed download run in response, got %s", res.Body.String())
+	}
+}
+
 func TestHistoryEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -341,6 +361,18 @@ func (fakeWanted) FeedSync(context.Context, wanted.FeedSyncRequest) (wanted.Feed
 		MatchedCount:  1,
 		ApprovedCount: 1,
 		StartedAt:     time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) RecoverFailedDownloads(context.Context, wanted.FailedDownloadRequest) (wanted.FailedDownloadRun, error) {
+	return wanted.FailedDownloadRun{
+		ID:                "failed-1",
+		Trigger:           "manual",
+		Status:            "completed",
+		DownloadsChecked:  1,
+		FailedCount:       1,
+		ReplacementsFound: 1,
+		StartedAt:         time.Now().UTC(),
 	}, nil
 }
 

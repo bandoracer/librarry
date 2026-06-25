@@ -34,6 +34,7 @@ import {
   grabRelease,
   importCompletedDownloads,
   importLibraryFile,
+  recoverFailedDownloads,
   runWantedFeedSync,
   runWantedMonitor,
   runDownloadAction,
@@ -44,6 +45,7 @@ import {
   type DownloadAction,
   type CompletedImportOutcome,
   type DownloadStatus,
+  type FailedDownloadRun,
   type FeedSyncRun,
   type HistoryEvent,
   type IntegrationHealth,
@@ -83,6 +85,7 @@ export function App() {
   const [completedImport, setCompletedImport] = useState<CompletedImportOutcome | null>(null);
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
   const [feedSyncRun, setFeedSyncRun] = useState<FeedSyncRun | null>(null);
+  const [failedDownloadRun, setFailedDownloadRun] = useState<FailedDownloadRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
@@ -99,6 +102,7 @@ export function App() {
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
   const [isImportingLibrary, setIsImportingLibrary] = useState(false);
   const [isImportingCompleted, setIsImportingCompleted] = useState(false);
+  const [isRecoveringFailed, setIsRecoveringFailed] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
@@ -352,6 +356,34 @@ export function App() {
       setLibraryError(error instanceof Error ? error.message : "Completed import failed");
     } finally {
       setIsImportingCompleted(false);
+    }
+  }
+
+  async function runFailedRecovery(download?: DownloadStatus, options: { autoGrab?: boolean; removeFailed?: boolean; force?: boolean } = {}) {
+    const actionID = download ? `${download.id}:recover` : "";
+    setIsRecoveringFailed(true);
+    if (actionID) {
+      setDownloadActionID(actionID);
+    }
+    setDownloadError("");
+    try {
+      const run = await recoverFailedDownloads({
+        downloadIds: download ? [download.id] : [],
+        autoGrab: options.autoGrab ?? false,
+        paused: true,
+        removeFailed: options.removeFailed ?? false,
+        force: options.force ?? Boolean(download)
+      });
+      setFailedDownloadRun(run);
+      await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Failed-download recovery failed");
+    } finally {
+      setIsRecoveringFailed(false);
+      if (actionID) {
+        setDownloadActionID("");
+      }
     }
   }
 
@@ -876,9 +908,35 @@ export function App() {
                 <UploadCloud size={16} />
                 {isImportingCompleted ? "Importing" : "Import done"}
               </button>
+              <button className="secondary-action compact" disabled={isRecoveringFailed || downloads.length === 0} onClick={() => runFailedRecovery(undefined, { autoGrab: true })} type="button">
+                <HardDriveDownload size={16} />
+                {isRecoveringFailed ? "Recovering" : "Recover failed"}
+              </button>
             </div>
           </div>
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
+          {failedDownloadRun ? (
+            <div className="failed-download-results">
+              <div className="failed-download-summary">
+                <strong>{failedDownloadRun.status}</strong>
+                <span>
+                  {failedDownloadRun.downloadsChecked} checked · {failedDownloadRun.failedCount} failed · {failedDownloadRun.replacementsFound} replacements · {failedDownloadRun.grabbedCount} grabbed · {failedDownloadRun.removedCount} removed
+                </span>
+              </div>
+              {failedDownloadRun.items?.slice(0, 6).map((item) => (
+                <article className={item.error ? "failed-download-row error" : "failed-download-row"} key={`${item.download.id}-${item.failureReason}`}>
+                  <div>
+                    <strong>{item.download.name || item.download.id}</strong>
+                    <span>
+                      {item.failureReason}
+                      {item.replacementRelease ? ` · replacement ${item.replacementRelease.title}` : ""}
+                    </span>
+                  </div>
+                  {item.replacementDownload ? <em>Queued</em> : item.error ? <em>Error</em> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
           <div className="download-list">
             {downloads.map((download) => {
               const busy = downloadActionID.startsWith(`${download.id}:`);
@@ -897,8 +955,10 @@ export function App() {
                       <span>ratio {(download.ratio ?? 0).toFixed(2)}</span>
                       <span>{download.seeders ?? 0} seeders</span>
                       <span>import {download.importStatus || "pending"}</span>
+                      {download.retryCount ? <span>{download.retryCount} retries</span> : null}
                     </div>
                     {download.importError ? <div className="download-import-error">{download.importError}</div> : null}
+                    {download.failureReason ? <div className="download-import-error">{download.failureReason}</div> : null}
                     <div className="progress-track" aria-label={`Download progress ${Math.round((download.progress ?? 0) * 100)} percent`}>
                       <span style={{ width: `${Math.max(0, Math.min(100, (download.progress ?? 0) * 100))}%` }} />
                     </div>
@@ -919,6 +979,9 @@ export function App() {
                     </button>
                     <button className="icon-button" disabled={busy || isImportingCompleted} onClick={() => runCompletedImport(download)} type="button" aria-label="Import completed download" title="Import completed">
                       <UploadCloud size={16} />
+                    </button>
+                    <button className="icon-button" disabled={busy || isRecoveringFailed} onClick={() => runFailedRecovery(download, { autoGrab: true, force: true })} type="button" aria-label="Retry failed download" title="Retry failed download">
+                      <HardDriveDownload size={16} />
                     </button>
                     <button className="icon-button danger" disabled={busy} onClick={() => applyDownloadAction("delete", download, false)} type="button" aria-label="Remove download" title="Remove without deleting files">
                       <Trash2 size={16} />

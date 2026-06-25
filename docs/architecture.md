@@ -20,6 +20,7 @@ Initial API surface:
 - `POST /api/v1/grabs`
 - `GET /api/v1/downloads`
 - `POST /api/v1/downloads/actions`
+- `POST /api/v1/downloads/recover-failed`
 - `GET /api/v1/wanted`
 - `POST /api/v1/wanted`
 - `POST /api/v1/wanted/{id}/search`
@@ -55,6 +56,14 @@ Download state is reconciled from qBittorrent through `/api/v1/downloads` and
 stored in Postgres when database persistence is configured. Torrent actions are
 exposed through `/api/v1/downloads/actions` for start, stop, delete, recheck,
 and priority changes.
+
+Failed-download recovery can be triggered manually through
+`POST /api/v1/downloads/recover-failed` and can also run on an interval in the
+API process. Recovery detects qBittorrent error/missing-file states and stale
+stalled downloads with no seeders, reopens the linked wanted item, records the
+failure on the download row, searches for replacement releases, and optionally
+grabs the best approved replacement. Scheduled recovery defaults to search-only;
+auto-grab and failed-torrent removal are explicit settings.
 
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and

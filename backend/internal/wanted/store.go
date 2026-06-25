@@ -456,6 +456,56 @@ func (s *Store) FinishFeedSyncRun(ctx context.Context, run FeedSyncRun) (FeedSyn
 	return finished, nil
 }
 
+func (s *Store) StartFailedDownloadRun(ctx context.Context, trigger string) (FailedDownloadRun, error) {
+	if !s.Configured() {
+		return FailedDownloadRun{}, errors.New("wanted store is unavailable")
+	}
+	trigger = strings.TrimSpace(trigger)
+	if trigger == "" {
+		trigger = "manual"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into failed_download_runs(trigger, status)
+		values ($1, 'running')
+		returning
+			id, trigger, status, downloads_checked, failed_count, replacements_found,
+			grabbed_count, removed_count, error_count, message, started_at, finished_at
+	`, trigger)
+	return scanFailedDownloadRun(row)
+}
+
+func (s *Store) FinishFailedDownloadRun(ctx context.Context, run FailedDownloadRun) (FailedDownloadRun, error) {
+	if !s.Configured() {
+		return FailedDownloadRun{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(run.Status) == "" {
+		run.Status = "completed"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update failed_download_runs set
+			status = $2,
+			downloads_checked = $3,
+			failed_count = $4,
+			replacements_found = $5,
+			grabbed_count = $6,
+			removed_count = $7,
+			error_count = $8,
+			message = $9,
+			finished_at = now()
+		where id = $1
+		returning
+			id, trigger, status, downloads_checked, failed_count, replacements_found,
+			grabbed_count, removed_count, error_count, message, started_at, finished_at
+	`, run.ID, run.Status, run.DownloadsChecked, run.FailedCount, run.ReplacementsFound,
+		run.GrabbedCount, run.RemovedCount, run.ErrorCount, run.Message)
+	finished, err := scanFailedDownloadRun(row)
+	if err != nil {
+		return FailedDownloadRun{}, err
+	}
+	finished.Items = run.Items
+	return finished, nil
+}
+
 func (s *Store) UpsertFeedReleases(ctx context.Context, releases []acquisition.Release) error {
 	if !s.Configured() {
 		return errors.New("wanted store is unavailable")
@@ -659,6 +709,23 @@ func scanFeedSyncRun(row wantedScanner) (FeedSyncRun, error) {
 		&run.Message, &run.StartedAt, &finishedAt,
 	); err != nil {
 		return FeedSyncRun{}, err
+	}
+	if finishedAt.Valid {
+		value := finishedAt.Time.UTC()
+		run.FinishedAt = &value
+	}
+	return run, nil
+}
+
+func scanFailedDownloadRun(row wantedScanner) (FailedDownloadRun, error) {
+	var run FailedDownloadRun
+	var finishedAt sql.NullTime
+	if err := row.Scan(
+		&run.ID, &run.Trigger, &run.Status, &run.DownloadsChecked, &run.FailedCount,
+		&run.ReplacementsFound, &run.GrabbedCount, &run.RemovedCount, &run.ErrorCount,
+		&run.Message, &run.StartedAt, &finishedAt,
+	); err != nil {
+		return FailedDownloadRun{}, err
 	}
 	if finishedAt.Valid {
 		value := finishedAt.Time.UTC()

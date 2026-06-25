@@ -16,6 +16,8 @@ const (
 	defaultWantedMonitorLimit       = 50
 	defaultWantedMonitorSearchLimit = 20
 	defaultWantedSearchInterval     = 6 * time.Hour
+	defaultFailedDownloadLimit      = 50
+	defaultFailedDownloadStalledAge = 24 * time.Hour
 )
 
 type Service struct {
@@ -410,6 +412,194 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 	return s.store.FinishFeedSyncRun(ctx, run)
 }
 
+func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDownloadRequest) (FailedDownloadRun, error) {
+	if !s.Available() {
+		return FailedDownloadRun{}, errors.New("wanted service requires database persistence")
+	}
+	if s.acquire == nil {
+		return FailedDownloadRun{}, errors.New("acquisition service is unavailable")
+	}
+
+	run, err := s.store.StartFailedDownloadRun(ctx, request.Trigger)
+	if err != nil {
+		return FailedDownloadRun{}, err
+	}
+	limit := request.Limit
+	if limit <= 0 || limit > 200 {
+		limit = defaultFailedDownloadLimit
+	}
+	searchLimit := request.SearchLimit
+	if searchLimit <= 0 || searchLimit > 50 {
+		searchLimit = defaultWantedMonitorSearchLimit
+	}
+	stalledAge := defaultFailedDownloadStalledAge
+	if request.MinStalledMinutes > 0 {
+		stalledAge = time.Duration(request.MinStalledMinutes) * time.Minute
+	}
+
+	downloads, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{
+		Tag: "librarry",
+		IDs: request.DownloadIDs,
+	})
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishFailedDownloadRun(ctx, run)
+		if finishErr != nil {
+			return FailedDownloadRun{}, finishErr
+		}
+		return finished, err
+	}
+
+	allowedIDs := stringSet(request.DownloadIDs)
+	now := time.Now().UTC()
+	for _, download := range downloads {
+		if run.DownloadsChecked >= limit {
+			break
+		}
+		if len(allowedIDs) > 0 && !allowedIDs[download.ID] {
+			continue
+		}
+		run.DownloadsChecked++
+
+		reason := failedDownloadReason(download, stalledAge, now)
+		if reason == "" && request.Force && len(allowedIDs) > 0 {
+			reason = "manual retry requested"
+		}
+		if reason == "" {
+			continue
+		}
+
+		result := FailedDownloadResult{Download: download, FailureReason: reason}
+		run.FailedCount++
+		if err := s.acquire.MarkDownloadFailed(ctx, download.ID, reason); err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+
+		wantedID := wantedIDFromTags(download.Tags)
+		if wantedID == "" {
+			result.Error = "download is not linked to a wanted item"
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		item, err := s.store.GetWanted(ctx, wantedID)
+		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		result.WantedItem = item
+		_ = s.store.MarkWantedStatus(ctx, item.ID, "wanted")
+		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+			EventType:  "download_failed",
+			EntityType: "wanted_item",
+			EntityID:   item.ID,
+			Severity:   "warning",
+			Message:    "Download failed for " + item.Title,
+			Data: map[string]any{
+				"downloadId": download.ID,
+				"name":       download.Name,
+				"state":      download.State,
+				"reason":     reason,
+				"runId":      run.ID,
+			},
+		})
+
+		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
+		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		result.WantedItem = outcome.WantedItem
+		result.ReplacementReleases = outcome.Releases
+		replacement, ok := firstApprovedReplacement(outcome.Releases, download)
+		if ok {
+			run.ReplacementsFound++
+			result.ReplacementRelease = &replacement
+		}
+
+		if request.AutoGrab {
+			if !ok {
+				result.Error = "no approved replacement release is available"
+				run.ErrorCount++
+			} else {
+				status, err := s.grabRelease(ctx, outcome.WantedItem, replacement, request.Paused, "failed-download")
+				if err != nil {
+					result.Error = err.Error()
+					run.ErrorCount++
+					_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+						EventType:  "failed_download_replacement_grab_failed",
+						EntityType: "wanted_item",
+						EntityID:   item.ID,
+						Severity:   "error",
+						Message:    "Failed download replacement grab failed for " + item.Title,
+						Data: map[string]any{
+							"downloadId": download.ID,
+							"releaseId":  replacement.ID,
+							"title":      replacement.Title,
+							"error":      err.Error(),
+						},
+					})
+				} else {
+					result.ReplacementDownload = &status
+					run.GrabbedCount++
+					_ = s.acquire.MarkDownloadReplacement(ctx, download.ID, status.ID)
+				}
+			}
+		}
+
+		if request.RemoveFailed {
+			action, err := s.acquire.DownloadAction(ctx, acquisition.DownloadActionRequest{
+				Action:      acquisition.DownloadActionDelete,
+				IDs:         []string{download.ID},
+				DeleteFiles: request.DeleteFailedFiles,
+			})
+			if err != nil {
+				if result.Error == "" {
+					result.Error = err.Error()
+				}
+				run.ErrorCount++
+			} else if action.Applied {
+				result.Removed = true
+				run.RemovedCount++
+			}
+		}
+
+		run.Items = append(run.Items, result)
+	}
+
+	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+		EventType:  "failed_downloads_checked",
+		EntityType: "failed_download_run",
+		EntityID:   run.ID,
+		Severity:   "info",
+		Message:    "Checked failed downloads",
+		Data: map[string]any{
+			"downloadsChecked":  run.DownloadsChecked,
+			"failedCount":       run.FailedCount,
+			"replacementsFound": run.ReplacementsFound,
+			"grabbedCount":      run.GrabbedCount,
+			"removedCount":      run.RemovedCount,
+			"errorCount":        run.ErrorCount,
+		},
+	})
+	if run.ErrorCount > 0 {
+		run.Status = "partial_failed"
+	} else {
+		run.Status = "completed"
+	}
+	run.Message = failedDownloadMessage(run)
+	return s.store.FinishFailedDownloadRun(ctx, run)
+}
+
 func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEvent, error) {
 	if !s.Available() {
 		return nil, errors.New("wanted service requires database persistence")
@@ -479,6 +669,22 @@ func firstApproved(releases []ReleaseDecision) (ReleaseDecision, bool) {
 	return ReleaseDecision{}, false
 }
 
+func firstApprovedReplacement(releases []ReleaseDecision, failed acquisition.DownloadStatus) (ReleaseDecision, bool) {
+	failedID := strings.ToLower(strings.TrimSpace(failed.ID))
+	for _, release := range releases {
+		if !release.Approved {
+			continue
+		}
+		if failedID != "" {
+			if strings.EqualFold(release.InfoHash, failedID) || strings.EqualFold(release.SourceID, failedID) || strings.EqualFold(release.ID, failedID) {
+				continue
+			}
+		}
+		return release, true
+	}
+	return ReleaseDecision{}, false
+}
+
 func monitorMessage(run MonitorRun) string {
 	if run.WantedChecked == 0 {
 		return strings.TrimSpace(run.Status) + ": no due wanted items"
@@ -529,4 +735,85 @@ func feedSyncMessage(run FeedSyncRun) string {
 		run.GrabbedCount,
 		run.ErrorCount,
 	)
+}
+
+func failedDownloadReason(download acquisition.DownloadStatus, stalledAge time.Duration, now time.Time) string {
+	state := strings.ToLower(strings.TrimSpace(download.State))
+	switch {
+	case strings.Contains(state, "missing"):
+		return "qBittorrent reports missing files"
+	case strings.Contains(state, "error"):
+		return "qBittorrent reports an error state"
+	}
+	if download.Progress >= 1 {
+		return ""
+	}
+	if !strings.Contains(state, "stalled") || !strings.Contains(state, "dl") {
+		return ""
+	}
+	if download.Seeders > 0 || download.DownloadRate > 0 {
+		return ""
+	}
+	reference := download.LastActivityAt
+	if reference == nil {
+		reference = download.AddedAt
+	}
+	if reference == nil {
+		return ""
+	}
+	if stalledAge <= 0 {
+		stalledAge = defaultFailedDownloadStalledAge
+	}
+	stalledFor := now.Sub(reference.UTC())
+	if stalledFor < stalledAge {
+		return ""
+	}
+	return fmt.Sprintf("stalled with no seeders for %s", roundDuration(stalledFor))
+}
+
+func failedDownloadMessage(run FailedDownloadRun) string {
+	if run.FailedCount == 0 {
+		return strings.TrimSpace(run.Status) + ": no failed downloads"
+	}
+	return fmt.Sprintf(
+		"%s: checked %d downloads, failed %d, replacements %d, grabbed %d, removed %d, errors %d",
+		strings.TrimSpace(run.Status),
+		run.DownloadsChecked,
+		run.FailedCount,
+		run.ReplacementsFound,
+		run.GrabbedCount,
+		run.RemovedCount,
+		run.ErrorCount,
+	)
+}
+
+func wantedIDFromTags(tags []string) string {
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if strings.HasPrefix(tag, "wanted:") {
+			return strings.TrimSpace(strings.TrimPrefix(tag, "wanted:"))
+		}
+	}
+	return ""
+}
+
+func stringSet(values []string) map[string]bool {
+	out := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			out[value] = true
+		}
+	}
+	return out
+}
+
+func roundDuration(value time.Duration) string {
+	if value >= time.Hour {
+		return value.Truncate(time.Hour).String()
+	}
+	if value >= time.Minute {
+		return value.Truncate(time.Minute).String()
+	}
+	return value.Truncate(time.Second).String()
 }

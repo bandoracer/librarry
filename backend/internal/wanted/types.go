@@ -12,6 +12,10 @@ type Acquisition interface {
 	Search(ctx context.Context, query acquisition.ReleaseSearchQuery) ([]acquisition.Release, error)
 	Feed(ctx context.Context, query acquisition.ReleaseFeedQuery) ([]acquisition.Release, error)
 	Grab(ctx context.Context, request acquisition.DownloadRequest) (acquisition.DownloadStatus, error)
+	Downloads(ctx context.Context, query acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error)
+	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
+	MarkDownloadFailed(ctx context.Context, id string, reason string) error
+	MarkDownloadReplacement(ctx context.Context, id string, replacementID string) error
 	CategoryForFormat(format string) string
 	TorrentRoot() string
 }
@@ -42,6 +46,19 @@ type FeedSyncRequest struct {
 	Limit    int    `json:"limit,omitempty"`
 	AutoGrab bool   `json:"autoGrab,omitempty"`
 	Paused   bool   `json:"paused,omitempty"`
+}
+
+type FailedDownloadRequest struct {
+	Trigger           string   `json:"trigger,omitempty"`
+	DownloadIDs       []string `json:"downloadIds,omitempty"`
+	Limit             int      `json:"limit,omitempty"`
+	SearchLimit       int      `json:"searchLimit,omitempty"`
+	MinStalledMinutes int      `json:"minStalledMinutes,omitempty"`
+	AutoGrab          bool     `json:"autoGrab,omitempty"`
+	Paused            bool     `json:"paused,omitempty"`
+	RemoveFailed      bool     `json:"removeFailed,omitempty"`
+	DeleteFailedFiles bool     `json:"deleteFailedFiles,omitempty"`
+	Force             bool     `json:"force,omitempty"`
 }
 
 type GrabRequest struct {
@@ -130,6 +147,33 @@ type FeedSyncMatch struct {
 	Release         ReleaseDecision             `json:"release"`
 	GrabbedDownload *acquisition.DownloadStatus `json:"grabbedDownload,omitempty"`
 	Error           string                      `json:"error,omitempty"`
+}
+
+type FailedDownloadRun struct {
+	ID                string                 `json:"id"`
+	Trigger           string                 `json:"trigger"`
+	Status            string                 `json:"status"`
+	DownloadsChecked  int                    `json:"downloadsChecked"`
+	FailedCount       int                    `json:"failedCount"`
+	ReplacementsFound int                    `json:"replacementsFound"`
+	GrabbedCount      int                    `json:"grabbedCount"`
+	RemovedCount      int                    `json:"removedCount"`
+	ErrorCount        int                    `json:"errorCount"`
+	Message           string                 `json:"message,omitempty"`
+	Items             []FailedDownloadResult `json:"items,omitempty"`
+	StartedAt         time.Time              `json:"startedAt"`
+	FinishedAt        *time.Time             `json:"finishedAt,omitempty"`
+}
+
+type FailedDownloadResult struct {
+	Download            acquisition.DownloadStatus  `json:"download"`
+	WantedItem          WantedItem                  `json:"wantedItem,omitempty"`
+	FailureReason       string                      `json:"failureReason"`
+	Removed             bool                        `json:"removed,omitempty"`
+	ReplacementReleases []ReleaseDecision           `json:"replacementReleases,omitempty"`
+	ReplacementRelease  *ReleaseDecision            `json:"replacementRelease,omitempty"`
+	ReplacementDownload *acquisition.DownloadStatus `json:"replacementDownload,omitempty"`
+	Error               string                      `json:"error,omitempty"`
 }
 
 type MonitorItemResult struct {

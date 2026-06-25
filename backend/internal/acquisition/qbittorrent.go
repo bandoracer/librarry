@@ -238,6 +238,7 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 		Peers        int     `json:"num_leechs"`
 		AddedOn      int64   `json:"added_on"`
 		CompletionOn int64   `json:"completion_on"`
+		LastActivity int64   `json:"last_activity"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, err
@@ -268,6 +269,7 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 			Peers:           item.Peers,
 			AddedAt:         unixTime(item.AddedOn),
 			CompletedAt:     unixTime(item.CompletionOn),
+			LastActivityAt:  unixTime(item.LastActivity),
 			LastSeenAt:      &now,
 		})
 	}

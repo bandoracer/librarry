@@ -73,11 +73,16 @@ export type DownloadStatus = {
   peers?: number;
   addedAt?: string;
   completedAt?: string;
+  lastActivityAt?: string;
   lastSeenAt?: string;
   importStatus?: string;
   importedFileId?: string;
   importedAt?: string;
   importError?: string;
+  failureReason?: string;
+  failedAt?: string;
+  retryCount?: number;
+  replacementId?: string;
 };
 
 export type DownloadAction =
@@ -186,6 +191,33 @@ export type FeedSyncRun = {
   errorCount: number;
   message?: string;
   matches?: FeedSyncMatch[];
+  startedAt: string;
+  finishedAt?: string;
+};
+
+export type FailedDownloadResult = {
+  download: DownloadStatus;
+  wantedItem?: WantedItem;
+  failureReason: string;
+  removed?: boolean;
+  replacementReleases?: ReleaseDecision[];
+  replacementRelease?: ReleaseDecision;
+  replacementDownload?: DownloadStatus;
+  error?: string;
+};
+
+export type FailedDownloadRun = {
+  id: string;
+  trigger: string;
+  status: string;
+  downloadsChecked: number;
+  failedCount: number;
+  replacementsFound: number;
+  grabbedCount: number;
+  removedCount: number;
+  errorCount: number;
+  message?: string;
+  items?: FailedDownloadResult[];
   startedAt: string;
   finishedAt?: string;
 };
@@ -347,6 +379,39 @@ export async function runDownloadAction(
     throw new Error(`Download action failed: ${response.status}`);
   }
   return (await response.json()) as DownloadActionResult;
+}
+
+export async function recoverFailedDownloads(options: {
+  downloadIds?: string[];
+  autoGrab?: boolean;
+  paused?: boolean;
+  removeFailed?: boolean;
+  deleteFailedFiles?: boolean;
+  force?: boolean;
+  limit?: number;
+  searchLimit?: number;
+  minStalledMinutes?: number;
+} = {}): Promise<FailedDownloadRun> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/recover-failed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      trigger: "manual",
+      downloadIds: options.downloadIds ?? [],
+      limit: options.limit ?? 50,
+      searchLimit: options.searchLimit ?? 20,
+      minStalledMinutes: options.minStalledMinutes ?? 1440,
+      autoGrab: options.autoGrab ?? false,
+      paused: options.paused ?? true,
+      removeFailed: options.removeFailed ?? false,
+      deleteFailedFiles: options.deleteFailedFiles ?? false,
+      force: options.force ?? false
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Failed-download recovery failed: ${response.status}`);
+  }
+  return (await response.json()) as FailedDownloadRun;
 }
 
 export async function fetchWanted(): Promise<WantedItem[]> {

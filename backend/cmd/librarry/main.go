@@ -90,6 +90,10 @@ func main() {
 		monitorWG.Add(1)
 		go runWantedFeedSync(ctx, &monitorWG, logger, wantedService, cfg)
 	}
+	if cfg.FailedDownloadEnabled && wantedService.Available() {
+		monitorWG.Add(1)
+		go runFailedDownloadRecovery(ctx, &monitorWG, logger, wantedService, cfg)
+	}
 
 	router := api.NewRouter(api.Dependencies{
 		Logger:   logger,
@@ -164,6 +168,64 @@ func runWantedFeedSync(ctx context.Context, wg *sync.WaitGroup, logger *slog.Log
 	defer startup.Stop()
 	defer ticker.Stop()
 	logger.Info("feed sync enabled", "interval", interval, "auto_grab", cfg.FeedSyncAutoGrab)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			run("scheduled-startup")
+		case <-ticker.C:
+			run("scheduled")
+		}
+	}
+}
+
+func runFailedDownloadRecovery(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
+	defer wg.Done()
+	interval := cfg.FailedDownloadInterval
+	if interval <= 0 {
+		interval = 30 * time.Minute
+	}
+	stalledMinutes := int(cfg.FailedDownloadStalledAge / time.Minute)
+	if stalledMinutes <= 0 {
+		stalledMinutes = int((24 * time.Hour) / time.Minute)
+	}
+	run := func(trigger string) {
+		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		outcome, err := service.RecoverFailedDownloads(runCtx, wanted.FailedDownloadRequest{
+			Trigger:           trigger,
+			Limit:             cfg.FailedDownloadLimit,
+			SearchLimit:       20,
+			MinStalledMinutes: stalledMinutes,
+			AutoGrab:          cfg.FailedDownloadAutoGrab,
+			Paused:            true,
+			RemoveFailed:      cfg.FailedDownloadRemove,
+			DeleteFailedFiles: cfg.FailedDownloadDeleteFiles,
+		})
+		if err != nil {
+			logger.Warn("failed download recovery failed", "trigger", trigger, "error", err)
+			return
+		}
+		logger.Info(
+			"failed download recovery completed",
+			"trigger", trigger,
+			"status", outcome.Status,
+			"checked", outcome.DownloadsChecked,
+			"failed", outcome.FailedCount,
+			"replacements", outcome.ReplacementsFound,
+			"grabbed", outcome.GrabbedCount,
+			"removed", outcome.RemovedCount,
+			"errors", outcome.ErrorCount,
+		)
+	}
+
+	startup := time.NewTimer(45 * time.Second)
+	ticker := time.NewTicker(interval)
+	defer startup.Stop()
+	defer ticker.Stop()
+	logger.Info("failed download recovery enabled", "interval", interval, "auto_grab", cfg.FailedDownloadAutoGrab, "remove_failed", cfg.FailedDownloadRemove)
 
 	for {
 		select {

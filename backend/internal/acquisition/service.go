@@ -140,6 +140,20 @@ func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequ
 	return result, nil
 }
 
+func (s *Service) MarkDownloadFailed(ctx context.Context, id string, reason string) error {
+	if s.store == nil {
+		return nil
+	}
+	return s.store.MarkDownloadFailed(ctx, id, reason)
+}
+
+func (s *Service) MarkDownloadReplacement(ctx context.Context, id string, replacementID string) error {
+	if s.store == nil {
+		return nil
+	}
+	return s.store.MarkDownloadReplacement(ctx, id, replacementID)
+}
+
 func (s *Service) CategoryForFormat(format string) string {
 	return s.categoryForFormat(format)
 }
@@ -213,6 +227,10 @@ func (s *Service) mergeStoredDownloadState(ctx context.Context, downloads []Down
 			downloads[i].ImportedFileID = item.ImportedFileID
 			downloads[i].ImportedAt = item.ImportedAt
 			downloads[i].ImportError = item.ImportError
+			downloads[i].FailureReason = item.FailureReason
+			downloads[i].FailedAt = item.FailedAt
+			downloads[i].RetryCount = item.RetryCount
+			downloads[i].ReplacementID = item.ReplacementID
 		}
 	}
 	return downloads
