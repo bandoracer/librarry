@@ -505,6 +505,62 @@ func TestCompatBookFileEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatRenamePreviewEndpoint(t *testing.T) {
+	renameLibrary := &fakeRenameLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  renameLibrary,
+	})
+
+	bookID := stableInt("wanted-1")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/rename?bookId="+strconv.Itoa(bookID), nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var records []map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&records); err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 || records[0]["existingPath"] == "" || records[0]["newPath"] == "" {
+		t.Fatalf("expected rename preview record, got %+v", records)
+	}
+	if len(renameLibrary.previewRequests) != 1 || renameLibrary.previewRequests[0].IDs[0] != "file-1" {
+		t.Fatalf("expected preview request for file-1, got %+v", renameLibrary.previewRequests)
+	}
+}
+
+func TestCompatRenameCommand(t *testing.T) {
+	renameLibrary := &fakeRenameLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  renameLibrary,
+	})
+
+	fileID := stableInt("file-1")
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"RenameFiles","files":[`+strconv.Itoa(fileID)+`]}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"commandName":"RenameFiles"`) || !strings.Contains(res.Body.String(), `"renamed":1`) {
+		t.Fatalf("expected rename command outcome, got %s", res.Body.String())
+	}
+	if len(renameLibrary.renameRequests) != 1 || renameLibrary.renameRequests[0].IDs[0] != "file-1" {
+		t.Fatalf("expected rename request for file-1, got %+v", renameLibrary.renameRequests)
+	}
+}
+
 func TestCompatAuthorAndBookCreateEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -1226,6 +1282,36 @@ func TestDeleteLibraryFileEndpoint(t *testing.T) {
 	}
 }
 
+func TestRenameLibraryFileEndpoints(t *testing.T) {
+	renameLibrary := &fakeRenameLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  renameLibrary,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/files/rename/preview", strings.NewReader(`{"ids":["file-1"]}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"destinationPath"`) || len(renameLibrary.previewRequests) != 1 || renameLibrary.previewRequests[0].IDs[0] != "file-1" {
+		t.Fatalf("expected native preview request/outcome, got body=%s requests=%+v", res.Body.String(), renameLibrary.previewRequests)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/library/files/rename", strings.NewReader(`{"ids":["file-1"]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"renamed":1`) || len(renameLibrary.renameRequests) != 1 || renameLibrary.renameRequests[0].IDs[0] != "file-1" {
+		t.Fatalf("expected native rename request/outcome, got body=%s requests=%+v", res.Body.String(), renameLibrary.renameRequests)
+	}
+}
+
 func TestScanLibraryEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -1708,6 +1794,14 @@ func (fakeLibrary) DeleteFiles(context.Context, library.DeleteFilesRequest) (lib
 	}, nil
 }
 
+func (fakeLibrary) PreviewRenameFiles(_ context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error) {
+	return fakeRenameOutcome(request, false), nil
+}
+
+func (fakeLibrary) RenameFiles(_ context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error) {
+	return fakeRenameOutcome(request, true), nil
+}
+
 type fakeDeleteLibrary struct {
 	fakeLibrary
 	requests []library.DeleteFilesRequest
@@ -1716,6 +1810,22 @@ type fakeDeleteLibrary struct {
 func (f *fakeDeleteLibrary) DeleteFiles(_ context.Context, request library.DeleteFilesRequest) (library.DeleteFilesOutcome, error) {
 	f.requests = append(f.requests, request)
 	return fakeLibrary{}.DeleteFiles(context.Background(), request)
+}
+
+type fakeRenameLibrary struct {
+	fakeLibrary
+	previewRequests []library.RenameFilesRequest
+	renameRequests  []library.RenameFilesRequest
+}
+
+func (f *fakeRenameLibrary) PreviewRenameFiles(_ context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error) {
+	f.previewRequests = append(f.previewRequests, request)
+	return fakeRenameOutcome(request, false), nil
+}
+
+func (f *fakeRenameLibrary) RenameFiles(_ context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error) {
+	f.renameRequests = append(f.renameRequests, request)
+	return fakeRenameOutcome(request, true), nil
 }
 
 func fakeLibraryFile() library.FileRecord {
@@ -1732,6 +1842,33 @@ func fakeLibraryFile() library.FileRecord {
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
 	}
+}
+
+func fakeRenameOutcome(request library.RenameFilesRequest, apply bool) library.RenameFilesOutcome {
+	file := fakeLibraryFile()
+	destination := "/library/ebooks/Andy Weir/Project Hail Mary/Andy Weir - Project Hail Mary.epub"
+	preview := library.RenameFilePreview{
+		File:            file,
+		SourcePath:      file.Path,
+		DestinationPath: destination,
+		RelativePath:    "Andy Weir/Project Hail Mary/Andy Weir - Project Hail Mary.epub",
+	}
+	requested := len(request.IDs) + len(request.Paths)
+	if requested == 0 {
+		requested = 1
+	}
+	outcome := library.RenameFilesOutcome{
+		Requested: requested,
+		Previews:  []library.RenameFilePreview{preview},
+	}
+	if !apply {
+		return outcome
+	}
+	renamed := file
+	renamed.Path = destination
+	outcome.Renamed = 1
+	outcome.Results = []library.RenameFileResult{{Preview: preview, File: &renamed, Status: "renamed"}}
+	return outcome
 }
 
 func (fakeLibrary) ListImportReviews(context.Context, library.ReviewListQuery) ([]library.ImportReview, error) {

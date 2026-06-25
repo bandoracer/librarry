@@ -60,6 +60,8 @@ type wantedService interface {
 type libraryService interface {
 	ListFiles(ctx context.Context, query library.FileListQuery) ([]library.FileRecord, error)
 	DeleteFiles(ctx context.Context, request library.DeleteFilesRequest) (library.DeleteFilesOutcome, error)
+	PreviewRenameFiles(ctx context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error)
+	RenameFiles(ctx context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error)
 	ListImportReviews(ctx context.Context, query library.ReviewListQuery) ([]library.ImportReview, error)
 	Scan(ctx context.Context, request library.ScanRequest) (library.ScanOutcome, error)
 	Import(ctx context.Context, request library.ImportRequest) (library.ImportOutcome, error)
@@ -138,6 +140,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/bookfile/{id}", handler.compatUpdateBookFile)
 	mux.HandleFunc("DELETE /api/v1/bookfile/bulk", handler.compatDeleteBookFileBulk)
 	mux.HandleFunc("DELETE /api/v1/bookfile/{id}", handler.compatDeleteBookFile)
+	mux.HandleFunc("GET /api/v1/rename", handler.compatRenamePreview)
 	mux.HandleFunc("GET /api/v1/wanted/missing", handler.compatWantedMissing)
 	mux.HandleFunc("GET /api/v1/qualityprofile", handler.compatQualityProfiles)
 	mux.HandleFunc("GET /api/v1/delayprofile", handler.compatDelayProfiles)
@@ -228,6 +231,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
 	mux.HandleFunc("DELETE /api/v1/library/files/{id}", handler.deleteLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/files/delete", handler.deleteLibraryFiles)
+	mux.HandleFunc("POST /api/v1/library/files/rename/preview", handler.previewRenameLibraryFiles)
+	mux.HandleFunc("POST /api/v1/library/files/rename", handler.renameLibraryFiles)
 	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
@@ -849,6 +854,44 @@ func (h *handler) deleteLibraryFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	outcome, err := h.deps.Library.DeleteFiles(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) previewRenameLibraryFiles(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.RenameFilesRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library rename preview payload"})
+		return
+	}
+	outcome, err := h.deps.Library.PreviewRenameFiles(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) renameLibraryFiles(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.RenameFilesRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library rename payload"})
+		return
+	}
+	outcome, err := h.deps.Library.RenameFiles(r.Context(), request)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
 		return

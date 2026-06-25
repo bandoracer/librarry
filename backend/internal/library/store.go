@@ -171,6 +171,46 @@ func (s *Store) DeleteFiles(ctx context.Context, ids []string, paths []string) (
 	return scanFiles(rows)
 }
 
+func (s *Store) UpdateFile(ctx context.Context, file FileRecord) (FileRecord, error) {
+	if !s.Configured() {
+		return FileRecord{}, errors.New("library store is unavailable")
+	}
+	if strings.TrimSpace(file.ID) == "" {
+		return FileRecord{}, errors.New("file id is required")
+	}
+	if strings.TrimSpace(file.Path) == "" {
+		return FileRecord{}, errors.New("file path is required")
+	}
+	if file.Metadata == nil {
+		file.Metadata = map[string]any{}
+	}
+	raw, err := json.Marshal(file.Metadata)
+	if err != nil {
+		return FileRecord{}, err
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update files set
+			path = $2,
+			source_path = $3,
+			title = $4,
+			author_name = $5,
+			extension = $6,
+			size_bytes = $7,
+			checksum = $8,
+			import_status = $9,
+			metadata = $10::jsonb,
+			modified_at = $11,
+			updated_at = now()
+		where id = $1
+		returning
+			id, coalesce(edition_id::text, ''), media_format, path, source_path,
+			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
+			import_status, metadata, modified_at, created_at, updated_at
+	`, strings.TrimSpace(file.ID), strings.TrimSpace(file.Path), file.SourcePath, file.Title, file.AuthorName,
+		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, firstNonEmpty(file.ImportStatus, "imported"), string(raw), file.ModifiedAt)
+	return scanFile(row)
+}
+
 func (s *Store) CreateImportReview(ctx context.Context, review ImportReview) (ImportReview, error) {
 	if !s.Configured() {
 		return ImportReview{}, errors.New("library store is unavailable")

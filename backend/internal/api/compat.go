@@ -95,6 +95,7 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "PUT", "path": "/api/v1/bookfile/{id}"},
 		{"method": "DELETE", "path": "/api/v1/bookfile/{id}"},
 		{"method": "DELETE", "path": "/api/v1/bookfile/bulk"},
+		{"method": "GET", "path": "/api/v1/rename"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
 		{"method": "GET", "path": "/api/v1/delayprofile"},
@@ -877,6 +878,32 @@ func (h *handler) compatWantedItemsBestEffort(r *http.Request) []wanted.WantedIt
 	return items
 }
 
+func (h *handler) compatRenamePreview(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	files, items, ok := h.compatBookFileSource(w, r)
+	if !ok {
+		return
+	}
+	request := renameRequestFromCompatFiles(r, files, items)
+	if len(request.IDs) == 0 && len(request.Paths) == 0 {
+		writeJSON(w, http.StatusOK, []map[string]any{})
+		return
+	}
+	outcome, err := h.deps.Library.PreviewRenameFiles(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
+		return
+	}
+	records := make([]map[string]any, 0, len(outcome.Previews))
+	for _, preview := range outcome.Previews {
+		records = append(records, compatRenamePreviewRecord(preview, wantedItemForFile(preview.File, items)))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
 func (h *handler) compatBookLookup(w http.ResponseWriter, r *http.Request) {
 	term := strings.TrimSpace(firstNonEmptyString(r.URL.Query().Get("term"), r.URL.Query().Get("query")))
 	if term == "" {
@@ -1370,11 +1397,9 @@ func (h *handler) compatCommands(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	var payload struct {
-		Name string `json:"name"`
-	}
+	payload := map[string]any{}
 	_ = json.NewDecoder(r.Body).Decode(&payload)
-	name := defaultString(payload.Name, "Unknown")
+	name := firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "commandName"), "Unknown")
 	command := map[string]any{
 		"id":          stableInt(name + time.Now().UTC().Format(time.RFC3339Nano)),
 		"name":        name,
@@ -1406,6 +1431,23 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 	case "refreshauthor":
 		if h.deps.Wanted != nil {
 			run, err := h.deps.Wanted.MonitorAuthors(r.Context(), wanted.AuthorMonitorRequest{Trigger: "api", Force: true})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+				return
+			}
+			command["body"] = run
+		}
+	case "renamefiles", "renamebookfiles", "renamebooks":
+		if h.deps.Library != nil {
+			request, ok := h.renameRequestFromCommandPayload(w, r, payload)
+			if !ok {
+				return
+			}
+			if len(request.IDs) == 0 && len(request.Paths) == 0 {
+				command["body"] = library.RenameFilesOutcome{}
+				break
+			}
+			run, err := h.deps.Library.RenameFiles(r.Context(), request)
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
 				return
@@ -2078,6 +2120,33 @@ func compatBookFileAuthorRecord(authorName string, item *wanted.WantedItem) map[
 	}
 }
 
+func compatRenamePreviewRecord(preview library.RenameFilePreview, item *wanted.WantedItem) map[string]any {
+	bookFile := compatBookFileRecord(preview.File, item)
+	bookID := stableInt(preview.File.Title)
+	authorID := stableInt(preview.File.AuthorName)
+	if item != nil {
+		bookID = stableInt(item.ID)
+		authorID = stableInt(item.AuthorName)
+	}
+	return map[string]any{
+		"id":              stableInt(preview.File.ID + preview.DestinationPath),
+		"authorId":        authorID,
+		"bookId":          bookID,
+		"bookFileId":      stableInt(firstNonEmptyString(preview.File.ID, preview.File.Path)),
+		"existingPath":    preview.SourcePath,
+		"newPath":         preview.DestinationPath,
+		"path":            preview.SourcePath,
+		"newPathState":    map[bool]string{true: "exists", false: "available"}[preview.Exists],
+		"proper":          false,
+		"noop":            preview.Noop,
+		"bookFile":        bookFile,
+		"book":            bookFile["book"],
+		"author":          bookFile["author"],
+		"quality":         bookFile["quality"],
+		"librarryPreview": preview,
+	}
+}
+
 func wantedItemForFile(file library.FileRecord, items []wanted.WantedItem) *wanted.WantedItem {
 	for _, item := range items {
 		if compatIDMatches(firstNonEmptyString(file.EditionID, fileMetadataString(file, "editionId")), item.EditionID, item.WorkID, item.ID, item.SourceKey) {
@@ -2104,6 +2173,66 @@ func wantedItemForFile(file library.FileRecord, items []wanted.WantedItem) *want
 	return nil
 }
 
+func renameRequestFromCompatFiles(r *http.Request, files []library.FileRecord, items []wanted.WantedItem) library.RenameFilesRequest {
+	request := library.RenameFilesRequest{
+		Overwrite: parseBoolDefault(r.URL.Query().Get("overwrite"), false),
+	}
+	for _, file := range files {
+		item := wantedItemForFile(file, items)
+		if bookFileMatchesQuery(r, file, item) {
+			request.IDs = append(request.IDs, file.ID)
+		}
+	}
+	return request
+}
+
+func (h *handler) renameRequestFromCommandPayload(w http.ResponseWriter, r *http.Request, payload map[string]any) (library.RenameFilesRequest, bool) {
+	request := library.RenameFilesRequest{
+		Overwrite: payloadBoolDefault(payload, "overwrite", parseBoolDefault(r.URL.Query().Get("overwrite"), false)),
+	}
+	files, items, ok := h.compatBookFileSource(w, r)
+	if !ok {
+		return request, false
+	}
+	ids := renameCommandFileIDs(payload)
+	paths := renameCommandPaths(payload)
+	seen := map[string]bool{}
+	matchedPaths := map[string]bool{}
+	for _, file := range files {
+		item := wantedItemForFile(file, items)
+		matchesID := len(ids) > 0 && bookFileMatchesAnyID(file, ids)
+		matchesPath := len(paths) > 0 && bookFileMatchesAnyPath(file, paths)
+		matchesSelection := len(ids) == 0 && len(paths) == 0 && (bookFileMatchesPayloadSelection(file, item, payload) || bookFileQueryHasFilter(r) && bookFileMatchesQuery(r, file, item))
+		if !matchesID && !matchesPath && !matchesSelection {
+			continue
+		}
+		if !seen[file.ID] {
+			request.IDs = append(request.IDs, file.ID)
+			seen[file.ID] = true
+		}
+		for _, path := range paths {
+			if compatIDMatches(path, file.Path, file.SourcePath, filepath.Base(file.Path)) {
+				matchedPaths[path] = true
+			}
+		}
+	}
+	if len(request.IDs) == 0 {
+		for _, id := range ids {
+			if _, err := strconv.Atoi(id); err != nil {
+				request.IDs = append(request.IDs, id)
+			}
+		}
+	}
+	for _, path := range paths {
+		if !matchedPaths[path] {
+			request.Paths = append(request.Paths, path)
+		}
+	}
+	request.IDs = firstUniqueStrings(request.IDs)
+	request.Paths = firstUniqueStrings(request.Paths)
+	return request, true
+}
+
 func bookFileMatchesQuery(r *http.Request, file library.FileRecord, item *wanted.WantedItem) bool {
 	if bookID := strings.TrimSpace(r.URL.Query().Get("bookId")); bookID != "" {
 		candidates := []string{file.ID, file.EditionID, file.Title, file.Path, filepath.Base(file.Path)}
@@ -2126,17 +2255,12 @@ func bookFileMatchesQuery(r *http.Request, file library.FileRecord, item *wanted
 	return true
 }
 
+func bookFileQueryHasFilter(r *http.Request) bool {
+	return strings.TrimSpace(r.URL.Query().Get("bookId")) != "" || strings.TrimSpace(r.URL.Query().Get("authorId")) != ""
+}
+
 func bookFileDeleteIDs(payload map[string]any) []string {
-	var ids []string
-	for _, key := range []string{"bookFileIds", "bookFileIDs", "ids", "bookFileId", "id"} {
-		for _, id := range compatPayloadIntArray(payload, key) {
-			ids = append(ids, strconv.Itoa(id))
-		}
-		if value := payloadString(payload, key); value != "" {
-			ids = append(ids, value)
-		}
-	}
-	return firstUniqueStrings(ids)
+	return payloadStringList(payload, "bookFileIds", "bookFileIDs", "ids", "bookFileId", "bookFileID", "id")
 }
 
 func bookFileMatchesAnyID(file library.FileRecord, ids []string) bool {
@@ -2146,6 +2270,117 @@ func bookFileMatchesAnyID(file library.FileRecord, ids []string) bool {
 		}
 	}
 	return false
+}
+
+func bookFileMatchesAnyPath(file library.FileRecord, paths []string) bool {
+	for _, path := range paths {
+		if compatIDMatches(path, file.Path, file.SourcePath, filepath.Base(file.Path)) {
+			return true
+		}
+	}
+	return false
+}
+
+func bookFileMatchesPayloadSelection(file library.FileRecord, item *wanted.WantedItem, payload map[string]any) bool {
+	matched := false
+	bookIDs := payloadStringList(payload, "bookIds", "bookIDs", "bookId", "bookID")
+	if len(bookIDs) > 0 {
+		matched = true
+		candidates := []string{file.ID, file.EditionID, file.Title, file.Path, filepath.Base(file.Path)}
+		if item != nil {
+			candidates = append(candidates, item.ID, item.WorkID, item.EditionID, item.SourceKey, item.Title)
+		}
+		if !anyCompatIDMatches(bookIDs, candidates...) {
+			return false
+		}
+	}
+	authorIDs := payloadStringList(payload, "authorIds", "authorIDs", "authorId", "authorID")
+	if len(authorIDs) > 0 {
+		matched = true
+		candidates := []string{file.AuthorName}
+		if item != nil {
+			candidates = append(candidates, item.AuthorName)
+		}
+		if !anyCompatIDMatches(authorIDs, candidates...) {
+			return false
+		}
+	}
+	return matched
+}
+
+func anyCompatIDMatches(values []string, candidates ...string) bool {
+	for _, value := range values {
+		if compatIDMatches(value, candidates...) {
+			return true
+		}
+	}
+	return false
+}
+
+func renameCommandFileIDs(payload map[string]any) []string {
+	ids := bookFileDeleteIDs(payload)
+	for _, value := range compatPayloadArray(payload, "files") {
+		switch typed := value.(type) {
+		case map[string]any:
+			ids = append(ids, payloadStringList(typed, "id", "bookFileId", "bookFileID", "librarryId")...)
+		default:
+			if text := stringValue(value); text != "" {
+				ids = append(ids, text)
+			}
+		}
+	}
+	return firstUniqueStrings(ids)
+}
+
+func renameCommandPaths(payload map[string]any) []string {
+	paths := payloadStringList(payload, "paths", "path", "existingPath", "sourcePath")
+	for _, value := range compatPayloadArray(payload, "files") {
+		file, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		paths = append(paths, payloadStringList(file, "path", "existingPath", "sourcePath")...)
+	}
+	return firstUniqueStrings(paths)
+}
+
+func payloadStringList(payload map[string]any, keys ...string) []string {
+	var values []string
+	if payload == nil {
+		return values
+	}
+	for _, key := range keys {
+		raw, ok := payload[key]
+		if !ok || raw == nil {
+			continue
+		}
+		if list, ok := raw.([]any); ok {
+			for _, value := range list {
+				if text := stringValue(value); text != "" {
+					values = append(values, text)
+				}
+			}
+			continue
+		}
+		if text := stringValue(raw); text != "" {
+			values = append(values, text)
+		}
+	}
+	return firstUniqueStrings(values)
+}
+
+func stringValue(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case float64:
+		if typed == float64(int64(typed)) {
+			return strconv.FormatInt(int64(typed), 10)
+		}
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	default:
+		return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(jsonString(typed)), `"`), `"`))
+	}
 }
 
 func firstUniqueStrings(values []string) []string {

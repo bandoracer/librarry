@@ -97,6 +97,66 @@ func (s *Service) DeleteFiles(ctx context.Context, request DeleteFilesRequest) (
 	return outcome, nil
 }
 
+func (s *Service) PreviewRenameFiles(ctx context.Context, request RenameFilesRequest) (RenameFilesOutcome, error) {
+	return s.renameFiles(ctx, request, false)
+}
+
+func (s *Service) RenameFiles(ctx context.Context, request RenameFilesRequest) (RenameFilesOutcome, error) {
+	return s.renameFiles(ctx, request, true)
+}
+
+func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, apply bool) (RenameFilesOutcome, error) {
+	if !s.Available() {
+		return RenameFilesOutcome{}, errors.New("library service requires database persistence")
+	}
+	ids := compactStrings(request.IDs)
+	paths := compactStrings(request.Paths)
+	if len(ids) == 0 && len(paths) == 0 {
+		return RenameFilesOutcome{}, errors.New("at least one file id or path is required")
+	}
+	outcome := RenameFilesOutcome{Requested: len(ids) + len(paths)}
+	files, err := s.store.FindFiles(ctx, ids, paths)
+	if err != nil {
+		return RenameFilesOutcome{}, err
+	}
+	if len(files) == 0 {
+		outcome.Skipped = outcome.Requested
+		return outcome, nil
+	}
+	for _, file := range files {
+		preview, err := s.renamePreviewForFile(file, request.Overwrite)
+		if err != nil {
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: RenameFilePreview{File: file, SourcePath: file.Path}, Status: "error", Message: err.Error()})
+			continue
+		}
+		outcome.Previews = append(outcome.Previews, preview)
+		if !apply {
+			if preview.Noop {
+				outcome.Skipped++
+			}
+			continue
+		}
+		if preview.Noop {
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "skipped", Message: "file already matches naming template"})
+			continue
+		}
+		renamed, err := s.applyRename(ctx, preview)
+		if err != nil {
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "error", Message: err.Error()})
+			continue
+		}
+		outcome.Renamed++
+		outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, File: &renamed, Status: "renamed"})
+	}
+	if unmatched := outcome.Requested - len(files); unmatched > 0 {
+		outcome.Skipped += unmatched
+	}
+	return outcome, nil
+}
+
 func (s *Service) ListImportReviews(ctx context.Context, query ReviewListQuery) ([]ImportReview, error) {
 	if !s.Available() {
 		return nil, errors.New("library service requires database persistence")
@@ -419,6 +479,79 @@ func (s *Service) destinationPath(format string, parsed parsedBook, ext string) 
 	parts = append(parts, renderPathSegments(policy.BookFolderTemplate, values, policy.SpaceReplacement)...)
 	fileName := renderFileName(policy.FileNameTemplate, values, policy.SpaceReplacement, ext)
 	return filepath.Join(append(parts, fileName)...)
+}
+
+func (s *Service) renamePreviewForFile(file FileRecord, overwrite bool) (RenameFilePreview, error) {
+	source := filepath.Clean(strings.TrimSpace(file.Path))
+	if source == "" || source == "." {
+		return RenameFilePreview{}, errors.New("file path is required")
+	}
+	parsedFromPath := parseBookFilename(source)
+	parsed := parsedBook{
+		Title:      firstNonEmpty(file.Title, parsedFromPath.Title),
+		AuthorName: firstNonEmpty(file.AuthorName, parsedFromPath.AuthorName),
+	}
+	ext := firstNonEmpty(file.Extension, filepath.Ext(source))
+	destination := s.destinationPath(file.MediaFormat, parsed, ext)
+	if destination == "" {
+		return RenameFilePreview{}, errors.New("library root is not configured")
+	}
+	destination = filepath.Clean(destination)
+	if !overwrite && source != destination {
+		destination = availableDestination(destination)
+	}
+	relativePath := filepath.Base(destination)
+	root := s.ebookRoot()
+	if normalizeFormat(file.MediaFormat) == "audiobook" {
+		root = s.audiobookRoot()
+	}
+	if root != "" {
+		if rel, err := filepath.Rel(root, destination); err == nil && !strings.HasPrefix(rel, "..") {
+			relativePath = rel
+		}
+	}
+	exists := false
+	if source != destination {
+		if _, err := os.Stat(destination); err == nil {
+			exists = true
+		}
+	}
+	return RenameFilePreview{
+		File:            file,
+		SourcePath:      source,
+		DestinationPath: destination,
+		RelativePath:    relativePath,
+		Exists:          exists,
+		Noop:            source == destination,
+	}, nil
+}
+
+func (s *Service) applyRename(ctx context.Context, preview RenameFilePreview) (FileRecord, error) {
+	if err := os.MkdirAll(filepath.Dir(preview.DestinationPath), 0o755); err != nil {
+		return FileRecord{}, err
+	}
+	if err := copyOrMoveFile(preview.SourcePath, preview.DestinationPath, true); err != nil {
+		return FileRecord{}, err
+	}
+	info, err := os.Stat(preview.DestinationPath)
+	if err != nil {
+		return FileRecord{}, err
+	}
+	file := preview.File
+	file.Path = preview.DestinationPath
+	file.Extension = strings.ToLower(filepath.Ext(preview.DestinationPath))
+	file.SizeBytes = info.Size()
+	modified := info.ModTime().UTC()
+	file.ModifiedAt = &modified
+	if strings.TrimSpace(file.ImportStatus) == "" {
+		file.ImportStatus = "imported"
+	}
+	if file.Metadata == nil {
+		file.Metadata = map[string]any{}
+	}
+	file.Metadata["renamedAt"] = time.Now().UTC().Format(time.RFC3339)
+	file.Metadata["previousPath"] = preview.SourcePath
+	return s.store.UpdateFile(ctx, file)
 }
 
 type namingPolicy struct {

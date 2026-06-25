@@ -104,6 +104,37 @@ type DeleteFileResult struct {
 	Message string     `json:"message,omitempty"`
 }
 
+type RenameFilesRequest struct {
+	IDs       []string `json:"ids,omitempty"`
+	Paths     []string `json:"paths,omitempty"`
+	Overwrite bool     `json:"overwrite,omitempty"`
+}
+
+type RenameFilesOutcome struct {
+	Requested int                 `json:"requested"`
+	Renamed   int                 `json:"renamed"`
+	Skipped   int                 `json:"skipped"`
+	Errored   int                 `json:"errored"`
+	Previews  []RenameFilePreview `json:"previews"`
+	Results   []RenameFileResult  `json:"results,omitempty"`
+}
+
+type RenameFilePreview struct {
+	File            FileRecord `json:"file"`
+	SourcePath      string     `json:"sourcePath"`
+	DestinationPath string     `json:"destinationPath"`
+	RelativePath    string     `json:"relativePath"`
+	Exists          bool       `json:"exists"`
+	Noop            bool       `json:"noop"`
+}
+
+type RenameFileResult struct {
+	Preview RenameFilePreview `json:"preview"`
+	File    *FileRecord       `json:"file,omitempty"`
+	Status  string            `json:"status"`
+	Message string            `json:"message,omitempty"`
+}
+
 type DownloadImportResult struct {
 	Download   acquisition.DownloadStatus `json:"download"`
 	Status     string                     `json:"status"`

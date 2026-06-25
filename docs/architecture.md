@@ -74,6 +74,7 @@ Initial API surface:
   - `PUT /api/v1/bookfile/{id}`
   - `DELETE /api/v1/bookfile/{id}`
   - `DELETE /api/v1/bookfile/bulk`
+  - `GET /api/v1/rename`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/delayprofile`
@@ -165,6 +166,8 @@ Initial API surface:
   - `GET /api/v1/library/files`
   - `DELETE /api/v1/library/files/{id}`
   - `POST /api/v1/library/files/delete`
+  - `POST /api/v1/library/files/rename/preview`
+  - `POST /api/v1/library/files/rename`
   - `GET /api/v1/library/import-reviews`
   - `POST /api/v1/library/scan`
   - `POST /api/v1/library/import`
@@ -303,6 +306,12 @@ book/author records, quality, size, path, and date metadata. `GET
 file record and honors `deleteFiles=true` for physical file removal. `PUT` is
 accepted for client compatibility, but file retagging is still a native-library
 service work item.
+
+The native library rename endpoints preview or apply moves for selected tracked
+files using the active naming templates. The Readarr-compatible `/api/v1/rename`
+endpoint maps tracked files into Arr-style rename previews, and `RenameFiles`,
+`RenameBookFiles`, or `RenameBooks` commands apply the same native rename path
+after translating Readarr-style numeric IDs back to Librarry file IDs.
 
 Readarr-compatible calendar, history, and parse endpoints are derived from
 wanted items, Librarry history events, and title parsing. The web UI keeps using

@@ -73,6 +73,37 @@ func TestDestinationPathUsesNamingPolicy(t *testing.T) {
 	}
 }
 
+func TestRenamePreviewUsesNamingPolicy(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "old.epub")
+	if err := os.WriteFile(source, []byte("book"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(nil, Config{
+		EbookRoot:                  dir,
+		NamingAuthorFolderTemplate: "{Author}",
+		NamingBookFolderTemplate:   "{Title}",
+		NamingFileNameTemplate:     "{Author} - {Title}{Ext}",
+		NamingSpaceReplacement:     "_",
+	}, nil, nil)
+
+	preview, err := service.renamePreviewForFile(FileRecord{
+		ID:          "file-1",
+		MediaFormat: "ebook",
+		Path:        source,
+		Title:       "Project Hail Mary",
+		AuthorName:  "Andy Weir",
+		Extension:   ".epub",
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(dir, "Andy_Weir", "Project_Hail_Mary", "Andy_Weir_-_Project_Hail_Mary.epub")
+	if preview.SourcePath != source || preview.DestinationPath != want || preview.Noop {
+		t.Fatalf("unexpected preview: %+v want=%s", preview, want)
+	}
+}
+
 func TestAvailableDestinationAvoidsOverwrite(t *testing.T) {
 	dir := t.TempDir()
 	first := filepath.Join(dir, "Book.epub")
