@@ -38,3 +38,19 @@ tags before installing the custom app. Do not commit a real Prowlarr API key.
 
 The default TrueNAS port is `192.168.1.221:30200`, with `/mnt/HDD_pool/vault/media-stack`
 mounted into the API container as `/data`.
+
+## Wanted Monitor
+
+The API can run wanted monitoring on an interval:
+
+```dotenv
+LIBRARRY_MONITOR_ENABLED=true
+LIBRARRY_MONITOR_INTERVAL=30m
+LIBRARRY_MONITOR_SEARCH_INTERVAL=6h
+LIBRARRY_MONITOR_LIMIT=50
+LIBRARRY_MONITOR_AUTO_GRAB=false
+```
+
+Manual monitor runs are available through `POST /api/v1/wanted/monitor`.
+`LIBRARRY_MONITOR_AUTO_GRAB=false` keeps scheduled runs search-only while still
+recording release decisions and history.

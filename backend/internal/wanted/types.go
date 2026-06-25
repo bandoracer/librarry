@@ -25,6 +25,16 @@ type SearchReleasesRequest struct {
 	Limit int `json:"limit,omitempty"`
 }
 
+type MonitorRequest struct {
+	Trigger                  string `json:"trigger,omitempty"`
+	Limit                    int    `json:"limit,omitempty"`
+	SearchLimit              int    `json:"searchLimit,omitempty"`
+	Force                    bool   `json:"force,omitempty"`
+	AutoGrab                 bool   `json:"autoGrab,omitempty"`
+	Paused                   bool   `json:"paused,omitempty"`
+	MinSearchIntervalMinutes int    `json:"minSearchIntervalMinutes,omitempty"`
+}
+
 type GrabRequest struct {
 	ReleaseID string `json:"releaseId,omitempty"`
 	Paused    bool   `json:"paused"`
@@ -72,4 +82,44 @@ type ReleaseDecision struct {
 type SearchOutcome struct {
 	WantedItem WantedItem        `json:"wantedItem"`
 	Releases   []ReleaseDecision `json:"releases"`
+}
+
+type MonitorRun struct {
+	ID            string              `json:"id"`
+	Trigger       string              `json:"trigger"`
+	Status        string              `json:"status"`
+	WantedChecked int                 `json:"wantedChecked"`
+	ReleasesFound int                 `json:"releasesFound"`
+	ApprovedCount int                 `json:"approvedCount"`
+	RejectedCount int                 `json:"rejectedCount"`
+	GrabbedCount  int                 `json:"grabbedCount"`
+	ErrorCount    int                 `json:"errorCount"`
+	Message       string              `json:"message,omitempty"`
+	Items         []MonitorItemResult `json:"items,omitempty"`
+	StartedAt     time.Time           `json:"startedAt"`
+	FinishedAt    *time.Time          `json:"finishedAt,omitempty"`
+}
+
+type MonitorItemResult struct {
+	WantedItem      WantedItem                  `json:"wantedItem"`
+	ReleasesFound   int                         `json:"releasesFound"`
+	ApprovedCount   int                         `json:"approvedCount"`
+	RejectedCount   int                         `json:"rejectedCount"`
+	GrabbedDownload *acquisition.DownloadStatus `json:"grabbedDownload,omitempty"`
+	Error           string                      `json:"error,omitempty"`
+}
+
+type HistoryQuery struct {
+	Limit int `json:"limit,omitempty"`
+}
+
+type HistoryEvent struct {
+	ID         string         `json:"id,omitempty"`
+	EventType  string         `json:"eventType"`
+	EntityType string         `json:"entityType,omitempty"`
+	EntityID   string         `json:"entityId,omitempty"`
+	Severity   string         `json:"severity"`
+	Message    string         `json:"message"`
+	Data       map[string]any `json:"data,omitempty"`
+	CreatedAt  time.Time      `json:"createdAt"`
 }

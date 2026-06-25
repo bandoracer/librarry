@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -23,7 +24,8 @@ func main() {
 	}))
 
 	cfg := config.FromEnv()
-	ctx := context.Background()
+	ctx, cancelApp := context.WithCancel(context.Background())
+	defer cancelApp()
 	var downloadStore acquisition.DownloadStore
 	var wantedStore *wanted.Store
 
@@ -72,6 +74,11 @@ func main() {
 		cancel()
 	}
 	wantedService := wanted.NewService(wantedStore, acquire)
+	var monitorWG sync.WaitGroup
+	if cfg.MonitorEnabled && wantedService.Available() {
+		monitorWG.Add(1)
+		go runWantedMonitor(ctx, &monitorWG, logger, wantedService, cfg)
+	}
 
 	router := api.NewRouter(api.Dependencies{
 		Logger:   logger,
@@ -98,11 +105,67 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
+	cancelApp()
+	monitorWG.Wait()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("api server shutdown failed", "error", err)
 		os.Exit(1)
+	}
+}
+
+func runWantedMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
+	defer wg.Done()
+	interval := cfg.MonitorInterval
+	if interval <= 0 {
+		interval = 30 * time.Minute
+	}
+	searchIntervalMinutes := int(cfg.MonitorSearchInterval / time.Minute)
+	if searchIntervalMinutes <= 0 {
+		searchIntervalMinutes = int((6 * time.Hour) / time.Minute)
+	}
+
+	run := func(trigger string) {
+		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		outcome, err := service.Monitor(runCtx, wanted.MonitorRequest{
+			Trigger:                  trigger,
+			Limit:                    cfg.MonitorLimit,
+			SearchLimit:              20,
+			AutoGrab:                 cfg.MonitorAutoGrab,
+			MinSearchIntervalMinutes: searchIntervalMinutes,
+		})
+		if err != nil {
+			logger.Warn("wanted monitor run failed", "trigger", trigger, "error", err)
+			return
+		}
+		logger.Info(
+			"wanted monitor run completed",
+			"trigger", trigger,
+			"status", outcome.Status,
+			"wanted_checked", outcome.WantedChecked,
+			"approved", outcome.ApprovedCount,
+			"grabbed", outcome.GrabbedCount,
+			"errors", outcome.ErrorCount,
+		)
+	}
+
+	startup := time.NewTimer(15 * time.Second)
+	ticker := time.NewTicker(interval)
+	defer startup.Stop()
+	defer ticker.Stop()
+	logger.Info("wanted monitor enabled", "interval", interval, "auto_grab", cfg.MonitorAutoGrab)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			run("scheduled-startup")
+		case <-ticker.C:
+			run("scheduled")
+		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/config"
@@ -117,6 +118,46 @@ func TestGrabWantedEndpoint(t *testing.T) {
 	}
 }
 
+func TestMonitorWantedEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/monitor", strings.NewReader(`{"force":true,"limit":5}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"wantedChecked":1`) {
+		t.Fatalf("expected monitor run in response, got %s", res.Body.String())
+	}
+}
+
+func TestHistoryEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/history?limit=5", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "wanted_searched") {
+		t.Fatalf("expected history event in response, got %s", res.Body.String())
+	}
+}
+
 type fakeAcquire struct{}
 
 func (fakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
@@ -167,4 +208,26 @@ func (fakeWanted) ListReleases(context.Context, string) (wanted.SearchOutcome, e
 
 func (fakeWanted) Grab(context.Context, string, wanted.GrabRequest) (acquisition.DownloadStatus, error) {
 	return acquisition.DownloadStatus{ID: "download-1", Name: "Book", State: "stoppedDL"}, nil
+}
+
+func (fakeWanted) Monitor(context.Context, wanted.MonitorRequest) (wanted.MonitorRun, error) {
+	return wanted.MonitorRun{
+		ID:            "run-1",
+		Trigger:       "manual",
+		Status:        "completed",
+		WantedChecked: 1,
+		StartedAt:     time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.HistoryEvent, error) {
+	return []wanted.HistoryEvent{{
+		ID:         "event-1",
+		EventType:  "wanted_searched",
+		EntityType: "wanted_item",
+		EntityID:   "wanted-1",
+		Severity:   "info",
+		Message:    "Searched wanted releases",
+		CreatedAt:  time.Now().UTC(),
+	}}, nil
 }

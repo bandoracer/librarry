@@ -138,6 +138,42 @@ export type WantedSearchOutcome = {
   releases: ReleaseDecision[];
 };
 
+export type MonitorItemResult = {
+  wantedItem: WantedItem;
+  releasesFound: number;
+  approvedCount: number;
+  rejectedCount: number;
+  grabbedDownload?: DownloadStatus;
+  error?: string;
+};
+
+export type MonitorRun = {
+  id: string;
+  trigger: string;
+  status: string;
+  wantedChecked: number;
+  releasesFound: number;
+  approvedCount: number;
+  rejectedCount: number;
+  grabbedCount: number;
+  errorCount: number;
+  message?: string;
+  items?: MonitorItemResult[];
+  startedAt: string;
+  finishedAt?: string;
+};
+
+export type HistoryEvent = {
+  id: string;
+  eventType: string;
+  entityType?: string;
+  entityId?: string;
+  severity: string;
+  message: string;
+  data?: Record<string, unknown>;
+  createdAt: string;
+};
+
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
@@ -287,4 +323,38 @@ export async function grabWanted(wantedID: string, releaseID?: string): Promise<
     throw new Error(`Wanted grab failed: ${response.status}`);
   }
   return (await response.json()) as DownloadStatus;
+}
+
+export async function runWantedMonitor(options: {
+  force?: boolean;
+  autoGrab?: boolean;
+  paused?: boolean;
+  limit?: number;
+} = {}): Promise<MonitorRun> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/monitor`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      trigger: "manual",
+      limit: options.limit ?? 50,
+      searchLimit: 20,
+      force: options.force ?? false,
+      autoGrab: options.autoGrab ?? false,
+      paused: options.paused ?? true
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Wanted monitor failed: ${response.status}`);
+  }
+  return (await response.json()) as MonitorRun;
+}
+
+export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await fetch(`${apiBase}/api/v1/history?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`History refresh failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as { events: HistoryEvent[] };
+  return payload.events;
 }

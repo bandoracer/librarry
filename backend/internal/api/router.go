@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,6 +39,8 @@ type wantedService interface {
 	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
 	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
+	Monitor(ctx context.Context, request wanted.MonitorRequest) (wanted.MonitorRun, error)
+	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -57,9 +60,11 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
+	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/search", handler.searchWantedReleases)
 	mux.HandleFunc("GET /api/v1/wanted/{id}/releases", handler.listWantedReleases)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
+	mux.HandleFunc("GET /api/v1/history", handler.history)
 
 	return withCORS(deps.Config.WebOrigin, mux)
 }
@@ -299,6 +304,41 @@ func (h *handler) grabWanted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, status)
+}
+
+func (h *handler) monitorWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.MonitorRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	if request.Trigger == "" {
+		request.Trigger = "manual"
+	}
+	run, err := h.deps.Wanted.Monitor(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
+		return
+	}
+	writeJSON(w, http.StatusOK, run)
+}
+
+func (h *handler) history(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	events, err := h.deps.Wanted.History(r.Context(), wanted.HistoryQuery{Limit: limit})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"events": events})
 }
 
 func withCORS(webOrigin string, next http.Handler) http.Handler {

@@ -7,9 +7,11 @@ import {
   Download,
   FileSearch,
   HardDriveDownload,
+  History as HistoryIcon,
   Library,
   Pause,
   Play,
+  RadioTower,
   RefreshCw,
   Search,
   Settings,
@@ -22,17 +24,21 @@ import {
   createWanted,
   fetchIntegrationHealth,
   fetchDownloads,
+  fetchHistory,
   fetchProviderHealth,
   fetchWanted,
   grabWanted,
   grabRelease,
+  runWantedMonitor,
   runDownloadAction,
   searchMetadata,
   searchReleases,
   searchWantedReleases,
   type DownloadAction,
   type DownloadStatus,
+  type HistoryEvent,
   type IntegrationHealth,
+  type MonitorRun,
   type ProviderHealth,
   type ReleaseDecision,
   type Release,
@@ -58,6 +64,8 @@ export function App() {
   const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
@@ -68,10 +76,13 @@ export function App() {
   const [isSearchingReleases, setIsSearchingReleases] = useState(false);
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
+  const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
+  const [monitorError, setMonitorError] = useState("");
+  const [historyError, setHistoryError] = useState("");
   const [downloadError, setDownloadError] = useState("");
 
   useEffect(() => {
@@ -96,6 +107,11 @@ export function App() {
       })
       .catch((error) => {
         setWantedError(error instanceof Error ? error.message : "Wanted refresh failed");
+      });
+    fetchHistory()
+      .then(setHistoryEvents)
+      .catch((error) => {
+        setHistoryError(error instanceof Error ? error.message : "History refresh failed");
       });
   }, []);
 
@@ -189,8 +205,43 @@ export function App() {
       const status = await grabWanted(item.id, release?.id);
       setDownloadStatus(status);
       await refreshDownloads();
+      await refreshWantedAndHistory();
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted grab failed");
+    }
+  }
+
+  async function runMonitor(options: { force?: boolean; autoGrab?: boolean }) {
+    setIsRunningMonitor(true);
+    setMonitorError("");
+    try {
+      const run = await runWantedMonitor({
+        force: options.force ?? false,
+        autoGrab: options.autoGrab ?? false,
+        paused: true
+      });
+      setMonitorRun(run);
+      setWantedItems((current) => mergeWanted(current, run.items?.map((item) => item.wantedItem) ?? []));
+      await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+    } catch (error) {
+      setMonitorError(error instanceof Error ? error.message : "Wanted monitor failed");
+    } finally {
+      setIsRunningMonitor(false);
+    }
+  }
+
+  async function refreshWantedAndHistory() {
+    setHistoryError("");
+    setWantedError("");
+    try {
+      const [nextWanted, nextHistory] = await Promise.all([fetchWanted(), fetchHistory()]);
+      setWantedItems(nextWanted);
+      setHistoryEvents(nextHistory);
+      setSelectedWantedID((current) => current || nextWanted[0]?.id || "");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Refresh failed";
+      setHistoryError(message);
+      setWantedError(message);
     }
   }
 
@@ -520,6 +571,63 @@ export function App() {
           </div>
         </section>
 
+        <section className="monitor-panel" aria-label="Wanted monitor">
+          <div className="panel-heading">
+            <div>
+              <h2>Monitor</h2>
+              <p>
+                {monitorRun
+                  ? `${monitorRun.status}: checked ${monitorRun.wantedChecked}, approved ${monitorRun.approvedCount}, grabbed ${monitorRun.grabbedCount}.`
+                  : "Run Readarr-style wanted monitoring across due items or force a full wanted scan."}
+              </p>
+            </div>
+            <div className="monitor-actions">
+              <button className="secondary-action compact" disabled={isRunningMonitor} onClick={() => runMonitor({ force: false })} type="button">
+                <RadioTower size={16} />
+                Due scan
+              </button>
+              <button className="secondary-action compact" disabled={isRunningMonitor} onClick={() => runMonitor({ force: true })} type="button">
+                <RefreshCw size={16} />
+                Force scan
+              </button>
+              <button className="secondary-action compact danger-outline" disabled={isRunningMonitor} onClick={() => runMonitor({ force: true, autoGrab: true })} type="button">
+                <HardDriveDownload size={16} />
+                Scan + grab paused
+              </button>
+            </div>
+          </div>
+          {monitorError ? <div className="inline-error">{monitorError}</div> : null}
+          <div className="monitor-grid">
+            {[
+              ["Wanted checked", monitorRun?.wantedChecked ?? 0],
+              ["Releases found", monitorRun?.releasesFound ?? 0],
+              ["Approved", monitorRun?.approvedCount ?? 0],
+              ["Rejected", monitorRun?.rejectedCount ?? 0],
+              ["Grabbed", monitorRun?.grabbedCount ?? 0],
+              ["Errors", monitorRun?.errorCount ?? 0]
+            ].map(([label, value]) => (
+              <div className="monitor-metric" key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          {monitorRun?.items?.length ? (
+            <div className="monitor-results">
+              {monitorRun.items.map((item) => (
+                <article className={item.error ? "monitor-result error" : "monitor-result"} key={item.wantedItem.id}>
+                  <strong>{item.wantedItem.title}</strong>
+                  <span>
+                    {item.releasesFound} releases · {item.approvedCount} approved · {item.rejectedCount} rejected
+                  </span>
+                  {item.grabbedDownload ? <em>Queued {item.grabbedDownload.category}</em> : null}
+                  {item.error ? <small>{item.error}</small> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
         <section className="downloads-panel" aria-label="Download manager">
           <div className="panel-heading">
             <div>
@@ -581,6 +689,35 @@ export function App() {
             })}
           </div>
         </section>
+
+        <section className="history-panel" aria-label="Activity history">
+          <div className="panel-heading">
+            <div>
+              <h2>History</h2>
+              <p>
+                {historyEvents.length
+                  ? `${historyEvents.length} recent monitor and grab events.`
+                  : "No monitor or grab history recorded yet."}
+              </p>
+            </div>
+            <button className="secondary-action compact" onClick={refreshWantedAndHistory} type="button">
+              <HistoryIcon size={16} />
+              Refresh
+            </button>
+          </div>
+          {historyError ? <div className="inline-error">{historyError}</div> : null}
+          <div className="history-list">
+            {historyEvents.map((event) => (
+              <article className={`history-row ${event.severity}`} key={event.id}>
+                <div>
+                  <strong>{event.message}</strong>
+                  <span>{event.eventType.replace(/_/g, " ")} · {formatDateTime(event.createdAt)}</span>
+                </div>
+                <em>{event.severity}</em>
+              </article>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );
@@ -601,6 +738,13 @@ function formatBytes(bytes: number) {
 function formatSpeed(bytesPerSecond: number) {
   if (!bytesPerSecond) return "0 B/s";
   return `${formatBytes(bytesPerSecond)}/s`;
+}
+
+function formatDateTime(value: string) {
+  if (!value) return "unknown time";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown time";
+  return date.toLocaleString();
 }
 
 function mergeDownloads(current: DownloadStatus[], next: DownloadStatus[]) {

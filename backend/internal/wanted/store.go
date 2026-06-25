@@ -251,6 +251,160 @@ func (s *Store) GetReleaseDecision(ctx context.Context, wantedID string, release
 	return ReleaseDecision{}, sql.ErrNoRows
 }
 
+func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.Duration, force bool) ([]WantedItem, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if minInterval <= 0 {
+		minInterval = 6 * time.Hour
+	}
+	cutoff := time.Now().UTC().Add(-minInterval)
+	rows, err := s.db.QueryContext(ctx, `
+		select
+			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
+			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
+			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
+			wi.source_key, wi.last_search_at, wi.created_at, wi.updated_at
+		from wanted_items wi
+		left join works w on w.id = wi.work_id
+		where wi.status = 'wanted'
+			and ($1::boolean or wi.last_search_at is null or wi.last_search_at <= $2)
+		order by coalesce(wi.last_search_at, 'epoch'::timestamptz), wi.created_at
+		limit $3
+	`, force, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []WantedItem
+	for rows.Next() {
+		item, err := scanWanted(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *Store) MarkWantedStatus(ctx context.Context, wantedID string, status string) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	status = strings.TrimSpace(status)
+	if status == "" {
+		return errors.New("wanted status is required")
+	}
+	_, err := s.db.ExecContext(ctx, `update wanted_items set status = $2, updated_at = now() where id = $1`, wantedID, status)
+	return err
+}
+
+func (s *Store) StartMonitorRun(ctx context.Context, trigger string) (MonitorRun, error) {
+	if !s.Configured() {
+		return MonitorRun{}, errors.New("wanted store is unavailable")
+	}
+	trigger = strings.TrimSpace(trigger)
+	if trigger == "" {
+		trigger = "manual"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into monitor_runs(trigger, status)
+		values ($1, 'running')
+		returning
+			id, trigger, status, wanted_checked, releases_found, approved_count,
+			rejected_count, grabbed_count, error_count, message, started_at, finished_at
+	`, trigger)
+	return scanMonitorRun(row)
+}
+
+func (s *Store) FinishMonitorRun(ctx context.Context, run MonitorRun) (MonitorRun, error) {
+	if !s.Configured() {
+		return MonitorRun{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(run.Status) == "" {
+		run.Status = "completed"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update monitor_runs set
+			status = $2,
+			wanted_checked = $3,
+			releases_found = $4,
+			approved_count = $5,
+			rejected_count = $6,
+			grabbed_count = $7,
+			error_count = $8,
+			message = $9,
+			finished_at = now()
+		where id = $1
+		returning
+			id, trigger, status, wanted_checked, releases_found, approved_count,
+			rejected_count, grabbed_count, error_count, message, started_at, finished_at
+	`, run.ID, run.Status, run.WantedChecked, run.ReleasesFound, run.ApprovedCount,
+		run.RejectedCount, run.GrabbedCount, run.ErrorCount, run.Message)
+	finished, err := scanMonitorRun(row)
+	if err != nil {
+		return MonitorRun{}, err
+	}
+	finished.Items = run.Items
+	return finished, nil
+}
+
+func (s *Store) InsertHistoryEvent(ctx context.Context, event HistoryEvent) (HistoryEvent, error) {
+	if !s.Configured() {
+		return HistoryEvent{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(event.Severity) == "" {
+		event.Severity = "info"
+	}
+	if event.Data == nil {
+		event.Data = map[string]any{}
+	}
+	raw, err := json.Marshal(event.Data)
+	if err != nil {
+		return HistoryEvent{}, err
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into history_events(event_type, entity_type, entity_id, severity, message, data)
+		values ($1, $2, $3, $4, $5, $6::jsonb)
+		returning id, event_type, entity_type, entity_id, severity, message, data, created_at
+	`, event.EventType, event.EntityType, event.EntityID, event.Severity, event.Message, string(raw))
+	return scanHistoryEvent(row)
+}
+
+func (s *Store) ListHistory(ctx context.Context, query HistoryQuery) ([]HistoryEvent, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	limit := query.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select id, event_type, entity_type, entity_id, severity, message, data, created_at
+		from history_events
+		order by created_at desc
+		limit $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []HistoryEvent
+	for rows.Next() {
+		event, err := scanHistoryEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
+}
+
 func (s *Store) upsertWork(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, raw []byte) (string, error) {
 	if id, ok, err := lookupProviderEntity(ctx, tx, result.Provider, result.Work.ID); err != nil || ok {
 		if ok {
@@ -384,6 +538,41 @@ func scanRelease(rows *sql.Rows) (ReleaseDecision, error) {
 		release.PublishedAt = publishedAt.Time.UTC()
 	}
 	return release, nil
+}
+
+func scanMonitorRun(row wantedScanner) (MonitorRun, error) {
+	var run MonitorRun
+	var finishedAt sql.NullTime
+	if err := row.Scan(
+		&run.ID, &run.Trigger, &run.Status, &run.WantedChecked, &run.ReleasesFound,
+		&run.ApprovedCount, &run.RejectedCount, &run.GrabbedCount, &run.ErrorCount,
+		&run.Message, &run.StartedAt, &finishedAt,
+	); err != nil {
+		return MonitorRun{}, err
+	}
+	if finishedAt.Valid {
+		value := finishedAt.Time.UTC()
+		run.FinishedAt = &value
+	}
+	return run, nil
+}
+
+func scanHistoryEvent(row wantedScanner) (HistoryEvent, error) {
+	var event HistoryEvent
+	var raw []byte
+	if err := row.Scan(
+		&event.ID, &event.EventType, &event.EntityType, &event.EntityID,
+		&event.Severity, &event.Message, &raw, &event.CreatedAt,
+	); err != nil {
+		return HistoryEvent{}, err
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &event.Data)
+	}
+	if event.Data == nil {
+		event.Data = map[string]any{}
+	}
+	return event, nil
 }
 
 func lookupProviderEntity(ctx context.Context, tx *sql.Tx, provider string, key string) (string, bool, error) {

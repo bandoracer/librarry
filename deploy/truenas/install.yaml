@@ -40,6 +40,11 @@ services:
       LIBRARRY_EBOOK_CATEGORY: books-ebook
       LIBRARRY_AUDIOBOOK_CATEGORY: books-audiobook
       LIBRARRY_BOOK_TORRENT_ROOT: /data/torrents/books
+      LIBRARRY_MONITOR_ENABLED: "true"
+      LIBRARRY_MONITOR_INTERVAL: 30m
+      LIBRARRY_MONITOR_SEARCH_INTERVAL: 6h
+      LIBRARRY_MONITOR_LIMIT: "50"
+      LIBRARRY_MONITOR_AUTO_GRAB: "false"
     volumes:
       - /mnt/HDD_pool/vault/media-stack:/data
     depends_on:

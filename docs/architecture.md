@@ -5,8 +5,8 @@ Librarry is split into a Go backend, a React frontend, and Postgres.
 ## Backend
 
 The backend owns provider credentials, metadata normalization, provider health,
-matching policy, future acquisition workers, and Postgres persistence. Provider
-tokens never need to be exposed to the browser.
+matching policy, acquisition workers, and Postgres persistence. Provider tokens
+never need to be exposed to the browser.
 
 Initial API surface:
 
@@ -14,6 +14,19 @@ Initial API surface:
 - `GET /api/v1/providers/health`
 - `GET /api/v1/providers/diagnostics`
 - `GET /api/v1/search?query=&type=book&format=any`
+- `GET /api/v1/integrations/health`
+- `POST /api/v1/integrations/bootstrap`
+- `POST /api/v1/releases/search`
+- `POST /api/v1/grabs`
+- `GET /api/v1/downloads`
+- `POST /api/v1/downloads/actions`
+- `GET /api/v1/wanted`
+- `POST /api/v1/wanted`
+- `POST /api/v1/wanted/{id}/search`
+- `GET /api/v1/wanted/{id}/releases`
+- `POST /api/v1/wanted/{id}/grab`
+- `POST /api/v1/wanted/monitor`
+- `GET /api/v1/history`
 - `POST /api/v1/settings/validate`
 
 ## Metadata Model
@@ -41,6 +54,12 @@ and priority changes.
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and
 record explicit rejection reasons before a candidate is sent to qBittorrent.
+
+The wanted monitor can be triggered manually through
+`POST /api/v1/wanted/monitor` and can also run on an interval in the API process.
+It selects due wanted items, reuses the same release evaluator as manual search,
+records monitor run summaries, writes history events, and optionally sends the
+best approved release to qBittorrent when `LIBRARRY_MONITOR_AUTO_GRAB=true`.
 
 - `books-ebook`
 - `books-audiobook`
