@@ -115,6 +115,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/qualityprofile", handler.compatQualityProfiles)
 	mux.HandleFunc("GET /api/v1/downloadclient", handler.compatDownloadClients)
 	mux.HandleFunc("GET /api/v1/indexer", handler.compatIndexers)
+	mux.HandleFunc("GET /api/v1/release", handler.compatReleases)
+	mux.HandleFunc("POST /api/v1/release", handler.compatGrabRelease)
 	mux.HandleFunc("GET /api/v1/manualimport", handler.compatManualImport)
 	mux.HandleFunc("POST /api/v1/manualimport", handler.compatCreateManualImport)
 	mux.HandleFunc("GET /api/v1/command", handler.compatCommands)

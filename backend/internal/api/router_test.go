@@ -133,6 +133,45 @@ func TestCompatQueueEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatReleaseSearchAndGrabEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", EbookCategory: "books-ebook", BookTorrentRoot: "/downloads/books"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+		Wanted:   fakeWanted{},
+	})
+
+	bookID := stableInt("wanted-1")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/release?bookId="+strconv.Itoa(bookID), nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"guid":"release-1"`) || !strings.Contains(res.Body.String(), `"downloadUrl":"magnet:?xt=urn:btih:projecthailmary"`) {
+		t.Fatalf("expected Readarr-style release payload, got %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"bookId":`) || !strings.Contains(res.Body.String(), `"authorName":"Andy Weir"`) {
+		t.Fatalf("expected release linked to wanted book, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/release", strings.NewReader(`{"title":"Project Hail Mary EPUB","downloadUrl":"magnet:?xt=urn:btih:projecthailmary","protocol":"torrent","bookId":`+strconv.Itoa(bookID)+`}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"grabbed":true`) || !strings.Contains(res.Body.String(), `"downloadId":"download-1"`) {
+		t.Fatalf("expected grabbed release payload, got %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"librarryWantedId":"wanted-1"`) {
+		t.Fatalf("expected wanted item linkage, got %s", res.Body.String())
+	}
+}
+
 func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -949,11 +988,40 @@ func (fakeAcquire) Bootstrap(context.Context) (acquisition.BootstrapResult, erro
 }
 
 func (fakeAcquire) Search(context.Context, acquisition.ReleaseSearchQuery) ([]acquisition.Release, error) {
-	return nil, nil
+	return []acquisition.Release{{
+		ID:          "release-1",
+		InfoHash:    "projecthailmary",
+		Indexer:     "Prowlarr",
+		Title:       "Andy Weir - Project Hail Mary EPUB",
+		SizeBytes:   7340032,
+		Seeders:     12,
+		Leechers:    1,
+		DownloadURL: "magnet:?xt=urn:btih:projecthailmary",
+		InfoURL:     "https://indexer.example/releases/release-1",
+		Protocol:    "torrent",
+		Categories:  []string{"ebook", "epub"},
+		PublishedAt: time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC),
+	}}, nil
 }
 
-func (fakeAcquire) Grab(context.Context, acquisition.DownloadRequest) (acquisition.DownloadStatus, error) {
-	return acquisition.DownloadStatus{}, nil
+func (fakeAcquire) Grab(_ context.Context, request acquisition.DownloadRequest) (acquisition.DownloadStatus, error) {
+	state := "downloading"
+	if request.Paused {
+		state = "stoppedDL"
+	}
+	now := time.Now().UTC()
+	return acquisition.DownloadStatus{
+		Client:    "qBittorrent",
+		ID:        "download-1",
+		Name:      defaultString(request.Title, "Project Hail Mary EPUB"),
+		State:     state,
+		Progress:  0,
+		SavePath:  request.SavePath,
+		Category:  request.Category,
+		Tags:      request.Tags,
+		SizeBytes: 7340032,
+		AddedAt:   &now,
+	}, nil
 }
 
 func (fakeAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {

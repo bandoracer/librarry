@@ -55,6 +55,8 @@ Initial API surface:
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/downloadclient`
   - `GET /api/v1/indexer`
+  - `GET /api/v1/release`
+  - `POST /api/v1/release`
   - `GET /api/v1/manualimport`
   - `POST /api/v1/manualimport`
   - `GET /api/v1/command`
@@ -107,10 +109,12 @@ data came from and why a match was accepted or sent to review.
 ## Acquisition
 
 Librarry integrates directly with Prowlarr, qBittorrent, and SABnzbd. Prowlarr
-is queried for book releases through `/api/v1/releases/search`. Torrent releases
-are sent to qBittorrent, while Usenet/NZB releases are sent to SABnzbd through
-the same `/api/v1/grabs` API. Startup and `/api/v1/integrations/bootstrap`
-ensure the book categories exist in qBittorrent.
+is queried for book releases through `/api/v1/releases/search`; the
+Readarr-compatible `/api/v1/release` endpoint maps the same acquisition flow
+into interactive release-search and grab payloads. Torrent releases are sent to
+qBittorrent, while Usenet/NZB releases are sent to SABnzbd through the same
+`/api/v1/grabs` API. Startup and `/api/v1/integrations/bootstrap` ensure the
+book categories exist in qBittorrent.
 
 Download state is reconciled from qBittorrent and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is

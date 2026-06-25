@@ -84,6 +84,8 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
 		{"method": "GET", "path": "/api/v1/downloadclient"},
 		{"method": "GET", "path": "/api/v1/indexer"},
+		{"method": "GET", "path": "/api/v1/release"},
+		{"method": "POST", "path": "/api/v1/release"},
 		{"method": "GET", "path": "/api/v1/manualimport"},
 		{"method": "POST", "path": "/api/v1/manualimport"},
 		{"method": "GET", "path": "/api/v1/command"},
@@ -721,6 +723,85 @@ func (h *handler) compatIndexers(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
+func (h *handler) compatReleases(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	query, item := h.compatReleaseSearchQuery(r)
+	if strings.TrimSpace(query.Query) == "" && strings.TrimSpace(query.ISBN) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "term, query, isbn, or bookId is required"})
+		return
+	}
+	releases, err := h.deps.Acquire.Search(r.Context(), query)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	records := make([]map[string]any, 0, len(releases))
+	for _, release := range releases {
+		records = append(records, compatReleaseRecord(release, item))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil && h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var payload map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid release grab payload"})
+		return
+	}
+
+	wantedID := h.compatWantedIDForRelease(r, payload)
+	releaseID := firstNonEmptyString(payloadString(payload, "releaseId"), payloadString(payload, "id"), payloadString(payload, "guid"), payloadString(payload, "sourceId"))
+	paused := payloadBoolDefault(payload, "paused", true)
+	if h.deps.Wanted != nil && wantedID != "" && releaseID != "" && compatReleaseURLFromPayload(payload) == "" {
+		status, err := h.deps.Wanted.Grab(r.Context(), wantedID, wanted.GrabRequest{ReleaseID: releaseID, Paused: paused})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
+		return
+	}
+
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	releaseURL := compatReleaseURLFromPayload(payload)
+	if releaseURL == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "downloadUrl, releaseUrl, or guid is required"})
+		return
+	}
+	format := firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "mediaFormat"), nestedString(payload, "book", "librarryFormat"))
+	tags := []string{"librarry", "readarr-api"}
+	if wantedID != "" {
+		tags = append(tags, "wanted:"+wantedID)
+	}
+	request := acquisition.DownloadRequest{
+		ReleaseURL: releaseURL,
+		InfoHash:   firstNonEmptyString(payloadString(payload, "infoHash"), nestedString(payload, "librarryRelease", "infoHash")),
+		Title:      firstNonEmptyString(payloadString(payload, "title"), payloadString(payload, "releaseTitle"), nestedString(payload, "librarryRelease", "title")),
+		Protocol:   compatProtocolFromPayload(payload, releaseURL),
+		Category:   firstNonEmptyString(payloadString(payload, "category"), h.compatCategoryForFormat(format)),
+		SavePath:   firstNonEmptyString(payloadString(payload, "savePath"), h.deps.Config.BookTorrentRoot, acquisition.DefaultTorrentRoot),
+		Paused:     paused,
+		Tags:       tags,
+	}
+	status, err := h.deps.Acquire.Grab(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
+}
+
 func (h *handler) compatManualImport(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Library == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
@@ -954,6 +1035,72 @@ func (h *handler) compatWantedIDForManualImport(r *http.Request, payload map[str
 		}
 	}
 	return ""
+}
+
+func (h *handler) compatReleaseSearchQuery(r *http.Request) (acquisition.ReleaseSearchQuery, *wanted.WantedItem) {
+	limit, _ := strconv.Atoi(firstNonEmptyString(r.URL.Query().Get("limit"), r.URL.Query().Get("pageSize")))
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	item := h.compatFindWantedItemForID(r, firstNonEmptyString(
+		r.URL.Query().Get("wantedId"),
+		r.URL.Query().Get("librarryWantedId"),
+		r.URL.Query().Get("bookId"),
+		r.URL.Query().Get("bookID"),
+	))
+	queryText := firstNonEmptyString(r.URL.Query().Get("term"), r.URL.Query().Get("query"), r.URL.Query().Get("title"))
+	author := firstNonEmptyString(r.URL.Query().Get("author"), r.URL.Query().Get("authorName"), r.URL.Query().Get("authorTitle"))
+	format := firstNonEmptyString(r.URL.Query().Get("format"), r.URL.Query().Get("mediaFormat"))
+	if item != nil {
+		queryText = firstNonEmptyString(queryText, item.Title)
+		author = firstNonEmptyString(author, item.AuthorName)
+		format = firstNonEmptyString(format, item.Format)
+	}
+	isbn := firstNonEmptyString(r.URL.Query().Get("isbn"), r.URL.Query().Get("isbn13"), r.URL.Query().Get("isbn10"))
+	return acquisition.ReleaseSearchQuery{
+		Query:  firstNonEmptyString(queryText, isbn),
+		Author: author,
+		ISBN:   isbn,
+		Format: format,
+		Limit:  limit,
+	}, item
+}
+
+func (h *handler) compatWantedIDForRelease(r *http.Request, payload map[string]any) string {
+	wantedID := firstNonEmptyString(payloadString(payload, "wantedId"), payloadString(payload, "librarryWantedId"))
+	if wantedID != "" {
+		return wantedID
+	}
+	bookID := firstNonEmptyString(payloadString(payload, "bookId"), payloadString(payload, "bookID"), nestedString(payload, "book", "id"), nestedString(payload, "book", "librarryId"))
+	if item := h.compatFindWantedItemForID(r, bookID); item != nil {
+		return item.ID
+	}
+	return ""
+}
+
+func (h *handler) compatFindWantedItemForID(r *http.Request, id string) *wanted.WantedItem {
+	if strings.TrimSpace(id) == "" {
+		return nil
+	}
+	for _, item := range h.compatWantedItems(r) {
+		if compatIDMatches(id, item.ID, item.WorkID, item.SourceKey, item.Title) {
+			matched := item
+			return &matched
+		}
+	}
+	return nil
+}
+
+func (h *handler) compatCategoryForFormat(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "audiobook", "audio":
+		return firstNonEmptyString(h.deps.Config.AudiobookCategory, acquisition.CategoryBooksAudiobook)
+	default:
+		return firstNonEmptyString(h.deps.Config.EbookCategory, acquisition.CategoryBooksEbook)
+	}
 }
 
 func (h *handler) compatRootFolderRecords() []map[string]any {
@@ -1194,6 +1341,222 @@ func compatManualImportBaseRecord(id int, path string, mediaFormat string, title
 		},
 		"languages": []map[string]any{{"id": 1, "name": "English"}},
 	}
+}
+
+func compatReleaseRecord(release acquisition.Release, item *wanted.WantedItem) map[string]any {
+	releaseID := firstNonEmptyString(release.ID, release.InfoHash, release.DownloadURL, release.Title)
+	title, authorName := compatReleaseTitleAndAuthor(release, item)
+	format := compatReleaseFormat(release, item)
+	publishedAt := release.PublishedAt
+	if publishedAt.IsZero() {
+		publishedAt = time.Now().UTC()
+	}
+	ageMinutes := int(time.Since(publishedAt).Minutes())
+	if ageMinutes < 0 {
+		ageMinutes = 0
+	}
+	rejections := compatReleaseRejections(release)
+	book := compatReleaseBookRecord(title, authorName, item)
+	author := compatReleaseAuthorRecord(authorName, item)
+	return map[string]any{
+		"id":              stableInt(releaseID),
+		"guid":            releaseID,
+		"sourceId":        release.ID,
+		"title":           release.Title,
+		"releaseTitle":    release.Title,
+		"indexer":         defaultString(release.Indexer, "Prowlarr"),
+		"indexerId":       stableInt(defaultString(release.Indexer, "Prowlarr")),
+		"size":            release.SizeBytes,
+		"seeders":         release.Seeders,
+		"leechers":        release.Leechers,
+		"downloadUrl":     release.DownloadURL,
+		"infoUrl":         release.InfoURL,
+		"infoHash":        release.InfoHash,
+		"protocol":        compatReleaseProtocol(release),
+		"publishDate":     publishedAt,
+		"age":             ageMinutes / (60 * 24),
+		"ageHours":        ageMinutes / 60,
+		"ageMinutes":      ageMinutes,
+		"approved":        len(rejections) == 0,
+		"rejections":      rejections,
+		"releaseWeight":   compatReleaseWeight(release, len(rejections) == 0),
+		"quality":         compatReleaseQuality(format),
+		"languages":       []map[string]any{{"id": 1, "name": "English"}},
+		"author":          author,
+		"book":            book,
+		"bookId":          book["id"],
+		"authorId":        author["id"],
+		"books":           []map[string]any{book},
+		"categories":      release.Categories,
+		"librarryRelease": release,
+	}
+}
+
+func compatGrabbedReleaseRecord(status acquisition.DownloadStatus, wantedID string) map[string]any {
+	queueRecords := compatQueueRecords([]acquisition.DownloadStatus{status})
+	record := map[string]any{
+		"grabbed":  true,
+		"download": status,
+	}
+	if len(queueRecords) > 0 {
+		for key, value := range queueRecords[0] {
+			record[key] = value
+		}
+	}
+	record["downloadId"] = status.ID
+	if wantedID != "" {
+		record["librarryWantedId"] = wantedID
+		record["bookId"] = stableInt(wantedID)
+	}
+	return record
+}
+
+func compatReleaseURLFromPayload(payload map[string]any) string {
+	releaseURL := firstNonEmptyString(
+		payloadString(payload, "downloadUrl"),
+		payloadString(payload, "downloadURL"),
+		payloadString(payload, "releaseUrl"),
+		payloadString(payload, "releaseURL"),
+		payloadString(payload, "magnetUrl"),
+		payloadString(payload, "magnetURL"),
+		payloadString(payload, "magnetUri"),
+		payloadString(payload, "magnetURI"),
+		payloadString(payload, "url"),
+		payloadString(payload, "link"),
+		nestedString(payload, "librarryRelease", "downloadUrl"),
+		nestedString(payload, "librarryRelease", "downloadURL"),
+	)
+	if releaseURL != "" {
+		return releaseURL
+	}
+	return compatDirectURLCandidate(payloadString(payload, "guid"))
+}
+
+func compatDirectURLCandidate(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if strings.HasPrefix(normalized, "magnet:") || strings.Contains(normalized, "://") {
+		return strings.TrimSpace(value)
+	}
+	return ""
+}
+
+func compatProtocolFromPayload(payload map[string]any, releaseURL string) string {
+	protocol := firstNonEmptyString(payloadString(payload, "protocol"), nestedString(payload, "librarryRelease", "protocol"))
+	if protocol != "" {
+		return protocol
+	}
+	return compatProtocolForURL(releaseURL)
+}
+
+func compatProtocolForURL(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch {
+	case strings.HasPrefix(normalized, "magnet:"):
+		return "torrent"
+	case strings.Contains(normalized, ".nzb"), strings.Contains(normalized, "usenet"), strings.Contains(normalized, "newznab"):
+		return "usenet"
+	default:
+		return "torrent"
+	}
+}
+
+func compatReleaseProtocol(release acquisition.Release) string {
+	if strings.TrimSpace(release.Protocol) != "" {
+		return release.Protocol
+	}
+	return compatProtocolForURL(release.DownloadURL)
+}
+
+func compatReleaseTitleAndAuthor(release acquisition.Release, item *wanted.WantedItem) (string, string) {
+	if item != nil {
+		return item.Title, item.AuthorName
+	}
+	title, author := parseCompatReleaseTitle(release.Title)
+	return defaultString(title, release.Title), author
+}
+
+func compatReleaseBookRecord(title string, authorName string, item *wanted.WantedItem) map[string]any {
+	if item != nil {
+		return compatBookRecord(*item)
+	}
+	return map[string]any{
+		"id":           stableInt(title),
+		"title":        title,
+		"authorTitle":  authorName,
+		"titleSlug":    slug(title),
+		"monitored":    false,
+		"anyEditionOk": true,
+	}
+}
+
+func compatReleaseAuthorRecord(authorName string, item *wanted.WantedItem) map[string]any {
+	if item != nil {
+		return map[string]any{
+			"id":         stableInt(item.AuthorName),
+			"authorName": item.AuthorName,
+			"titleSlug":  slug(item.AuthorName),
+			"monitored":  true,
+		}
+	}
+	return map[string]any{
+		"id":         stableInt(authorName),
+		"authorName": authorName,
+		"titleSlug":  slug(authorName),
+		"monitored":  false,
+	}
+}
+
+func compatReleaseFormat(release acquisition.Release, item *wanted.WantedItem) string {
+	if item != nil && strings.TrimSpace(item.Format) != "" {
+		return item.Format
+	}
+	haystack := strings.ToLower(release.Title + " " + strings.Join(release.Categories, " "))
+	for _, token := range []string{"audiobook", "audio book", "m4b", "mp3"} {
+		if strings.Contains(haystack, token) {
+			return "audiobook"
+		}
+	}
+	return "ebook"
+}
+
+func compatReleaseQuality(format string) map[string]any {
+	qualityName := "Ebook"
+	if strings.EqualFold(format, "audiobook") || strings.EqualFold(format, "audio") {
+		qualityName = "Audiobook"
+	}
+	return map[string]any{
+		"quality": map[string]any{
+			"id":   stableInt(qualityName),
+			"name": qualityName,
+		},
+		"revision": map[string]any{
+			"version":  1,
+			"real":     0,
+			"isRepack": false,
+		},
+	}
+}
+
+func compatReleaseRejections(release acquisition.Release) []map[string]any {
+	var rejections []map[string]any
+	if strings.TrimSpace(release.DownloadURL) == "" {
+		rejections = append(rejections, map[string]any{"reason": "missing download URL", "type": "error"})
+	}
+	return rejections
+}
+
+func compatReleaseWeight(release acquisition.Release, approved bool) int {
+	if !approved {
+		return 0
+	}
+	weight := 100
+	if release.Seeders > 0 {
+		weight += release.Seeders
+	}
+	if release.SizeBytes > 0 {
+		weight += 5
+	}
+	return weight
 }
 
 func compatQueueRecords(downloads []acquisition.DownloadStatus) []map[string]any {
