@@ -18,6 +18,9 @@ type Config struct {
 	QBittorrentURL            string
 	QBittorrentUser           string
 	QBittorrentPass           string
+	TransmissionURL           string
+	TransmissionUser          string
+	TransmissionPass          string
 	SABnzbdURL                string
 	SABnzbdAPIKey             string
 	SABnzbdUser               string
@@ -71,6 +74,9 @@ func FromEnv() Config {
 		QBittorrentURL:            strings.TrimRight(strings.TrimSpace(os.Getenv("LIBRARRY_QBITTORRENT_URL")), "/"),
 		QBittorrentUser:           strings.TrimSpace(os.Getenv("LIBRARRY_QBITTORRENT_USERNAME")),
 		QBittorrentPass:           strings.TrimSpace(os.Getenv("LIBRARRY_QBITTORRENT_PASSWORD")),
+		TransmissionURL:           strings.TrimRight(strings.TrimSpace(os.Getenv("LIBRARRY_TRANSMISSION_URL")), "/"),
+		TransmissionUser:          strings.TrimSpace(os.Getenv("LIBRARRY_TRANSMISSION_USERNAME")),
+		TransmissionPass:          strings.TrimSpace(os.Getenv("LIBRARRY_TRANSMISSION_PASSWORD")),
 		SABnzbdURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("LIBRARRY_SABNZBD_URL")), "/"),
 		SABnzbdAPIKey:             strings.TrimSpace(os.Getenv("LIBRARRY_SABNZBD_API_KEY")),
 		SABnzbdUser:               strings.TrimSpace(os.Getenv("LIBRARRY_SABNZBD_USERNAME")),

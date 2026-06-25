@@ -42,8 +42,8 @@ mounted into the API container as `/data`.
 
 ## Acquisition
 
-Prowlarr provides release search. qBittorrent handles torrent releases and
-SABnzbd handles Usenet/NZB releases.
+Prowlarr provides release search. qBittorrent or Transmission handles torrent
+releases, and SABnzbd handles Usenet/NZB releases.
 
 ```dotenv
 LIBRARRY_PROWLARR_URL=
@@ -51,16 +51,19 @@ LIBRARRY_PROWLARR_API_KEY=
 LIBRARRY_QBITTORRENT_URL=
 LIBRARRY_QBITTORRENT_USERNAME=
 LIBRARRY_QBITTORRENT_PASSWORD=
+LIBRARRY_TRANSMISSION_URL=
+LIBRARRY_TRANSMISSION_USERNAME=
+LIBRARRY_TRANSMISSION_PASSWORD=
 LIBRARRY_SABNZBD_URL=
 LIBRARRY_SABNZBD_API_KEY=
 LIBRARRY_SABNZBD_USERNAME=
 LIBRARRY_SABNZBD_PASSWORD=
 ```
 
-`LIBRARRY_QBITTORRENT_URL` is enough for trusted LAN deployments with qBittorrent
-auth disabled for the calling host. SABnzbd requires both URL and API key;
-username/password are only needed when SABnzbd itself is protected by basic
-auth.
+`LIBRARRY_QBITTORRENT_URL` or `LIBRARRY_TRANSMISSION_URL` is enough for trusted
+LAN deployments with download-client auth disabled for the calling host.
+SABnzbd requires both URL and API key; username/password are only needed when
+SABnzbd itself is protected by basic auth.
 
 ## Quality Profiles
 
@@ -157,7 +160,9 @@ and only grabs or removes torrents when explicitly requested.
 The download queue UI uses `POST /api/v1/downloads/actions` for single and
 selected-row bulk actions. Supported queue actions include start, stop, delete,
 recheck, priority movement, category changes, and location changes for
-qBittorrent, plus per-torrent download and upload speed limits. `GET
+qBittorrent, plus per-torrent download and upload speed limits. Transmission
+supports start, stop, delete, recheck, set location, labels, and per-torrent
+speed limits. `GET
 /api/v1/downloads/{id}` returns qBittorrent properties, files, trackers, and
 peers; `/api/v1/downloads/{id}/files/actions` changes file priority, and
 `/api/v1/downloads/{id}/trackers/actions` adds, replaces, or removes trackers.

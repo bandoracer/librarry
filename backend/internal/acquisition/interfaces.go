@@ -40,6 +40,7 @@ type IndexerClient interface {
 }
 
 type DownloadRequest struct {
+	Client     string   `json:"client,omitempty"`
 	ReleaseURL string   `json:"releaseUrl"`
 	InfoHash   string   `json:"infoHash,omitempty"`
 	Title      string   `json:"title,omitempty"`
@@ -174,6 +175,7 @@ type DownloadListQuery struct {
 
 type DownloadActionRequest struct {
 	Action        string   `json:"action"`
+	Client        string   `json:"client,omitempty"`
 	IDs           []string `json:"ids"`
 	DeleteFiles   bool     `json:"deleteFiles,omitempty"`
 	Category      string   `json:"category,omitempty"`
@@ -261,6 +263,12 @@ type QBittorrentConfig struct {
 type SABnzbdConfig struct {
 	BaseURL  string
 	APIKey   string
+	Username string
+	Password string
+}
+
+type TransmissionConfig struct {
+	BaseURL  string
 	Username string
 	Password string
 }

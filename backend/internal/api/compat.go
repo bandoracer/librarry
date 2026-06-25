@@ -1278,6 +1278,9 @@ func (h *handler) compatDownloadClients(w http.ResponseWriter, r *http.Request) 
 	if strings.TrimSpace(h.deps.Config.QBittorrentURL) != "" {
 		records = append(records, compatDownloadClientRecord(1, "qBittorrent", "torrent", h.deps.Config.QBittorrentURL, h.deps.Config.EbookCategory))
 	}
+	if strings.TrimSpace(h.deps.Config.TransmissionURL) != "" {
+		records = append(records, compatDownloadClientRecord(3, "Transmission", "torrent", h.deps.Config.TransmissionURL, h.deps.Config.EbookCategory))
+	}
 	if strings.TrimSpace(h.deps.Config.SABnzbdURL) != "" {
 		records = append(records, compatDownloadClientRecord(2, "SABnzbd", "usenet", h.deps.Config.SABnzbdURL, h.deps.Config.EbookCategory))
 	}
@@ -1342,9 +1345,10 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 
 	wantedID := h.compatWantedIDForRelease(r, payload)
 	releaseID := firstNonEmptyString(payloadString(payload, "releaseId"), payloadString(payload, "id"), payloadString(payload, "guid"), payloadString(payload, "sourceId"))
+	client := firstNonEmptyString(payloadString(payload, "client"), payloadString(payload, "downloadClient"), payloadString(payload, "downloadClientName"))
 	paused := payloadBoolDefault(payload, "paused", true)
 	if h.deps.Wanted != nil && wantedID != "" && releaseID != "" && compatReleaseURLFromPayload(payload) == "" {
-		status, err := h.deps.Wanted.Grab(r.Context(), wantedID, wanted.GrabRequest{ReleaseID: releaseID, Paused: paused})
+		status, err := h.deps.Wanted.Grab(r.Context(), wantedID, wanted.GrabRequest{ReleaseID: releaseID, Client: client, Paused: paused})
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 			return
@@ -1369,6 +1373,7 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	request := acquisition.DownloadRequest{
 		ReleaseURL: releaseURL,
+		Client:     client,
 		InfoHash:   firstNonEmptyString(payloadString(payload, "infoHash"), nestedString(payload, "librarryRelease", "infoHash")),
 		Title:      firstNonEmptyString(payloadString(payload, "title"), payloadString(payload, "releaseTitle"), nestedString(payload, "librarryRelease", "title")),
 		Protocol:   compatProtocolFromPayload(payload, releaseURL),

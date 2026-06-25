@@ -188,15 +188,18 @@ data came from and why a match was accepted or sent to review.
 
 ## Acquisition
 
-Librarry integrates directly with Prowlarr, qBittorrent, and SABnzbd. Prowlarr
-is queried for book releases through `/api/v1/releases/search`; the
+Librarry integrates directly with Prowlarr, qBittorrent, Transmission, and
+SABnzbd. Prowlarr is queried for book releases through
+`/api/v1/releases/search`; the
 Readarr-compatible `/api/v1/release` endpoint maps the same acquisition flow
 into interactive release-search and grab payloads. Torrent releases are sent to
-qBittorrent, while Usenet/NZB releases are sent to SABnzbd through the same
+qBittorrent by default, or Transmission when qBittorrent is absent or the grab
+payload requests it. Usenet/NZB releases are sent to SABnzbd through the same
 `/api/v1/grabs` API. Startup and `/api/v1/integrations/bootstrap` ensure the
-book categories exist in qBittorrent.
+book categories exist in qBittorrent when qBittorrent is configured; Transmission
+does not have native categories, so Librarry maps book categories to labels.
 
-Download state is reconciled from qBittorrent and SABnzbd through
+Download state is reconciled from qBittorrent, Transmission, and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is
 configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, category changes, and location
@@ -208,8 +211,10 @@ qBittorrent priority changes are exposed through
 Tracker add/edit/remove actions are exposed through
 `/api/v1/downloads/{id}/trackers/actions`. `/api/v1/downloads/rebalance` adds a
 simple active-download limiter that can preview or apply start/stop operations
-against the visible Librarry queue. SABnzbd actions currently support start,
-stop, and delete. The API accepts multiple download IDs for these actions, routes
+against the visible Librarry queue. Transmission actions support start, stop,
+delete, recheck, set location, and per-torrent speed limits. SABnzbd actions
+currently support start, stop, and delete. The API accepts multiple download IDs
+for these actions, routes
 each ID back to its owning client when possible, and the web UI exposes
 selected-row bulk controls for the common queue operations.
 

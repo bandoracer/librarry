@@ -382,6 +382,7 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 			ProwlarrURL:        "http://prowlarr.local",
 			ProwlarrAPIKey:     "secret",
 			QBittorrentURL:     "http://qbittorrent.local",
+			TransmissionURL:    "http://transmission.local",
 			SABnzbdURL:         "http://sabnzbd.local",
 			EbookCategory:      "books-ebook",
 			AudiobookCategory:  "books-audiobook",
@@ -404,7 +405,7 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	if res.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"name":"qBittorrent"`) || !strings.Contains(res.Body.String(), `"name":"SABnzbd"`) {
+	if !strings.Contains(res.Body.String(), `"name":"qBittorrent"`) || !strings.Contains(res.Body.String(), `"name":"Transmission"`) || !strings.Contains(res.Body.String(), `"name":"SABnzbd"`) {
 		t.Fatalf("expected download clients, got %s", res.Body.String())
 	}
 

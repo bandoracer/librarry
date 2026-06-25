@@ -291,7 +291,7 @@ func (s *Service) Grab(ctx context.Context, wantedID string, request GrabRequest
 	if !release.Approved {
 		return acquisition.DownloadStatus{}, errors.New("release is rejected: " + release.RejectedReason)
 	}
-	return s.grabRelease(ctx, item, release, request.Paused, "manual")
+	return s.grabRelease(ctx, item, release, request.Paused, request.Client, "manual")
 }
 
 func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorRun, error) {
@@ -392,7 +392,7 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 
 		if request.AutoGrab {
 			if release, ok := firstApproved(outcome.Releases); ok {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "monitor")
+				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "monitor")
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -522,7 +522,7 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 				run.RejectedCount++
 			}
 			if request.AutoGrab && decision.Approved && !grabbedWanted[item.ID] {
-				status, err := s.grabRelease(ctx, item, decision, request.Paused, "feed")
+				status, err := s.grabRelease(ctx, item, decision, request.Paused, "", "feed")
 				if err != nil {
 					match.Error = err.Error()
 					run.ErrorCount++
@@ -690,7 +690,7 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 				result.Error = "no approved replacement release is available"
 				run.ErrorCount++
 			} else {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, replacement, request.Paused, "failed-download")
+				status, err := s.grabRelease(ctx, outcome.WantedItem, replacement, request.Paused, "", "failed-download")
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -857,7 +857,7 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 				},
 			})
 			if request.AutoGrab {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "upgrade")
+				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "upgrade")
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -912,8 +912,9 @@ func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEve
 	return s.store.ListHistory(ctx, query)
 }
 
-func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, trigger string) (acquisition.DownloadStatus, error) {
+func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string) (acquisition.DownloadStatus, error) {
 	status, err := s.acquire.Grab(ctx, acquisition.DownloadRequest{
+		Client:     client,
 		ReleaseURL: release.DownloadURL,
 		InfoHash:   release.InfoHash,
 		Title:      release.Title,

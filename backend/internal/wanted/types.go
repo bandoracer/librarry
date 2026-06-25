@@ -124,6 +124,7 @@ type AuthorMonitorRequest struct {
 
 type GrabRequest struct {
 	ReleaseID string `json:"releaseId,omitempty"`
+	Client    string `json:"client,omitempty"`
 	Paused    bool   `json:"paused"`
 }
 
