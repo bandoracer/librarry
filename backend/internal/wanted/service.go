@@ -60,6 +60,20 @@ func (s *Service) List(ctx context.Context, status string) ([]WantedItem, error)
 	return s.store.ListWanted(ctx, status)
 }
 
+func (s *Service) UpdateWanted(ctx context.Context, id string, request WantedUpdateRequest) (WantedItem, error) {
+	if !s.Available() {
+		return WantedItem{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.UpdateWanted(ctx, id, request)
+}
+
+func (s *Service) DeleteWanted(ctx context.Context, id string) error {
+	if !s.Available() {
+		return errors.New("wanted service requires database persistence")
+	}
+	return s.store.DeleteWanted(ctx, id)
+}
+
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Available() {
 		return nil, errors.New("wanted service requires database persistence")
@@ -94,6 +108,20 @@ func (s *Service) ListAuthorSubscriptions(ctx context.Context, status string) ([
 		return nil, errors.New("wanted service requires database persistence")
 	}
 	return s.store.ListAuthorSubscriptions(ctx, status)
+}
+
+func (s *Service) UpdateAuthorSubscription(ctx context.Context, id string, request AuthorUpdateRequest) (AuthorSubscription, error) {
+	if !s.Available() {
+		return AuthorSubscription{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.UpdateAuthorSubscription(ctx, id, request)
+}
+
+func (s *Service) DeleteAuthorSubscription(ctx context.Context, id string) error {
+	if !s.Available() {
+		return errors.New("wanted service requires database persistence")
+	}
+	return s.store.DeleteAuthorSubscription(ctx, id)
 }
 
 func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorRequest) (AuthorMonitorRun, error) {

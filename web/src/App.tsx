@@ -40,6 +40,7 @@ import {
   fetchProviderHealth,
   fetchQualityProfiles,
   fetchWanted,
+  grabManualDownload,
   grabWanted,
   grabRelease,
   importCompletedDownloads,
@@ -89,15 +90,61 @@ import {
 import { seedProviders, seedResults } from "./lib/seed";
 
 const navItems = [
-  { label: "Dashboard", icon: Activity },
-  { label: "Search", icon: Search },
-  { label: "Wanted", icon: Clock3 },
-  { label: "Imports", icon: UploadCloud },
-  { label: "Providers", icon: Database },
-  { label: "Settings", icon: Settings }
-];
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: Activity,
+    title: "Operations dashboard",
+    description: "Watch provider health, acquisition status, monitor runs, and recent activity."
+  },
+  {
+    id: "search",
+    label: "Search",
+    icon: Search,
+    title: "Metadata search",
+    description: "Resolve works, editions, identifiers, and provider confidence before acquisition."
+  },
+  {
+    id: "wanted",
+    label: "Wanted",
+    icon: Clock3,
+    title: "Wanted queue",
+    description: "Review monitored books, author subscriptions, feed sync, upgrade search, and release decisions."
+  },
+  {
+    id: "downloads",
+    label: "Downloads",
+    icon: HardDriveDownload,
+    title: "Download manager",
+    description: "Control active qBittorrent, Transmission, and SABnzbd items from one queue."
+  },
+  {
+    id: "imports",
+    label: "Imports",
+    icon: UploadCloud,
+    title: "Library imports",
+    description: "Scan library roots, import completed downloads, and resolve pending import reviews."
+  },
+  {
+    id: "providers",
+    label: "Providers",
+    icon: Database,
+    title: "Provider health",
+    description: "Check metadata providers and acquisition integration readiness."
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
+    title: "Release policy",
+    description: "Tune quality profiles used by search, feeds, failed-download recovery, and upgrades."
+  }
+] as const;
+
+type ViewID = (typeof navItems)[number]["id"];
 
 export function App() {
+  const [activeView, setActiveView] = useState<ViewID>("downloads");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
@@ -144,10 +191,15 @@ export function App() {
   const [isRebalancingDownloads, setIsRebalancingDownloads] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [isLoadingDownloadDetails, setIsLoadingDownloadDetails] = useState(false);
+  const [isAddingDownload, setIsAddingDownload] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
   const [trackerURL, setTrackerURL] = useState("");
+  const [manualGrabURL, setManualGrabURL] = useState("");
+  const [manualGrabTitle, setManualGrabTitle] = useState("");
+  const [manualGrabFormat, setManualGrabFormat] = useState("ebook");
+  const [manualGrabClient, setManualGrabClient] = useState("");
   const [downloadLimitKiB, setDownloadLimitKiB] = useState("");
   const [uploadLimitKiB, setUploadLimitKiB] = useState("");
   const [releaseError, setReleaseError] = useState("");
@@ -279,6 +331,31 @@ export function App() {
       await refreshDownloads();
     } catch (error) {
       setReleaseError(error instanceof Error ? error.message : "Grab failed");
+    }
+  }
+
+  async function addManualDownload() {
+    const releaseUrl = manualGrabURL.trim();
+    if (!releaseUrl) return;
+    setIsAddingDownload(true);
+    setDownloadError("");
+    try {
+      const status = await grabManualDownload({
+        releaseUrl,
+        title: manualGrabTitle.trim() || undefined,
+        format: manualGrabFormat,
+        client: manualGrabClient || undefined,
+        paused: true
+      });
+      setDownloadStatus(status);
+      setManualGrabURL("");
+      setManualGrabTitle("");
+      await refreshDownloads();
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Manual grab failed");
+    } finally {
+      setIsAddingDownload(false);
     }
   }
 
@@ -771,6 +848,7 @@ export function App() {
 
   const readyCount = providers.filter((provider) => provider.status === "ready").length;
   const integrationReadyCount = integrations.filter((integration) => integration.status === "ready").length;
+  const activeNav = navItems.find((item) => item.id === activeView) ?? navItems[0];
 
   return (
     <div className="app-shell">
@@ -787,7 +865,7 @@ export function App() {
 
         <nav className="nav-list" aria-label="Primary navigation">
           {navItems.map((item) => (
-            <button className={item.label === "Search" ? "nav-item active" : "nav-item"} key={item.label}>
+            <button className={item.id === activeView ? "nav-item active" : "nav-item"} key={item.id} onClick={() => setActiveView(item.id)} type="button">
               <item.icon size={17} />
               <span>{item.label}</span>
             </button>
@@ -803,8 +881,8 @@ export function App() {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <h1>Metadata search</h1>
-            <p>Resolve works, editions, identifiers, and provider confidence before acquisition.</p>
+            <h1>{activeNav.title}</h1>
+            <p>{activeNav.description}</p>
           </div>
           <div className="topbar-status">
             <CheckCircle2 size={18} />
@@ -812,7 +890,7 @@ export function App() {
           </div>
         </header>
 
-        <section className="search-strip" aria-label="Metadata search controls">
+        <section className="search-strip" aria-label="Metadata search controls" hidden={activeView !== "search"}>
           <div className="search-input">
             <Search size={18} />
             <input
@@ -842,7 +920,7 @@ export function App() {
           </button>
         </section>
 
-        <section className="provider-grid" aria-label="Provider health">
+        <section className="provider-grid" aria-label="Provider health" hidden={activeView !== "dashboard" && activeView !== "providers"}>
           {providers.map((provider) => (
             <article className="provider-tile" key={provider.name}>
               <div className="provider-header">
@@ -855,7 +933,11 @@ export function App() {
           ))}
         </section>
 
-        <section className="integration-strip" aria-label="Acquisition integrations">
+        <section
+          className="integration-strip"
+          aria-label="Acquisition integrations"
+          hidden={activeView !== "dashboard" && activeView !== "providers" && activeView !== "downloads"}
+        >
           <div className="integration-summary">
             <HardDriveDownload size={18} />
             <span>{integrationReadyCount}/{integrations.length || 2} acquisition integrations ready</span>
@@ -869,7 +951,7 @@ export function App() {
           ))}
         </section>
 
-        <div className="content-grid">
+        <div className="content-grid" hidden={activeView !== "search"}>
           <section className="results-panel" aria-label="Search results">
             <div className="panel-heading">
               <div>
@@ -973,7 +1055,7 @@ export function App() {
           </aside>
         </div>
 
-        <section className="release-panel" aria-label="Release search results">
+        <section className="release-panel" aria-label="Release search results" hidden={activeView !== "search"}>
           <div className="panel-heading">
             <div>
               <h2>Release search</h2>
@@ -1003,7 +1085,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="wanted-panel" aria-label="Wanted queue">
+        <section className="wanted-panel" aria-label="Wanted queue" hidden={activeView !== "wanted"}>
           <div className="panel-heading">
             <div>
               <h2>Wanted queue</h2>
@@ -1067,7 +1149,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="author-panel" aria-label="Author subscriptions">
+        <section className="author-panel" aria-label="Author subscriptions" hidden={activeView !== "wanted"}>
           <div className="panel-heading">
             <div>
               <h2>Author subscriptions</h2>
@@ -1138,7 +1220,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="library-panel" aria-label="Library import">
+        <section className="library-panel" aria-label="Library import" hidden={activeView !== "imports"}>
           <div className="panel-heading">
             <div>
               <h2>Library</h2>
@@ -1264,7 +1346,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="monitor-panel" aria-label="Wanted monitor">
+        <section className="monitor-panel" aria-label="Wanted monitor" hidden={activeView !== "dashboard" && activeView !== "wanted"}>
           <div className="panel-heading">
             <div>
               <h2>Monitor</h2>
@@ -1382,7 +1464,7 @@ export function App() {
           ) : null}
         </section>
 
-        <section className="downloads-panel" aria-label="Download manager">
+        <section className="downloads-panel" aria-label="Download manager" hidden={activeView !== "dashboard" && activeView !== "downloads"}>
           <div className="panel-heading">
             <div>
               <h2>Downloads</h2>
@@ -1412,6 +1494,41 @@ export function App() {
             </div>
           </div>
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
+          <div className="manual-grab-panel" aria-label="Manual download add">
+            <div className="manual-grab-main">
+              <label>
+                <span>Magnet, torrent, or NZB URL</span>
+                <input
+                  value={manualGrabURL}
+                  onChange={(event) => setManualGrabURL(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") addManualDownload();
+                  }}
+                  placeholder="magnet:?xt=... or https://indexer.example/download/..."
+                />
+              </label>
+              <label>
+                <span>Display title</span>
+                <input value={manualGrabTitle} onChange={(event) => setManualGrabTitle(event.target.value)} placeholder="Optional queue name" />
+              </label>
+            </div>
+            <div className="manual-grab-options">
+              <select value={manualGrabFormat} onChange={(event) => setManualGrabFormat(event.target.value)} aria-label="Download format">
+                <option value="ebook">Ebook</option>
+                <option value="audiobook">Audiobook</option>
+              </select>
+              <select value={manualGrabClient} onChange={(event) => setManualGrabClient(event.target.value)} aria-label="Download client">
+                <option value="">Auto client</option>
+                <option value="qBittorrent">qBittorrent</option>
+                <option value="Transmission">Transmission</option>
+                <option value="SABnzbd">SABnzbd</option>
+              </select>
+              <button className="primary-action" disabled={!manualGrabURL.trim() || isAddingDownload} onClick={addManualDownload} type="button">
+                <Download size={17} />
+                {isAddingDownload ? "Adding" : "Add paused"}
+              </button>
+            </div>
+          </div>
           <div className="download-queue-strip" aria-label="Download queue summary">
             {[
               ["Active", downloadQueueStats.active],
@@ -1704,7 +1821,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="settings-panel" aria-label="Quality profiles">
+        <section className="settings-panel" aria-label="Quality profiles" hidden={activeView !== "settings"}>
           <div className="panel-heading">
             <div>
               <h2>Quality Profiles</h2>
@@ -1781,7 +1898,7 @@ export function App() {
           </div>
         </section>
 
-        <section className="history-panel" aria-label="Activity history">
+        <section className="history-panel" aria-label="Activity history" hidden={activeView !== "dashboard"}>
           <div className="panel-heading">
             <div>
               <h2>History</h2>

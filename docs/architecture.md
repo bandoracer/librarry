@@ -202,6 +202,8 @@ payload requests it. Usenet/NZB releases are sent to SABnzbd through the same
 `/api/v1/grabs` API. Startup and `/api/v1/integrations/bootstrap` ensure the
 book categories exist in qBittorrent when qBittorrent is configured; Transmission
 does not have native categories, so Librarry maps book categories to labels.
+The Downloads page can also send a manual magnet, torrent, or NZB URL through
+the same grab path, paused by default, with ebook/audiobook category selection.
 
 Download state is reconciled from qBittorrent, Transmission, and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is
@@ -220,7 +222,9 @@ delete, recheck, set location, and per-torrent speed limits. SABnzbd actions
 currently support start, stop, and delete. The API accepts multiple download IDs
 for these actions, routes
 each ID back to its owning client when possible, and the web UI exposes
-selected-row bulk controls for the common queue operations.
+selected-row bulk controls for the common queue operations. The current manager
+is intended for Librarry acquisition operations, not as a full replacement for a
+dedicated torrent-client interface.
 
 Failed-download recovery can be triggered manually through
 `POST /api/v1/downloads/recover-failed` and can also run on an interval in the
@@ -257,10 +261,13 @@ compatibility layer; tasks are derived from Librarry scheduler intervals for
 feed sync, missing-book monitoring, author refresh, failed-download recovery,
 and upgrade search.
 
-Wanted items are stored in Postgres from normalized metadata results. A wanted
-item can search releases through Prowlarr, persist scored release decisions, and
+Wanted items are stored in Postgres from normalized metadata results. Monitoring
+state is stored separately from acquisition/import status so Readarr-compatible
+monitor/unmonitor calls do not erase grabbed or imported state. A wanted item
+can search releases through Prowlarr, persist scored release decisions, and
 record explicit rejection reasons before a candidate is sent to the matching
-download client.
+download client. Readarr-compatible book updates persist monitored state,
+quality profile changes, title/author display overrides, and soft removal.
 
 Quality profiles are stored in Postgres and applied anywhere a release is
 evaluated: manual wanted search, scheduled monitoring, feed sync, failed
@@ -278,7 +285,9 @@ best approved release to the matching download client when
 
 Author subscriptions are stored separately from wanted items. A subscription
 captures provider provenance, author identity, target format, and quality
-profile. The author monitor can be triggered manually through
+profile. Readarr-compatible author updates persist monitored/unmonitored state,
+quality profile changes, monitor-new-items settings, and soft removal. The
+author monitor can be triggered manually through
 `POST /api/v1/authors/monitor` and can also run on an interval in the API
 process. It searches metadata providers for due authors, creates or refreshes
 wanted items for matching books, records sync history, and does not grab

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -619,6 +620,77 @@ func TestCompatAuthorAndBookEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"librarryId":"wanted-1"`) {
 		t.Fatalf("expected single book payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatAuthorAndBookUpdateDeleteEndpointsPersist(t *testing.T) {
+	wantedClient := &fakeMutableWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   wantedClient,
+	})
+
+	authorID := stableInt("author-sub-1")
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/author/"+strconv.Itoa(authorID), strings.NewReader(`{"authorName":"Andy Weir","monitored":false,"qualityProfile":"retail","monitorNewItems":false}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected author update 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"librarryQualityName":"retail"`) {
+		t.Fatalf("expected unmonitored author update response, got %s", res.Body.String())
+	}
+	if len(wantedClient.authorUpdates) != 1 || wantedClient.authorUpdates[0].id != "author-sub-1" || wantedClient.authorUpdates[0].request.Monitored == nil || *wantedClient.authorUpdates[0].request.Monitored {
+		t.Fatalf("expected persisted author unmonitor update, got %+v", wantedClient.authorUpdates)
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/author/"+strconv.Itoa(authorID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected author delete 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.authorDeletes) != 1 || wantedClient.authorDeletes[0] != "author-sub-1" {
+		t.Fatalf("expected persisted author delete, got %+v", wantedClient.authorDeletes)
+	}
+
+	bookID := stableInt("wanted-1")
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/book/"+strconv.Itoa(bookID), strings.NewReader(`{"title":"Project Hail Mary","authorTitle":"Andy Weir","monitored":false,"qualityProfile":"retail"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected book update 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"qualityProfile":"retail"`) {
+		t.Fatalf("expected unmonitored book update response, got %s", res.Body.String())
+	}
+	if len(wantedClient.wantedUpdates) != 1 || wantedClient.wantedUpdates[0].id != "wanted-1" || wantedClient.wantedUpdates[0].request.Monitored == nil || *wantedClient.wantedUpdates[0].request.Monitored {
+		t.Fatalf("expected persisted book unmonitor update, got %+v", wantedClient.wantedUpdates)
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/book/monitor", strings.NewReader(fmt.Sprintf(`{"bookIds":[%d],"monitored":true}`, bookID)))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusAccepted {
+		t.Fatalf("expected book monitor 202, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"monitored":true`) {
+		t.Fatalf("expected monitored book response, got %s", res.Body.String())
+	}
+	if len(wantedClient.wantedUpdates) != 2 || wantedClient.wantedUpdates[1].id != "wanted-1" || wantedClient.wantedUpdates[1].request.Monitored == nil || !*wantedClient.wantedUpdates[1].request.Monitored {
+		t.Fatalf("expected persisted book monitor update, got %+v", wantedClient.wantedUpdates)
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/book/"+strconv.Itoa(bookID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected book delete 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.wantedDeletes) != 1 || wantedClient.wantedDeletes[0] != "wanted-1" {
+		t.Fatalf("expected persisted book delete, got %+v", wantedClient.wantedDeletes)
 	}
 }
 
@@ -1932,6 +2004,7 @@ func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedIt
 		Format:         "ebook",
 		QualityProfile: "standard",
 		Status:         "wanted",
+		Monitored:      true,
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),
 	}, nil
@@ -1946,6 +2019,7 @@ func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
 		Format:         "ebook",
 		QualityProfile: "standard",
 		Status:         "wanted",
+		Monitored:      true,
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),
 	}}, nil
@@ -2088,6 +2162,92 @@ func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.Histor
 	}}, nil
 }
 
+func (fakeWanted) UpdateWanted(_ context.Context, _ string, request wanted.WantedUpdateRequest) (wanted.WantedItem, error) {
+	monitored := true
+	if request.Monitored != nil {
+		monitored = *request.Monitored
+	}
+	return wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "openlibrary:OL1W",
+		Title:          defaultString(request.Title, "Project Hail Mary"),
+		AuthorName:     defaultString(request.AuthorName, "Andy Weir"),
+		Format:         "ebook",
+		QualityProfile: defaultString(request.QualityProfile, "standard"),
+		Status:         defaultString(request.Status, "wanted"),
+		Monitored:      monitored,
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) DeleteWanted(context.Context, string) error {
+	return nil
+}
+
+func (fakeWanted) UpdateAuthorSubscription(_ context.Context, _ string, request wanted.AuthorUpdateRequest) (wanted.AuthorSubscription, error) {
+	status := defaultString(request.Status, "monitored")
+	if request.Monitored != nil && !*request.Monitored {
+		status = "unmonitored"
+	}
+	return wanted.AuthorSubscription{
+		ID:              "author-sub-1",
+		Provider:        "Open Library",
+		ProviderKey:     "openlibrary:OL123A",
+		AuthorName:      defaultString(request.AuthorName, "Andy Weir"),
+		Format:          "ebook",
+		QualityProfile:  defaultString(request.QualityProfile, "standard"),
+		Status:          status,
+		MonitorNewItems: request.MonitorNewItems == nil || *request.MonitorNewItems,
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) DeleteAuthorSubscription(context.Context, string) error {
+	return nil
+}
+
+type fakeMutableWanted struct {
+	fakeWanted
+	authorUpdates []struct {
+		id      string
+		request wanted.AuthorUpdateRequest
+	}
+	authorDeletes []string
+	wantedUpdates []struct {
+		id      string
+		request wanted.WantedUpdateRequest
+	}
+	wantedDeletes []string
+}
+
+func (f *fakeMutableWanted) UpdateAuthorSubscription(_ context.Context, id string, request wanted.AuthorUpdateRequest) (wanted.AuthorSubscription, error) {
+	f.authorUpdates = append(f.authorUpdates, struct {
+		id      string
+		request wanted.AuthorUpdateRequest
+	}{id: id, request: request})
+	return fakeWanted{}.UpdateAuthorSubscription(context.Background(), id, request)
+}
+
+func (f *fakeMutableWanted) DeleteAuthorSubscription(_ context.Context, id string) error {
+	f.authorDeletes = append(f.authorDeletes, id)
+	return nil
+}
+
+func (f *fakeMutableWanted) UpdateWanted(_ context.Context, id string, request wanted.WantedUpdateRequest) (wanted.WantedItem, error) {
+	f.wantedUpdates = append(f.wantedUpdates, struct {
+		id      string
+		request wanted.WantedUpdateRequest
+	}{id: id, request: request})
+	return fakeWanted{}.UpdateWanted(context.Background(), id, request)
+}
+
+func (f *fakeMutableWanted) DeleteWanted(_ context.Context, id string) error {
+	f.wantedDeletes = append(f.wantedDeletes, id)
+	return nil
+}
+
 type fakeReleaseWanted struct {
 	fakeWanted
 	grabs []wanted.GrabRequest
@@ -2138,6 +2298,7 @@ func fakeWantedSearchOutcome() wanted.SearchOutcome {
 		Format:         "ebook",
 		QualityProfile: "standard",
 		Status:         "wanted",
+		Monitored:      true,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}

@@ -230,6 +230,7 @@ export type WantedItem = {
   format: "ebook" | "audiobook";
   qualityProfile: string;
   status: string;
+  monitored: boolean;
   sourceProvider?: string;
   sourceKey?: string;
   currentReleaseId?: string;
@@ -575,6 +576,34 @@ export async function grabRelease(release: Release, format: string): Promise<Dow
   return (await response.json()) as DownloadStatus;
 }
 
+export async function grabManualDownload(request: {
+  releaseUrl: string;
+  title?: string;
+  format?: string;
+  client?: string;
+  paused?: boolean;
+}): Promise<DownloadStatus> {
+  const format = request.format === "audiobook" ? "audiobook" : "ebook";
+  const category = format === "audiobook" ? "books-audiobook" : "books-ebook";
+  const response = await fetch(`${apiBase}/api/v1/grabs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client: request.client || undefined,
+      releaseUrl: request.releaseUrl,
+      title: request.title,
+      protocol: protocolForURL(request.releaseUrl),
+      category,
+      paused: request.paused ?? true,
+      tags: ["librarry", "librarry-ui", "manual"]
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Manual grab failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadStatus;
+}
+
 export async function fetchDownloads(tag = "librarry"): Promise<DownloadStatus[]> {
   const params = new URLSearchParams();
   if (tag) params.set("tag", tag);
@@ -661,6 +690,12 @@ export async function runDownloadTrackerAction(
     throw new Error(`Download tracker action failed: ${response.status}`);
   }
   return (await response.json()) as DownloadTrackerActionResult;
+}
+
+function protocolForURL(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes(".nzb") || normalized.includes("t=get") || normalized.includes("apikey=")) return "usenet";
+  return "torrent";
 }
 
 export async function rebalanceDownloads(options: {

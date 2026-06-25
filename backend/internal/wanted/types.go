@@ -67,6 +67,14 @@ type AuthorSubscription struct {
 	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
+type AuthorUpdateRequest struct {
+	AuthorName      string `json:"authorName,omitempty"`
+	QualityProfile  string `json:"qualityProfile,omitempty"`
+	Status          string `json:"status,omitempty"`
+	MonitorNewItems *bool  `json:"monitorNewItems,omitempty"`
+	Monitored       *bool  `json:"monitored,omitempty"`
+}
+
 type SearchReleasesRequest struct {
 	Limit int `json:"limit,omitempty"`
 }
@@ -138,6 +146,7 @@ type WantedItem struct {
 	Format              string     `json:"format"`
 	QualityProfile      string     `json:"qualityProfile"`
 	Status              string     `json:"status"`
+	Monitored           bool       `json:"monitored"`
 	SourceProvider      string     `json:"sourceProvider,omitempty"`
 	SourceKey           string     `json:"sourceKey,omitempty"`
 	CurrentReleaseID    string     `json:"currentReleaseId,omitempty"`
@@ -146,6 +155,15 @@ type WantedItem struct {
 	LastUpgradeSearchAt *time.Time `json:"lastUpgradeSearchAt,omitempty"`
 	CreatedAt           time.Time  `json:"createdAt"`
 	UpdatedAt           time.Time  `json:"updatedAt"`
+}
+
+type WantedUpdateRequest struct {
+	Title          string `json:"title,omitempty"`
+	AuthorName     string `json:"authorName,omitempty"`
+	CoverURL       string `json:"coverUrl,omitempty"`
+	QualityProfile string `json:"qualityProfile,omitempty"`
+	Status         string `json:"status,omitempty"`
+	Monitored      *bool  `json:"monitored,omitempty"`
 }
 
 type ReleaseDecision struct {

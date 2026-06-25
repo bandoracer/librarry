@@ -53,6 +53,10 @@ type wantedService interface {
 	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
 	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
+	UpdateWanted(ctx context.Context, id string, request wanted.WantedUpdateRequest) (wanted.WantedItem, error)
+	DeleteWanted(ctx context.Context, id string) error
+	UpdateAuthorSubscription(ctx context.Context, id string, request wanted.AuthorUpdateRequest) (wanted.AuthorSubscription, error)
+	DeleteAuthorSubscription(ctx context.Context, id string) error
 	Monitor(ctx context.Context, request wanted.MonitorRequest) (wanted.MonitorRun, error)
 	FeedSync(ctx context.Context, request wanted.FeedSyncRequest) (wanted.FeedSyncRun, error)
 	RecoverFailedDownloads(ctx context.Context, request wanted.FailedDownloadRequest) (wanted.FailedDownloadRun, error)

@@ -22,6 +22,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -29,12 +33,17 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
 button {
   cursor: pointer;
+}
+
+select {
+  color: var(--text);
 }
 
 .app-shell {
@@ -1718,6 +1727,58 @@ button {
   flex-wrap: wrap;
 }
 
+.manual-grab-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.manual-grab-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) minmax(180px, 0.6fr);
+  gap: 10px;
+}
+
+.manual-grab-main label,
+.manual-grab-options {
+  min-width: 0;
+}
+
+.manual-grab-main label {
+  display: grid;
+  gap: 6px;
+}
+
+.manual-grab-main span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.manual-grab-main input,
+.manual-grab-options select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0 10px;
+  outline: 0;
+}
+
+.manual-grab-options {
+  display: grid;
+  grid-template-columns: 112px 140px auto;
+  gap: 8px;
+  align-items: end;
+}
+
 .download-queue-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2109,6 +2170,12 @@ button {
   }
 
   .wanted-release {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-grab-panel,
+  .manual-grab-main,
+  .manual-grab-options {
     grid-template-columns: 1fr;
   }
 

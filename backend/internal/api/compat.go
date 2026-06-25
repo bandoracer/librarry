@@ -595,6 +595,9 @@ func (h *handler) compatAuthors(w http.ResponseWriter, r *http.Request) {
 	books := h.compatWantedItems(r)
 	records := make([]map[string]any, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
+		if strings.TrimSpace(r.URL.Query().Get("status")) == "" && strings.EqualFold(strings.TrimSpace(subscription.Status), "removed") {
+			continue
+		}
 		records = append(records, compatAuthorRecord(subscription, booksForAuthor(books, subscription.AuthorName)))
 	}
 	writeJSON(w, http.StatusOK, records)
@@ -645,10 +648,27 @@ func (h *handler) compatUpdateAuthor(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, compatAuthorRecord(subscription, booksForAuthor(books, subscription.AuthorName)))
+	payload, ok := decodeCompatObjectPayload(w, r, "author")
+	if !ok {
+		return
+	}
+	updated, err := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, compatAuthorUpdateRequest(payload))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, compatAuthorRecord(updated, booksForAuthor(books, updated.AuthorName)))
 }
 
 func (h *handler) compatDeleteAuthor(w http.ResponseWriter, r *http.Request) {
+	subscription, _, ok := h.compatFindAuthor(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := h.deps.Wanted.DeleteAuthorSubscription(r.Context(), subscription.ID); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -687,6 +707,9 @@ func (h *handler) compatBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	records := make([]map[string]any, 0, len(items))
 	for _, item := range items {
+		if !compatWantedItemVisible(item) {
+			continue
+		}
 		records = append(records, compatBookRecord(item))
 	}
 	writeJSON(w, http.StatusOK, records)
@@ -757,7 +780,16 @@ func (h *handler) compatUpdateBook(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, compatBookRecord(item))
+	payload, ok := decodeCompatObjectPayload(w, r, "book")
+	if !ok {
+		return
+	}
+	updated, err := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, compatWantedUpdateRequest(payload))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, compatBookRecord(updated))
 }
 
 func (h *handler) compatMonitorBooks(w http.ResponseWriter, r *http.Request) {
@@ -765,19 +797,48 @@ func (h *handler) compatMonitorBooks(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
 		return
 	}
+	payload, ok := decodeCompatObjectPayload(w, r, "book monitor")
+	if !ok {
+		return
+	}
+	monitored := true
+	if value, hasValue := payloadBoolPointer(payload, "monitored"); hasValue && value != nil {
+		monitored = *value
+	}
+	ids := bookMonitorIDs(payload)
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "bookIds is required"})
+		return
+	}
 	items, err := h.deps.Wanted.List(r.Context(), "")
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	records := make([]map[string]any, 0, len(items))
+	records := make([]map[string]any, 0, len(ids))
 	for _, item := range items {
-		records = append(records, compatBookRecord(item))
+		if !wantedItemMatchesAnyID(item, ids) {
+			continue
+		}
+		updated, updateErr := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, wanted.WantedUpdateRequest{Monitored: &monitored})
+		if updateErr != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": updateErr.Error()})
+			return
+		}
+		records = append(records, compatBookRecord(updated))
 	}
 	writeJSON(w, http.StatusAccepted, records)
 }
 
 func (h *handler) compatDeleteBook(w http.ResponseWriter, r *http.Request) {
+	item, ok := h.compatFindBook(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	if err := h.deps.Wanted.DeleteWanted(r.Context(), item.ID); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -993,6 +1054,9 @@ func (h *handler) compatWantedMissing(w http.ResponseWriter, r *http.Request) {
 	}
 	records := make([]map[string]any, 0, len(items))
 	for _, item := range items {
+		if !compatWantedItemVisible(item) || !item.Monitored {
+			continue
+		}
 		records = append(records, compatMissingRecord(item))
 	}
 	page, pageSize := pageParams(r, len(records))
@@ -1594,6 +1658,9 @@ func (h *handler) compatFindAuthor(w http.ResponseWriter, r *http.Request, id st
 		return wanted.AuthorSubscription{}, nil, false
 	}
 	for _, subscription := range subscriptions {
+		if strings.EqualFold(strings.TrimSpace(subscription.Status), "removed") {
+			continue
+		}
 		if compatIDMatches(id, subscription.ID, subscription.ProviderKey, subscription.AuthorName) {
 			return subscription, h.compatWantedItems(r), true
 		}
@@ -1613,12 +1680,71 @@ func (h *handler) compatFindBook(w http.ResponseWriter, r *http.Request, id stri
 		return wanted.WantedItem{}, false
 	}
 	for _, item := range items {
+		if !compatWantedItemVisible(item) {
+			continue
+		}
 		if compatIDMatches(id, item.ID, item.WorkID, item.SourceKey, item.Title) {
 			return item, true
 		}
 	}
 	writeJSON(w, http.StatusNotFound, map[string]any{"error": "book not found"})
 	return wanted.WantedItem{}, false
+}
+
+func compatAuthorUpdateRequest(payload map[string]any) wanted.AuthorUpdateRequest {
+	request := wanted.AuthorUpdateRequest{
+		AuthorName:     firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "title"), payloadString(payload, "name")),
+		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name")),
+		Status:         payloadString(payload, "librarryStatus"),
+	}
+	if monitored, ok := payloadBoolPointer(payload, "monitored"); ok {
+		request.Monitored = monitored
+	}
+	if monitorNewItems, ok := payloadBoolPointer(payload, "monitorNewItems"); ok {
+		request.MonitorNewItems = monitorNewItems
+	}
+	return request
+}
+
+func compatWantedUpdateRequest(payload map[string]any) wanted.WantedUpdateRequest {
+	request := wanted.WantedUpdateRequest{
+		Title:          firstNonEmptyString(payloadString(payload, "title"), nestedString(payload, "book", "title")),
+		AuthorName:     firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "authorTitle"), nestedString(payload, "author", "authorName")),
+		CoverURL:       firstNonEmptyString(payloadString(payload, "coverUrl"), payloadString(payload, "remoteCover")),
+		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name")),
+		Status:         payloadString(payload, "librarryStatus"),
+	}
+	if monitored, ok := payloadBoolPointer(payload, "monitored"); ok {
+		request.Monitored = monitored
+	}
+	return request
+}
+
+func payloadBoolPointer(payload map[string]any, key string) (*bool, bool) {
+	if payload == nil {
+		return nil, false
+	}
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return nil, false
+	}
+	switch typed := value.(type) {
+	case bool:
+		return &typed, true
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(typed))
+		if err == nil {
+			return &parsed, true
+		}
+	case float64:
+		parsed := typed != 0
+		return &parsed, true
+	}
+	return nil, false
+}
+
+func compatWantedItemVisible(item wanted.WantedItem) bool {
+	return !strings.EqualFold(strings.TrimSpace(item.Status), "removed")
 }
 
 func (h *handler) compatWantedIDForManualImport(r *http.Request, payload map[string]any) string {
@@ -2606,6 +2732,25 @@ func bookFileDeleteIDs(payload map[string]any) []string {
 	return payloadStringList(payload, "bookFileIds", "bookFileIDs", "ids", "bookFileId", "bookFileID", "id")
 }
 
+func bookMonitorIDs(payload map[string]any) []string {
+	ids := payloadStringList(payload, "bookIds", "bookIDs", "ids", "bookId", "bookID", "id")
+	for _, value := range compatPayloadArray(payload, "books") {
+		switch typed := value.(type) {
+		case map[string]any:
+			ids = append(ids, payloadStringList(typed, "id", "bookId", "bookID", "librarryId", "foreignBookId")...)
+		default:
+			if text := stringValue(value); text != "" {
+				ids = append(ids, text)
+			}
+		}
+	}
+	return firstUniqueStrings(ids)
+}
+
+func wantedItemMatchesAnyID(item wanted.WantedItem, ids []string) bool {
+	return anyCompatIDMatches(ids, item.ID, item.WorkID, item.EditionID, item.SourceKey, item.Title)
+}
+
 func bookFileMatchesAnyID(file library.FileRecord, ids []string) bool {
 	for _, id := range ids {
 		if compatIDMatches(id, file.ID, file.Path, file.Title, filepath.Base(file.Path)) {
@@ -3173,7 +3318,7 @@ func compatAuthorRecord(subscription wanted.AuthorSubscription, books []wanted.W
 		"cleanName":           slug(subscription.AuthorName),
 		"titleSlug":           slug(subscription.AuthorName),
 		"foreignAuthorId":     firstNonEmptyString(subscription.ProviderKey, subscription.ID),
-		"monitored":           subscription.Status != "unmonitored",
+		"monitored":           strings.EqualFold(subscription.Status, "monitored"),
 		"rootFolderPath":      "",
 		"path":                "",
 		"qualityProfileId":    stableInt(subscription.QualityProfile),
@@ -3200,7 +3345,7 @@ func compatAuthorBookRecord(item wanted.WantedItem) map[string]any {
 		"foreignBookId":  firstNonEmptyString(item.WorkID, item.SourceKey, item.ID),
 		"authorTitle":    item.AuthorName,
 		"authorId":       stableInt(item.AuthorName),
-		"monitored":      item.Status != "ignored",
+		"monitored":      item.Monitored && !strings.EqualFold(item.Status, "removed"),
 		"anyEditionOk":   true,
 		"qualityProfile": item.QualityProfile,
 		"releaseDate":    item.CreatedAt,
@@ -3217,7 +3362,7 @@ func compatBookRecord(item wanted.WantedItem) map[string]any {
 		"title":            item.Title,
 		"titleSlug":        slug(item.Title),
 		"foreignBookId":    firstNonEmptyString(item.WorkID, item.SourceKey, item.ID),
-		"monitored":        item.Status != "ignored",
+		"monitored":        item.Monitored && !strings.EqualFold(item.Status, "removed"),
 		"anyEditionOk":     true,
 		"releaseDate":      item.CreatedAt,
 		"qualityProfile":   item.QualityProfile,

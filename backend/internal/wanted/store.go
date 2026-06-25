@@ -105,7 +105,7 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 		select
 			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
-			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
+			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
@@ -281,6 +281,74 @@ func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]A
 	return subscriptions, rows.Err()
 }
 
+func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request AuthorUpdateRequest) (AuthorSubscription, error) {
+	if !s.Configured() {
+		return AuthorSubscription{}, errors.New("wanted store is unavailable")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return AuthorSubscription{}, errors.New("author subscription id is required")
+	}
+	status := strings.TrimSpace(request.Status)
+	if request.Monitored != nil {
+		if *request.Monitored {
+			status = "monitored"
+		} else {
+			status = "unmonitored"
+		}
+	}
+	qualityProfile := strings.TrimSpace(request.QualityProfile)
+	if qualityProfile != "" {
+		qualityProfile = normalizeQualityProfile(qualityProfile)
+	}
+	monitorNewItems := sql.NullBool{}
+	if request.MonitorNewItems != nil {
+		monitorNewItems.Valid = true
+		monitorNewItems.Bool = *request.MonitorNewItems
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update author_subscriptions set
+			author_name = case when $2 = '' then author_name else $2 end,
+			quality_profile = case when $3 = '' then quality_profile else $3 end,
+			status = case when $4 = '' then status else $4 end,
+			monitor_new_items = coalesce($5, monitor_new_items),
+			updated_at = now()
+		where id::text = $1
+		returning
+			id, provider, provider_key, author_name, wanted_format, quality_profile,
+			status, monitor_new_items, last_sync_at, created_at, updated_at
+	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems)
+	return scanAuthorSubscription(row)
+}
+
+func (s *Store) DeleteAuthorSubscription(ctx context.Context, id string) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errors.New("author subscription id is required")
+	}
+	result, err := s.db.ExecContext(ctx, `
+		update author_subscriptions
+		set status = 'removed',
+			monitor_new_items = false,
+			updated_at = now()
+		where id::text = $1
+	`, id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minInterval time.Duration, force bool) ([]AuthorSubscription, error) {
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
@@ -385,7 +453,7 @@ func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 		select
 			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
-			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
+			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
@@ -393,6 +461,80 @@ func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 		where wi.id = $1
 	`, id)
 	return scanWanted(row)
+}
+
+func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdateRequest) (WantedItem, error) {
+	if !s.Configured() {
+		return WantedItem{}, errors.New("wanted store is unavailable")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return WantedItem{}, errors.New("wanted item id is required")
+	}
+	qualityProfile := strings.TrimSpace(request.QualityProfile)
+	if qualityProfile != "" {
+		qualityProfile = normalizeQualityProfile(qualityProfile)
+	}
+	monitored := sql.NullBool{}
+	if request.Monitored != nil {
+		monitored.Valid = true
+		monitored.Bool = *request.Monitored
+	}
+	result, err := s.db.ExecContext(ctx, `
+		update wanted_items set
+			title = case when $2 = '' then title else $2 end,
+			author_name = case when $3 = '' then author_name else $3 end,
+			cover_url = case when $4 = '' then cover_url else $4 end,
+			quality_profile = case when $5 = '' then quality_profile else $5 end,
+			monitored = coalesce($6::boolean, monitored),
+			status = case
+				when $7 <> '' then $7
+				when coalesce($6::boolean, monitored) = true and status in ('removed', 'ignored') then 'wanted'
+				else status
+			end,
+			updated_at = now()
+		where id::text = $1
+	`, id, strings.TrimSpace(request.Title), strings.TrimSpace(request.AuthorName), strings.TrimSpace(request.CoverURL),
+		qualityProfile, monitored, strings.TrimSpace(request.Status))
+	if err != nil {
+		return WantedItem{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return WantedItem{}, err
+	}
+	if affected == 0 {
+		return WantedItem{}, sql.ErrNoRows
+	}
+	return s.GetWanted(ctx, id)
+}
+
+func (s *Store) DeleteWanted(ctx context.Context, id string) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errors.New("wanted item id is required")
+	}
+	result, err := s.db.ExecContext(ctx, `
+		update wanted_items
+		set status = 'removed',
+			monitored = false,
+			updated_at = now()
+		where id::text = $1
+	`, id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Store) UpsertReleaseDecisions(ctx context.Context, wantedID string, decisions []ReleaseDecision) ([]ReleaseDecision, error) {
@@ -517,12 +659,13 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 		select
 			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
-			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
+			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.status = 'wanted'
+			and wi.monitored = true
 			and ($1::boolean or wi.last_search_at is null or wi.last_search_at <= $2)
 		order by coalesce(wi.last_search_at, 'epoch'::timestamptz), wi.created_at
 		limit $3
@@ -557,6 +700,7 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 	args := []any{force, time.Now().UTC().Add(-minInterval)}
 	where := []string{
 		"wi.status in ('grabbed', 'imported')",
+		"wi.monitored = true",
 		"($1::boolean or wi.last_upgrade_search_at is null or wi.last_upgrade_search_at <= $2)",
 	}
 	if len(cleanIDs) > 0 {
@@ -575,7 +719,7 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 		select
 			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
-			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
+			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
@@ -1031,7 +1175,7 @@ func scanWanted(row wantedScanner) (WantedItem, error) {
 	var lastSearchAt, lastUpgradeSearchAt sql.NullTime
 	if err := row.Scan(
 		&item.ID, &workID, &editionID, &item.Title, &item.AuthorName, &coverURL,
-		&item.Format, &item.QualityProfile, &item.Status, &sourceProvider,
+		&item.Format, &item.QualityProfile, &item.Status, &item.Monitored, &sourceProvider,
 		&sourceKey, &item.CurrentReleaseID, &item.CurrentReleaseScore,
 		&lastSearchAt, &lastUpgradeSearchAt, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
