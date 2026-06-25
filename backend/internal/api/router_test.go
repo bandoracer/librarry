@@ -12,6 +12,7 @@ import (
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/config"
+	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
@@ -158,6 +159,66 @@ func TestHistoryEndpoint(t *testing.T) {
 	}
 }
 
+func TestLibraryFilesEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fakeLibrary{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/library/files?format=ebook", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "Project Hail Mary") {
+		t.Fatalf("expected file in response, got %s", res.Body.String())
+	}
+}
+
+func TestScanLibraryEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fakeLibrary{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/scan", strings.NewReader(`{"format":"ebook"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"upserted":1`) {
+		t.Fatalf("expected scan outcome in response, got %s", res.Body.String())
+	}
+}
+
+func TestImportLibraryFileEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fakeLibrary{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/import", strings.NewReader(`{"sourcePath":"/downloads/book.epub","wantedId":"wanted-1"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "/library/ebooks") {
+		t.Fatalf("expected import outcome in response, got %s", res.Body.String())
+	}
+}
+
 type fakeAcquire struct{}
 
 func (fakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
@@ -230,4 +291,56 @@ func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.Histor
 		Message:    "Searched wanted releases",
 		CreatedAt:  time.Now().UTC(),
 	}}, nil
+}
+
+type fakeLibrary struct{}
+
+func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.FileRecord, error) {
+	return []library.FileRecord{{
+		ID:           "file-1",
+		MediaFormat:  "ebook",
+		Path:         "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
+		Title:        "Project Hail Mary",
+		AuthorName:   "Andy Weir",
+		ImportStatus: "imported",
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}}, nil
+}
+
+func (fakeLibrary) Scan(context.Context, library.ScanRequest) (library.ScanOutcome, error) {
+	file := library.FileRecord{
+		ID:           "file-1",
+		MediaFormat:  "ebook",
+		Path:         "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
+		Title:        "Project Hail Mary",
+		AuthorName:   "Andy Weir",
+		ImportStatus: "available",
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}
+	return library.ScanOutcome{
+		Roots:    []string{"/library/ebooks"},
+		Scanned:  1,
+		Upserted: 1,
+		Files:    []library.FileRecord{file},
+	}, nil
+}
+
+func (fakeLibrary) Import(context.Context, library.ImportRequest) (library.ImportOutcome, error) {
+	file := library.FileRecord{
+		ID:           "file-1",
+		MediaFormat:  "ebook",
+		Path:         "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
+		Title:        "Project Hail Mary",
+		AuthorName:   "Andy Weir",
+		ImportStatus: "imported",
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}
+	return library.ImportOutcome{
+		File:            file,
+		DestinationPath: file.Path,
+		Moved:           false,
+	}, nil
 }

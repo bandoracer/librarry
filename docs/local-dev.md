@@ -54,3 +54,15 @@ LIBRARRY_MONITOR_AUTO_GRAB=false
 Manual monitor runs are available through `POST /api/v1/wanted/monitor`.
 `LIBRARRY_MONITOR_AUTO_GRAB=false` keeps scheduled runs search-only while still
 recording release decisions and history.
+
+## Library Roots
+
+Library scans and manual imports use these roots by default:
+
+```dotenv
+LIBRARRY_EBOOK_LIBRARY_ROOT=/data/media/books/ebooks
+LIBRARRY_AUDIOBOOK_LIBRARY_ROOT=/data/media/books/audiobooks
+```
+
+`POST /api/v1/library/scan` indexes existing files. `POST /api/v1/library/import`
+copies or moves a single source file into the organized format root.

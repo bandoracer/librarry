@@ -11,6 +11,7 @@ import (
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/config"
+	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/settings"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
@@ -22,6 +23,7 @@ type Dependencies struct {
 	Metadata *metadata.Service
 	Acquire  acquisitionService
 	Wanted   wantedService
+	Library  libraryService
 }
 
 type acquisitionService interface {
@@ -41,6 +43,12 @@ type wantedService interface {
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
 	Monitor(ctx context.Context, request wanted.MonitorRequest) (wanted.MonitorRun, error)
 	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
+}
+
+type libraryService interface {
+	ListFiles(ctx context.Context, query library.FileListQuery) ([]library.FileRecord, error)
+	Scan(ctx context.Context, request library.ScanRequest) (library.ScanOutcome, error)
+	Import(ctx context.Context, request library.ImportRequest) (library.ImportOutcome, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -65,6 +73,9 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/wanted/{id}/releases", handler.listWantedReleases)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
 	mux.HandleFunc("GET /api/v1/history", handler.history)
+	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
+	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
+	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
 
 	return withCORS(deps.Config.WebOrigin, mux)
 }
@@ -339,6 +350,61 @@ func (h *handler) history(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"events": events})
+}
+
+func (h *handler) libraryFiles(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	files, err := h.deps.Library.ListFiles(r.Context(), library.FileListQuery{
+		Format: r.URL.Query().Get("format"),
+		Status: r.URL.Query().Get("status"),
+		Limit:  limit,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"files": files})
+}
+
+func (h *handler) scanLibrary(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.ScanRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	outcome, err := h.deps.Library.Scan(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) importLibraryFile(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.ImportRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library import payload"})
+		return
+	}
+	outcome, err := h.deps.Library.Import(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
 }
 
 func withCORS(webOrigin string, next http.Handler) http.Handler {

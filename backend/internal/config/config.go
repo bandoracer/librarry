@@ -21,6 +21,8 @@ type Config struct {
 	EbookCategory         string
 	AudiobookCategory     string
 	BookTorrentRoot       string
+	EbookLibraryRoot      string
+	AudiobookLibraryRoot  string
 	MonitorEnabled        bool
 	MonitorInterval       time.Duration
 	MonitorSearchInterval time.Duration
@@ -44,6 +46,8 @@ func FromEnv() Config {
 		EbookCategory:         env("LIBRARRY_EBOOK_CATEGORY", "books-ebook"),
 		AudiobookCategory:     env("LIBRARRY_AUDIOBOOK_CATEGORY", "books-audiobook"),
 		BookTorrentRoot:       env("LIBRARRY_BOOK_TORRENT_ROOT", "/data/torrents/books"),
+		EbookLibraryRoot:      env("LIBRARRY_EBOOK_LIBRARY_ROOT", "/data/media/books/ebooks"),
+		AudiobookLibraryRoot:  env("LIBRARRY_AUDIOBOOK_LIBRARY_ROOT", "/data/media/books/audiobooks"),
 		MonitorEnabled:        envBool("LIBRARRY_MONITOR_ENABLED", true),
 		MonitorInterval:       envDuration("LIBRARRY_MONITOR_INTERVAL", 30*time.Minute),
 		MonitorSearchInterval: envDuration("LIBRARRY_MONITOR_SEARCH_INTERVAL", 6*time.Hour),

@@ -14,6 +14,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/api"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/database"
+	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
@@ -28,6 +29,7 @@ func main() {
 	defer cancelApp()
 	var downloadStore acquisition.DownloadStore
 	var wantedStore *wanted.Store
+	var libraryStore *library.Store
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -43,6 +45,7 @@ func main() {
 		}
 		downloadStore = acquisition.NewSQLDownloadStore(db)
 		wantedStore = wanted.NewStore(db)
+		libraryStore = library.NewStore(db)
 		logger.Info("database migrations applied")
 	} else {
 		logger.Warn("LIBRARRY_DATABASE_URL is not set; starting without database-backed persistence")
@@ -74,6 +77,10 @@ func main() {
 		cancel()
 	}
 	wantedService := wanted.NewService(wantedStore, acquire)
+	libraryService := library.NewService(libraryStore, library.Config{
+		EbookRoot:     cfg.EbookLibraryRoot,
+		AudiobookRoot: cfg.AudiobookLibraryRoot,
+	}, wantedStore)
 	var monitorWG sync.WaitGroup
 	if cfg.MonitorEnabled && wantedService.Available() {
 		monitorWG.Add(1)
@@ -86,6 +93,7 @@ func main() {
 		Metadata: metadata.NewService(providers),
 		Acquire:  acquire,
 		Wanted:   wantedService,
+		Library:  libraryService,
 	})
 
 	server := &http.Server{

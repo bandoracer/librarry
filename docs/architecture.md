@@ -27,6 +27,9 @@ Initial API surface:
 - `POST /api/v1/wanted/{id}/grab`
 - `POST /api/v1/wanted/monitor`
 - `GET /api/v1/history`
+- `GET /api/v1/library/files`
+- `POST /api/v1/library/scan`
+- `POST /api/v1/library/import`
 - `POST /api/v1/settings/validate`
 
 ## Metadata Model
@@ -60,6 +63,19 @@ The wanted monitor can be triggered manually through
 It selects due wanted items, reuses the same release evaluator as manual search,
 records monitor run summaries, writes history events, and optionally sends the
 best approved release to qBittorrent when `LIBRARRY_MONITOR_AUTO_GRAB=true`.
+
+## Library Import
+
+Library scanning walks the configured ebook and audiobook roots, classifies
+supported file extensions, stores file records in Postgres, and keeps a
+fingerprint in file metadata for later reconciliation. Manual import accepts a
+source file path, optionally ties it to a wanted item, and copies or moves the
+file into a sanitized `Author/Title/Title.ext` path below the format root.
+
+The implemented import path is intentionally conservative: it avoids overwriting
+existing files and marks wanted items imported only after the destination file is
+persisted. Future work should add OPF, EPUB, audio-tag extraction, automatic
+completed-download imports, and review queues for ambiguous matches.
 
 - `books-ebook`
 - `books-audiobook`

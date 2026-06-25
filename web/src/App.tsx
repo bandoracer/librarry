@@ -5,7 +5,9 @@ import {
   Clock3,
   Database,
   Download,
+  FileCheck2,
   FileSearch,
+  FolderSearch,
   HardDriveDownload,
   History as HistoryIcon,
   Library,
@@ -25,12 +27,15 @@ import {
   fetchIntegrationHealth,
   fetchDownloads,
   fetchHistory,
+  fetchLibraryFiles,
   fetchProviderHealth,
   fetchWanted,
   grabWanted,
   grabRelease,
+  importLibraryFile,
   runWantedMonitor,
   runDownloadAction,
+  scanLibrary,
   searchMetadata,
   searchReleases,
   searchWantedReleases,
@@ -38,6 +43,9 @@ import {
   type DownloadStatus,
   type HistoryEvent,
   type IntegrationHealth,
+  type LibraryFile,
+  type LibraryImportOutcome,
+  type LibraryScanOutcome,
   type MonitorRun,
   type ProviderHealth,
   type ReleaseDecision,
@@ -65,11 +73,15 @@ export function App() {
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
+  const [libraryScan, setLibraryScan] = useState<LibraryScanOutcome | null>(null);
+  const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [query, setQuery] = useState("Project Hail Mary");
+  const [importPath, setImportPath] = useState("");
   const [format, setFormat] = useState("any");
   const [apiState, setAPIState] = useState<"checking" | "live" | "offline">("checking");
   const [isSearching, setIsSearching] = useState(false);
@@ -77,12 +89,15 @@ export function App() {
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
+  const [isScanningLibrary, setIsScanningLibrary] = useState(false);
+  const [isImportingLibrary, setIsImportingLibrary] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
   const [monitorError, setMonitorError] = useState("");
   const [historyError, setHistoryError] = useState("");
+  const [libraryError, setLibraryError] = useState("");
   const [downloadError, setDownloadError] = useState("");
 
   useEffect(() => {
@@ -112,6 +127,11 @@ export function App() {
       .then(setHistoryEvents)
       .catch((error) => {
         setHistoryError(error instanceof Error ? error.message : "History refresh failed");
+      });
+    fetchLibraryFiles()
+      .then(setLibraryFiles)
+      .catch((error) => {
+        setLibraryError(error instanceof Error ? error.message : "Library refresh failed");
       });
   }, []);
 
@@ -242,6 +262,44 @@ export function App() {
       const message = error instanceof Error ? error.message : "Refresh failed";
       setHistoryError(message);
       setWantedError(message);
+    }
+  }
+
+  async function runLibraryScan(nextFormat = format) {
+    setIsScanningLibrary(true);
+    setLibraryError("");
+    try {
+      const outcome = await scanLibrary(nextFormat);
+      setLibraryScan(outcome);
+      setLibraryFiles((current) => mergeLibraryFiles(current, outcome.files));
+      setAPIState("live");
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : "Library scan failed");
+    } finally {
+      setIsScanningLibrary(false);
+    }
+  }
+
+  async function runLibraryImport() {
+    if (!importPath.trim()) return;
+    setIsImportingLibrary(true);
+    setLibraryError("");
+    try {
+      const outcome = await importLibraryFile({
+        sourcePath: importPath.trim(),
+        wantedId: selectedWanted?.id,
+        format: selectedWanted?.format ?? (format === "any" ? "ebook" : format),
+        move: false
+      });
+      setLibraryImport(outcome);
+      setLibraryFiles((current) => mergeLibraryFiles(current, [outcome.file]));
+      const nextWanted = await fetchWanted();
+      setWantedItems(nextWanted);
+      setAPIState("live");
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : "Library import failed");
+    } finally {
+      setIsImportingLibrary(false);
     }
   }
 
@@ -571,6 +629,83 @@ export function App() {
           </div>
         </section>
 
+        <section className="library-panel" aria-label="Library import">
+          <div className="panel-heading">
+            <div>
+              <h2>Library</h2>
+              <p>
+                {libraryScan
+                  ? `${libraryScan.upserted} files indexed from ${libraryScan.roots.length} roots.`
+                  : `${libraryFiles.length} tracked files from library scans and imports.`}
+              </p>
+            </div>
+            <div className="library-actions">
+              <button className="secondary-action compact" disabled={isScanningLibrary} onClick={() => runLibraryScan("ebook")} type="button">
+                <FolderSearch size={16} />
+                Ebooks
+              </button>
+              <button className="secondary-action compact" disabled={isScanningLibrary} onClick={() => runLibraryScan("audiobook")} type="button">
+                <FolderSearch size={16} />
+                Audio
+              </button>
+              <button className="secondary-action compact" disabled={isScanningLibrary} onClick={() => runLibraryScan("any")} type="button">
+                <RefreshCw size={16} />
+                All
+              </button>
+            </div>
+          </div>
+          {libraryError ? <div className="inline-error">{libraryError}</div> : null}
+          <div className="library-import-row">
+            <div className="library-import-input">
+              <FileCheck2 size={17} />
+              <input
+                value={importPath}
+                onChange={(event) => setImportPath(event.target.value)}
+                placeholder="Source file path to import into the selected wanted book"
+              />
+            </div>
+            <button className="primary-action" disabled={!importPath.trim() || isImportingLibrary} onClick={runLibraryImport} type="button">
+              <UploadCloud size={17} />
+              {isImportingLibrary ? "Importing" : "Import"}
+            </button>
+          </div>
+          {libraryImport ? (
+            <div className="library-import-result">
+              <strong>{libraryImport.file.title || "Imported file"}</strong>
+              <span>{libraryImport.destinationPath}</span>
+            </div>
+          ) : null}
+          <div className="library-grid">
+            {[
+              ["Tracked", libraryFiles.length],
+              ["Imported", libraryFiles.filter((file) => file.importStatus === "imported").length],
+              ["Ebooks", libraryFiles.filter((file) => file.mediaFormat === "ebook").length],
+              ["Audiobooks", libraryFiles.filter((file) => file.mediaFormat === "audiobook").length],
+              ["Scanned", libraryScan?.scanned ?? 0],
+              ["Skipped", libraryScan?.skipped ?? 0]
+            ].map(([label, value]) => (
+              <div className="library-metric" key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="library-file-list">
+            {libraryFiles.slice(0, 8).map((file) => (
+              <article className="library-file-row" key={file.id || file.path}>
+                <div>
+                  <strong>{file.title || file.path.split("/").pop()}</strong>
+                  <span>
+                    {file.authorName || "Unknown author"} · {file.mediaFormat} · {file.importStatus} · {formatBytes(file.sizeBytes ?? 0)}
+                  </span>
+                  <small>{file.path}</small>
+                </div>
+                <em>{file.extension || "file"}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className="monitor-panel" aria-label="Wanted monitor">
           <div className="panel-heading">
             <div>
@@ -763,6 +898,18 @@ function mergeWanted(current: WantedItem[], next: WantedItem[]) {
   return Array.from(byID.values()).sort((a, b) => {
     const aTime = Date.parse(a.createdAt || "");
     const bTime = Date.parse(b.createdAt || "");
+    return bTime - aTime;
+  });
+}
+
+function mergeLibraryFiles(current: LibraryFile[], next: LibraryFile[]) {
+  const byPath = new Map(current.map((file) => [file.path, file]));
+  for (const file of next) {
+    byPath.set(file.path, file);
+  }
+  return Array.from(byPath.values()).sort((a, b) => {
+    const aTime = Date.parse(a.updatedAt || "");
+    const bTime = Date.parse(b.updatedAt || "");
     return bTime - aTime;
   });
 }

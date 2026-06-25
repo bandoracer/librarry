@@ -174,6 +174,39 @@ export type HistoryEvent = {
   createdAt: string;
 };
 
+export type LibraryFile = {
+  id: string;
+  editionId?: string;
+  mediaFormat: "ebook" | "audiobook";
+  path: string;
+  sourcePath?: string;
+  title?: string;
+  authorName?: string;
+  extension?: string;
+  sizeBytes?: number;
+  checksum?: string;
+  importStatus: string;
+  metadata?: Record<string, unknown>;
+  modifiedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LibraryScanOutcome = {
+  roots: string[];
+  scanned: number;
+  upserted: number;
+  skipped: number;
+  files: LibraryFile[];
+  errors?: string[];
+};
+
+export type LibraryImportOutcome = {
+  file: LibraryFile;
+  destinationPath: string;
+  moved: boolean;
+};
+
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
@@ -357,4 +390,44 @@ export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
   }
   const payload = (await response.json()) as { events: HistoryEvent[] };
   return payload.events;
+}
+
+export async function fetchLibraryFiles(format = "any", limit = 100): Promise<LibraryFile[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (format && format !== "any") params.set("format", format);
+  const response = await fetch(`${apiBase}/api/v1/library/files?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Library files refresh failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as { files: LibraryFile[] };
+  return payload.files;
+}
+
+export async function scanLibrary(format = "any"): Promise<LibraryScanOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ format, limit: 1000 })
+  });
+  if (!response.ok) {
+    throw new Error(`Library scan failed: ${response.status}`);
+  }
+  return (await response.json()) as LibraryScanOutcome;
+}
+
+export async function importLibraryFile(options: {
+  sourcePath: string;
+  wantedId?: string;
+  format?: string;
+  move?: boolean;
+}): Promise<LibraryImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options)
+  });
+  if (!response.ok) {
+    throw new Error(`Library import failed: ${response.status}`);
+  }
+  return (await response.json()) as LibraryImportOutcome;
 }
