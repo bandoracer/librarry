@@ -36,6 +36,186 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
+func TestCompatSystemStatusAndPingEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", DatabaseURL: "postgres://librarry:librarry@localhost/librarry"},
+		Metadata: metadata.NewService(nil),
+	})
+
+	pingReq := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	pingRes := httptest.NewRecorder()
+	router.ServeHTTP(pingRes, pingReq)
+	if pingRes.Code != http.StatusOK || strings.TrimSpace(pingRes.Body.String()) != "pong" {
+		t.Fatalf("unexpected ping response: %d %q", pingRes.Code, pingRes.Body.String())
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/status", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"appName":"Librarry"`) || !strings.Contains(res.Body.String(), `"databaseType":"postgres"`) {
+		t.Fatalf("expected Readarr-style status payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/routes", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `/api/v1/queue`) {
+		t.Fatalf("expected route list payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatRootFolderAndDiskspaceEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{
+			WebOrigin:            "*",
+			EbookLibraryRoot:     "/tmp",
+			AudiobookLibraryRoot: "/tmp",
+		},
+		Metadata: metadata.NewService(nil),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/rootfolder", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"path":"/tmp"`) || !strings.Contains(res.Body.String(), `"freeSpace"`) {
+		t.Fatalf("expected root folder records, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/diskspace", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"totalSpace"`) {
+		t.Fatalf("expected diskspace records, got %s", res.Body.String())
+	}
+}
+
+func TestCompatQueueEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/queue?page=1&pageSize=1", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"totalRecords":1`) || !strings.Contains(res.Body.String(), `"downloadClient":"qBittorrent"`) {
+		t.Fatalf("expected paged queue payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/queue/status", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"totalCount":1`) {
+		t.Fatalf("expected queue status payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wanted/missing", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"totalRecords":1`) || !strings.Contains(res.Body.String(), `"librarryId":"wanted-1"`) {
+		t.Fatalf("expected missing book payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/qualityprofile", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"upgradeAllowed":true`) || !strings.Contains(res.Body.String(), `"librarry"`) {
+		t.Fatalf("expected quality profile payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{
+			WebOrigin:          "*",
+			ProwlarrURL:        "http://prowlarr.local",
+			ProwlarrAPIKey:     "secret",
+			QBittorrentURL:     "http://qbittorrent.local",
+			SABnzbdURL:         "http://sabnzbd.local",
+			EbookCategory:      "books-ebook",
+			AudiobookCategory:  "books-audiobook",
+			EbookLibraryRoot:   "/tmp",
+			BookTorrentRoot:    "/downloads/books",
+			GoogleBooksAPIKey:  "google",
+			HardcoverToken:     "hardcover",
+			MigrationsDir:      "backend/migrations",
+			NamingAuthorFolder: "{Author}",
+		},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+		Wanted:   fakeWanted{},
+		Library:  fakeLibrary{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloadclient", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"name":"qBittorrent"`) || !strings.Contains(res.Body.String(), `"name":"SABnzbd"`) {
+		t.Fatalf("expected download clients, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/indexer", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"name":"Prowlarr"`) || strings.Contains(res.Body.String(), "secret") {
+		t.Fatalf("expected masked Prowlarr indexer, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"RssSync"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"commandName":"RssSync"`) || !strings.Contains(res.Body.String(), `"status":"completed"`) {
+		t.Fatalf("expected command result, got %s", res.Body.String())
+	}
+}
+
 func TestSettingsValidateEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),

@@ -60,6 +60,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, qBittorrent controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add queue arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
+| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, root folders, queue, missing wanted books, quality profiles, download clients, indexers, and basic commands. | Expand toward full OpenAPI compatibility, including author/book CRUD, import lists, notifications, remote path mappings, manual import, rename/retag, and Calibre endpoints. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, and queue unlinked files for review. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
@@ -112,6 +113,11 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   bulk start, stop, delete, recheck, import, recovery, and priority actions.
 - SABnzbd integration for NZB/Usenet grabs, queue/history polling, and start,
   stop, and delete actions.
+- Readarr-compatible API shim for common client probes and status views,
+  including `/ping`, `/api/v1/system/status`, `/api/v1/health`,
+  `/api/v1/diskspace`, `/api/v1/rootfolder`, `/api/v1/queue`,
+  `/api/v1/wanted/missing`, `/api/v1/qualityprofile`,
+  `/api/v1/downloadclient`, `/api/v1/indexer`, and `/api/v1/command`.
 - Docker Compose and TrueNAS custom-app deployment templates.
 
 ## Metadata Strategy
@@ -144,6 +150,27 @@ to the Librarry API.
 
 Important API surfaces:
 
+- Readarr-compatible endpoints:
+  - `GET /ping`
+  - `HEAD /ping`
+  - `GET /api/v1/system/status`
+  - `GET /api/v1/system/routes`
+  - `GET /api/v1/system/routes/duplicate`
+  - `GET /api/v1/health`
+  - `GET /api/v1/diskspace`
+  - `GET /api/v1/rootfolder`
+  - `GET /api/v1/queue`
+  - `GET /api/v1/queue/details`
+  - `GET /api/v1/queue/status`
+  - `DELETE /api/v1/queue/{id}`
+  - `DELETE /api/v1/queue/bulk`
+  - `GET /api/v1/wanted/missing`
+  - `GET /api/v1/qualityprofile`
+  - `GET /api/v1/downloadclient`
+  - `GET /api/v1/indexer`
+  - `GET /api/v1/command`
+  - `POST /api/v1/command`
+- Librarry-native endpoints:
 - `GET /healthz`
 - `GET /api/v1/providers/health`
 - `GET /api/v1/providers/diagnostics`

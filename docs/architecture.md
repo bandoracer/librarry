@@ -10,6 +10,27 @@ never need to be exposed to the browser.
 
 Initial API surface:
 
+- Readarr-compatible endpoints:
+  - `GET /ping`
+  - `HEAD /ping`
+  - `GET /api/v1/system/status`
+  - `GET /api/v1/system/routes`
+  - `GET /api/v1/system/routes/duplicate`
+  - `GET /api/v1/health`
+  - `GET /api/v1/diskspace`
+  - `GET /api/v1/rootfolder`
+  - `GET /api/v1/queue`
+  - `GET /api/v1/queue/details`
+  - `GET /api/v1/queue/status`
+  - `DELETE /api/v1/queue/{id}`
+  - `DELETE /api/v1/queue/bulk`
+  - `GET /api/v1/wanted/missing`
+  - `GET /api/v1/qualityprofile`
+  - `GET /api/v1/downloadclient`
+  - `GET /api/v1/indexer`
+  - `GET /api/v1/command`
+  - `POST /api/v1/command`
+- Librarry-native endpoints:
 - `GET /healthz`
 - `GET /api/v1/providers/health`
 - `GET /api/v1/providers/diagnostics`
