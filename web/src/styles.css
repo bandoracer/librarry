@@ -1070,6 +1070,14 @@ button {
   display: grid;
 }
 
+.download-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .download-row {
   min-height: 92px;
   display: grid;
@@ -1148,6 +1156,15 @@ button {
   font-size: 12px;
 }
 
+.download-import-error {
+  min-width: 0;
+  color: #9f1239;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .progress-track {
   height: 7px;
   border-radius: 999px;
@@ -1173,7 +1190,7 @@ button {
 
 .download-actions {
   display: grid;
-  grid-template-columns: repeat(5, 36px);
+  grid-template-columns: repeat(6, 36px);
   gap: 6px;
 }
 
@@ -1349,7 +1366,7 @@ button {
   }
 
   .download-actions {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
   }
 
   .secondary-action.compact {

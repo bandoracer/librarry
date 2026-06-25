@@ -219,6 +219,27 @@ func TestImportLibraryFileEndpoint(t *testing.T) {
 	}
 }
 
+func TestImportCompletedDownloadsEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+		Library:  fakeLibrary{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/import-completed", strings.NewReader(`{"downloadIds":["abc123"]}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"imported":1`) {
+		t.Fatalf("expected completed import outcome in response, got %s", res.Body.String())
+	}
+}
+
 type fakeAcquire struct{}
 
 func (fakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
@@ -238,7 +259,17 @@ func (fakeAcquire) Grab(context.Context, acquisition.DownloadRequest) (acquisiti
 }
 
 func (fakeAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
-	return []acquisition.DownloadStatus{{ID: "abc123", Name: "Book", State: "stoppedDL"}}, nil
+	now := time.Now().UTC()
+	return []acquisition.DownloadStatus{{
+		ID:          "abc123",
+		Name:        "Project Hail Mary.epub",
+		State:       "uploading",
+		Progress:    1,
+		SavePath:    "/downloads",
+		Category:    "books-ebook",
+		Tags:        []string{"librarry", "wanted:wanted-1"},
+		CompletedAt: &now,
+	}}, nil
 }
 
 func (fakeAcquire) DownloadAction(_ context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error) {
@@ -342,5 +373,30 @@ func (fakeLibrary) Import(context.Context, library.ImportRequest) (library.Impor
 		File:            file,
 		DestinationPath: file.Path,
 		Moved:           false,
+	}, nil
+}
+
+func (fakeLibrary) ImportCompletedDownloads(_ context.Context, downloads []acquisition.DownloadStatus, _ library.CompletedImportRequest) (library.CompletedImportOutcome, error) {
+	file := library.FileRecord{
+		ID:           "file-1",
+		MediaFormat:  "ebook",
+		Path:         "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
+		Title:        "Project Hail Mary",
+		AuthorName:   "Andy Weir",
+		ImportStatus: "imported",
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}
+	return library.CompletedImportOutcome{
+		Checked:  1,
+		Imported: 1,
+		Results: []library.DownloadImportResult{{
+			Download: downloads[0],
+			Status:   "imported",
+			Import: &library.ImportOutcome{
+				File:            file,
+				DestinationPath: file.Path,
+			},
+		}},
 	}, nil
 }

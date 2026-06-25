@@ -66,3 +66,5 @@ LIBRARRY_AUDIOBOOK_LIBRARY_ROOT=/data/media/books/audiobooks
 
 `POST /api/v1/library/scan` indexes existing files. `POST /api/v1/library/import`
 copies or moves a single source file into the organized format root.
+`POST /api/v1/library/import-completed` imports completed Librarry-tagged
+qBittorrent downloads into the same organized roots.

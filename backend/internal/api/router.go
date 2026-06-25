@@ -49,6 +49,7 @@ type libraryService interface {
 	ListFiles(ctx context.Context, query library.FileListQuery) ([]library.FileRecord, error)
 	Scan(ctx context.Context, request library.ScanRequest) (library.ScanOutcome, error)
 	Import(ctx context.Context, request library.ImportRequest) (library.ImportOutcome, error)
+	ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request library.CompletedImportRequest) (library.CompletedImportOutcome, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -76,6 +77,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
+	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
 
 	return withCORS(deps.Config.WebOrigin, mux)
 }
@@ -400,6 +402,36 @@ func (h *handler) importLibraryFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	outcome, err := h.deps.Library.Import(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) importCompletedDownloads(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.CompletedImportRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	downloads, err := h.deps.Acquire.Downloads(r.Context(), acquisition.DownloadListQuery{
+		IDs: request.DownloadIDs,
+		Tag: "librarry",
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	outcome, err := h.deps.Library.ImportCompletedDownloads(r.Context(), downloads, request)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return

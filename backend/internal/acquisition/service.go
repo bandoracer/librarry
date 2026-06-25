@@ -105,6 +105,7 @@ func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]Dow
 	statuses, err := s.qbit.List(ctx, query)
 	if err == nil {
 		_ = s.storeDownloads(ctx, statuses)
+		statuses = s.mergeStoredDownloadState(ctx, statuses, query)
 		return statuses, nil
 	}
 	if s.store != nil {
@@ -178,4 +179,37 @@ func (s *Service) storeDownloads(ctx context.Context, downloads []DownloadStatus
 		return nil
 	}
 	return s.store.UpsertDownloads(ctx, downloads)
+}
+
+func (s *Service) mergeStoredDownloadState(ctx context.Context, downloads []DownloadStatus, query DownloadListQuery) []DownloadStatus {
+	if s.store == nil || len(downloads) == 0 {
+		return downloads
+	}
+	ids := make([]string, 0, len(downloads))
+	for _, download := range downloads {
+		if strings.TrimSpace(download.ID) != "" {
+			ids = append(ids, download.ID)
+		}
+	}
+	stored, err := s.store.ListDownloads(ctx, DownloadListQuery{
+		IDs:      ids,
+		Tag:      query.Tag,
+		Category: query.Category,
+	})
+	if err != nil || len(stored) == 0 {
+		return downloads
+	}
+	byID := make(map[string]DownloadStatus, len(stored))
+	for _, item := range stored {
+		byID[item.ID] = item
+	}
+	for i := range downloads {
+		if item, ok := byID[downloads[i].ID]; ok {
+			downloads[i].ImportStatus = item.ImportStatus
+			downloads[i].ImportedFileID = item.ImportedFileID
+			downloads[i].ImportedAt = item.ImportedAt
+			downloads[i].ImportError = item.ImportError
+		}
+	}
+	return downloads
 }

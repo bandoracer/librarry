@@ -74,6 +74,10 @@ export type DownloadStatus = {
   addedAt?: string;
   completedAt?: string;
   lastSeenAt?: string;
+  importStatus?: string;
+  importedFileId?: string;
+  importedAt?: string;
+  importError?: string;
 };
 
 export type DownloadAction =
@@ -205,6 +209,23 @@ export type LibraryImportOutcome = {
   file: LibraryFile;
   destinationPath: string;
   moved: boolean;
+};
+
+export type DownloadImportResult = {
+  download: DownloadStatus;
+  status: string;
+  message?: string;
+  sourcePath?: string;
+  wantedId?: string;
+  import?: LibraryImportOutcome;
+};
+
+export type CompletedImportOutcome = {
+  checked: number;
+  imported: number;
+  skipped: number;
+  errored: number;
+  results: DownloadImportResult[];
 };
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -430,4 +451,24 @@ export async function importLibraryFile(options: {
     throw new Error(`Library import failed: ${response.status}`);
   }
   return (await response.json()) as LibraryImportOutcome;
+}
+
+export async function importCompletedDownloads(options: {
+  downloadIds?: string[];
+  move?: boolean;
+  limit?: number;
+} = {}): Promise<CompletedImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-completed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      downloadIds: options.downloadIds ?? [],
+      move: options.move ?? false,
+      limit: options.limit ?? 50
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Completed import failed: ${response.status}`);
+  }
+  return (await response.json()) as CompletedImportOutcome;
 }

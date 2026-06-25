@@ -32,6 +32,7 @@ import {
   fetchWanted,
   grabWanted,
   grabRelease,
+  importCompletedDownloads,
   importLibraryFile,
   runWantedMonitor,
   runDownloadAction,
@@ -40,6 +41,7 @@ import {
   searchReleases,
   searchWantedReleases,
   type DownloadAction,
+  type CompletedImportOutcome,
   type DownloadStatus,
   type HistoryEvent,
   type IntegrationHealth,
@@ -76,6 +78,7 @@ export function App() {
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
   const [libraryScan, setLibraryScan] = useState<LibraryScanOutcome | null>(null);
   const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
+  const [completedImport, setCompletedImport] = useState<CompletedImportOutcome | null>(null);
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
@@ -91,6 +94,7 @@ export function App() {
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
   const [isImportingLibrary, setIsImportingLibrary] = useState(false);
+  const [isImportingCompleted, setIsImportingCompleted] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
@@ -300,6 +304,29 @@ export function App() {
       setLibraryError(error instanceof Error ? error.message : "Library import failed");
     } finally {
       setIsImportingLibrary(false);
+    }
+  }
+
+  async function runCompletedImport(download?: DownloadStatus) {
+    setIsImportingCompleted(true);
+    setLibraryError("");
+    try {
+      const outcome = await importCompletedDownloads({
+        downloadIds: download ? [download.id] : [],
+        move: false,
+        limit: 50
+      });
+      setCompletedImport(outcome);
+      const importedFiles = outcome.results.flatMap((result) => (result.import ? [result.import.file] : []));
+      if (importedFiles.length) {
+        setLibraryFiles((current) => mergeLibraryFiles(current, importedFiles));
+      }
+      await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+      setAPIState("live");
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : "Completed import failed");
+    } finally {
+      setIsImportingCompleted(false);
     }
   }
 
@@ -652,6 +679,10 @@ export function App() {
                 <RefreshCw size={16} />
                 All
               </button>
+              <button className="secondary-action compact" disabled={isImportingCompleted} onClick={() => runCompletedImport()} type="button">
+                <HardDriveDownload size={16} />
+                Completed
+              </button>
             </div>
           </div>
           {libraryError ? <div className="inline-error">{libraryError}</div> : null}
@@ -673,6 +704,14 @@ export function App() {
             <div className="library-import-result">
               <strong>{libraryImport.file.title || "Imported file"}</strong>
               <span>{libraryImport.destinationPath}</span>
+            </div>
+          ) : null}
+          {completedImport ? (
+            <div className="library-import-result">
+              <strong>
+                Completed import: {completedImport.imported} imported, {completedImport.skipped} skipped, {completedImport.errored} errors
+              </strong>
+              <span>{completedImport.checked} downloads checked from the Librarry queue.</span>
             </div>
           ) : null}
           <div className="library-grid">
@@ -773,10 +812,16 @@ export function App() {
                   : "No Librarry-tagged downloads are currently visible."}
               </p>
             </div>
-            <button className="secondary-action compact" onClick={refreshDownloads} type="button">
-              <RefreshCw size={16} />
-              {isRefreshingDownloads ? "Refreshing" : "Refresh"}
-            </button>
+            <div className="download-toolbar">
+              <button className="secondary-action compact" onClick={refreshDownloads} type="button">
+                <RefreshCw size={16} />
+                {isRefreshingDownloads ? "Refreshing" : "Refresh"}
+              </button>
+              <button className="secondary-action compact" disabled={isImportingCompleted || downloads.length === 0} onClick={() => runCompletedImport()} type="button">
+                <UploadCloud size={16} />
+                {isImportingCompleted ? "Importing" : "Import done"}
+              </button>
+            </div>
           </div>
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
           <div className="download-list">
@@ -796,7 +841,9 @@ export function App() {
                       <span>{formatSpeed(download.uploadRate ?? 0)} up</span>
                       <span>ratio {(download.ratio ?? 0).toFixed(2)}</span>
                       <span>{download.seeders ?? 0} seeders</span>
+                      <span>import {download.importStatus || "pending"}</span>
                     </div>
+                    {download.importError ? <div className="download-import-error">{download.importError}</div> : null}
                     <div className="progress-track" aria-label={`Download progress ${Math.round((download.progress ?? 0) * 100)} percent`}>
                       <span style={{ width: `${Math.max(0, Math.min(100, (download.progress ?? 0) * 100))}%` }} />
                     </div>
@@ -814,6 +861,9 @@ export function App() {
                     </button>
                     <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("increasePriority", download)} type="button" aria-label="Increase priority" title="Increase priority">
                       <span className="priority-glyph">+</span>
+                    </button>
+                    <button className="icon-button" disabled={busy || isImportingCompleted} onClick={() => runCompletedImport(download)} type="button" aria-label="Import completed download" title="Import completed">
+                      <UploadCloud size={16} />
                     </button>
                     <button className="icon-button danger" disabled={busy} onClick={() => applyDownloadAction("delete", download, false)} type="button" aria-label="Remove download" title="Remove without deleting files">
                       <Trash2 size={16} />

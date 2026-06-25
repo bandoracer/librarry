@@ -64,6 +64,10 @@ type DownloadStatus struct {
 	AddedAt         *time.Time `json:"addedAt,omitempty"`
 	CompletedAt     *time.Time `json:"completedAt,omitempty"`
 	LastSeenAt      *time.Time `json:"lastSeenAt,omitempty"`
+	ImportStatus    string     `json:"importStatus,omitempty"`
+	ImportedFileID  string     `json:"importedFileId,omitempty"`
+	ImportedAt      *time.Time `json:"importedAt,omitempty"`
+	ImportError     string     `json:"importError,omitempty"`
 }
 
 type DownloadClient interface {

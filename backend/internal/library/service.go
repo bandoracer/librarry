@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
@@ -21,14 +22,20 @@ type WantedStore interface {
 	MarkWantedStatus(ctx context.Context, wantedID string, status string) error
 }
 
-type Service struct {
-	store  *Store
-	config Config
-	wanted WantedStore
+type DownloadStore interface {
+	MarkDownloadImported(ctx context.Context, id string, fileID string) error
+	MarkDownloadImportError(ctx context.Context, id string, message string) error
 }
 
-func NewService(store *Store, config Config, wanted WantedStore) *Service {
-	return &Service{store: store, config: config, wanted: wanted}
+type Service struct {
+	store     *Store
+	config    Config
+	wanted    WantedStore
+	downloads DownloadStore
+}
+
+func NewService(store *Store, config Config, wanted WantedStore, downloads DownloadStore) *Service {
+	return &Service{store: store, config: config, wanted: wanted, downloads: downloads}
 }
 
 func (s *Service) Available() bool {
@@ -157,6 +164,9 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	if strings.TrimSpace(request.WantedID) != "" {
 		record.Metadata["wantedId"] = strings.TrimSpace(request.WantedID)
 	}
+	if strings.TrimSpace(request.DownloadID) != "" {
+		record.Metadata["downloadId"] = strings.TrimSpace(request.DownloadID)
+	}
 	stored, err := s.store.UpsertFile(ctx, record)
 	if err != nil {
 		return ImportOutcome{}, err
@@ -165,6 +175,83 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 		_ = s.wanted.MarkWantedStatus(ctx, request.WantedID, "imported")
 	}
 	return ImportOutcome{File: stored, DestinationPath: destination, Moved: request.Move}, nil
+}
+
+func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request CompletedImportRequest) (CompletedImportOutcome, error) {
+	if !s.Available() {
+		return CompletedImportOutcome{}, errors.New("library service requires database persistence")
+	}
+	limit := request.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	allowedIDs := stringSet(request.DownloadIDs)
+	outcome := CompletedImportOutcome{}
+	for _, download := range downloads {
+		if outcome.Checked >= limit {
+			break
+		}
+		if len(allowedIDs) > 0 && !allowedIDs[download.ID] {
+			continue
+		}
+		outcome.Checked++
+		result := DownloadImportResult{
+			Download: download,
+			WantedID: wantedIDFromTags(download.Tags),
+		}
+		if !isCompletedDownload(download) {
+			result.Status = "skipped"
+			result.Message = "download is not complete"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		if strings.TrimSpace(download.ImportStatus) == "imported" {
+			result.Status = "skipped"
+			result.Message = "download is already imported"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		sourcePath, format, err := locateDownloadSource(download)
+		if err != nil {
+			result.Status = "error"
+			result.Message = err.Error()
+			outcome.Errored++
+			if s.downloads != nil {
+				_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+			}
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		result.SourcePath = sourcePath
+		format = firstNonEmpty(formatFromDownload(download), format)
+		imported, err := s.Import(ctx, ImportRequest{
+			SourcePath: sourcePath,
+			WantedID:   result.WantedID,
+			DownloadID: download.ID,
+			Format:     format,
+			Move:       request.Move,
+		})
+		if err != nil {
+			result.Status = "error"
+			result.Message = err.Error()
+			outcome.Errored++
+			if s.downloads != nil {
+				_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+			}
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		result.Status = "imported"
+		result.Import = &imported
+		outcome.Imported++
+		if s.downloads != nil {
+			_ = s.downloads.MarkDownloadImported(ctx, download.ID, imported.File.ID)
+		}
+		outcome.Results = append(outcome.Results, result)
+	}
+	return outcome, nil
 }
 
 func (s *Service) scanRoots(request ScanRequest) []string {
@@ -358,6 +445,109 @@ func availableDestination(path string) string {
 		}
 	}
 	return base + " (" + strconv.FormatInt(time.Now().UnixNano(), 10) + ")" + ext
+}
+
+func locateDownloadSource(download acquisition.DownloadStatus) (string, string, error) {
+	savePath := filepath.Clean(strings.TrimSpace(download.SavePath))
+	if savePath == "." || savePath == "" {
+		return "", "", errors.New("download save path is empty")
+	}
+	name := strings.TrimSpace(download.Name)
+	var candidates []string
+	if name != "" {
+		candidates = append(candidates, filepath.Join(savePath, name))
+	}
+	candidates = append(candidates, savePath)
+	for _, candidate := range candidates {
+		info, err := os.Stat(candidate)
+		if err != nil {
+			continue
+		}
+		if !info.IsDir() {
+			if format, ok := classifyFile(candidate); ok {
+				return candidate, format, nil
+			}
+			continue
+		}
+		if path, format, ok := bestBookFile(candidate, formatFromDownload(download)); ok {
+			return path, format, nil
+		}
+	}
+	return "", "", errors.New("no supported ebook or audiobook file found in completed download")
+}
+
+func bestBookFile(root string, preferredFormat string) (string, string, bool) {
+	type candidate struct {
+		path   string
+		format string
+		size   int64
+	}
+	var best candidate
+	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return nil
+		}
+		format, ok := classifyFile(path)
+		if !ok {
+			return nil
+		}
+		if preferredFormat != "" && preferredFormat != "any" && format != preferredFormat {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return nil
+		}
+		if best.path == "" || info.Size() > best.size {
+			best = candidate{path: path, format: format, size: info.Size()}
+		}
+		return nil
+	})
+	return best.path, best.format, best.path != ""
+}
+
+func isCompletedDownload(download acquisition.DownloadStatus) bool {
+	state := strings.ToLower(strings.TrimSpace(download.State))
+	if state == "removed" || strings.Contains(state, "error") {
+		return false
+	}
+	if download.CompletedAt != nil || download.Progress >= 1 {
+		return true
+	}
+	return strings.Contains(state, "upload") || strings.Contains(state, "seed")
+}
+
+func formatFromDownload(download acquisition.DownloadStatus) string {
+	category := strings.ToLower(strings.TrimSpace(download.Category))
+	switch {
+	case strings.Contains(category, "audio"):
+		return "audiobook"
+	case strings.Contains(category, "ebook"), strings.Contains(category, "book"):
+		return "ebook"
+	default:
+		return ""
+	}
+}
+
+func wantedIDFromTags(tags []string) string {
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if strings.HasPrefix(tag, "wanted:") {
+			return strings.TrimSpace(strings.TrimPrefix(tag, "wanted:"))
+		}
+	}
+	return ""
+}
+
+func stringSet(values []string) map[string]bool {
+	out := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			out[value] = true
+		}
+	}
+	return out
 }
 
 func fingerprint(path string, info fs.FileInfo) string {

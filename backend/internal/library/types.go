@@ -1,6 +1,10 @@
 package library
 
-import "time"
+import (
+	"time"
+
+	"github.com/bandoracer/librarry/backend/internal/acquisition"
+)
 
 type Config struct {
 	EbookRoot     string
@@ -49,6 +53,7 @@ type ScanOutcome struct {
 type ImportRequest struct {
 	SourcePath string `json:"sourcePath"`
 	WantedID   string `json:"wantedId,omitempty"`
+	DownloadID string `json:"downloadId,omitempty"`
 	Format     string `json:"format,omitempty"`
 	Move       bool   `json:"move,omitempty"`
 }
@@ -57,4 +62,27 @@ type ImportOutcome struct {
 	File            FileRecord `json:"file"`
 	DestinationPath string     `json:"destinationPath"`
 	Moved           bool       `json:"moved"`
+}
+
+type CompletedImportRequest struct {
+	DownloadIDs []string `json:"downloadIds,omitempty"`
+	Move        bool     `json:"move,omitempty"`
+	Limit       int      `json:"limit,omitempty"`
+}
+
+type CompletedImportOutcome struct {
+	Checked  int                    `json:"checked"`
+	Imported int                    `json:"imported"`
+	Skipped  int                    `json:"skipped"`
+	Errored  int                    `json:"errored"`
+	Results  []DownloadImportResult `json:"results"`
+}
+
+type DownloadImportResult struct {
+	Download   acquisition.DownloadStatus `json:"download"`
+	Status     string                     `json:"status"`
+	Message    string                     `json:"message,omitempty"`
+	SourcePath string                     `json:"sourcePath,omitempty"`
+	WantedID   string                     `json:"wantedId,omitempty"`
+	Import     *ImportOutcome             `json:"import,omitempty"`
 }

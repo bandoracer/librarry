@@ -80,7 +80,7 @@ func main() {
 	libraryService := library.NewService(libraryStore, library.Config{
 		EbookRoot:     cfg.EbookLibraryRoot,
 		AudiobookRoot: cfg.AudiobookLibraryRoot,
-	}, wantedStore)
+	}, wantedStore, downloadStore)
 	var monitorWG sync.WaitGroup
 	if cfg.MonitorEnabled && wantedService.Available() {
 		monitorWG.Add(1)
