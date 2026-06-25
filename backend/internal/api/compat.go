@@ -76,6 +76,12 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/rootfolder"},
 		{"method": "GET", "path": "/api/v1/queue"},
 		{"method": "GET", "path": "/api/v1/queue/status"},
+		{"method": "GET", "path": "/api/v1/blocklist"},
+		{"method": "DELETE", "path": "/api/v1/blocklist/{id}"},
+		{"method": "DELETE", "path": "/api/v1/blocklist/bulk"},
+		{"method": "GET", "path": "/api/v1/blacklist"},
+		{"method": "DELETE", "path": "/api/v1/blacklist/{id}"},
+		{"method": "DELETE", "path": "/api/v1/blacklist/bulk"},
 		{"method": "GET", "path": "/api/v1/author"},
 		{"method": "GET", "path": "/api/v1/author/lookup"},
 		{"method": "GET", "path": "/api/v1/book"},
@@ -422,6 +428,33 @@ func (h *handler) compatDeleteQueueBulk(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatBlocklist(w http.ResponseWriter, r *http.Request) {
+	records, ok := h.compatBlocklistRecords(w, r)
+	if !ok {
+		return
+	}
+	page, pageSize := pageParams(r, len(records))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"page":          page,
+		"pageSize":      pageSize,
+		"sortKey":       defaultString(r.URL.Query().Get("sortKey"), "date"),
+		"sortDirection": defaultString(r.URL.Query().Get("sortDirection"), "descending"),
+		"totalRecords":  len(records),
+		"records":       pageRecords(records, page, pageSize),
+	})
+}
+
+func (h *handler) compatDeleteBlocklist(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatDeleteBlocklistBulk(w http.ResponseWriter, r *http.Request) {
+	if r.Body != nil {
+		defer r.Body.Close()
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -952,6 +985,52 @@ func (h *handler) compatDownloads(w http.ResponseWriter, r *http.Request) ([]acq
 		return nil, false
 	}
 	return downloads, true
+}
+
+func (h *handler) compatBlocklistRecords(w http.ResponseWriter, r *http.Request) ([]map[string]any, bool) {
+	items := h.compatWantedItems(r)
+	recordsByID := map[int]map[string]any{}
+	if h.deps.Acquire != nil {
+		downloads, err := h.deps.Acquire.Downloads(r.Context(), acquisition.DownloadListQuery{Tag: "librarry"})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return nil, false
+		}
+		for _, download := range downloads {
+			if !downloadIsBlocklisted(download) {
+				continue
+			}
+			record := compatBlocklistDownloadRecord(download, items)
+			if id, ok := record["id"].(int); ok {
+				recordsByID[id] = record
+			}
+		}
+	}
+	if h.deps.Wanted != nil {
+		limit, _ := strconv.Atoi(firstNonEmptyString(r.URL.Query().Get("limit"), r.URL.Query().Get("pageSize")))
+		if limit <= 0 {
+			limit = 100
+		}
+		events, err := h.deps.Wanted.History(r.Context(), wanted.HistoryQuery{Limit: limit})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return nil, false
+		}
+		for _, event := range events {
+			if !historyEventIsBlocklisted(event) {
+				continue
+			}
+			record := compatBlocklistHistoryRecord(event, items)
+			if id, ok := record["id"].(int); ok {
+				recordsByID[id] = record
+			}
+		}
+	}
+	records := mapsByIntKey(recordsByID)
+	sort.SliceStable(records, func(i, j int) bool {
+		return compatRecordDate(records[i]).After(compatRecordDate(records[j]))
+	})
+	return records, true
 }
 
 func (h *handler) compatHistoryEvents(w http.ResponseWriter, r *http.Request) ([]wanted.HistoryEvent, bool) {
@@ -1590,6 +1669,87 @@ func compatQueueRecords(downloads []acquisition.DownloadStatus) []map[string]any
 	return records
 }
 
+func compatBlocklistDownloadRecord(download acquisition.DownloadStatus, items []wanted.WantedItem) map[string]any {
+	wantedID := wantedIDFromDownload(download)
+	item := wantedItemByID(items, wantedID)
+	title, authorName := titleAuthorForDownload(download, item)
+	reason := firstNonEmptyString(download.FailureReason, download.ImportError, "Download client reported a failed download")
+	date := firstNonNilTime(download.FailedAt, download.LastActivityAt, download.CompletedAt, download.AddedAt)
+	if date == nil {
+		now := time.Now().UTC()
+		date = &now
+	}
+	recordID := stableInt("download:" + download.ID)
+	return map[string]any{
+		"id":             recordID,
+		"authorId":       stableInt(authorName),
+		"bookId":         blocklistBookID(title, item),
+		"sourceTitle":    defaultString(download.Name, title),
+		"quality":        compatReleaseQuality(blocklistFormat(download.Name, download.Category, item)),
+		"languages":      []map[string]any{{"id": 1, "name": "English"}},
+		"date":           date.UTC(),
+		"protocol":       queueProtocol(download),
+		"indexer":        "",
+		"message":        reason,
+		"downloadId":     download.ID,
+		"size":           download.SizeBytes,
+		"downloadClient": defaultString(download.Client, "qBittorrent"),
+		"author":         compatBlocklistAuthorRecord(authorName),
+		"book":           compatBlocklistBookRecord(title, authorName, item),
+		"librarrySource": "download",
+		"librarryReason": reason,
+	}
+}
+
+func compatBlocklistHistoryRecord(event wanted.HistoryEvent, items []wanted.WantedItem) map[string]any {
+	wantedID := firstNonEmptyString(historyDataString(event, "wantedId"), event.EntityID)
+	item := wantedItemByID(items, wantedID)
+	title := blocklistHistoryTitle(event, item)
+	authorName := blocklistHistoryAuthor(event, item)
+	reason := firstNonEmptyString(historyDataString(event, "error"), historyDataString(event, "reason"), event.Message, "Release was blocklisted")
+	protocol := firstNonEmptyString(historyDataString(event, "protocol"), "torrent")
+	recordID := stableInt("history:" + firstNonEmptyString(event.ID, event.EventType+event.CreatedAt.Format(time.RFC3339Nano)))
+	return map[string]any{
+		"id":             recordID,
+		"authorId":       stableInt(authorName),
+		"bookId":         blocklistBookID(title, item),
+		"sourceTitle":    firstNonEmptyString(historyDataString(event, "releaseTitle"), historyDataString(event, "title"), title),
+		"quality":        compatReleaseQuality(blocklistFormat(historyDataString(event, "releaseTitle"), historyDataString(event, "format"), item)),
+		"languages":      []map[string]any{{"id": 1, "name": "English"}},
+		"date":           event.CreatedAt,
+		"protocol":       protocol,
+		"indexer":        historyDataString(event, "indexer"),
+		"message":        reason,
+		"downloadId":     historyDataString(event, "downloadId"),
+		"releaseId":      historyDataString(event, "releaseId"),
+		"author":         compatBlocklistAuthorRecord(authorName),
+		"book":           compatBlocklistBookRecord(title, authorName, item),
+		"librarrySource": "history",
+		"librarryEvent":  event.EventType,
+		"librarryReason": reason,
+	}
+}
+
+func compatBlocklistAuthorRecord(authorName string) map[string]any {
+	return map[string]any{
+		"id":         stableInt(authorName),
+		"authorName": authorName,
+		"titleSlug":  slug(authorName),
+	}
+}
+
+func compatBlocklistBookRecord(title string, authorName string, item *wanted.WantedItem) map[string]any {
+	if item != nil {
+		return compatBookRecord(*item)
+	}
+	return map[string]any{
+		"id":          stableInt(title),
+		"title":       title,
+		"authorTitle": authorName,
+		"titleSlug":   slug(title),
+	}
+}
+
 func compatMissingRecord(item wanted.WantedItem) map[string]any {
 	authorID := stableInt(item.AuthorName)
 	bookID := stableInt(item.ID)
@@ -1833,6 +1993,112 @@ func queueProtocol(download acquisition.DownloadStatus) string {
 		return "usenet"
 	}
 	return "torrent"
+}
+
+func downloadIsBlocklisted(download acquisition.DownloadStatus) bool {
+	return stateTone(download.State) == "error" ||
+		strings.TrimSpace(download.FailureReason) != "" ||
+		strings.TrimSpace(download.ImportError) != ""
+}
+
+func historyEventIsBlocklisted(event wanted.HistoryEvent) bool {
+	eventType := strings.ToLower(strings.TrimSpace(event.EventType))
+	return strings.Contains(eventType, "failed") || compatHistoryEventType(event.EventType) == "downloadFailed"
+}
+
+func wantedIDFromDownload(download acquisition.DownloadStatus) string {
+	for _, tag := range download.Tags {
+		tag = strings.TrimSpace(tag)
+		if strings.HasPrefix(tag, "wanted:") {
+			return strings.TrimPrefix(tag, "wanted:")
+		}
+	}
+	return ""
+}
+
+func wantedItemByID(items []wanted.WantedItem, id string) *wanted.WantedItem {
+	if strings.TrimSpace(id) == "" {
+		return nil
+	}
+	for _, item := range items {
+		if compatIDMatches(id, item.ID, item.WorkID, item.SourceKey, item.Title) {
+			matched := item
+			return &matched
+		}
+	}
+	return nil
+}
+
+func titleAuthorForDownload(download acquisition.DownloadStatus, item *wanted.WantedItem) (string, string) {
+	if item != nil {
+		return item.Title, item.AuthorName
+	}
+	title, author := parseCompatReleaseTitle(download.Name)
+	return firstNonEmptyString(title, download.Name, download.ID), author
+}
+
+func blocklistHistoryTitle(event wanted.HistoryEvent, item *wanted.WantedItem) string {
+	if item != nil {
+		return item.Title
+	}
+	return historyTitle(event)
+}
+
+func blocklistHistoryAuthor(event wanted.HistoryEvent, item *wanted.WantedItem) string {
+	if item != nil {
+		return item.AuthorName
+	}
+	return historyAuthor(event)
+}
+
+func blocklistBookID(title string, item *wanted.WantedItem) int {
+	if item != nil {
+		return stableInt(item.ID)
+	}
+	return stableInt(title)
+}
+
+func blocklistFormat(hints ...any) string {
+	for _, hint := range hints {
+		switch typed := hint.(type) {
+		case *wanted.WantedItem:
+			if typed != nil && strings.TrimSpace(typed.Format) != "" {
+				return typed.Format
+			}
+		case string:
+			normalized := strings.ToLower(strings.TrimSpace(typed))
+			for _, token := range []string{"audiobook", "audio book", "m4b", "mp3", "books-audiobook"} {
+				if strings.Contains(normalized, token) {
+					return "audiobook"
+				}
+			}
+		}
+	}
+	return "ebook"
+}
+
+func firstNonNilTime(values ...*time.Time) *time.Time {
+	for _, value := range values {
+		if value != nil && !value.IsZero() {
+			normalized := value.UTC()
+			return &normalized
+		}
+	}
+	return nil
+}
+
+func compatRecordDate(record map[string]any) time.Time {
+	switch typed := record["date"].(type) {
+	case time.Time:
+		return typed
+	case *time.Time:
+		if typed != nil {
+			return *typed
+		}
+	case string:
+		return parseTimeQuery(typed)
+	}
+	return time.Time{}
 }
 
 func estimatedCompletion(download acquisition.DownloadStatus) any {

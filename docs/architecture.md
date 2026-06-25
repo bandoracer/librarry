@@ -37,6 +37,12 @@ Initial API surface:
   - `GET /api/v1/queue/status`
   - `DELETE /api/v1/queue/{id}`
   - `DELETE /api/v1/queue/bulk`
+  - `GET /api/v1/blocklist`
+  - `DELETE /api/v1/blocklist/{id}`
+  - `DELETE /api/v1/blocklist/bulk`
+  - `GET /api/v1/blacklist`
+  - `DELETE /api/v1/blacklist/{id}`
+  - `DELETE /api/v1/blacklist/bulk`
   - `GET /api/v1/author`
   - `POST /api/v1/author`
   - `GET /api/v1/author/lookup`
@@ -134,6 +140,11 @@ stalled downloads with no seeders, reopens the linked wanted item, records the
 failure on the download row, searches for replacement releases, and optionally
 grabs the best approved replacement. Scheduled recovery defaults to search-only;
 auto-grab and failed-torrent removal are explicit settings.
+
+Readarr-compatible `/api/v1/blocklist` and legacy `/api/v1/blacklist` endpoints
+are populated from failed active downloads plus failed Librarry history events.
+The delete endpoints currently acknowledge compatibility clear requests; durable
+blocklist editing still needs a dedicated persisted blocklist model.
 
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and

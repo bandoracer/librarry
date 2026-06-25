@@ -18,13 +18,15 @@ book data is incomplete or ambiguous.
 > imported into organized library roots. Readarr-compatible manual import can
 > list pending review items, scan a folder for candidates, and import selected
 > files. Failed-download detection and replacement search/grab are implemented.
-> Score-based upgrade search/grab is implemented. Pending import
-> review for unlinked completed downloads and configurable naming templates are
-> implemented. Persisted quality profiles now drive release scoring, preferred
-> and rejected terms, size limits, seeder minimums, and upgrade cutoffs. Librarry
-> is not yet a complete Readarr-style torrent manager; conflict handling,
-> advanced torrent queue arbitration, and broad download-client parity are still
-> early.
+> Failed downloads and failed history events are exposed through
+> Readarr-compatible blocklist/blacklist endpoints. Score-based upgrade
+> search/grab is implemented. Pending import review for unlinked completed
+> downloads and configurable naming templates are implemented. Persisted quality
+> profiles now drive release scoring, preferred and rejected terms, size limits,
+> seeder minimums, and upgrade cutoffs. Librarry is not yet a complete
+> Readarr-style torrent manager; conflict handling, advanced torrent queue
+> arbitration, persistent blocklist editing, and broad download-client parity
+> are still early.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -63,7 +65,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, Readarr-compatible `/api/v1/release` search/grab adapter, qBittorrent controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls and simple active-queue rebalancing are implemented. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
-| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, naming/media-management config, calendar, history, parse, root folders, queue, author/book list/create/lookup, manual import, missing wanted books, quality profiles, download clients, indexers, release search/grab, and basic commands. | Expand toward full OpenAPI compatibility, including durable author/book update/delete semantics, persistent config writes, import lists, notifications, remote path mappings, rename/retag, and Calibre endpoints. |
+| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, naming/media-management config, calendar, history, parse, root folders, queue, blocklist/blacklist, author/book list/create/lookup, manual import, missing wanted books, quality profiles, download clients, indexers, release search/grab, and basic commands. | Expand toward full OpenAPI compatibility, including durable author/book update/delete semantics, persistent config writes, import lists, notifications, remote path mappings, rename/retag, and Calibre endpoints. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, and queue unlinked files for review. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
@@ -111,6 +113,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Failed-download recovery for qBittorrent error/missing-file states and stale
   no-seed stalled downloads, with replacement search/grab and optional removal
   of failed torrents.
+- Readarr-compatible blocklist and legacy blacklist endpoints populated from
+  failed active downloads and failed Librarry history events.
 - Score-based upgrade search for grabbed/imported wanted items, with profile
   cutoffs, minimum score deltas, optional paused auto-grab, and history events.
 - Metadata provider abstraction with initial adapters for Hardcover, Open
@@ -125,6 +129,7 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Readarr-compatible API shim for common client probes and status views,
   including `/ping`, `/api/v1/system/status`, `/api/v1/health`,
   `/api/v1/diskspace`, `/api/v1/rootfolder`, `/api/v1/queue`,
+  `/api/v1/blocklist`, `/api/v1/blacklist`,
   `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/book`,
   `/api/v1/book/lookup`, `/api/v1/calendar`, `/api/v1/history`,
   `/api/v1/parse`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
@@ -190,6 +195,12 @@ Important API surfaces:
   - `GET /api/v1/queue/status`
   - `DELETE /api/v1/queue/{id}`
   - `DELETE /api/v1/queue/bulk`
+  - `GET /api/v1/blocklist`
+  - `DELETE /api/v1/blocklist/{id}`
+  - `DELETE /api/v1/blocklist/bulk`
+  - `GET /api/v1/blacklist`
+  - `DELETE /api/v1/blacklist/{id}`
+  - `DELETE /api/v1/blacklist/bulk`
   - `GET /api/v1/author`
   - `POST /api/v1/author`
   - `GET /api/v1/author/lookup`

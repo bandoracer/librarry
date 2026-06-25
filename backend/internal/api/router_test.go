@@ -133,6 +133,51 @@ func TestCompatQueueEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatBlocklistEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeBlocklistAcquire{},
+		Wanted:   fakeBlocklistWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/blocklist?page=1&pageSize=10", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"totalRecords":2`) || !strings.Contains(res.Body.String(), `"librarrySource":"download"`) || !strings.Contains(res.Body.String(), `"librarrySource":"history"`) {
+		t.Fatalf("expected failed download and failed history blocklist records, got %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"sourceTitle":"Project Hail Mary failed.epub"`) || !strings.Contains(res.Body.String(), `"message":"missing files"`) {
+		t.Fatalf("expected failed download details, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/blacklist", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"totalRecords":2`) {
+		t.Fatalf("expected legacy blacklist alias, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blocklist/"+strconv.Itoa(stableInt("download:failed-1")), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blacklist/bulk", strings.NewReader(`{"ids":[1]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestCompatReleaseSearchAndGrabEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -1065,6 +1110,26 @@ func (f *fakeRebalanceAcquire) DownloadAction(_ context.Context, request acquisi
 	}, nil
 }
 
+type fakeBlocklistAcquire struct {
+	fakeAcquire
+}
+
+func (fakeBlocklistAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
+	failedAt := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
+	return []acquisition.DownloadStatus{{
+		Client:        "qBittorrent",
+		ID:            "failed-1",
+		Name:          "Project Hail Mary failed.epub",
+		State:         "error",
+		SavePath:      "/downloads",
+		Category:      "books-ebook",
+		Tags:          []string{"librarry", "wanted:wanted-1"},
+		SizeBytes:     7340032,
+		FailureReason: "missing files",
+		FailedAt:      &failedAt,
+	}}, nil
+}
+
 type fakeWanted struct{}
 
 func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedItem, error) {
@@ -1229,6 +1294,29 @@ func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.Histor
 		Severity:   "info",
 		Message:    "Searched wanted releases",
 		CreatedAt:  time.Now().UTC(),
+	}}, nil
+}
+
+type fakeBlocklistWanted struct {
+	fakeWanted
+}
+
+func (fakeBlocklistWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.HistoryEvent, error) {
+	return []wanted.HistoryEvent{{
+		ID:         "event-failed",
+		EventType:  "download_failed",
+		EntityType: "wanted_item",
+		EntityID:   "wanted-1",
+		Severity:   "error",
+		Message:    "Download failed for Project Hail Mary",
+		Data: map[string]any{
+			"wantedId":     "wanted-1",
+			"downloadId":   "failed-1",
+			"releaseTitle": "Andy Weir - Project Hail Mary EPUB",
+			"reason":       "missing files",
+			"protocol":     "torrent",
+		},
+		CreatedAt: time.Date(2026, 6, 25, 12, 5, 0, 0, time.UTC),
 	}}, nil
 }
 
