@@ -64,6 +64,22 @@ Manual monitor runs are available through `POST /api/v1/wanted/monitor`.
 `LIBRARRY_MONITOR_AUTO_GRAB=false` keeps scheduled runs search-only while still
 recording release decisions and history.
 
+## Author Monitor
+
+The API can refresh monitored authors on an interval:
+
+```dotenv
+LIBRARRY_AUTHOR_MONITOR_ENABLED=true
+LIBRARRY_AUTHOR_MONITOR_INTERVAL=6h
+LIBRARRY_AUTHOR_MONITOR_SYNC_INTERVAL=24h
+LIBRARRY_AUTHOR_MONITOR_LIMIT=50
+```
+
+Author subscriptions are available through `GET /api/v1/authors` and can be
+created with `POST /api/v1/authors` from a normalized metadata result. Manual
+author refreshes are available through `POST /api/v1/authors/monitor`. Author
+monitoring only creates or refreshes wanted items; it does not grab releases.
+
 ## Feed Sync
 
 The API can also poll Prowlarr-compatible indexer RSS feeds on an interval:

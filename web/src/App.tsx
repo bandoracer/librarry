@@ -20,11 +20,13 @@ import {
   SlidersHorizontal,
   Trash2,
   TrendingUp,
-  UploadCloud
+  UploadCloud,
+  UserPlus
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createWanted,
+  fetchAuthorSubscriptions,
   fetchIntegrationHealth,
   fetchDownloads,
   fetchHistory,
@@ -39,6 +41,7 @@ import {
   importLibraryFile,
   recoverFailedDownloads,
   resolveLibraryImportReview,
+  runAuthorMonitor,
   runUpgradeSearch,
   runWantedFeedSync,
   runWantedMonitor,
@@ -48,6 +51,9 @@ import {
   searchMetadata,
   searchReleases,
   searchWantedReleases,
+  subscribeAuthor,
+  type AuthorMonitorRun,
+  type AuthorSubscription,
   type DownloadAction,
   type CompletedImportOutcome,
   type DownloadStatus,
@@ -91,10 +97,12 @@ export function App() {
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
   const [importReviews, setImportReviews] = useState<ImportReview[]>([]);
   const [qualityProfiles, setQualityProfiles] = useState<QualityProfile[]>([]);
+  const [authorSubscriptions, setAuthorSubscriptions] = useState<AuthorSubscription[]>([]);
   const [libraryScan, setLibraryScan] = useState<LibraryScanOutcome | null>(null);
   const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
   const [completedImport, setCompletedImport] = useState<CompletedImportOutcome | null>(null);
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
+  const [authorMonitorRun, setAuthorMonitorRun] = useState<AuthorMonitorRun | null>(null);
   const [feedSyncRun, setFeedSyncRun] = useState<FeedSyncRun | null>(null);
   const [failedDownloadRun, setFailedDownloadRun] = useState<FailedDownloadRun | null>(null);
   const [upgradeRun, setUpgradeRun] = useState<UpgradeRun | null>(null);
@@ -110,6 +118,8 @@ export function App() {
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
+  const [isSubscribingAuthor, setIsSubscribingAuthor] = useState(false);
+  const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
   const [isRunningFeedSync, setIsRunningFeedSync] = useState(false);
   const [isRunningUpgrade, setIsRunningUpgrade] = useState(false);
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
@@ -123,6 +133,7 @@ export function App() {
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
   const [monitorError, setMonitorError] = useState("");
+  const [authorError, setAuthorError] = useState("");
   const [feedError, setFeedError] = useState("");
   const [upgradeError, setUpgradeError] = useState("");
   const [historyError, setHistoryError] = useState("");
@@ -158,6 +169,11 @@ export function App() {
       .catch((error) => {
         setSettingsError(error instanceof Error ? error.message : "Quality profiles refresh failed");
       });
+    fetchAuthorSubscriptions()
+      .then(setAuthorSubscriptions)
+      .catch((error) => {
+        setAuthorError(error instanceof Error ? error.message : "Author subscriptions refresh failed");
+      });
     fetchHistory()
       .then(setHistoryEvents)
       .catch((error) => {
@@ -183,6 +199,19 @@ export function App() {
     () => wantedItems.find((item) => item.id === selectedWantedID) ?? wantedItems[0],
     [wantedItems, selectedWantedID]
   );
+  const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
+  const selectedAuthorSubscription = useMemo(() => {
+    const author = selected?.work.authors?.[0];
+    if (!author) return undefined;
+    const authorID = author.id.trim().toLowerCase();
+    const authorName = author.name.trim().toLowerCase();
+    return authorSubscriptions.find((subscription) => {
+      if (subscription.format !== selectedAuthorFormat) return false;
+      const providerKey = subscription.providerKey.trim().toLowerCase();
+      const subscriptionName = subscription.authorName.trim().toLowerCase();
+      return Boolean((authorID && providerKey === authorID) || (authorName && subscriptionName === authorName));
+    });
+  }, [authorSubscriptions, selected, selectedAuthorFormat]);
 
   async function runSearch() {
     if (!query.trim()) return;
@@ -241,6 +270,21 @@ export function App() {
     }
   }
 
+  async function subscribeSelectedAuthor() {
+    if (!selected?.work.authors?.[0]) return;
+    setIsSubscribingAuthor(true);
+    setAuthorError("");
+    try {
+      const subscription = await subscribeAuthor(selected, selected.edition?.format ?? format);
+      setAuthorSubscriptions((current) => mergeAuthorSubscriptions(current, [subscription]));
+      setAPIState("live");
+    } catch (error) {
+      setAuthorError(error instanceof Error ? error.message : "Author subscription failed");
+    } finally {
+      setIsSubscribingAuthor(false);
+    }
+  }
+
   async function runWantedReleaseSearch(item = selectedWanted) {
     if (!item) return;
     setIsSearchingWanted(true);
@@ -287,6 +331,26 @@ export function App() {
       setMonitorError(error instanceof Error ? error.message : "Wanted monitor failed");
     } finally {
       setIsRunningMonitor(false);
+    }
+  }
+
+  async function runAuthorSubscriptionMonitor(options: { force?: boolean } = {}) {
+    setIsRunningAuthorMonitor(true);
+    setAuthorError("");
+    try {
+      const run = await runAuthorMonitor({ force: options.force ?? false });
+      setAuthorMonitorRun(run);
+      const created = run.items?.flatMap((item) => item.wantedItems ?? []) ?? [];
+      if (created.length) {
+        setWantedItems((current) => mergeWanted(current, created));
+      }
+      const [nextSubscriptions] = await Promise.all([fetchAuthorSubscriptions(), refreshWantedAndHistory()]);
+      setAuthorSubscriptions(nextSubscriptions);
+      setAPIState("live");
+    } catch (error) {
+      setAuthorError(error instanceof Error ? error.message : "Author monitor failed");
+    } finally {
+      setIsRunningAuthorMonitor(false);
     }
   }
 
@@ -701,11 +765,16 @@ export function App() {
                     <HardDriveDownload size={17} />
                     <span>{isMarkingWanted ? "Marking" : "Mark wanted"}</span>
                   </button>
+                  <button className="secondary-action" onClick={subscribeSelectedAuthor} disabled={isSubscribingAuthor || !selected.work.authors?.length} type="button">
+                    <UserPlus size={17} />
+                    <span>{isSubscribingAuthor ? "Saving" : selectedAuthorSubscription ? "Refresh author" : "Monitor author"}</span>
+                  </button>
                   <button className="secondary-action" onClick={runReleaseSearch} type="button">
                     <Download size={17} />
                     {isSearchingReleases ? "Searching releases" : "Search releases"}
                   </button>
                 </div>
+                {authorError ? <div className="inline-error detail-error">{authorError}</div> : null}
               </>
             ) : (
               <div className="empty-detail">Select a result.</div>
@@ -802,6 +871,77 @@ export function App() {
                 <div className="wanted-empty">
                   {selectedWanted ? "Search wanted releases to evaluate candidates." : "No wanted item selected."}
                 </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="author-panel" aria-label="Author subscriptions">
+          <div className="panel-heading">
+            <div>
+              <h2>Author subscriptions</h2>
+              <p>
+                {authorMonitorRun
+                  ? `${authorMonitorRun.status}: checked ${authorMonitorRun.authorsChecked}, created ${authorMonitorRun.wantedCreated} wanted items.`
+                  : authorSubscriptions.length
+                    ? `${authorSubscriptions.length} monitored authors can create wanted items from metadata search.`
+                    : "Monitor authors for new or missing books before release acquisition."}
+              </p>
+            </div>
+            <div className="monitor-actions">
+              <button className="secondary-action compact" disabled={isRunningAuthorMonitor} onClick={() => runAuthorSubscriptionMonitor({ force: false })} type="button">
+                <RadioTower size={16} />
+                Due authors
+              </button>
+              <button className="secondary-action compact" disabled={isRunningAuthorMonitor} onClick={() => runAuthorSubscriptionMonitor({ force: true })} type="button">
+                <RefreshCw size={16} />
+                Force authors
+              </button>
+            </div>
+          </div>
+          {authorError ? <div className="inline-error">{authorError}</div> : null}
+          <div className="author-grid">
+            <div className="author-list">
+              {authorSubscriptions.length ? (
+                authorSubscriptions.map((subscription) => (
+                  <article className="author-row" key={subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`}>
+                    <div>
+                      <strong>{subscription.authorName}</strong>
+                      <span>
+                        {subscription.provider} · {subscription.format} · {subscription.qualityProfile}
+                      </span>
+                    </div>
+                    <em>{subscription.lastSyncAt ? formatDateTime(subscription.lastSyncAt) : "never synced"}</em>
+                  </article>
+                ))
+              ) : (
+                <div className="wanted-empty">Select a search result and monitor its author.</div>
+              )}
+            </div>
+            <div className="author-monitor-results">
+              {authorMonitorRun ? (
+                <>
+                  <div className="author-monitor-summary">
+                    <strong>{authorMonitorRun.status}</strong>
+                    <span>
+                      {authorMonitorRun.authorsChecked} checked · {authorMonitorRun.itemsFound} metadata hits · {authorMonitorRun.wantedCreated} wanted · {authorMonitorRun.errorCount} errors
+                    </span>
+                  </div>
+                  {authorMonitorRun.items?.slice(0, 8).map((item) => (
+                    <article className={item.error ? "author-monitor-row error" : "author-monitor-row"} key={item.subscription.id || item.subscription.providerKey}>
+                      <div>
+                        <strong>{item.subscription.authorName}</strong>
+                        <span>
+                          {item.resultsFound} hits · {item.wantedCreated} wanted
+                          {item.error ? ` · ${item.error}` : ""}
+                        </span>
+                      </div>
+                      <em>{item.subscription.format}</em>
+                    </article>
+                  ))}
+                </>
+              ) : (
+                <div className="wanted-empty">Run due authors to refresh monitored writers.</div>
               )}
             </div>
           </div>
@@ -1309,6 +1449,18 @@ function mergeWanted(current: WantedItem[], next: WantedItem[]) {
   });
 }
 
+function mergeAuthorSubscriptions(current: AuthorSubscription[], next: AuthorSubscription[]) {
+  const byID = new Map(current.map((item) => [authorSubscriptionKey(item), item]));
+  for (const item of next) {
+    byID.set(authorSubscriptionKey(item), item);
+  }
+  return Array.from(byID.values()).sort((a, b) => a.authorName.localeCompare(b.authorName));
+}
+
+function authorSubscriptionKey(subscription: AuthorSubscription) {
+  return subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`;
+}
+
 function mergeLibraryFiles(current: LibraryFile[], next: LibraryFile[]) {
   const byPath = new Map(current.map((file) => [file.path, file]));
   for (const file of next) {
@@ -1340,6 +1492,10 @@ function bytesToGiB(bytes: number) {
 function giBToBytes(value: number) {
   if (!value || value < 0) return 0;
   return Math.round(value * 1024 * 1024 * 1024);
+}
+
+function wantedFormat(format: string) {
+  return format === "audiobook" ? "audiobook" : "ebook";
 }
 
 function stateTone(state: string) {

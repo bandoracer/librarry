@@ -139,6 +139,66 @@ func TestMonitorWantedEndpoint(t *testing.T) {
 	}
 }
 
+func TestAuthorSubscriptionsEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/authors?status=monitored", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "Andy Weir") {
+		t.Fatalf("expected author subscription in response, got %s", res.Body.String())
+	}
+}
+
+func TestSubscribeAuthorEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/authors", strings.NewReader(`{"authorName":"Andy Weir","provider":"Open Library","providerKey":"openlibrary:OL123A","format":"ebook","qualityProfile":"standard","monitorNewItems":true}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"status":"monitored"`) {
+		t.Fatalf("expected saved author subscription in response, got %s", res.Body.String())
+	}
+}
+
+func TestMonitorAuthorsEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/authors/monitor", strings.NewReader(`{"force":true,"limit":5}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"authorsChecked":1`) {
+		t.Fatalf("expected author monitor run in response, got %s", res.Body.String())
+	}
+}
+
 func TestFeedSyncWantedEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -453,6 +513,48 @@ func (fakeWanted) SaveQualityProfile(_ context.Context, profile wanted.QualityPr
 	profile.CreatedAt = time.Now().UTC()
 	profile.UpdatedAt = profile.CreatedAt
 	return profile, nil
+}
+
+func (fakeWanted) SubscribeAuthor(_ context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error) {
+	return wanted.AuthorSubscription{
+		ID:              "author-sub-1",
+		Provider:        request.Provider,
+		ProviderKey:     request.ProviderKey,
+		AuthorName:      request.AuthorName,
+		Format:          "ebook",
+		QualityProfile:  "standard",
+		Status:          "monitored",
+		MonitorNewItems: true,
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.AuthorSubscription, error) {
+	return []wanted.AuthorSubscription{{
+		ID:              "author-sub-1",
+		Provider:        "Open Library",
+		ProviderKey:     "openlibrary:OL123A",
+		AuthorName:      "Andy Weir",
+		Format:          "ebook",
+		QualityProfile:  "standard",
+		Status:          "monitored",
+		MonitorNewItems: true,
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
+	}}, nil
+}
+
+func (fakeWanted) MonitorAuthors(context.Context, wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error) {
+	return wanted.AuthorMonitorRun{
+		ID:             "author-run-1",
+		Trigger:        "manual",
+		Status:         "completed",
+		AuthorsChecked: 1,
+		ItemsFound:     2,
+		WantedCreated:  2,
+		StartedAt:      time.Now().UTC(),
+	}, nil
 }
 
 func (fakeWanted) SearchReleases(context.Context, string, wanted.SearchReleasesRequest) (wanted.SearchOutcome, error) {

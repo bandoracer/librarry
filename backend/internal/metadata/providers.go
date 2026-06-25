@@ -187,6 +187,8 @@ func (p *OpenLibraryProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	values := url.Values{}
 	if isbn := normalizeISBN(query.Query); isbn != "" {
 		values.Set("isbn", isbn)
+	} else if query.Type == SearchTypeAuthor {
+		values.Set("author", query.Query)
 	} else {
 		values.Set("title", query.Query)
 	}
@@ -304,7 +306,11 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 		return nil, nil
 	}
 	values := url.Values{}
-	values.Set("q", query.Query)
+	if query.Type == SearchTypeAuthor {
+		values.Set("q", "inauthor:"+query.Query)
+	} else {
+		values.Set("q", query.Query)
+	}
 	values.Set("maxResults", strconv.Itoa(clampLimit(query.Limit)))
 	values.Set("projection", "lite")
 	values.Set("key", p.apiKey)

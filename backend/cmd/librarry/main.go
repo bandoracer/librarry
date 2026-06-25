@@ -56,6 +56,7 @@ func main() {
 		GoogleAPIKey:   cfg.GoogleBooksAPIKey,
 		HTTPTimeout:    12 * time.Second,
 	})
+	metadataService := metadata.NewService(providers)
 	acquire := acquisition.NewService(acquisition.IntegrationConfig{
 		ProwlarrURL:       cfg.ProwlarrURL,
 		ProwlarrAPIKey:    cfg.ProwlarrAPIKey,
@@ -76,7 +77,7 @@ func main() {
 		}
 		cancel()
 	}
-	wantedService := wanted.NewService(wantedStore, acquire)
+	wantedService := wanted.NewService(wantedStore, acquire, metadataService)
 	libraryService := library.NewService(libraryStore, library.Config{
 		EbookRoot:                  cfg.EbookLibraryRoot,
 		AudiobookRoot:              cfg.AudiobookLibraryRoot,
@@ -89,6 +90,10 @@ func main() {
 	if cfg.MonitorEnabled && wantedService.Available() {
 		monitorWG.Add(1)
 		go runWantedMonitor(ctx, &monitorWG, logger, wantedService, cfg)
+	}
+	if cfg.AuthorMonitorEnabled && wantedService.Available() {
+		monitorWG.Add(1)
+		go runAuthorMonitor(ctx, &monitorWG, logger, wantedService, cfg)
 	}
 	if cfg.FeedSyncEnabled && wantedService.Available() {
 		monitorWG.Add(1)
@@ -106,7 +111,7 @@ func main() {
 	router := api.NewRouter(api.Dependencies{
 		Logger:   logger,
 		Config:   cfg,
-		Metadata: metadata.NewService(providers),
+		Metadata: metadataService,
 		Acquire:  acquire,
 		Wanted:   wantedService,
 		Library:  libraryService,
@@ -343,6 +348,59 @@ func runWantedMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logg
 	defer startup.Stop()
 	defer ticker.Stop()
 	logger.Info("wanted monitor enabled", "interval", interval, "auto_grab", cfg.MonitorAutoGrab)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			run("scheduled-startup")
+		case <-ticker.C:
+			run("scheduled")
+		}
+	}
+}
+
+func runAuthorMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
+	defer wg.Done()
+	interval := cfg.AuthorMonitorInterval
+	if interval <= 0 {
+		interval = 6 * time.Hour
+	}
+	syncIntervalMinutes := int(cfg.AuthorMonitorSyncInterval / time.Minute)
+	if syncIntervalMinutes <= 0 {
+		syncIntervalMinutes = int((24 * time.Hour) / time.Minute)
+	}
+
+	run := func(trigger string) {
+		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		outcome, err := service.MonitorAuthors(runCtx, wanted.AuthorMonitorRequest{
+			Trigger:                trigger,
+			Limit:                  cfg.AuthorMonitorLimit,
+			SearchLimit:            20,
+			MinSyncIntervalMinutes: syncIntervalMinutes,
+		})
+		if err != nil {
+			logger.Warn("author monitor run failed", "trigger", trigger, "error", err)
+			return
+		}
+		logger.Info(
+			"author monitor run completed",
+			"trigger", trigger,
+			"status", outcome.Status,
+			"authors_checked", outcome.AuthorsChecked,
+			"items_found", outcome.ItemsFound,
+			"wanted_created", outcome.WantedCreated,
+			"errors", outcome.ErrorCount,
+		)
+	}
+
+	startup := time.NewTimer(30 * time.Second)
+	ticker := time.NewTicker(interval)
+	defer startup.Stop()
+	defer ticker.Stop()
+	logger.Info("author monitor enabled", "interval", interval)
 
 	for {
 		select {

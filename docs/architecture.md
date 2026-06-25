@@ -23,6 +23,9 @@ Initial API surface:
 - `POST /api/v1/downloads/recover-failed`
 - `GET /api/v1/quality-profiles`
 - `POST /api/v1/quality-profiles`
+- `GET /api/v1/authors`
+- `POST /api/v1/authors`
+- `POST /api/v1/authors/monitor`
 - `GET /api/v1/wanted`
 - `POST /api/v1/wanted`
 - `POST /api/v1/wanted/{id}/search`
@@ -86,6 +89,14 @@ The wanted monitor can be triggered manually through
 It selects due wanted items, reuses the same release evaluator as manual search,
 records monitor run summaries, writes history events, and optionally sends the
 best approved release to qBittorrent when `LIBRARRY_MONITOR_AUTO_GRAB=true`.
+
+Author subscriptions are stored separately from wanted items. A subscription
+captures provider provenance, author identity, target format, and quality
+profile. The author monitor can be triggered manually through
+`POST /api/v1/authors/monitor` and can also run on an interval in the API
+process. It searches metadata providers for due authors, creates or refreshes
+wanted items for matching books, records sync history, and does not grab
+releases directly.
 
 Upgrade search can be triggered manually through `POST /api/v1/wanted/upgrades`
 and can also run on an interval in the API process. It searches grabbed/imported

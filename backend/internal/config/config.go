@@ -32,6 +32,10 @@ type Config struct {
 	MonitorSearchInterval     time.Duration
 	MonitorLimit              int
 	MonitorAutoGrab           bool
+	AuthorMonitorEnabled      bool
+	AuthorMonitorInterval     time.Duration
+	AuthorMonitorSyncInterval time.Duration
+	AuthorMonitorLimit        int
 	FeedSyncEnabled           bool
 	FeedSyncInterval          time.Duration
 	FeedSyncLimit             int
@@ -77,6 +81,10 @@ func FromEnv() Config {
 		MonitorSearchInterval:     envDuration("LIBRARRY_MONITOR_SEARCH_INTERVAL", 6*time.Hour),
 		MonitorLimit:              envInt("LIBRARRY_MONITOR_LIMIT", 50),
 		MonitorAutoGrab:           envBool("LIBRARRY_MONITOR_AUTO_GRAB", false),
+		AuthorMonitorEnabled:      envBool("LIBRARRY_AUTHOR_MONITOR_ENABLED", true),
+		AuthorMonitorInterval:     envDuration("LIBRARRY_AUTHOR_MONITOR_INTERVAL", 6*time.Hour),
+		AuthorMonitorSyncInterval: envDuration("LIBRARRY_AUTHOR_MONITOR_SYNC_INTERVAL", 24*time.Hour),
+		AuthorMonitorLimit:        envInt("LIBRARRY_AUTHOR_MONITOR_LIMIT", 50),
 		FeedSyncEnabled:           envBool("LIBRARRY_FEED_SYNC_ENABLED", true),
 		FeedSyncInterval:          envDuration("LIBRARRY_FEED_SYNC_INTERVAL", 15*time.Minute),
 		FeedSyncLimit:             envInt("LIBRARRY_FEED_SYNC_LIMIT", 100),

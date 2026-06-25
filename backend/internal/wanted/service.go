@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	"github.com/bandoracer/librarry/backend/internal/metadata"
 )
 
 const (
 	defaultWantedMonitorLimit       = 50
 	defaultWantedMonitorSearchLimit = 20
 	defaultWantedSearchInterval     = 6 * time.Hour
+	defaultAuthorSyncInterval       = 24 * time.Hour
 	defaultFailedDownloadLimit      = 50
 	defaultFailedDownloadStalledAge = 24 * time.Hour
 	defaultUpgradeSearchInterval    = 12 * time.Hour
@@ -23,12 +25,21 @@ const (
 )
 
 type Service struct {
-	store   *Store
-	acquire Acquisition
+	store    *Store
+	acquire  Acquisition
+	metadata MetadataSearch
 }
 
-func NewService(store *Store, acquire Acquisition) *Service {
-	return &Service{store: store, acquire: acquire}
+type MetadataSearch interface {
+	Search(ctx context.Context, query metadata.Query) ([]metadata.SearchResult, error)
+}
+
+func NewService(store *Store, acquire Acquisition, metadataSearch ...MetadataSearch) *Service {
+	var search MetadataSearch
+	if len(metadataSearch) > 0 {
+		search = metadataSearch[0]
+	}
+	return &Service{store: store, acquire: acquire, metadata: search}
 }
 
 func (s *Service) Available() bool {
@@ -65,6 +76,132 @@ func (s *Service) SaveQualityProfile(ctx context.Context, profile QualityProfile
 		return QualityProfile{}, errors.New("quality profile name is required")
 	}
 	return s.store.UpsertQualityProfile(ctx, profile)
+}
+
+func (s *Service) SubscribeAuthor(ctx context.Context, request AuthorSubscribeRequest) (AuthorSubscription, error) {
+	if !s.Available() {
+		return AuthorSubscription{}, errors.New("wanted service requires database persistence")
+	}
+	subscription := authorSubscriptionFromRequest(request)
+	if strings.TrimSpace(subscription.AuthorName) == "" {
+		return AuthorSubscription{}, errors.New("author name is required")
+	}
+	return s.store.UpsertAuthorSubscription(ctx, subscription)
+}
+
+func (s *Service) ListAuthorSubscriptions(ctx context.Context, status string) ([]AuthorSubscription, error) {
+	if !s.Available() {
+		return nil, errors.New("wanted service requires database persistence")
+	}
+	return s.store.ListAuthorSubscriptions(ctx, status)
+}
+
+func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorRequest) (AuthorMonitorRun, error) {
+	if !s.Available() {
+		return AuthorMonitorRun{}, errors.New("wanted service requires database persistence")
+	}
+	if s.metadata == nil {
+		return AuthorMonitorRun{}, errors.New("metadata service is unavailable")
+	}
+	run, err := s.store.StartAuthorMonitorRun(ctx, request.Trigger)
+	if err != nil {
+		return AuthorMonitorRun{}, err
+	}
+	limit := request.Limit
+	if limit <= 0 || limit > 200 {
+		limit = defaultWantedMonitorLimit
+	}
+	searchLimit := request.SearchLimit
+	if searchLimit <= 0 || searchLimit > 50 {
+		searchLimit = defaultWantedMonitorSearchLimit
+	}
+	minSyncInterval := defaultAuthorSyncInterval
+	if request.MinSyncIntervalMinutes > 0 {
+		minSyncInterval = time.Duration(request.MinSyncIntervalMinutes) * time.Minute
+	}
+	subscriptions, err := s.store.ListDueAuthorSubscriptions(ctx, limit, minSyncInterval, request.Force)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishAuthorMonitorRun(ctx, run)
+		if finishErr != nil {
+			return AuthorMonitorRun{}, finishErr
+		}
+		return finished, err
+	}
+
+	for _, subscription := range subscriptions {
+		select {
+		case <-ctx.Done():
+			run.Status = "canceled"
+			run.Message = ctx.Err().Error()
+			return s.store.FinishAuthorMonitorRun(context.Background(), run)
+		default:
+		}
+
+		result := AuthorMonitorItemResult{Subscription: subscription}
+		results, err := s.metadata.Search(ctx, metadata.Query{
+			Query:  subscription.AuthorName,
+			Type:   metadata.SearchTypeAuthor,
+			Format: metadata.MediaFormat(subscription.Format),
+			Limit:  searchLimit,
+		})
+		run.AuthorsChecked++
+		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		for _, candidate := range results {
+			if !authorResultMatchesSubscription(subscription, candidate) {
+				continue
+			}
+			result.ResultsFound++
+			item, err := s.store.CreateWanted(ctx, CreateRequest{
+				Result:         candidate,
+				Format:         subscription.Format,
+				QualityProfile: subscription.QualityProfile,
+			})
+			if err != nil {
+				result.Error = err.Error()
+				run.ErrorCount++
+				continue
+			}
+			result.WantedItems = append(result.WantedItems, item)
+			result.WantedCreated++
+		}
+		run.ItemsFound += result.ResultsFound
+		run.WantedCreated += result.WantedCreated
+		if err := s.store.MarkAuthorSubscriptionSynced(ctx, subscription.ID); err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+		}
+		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+			EventType:  "author_subscription_synced",
+			EntityType: "author_subscription",
+			EntityID:   subscription.ID,
+			Severity:   "info",
+			Message:    "Synced author subscription for " + subscription.AuthorName,
+			Data: map[string]any{
+				"authorName":    subscription.AuthorName,
+				"format":        subscription.Format,
+				"resultsFound":  result.ResultsFound,
+				"wantedCreated": result.WantedCreated,
+				"runId":         run.ID,
+			},
+		})
+		run.Items = append(run.Items, result)
+	}
+
+	if run.ErrorCount > 0 {
+		run.Status = "completed_with_errors"
+	} else {
+		run.Status = "completed"
+	}
+	run.Message = authorMonitorMessage(run)
+	return s.store.FinishAuthorMonitorRun(ctx, run)
 }
 
 func (s *Service) SearchReleases(ctx context.Context, wantedID string, request SearchReleasesRequest) (SearchOutcome, error) {
@@ -914,6 +1051,61 @@ func upgradeCutoffFor(item WantedItem) float64 {
 	return defaultQualityProfile(item.QualityProfile, item.Format).CutoffScore
 }
 
+func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscription {
+	authorName := strings.TrimSpace(request.AuthorName)
+	provider := strings.TrimSpace(request.Provider)
+	providerKey := strings.TrimSpace(request.ProviderKey)
+	if len(request.Result.Work.Authors) > 0 {
+		author := request.Result.Work.Authors[0]
+		authorName = firstNonEmpty(authorName, author.Name)
+		providerKey = firstNonEmpty(providerKey, author.ID)
+	}
+	provider = firstNonEmpty(provider, request.Result.Provider, "manual")
+	if providerKey == "" && authorName != "" {
+		providerKey = provider + ":author:" + normalizeText(authorName)
+	}
+	format := request.Format
+	if format == "" {
+		format = string(request.Result.Edition.Format)
+	}
+	format = normalizeFormat(format)
+	qualityProfile := normalizeQualityProfile(request.QualityProfile)
+	monitorNewItems := true
+	if request.MonitorNewItems != nil {
+		monitorNewItems = *request.MonitorNewItems
+	}
+	return AuthorSubscription{
+		Provider:        provider,
+		ProviderKey:     providerKey,
+		AuthorName:      authorName,
+		Format:          format,
+		QualityProfile:  qualityProfile,
+		Status:          "monitored",
+		MonitorNewItems: monitorNewItems,
+	}
+}
+
+func authorResultMatchesSubscription(subscription AuthorSubscription, result metadata.SearchResult) bool {
+	if len(result.Work.Authors) == 0 {
+		return false
+	}
+	subscriptionKey := strings.TrimSpace(subscription.ProviderKey)
+	subscriptionName := normalizeText(subscription.AuthorName)
+	for _, author := range result.Work.Authors {
+		if subscriptionKey != "" && strings.EqualFold(subscriptionKey, strings.TrimSpace(author.ID)) {
+			return true
+		}
+		authorName := normalizeText(author.Name)
+		if authorName == "" || subscriptionName == "" {
+			continue
+		}
+		if authorName == subscriptionName || strings.Contains(authorName, subscriptionName) || strings.Contains(subscriptionName, authorName) {
+			return true
+		}
+	}
+	return false
+}
+
 func monitorMessage(run MonitorRun) string {
 	if run.WantedChecked == 0 {
 		return strings.TrimSpace(run.Status) + ": no due wanted items"
@@ -925,6 +1117,20 @@ func monitorMessage(run MonitorRun) string {
 		run.ReleasesFound,
 		run.ApprovedCount,
 		run.GrabbedCount,
+		run.ErrorCount,
+	)
+}
+
+func authorMonitorMessage(run AuthorMonitorRun) string {
+	if run.AuthorsChecked == 0 {
+		return strings.TrimSpace(run.Status) + ": no due author subscriptions"
+	}
+	return fmt.Sprintf(
+		"%s: checked %d author subscriptions, found %d items, created or refreshed %d wanted items, errors %d",
+		strings.TrimSpace(run.Status),
+		run.AuthorsChecked,
+		run.ItemsFound,
+		run.WantedCreated,
 		run.ErrorCount,
 	)
 }

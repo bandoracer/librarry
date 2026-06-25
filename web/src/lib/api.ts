@@ -140,6 +140,42 @@ export type QualityProfile = {
   updatedAt?: string;
 };
 
+export type AuthorSubscription = {
+  id: string;
+  provider: string;
+  providerKey: string;
+  authorName: string;
+  format: "ebook" | "audiobook";
+  qualityProfile: string;
+  status: string;
+  monitorNewItems: boolean;
+  lastSyncAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuthorMonitorItemResult = {
+  subscription: AuthorSubscription;
+  resultsFound: number;
+  wantedCreated: number;
+  wantedItems?: WantedItem[];
+  error?: string;
+};
+
+export type AuthorMonitorRun = {
+  id: string;
+  trigger: string;
+  status: string;
+  authorsChecked: number;
+  itemsFound: number;
+  wantedCreated: number;
+  errorCount: number;
+  message?: string;
+  items?: AuthorMonitorItemResult[];
+  startedAt: string;
+  finishedAt?: string;
+};
+
 export type ReleaseDecision = {
   id: string;
   wantedItemId: string;
@@ -513,6 +549,54 @@ export async function saveQualityProfile(profile: QualityProfile): Promise<Quali
     throw new Error(`Quality profile save failed: ${response.status}`);
   }
   return (await response.json()) as QualityProfile;
+}
+
+export async function fetchAuthorSubscriptions(status = "monitored"): Promise<AuthorSubscription[]> {
+  const params = new URLSearchParams({ status });
+  const response = await fetch(`${apiBase}/api/v1/authors?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Author subscriptions refresh failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as { authors: AuthorSubscription[] };
+  return payload.authors;
+}
+
+export async function subscribeAuthor(result: SearchResult, format: string, qualityProfile = "standard"): Promise<AuthorSubscription> {
+  const response = await fetch(`${apiBase}/api/v1/authors`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      result,
+      format: format === "audiobook" ? "audiobook" : "ebook",
+      qualityProfile,
+      monitorNewItems: true
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Author subscription failed: ${response.status}`);
+  }
+  return (await response.json()) as AuthorSubscription;
+}
+
+export async function runAuthorMonitor(options: {
+  force?: boolean;
+  limit?: number;
+  searchLimit?: number;
+} = {}): Promise<AuthorMonitorRun> {
+  const response = await fetch(`${apiBase}/api/v1/authors/monitor`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      trigger: "manual",
+      force: options.force ?? false,
+      limit: options.limit ?? 50,
+      searchLimit: options.searchLimit ?? 20
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Author monitor failed: ${response.status}`);
+  }
+  return (await response.json()) as AuthorMonitorRun;
 }
 
 export async function createWanted(result: SearchResult, format: string): Promise<WantedItem> {

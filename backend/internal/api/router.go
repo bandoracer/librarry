@@ -40,6 +40,9 @@ type wantedService interface {
 	List(ctx context.Context, status string) ([]wanted.WantedItem, error)
 	ListQualityProfiles(ctx context.Context) ([]wanted.QualityProfile, error)
 	SaveQualityProfile(ctx context.Context, profile wanted.QualityProfile) (wanted.QualityProfile, error)
+	SubscribeAuthor(ctx context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error)
+	ListAuthorSubscriptions(ctx context.Context, status string) ([]wanted.AuthorSubscription, error)
+	MonitorAuthors(ctx context.Context, request wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error)
 	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
 	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
@@ -77,6 +80,9 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/downloads/recover-failed", handler.recoverFailedDownloads)
 	mux.HandleFunc("GET /api/v1/quality-profiles", handler.qualityProfiles)
 	mux.HandleFunc("POST /api/v1/quality-profiles", handler.saveQualityProfile)
+	mux.HandleFunc("GET /api/v1/authors", handler.authorSubscriptions)
+	mux.HandleFunc("POST /api/v1/authors", handler.subscribeAuthor)
+	mux.HandleFunc("POST /api/v1/authors/monitor", handler.monitorAuthors)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
@@ -303,6 +309,59 @@ func (h *handler) saveQualityProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, saved)
+}
+
+func (h *handler) authorSubscriptions(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	subscriptions, err := h.deps.Wanted.ListAuthorSubscriptions(r.Context(), r.URL.Query().Get("status"))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"authors": subscriptions})
+}
+
+func (h *handler) subscribeAuthor(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.AuthorSubscribeRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author subscription payload"})
+		return
+	}
+	subscription, err := h.deps.Wanted.SubscribeAuthor(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, subscription)
+}
+
+func (h *handler) monitorAuthors(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.AuthorMonitorRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	if request.Trigger == "" {
+		request.Trigger = "manual"
+	}
+	run, err := h.deps.Wanted.MonitorAuthors(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
+		return
+	}
+	writeJSON(w, http.StatusOK, run)
 }
 
 func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {

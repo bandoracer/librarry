@@ -214,6 +214,169 @@ func (s *Store) UpsertQualityProfile(ctx context.Context, profile QualityProfile
 	return scanQualityProfile(row)
 }
 
+func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription AuthorSubscription) (AuthorSubscription, error) {
+	if !s.Configured() {
+		return AuthorSubscription{}, errors.New("wanted store is unavailable")
+	}
+	subscription = normalizeAuthorSubscription(subscription)
+	if strings.TrimSpace(subscription.AuthorName) == "" {
+		return AuthorSubscription{}, errors.New("author name is required")
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into author_subscriptions (
+			provider, provider_key, author_name, wanted_format, quality_profile,
+			status, monitor_new_items
+		) values (
+			$1, $2, $3, $4, $5,
+			$6, $7
+		)
+		on conflict (provider, provider_key, wanted_format)
+			where provider <> '' and provider_key <> ''
+		do update set
+			author_name = excluded.author_name,
+			quality_profile = excluded.quality_profile,
+			status = case when author_subscriptions.status = 'removed' then 'monitored' else author_subscriptions.status end,
+			monitor_new_items = excluded.monitor_new_items,
+			updated_at = now()
+		returning
+			id, provider, provider_key, author_name, wanted_format, quality_profile,
+			status, monitor_new_items, last_sync_at, created_at, updated_at
+	`, subscription.Provider, subscription.ProviderKey, subscription.AuthorName, subscription.Format,
+		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems)
+	return scanAuthorSubscription(row)
+}
+
+func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]AuthorSubscription, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	args := []any{}
+	where := ""
+	if strings.TrimSpace(status) != "" && strings.TrimSpace(status) != "all" {
+		args = append(args, strings.TrimSpace(status))
+		where = "where status = $1"
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select
+			id, provider, provider_key, author_name, wanted_format, quality_profile,
+			status, monitor_new_items, last_sync_at, created_at, updated_at
+		from author_subscriptions
+		`+where+`
+		order by author_name, wanted_format
+		limit 500
+	`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subscriptions []AuthorSubscription
+	for rows.Next() {
+		subscription, err := scanAuthorSubscription(rows)
+		if err != nil {
+			return nil, err
+		}
+		subscriptions = append(subscriptions, subscription)
+	}
+	return subscriptions, rows.Err()
+}
+
+func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minInterval time.Duration, force bool) ([]AuthorSubscription, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if minInterval <= 0 {
+		minInterval = 24 * time.Hour
+	}
+	cutoff := time.Now().UTC().Add(-minInterval)
+	rows, err := s.db.QueryContext(ctx, `
+		select
+			id, provider, provider_key, author_name, wanted_format, quality_profile,
+			status, monitor_new_items, last_sync_at, created_at, updated_at
+		from author_subscriptions
+		where status = 'monitored'
+			and monitor_new_items = true
+			and ($1::boolean or last_sync_at is null or last_sync_at <= $2)
+		order by coalesce(last_sync_at, 'epoch'::timestamptz), author_name
+		limit $3
+	`, force, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subscriptions []AuthorSubscription
+	for rows.Next() {
+		subscription, err := scanAuthorSubscription(rows)
+		if err != nil {
+			return nil, err
+		}
+		subscriptions = append(subscriptions, subscription)
+	}
+	return subscriptions, rows.Err()
+}
+
+func (s *Store) MarkAuthorSubscriptionSynced(ctx context.Context, id string) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(id) == "" {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `update author_subscriptions set last_sync_at = now(), updated_at = now() where id = $1`, id)
+	return err
+}
+
+func (s *Store) StartAuthorMonitorRun(ctx context.Context, trigger string) (AuthorMonitorRun, error) {
+	if !s.Configured() {
+		return AuthorMonitorRun{}, errors.New("wanted store is unavailable")
+	}
+	trigger = strings.TrimSpace(trigger)
+	if trigger == "" {
+		trigger = "manual"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into author_subscription_runs(trigger, status)
+		values ($1, 'running')
+		returning
+			id, trigger, status, authors_checked, items_found, wanted_created,
+			error_count, message, started_at, finished_at
+	`, trigger)
+	return scanAuthorMonitorRun(row)
+}
+
+func (s *Store) FinishAuthorMonitorRun(ctx context.Context, run AuthorMonitorRun) (AuthorMonitorRun, error) {
+	if !s.Configured() {
+		return AuthorMonitorRun{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(run.Status) == "" {
+		run.Status = "completed"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update author_subscription_runs set
+			status = $2,
+			authors_checked = $3,
+			items_found = $4,
+			wanted_created = $5,
+			error_count = $6,
+			message = $7,
+			finished_at = now()
+		where id = $1
+		returning
+			id, trigger, status, authors_checked, items_found, wanted_created,
+			error_count, message, started_at, finished_at
+	`, run.ID, run.Status, run.AuthorsChecked, run.ItemsFound, run.WantedCreated, run.ErrorCount, run.Message)
+	finished, err := scanAuthorMonitorRun(row)
+	if err != nil {
+		return AuthorMonitorRun{}, err
+	}
+	finished.Items = run.Items
+	return finished, nil
+}
+
 func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 	if !s.Configured() {
 		return WantedItem{}, errors.New("wanted store is unavailable")
@@ -927,6 +1090,24 @@ func scanQualityProfile(row wantedScanner) (QualityProfile, error) {
 	return profile, nil
 }
 
+func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
+	var subscription AuthorSubscription
+	var lastSyncAt sql.NullTime
+	if err := row.Scan(
+		&subscription.ID, &subscription.Provider, &subscription.ProviderKey,
+		&subscription.AuthorName, &subscription.Format, &subscription.QualityProfile,
+		&subscription.Status, &subscription.MonitorNewItems, &lastSyncAt,
+		&subscription.CreatedAt, &subscription.UpdatedAt,
+	); err != nil {
+		return AuthorSubscription{}, err
+	}
+	if lastSyncAt.Valid {
+		value := lastSyncAt.Time.UTC()
+		subscription.LastSyncAt = &value
+	}
+	return subscription, nil
+}
+
 func scanMonitorRun(row wantedScanner) (MonitorRun, error) {
 	var run MonitorRun
 	var finishedAt sql.NullTime
@@ -987,6 +1168,22 @@ func scanUpgradeRun(row wantedScanner) (UpgradeRun, error) {
 		&run.StartedAt, &finishedAt,
 	); err != nil {
 		return UpgradeRun{}, err
+	}
+	if finishedAt.Valid {
+		value := finishedAt.Time.UTC()
+		run.FinishedAt = &value
+	}
+	return run, nil
+}
+
+func scanAuthorMonitorRun(row wantedScanner) (AuthorMonitorRun, error) {
+	var run AuthorMonitorRun
+	var finishedAt sql.NullTime
+	if err := row.Scan(
+		&run.ID, &run.Trigger, &run.Status, &run.AuthorsChecked, &run.ItemsFound,
+		&run.WantedCreated, &run.ErrorCount, &run.Message, &run.StartedAt, &finishedAt,
+	); err != nil {
+		return AuthorMonitorRun{}, err
 	}
 	if finishedAt.Valid {
 		value := finishedAt.Time.UTC()
@@ -1083,6 +1280,18 @@ func normalizeProfileForStorage(profile QualityProfile) QualityProfile {
 		profile.RejectedTerms = []string{"summary", "review"}
 	}
 	return profile
+}
+
+func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscription {
+	subscription.Provider = strings.TrimSpace(subscription.Provider)
+	subscription.ProviderKey = strings.TrimSpace(subscription.ProviderKey)
+	subscription.AuthorName = strings.TrimSpace(subscription.AuthorName)
+	subscription.Format = normalizeFormat(subscription.Format)
+	subscription.QualityProfile = normalizeQualityProfile(subscription.QualityProfile)
+	if strings.TrimSpace(subscription.Status) == "" {
+		subscription.Status = "monitored"
+	}
+	return subscription
 }
 
 func normalizeProfileFormat(format string) string {

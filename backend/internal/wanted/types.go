@@ -43,6 +43,30 @@ type QualityProfile struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
+type AuthorSubscribeRequest struct {
+	Result          metadata.SearchResult `json:"result,omitempty"`
+	AuthorName      string                `json:"authorName,omitempty"`
+	Provider        string                `json:"provider,omitempty"`
+	ProviderKey     string                `json:"providerKey,omitempty"`
+	Format          string                `json:"format,omitempty"`
+	QualityProfile  string                `json:"qualityProfile,omitempty"`
+	MonitorNewItems *bool                 `json:"monitorNewItems,omitempty"`
+}
+
+type AuthorSubscription struct {
+	ID              string     `json:"id,omitempty"`
+	Provider        string     `json:"provider"`
+	ProviderKey     string     `json:"providerKey"`
+	AuthorName      string     `json:"authorName"`
+	Format          string     `json:"format"`
+	QualityProfile  string     `json:"qualityProfile"`
+	Status          string     `json:"status"`
+	MonitorNewItems bool       `json:"monitorNewItems"`
+	LastSyncAt      *time.Time `json:"lastSyncAt,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+}
+
 type SearchReleasesRequest struct {
 	Limit int `json:"limit,omitempty"`
 }
@@ -88,6 +112,14 @@ type UpgradeRequest struct {
 	AutoGrab                 bool     `json:"autoGrab,omitempty"`
 	Paused                   bool     `json:"paused,omitempty"`
 	Force                    bool     `json:"force,omitempty"`
+}
+
+type AuthorMonitorRequest struct {
+	Trigger                string `json:"trigger,omitempty"`
+	Limit                  int    `json:"limit,omitempty"`
+	SearchLimit            int    `json:"searchLimit,omitempty"`
+	Force                  bool   `json:"force,omitempty"`
+	MinSyncIntervalMinutes int    `json:"minSyncIntervalMinutes,omitempty"`
 }
 
 type GrabRequest struct {
@@ -221,6 +253,28 @@ type UpgradeRun struct {
 	Items         []UpgradeItemResult `json:"items,omitempty"`
 	StartedAt     time.Time           `json:"startedAt"`
 	FinishedAt    *time.Time          `json:"finishedAt,omitempty"`
+}
+
+type AuthorMonitorRun struct {
+	ID             string                    `json:"id"`
+	Trigger        string                    `json:"trigger"`
+	Status         string                    `json:"status"`
+	AuthorsChecked int                       `json:"authorsChecked"`
+	ItemsFound     int                       `json:"itemsFound"`
+	WantedCreated  int                       `json:"wantedCreated"`
+	ErrorCount     int                       `json:"errorCount"`
+	Message        string                    `json:"message,omitempty"`
+	Items          []AuthorMonitorItemResult `json:"items,omitempty"`
+	StartedAt      time.Time                 `json:"startedAt"`
+	FinishedAt     *time.Time                `json:"finishedAt,omitempty"`
+}
+
+type AuthorMonitorItemResult struct {
+	Subscription  AuthorSubscription `json:"subscription"`
+	ResultsFound  int                `json:"resultsFound"`
+	WantedCreated int                `json:"wantedCreated"`
+	WantedItems   []WantedItem       `json:"wantedItems,omitempty"`
+	Error         string             `json:"error,omitempty"`
 }
 
 type UpgradeItemResult struct {
