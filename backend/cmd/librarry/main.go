@@ -86,6 +86,10 @@ func main() {
 		monitorWG.Add(1)
 		go runWantedMonitor(ctx, &monitorWG, logger, wantedService, cfg)
 	}
+	if cfg.FeedSyncEnabled && wantedService.Available() {
+		monitorWG.Add(1)
+		go runWantedFeedSync(ctx, &monitorWG, logger, wantedService, cfg)
+	}
 
 	router := api.NewRouter(api.Dependencies{
 		Logger:   logger,
@@ -121,6 +125,55 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("api server shutdown failed", "error", err)
 		os.Exit(1)
+	}
+}
+
+func runWantedFeedSync(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
+	defer wg.Done()
+	interval := cfg.FeedSyncInterval
+	if interval <= 0 {
+		interval = 15 * time.Minute
+	}
+	run := func(trigger string) {
+		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		outcome, err := service.FeedSync(runCtx, wanted.FeedSyncRequest{
+			Trigger:  trigger,
+			Limit:    cfg.FeedSyncLimit,
+			AutoGrab: cfg.FeedSyncAutoGrab,
+			Paused:   true,
+		})
+		if err != nil {
+			logger.Warn("feed sync failed", "trigger", trigger, "error", err)
+			return
+		}
+		logger.Info(
+			"feed sync completed",
+			"trigger", trigger,
+			"status", outcome.Status,
+			"releases_seen", outcome.ReleasesSeen,
+			"matched", outcome.MatchedCount,
+			"approved", outcome.ApprovedCount,
+			"grabbed", outcome.GrabbedCount,
+			"errors", outcome.ErrorCount,
+		)
+	}
+
+	startup := time.NewTimer(30 * time.Second)
+	ticker := time.NewTicker(interval)
+	defer startup.Stop()
+	defer ticker.Stop()
+	logger.Info("feed sync enabled", "interval", interval, "auto_grab", cfg.FeedSyncAutoGrab)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			run("scheduled-startup")
+		case <-ticker.C:
+			run("scheduled")
+		}
 	}
 }
 

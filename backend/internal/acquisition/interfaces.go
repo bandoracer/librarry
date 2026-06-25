@@ -14,6 +14,11 @@ type ReleaseSearchQuery struct {
 	Limit     int      `json:"limit,omitempty"`
 }
 
+type ReleaseFeedQuery struct {
+	Format string `json:"format,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
 type Release struct {
 	ID          string    `json:"id"`
 	InfoHash    string    `json:"infoHash,omitempty"`

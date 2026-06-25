@@ -42,6 +42,7 @@ type wantedService interface {
 	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
 	Monitor(ctx context.Context, request wanted.MonitorRequest) (wanted.MonitorRun, error)
+	FeedSync(ctx context.Context, request wanted.FeedSyncRequest) (wanted.FeedSyncRun, error)
 	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
 }
 
@@ -70,6 +71,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
+	mux.HandleFunc("POST /api/v1/wanted/feed-sync", handler.feedSyncWanted)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/search", handler.searchWantedReleases)
 	mux.HandleFunc("GET /api/v1/wanted/{id}/releases", handler.listWantedReleases)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
@@ -333,6 +335,27 @@ func (h *handler) monitorWanted(w http.ResponseWriter, r *http.Request) {
 		request.Trigger = "manual"
 	}
 	run, err := h.deps.Wanted.Monitor(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
+		return
+	}
+	writeJSON(w, http.StatusOK, run)
+}
+
+func (h *handler) feedSyncWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.FeedSyncRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	if request.Trigger == "" {
+		request.Trigger = "manual"
+	}
+	run, err := h.deps.Wanted.FeedSync(r.Context(), request)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
 		return

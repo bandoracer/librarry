@@ -83,6 +83,10 @@ func (s *Service) Search(ctx context.Context, query ReleaseSearchQuery) ([]Relea
 	return s.prowlarr.Search(ctx, query)
 }
 
+func (s *Service) Feed(ctx context.Context, query ReleaseFeedQuery) ([]Release, error) {
+	return s.prowlarr.Feed(ctx, query)
+}
+
 func (s *Service) Grab(ctx context.Context, request DownloadRequest) (DownloadStatus, error) {
 	if request.Category == "" {
 		request.Category = s.categoryForFormat("")

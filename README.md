@@ -9,9 +9,11 @@ book data is incomplete or ambiguous.
 > health, Prowlarr release search, qBittorrent category bootstrap, and paused
 > qBittorrent grabs with download polling and torrent actions. Wanted items and
 > release evaluation are implemented, with manual and scheduled wanted
-> monitoring plus history. Library scan and manual file import are implemented.
-> Completed qBittorrent downloads can be imported into organized library roots.
-> Feed-based RSS sync, upgrades, and richer import review are still in progress.
+> monitoring plus history. Feed-based indexer sync is implemented through
+> Prowlarr-compatible RSS feeds. Library scan and manual file import are
+> implemented. Completed qBittorrent downloads can be imported into organized
+> library roots. Failed-download retry, upgrades, and richer import review are
+> still in progress.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -46,7 +48,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, tracked in Postgres, manually imported, and fed by completed qBittorrent imports. | Add OPF, EPUB, audio-tag extraction, missing-book detection, and import review matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, manual/interval wanted monitoring, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add feed-based RSS sync, failed-download retry, upgrades, sorting, and renaming. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, manual/interval wanted monitoring, feed-based indexer sync, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add failed-download retry, upgrades, sorting, renaming, and richer review flows. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, and qBittorrent controls. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented; SABnzbd interface is stubbed. | Add clients only behind small interfaces once metadata and matching are stable. |
@@ -74,6 +76,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   decisions.
 - Manual and scheduled wanted monitoring with monitor-run summaries and history
   events.
+- Manual and scheduled feed sync for Prowlarr-compatible indexer RSS feeds,
+  with release persistence, matching against wanted items, optional paused
+  auto-grab, and history events.
 - Library scanning for ebook/audiobook roots and manual file import into
   organized book folders.
 - Completed-download import for Librarry-tagged qBittorrent items, with
@@ -131,6 +136,7 @@ Important API surfaces:
 - `GET /api/v1/wanted/{id}/releases`
 - `POST /api/v1/wanted/{id}/grab`
 - `POST /api/v1/wanted/monitor`
+- `POST /api/v1/wanted/feed-sync`
 - `GET /api/v1/history`
 - `GET /api/v1/library/files`
 - `POST /api/v1/library/scan`
@@ -205,6 +211,10 @@ LIBRARRY_MONITOR_INTERVAL=30m
 LIBRARRY_MONITOR_SEARCH_INTERVAL=6h
 LIBRARRY_MONITOR_LIMIT=50
 LIBRARRY_MONITOR_AUTO_GRAB=false
+LIBRARRY_FEED_SYNC_ENABLED=true
+LIBRARRY_FEED_SYNC_INTERVAL=15m
+LIBRARRY_FEED_SYNC_LIMIT=100
+LIBRARRY_FEED_SYNC_AUTO_GRAB=false
 ```
 
 Provider notes:
@@ -217,6 +227,9 @@ Provider notes:
   disabled for the calling host.
 - Scheduled wanted monitoring is enabled by default. Set
   `LIBRARRY_MONITOR_AUTO_GRAB=true` only when you want automation to send
+  approved releases to qBittorrent without a manual click.
+- Scheduled feed sync is enabled by default. Set
+  `LIBRARRY_FEED_SYNC_AUTO_GRAB=true` only when you want feed matches to send
   approved releases to qBittorrent without a manual click.
 
 ## Deployment
@@ -250,7 +263,7 @@ will grow as the automation path stabilizes.
 ## Roadmap
 
 - OPF, EPUB, and audio-tag extraction during library scans.
-- Feed-based RSS sync for indexers and author subscriptions.
+- Failed-download retry, upgrade decisions, and author subscriptions.
 - Manual import review, rename profiles, and conflict policies.
 - Better edition selection for narrator, language, format, and ISBN.
 - Hardcover and Google Books fixture coverage.

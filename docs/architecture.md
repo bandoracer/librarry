@@ -26,6 +26,7 @@ Initial API surface:
 - `GET /api/v1/wanted/{id}/releases`
 - `POST /api/v1/wanted/{id}/grab`
 - `POST /api/v1/wanted/monitor`
+- `POST /api/v1/wanted/feed-sync`
 - `GET /api/v1/history`
 - `GET /api/v1/library/files`
 - `POST /api/v1/library/scan`
@@ -64,6 +65,15 @@ The wanted monitor can be triggered manually through
 It selects due wanted items, reuses the same release evaluator as manual search,
 records monitor run summaries, writes history events, and optionally sends the
 best approved release to qBittorrent when `LIBRARRY_MONITOR_AUTO_GRAB=true`.
+
+Feed sync can be triggered manually through `POST /api/v1/wanted/feed-sync` and
+can also run on an interval in the API process. Prowlarr does not provide a
+single aggregate RSS endpoint, so Librarry lists RSS-enabled Prowlarr indexers,
+pulls each Prowlarr-compatible Torznab/Newznab feed, stores seen releases, and
+matches feed entries against wanted items with the same release evaluator used by
+manual search. Feed sync defaults to search-only and only sends approved
+releases to qBittorrent when `LIBRARRY_FEED_SYNC_AUTO_GRAB=true` or a manual
+request sets `autoGrab`.
 
 ## Library Import
 

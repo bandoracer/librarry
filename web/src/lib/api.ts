@@ -167,6 +167,29 @@ export type MonitorRun = {
   finishedAt?: string;
 };
 
+export type FeedSyncMatch = {
+  wantedItem: WantedItem;
+  release: ReleaseDecision;
+  grabbedDownload?: DownloadStatus;
+  error?: string;
+};
+
+export type FeedSyncRun = {
+  id: string;
+  trigger: string;
+  status: string;
+  releasesSeen: number;
+  matchedCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  grabbedCount: number;
+  errorCount: number;
+  message?: string;
+  matches?: FeedSyncMatch[];
+  startedAt: string;
+  finishedAt?: string;
+};
+
 export type HistoryEvent = {
   id: string;
   eventType: string;
@@ -401,6 +424,29 @@ export async function runWantedMonitor(options: {
     throw new Error(`Wanted monitor failed: ${response.status}`);
   }
   return (await response.json()) as MonitorRun;
+}
+
+export async function runWantedFeedSync(options: {
+  format?: string;
+  autoGrab?: boolean;
+  paused?: boolean;
+  limit?: number;
+} = {}): Promise<FeedSyncRun> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/feed-sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      trigger: "manual",
+      format: options.format ?? "any",
+      limit: options.limit ?? 100,
+      autoGrab: options.autoGrab ?? false,
+      paused: options.paused ?? true
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Feed sync failed: ${response.status}`);
+  }
+  return (await response.json()) as FeedSyncRun;
 }
 
 export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {

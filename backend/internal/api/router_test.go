@@ -139,6 +139,26 @@ func TestMonitorWantedEndpoint(t *testing.T) {
 	}
 }
 
+func TestFeedSyncWantedEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/feed-sync", strings.NewReader(`{"limit":10}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"releasesSeen":2`) {
+		t.Fatalf("expected feed sync run in response, got %s", res.Body.String())
+	}
+}
+
 func TestHistoryEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -308,6 +328,18 @@ func (fakeWanted) Monitor(context.Context, wanted.MonitorRequest) (wanted.Monito
 		Trigger:       "manual",
 		Status:        "completed",
 		WantedChecked: 1,
+		StartedAt:     time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) FeedSync(context.Context, wanted.FeedSyncRequest) (wanted.FeedSyncRun, error) {
+	return wanted.FeedSyncRun{
+		ID:            "feed-1",
+		Trigger:       "manual",
+		Status:        "completed",
+		ReleasesSeen:  2,
+		MatchedCount:  1,
+		ApprovedCount: 1,
 		StartedAt:     time.Now().UTC(),
 	}, nil
 }

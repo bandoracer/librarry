@@ -55,6 +55,21 @@ Manual monitor runs are available through `POST /api/v1/wanted/monitor`.
 `LIBRARRY_MONITOR_AUTO_GRAB=false` keeps scheduled runs search-only while still
 recording release decisions and history.
 
+## Feed Sync
+
+The API can also poll Prowlarr-compatible indexer RSS feeds on an interval:
+
+```dotenv
+LIBRARRY_FEED_SYNC_ENABLED=true
+LIBRARRY_FEED_SYNC_INTERVAL=15m
+LIBRARRY_FEED_SYNC_LIMIT=100
+LIBRARRY_FEED_SYNC_AUTO_GRAB=false
+```
+
+Manual feed runs are available through `POST /api/v1/wanted/feed-sync`.
+`LIBRARRY_FEED_SYNC_AUTO_GRAB=false` keeps scheduled feed runs search-only while
+still recording feed releases, matched release decisions, and history.
+
 ## Library Roots
 
 Library scans and manual imports use these roots by default:

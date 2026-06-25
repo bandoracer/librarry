@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 )
 
@@ -405,6 +406,98 @@ func (s *Store) ListHistory(ctx context.Context, query HistoryQuery) ([]HistoryE
 	return events, rows.Err()
 }
 
+func (s *Store) StartFeedSyncRun(ctx context.Context, trigger string) (FeedSyncRun, error) {
+	if !s.Configured() {
+		return FeedSyncRun{}, errors.New("wanted store is unavailable")
+	}
+	trigger = strings.TrimSpace(trigger)
+	if trigger == "" {
+		trigger = "manual"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into feed_sync_runs(trigger, status)
+		values ($1, 'running')
+		returning
+			id, trigger, status, releases_seen, matched_count, approved_count,
+			rejected_count, grabbed_count, error_count, message, started_at, finished_at
+	`, trigger)
+	return scanFeedSyncRun(row)
+}
+
+func (s *Store) FinishFeedSyncRun(ctx context.Context, run FeedSyncRun) (FeedSyncRun, error) {
+	if !s.Configured() {
+		return FeedSyncRun{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(run.Status) == "" {
+		run.Status = "completed"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update feed_sync_runs set
+			status = $2,
+			releases_seen = $3,
+			matched_count = $4,
+			approved_count = $5,
+			rejected_count = $6,
+			grabbed_count = $7,
+			error_count = $8,
+			message = $9,
+			finished_at = now()
+		where id = $1
+		returning
+			id, trigger, status, releases_seen, matched_count, approved_count,
+			rejected_count, grabbed_count, error_count, message, started_at, finished_at
+	`, run.ID, run.Status, run.ReleasesSeen, run.MatchedCount, run.ApprovedCount,
+		run.RejectedCount, run.GrabbedCount, run.ErrorCount, run.Message)
+	finished, err := scanFeedSyncRun(row)
+	if err != nil {
+		return FeedSyncRun{}, err
+	}
+	finished.Matches = run.Matches
+	return finished, nil
+}
+
+func (s *Store) UpsertFeedReleases(ctx context.Context, releases []acquisition.Release) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	for _, release := range releases {
+		sourceID := strings.TrimSpace(release.ID)
+		if sourceID == "" {
+			sourceID = firstNonEmpty(release.InfoHash, release.Title)
+		}
+		categories := strings.Join(release.Categories, ",")
+		if _, err := s.db.ExecContext(ctx, `
+			insert into feed_releases (
+				source_id, info_hash, indexer, title, protocol, download_url,
+				info_url, size_bytes, seeders, leechers, categories, published_at,
+				last_seen_at
+			) values (
+				$1, $2, $3, $4, $5, $6,
+				$7, $8, $9, $10, $11, nullif($12, '0001-01-01T00:00:00Z')::timestamptz,
+				now()
+			)
+			on conflict (source_id) where source_id <> '' do update set
+				info_hash = excluded.info_hash,
+				indexer = excluded.indexer,
+				title = excluded.title,
+				protocol = excluded.protocol,
+				download_url = excluded.download_url,
+				info_url = excluded.info_url,
+				size_bytes = excluded.size_bytes,
+				seeders = excluded.seeders,
+				leechers = excluded.leechers,
+				categories = excluded.categories,
+				published_at = excluded.published_at,
+				last_seen_at = now()
+		`, sourceID, release.InfoHash, release.Indexer, release.Title, release.Protocol, release.DownloadURL,
+			release.InfoURL, nullableInt64(release.SizeBytes), release.Seeders, release.Leechers, categories,
+			release.PublishedAt.Format(time.RFC3339)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Store) upsertWork(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, raw []byte) (string, error) {
 	if id, ok, err := lookupProviderEntity(ctx, tx, result.Provider, result.Work.ID); err != nil || ok {
 		if ok {
@@ -549,6 +642,23 @@ func scanMonitorRun(row wantedScanner) (MonitorRun, error) {
 		&run.Message, &run.StartedAt, &finishedAt,
 	); err != nil {
 		return MonitorRun{}, err
+	}
+	if finishedAt.Valid {
+		value := finishedAt.Time.UTC()
+		run.FinishedAt = &value
+	}
+	return run, nil
+}
+
+func scanFeedSyncRun(row wantedScanner) (FeedSyncRun, error) {
+	var run FeedSyncRun
+	var finishedAt sql.NullTime
+	if err := row.Scan(
+		&run.ID, &run.Trigger, &run.Status, &run.ReleasesSeen, &run.MatchedCount,
+		&run.ApprovedCount, &run.RejectedCount, &run.GrabbedCount, &run.ErrorCount,
+		&run.Message, &run.StartedAt, &finishedAt,
+	); err != nil {
+		return FeedSyncRun{}, err
 	}
 	if finishedAt.Valid {
 		value := finishedAt.Time.UTC()

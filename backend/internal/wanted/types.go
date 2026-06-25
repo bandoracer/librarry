@@ -10,6 +10,7 @@ import (
 
 type Acquisition interface {
 	Search(ctx context.Context, query acquisition.ReleaseSearchQuery) ([]acquisition.Release, error)
+	Feed(ctx context.Context, query acquisition.ReleaseFeedQuery) ([]acquisition.Release, error)
 	Grab(ctx context.Context, request acquisition.DownloadRequest) (acquisition.DownloadStatus, error)
 	CategoryForFormat(format string) string
 	TorrentRoot() string
@@ -33,6 +34,14 @@ type MonitorRequest struct {
 	AutoGrab                 bool   `json:"autoGrab,omitempty"`
 	Paused                   bool   `json:"paused,omitempty"`
 	MinSearchIntervalMinutes int    `json:"minSearchIntervalMinutes,omitempty"`
+}
+
+type FeedSyncRequest struct {
+	Trigger  string `json:"trigger,omitempty"`
+	Format   string `json:"format,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
+	AutoGrab bool   `json:"autoGrab,omitempty"`
+	Paused   bool   `json:"paused,omitempty"`
 }
 
 type GrabRequest struct {
@@ -98,6 +107,29 @@ type MonitorRun struct {
 	Items         []MonitorItemResult `json:"items,omitempty"`
 	StartedAt     time.Time           `json:"startedAt"`
 	FinishedAt    *time.Time          `json:"finishedAt,omitempty"`
+}
+
+type FeedSyncRun struct {
+	ID            string          `json:"id"`
+	Trigger       string          `json:"trigger"`
+	Status        string          `json:"status"`
+	ReleasesSeen  int             `json:"releasesSeen"`
+	MatchedCount  int             `json:"matchedCount"`
+	ApprovedCount int             `json:"approvedCount"`
+	RejectedCount int             `json:"rejectedCount"`
+	GrabbedCount  int             `json:"grabbedCount"`
+	ErrorCount    int             `json:"errorCount"`
+	Message       string          `json:"message,omitempty"`
+	Matches       []FeedSyncMatch `json:"matches,omitempty"`
+	StartedAt     time.Time       `json:"startedAt"`
+	FinishedAt    *time.Time      `json:"finishedAt,omitempty"`
+}
+
+type FeedSyncMatch struct {
+	WantedItem      WantedItem                  `json:"wantedItem"`
+	Release         ReleaseDecision             `json:"release"`
+	GrabbedDownload *acquisition.DownloadStatus `json:"grabbedDownload,omitempty"`
+	Error           string                      `json:"error,omitempty"`
 }
 
 type MonitorItemResult struct {

@@ -34,6 +34,7 @@ import {
   grabRelease,
   importCompletedDownloads,
   importLibraryFile,
+  runWantedFeedSync,
   runWantedMonitor,
   runDownloadAction,
   scanLibrary,
@@ -43,6 +44,7 @@ import {
   type DownloadAction,
   type CompletedImportOutcome,
   type DownloadStatus,
+  type FeedSyncRun,
   type HistoryEvent,
   type IntegrationHealth,
   type LibraryFile,
@@ -80,6 +82,7 @@ export function App() {
   const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
   const [completedImport, setCompletedImport] = useState<CompletedImportOutcome | null>(null);
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
+  const [feedSyncRun, setFeedSyncRun] = useState<FeedSyncRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
@@ -92,6 +95,7 @@ export function App() {
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
+  const [isRunningFeedSync, setIsRunningFeedSync] = useState(false);
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
   const [isImportingLibrary, setIsImportingLibrary] = useState(false);
   const [isImportingCompleted, setIsImportingCompleted] = useState(false);
@@ -100,6 +104,7 @@ export function App() {
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
   const [monitorError, setMonitorError] = useState("");
+  const [feedError, setFeedError] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [libraryError, setLibraryError] = useState("");
   const [downloadError, setDownloadError] = useState("");
@@ -251,6 +256,26 @@ export function App() {
       setMonitorError(error instanceof Error ? error.message : "Wanted monitor failed");
     } finally {
       setIsRunningMonitor(false);
+    }
+  }
+
+  async function runFeedSync(options: { autoGrab?: boolean }) {
+    setIsRunningFeedSync(true);
+    setFeedError("");
+    try {
+      const run = await runWantedFeedSync({
+        format,
+        autoGrab: options.autoGrab ?? false,
+        paused: true
+      });
+      setFeedSyncRun(run);
+      setWantedItems((current) => mergeWanted(current, run.matches?.map((match) => match.wantedItem) ?? []));
+      await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+      setAPIState("live");
+    } catch (error) {
+      setFeedError(error instanceof Error ? error.message : "Feed sync failed");
+    } finally {
+      setIsRunningFeedSync(false);
     }
   }
 
@@ -768,9 +793,18 @@ export function App() {
                 <HardDriveDownload size={16} />
                 Scan + grab paused
               </button>
+              <button className="secondary-action compact" disabled={isRunningFeedSync} onClick={() => runFeedSync({})} type="button">
+                <RadioTower size={16} />
+                Feed
+              </button>
+              <button className="secondary-action compact danger-outline" disabled={isRunningFeedSync} onClick={() => runFeedSync({ autoGrab: true })} type="button">
+                <HardDriveDownload size={16} />
+                Feed + grab
+              </button>
             </div>
           </div>
           {monitorError ? <div className="inline-error">{monitorError}</div> : null}
+          {feedError ? <div className="inline-error">{feedError}</div> : null}
           <div className="monitor-grid">
             {[
               ["Wanted checked", monitorRun?.wantedChecked ?? 0],
@@ -796,6 +830,27 @@ export function App() {
                   </span>
                   {item.grabbedDownload ? <em>Queued {item.grabbedDownload.category}</em> : null}
                   {item.error ? <small>{item.error}</small> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {feedSyncRun ? (
+            <div className="feed-sync-results">
+              <div className="feed-sync-summary">
+                <strong>{feedSyncRun.status}</strong>
+                <span>
+                  {feedSyncRun.releasesSeen} feed releases · {feedSyncRun.matchedCount} matches · {feedSyncRun.approvedCount} approved · {feedSyncRun.grabbedCount} grabbed
+                </span>
+              </div>
+              {feedSyncRun.matches?.slice(0, 8).map((match) => (
+                <article className={match.release.approved ? "feed-sync-row approved" : "feed-sync-row rejected"} key={`${match.wantedItem.id}-${match.release.id || match.release.sourceId}`}>
+                  <div>
+                    <strong>{match.release.title}</strong>
+                    <span>
+                      {match.wantedItem.title} · score {match.release.score.toFixed(1)} · {match.release.approved ? "approved" : match.release.rejectedReason || "rejected"}
+                    </span>
+                  </div>
+                  {match.grabbedDownload ? <em>Queued</em> : null}
                 </article>
               ))}
             </div>

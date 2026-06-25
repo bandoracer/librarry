@@ -267,6 +267,149 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 	return s.store.FinishMonitorRun(ctx, run)
 }
 
+func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSyncRun, error) {
+	if !s.Available() {
+		return FeedSyncRun{}, errors.New("wanted service requires database persistence")
+	}
+	if s.acquire == nil {
+		return FeedSyncRun{}, errors.New("acquisition service is unavailable")
+	}
+
+	run, err := s.store.StartFeedSyncRun(ctx, request.Trigger)
+	if err != nil {
+		return FeedSyncRun{}, err
+	}
+	limit := request.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+
+	releases, err := s.acquire.Feed(ctx, acquisition.ReleaseFeedQuery{
+		Format: request.Format,
+		Limit:  limit,
+	})
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+		if finishErr != nil {
+			return FeedSyncRun{}, finishErr
+		}
+		return finished, err
+	}
+	run.ReleasesSeen = len(releases)
+	if err := s.store.UpsertFeedReleases(ctx, releases); err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+		if finishErr != nil {
+			return FeedSyncRun{}, finishErr
+		}
+		return finished, err
+	}
+
+	items, err := s.store.ListWanted(ctx, "wanted")
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+		if finishErr != nil {
+			return FeedSyncRun{}, finishErr
+		}
+		return finished, err
+	}
+
+	grabbedWanted := map[string]bool{}
+	for _, item := range items {
+		if !formatMatchesRequest(request.Format, item.Format) {
+			continue
+		}
+		var decisions []ReleaseDecision
+		for _, release := range releases {
+			if !feedReleaseMatchesWanted(item, release) {
+				continue
+			}
+			decisions = append(decisions, evaluateRelease(item, release))
+		}
+		if len(decisions) == 0 {
+			continue
+		}
+		sort.SliceStable(decisions, func(i, j int) bool {
+			if decisions[i].Approved != decisions[j].Approved {
+				return decisions[i].Approved
+			}
+			if decisions[i].Score == decisions[j].Score {
+				return decisions[i].Seeders > decisions[j].Seeders
+			}
+			return decisions[i].Score > decisions[j].Score
+		})
+		stored, err := s.store.UpsertReleaseDecisions(ctx, item.ID, decisions)
+		if err != nil {
+			run.ErrorCount++
+			run.Matches = append(run.Matches, FeedSyncMatch{WantedItem: item, Error: err.Error()})
+			continue
+		}
+		for _, decision := range stored {
+			match := FeedSyncMatch{WantedItem: item, Release: decision}
+			run.MatchedCount++
+			if decision.Approved {
+				run.ApprovedCount++
+			} else {
+				run.RejectedCount++
+			}
+			if request.AutoGrab && decision.Approved && !grabbedWanted[item.ID] {
+				status, err := s.grabRelease(ctx, item, decision, request.Paused, "feed")
+				if err != nil {
+					match.Error = err.Error()
+					run.ErrorCount++
+					_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+						EventType:  "feed_grab_failed",
+						EntityType: "wanted_item",
+						EntityID:   item.ID,
+						Severity:   "error",
+						Message:    "Feed grab failed for " + item.Title,
+						Data: map[string]any{
+							"error":     err.Error(),
+							"releaseId": decision.ID,
+							"title":     decision.Title,
+						},
+					})
+				} else {
+					grabbedWanted[item.ID] = true
+					match.GrabbedDownload = &status
+					run.GrabbedCount++
+				}
+			}
+			run.Matches = append(run.Matches, match)
+		}
+	}
+
+	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+		EventType:  "feed_synced",
+		EntityType: "feed_sync_run",
+		EntityID:   run.ID,
+		Severity:   "info",
+		Message:    "Synced indexer feed",
+		Data: map[string]any{
+			"releasesSeen":  run.ReleasesSeen,
+			"matchedCount":  run.MatchedCount,
+			"approvedCount": run.ApprovedCount,
+			"grabbedCount":  run.GrabbedCount,
+			"errorCount":    run.ErrorCount,
+		},
+	})
+	if run.ErrorCount > 0 {
+		run.Status = "partial_failed"
+	} else {
+		run.Status = "completed"
+	}
+	run.Message = feedSyncMessage(run)
+	return s.store.FinishFeedSyncRun(ctx, run)
+}
+
 func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEvent, error) {
 	if !s.Available() {
 		return nil, errors.New("wanted service requires database persistence")
@@ -345,6 +488,43 @@ func monitorMessage(run MonitorRun) string {
 		strings.TrimSpace(run.Status),
 		run.WantedChecked,
 		run.ReleasesFound,
+		run.ApprovedCount,
+		run.GrabbedCount,
+		run.ErrorCount,
+	)
+}
+
+func feedReleaseMatchesWanted(item WantedItem, release acquisition.Release) bool {
+	releaseTitle := normalizeText(release.Title)
+	wantedTitle := normalizeText(item.Title)
+	if wantedTitle == "" || releaseTitle == "" {
+		return false
+	}
+	if strings.Contains(releaseTitle, wantedTitle) {
+		return true
+	}
+	overlap := tokenOverlap(wantedTitle, releaseTitle)
+	if overlap >= 0.67 {
+		return true
+	}
+	author := normalizeText(item.AuthorName)
+	return author != "" && strings.Contains(releaseTitle, author) && overlap >= 0.5
+}
+
+func formatMatchesRequest(requested string, actual string) bool {
+	requested = strings.ToLower(strings.TrimSpace(requested))
+	if requested == "" || requested == "any" {
+		return true
+	}
+	return requested == normalizeFormat(actual)
+}
+
+func feedSyncMessage(run FeedSyncRun) string {
+	return fmt.Sprintf(
+		"%s: saw %d releases, matched %d, approved %d, grabbed %d, errors %d",
+		strings.TrimSpace(run.Status),
+		run.ReleasesSeen,
+		run.MatchedCount,
 		run.ApprovedCount,
 		run.GrabbedCount,
 		run.ErrorCount,
