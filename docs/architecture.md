@@ -38,6 +38,10 @@ stored in Postgres when database persistence is configured. Torrent actions are
 exposed through `/api/v1/downloads/actions` for start, stop, delete, recheck,
 and priority changes.
 
+Wanted items are stored in Postgres from normalized metadata results. A wanted
+item can search releases through Prowlarr, persist scored release decisions, and
+record explicit rejection reasons before a candidate is sent to qBittorrent.
+
 - `books-ebook`
 - `books-audiobook`
 

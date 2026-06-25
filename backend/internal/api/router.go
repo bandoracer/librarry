@@ -12,6 +12,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/settings"
+	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
 type Dependencies struct {
@@ -19,6 +20,7 @@ type Dependencies struct {
 	Config   config.Config
 	Metadata *metadata.Service
 	Acquire  acquisitionService
+	Wanted   wantedService
 }
 
 type acquisitionService interface {
@@ -28,6 +30,14 @@ type acquisitionService interface {
 	Grab(ctx context.Context, request acquisition.DownloadRequest) (acquisition.DownloadStatus, error)
 	Downloads(ctx context.Context, query acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error)
 	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
+}
+
+type wantedService interface {
+	Create(ctx context.Context, request wanted.CreateRequest) (wanted.WantedItem, error)
+	List(ctx context.Context, status string) ([]wanted.WantedItem, error)
+	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
+	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
+	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -45,6 +55,11 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
+	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
+	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
+	mux.HandleFunc("POST /api/v1/wanted/{id}/search", handler.searchWantedReleases)
+	mux.HandleFunc("GET /api/v1/wanted/{id}/releases", handler.listWantedReleases)
+	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
 
 	return withCORS(deps.Config.WebOrigin, mux)
 }
@@ -203,6 +218,87 @@ func (h *handler) downloadAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), r.URL.Query().Get("status"))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"wanted": items})
+}
+
+func (h *handler) createWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.CreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted payload"})
+		return
+	}
+	item, err := h.deps.Wanted.Create(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *handler) searchWantedReleases(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.SearchReleasesRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	outcome, err := h.deps.Wanted.SearchReleases(r.Context(), r.PathValue("id"), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) listWantedReleases(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	outcome, err := h.deps.Wanted.ListReleases(r.Context(), r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) grabWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.GrabRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	status, err := h.deps.Wanted.Grab(r.Context(), r.PathValue("id"), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
 }
 
 func withCORS(webOrigin string, next http.Handler) http.Handler {

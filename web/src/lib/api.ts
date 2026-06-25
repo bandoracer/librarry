@@ -94,6 +94,50 @@ export type DownloadActionResult = {
   downloads?: DownloadStatus[];
 };
 
+export type WantedItem = {
+  id: string;
+  workId?: string;
+  editionId?: string;
+  title: string;
+  authorName?: string;
+  coverUrl?: string;
+  format: "ebook" | "audiobook";
+  qualityProfile: string;
+  status: string;
+  sourceProvider?: string;
+  sourceKey?: string;
+  lastSearchAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReleaseDecision = {
+  id: string;
+  wantedItemId: string;
+  sourceId: string;
+  infoHash?: string;
+  indexer: string;
+  title: string;
+  protocol: string;
+  downloadUrl: string;
+  infoUrl?: string;
+  sizeBytes?: number;
+  seeders?: number;
+  leechers?: number;
+  categories?: string[];
+  score: number;
+  approved: boolean;
+  rejectedReason?: string;
+  publishedAt?: string;
+  searchedAt: string;
+  createdAt: string;
+};
+
+export type WantedSearchOutcome = {
+  wantedItem: WantedItem;
+  releases: ReleaseDecision[];
+};
+
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
@@ -190,4 +234,57 @@ export async function runDownloadAction(
     throw new Error(`Download action failed: ${response.status}`);
   }
   return (await response.json()) as DownloadActionResult;
+}
+
+export async function fetchWanted(): Promise<WantedItem[]> {
+  const response = await fetch(`${apiBase}/api/v1/wanted?status=wanted`);
+  if (!response.ok) {
+    throw new Error(`Wanted refresh failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as { wanted: WantedItem[] };
+  return payload.wanted;
+}
+
+export async function createWanted(result: SearchResult, format: string): Promise<WantedItem> {
+  const wantedFormat = format === "audiobook" ? "audiobook" : "ebook";
+  const response = await fetch(`${apiBase}/api/v1/wanted`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      result,
+      format: wantedFormat,
+      qualityProfile: "standard"
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Mark wanted failed: ${response.status}`);
+  }
+  return (await response.json()) as WantedItem;
+}
+
+export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${wantedID}/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ limit: 20 })
+  });
+  if (!response.ok) {
+    throw new Error(`Wanted release search failed: ${response.status}`);
+  }
+  return (await response.json()) as WantedSearchOutcome;
+}
+
+export async function grabWanted(wantedID: string, releaseID?: string): Promise<DownloadStatus> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${wantedID}/grab`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      releaseId: releaseID,
+      paused: true
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Wanted grab failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadStatus;
 }

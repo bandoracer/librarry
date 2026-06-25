@@ -19,19 +19,25 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  createWanted,
   fetchIntegrationHealth,
   fetchDownloads,
   fetchProviderHealth,
+  fetchWanted,
+  grabWanted,
   grabRelease,
   runDownloadAction,
   searchMetadata,
   searchReleases,
+  searchWantedReleases,
   type DownloadAction,
   type DownloadStatus,
   type IntegrationHealth,
   type ProviderHealth,
+  type ReleaseDecision,
   type Release,
-  type SearchResult
+  type SearchResult,
+  type WantedItem
 } from "./lib/api";
 import { seedProviders, seedResults } from "./lib/seed";
 
@@ -49,17 +55,23 @@ export function App() {
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
+  const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
+  const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
+  const [selectedWantedID, setSelectedWantedID] = useState("");
   const [query, setQuery] = useState("Project Hail Mary");
   const [format, setFormat] = useState("any");
   const [apiState, setAPIState] = useState<"checking" | "live" | "offline">("checking");
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchingReleases, setIsSearchingReleases] = useState(false);
+  const [isMarkingWanted, setIsMarkingWanted] = useState(false);
+  const [isSearchingWanted, setIsSearchingWanted] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
+  const [wantedError, setWantedError] = useState("");
   const [downloadError, setDownloadError] = useState("");
 
   useEffect(() => {
@@ -77,11 +89,23 @@ export function App() {
       .catch((error) => {
         setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
       });
+    fetchWanted()
+      .then((items) => {
+        setWantedItems(items);
+        setSelectedWantedID(items[0]?.id ?? "");
+      })
+      .catch((error) => {
+        setWantedError(error instanceof Error ? error.message : "Wanted refresh failed");
+      });
   }, []);
 
   const selected = useMemo(
     () => results.find((result) => result.work.id === selectedID) ?? results[0],
     [results, selectedID]
+  );
+  const selectedWanted = useMemo(
+    () => wantedItems.find((item) => item.id === selectedWantedID) ?? wantedItems[0],
+    [wantedItems, selectedWantedID]
   );
 
   async function runSearch() {
@@ -122,6 +146,51 @@ export function App() {
       await refreshDownloads();
     } catch (error) {
       setReleaseError(error instanceof Error ? error.message : "Grab failed");
+    }
+  }
+
+  async function markSelectedWanted() {
+    if (!selected) return;
+    setIsMarkingWanted(true);
+    setWantedError("");
+    try {
+      const item = await createWanted(selected, selected.edition?.format ?? format);
+      setWantedItems((current) => mergeWanted(current, [item]));
+      setSelectedWantedID(item.id);
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Mark wanted failed");
+    } finally {
+      setIsMarkingWanted(false);
+    }
+  }
+
+  async function runWantedReleaseSearch(item = selectedWanted) {
+    if (!item) return;
+    setIsSearchingWanted(true);
+    setWantedError("");
+    try {
+      const outcome = await searchWantedReleases(item.id);
+      setWantedItems((current) => mergeWanted(current, [outcome.wantedItem]));
+      setWantedReleases(outcome.releases);
+      setSelectedWantedID(item.id);
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted release search failed");
+    } finally {
+      setIsSearchingWanted(false);
+    }
+  }
+
+  async function grabWantedRelease(release?: ReleaseDecision) {
+    const item = selectedWanted;
+    if (!item) return;
+    setWantedError("");
+    try {
+      const status = await grabWanted(item.id, release?.id);
+      setDownloadStatus(status);
+      await refreshDownloads();
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted grab failed");
     }
   }
 
@@ -341,9 +410,9 @@ export function App() {
                 </dl>
 
                 <div className="detail-actions">
-                  <button className="secondary-action" type="button">
+                  <button className="secondary-action" onClick={markSelectedWanted} disabled={isMarkingWanted} type="button">
                     <HardDriveDownload size={17} />
-                    Mark wanted
+                    <span>{isMarkingWanted ? "Marking" : "Mark wanted"}</span>
                   </button>
                   <button className="secondary-action" onClick={runReleaseSearch} type="button">
                     <Download size={17} />
@@ -384,6 +453,70 @@ export function App() {
                 </button>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section className="wanted-panel" aria-label="Wanted queue">
+          <div className="panel-heading">
+            <div>
+              <h2>Wanted queue</h2>
+              <p>
+                {wantedItems.length
+                  ? `${wantedItems.length} wanted books ready for release evaluation.`
+                  : "Mark a metadata result wanted to start Readarr-style acquisition planning."}
+              </p>
+            </div>
+            <button className="secondary-action compact" disabled={!selectedWanted || isSearchingWanted} onClick={() => runWantedReleaseSearch()} type="button">
+              <FileSearch size={16} />
+              {isSearchingWanted ? "Searching" : "Search wanted"}
+            </button>
+          </div>
+          {wantedError ? <div className="inline-error">{wantedError}</div> : null}
+          <div className="wanted-grid">
+            <div className="wanted-list">
+              {wantedItems.map((item) => (
+                <button
+                  className={item.id === selectedWanted?.id ? "wanted-item selected" : "wanted-item"}
+                  key={item.id}
+                  onClick={() => {
+                    setSelectedWantedID(item.id);
+                    setWantedReleases([]);
+                  }}
+                  type="button"
+                >
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.authorName || "Unknown author"}</small>
+                  </span>
+                  <em>{item.format}</em>
+                </button>
+              ))}
+            </div>
+            <div className="wanted-release-list">
+              {wantedReleases.length ? (
+                wantedReleases.map((release) => (
+                  <article className={release.approved ? "wanted-release approved" : "wanted-release rejected"} key={release.id}>
+                    <div>
+                      <div className="wanted-release-title">
+                        <strong>{release.title}</strong>
+                        <span>{release.approved ? "Approved" : "Rejected"}</span>
+                      </div>
+                      <p>
+                        {release.indexer} · score {release.score.toFixed(1)} · {formatBytes(release.sizeBytes ?? 0)} · {release.seeders ?? 0} seeders
+                      </p>
+                      {release.rejectedReason ? <small>{release.rejectedReason}</small> : null}
+                    </div>
+                    <button className="secondary-action compact" disabled={!release.approved} onClick={() => grabWantedRelease(release)} type="button">
+                      Grab paused
+                    </button>
+                  </article>
+                ))
+              ) : (
+                <div className="wanted-empty">
+                  {selectedWanted ? "Search wanted releases to evaluate candidates." : "No wanted item selected."}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -476,6 +609,18 @@ function mergeDownloads(current: DownloadStatus[], next: DownloadStatus[]) {
     byID.set(download.id, download);
   }
   return Array.from(byID.values());
+}
+
+function mergeWanted(current: WantedItem[], next: WantedItem[]) {
+  const byID = new Map(current.map((item) => [item.id, item]));
+  for (const item of next) {
+    byID.set(item.id, item);
+  }
+  return Array.from(byID.values()).sort((a, b) => {
+    const aTime = Date.parse(a.createdAt || "");
+    const bTime = Date.parse(b.createdAt || "");
+    return bTime - aTime;
+  });
 }
 
 function stateTone(state: string) {

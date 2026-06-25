@@ -12,6 +12,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
+	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
 func TestHealthEndpoint(t *testing.T) {
@@ -76,6 +77,46 @@ func TestDownloadActionEndpoint(t *testing.T) {
 	}
 }
 
+func TestListWantedEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wanted", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "Project Hail Mary") {
+		t.Fatalf("expected wanted item in response, got %s", res.Body.String())
+	}
+}
+
+func TestGrabWantedEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/wanted-1/grab", strings.NewReader(`{"releaseId":"release-1","paused":true}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "download-1") {
+		t.Fatalf("expected download status in response, got %s", res.Body.String())
+	}
+}
+
 type fakeAcquire struct{}
 
 func (fakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
@@ -104,4 +145,26 @@ func (fakeAcquire) DownloadAction(_ context.Context, request acquisition.Downloa
 		IDs:     request.IDs,
 		Applied: true,
 	}, nil
+}
+
+type fakeWanted struct{}
+
+func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedItem, error) {
+	return wanted.WantedItem{ID: "wanted-1", Title: "Project Hail Mary", Format: "ebook", Status: "wanted"}, nil
+}
+
+func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
+	return []wanted.WantedItem{{ID: "wanted-1", Title: "Project Hail Mary", Format: "ebook", Status: "wanted"}}, nil
+}
+
+func (fakeWanted) SearchReleases(context.Context, string, wanted.SearchReleasesRequest) (wanted.SearchOutcome, error) {
+	return wanted.SearchOutcome{}, nil
+}
+
+func (fakeWanted) ListReleases(context.Context, string) (wanted.SearchOutcome, error) {
+	return wanted.SearchOutcome{}, nil
+}
+
+func (fakeWanted) Grab(context.Context, string, wanted.GrabRequest) (acquisition.DownloadStatus, error) {
+	return acquisition.DownloadStatus{ID: "download-1", Name: "Book", State: "stoppedDL"}, nil
 }

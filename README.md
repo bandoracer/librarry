@@ -7,9 +7,9 @@ book data is incomplete or ambiguous.
 
 > Status: early alpha. The current build has real metadata search, provider
 > health, Prowlarr release search, qBittorrent category bootstrap, and paused
-> qBittorrent grabs with download polling and torrent actions. Full library
-> import, wanted-item automation, and post-grab file organization are still in
-> progress.
+> qBittorrent grabs with download polling and torrent actions. Wanted items and
+> release evaluation are implemented, but full RSS monitoring, library import,
+> and post-grab file organization are still in progress.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -44,8 +44,8 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Database schema exists; full import workflow is not implemented yet. | Import OPF, EPUB, audio tags, and existing folders as evidence for matching and review. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Metadata search, release search, provider health, integration bootstrap, paused qBittorrent grabs, and download reconciliation. | Wanted-item workflow from metadata result to release selection to queued download to organized file. |
-| Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed release search, paused grab endpoint, and qBittorrent controls. | Add rejection explanations, quality scoring, and manual review queues. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, provider health, integration bootstrap, paused qBittorrent grabs, and download reconciliation. | Add RSS monitoring, failed-download retry, upgrades, sorting, and renaming. |
+| Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, and qBittorrent controls. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented; SABnzbd interface is stubbed. | Add clients only behind small interfaces once metadata and matching are stable. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
@@ -63,10 +63,13 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   provider diagnostics, release search, integration bootstrap, paused grabs, and
   download status.
 - React and TypeScript web UI for provider health, metadata search, release
-  search, download management, and integration settings.
+  search, wanted queue management, download management, and integration
+  settings.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Postgres-backed download reconciliation from qBittorrent state.
+- Wanted-item persistence and release evaluation with approved/rejected
+  decisions.
 - Metadata provider abstraction with initial adapters for Hardcover, Open
   Library, Google Books, and local OPF/embedded metadata.
 - Prowlarr-compatible release search for book indexers.
@@ -114,6 +117,11 @@ Important API surfaces:
 - `POST /api/v1/grabs`
 - `GET /api/v1/downloads`
 - `POST /api/v1/downloads/actions`
+- `GET /api/v1/wanted`
+- `POST /api/v1/wanted`
+- `POST /api/v1/wanted/{id}/search`
+- `GET /api/v1/wanted/{id}/releases`
+- `POST /api/v1/wanted/{id}/grab`
 - `POST /api/v1/settings/validate`
 
 ## Quick Start
@@ -218,7 +226,7 @@ will grow as the automation path stabilizes.
 ## Roadmap
 
 - Library import and file fingerprinting for ebooks and audiobooks.
-- Wanted-item workflow from metadata result to release search to queued grab.
+- RSS monitoring for wanted items and author subscriptions.
 - Post-download organization and manual import review.
 - Better edition selection for narrator, language, format, and ISBN.
 - Hardcover and Google Books fixture coverage.
