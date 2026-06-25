@@ -53,6 +53,7 @@ import {
   runWantedMonitor,
   runDownloadAction,
   runDownloadFileAction,
+  runDownloadTrackerAction,
   saveQualityProfile,
   scanLibrary,
   searchMetadata,
@@ -67,6 +68,7 @@ import {
   type DownloadFileAction,
   type DownloadRebalancePlan,
   type DownloadStatus,
+  type DownloadTrackerAction,
   type FailedDownloadRun,
   type FeedSyncRun,
   type HistoryEvent,
@@ -145,6 +147,7 @@ export function App() {
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
+  const [trackerURL, setTrackerURL] = useState("");
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
   const [monitorError, setMonitorError] = useState("");
@@ -628,6 +631,39 @@ export function App() {
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download file action failed");
+    } finally {
+      setDownloadActionID("");
+    }
+  }
+
+  async function applyDownloadTrackerAction(action: DownloadTrackerAction, currentURL = "") {
+    const downloadID = downloadDetails?.status.id;
+    if (!downloadID) return;
+    const nextURL = trackerURL.trim();
+    if (action === "add" && !nextURL) return;
+    if (action === "edit" && (!currentURL || !nextURL)) return;
+    if (action === "remove" && !currentURL) return;
+    setDownloadActionID(`${downloadID}:tracker:${action}:${currentURL || nextURL}`);
+    setDownloadError("");
+    try {
+      const result = await runDownloadTrackerAction(downloadID, action, {
+        urls: action === "add" ? [nextURL] : undefined,
+        url: action === "remove" ? currentURL : undefined,
+        originalUrl: action === "edit" ? currentURL : undefined,
+        newUrl: action === "edit" ? nextURL : undefined
+      });
+      if (result.download) {
+        setDownloadDetails(result.download);
+      } else {
+        const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
+        setDownloadDetails(refreshed);
+      }
+      if (action !== "remove") {
+        setTrackerURL("");
+      }
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download tracker action failed");
     } finally {
       setDownloadActionID("");
     }
@@ -1463,19 +1499,55 @@ export function App() {
                       </div>
                     ))}
                   </div>
+                  <div className="download-tracker-tools">
+                    <input value={trackerURL} onChange={(event) => setTrackerURL(event.target.value)} placeholder="https://tracker.example/announce" />
+                    <button className="secondary-action compact" disabled={!trackerURL.trim() || Boolean(downloadActionID)} onClick={() => applyDownloadTrackerAction("add")} type="button">
+                      Add tracker
+                    </button>
+                  </div>
                   {downloadDetails.trackers?.length ? (
                     <div className="download-tracker-list">
-                      {downloadDetails.trackers.map((tracker) => (
-                        <article className="download-tracker-row" key={`${tracker.url}-${tracker.tier ?? 0}`}>
+                      {downloadDetails.trackers.map((tracker) => {
+                        const trackerBusy = downloadActionID.startsWith(`${downloadDetails.status.id}:tracker:`);
+                        return (
+                          <article className="download-tracker-row" key={`${tracker.url}-${tracker.tier ?? 0}`}>
+                            <div>
+                              <strong>{tracker.url || "tracker"}</strong>
+                              <span>{tracker.message || tracker.status}</span>
+                            </div>
+                            <span className={`download-badge ${tracker.status === "working" ? "seeding" : tracker.status === "not_working" ? "error" : "idle"}`}>
+                              {tracker.status}
+                            </span>
+                            <em>
+                              {tracker.seeds ?? 0} seeds · {tracker.leeches ?? 0} leeches
+                            </em>
+                            <div className="tracker-action-buttons">
+                              <button className="secondary-action compact" disabled={trackerBusy || !trackerURL.trim()} onClick={() => applyDownloadTrackerAction("edit", tracker.url)} type="button">
+                                Replace
+                              </button>
+                              <button className="secondary-action compact danger-outline" disabled={trackerBusy} onClick={() => applyDownloadTrackerAction("remove", tracker.url)} type="button">
+                                Remove
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {downloadDetails.peers?.length ? (
+                    <div className="download-peer-list">
+                      {downloadDetails.peers.slice(0, 20).map((peer) => (
+                        <article className="download-peer-row" key={peer.id || `${peer.ip}:${peer.port ?? 0}`}>
                           <div>
-                            <strong>{tracker.url || "tracker"}</strong>
-                            <span>{tracker.message || tracker.status}</span>
+                            <strong>
+                              {peer.ip}
+                              {peer.port ? `:${peer.port}` : ""}
+                            </strong>
+                            <span>{peer.client || peer.connection || peer.country || "peer"}</span>
                           </div>
-                          <span className={`download-badge ${tracker.status === "working" ? "seeding" : tracker.status === "not_working" ? "error" : "idle"}`}>
-                            {tracker.status}
-                          </span>
+                          <span className="download-badge idle">{Math.round((peer.progress ?? 0) * 100)}%</span>
                           <em>
-                            {tracker.seeds ?? 0} seeds · {tracker.leeches ?? 0} leeches
+                            {formatSpeed(peer.downloadRate ?? 0)} down · {formatSpeed(peer.uploadRate ?? 0)} up
                           </em>
                         </article>
                       ))}

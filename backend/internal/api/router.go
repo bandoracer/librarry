@@ -37,6 +37,7 @@ type acquisitionService interface {
 	DownloadDetails(ctx context.Context, id string, client string) (acquisition.DownloadDetails, error)
 	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
 	DownloadFileAction(ctx context.Context, id string, request acquisition.DownloadFileActionRequest) (acquisition.DownloadFileActionResult, error)
+	DownloadTrackerAction(ctx context.Context, id string, request acquisition.DownloadTrackerActionRequest) (acquisition.DownloadTrackerActionResult, error)
 }
 
 type wantedService interface {
@@ -212,6 +213,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/downloads/{id}", handler.downloadDetails)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
 	mux.HandleFunc("POST /api/v1/downloads/{id}/files/actions", handler.downloadFileAction)
+	mux.HandleFunc("POST /api/v1/downloads/{id}/trackers/actions", handler.downloadTrackerAction)
 	mux.HandleFunc("POST /api/v1/downloads/rebalance", handler.rebalanceDownloads)
 	mux.HandleFunc("POST /api/v1/downloads/recover-failed", handler.recoverFailedDownloads)
 	mux.HandleFunc("GET /api/v1/quality-profiles", handler.qualityProfiles)
@@ -441,6 +443,37 @@ func (h *handler) downloadFileAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.deps.Acquire.DownloadFileAction(r.Context(), id, request)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, acquisition.ErrDownloadNotFound) {
+			status = http.StatusNotFound
+		}
+		if errors.Is(err, acquisition.ErrDownloadDetailsUnsupported) {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *handler) downloadTrackerAction(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "download id is required"})
+		return
+	}
+	defer r.Body.Close()
+	var request acquisition.DownloadTrackerActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid download tracker action payload"})
+		return
+	}
+	result, err := h.deps.Acquire.DownloadTrackerAction(r.Context(), id, request)
 	if err != nil {
 		status := http.StatusBadGateway
 		if errors.Is(err, acquisition.ErrDownloadNotFound) {

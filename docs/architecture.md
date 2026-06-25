@@ -147,6 +147,7 @@ Initial API surface:
   - `GET /api/v1/downloads/{id}`
   - `POST /api/v1/downloads/actions`
   - `POST /api/v1/downloads/{id}/files/actions`
+  - `POST /api/v1/downloads/{id}/trackers/actions`
   - `POST /api/v1/downloads/rebalance`
   - `POST /api/v1/downloads/recover-failed`
   - `GET /api/v1/quality-profiles`
@@ -200,14 +201,16 @@ Download state is reconciled from qBittorrent and SABnzbd through
 configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, category changes, and location
 changes. qBittorrent details are exposed through `/api/v1/downloads/{id}` with
-properties, tracker state, and torrent file lists. Per-file qBittorrent priority
-changes are exposed through `/api/v1/downloads/{id}/files/actions` for
-skip/normal/high/max file selection. `/api/v1/downloads/rebalance` adds a simple
-active-download limiter that can preview or apply start/stop operations against
-the visible Librarry queue. SABnzbd actions currently support start, stop, and
-delete. The API accepts multiple download IDs for these actions, routes each ID
-back to its owning client when possible, and the web UI exposes selected-row bulk
-controls for the common queue operations.
+properties, peer state, tracker state, and torrent file lists. Per-file
+qBittorrent priority changes are exposed through
+`/api/v1/downloads/{id}/files/actions` for skip/normal/high/max file selection.
+Tracker add/edit/remove actions are exposed through
+`/api/v1/downloads/{id}/trackers/actions`. `/api/v1/downloads/rebalance` adds a
+simple active-download limiter that can preview or apply start/stop operations
+against the visible Librarry queue. SABnzbd actions currently support start,
+stop, and delete. The API accepts multiple download IDs for these actions, routes
+each ID back to its owning client when possible, and the web UI exposes
+selected-row bulk controls for the common queue operations.
 
 Failed-download recovery can be triggered manually through
 `POST /api/v1/downloads/recover-failed` and can also run on an interval in the

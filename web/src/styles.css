@@ -984,12 +984,26 @@ button {
   white-space: nowrap;
 }
 
+.download-tracker-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.download-tracker-tools input {
+  min-width: 0;
+}
+
 .download-tracker-list,
+.download-peer-list,
 .download-file-list {
   display: grid;
 }
 
 .download-tracker-row,
+.download-peer-row,
 .download-file-row {
   min-height: 58px;
   display: grid;
@@ -1000,6 +1014,10 @@ button {
 }
 
 .download-tracker-row {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.download-peer-row {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
@@ -1008,12 +1026,15 @@ button {
 }
 
 .download-tracker-row:last-child,
+.download-peer-row:last-child,
 .download-file-row:last-child {
   border-bottom: 0;
 }
 
 .download-tracker-row strong,
 .download-tracker-row span,
+.download-peer-row strong,
+.download-peer-row span,
 .download-file-main strong,
 .download-file-main span {
   display: block;
@@ -1024,18 +1045,27 @@ button {
 }
 
 .download-tracker-row strong,
+.download-peer-row strong,
 .download-file-main strong {
   color: var(--text);
   font-size: 13px;
 }
 
 .download-tracker-row span,
+.download-peer-row span,
 .download-file-main span,
-.download-tracker-row em {
+.download-tracker-row em,
+.download-peer-row em {
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
   font-style: normal;
+}
+
+.tracker-action-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .download-file-main {
@@ -2092,15 +2122,19 @@ button {
     border-bottom: 1px solid var(--border);
   }
 
+  .download-tracker-tools,
   .download-tracker-row,
+  .download-peer-row,
   .download-file-row {
     grid-template-columns: 1fr;
   }
 
+  .tracker-action-buttons,
   .file-action-buttons {
     justify-content: stretch;
   }
 
+  .tracker-action-buttons .secondary-action.compact,
   .file-action-buttons .secondary-action.compact {
     width: auto;
     flex: 1 1 70px;

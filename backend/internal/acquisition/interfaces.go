@@ -87,6 +87,7 @@ type DownloadDetails struct {
 	Properties DownloadProperties `json:"properties,omitempty"`
 	Files      []DownloadFile     `json:"files,omitempty"`
 	Trackers   []DownloadTracker  `json:"trackers,omitempty"`
+	Peers      []DownloadPeer     `json:"peers,omitempty"`
 }
 
 type DownloadProperties struct {
@@ -139,6 +140,25 @@ type DownloadTracker struct {
 	Downloads  int    `json:"downloads,omitempty"`
 }
 
+type DownloadPeer struct {
+	ID               string  `json:"id"`
+	IP               string  `json:"ip"`
+	Port             int     `json:"port,omitempty"`
+	Client           string  `json:"client,omitempty"`
+	Connection       string  `json:"connection,omitempty"`
+	Country          string  `json:"country,omitempty"`
+	CountryCode      string  `json:"countryCode,omitempty"`
+	Flags            string  `json:"flags,omitempty"`
+	FlagsDescription string  `json:"flagsDescription,omitempty"`
+	Progress         float64 `json:"progress,omitempty"`
+	Relevance        float64 `json:"relevance,omitempty"`
+	DownloadRate     int64   `json:"downloadRate,omitempty"`
+	UploadRate       int64   `json:"uploadRate,omitempty"`
+	DownloadedBytes  int64   `json:"downloadedBytes,omitempty"`
+	UploadedBytes    int64   `json:"uploadedBytes,omitempty"`
+	Files            string  `json:"files,omitempty"`
+}
+
 type DownloadClient interface {
 	Name() string
 	Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error)
@@ -185,6 +205,23 @@ type DownloadFileActionResult struct {
 	Download   *DownloadDetails `json:"download,omitempty"`
 }
 
+type DownloadTrackerActionRequest struct {
+	Action      string   `json:"action"`
+	URLs        []string `json:"urls,omitempty"`
+	URL         string   `json:"url,omitempty"`
+	OriginalURL string   `json:"originalUrl,omitempty"`
+	NewURL      string   `json:"newUrl,omitempty"`
+}
+
+type DownloadTrackerActionResult struct {
+	Action     string           `json:"action"`
+	DownloadID string           `json:"downloadId"`
+	URLs       []string         `json:"urls,omitempty"`
+	Applied    bool             `json:"applied"`
+	Message    string           `json:"message,omitempty"`
+	Download   *DownloadDetails `json:"download,omitempty"`
+}
+
 const (
 	DownloadActionStart            = "start"
 	DownloadActionStop             = "stop"
@@ -196,6 +233,12 @@ const (
 	DownloadActionBottomPriority   = "bottomPriority"
 	DownloadActionSetCategory      = "setCategory"
 	DownloadActionSetLocation      = "setLocation"
+)
+
+const (
+	DownloadTrackerActionAdd    = "add"
+	DownloadTrackerActionEdit   = "edit"
+	DownloadTrackerActionRemove = "remove"
 )
 
 const (

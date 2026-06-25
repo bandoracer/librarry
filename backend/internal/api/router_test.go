@@ -859,6 +859,9 @@ func TestDownloadDetailsEndpoint(t *testing.T) {
 	if len(payload.Trackers) != 1 || payload.Trackers[0].Status != "working" {
 		t.Fatalf("unexpected tracker payload: %+v", payload.Trackers)
 	}
+	if len(payload.Peers) != 1 || payload.Peers[0].IP != "203.0.113.10" {
+		t.Fatalf("unexpected peer payload: %+v", payload.Peers)
+	}
 }
 
 func TestDownloadFileActionEndpoint(t *testing.T) {
@@ -882,6 +885,33 @@ func TestDownloadFileActionEndpoint(t *testing.T) {
 	}
 	if !payload.Applied || payload.DownloadID != "abc123" || payload.Action != acquisition.DownloadFileActionSkip || payload.Priority != 0 {
 		t.Fatalf("unexpected file action payload: %+v", payload)
+	}
+}
+
+func TestDownloadTrackerActionEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/abc123/trackers/actions", strings.NewReader(`{"action":"add","urls":["https://tracker.example/announce"]}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload acquisition.DownloadTrackerActionResult
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.Applied || payload.DownloadID != "abc123" || payload.Action != acquisition.DownloadTrackerActionAdd || payload.URLs[0] != "https://tracker.example/announce" {
+		t.Fatalf("unexpected tracker action payload: %+v", payload)
+	}
+	if payload.Download == nil || len(payload.Download.Trackers) != 1 {
+		t.Fatalf("expected refreshed download details, got %+v", payload.Download)
 	}
 }
 
@@ -1524,6 +1554,15 @@ func (fakeAcquire) DownloadDetails(context.Context, string, string) (acquisition
 			Seeds:      8,
 			Leeches:    2,
 		}},
+		Peers: []acquisition.DownloadPeer{{
+			ID:           "203.0.113.10:51413",
+			IP:           "203.0.113.10",
+			Port:         51413,
+			Client:       "Transmission 4.0",
+			Progress:     0.5,
+			DownloadRate: 12,
+			UploadRate:   3,
+		}},
 	}, nil
 }
 
@@ -1546,6 +1585,17 @@ func (fakeAcquire) DownloadFileAction(_ context.Context, id string, request acqu
 		IDs:        request.IDs,
 		Priority:   priority,
 		Applied:    true,
+	}, nil
+}
+
+func (fakeAcquire) DownloadTrackerAction(_ context.Context, id string, request acquisition.DownloadTrackerActionRequest) (acquisition.DownloadTrackerActionResult, error) {
+	details, _ := fakeAcquire{}.DownloadDetails(context.Background(), id, "qBittorrent")
+	return acquisition.DownloadTrackerActionResult{
+		Action:     request.Action,
+		DownloadID: id,
+		URLs:       request.URLs,
+		Applied:    true,
+		Download:   &details,
 	}, nil
 }
 

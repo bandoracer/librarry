@@ -231,6 +231,30 @@ func TestQBittorrentDetailsMapsPropertiesFilesAndTrackers(t *testing.T) {
 				"num_leeches":    2,
 				"num_downloaded": 12,
 			}})
+		case "/api/v2/sync/torrentPeers":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"full_update": true,
+				"rid":         1,
+				"peers": map[string]any{
+					"203.0.113.10:51413": map[string]any{
+						"client":       "Transmission 4.0",
+						"connection":   "BT",
+						"country":      "United States",
+						"country_code": "US",
+						"dl_speed":     12,
+						"downloaded":   500,
+						"files":        "Book.epub",
+						"flags":        "I",
+						"flags_desc":   "incoming",
+						"ip":           "203.0.113.10",
+						"port":         51413,
+						"progress":     0.5,
+						"relevance":    1,
+						"up_speed":     3,
+						"uploaded":     25,
+					},
+				},
+			})
 		default:
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
@@ -250,6 +274,9 @@ func TestQBittorrentDetailsMapsPropertiesFilesAndTrackers(t *testing.T) {
 	}
 	if len(details.Trackers) != 1 || details.Trackers[0].Status != "working" || details.Trackers[0].Seeds != 8 {
 		t.Fatalf("unexpected trackers: %+v", details.Trackers)
+	}
+	if len(details.Peers) != 1 || details.Peers[0].IP != "203.0.113.10" || details.Peers[0].DownloadRate != 12 {
+		t.Fatalf("unexpected peers: %+v", details.Peers)
 	}
 }
 
@@ -284,6 +311,80 @@ func TestQBittorrentFileActionSetsPriority(t *testing.T) {
 	}
 	if !result.Applied || result.Action != DownloadFileActionHigh || result.Priority != 6 {
 		t.Fatalf("unexpected file action result: %+v", result)
+	}
+}
+
+func TestQBittorrentTrackerActions(t *testing.T) {
+	tests := []struct {
+		name       string
+		request    DownloadTrackerActionRequest
+		endpoint   string
+		wantForm   map[string]string
+		wantURLs   []string
+		wantAction string
+	}{
+		{
+			name:       "add",
+			request:    DownloadTrackerActionRequest{Action: DownloadTrackerActionAdd, URLs: []string{"https://tracker.one/announce", "https://tracker.two/announce"}},
+			endpoint:   "/api/v2/torrents/addTrackers",
+			wantForm:   map[string]string{"hash": "abc123", "urls": "https://tracker.one/announce\nhttps://tracker.two/announce"},
+			wantURLs:   []string{"https://tracker.one/announce", "https://tracker.two/announce"},
+			wantAction: DownloadTrackerActionAdd,
+		},
+		{
+			name:       "edit",
+			request:    DownloadTrackerActionRequest{Action: DownloadTrackerActionEdit, OriginalURL: "https://old.example/announce", NewURL: "https://new.example/announce"},
+			endpoint:   "/api/v2/torrents/editTracker",
+			wantForm:   map[string]string{"hash": "abc123", "origUrl": "https://old.example/announce", "newUrl": "https://new.example/announce"},
+			wantURLs:   []string{"https://old.example/announce", "https://new.example/announce"},
+			wantAction: DownloadTrackerActionEdit,
+		},
+		{
+			name:       "remove",
+			request:    DownloadTrackerActionRequest{Action: DownloadTrackerActionRemove, URL: "https://tracker.one/announce"},
+			endpoint:   "/api/v2/torrents/removeTrackers",
+			wantForm:   map[string]string{"hash": "abc123", "urls": "https://tracker.one/announce"},
+			wantURLs:   []string{"https://tracker.one/announce"},
+			wantAction: DownloadTrackerActionRemove,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var endpoint string
+			form := map[string]string{}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				endpoint = r.URL.Path
+				if err := r.ParseForm(); err != nil {
+					t.Fatal(err)
+				}
+				for key := range test.wantForm {
+					form[key] = r.Form.Get(key)
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			client := NewQBittorrentClient(server.URL, "", "", server.Client())
+			result, err := client.TrackerAction(context.Background(), "abc123", test.request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if endpoint != test.endpoint {
+				t.Fatalf("expected endpoint %s, got %s", test.endpoint, endpoint)
+			}
+			for key, want := range test.wantForm {
+				if form[key] != want {
+					t.Fatalf("expected form %s=%q, got %q", key, want, form[key])
+				}
+			}
+			if result.Action != test.wantAction || result.DownloadID != "abc123" || !result.Applied {
+				t.Fatalf("unexpected tracker result: %+v", result)
+			}
+			if strings.Join(result.URLs, "|") != strings.Join(test.wantURLs, "|") {
+				t.Fatalf("expected urls %+v, got %+v", test.wantURLs, result.URLs)
+			}
+		})
 	}
 }
 

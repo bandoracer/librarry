@@ -91,6 +91,7 @@ export type DownloadDetails = {
   properties?: DownloadProperties;
   files?: DownloadFile[];
   trackers?: DownloadTracker[];
+  peers?: DownloadPeer[];
 };
 
 export type DownloadProperties = {
@@ -143,6 +144,25 @@ export type DownloadTracker = {
   downloads?: number;
 };
 
+export type DownloadPeer = {
+  id: string;
+  ip: string;
+  port?: number;
+  client?: string;
+  connection?: string;
+  country?: string;
+  countryCode?: string;
+  flags?: string;
+  flagsDescription?: string;
+  progress?: number;
+  relevance?: number;
+  downloadRate?: number;
+  uploadRate?: number;
+  downloadedBytes?: number;
+  uploadedBytes?: number;
+  files?: string;
+};
+
 export type DownloadAction =
   | "start"
   | "stop"
@@ -156,6 +176,7 @@ export type DownloadAction =
   | "setLocation";
 
 export type DownloadFileAction = "skip" | "normal" | "high" | "max" | "priority";
+export type DownloadTrackerAction = "add" | "edit" | "remove";
 
 export type DownloadActionResult = {
   action: DownloadAction;
@@ -170,6 +191,15 @@ export type DownloadFileActionResult = {
   downloadId: string;
   ids: number[];
   priority: number;
+  applied: boolean;
+  message?: string;
+  download?: DownloadDetails;
+};
+
+export type DownloadTrackerActionResult = {
+  action: DownloadTrackerAction;
+  downloadId: string;
+  urls?: string[];
   applied: boolean;
   message?: string;
   download?: DownloadDetails;
@@ -605,6 +635,28 @@ export async function runDownloadFileAction(
     throw new Error(`Download file action failed: ${response.status}`);
   }
   return (await response.json()) as DownloadFileActionResult;
+}
+
+export async function runDownloadTrackerAction(
+  id: string,
+  action: DownloadTrackerAction,
+  options: { urls?: string[]; url?: string; originalUrl?: string; newUrl?: string } = {}
+): Promise<DownloadTrackerActionResult> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/${encodeURIComponent(id)}/trackers/actions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      urls: options.urls,
+      url: options.url,
+      originalUrl: options.originalUrl,
+      newUrl: options.newUrl
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Download tracker action failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadTrackerActionResult;
 }
 
 export async function rebalanceDownloads(options: {

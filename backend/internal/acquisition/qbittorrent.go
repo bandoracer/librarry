@@ -306,11 +306,16 @@ func (c *QBittorrentClient) Details(ctx context.Context, id string) (DownloadDet
 	if err != nil {
 		return DownloadDetails{}, err
 	}
+	peers, err := c.peers(ctx, id)
+	if err != nil {
+		return DownloadDetails{}, err
+	}
 	return DownloadDetails{
 		Status:     statuses[0],
 		Properties: properties,
 		Files:      files,
 		Trackers:   trackers,
+		Peers:      peers,
 	}, nil
 }
 
@@ -424,6 +429,64 @@ func (c *QBittorrentClient) FileAction(ctx context.Context, request DownloadFile
 		DownloadID: id,
 		IDs:        fileIDs,
 		Priority:   priority,
+		Applied:    true,
+	}, nil
+}
+
+func (c *QBittorrentClient) TrackerAction(ctx context.Context, id string, request DownloadTrackerActionRequest) (DownloadTrackerActionResult, error) {
+	if !c.Configured() {
+		return DownloadTrackerActionResult{}, ErrIntegrationNotConfigured
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DownloadTrackerActionResult{}, errors.New("download id is required")
+	}
+	action := normalizeTrackerAction(request.Action)
+	if err := c.login(ctx); err != nil {
+		return DownloadTrackerActionResult{}, err
+	}
+
+	values := url.Values{}
+	values.Set("hash", id)
+	var urls []string
+	switch action {
+	case DownloadTrackerActionAdd:
+		urls = trackerURLs(request)
+		if len(urls) == 0 {
+			return DownloadTrackerActionResult{}, errors.New("at least one tracker url is required")
+		}
+		values.Set("urls", strings.Join(urls, "\n"))
+		if err := c.postTorrentAction(ctx, "addTrackers", values); err != nil {
+			return DownloadTrackerActionResult{}, err
+		}
+	case DownloadTrackerActionEdit:
+		originalURL := strings.TrimSpace(firstNonEmpty(request.OriginalURL, request.URL))
+		newURL := strings.TrimSpace(request.NewURL)
+		if originalURL == "" || newURL == "" {
+			return DownloadTrackerActionResult{}, errors.New("originalUrl and newUrl are required for edit")
+		}
+		values.Set("origUrl", originalURL)
+		values.Set("newUrl", newURL)
+		if err := c.postTorrentAction(ctx, "editTracker", values); err != nil {
+			return DownloadTrackerActionResult{}, err
+		}
+		urls = []string{originalURL, newURL}
+	case DownloadTrackerActionRemove:
+		urls = trackerURLs(request)
+		if len(urls) == 0 {
+			return DownloadTrackerActionResult{}, errors.New("at least one tracker url is required")
+		}
+		values.Set("urls", strings.Join(urls, "|"))
+		if err := c.postTorrentAction(ctx, "removeTrackers", values); err != nil {
+			return DownloadTrackerActionResult{}, err
+		}
+	default:
+		return DownloadTrackerActionResult{}, fmt.Errorf("unsupported tracker action %q", request.Action)
+	}
+	return DownloadTrackerActionResult{
+		Action:     action,
+		DownloadID: id,
+		URLs:       urls,
 		Applied:    true,
 	}, nil
 }
@@ -585,6 +648,70 @@ func (c *QBittorrentClient) trackers(ctx context.Context, id string) ([]Download
 	return trackers, nil
 }
 
+func (c *QBittorrentClient) peers(ctx context.Context, id string) ([]DownloadPeer, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/sync/torrentPeers?hash="+url.QueryEscape(id)+"&rid=0", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("qBittorrent peers returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var raw struct {
+		Peers map[string]struct {
+			Client           string  `json:"client"`
+			Connection       string  `json:"connection"`
+			Country          string  `json:"country"`
+			CountryCode      string  `json:"country_code"`
+			DownloadRate     int64   `json:"dl_speed"`
+			Downloaded       int64   `json:"downloaded"`
+			Files            string  `json:"files"`
+			Flags            string  `json:"flags"`
+			FlagsDescription string  `json:"flags_desc"`
+			IP               string  `json:"ip"`
+			Port             int     `json:"port"`
+			Progress         float64 `json:"progress"`
+			Relevance        float64 `json:"relevance"`
+			UploadRate       int64   `json:"up_speed"`
+			Uploaded         int64   `json:"uploaded"`
+		} `json:"peers"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, err
+	}
+	peers := make([]DownloadPeer, 0, len(raw.Peers))
+	for key, item := range raw.Peers {
+		peerID := strings.TrimSpace(key)
+		if peerID == "" {
+			peerID = item.IP
+		}
+		peers = append(peers, DownloadPeer{
+			ID:               peerID,
+			IP:               item.IP,
+			Port:             item.Port,
+			Client:           strings.TrimSpace(item.Client),
+			Connection:       strings.TrimSpace(item.Connection),
+			Country:          strings.TrimSpace(item.Country),
+			CountryCode:      strings.TrimSpace(item.CountryCode),
+			Flags:            strings.TrimSpace(item.Flags),
+			FlagsDescription: strings.TrimSpace(item.FlagsDescription),
+			Progress:         item.Progress,
+			Relevance:        item.Relevance,
+			DownloadRate:     item.DownloadRate,
+			UploadRate:       item.UploadRate,
+			DownloadedBytes:  item.Downloaded,
+			UploadedBytes:    item.Uploaded,
+			Files:            strings.TrimSpace(item.Files),
+		})
+	}
+	return peers, nil
+}
+
 func (c *QBittorrentClient) editCategory(ctx context.Context, category string, savePath string) error {
 	values := url.Values{}
 	values.Set("category", category)
@@ -736,6 +863,38 @@ func normalizeFilePriorityAction(action string, priority int) (string, int, erro
 		}
 		return "", 0, fmt.Errorf("unsupported download file action %q", action)
 	}
+}
+
+func normalizeTrackerAction(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "add", "addtracker", "add_trackers", "addtrackers":
+		return DownloadTrackerActionAdd
+	case "edit", "replace", "edittracker", "edit_tracker":
+		return DownloadTrackerActionEdit
+	case "remove", "delete", "removetracker", "remove_tracker", "removetrackers":
+		return DownloadTrackerActionRemove
+	default:
+		return strings.TrimSpace(value)
+	}
+}
+
+func trackerURLs(request DownloadTrackerActionRequest) []string {
+	var urls []string
+	urls = append(urls, request.URLs...)
+	if strings.TrimSpace(request.URL) != "" {
+		urls = append(urls, request.URL)
+	}
+	seen := map[string]bool{}
+	compacted := make([]string, 0, len(urls))
+	for _, value := range urls {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		compacted = append(compacted, value)
+	}
+	return compacted
 }
 
 func actionOrDefault(action string, fallback string) string {

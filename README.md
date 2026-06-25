@@ -8,9 +8,10 @@ book data is incomplete or ambiguous.
 > Status: early alpha. The current build has real metadata search, provider
 > health, Prowlarr release search, qBittorrent category bootstrap, paused
 > qBittorrent grabs, Readarr-compatible release search/grab endpoints, download
-> polling, torrent details, torrent file-priority actions, row/bulk torrent
-> actions, and simple active-queue rebalancing. SABnzbd NZB/Usenet grabs,
-> queue/history polling, and start/stop/delete actions are implemented.
+> polling, torrent details with peer lists and tracker editing, torrent
+> file-priority actions, row/bulk torrent actions, and simple active-queue
+> rebalancing. SABnzbd NZB/Usenet grabs, queue/history polling, and
+> start/stop/delete actions are implemented.
 > Wanted items, author subscriptions, and release evaluation are implemented,
 > with manual and scheduled wanted and author monitoring plus history. Feed-based
 > indexer sync is implemented through Prowlarr-compatible RSS feeds. Library scan
@@ -31,10 +32,10 @@ book data is incomplete or ambiguous.
 > delay-profile, and system-task compatibility endpoints are implemented.
 > Persisted quality profiles now drive release scoring, preferred and rejected
 > terms, size limits, seeder minimums, and upgrade cutoffs. Librarry is not a
-> full standalone torrent-client UI yet; peer lists, bandwidth rules, tracker
-> editing, non-qBittorrent torrent details, conflict handling, advanced queue
-> arbitration, persistent compatibility config/resource editing, and broad
-> download-client parity are still early.
+> full standalone torrent-client UI yet; bandwidth rules, non-qBittorrent
+> torrent details, conflict handling, advanced queue arbitration, persistent
+> compatibility config/resource editing, and broad download-client parity are
+> still early.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -72,7 +73,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/SABnzbd grabs, download reconciliation, file rename previews/apply, and bulk selected-download actions. | Add richer review flows, missing-book policy, and conflict handling. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, Readarr-compatible `/api/v1/release` search/grab adapter, qBittorrent controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
-| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, details, tracker/file inspection, per-file skip/normal/high/max priority actions, and simple active-queue rebalancing are implemented. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add peer lists, tracker editing, bandwidth controls, conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
+| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, details, peer lists, tracker add/edit/remove, tracker/file inspection, per-file skip/normal/high/max priority actions, and simple active-queue rebalancing are implemented. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add bandwidth controls, conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
 | API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, host/UI/naming/media-management/indexer/download-client config, calendar, history, parse, root folders, queue, blocklist/blacklist, author/book list/create/lookup, bookfile list/get/update/delete compatibility, rename preview and RenameFiles command handling, manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, notifications, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, and basic commands. | Expand toward full OpenAPI compatibility, including durable author/book update/delete semantics, persistent config writes, retagging, Calibre endpoints, and persisted resource editing. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, queue unlinked files for review, and rename tracked files through native or Readarr-compatible APIs. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
@@ -94,8 +95,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Postgres-backed download reconciliation from qBittorrent and SABnzbd state.
-- qBittorrent torrent details with properties, tracker status, file lists, and
-  per-file skip/normal/high/max priority actions from the web UI.
+- qBittorrent torrent details with properties, peer lists, tracker status,
+  tracker add/edit/remove actions, file lists, and per-file
+  skip/normal/high/max priority actions from the web UI.
 - Wanted-item persistence and release evaluation with approved/rejected
   decisions.
 - Persisted quality profiles for ebooks and audiobooks, including minimum
@@ -147,7 +149,7 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   native Librarry routes and Readarr-compatible `/api/v1/release` search/grab.
 - qBittorrent integration for book categories, paused grabs, polling, simple
   active-queue rebalancing, single and bulk start, stop, delete, recheck,
-  import, recovery, and priority actions.
+  import, recovery, priority actions, peer inspection, and tracker editing.
 - SABnzbd integration for NZB/Usenet grabs, queue/history polling, and start,
   stop, and delete actions.
 - Readarr-compatible API shim for common client probes and status views,
@@ -334,6 +336,7 @@ Important API surfaces:
   - `GET /api/v1/downloads/{id}`
   - `POST /api/v1/downloads/actions`
   - `POST /api/v1/downloads/{id}/files/actions`
+  - `POST /api/v1/downloads/{id}/trackers/actions`
   - `POST /api/v1/downloads/rebalance`
   - `POST /api/v1/downloads/recover-failed`
   - `GET /api/v1/quality-profiles`

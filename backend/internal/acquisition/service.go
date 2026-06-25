@@ -237,6 +237,18 @@ func (s *Service) DownloadFileAction(ctx context.Context, id string, request Dow
 	return result, nil
 }
 
+func (s *Service) DownloadTrackerAction(ctx context.Context, id string, request DownloadTrackerActionRequest) (DownloadTrackerActionResult, error) {
+	result, err := s.qbit.TrackerAction(ctx, id, request)
+	if err != nil {
+		return DownloadTrackerActionResult{}, err
+	}
+	details, detailErr := s.qbit.Details(ctx, id)
+	if detailErr == nil {
+		result.Download = &details
+	}
+	return result, nil
+}
+
 func (s *Service) MarkDownloadFailed(ctx context.Context, id string, reason string) error {
 	if s.store == nil {
 		return nil
