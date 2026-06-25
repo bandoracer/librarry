@@ -61,26 +61,41 @@ type FailedDownloadRequest struct {
 	Force             bool     `json:"force,omitempty"`
 }
 
+type UpgradeRequest struct {
+	Trigger                  string   `json:"trigger,omitempty"`
+	WantedIDs                []string `json:"wantedIds,omitempty"`
+	Limit                    int      `json:"limit,omitempty"`
+	SearchLimit              int      `json:"searchLimit,omitempty"`
+	MinSearchIntervalMinutes int      `json:"minSearchIntervalMinutes,omitempty"`
+	MinScoreDelta            float64  `json:"minScoreDelta,omitempty"`
+	AutoGrab                 bool     `json:"autoGrab,omitempty"`
+	Paused                   bool     `json:"paused,omitempty"`
+	Force                    bool     `json:"force,omitempty"`
+}
+
 type GrabRequest struct {
 	ReleaseID string `json:"releaseId,omitempty"`
 	Paused    bool   `json:"paused"`
 }
 
 type WantedItem struct {
-	ID             string     `json:"id"`
-	WorkID         string     `json:"workId,omitempty"`
-	EditionID      string     `json:"editionId,omitempty"`
-	Title          string     `json:"title"`
-	AuthorName     string     `json:"authorName,omitempty"`
-	CoverURL       string     `json:"coverUrl,omitempty"`
-	Format         string     `json:"format"`
-	QualityProfile string     `json:"qualityProfile"`
-	Status         string     `json:"status"`
-	SourceProvider string     `json:"sourceProvider,omitempty"`
-	SourceKey      string     `json:"sourceKey,omitempty"`
-	LastSearchAt   *time.Time `json:"lastSearchAt,omitempty"`
-	CreatedAt      time.Time  `json:"createdAt"`
-	UpdatedAt      time.Time  `json:"updatedAt"`
+	ID                  string     `json:"id"`
+	WorkID              string     `json:"workId,omitempty"`
+	EditionID           string     `json:"editionId,omitempty"`
+	Title               string     `json:"title"`
+	AuthorName          string     `json:"authorName,omitempty"`
+	CoverURL            string     `json:"coverUrl,omitempty"`
+	Format              string     `json:"format"`
+	QualityProfile      string     `json:"qualityProfile"`
+	Status              string     `json:"status"`
+	SourceProvider      string     `json:"sourceProvider,omitempty"`
+	SourceKey           string     `json:"sourceKey,omitempty"`
+	CurrentReleaseID    string     `json:"currentReleaseId,omitempty"`
+	CurrentReleaseScore float64    `json:"currentReleaseScore,omitempty"`
+	LastSearchAt        *time.Time `json:"lastSearchAt,omitempty"`
+	LastUpgradeSearchAt *time.Time `json:"lastUpgradeSearchAt,omitempty"`
+	CreatedAt           time.Time  `json:"createdAt"`
+	UpdatedAt           time.Time  `json:"updatedAt"`
 }
 
 type ReleaseDecision struct {
@@ -174,6 +189,31 @@ type FailedDownloadResult struct {
 	ReplacementRelease  *ReleaseDecision            `json:"replacementRelease,omitempty"`
 	ReplacementDownload *acquisition.DownloadStatus `json:"replacementDownload,omitempty"`
 	Error               string                      `json:"error,omitempty"`
+}
+
+type UpgradeRun struct {
+	ID            string              `json:"id"`
+	Trigger       string              `json:"trigger"`
+	Status        string              `json:"status"`
+	WantedChecked int                 `json:"wantedChecked"`
+	ReleasesFound int                 `json:"releasesFound"`
+	UpgradeCount  int                 `json:"upgradeCount"`
+	GrabbedCount  int                 `json:"grabbedCount"`
+	ErrorCount    int                 `json:"errorCount"`
+	Message       string              `json:"message,omitempty"`
+	Items         []UpgradeItemResult `json:"items,omitempty"`
+	StartedAt     time.Time           `json:"startedAt"`
+	FinishedAt    *time.Time          `json:"finishedAt,omitempty"`
+}
+
+type UpgradeItemResult struct {
+	WantedItem      WantedItem                  `json:"wantedItem"`
+	CurrentScore    float64                     `json:"currentScore"`
+	CutoffScore     float64                     `json:"cutoffScore"`
+	ReleasesFound   int                         `json:"releasesFound"`
+	UpgradeRelease  *ReleaseDecision            `json:"upgradeRelease,omitempty"`
+	GrabbedDownload *acquisition.DownloadStatus `json:"grabbedDownload,omitempty"`
+	Error           string                      `json:"error,omitempty"`
 }
 
 type MonitorItemResult struct {

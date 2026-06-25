@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -105,7 +106,8 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
-			wi.source_key, wi.last_search_at, wi.created_at, wi.updated_at
+			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		`+where+`
@@ -137,7 +139,8 @@ func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
-			wi.source_key, wi.last_search_at, wi.created_at, wi.updated_at
+			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.id = $1
@@ -268,7 +271,8 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
-			wi.source_key, wi.last_search_at, wi.created_at, wi.updated_at
+			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.status = 'wanted'
@@ -276,6 +280,63 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 		order by coalesce(wi.last_search_at, 'epoch'::timestamptz), wi.created_at
 		limit $3
 	`, force, cutoff, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []WantedItem
+	for rows.Next() {
+		item, err := scanWanted(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, minInterval time.Duration, force bool) ([]WantedItem, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if minInterval <= 0 {
+		minInterval = 12 * time.Hour
+	}
+	cleanIDs := compactStrings(ids)
+	args := []any{force, time.Now().UTC().Add(-minInterval)}
+	where := []string{
+		"wi.status in ('grabbed', 'imported')",
+		"($1::boolean or wi.last_upgrade_search_at is null or wi.last_upgrade_search_at <= $2)",
+	}
+	if len(cleanIDs) > 0 {
+		for _, id := range cleanIDs {
+			args = append(args, id)
+		}
+		start := len(args) - len(cleanIDs) + 1
+		var placeholders []string
+		for i := start; i <= len(args); i++ {
+			placeholders = append(placeholders, "$"+strconv.Itoa(i))
+		}
+		where = append(where, "wi.id::text in ("+strings.Join(placeholders, ",")+")")
+	}
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, `
+		select
+			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
+			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
+			wi.wanted_format, wi.quality_profile, wi.status, wi.metadata_provider,
+			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+		from wanted_items wi
+		left join works w on w.id = wi.work_id
+		where `+strings.Join(where, " and ")+`
+		order by coalesce(wi.last_upgrade_search_at, 'epoch'::timestamptz), wi.created_at
+		limit $`+strconv.Itoa(len(args))+`
+	`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -301,6 +362,34 @@ func (s *Store) MarkWantedStatus(ctx context.Context, wantedID string, status st
 		return errors.New("wanted status is required")
 	}
 	_, err := s.db.ExecContext(ctx, `update wanted_items set status = $2, updated_at = now() where id = $1`, wantedID, status)
+	return err
+}
+
+func (s *Store) MarkWantedCurrentRelease(ctx context.Context, wantedID string, release ReleaseDecision) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(wantedID) == "" || strings.TrimSpace(release.ID) == "" {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `
+		update wanted_items
+		set current_release_id = nullif($2, '')::uuid,
+			current_release_score = $3,
+			updated_at = now()
+		where id = $1
+	`, wantedID, release.ID, release.Score)
+	return err
+}
+
+func (s *Store) MarkWantedUpgradeSearched(ctx context.Context, wantedID string) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(wantedID) == "" {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `update wanted_items set last_upgrade_search_at = now(), updated_at = now() where id = $1`, wantedID)
 	return err
 }
 
@@ -506,6 +595,55 @@ func (s *Store) FinishFailedDownloadRun(ctx context.Context, run FailedDownloadR
 	return finished, nil
 }
 
+func (s *Store) StartUpgradeRun(ctx context.Context, trigger string) (UpgradeRun, error) {
+	if !s.Configured() {
+		return UpgradeRun{}, errors.New("wanted store is unavailable")
+	}
+	trigger = strings.TrimSpace(trigger)
+	if trigger == "" {
+		trigger = "manual"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into upgrade_runs(trigger, status)
+		values ($1, 'running')
+		returning
+			id, trigger, status, wanted_checked, releases_found, upgrade_count,
+			grabbed_count, error_count, message, started_at, finished_at
+	`, trigger)
+	return scanUpgradeRun(row)
+}
+
+func (s *Store) FinishUpgradeRun(ctx context.Context, run UpgradeRun) (UpgradeRun, error) {
+	if !s.Configured() {
+		return UpgradeRun{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(run.Status) == "" {
+		run.Status = "completed"
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update upgrade_runs set
+			status = $2,
+			wanted_checked = $3,
+			releases_found = $4,
+			upgrade_count = $5,
+			grabbed_count = $6,
+			error_count = $7,
+			message = $8,
+			finished_at = now()
+		where id = $1
+		returning
+			id, trigger, status, wanted_checked, releases_found, upgrade_count,
+			grabbed_count, error_count, message, started_at, finished_at
+	`, run.ID, run.Status, run.WantedChecked, run.ReleasesFound, run.UpgradeCount,
+		run.GrabbedCount, run.ErrorCount, run.Message)
+	finished, err := scanUpgradeRun(row)
+	if err != nil {
+		return UpgradeRun{}, err
+	}
+	finished.Items = run.Items
+	return finished, nil
+}
+
 func (s *Store) UpsertFeedReleases(ctx context.Context, releases []acquisition.Release) error {
 	if !s.Configured() {
 		return errors.New("wanted store is unavailable")
@@ -643,11 +781,12 @@ type wantedScanner interface {
 func scanWanted(row wantedScanner) (WantedItem, error) {
 	var item WantedItem
 	var workID, editionID, coverURL, sourceProvider, sourceKey sql.NullString
-	var lastSearchAt sql.NullTime
+	var lastSearchAt, lastUpgradeSearchAt sql.NullTime
 	if err := row.Scan(
 		&item.ID, &workID, &editionID, &item.Title, &item.AuthorName, &coverURL,
 		&item.Format, &item.QualityProfile, &item.Status, &sourceProvider,
-		&sourceKey, &lastSearchAt, &item.CreatedAt, &item.UpdatedAt,
+		&sourceKey, &item.CurrentReleaseID, &item.CurrentReleaseScore,
+		&lastSearchAt, &lastUpgradeSearchAt, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return WantedItem{}, err
 	}
@@ -659,6 +798,10 @@ func scanWanted(row wantedScanner) (WantedItem, error) {
 	if lastSearchAt.Valid {
 		value := lastSearchAt.Time.UTC()
 		item.LastSearchAt = &value
+	}
+	if lastUpgradeSearchAt.Valid {
+		value := lastUpgradeSearchAt.Time.UTC()
+		item.LastUpgradeSearchAt = &value
 	}
 	return item, nil
 }
@@ -726,6 +869,23 @@ func scanFailedDownloadRun(row wantedScanner) (FailedDownloadRun, error) {
 		&run.Message, &run.StartedAt, &finishedAt,
 	); err != nil {
 		return FailedDownloadRun{}, err
+	}
+	if finishedAt.Valid {
+		value := finishedAt.Time.UTC()
+		run.FinishedAt = &value
+	}
+	return run, nil
+}
+
+func scanUpgradeRun(row wantedScanner) (UpgradeRun, error) {
+	var run UpgradeRun
+	var finishedAt sql.NullTime
+	if err := row.Scan(
+		&run.ID, &run.Trigger, &run.Status, &run.WantedChecked, &run.ReleasesFound,
+		&run.UpgradeCount, &run.GrabbedCount, &run.ErrorCount, &run.Message,
+		&run.StartedAt, &finishedAt,
+	); err != nil {
+		return UpgradeRun{}, err
 	}
 	if finishedAt.Valid {
 		value := finishedAt.Time.UTC()
@@ -817,6 +977,20 @@ func splitComma(value string) []string {
 		if part != "" {
 			out = append(out, part)
 		}
+	}
+	return out
+}
+
+func compactStrings(values []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
 	}
 	return out
 }

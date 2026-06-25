@@ -18,6 +18,8 @@ const (
 	defaultWantedSearchInterval     = 6 * time.Hour
 	defaultFailedDownloadLimit      = 50
 	defaultFailedDownloadStalledAge = 24 * time.Hour
+	defaultUpgradeSearchInterval    = 12 * time.Hour
+	defaultUpgradeScoreDelta        = 5.0
 )
 
 type Service struct {
@@ -600,6 +602,145 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 	return s.store.FinishFailedDownloadRun(ctx, run)
 }
 
+func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (UpgradeRun, error) {
+	if !s.Available() {
+		return UpgradeRun{}, errors.New("wanted service requires database persistence")
+	}
+	if s.acquire == nil {
+		return UpgradeRun{}, errors.New("acquisition service is unavailable")
+	}
+
+	run, err := s.store.StartUpgradeRun(ctx, request.Trigger)
+	if err != nil {
+		return UpgradeRun{}, err
+	}
+	limit := request.Limit
+	if limit <= 0 || limit > 200 {
+		limit = defaultWantedMonitorLimit
+	}
+	searchLimit := request.SearchLimit
+	if searchLimit <= 0 || searchLimit > 50 {
+		searchLimit = defaultWantedMonitorSearchLimit
+	}
+	minSearchInterval := defaultUpgradeSearchInterval
+	if request.MinSearchIntervalMinutes > 0 {
+		minSearchInterval = time.Duration(request.MinSearchIntervalMinutes) * time.Minute
+	}
+	minDelta := request.MinScoreDelta
+	if minDelta <= 0 {
+		minDelta = defaultUpgradeScoreDelta
+	}
+
+	items, err := s.store.ListUpgradeWanted(ctx, request.WantedIDs, limit, minSearchInterval, request.Force)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishUpgradeRun(ctx, run)
+		if finishErr != nil {
+			return UpgradeRun{}, finishErr
+		}
+		return finished, err
+	}
+
+	for _, item := range items {
+		select {
+		case <-ctx.Done():
+			run.Status = "canceled"
+			run.Message = ctx.Err().Error()
+			return s.store.FinishUpgradeRun(context.Background(), run)
+		default:
+		}
+
+		currentScore := s.currentReleaseScore(ctx, item)
+		cutoff := upgradeCutoffFor(item)
+		result := UpgradeItemResult{
+			WantedItem:   item,
+			CurrentScore: currentScore,
+			CutoffScore:  cutoff,
+		}
+		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
+		run.WantedChecked++
+		_ = s.store.MarkWantedUpgradeSearched(ctx, item.ID)
+		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		result.WantedItem = outcome.WantedItem
+		result.ReleasesFound = len(outcome.Releases)
+		run.ReleasesFound += len(outcome.Releases)
+
+		if release, ok := bestUpgradeRelease(outcome.Releases, currentScore, cutoff, minDelta); ok {
+			candidate := release
+			result.UpgradeRelease = &candidate
+			run.UpgradeCount++
+			_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+				EventType:  "upgrade_available",
+				EntityType: "wanted_item",
+				EntityID:   item.ID,
+				Severity:   "info",
+				Message:    "Upgrade available for " + item.Title,
+				Data: map[string]any{
+					"title":        item.Title,
+					"currentScore": currentScore,
+					"cutoffScore":  cutoff,
+					"releaseId":    release.ID,
+					"releaseTitle": release.Title,
+					"releaseScore": release.Score,
+					"runId":        run.ID,
+				},
+			})
+			if request.AutoGrab {
+				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "upgrade")
+				if err != nil {
+					result.Error = err.Error()
+					run.ErrorCount++
+					_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+						EventType:  "upgrade_grab_failed",
+						EntityType: "wanted_item",
+						EntityID:   item.ID,
+						Severity:   "error",
+						Message:    "Upgrade grab failed for " + item.Title,
+						Data: map[string]any{
+							"error":     err.Error(),
+							"releaseId": release.ID,
+							"title":     release.Title,
+						},
+					})
+				} else {
+					result.GrabbedDownload = &status
+					run.GrabbedCount++
+				}
+			}
+		}
+		run.Items = append(run.Items, result)
+	}
+
+	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+		EventType:  "upgrades_checked",
+		EntityType: "upgrade_run",
+		EntityID:   run.ID,
+		Severity:   "info",
+		Message:    "Checked wanted items for upgrades",
+		Data: map[string]any{
+			"wantedChecked": run.WantedChecked,
+			"releasesFound": run.ReleasesFound,
+			"upgradeCount":  run.UpgradeCount,
+			"grabbedCount":  run.GrabbedCount,
+			"errorCount":    run.ErrorCount,
+		},
+	})
+	if run.ErrorCount > 0 {
+		run.Status = "partial_failed"
+	} else {
+		run.Status = "completed"
+	}
+	run.Message = upgradeMessage(run)
+	return s.store.FinishUpgradeRun(ctx, run)
+}
+
 func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEvent, error) {
 	if !s.Available() {
 		return nil, errors.New("wanted service requires database persistence")
@@ -621,6 +762,9 @@ func (s *Service) grabRelease(ctx context.Context, item WantedItem, release Rele
 		return acquisition.DownloadStatus{}, err
 	}
 	if err := s.store.MarkWantedStatus(ctx, item.ID, "grabbed"); err != nil {
+		return status, err
+	}
+	if err := s.store.MarkWantedCurrentRelease(ctx, item.ID, release); err != nil {
 		return status, err
 	}
 	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
@@ -685,6 +829,60 @@ func firstApprovedReplacement(releases []ReleaseDecision, failed acquisition.Dow
 	return ReleaseDecision{}, false
 }
 
+func (s *Service) currentReleaseScore(ctx context.Context, item WantedItem) float64 {
+	if item.CurrentReleaseScore > 0 {
+		return item.CurrentReleaseScore
+	}
+	releases, err := s.store.ListReleaseDecisions(ctx, item.ID)
+	if err != nil {
+		return 0
+	}
+	for _, release := range releases {
+		if item.CurrentReleaseID != "" && release.ID == item.CurrentReleaseID {
+			return release.Score
+		}
+	}
+	for _, release := range releases {
+		if release.Approved {
+			return release.Score
+		}
+	}
+	return 0
+}
+
+func bestUpgradeRelease(releases []ReleaseDecision, currentScore float64, cutoffScore float64, minDelta float64) (ReleaseDecision, bool) {
+	if currentScore >= cutoffScore {
+		return ReleaseDecision{}, false
+	}
+	if minDelta <= 0 {
+		minDelta = defaultUpgradeScoreDelta
+	}
+	var best ReleaseDecision
+	for _, release := range releases {
+		if !release.Approved {
+			continue
+		}
+		if release.Score < currentScore+minDelta {
+			continue
+		}
+		if best.ID == "" || release.Score > best.Score || (release.Score == best.Score && release.Seeders > best.Seeders) {
+			best = release
+		}
+	}
+	return best, best.ID != ""
+}
+
+func upgradeCutoffFor(item WantedItem) float64 {
+	switch normalizeQualityProfile(item.QualityProfile) {
+	case "large", "best", "preferred":
+		return 90
+	case "strict":
+		return 95
+	default:
+		return 85
+	}
+}
+
 func monitorMessage(run MonitorRun) string {
 	if run.WantedChecked == 0 {
 		return strings.TrimSpace(run.Status) + ": no due wanted items"
@@ -695,6 +893,21 @@ func monitorMessage(run MonitorRun) string {
 		run.WantedChecked,
 		run.ReleasesFound,
 		run.ApprovedCount,
+		run.GrabbedCount,
+		run.ErrorCount,
+	)
+}
+
+func upgradeMessage(run UpgradeRun) string {
+	if run.WantedChecked == 0 {
+		return strings.TrimSpace(run.Status) + ": no grabbed or imported wanted items due for upgrade search"
+	}
+	return fmt.Sprintf(
+		"%s: checked %d wanted items, found %d releases, upgrades %d, grabbed %d, errors %d",
+		strings.TrimSpace(run.Status),
+		run.WantedChecked,
+		run.ReleasesFound,
+		run.UpgradeCount,
 		run.GrabbedCount,
 		run.ErrorCount,
 	)

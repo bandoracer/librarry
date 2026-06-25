@@ -19,6 +19,7 @@ import {
   Settings,
   SlidersHorizontal,
   Trash2,
+  TrendingUp,
   UploadCloud
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -35,6 +36,7 @@ import {
   importCompletedDownloads,
   importLibraryFile,
   recoverFailedDownloads,
+  runUpgradeSearch,
   runWantedFeedSync,
   runWantedMonitor,
   runDownloadAction,
@@ -57,6 +59,7 @@ import {
   type ReleaseDecision,
   type Release,
   type SearchResult,
+  type UpgradeRun,
   type WantedItem
 } from "./lib/api";
 import { seedProviders, seedResults } from "./lib/seed";
@@ -86,6 +89,7 @@ export function App() {
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
   const [feedSyncRun, setFeedSyncRun] = useState<FeedSyncRun | null>(null);
   const [failedDownloadRun, setFailedDownloadRun] = useState<FailedDownloadRun | null>(null);
+  const [upgradeRun, setUpgradeRun] = useState<UpgradeRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
@@ -99,6 +103,7 @@ export function App() {
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isRunningFeedSync, setIsRunningFeedSync] = useState(false);
+  const [isRunningUpgrade, setIsRunningUpgrade] = useState(false);
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
   const [isImportingLibrary, setIsImportingLibrary] = useState(false);
   const [isImportingCompleted, setIsImportingCompleted] = useState(false);
@@ -109,6 +114,7 @@ export function App() {
   const [wantedError, setWantedError] = useState("");
   const [monitorError, setMonitorError] = useState("");
   const [feedError, setFeedError] = useState("");
+  const [upgradeError, setUpgradeError] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [libraryError, setLibraryError] = useState("");
   const [downloadError, setDownloadError] = useState("");
@@ -280,6 +286,26 @@ export function App() {
       setFeedError(error instanceof Error ? error.message : "Feed sync failed");
     } finally {
       setIsRunningFeedSync(false);
+    }
+  }
+
+  async function runUpgrades(options: { autoGrab?: boolean }) {
+    setIsRunningUpgrade(true);
+    setUpgradeError("");
+    try {
+      const run = await runUpgradeSearch({
+        autoGrab: options.autoGrab ?? false,
+        paused: true,
+        force: true
+      });
+      setUpgradeRun(run);
+      setWantedItems((current) => mergeWanted(current, run.items?.map((item) => item.wantedItem) ?? []));
+      await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+      setAPIState("live");
+    } catch (error) {
+      setUpgradeError(error instanceof Error ? error.message : "Upgrade search failed");
+    } finally {
+      setIsRunningUpgrade(false);
     }
   }
 
@@ -833,10 +859,19 @@ export function App() {
                 <HardDriveDownload size={16} />
                 Feed + grab
               </button>
+              <button className="secondary-action compact" disabled={isRunningUpgrade} onClick={() => runUpgrades({})} type="button">
+                <TrendingUp size={16} />
+                Upgrades
+              </button>
+              <button className="secondary-action compact danger-outline" disabled={isRunningUpgrade} onClick={() => runUpgrades({ autoGrab: true })} type="button">
+                <HardDriveDownload size={16} />
+                Upgrade + grab
+              </button>
             </div>
           </div>
           {monitorError ? <div className="inline-error">{monitorError}</div> : null}
           {feedError ? <div className="inline-error">{feedError}</div> : null}
+          {upgradeError ? <div className="inline-error">{upgradeError}</div> : null}
           <div className="monitor-grid">
             {[
               ["Wanted checked", monitorRun?.wantedChecked ?? 0],
@@ -862,6 +897,28 @@ export function App() {
                   </span>
                   {item.grabbedDownload ? <em>Queued {item.grabbedDownload.category}</em> : null}
                   {item.error ? <small>{item.error}</small> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {upgradeRun ? (
+            <div className="upgrade-results">
+              <div className="upgrade-summary">
+                <strong>{upgradeRun.status}</strong>
+                <span>
+                  {upgradeRun.wantedChecked} checked · {upgradeRun.releasesFound} releases · {upgradeRun.upgradeCount} upgrades · {upgradeRun.grabbedCount} grabbed
+                </span>
+              </div>
+              {upgradeRun.items?.slice(0, 8).map((item) => (
+                <article className={item.upgradeRelease ? "upgrade-row approved" : item.error ? "upgrade-row rejected" : "upgrade-row"} key={item.wantedItem.id}>
+                  <div>
+                    <strong>{item.wantedItem.title}</strong>
+                    <span>
+                      current {item.currentScore.toFixed(1)} / cutoff {item.cutoffScore.toFixed(1)}
+                      {item.upgradeRelease ? ` · ${item.upgradeRelease.title} (${item.upgradeRelease.score.toFixed(1)})` : item.error ? ` · ${item.error}` : " · no upgrade"}
+                    </span>
+                  </div>
+                  {item.grabbedDownload ? <em>Queued</em> : null}
                 </article>
               ))}
             </div>

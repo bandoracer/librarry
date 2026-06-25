@@ -28,6 +28,7 @@ Initial API surface:
 - `POST /api/v1/wanted/{id}/grab`
 - `POST /api/v1/wanted/monitor`
 - `POST /api/v1/wanted/feed-sync`
+- `POST /api/v1/wanted/upgrades`
 - `GET /api/v1/history`
 - `GET /api/v1/library/files`
 - `POST /api/v1/library/scan`
@@ -74,6 +75,13 @@ The wanted monitor can be triggered manually through
 It selects due wanted items, reuses the same release evaluator as manual search,
 records monitor run summaries, writes history events, and optionally sends the
 best approved release to qBittorrent when `LIBRARRY_MONITOR_AUTO_GRAB=true`.
+
+Upgrade search can be triggered manually through `POST /api/v1/wanted/upgrades`
+and can also run on an interval in the API process. It searches grabbed/imported
+wanted items, compares approved releases against the current grabbed release
+score, and records upgrade candidates only when the item is below its profile
+cutoff and the candidate improves by the configured minimum delta. Upgrade
+search defaults to search-only; auto-grab is an explicit setting.
 
 Feed sync can be triggered manually through `POST /api/v1/wanted/feed-sync` and
 can also run on an interval in the API process. Prowlarr does not provide a

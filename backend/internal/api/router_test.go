@@ -179,6 +179,26 @@ func TestRecoverFailedDownloadsEndpoint(t *testing.T) {
 	}
 }
 
+func TestUpgradeWantedEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/upgrades", strings.NewReader(`{"autoGrab":true,"force":true}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"upgradeCount":1`) {
+		t.Fatalf("expected upgrade run in response, got %s", res.Body.String())
+	}
+}
+
 func TestHistoryEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -373,6 +393,18 @@ func (fakeWanted) RecoverFailedDownloads(context.Context, wanted.FailedDownloadR
 		FailedCount:       1,
 		ReplacementsFound: 1,
 		StartedAt:         time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) SearchUpgrades(context.Context, wanted.UpgradeRequest) (wanted.UpgradeRun, error) {
+	return wanted.UpgradeRun{
+		ID:            "upgrade-1",
+		Trigger:       "manual",
+		Status:        "completed",
+		WantedChecked: 1,
+		ReleasesFound: 2,
+		UpgradeCount:  1,
+		StartedAt:     time.Now().UTC(),
 	}, nil
 }
 

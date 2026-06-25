@@ -70,6 +70,22 @@ Manual feed runs are available through `POST /api/v1/wanted/feed-sync`.
 `LIBRARRY_FEED_SYNC_AUTO_GRAB=false` keeps scheduled feed runs search-only while
 still recording feed releases, matched release decisions, and history.
 
+## Upgrades
+
+Upgrade search can run on an interval:
+
+```dotenv
+LIBRARRY_UPGRADE_SEARCH_ENABLED=true
+LIBRARRY_UPGRADE_SEARCH_INTERVAL=12h
+LIBRARRY_UPGRADE_SEARCH_LIMIT=50
+LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=false
+LIBRARRY_UPGRADE_SEARCH_MIN_DELTA=5
+```
+
+Manual upgrade runs are available through `POST /api/v1/wanted/upgrades`.
+Upgrade search compares grabbed/imported items against profile cutoffs and only
+queues replacements when `autoGrab` is true.
+
 ## Failed Downloads
 
 Failed-download recovery can run on an interval:

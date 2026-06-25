@@ -115,7 +115,10 @@ export type WantedItem = {
   status: string;
   sourceProvider?: string;
   sourceKey?: string;
+  currentReleaseId?: string;
+  currentReleaseScore?: number;
   lastSearchAt?: string;
+  lastUpgradeSearchAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -218,6 +221,31 @@ export type FailedDownloadRun = {
   errorCount: number;
   message?: string;
   items?: FailedDownloadResult[];
+  startedAt: string;
+  finishedAt?: string;
+};
+
+export type UpgradeItemResult = {
+  wantedItem: WantedItem;
+  currentScore: number;
+  cutoffScore: number;
+  releasesFound: number;
+  upgradeRelease?: ReleaseDecision;
+  grabbedDownload?: DownloadStatus;
+  error?: string;
+};
+
+export type UpgradeRun = {
+  id: string;
+  trigger: string;
+  status: string;
+  wantedChecked: number;
+  releasesFound: number;
+  upgradeCount: number;
+  grabbedCount: number;
+  errorCount: number;
+  message?: string;
+  items?: UpgradeItemResult[];
   startedAt: string;
   finishedAt?: string;
 };
@@ -512,6 +540,35 @@ export async function runWantedFeedSync(options: {
     throw new Error(`Feed sync failed: ${response.status}`);
   }
   return (await response.json()) as FeedSyncRun;
+}
+
+export async function runUpgradeSearch(options: {
+  wantedIds?: string[];
+  autoGrab?: boolean;
+  paused?: boolean;
+  force?: boolean;
+  limit?: number;
+  searchLimit?: number;
+  minScoreDelta?: number;
+} = {}): Promise<UpgradeRun> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/upgrades`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      trigger: "manual",
+      wantedIds: options.wantedIds ?? [],
+      limit: options.limit ?? 50,
+      searchLimit: options.searchLimit ?? 20,
+      minScoreDelta: options.minScoreDelta ?? 5,
+      autoGrab: options.autoGrab ?? false,
+      paused: options.paused ?? true,
+      force: options.force ?? false
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Upgrade search failed: ${response.status}`);
+  }
+  return (await response.json()) as UpgradeRun;
 }
 
 export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {

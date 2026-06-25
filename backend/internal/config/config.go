@@ -39,6 +39,11 @@ type Config struct {
 	FailedDownloadAutoGrab    bool
 	FailedDownloadRemove      bool
 	FailedDownloadDeleteFiles bool
+	UpgradeSearchEnabled      bool
+	UpgradeSearchInterval     time.Duration
+	UpgradeSearchLimit        int
+	UpgradeSearchAutoGrab     bool
+	UpgradeSearchMinDelta     float64
 	WebOrigin                 string
 }
 
@@ -75,6 +80,11 @@ func FromEnv() Config {
 		FailedDownloadAutoGrab:    envBool("LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB", false),
 		FailedDownloadRemove:      envBool("LIBRARRY_FAILED_DOWNLOAD_REMOVE", false),
 		FailedDownloadDeleteFiles: envBool("LIBRARRY_FAILED_DOWNLOAD_DELETE_FILES", false),
+		UpgradeSearchEnabled:      envBool("LIBRARRY_UPGRADE_SEARCH_ENABLED", true),
+		UpgradeSearchInterval:     envDuration("LIBRARRY_UPGRADE_SEARCH_INTERVAL", 12*time.Hour),
+		UpgradeSearchLimit:        envInt("LIBRARRY_UPGRADE_SEARCH_LIMIT", 50),
+		UpgradeSearchAutoGrab:     envBool("LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB", false),
+		UpgradeSearchMinDelta:     envFloat("LIBRARRY_UPGRADE_SEARCH_MIN_DELTA", 5),
 		WebOrigin:                 env("LIBRARRY_WEB_ORIGIN", "http://127.0.0.1:5173"),
 	}
 }
@@ -105,6 +115,18 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func envFloat(key string, fallback float64) float64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return fallback
 	}

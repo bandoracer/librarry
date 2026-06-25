@@ -94,6 +94,10 @@ func main() {
 		monitorWG.Add(1)
 		go runFailedDownloadRecovery(ctx, &monitorWG, logger, wantedService, cfg)
 	}
+	if cfg.UpgradeSearchEnabled && wantedService.Available() {
+		monitorWG.Add(1)
+		go runUpgradeSearch(ctx, &monitorWG, logger, wantedService, cfg)
+	}
 
 	router := api.NewRouter(api.Dependencies{
 		Logger:   logger,
@@ -226,6 +230,61 @@ func runFailedDownloadRecovery(ctx context.Context, wg *sync.WaitGroup, logger *
 	defer startup.Stop()
 	defer ticker.Stop()
 	logger.Info("failed download recovery enabled", "interval", interval, "auto_grab", cfg.FailedDownloadAutoGrab, "remove_failed", cfg.FailedDownloadRemove)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			run("scheduled-startup")
+		case <-ticker.C:
+			run("scheduled")
+		}
+	}
+}
+
+func runUpgradeSearch(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
+	defer wg.Done()
+	interval := cfg.UpgradeSearchInterval
+	if interval <= 0 {
+		interval = 12 * time.Hour
+	}
+	minSearchIntervalMinutes := int(interval / time.Minute)
+	if minSearchIntervalMinutes <= 0 {
+		minSearchIntervalMinutes = int((12 * time.Hour) / time.Minute)
+	}
+	run := func(trigger string) {
+		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		outcome, err := service.SearchUpgrades(runCtx, wanted.UpgradeRequest{
+			Trigger:                  trigger,
+			Limit:                    cfg.UpgradeSearchLimit,
+			SearchLimit:              20,
+			MinSearchIntervalMinutes: minSearchIntervalMinutes,
+			MinScoreDelta:            cfg.UpgradeSearchMinDelta,
+			AutoGrab:                 cfg.UpgradeSearchAutoGrab,
+			Paused:                   true,
+		})
+		if err != nil {
+			logger.Warn("upgrade search failed", "trigger", trigger, "error", err)
+			return
+		}
+		logger.Info(
+			"upgrade search completed",
+			"trigger", trigger,
+			"status", outcome.Status,
+			"wanted_checked", outcome.WantedChecked,
+			"upgrades", outcome.UpgradeCount,
+			"grabbed", outcome.GrabbedCount,
+			"errors", outcome.ErrorCount,
+		)
+	}
+
+	startup := time.NewTimer(60 * time.Second)
+	ticker := time.NewTicker(interval)
+	defer startup.Stop()
+	defer ticker.Stop()
+	logger.Info("upgrade search enabled", "interval", interval, "auto_grab", cfg.UpgradeSearchAutoGrab, "min_delta", cfg.UpgradeSearchMinDelta)
 
 	for {
 		select {

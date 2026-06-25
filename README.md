@@ -13,7 +13,8 @@ book data is incomplete or ambiguous.
 > Prowlarr-compatible RSS feeds. Library scan and manual file import are
 > implemented. Completed qBittorrent downloads can be imported into organized
 > library roots. Failed-download detection and replacement search/grab are
-> implemented. Upgrades and richer import review are still in progress.
+> implemented. Score-based upgrade search/grab is implemented. Richer import
+> review is still in progress.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -48,7 +49,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, tracked in Postgres, manually imported, and fed by completed qBittorrent imports. | Add OPF, EPUB, audio-tag extraction, missing-book detection, and import review matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, manual/interval wanted monitoring, feed-based indexer sync, failed-download replacement search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add upgrades, sorting, renaming, and richer review flows. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, manual/interval wanted monitoring, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add sorting, renaming, and richer review flows. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, and qBittorrent controls. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented; SABnzbd interface is stubbed. | Add clients only behind small interfaces once metadata and matching are stable. |
@@ -86,6 +87,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Failed-download recovery for qBittorrent error/missing-file states and stale
   no-seed stalled downloads, with replacement search/grab and optional removal
   of failed torrents.
+- Score-based upgrade search for grabbed/imported wanted items, with profile
+  cutoffs, minimum score deltas, optional paused auto-grab, and history events.
 - Metadata provider abstraction with initial adapters for Hardcover, Open
   Library, Google Books, and local OPF/embedded metadata.
 - Prowlarr-compatible release search for book indexers.
@@ -141,6 +144,7 @@ Important API surfaces:
 - `POST /api/v1/wanted/{id}/grab`
 - `POST /api/v1/wanted/monitor`
 - `POST /api/v1/wanted/feed-sync`
+- `POST /api/v1/wanted/upgrades`
 - `GET /api/v1/history`
 - `GET /api/v1/library/files`
 - `POST /api/v1/library/scan`
@@ -226,6 +230,11 @@ LIBRARRY_FAILED_DOWNLOAD_LIMIT=50
 LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB=false
 LIBRARRY_FAILED_DOWNLOAD_REMOVE=false
 LIBRARRY_FAILED_DOWNLOAD_DELETE_FILES=false
+LIBRARRY_UPGRADE_SEARCH_ENABLED=true
+LIBRARRY_UPGRADE_SEARCH_INTERVAL=12h
+LIBRARRY_UPGRADE_SEARCH_LIMIT=50
+LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=false
+LIBRARRY_UPGRADE_SEARCH_MIN_DELTA=5
 ```
 
 Provider notes:
@@ -247,6 +256,9 @@ Provider notes:
   `LIBRARRY_FAILED_DOWNLOAD_REMOVE=true` to remove failed torrents from
   qBittorrent after recovery. `LIBRARRY_FAILED_DOWNLOAD_DELETE_FILES=true`
   also deletes the failed torrent payload when removal is enabled.
+- Upgrade search is enabled by default in search-only mode. Set
+  `LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=true` only when you want approved upgrades
+  to be sent to qBittorrent automatically.
 
 ## Deployment
 
@@ -279,7 +291,7 @@ will grow as the automation path stabilizes.
 ## Roadmap
 
 - OPF, EPUB, and audio-tag extraction during library scans.
-- Upgrade decisions and author subscriptions.
+- Author subscriptions.
 - Manual import review, rename profiles, and conflict policies.
 - Better edition selection for narrator, language, format, and ISBN.
 - Hardcover and Google Books fixture coverage.
