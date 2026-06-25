@@ -226,6 +226,11 @@ are populated from failed active downloads plus failed Librarry history events.
 The delete endpoints currently acknowledge compatibility clear requests; durable
 blocklist editing still needs a dedicated persisted blocklist model.
 
+Readarr-compatible root folders are persisted in Postgres through
+`compat_root_folders`. The compatibility API keeps environment-configured ebook
+and audiobook roots as defaults, overlays persisted folders by path, and maps
+stored UUIDs to stable integer IDs for Arr-style clients.
+
 Common Arr resource endpoints are exposed for quality definitions, language
 profiles, metadata profiles, tags, custom formats, restrictions, notifications,
 import lists, and remote path mappings. These endpoints currently provide
@@ -299,8 +304,8 @@ engine. `GET /api/v1/manualimport` lists pending import reviews, can scan a
 provided folder for supported ebook/audiobook candidates, and `POST
 /api/v1/manualimport` imports selected files through the regular library import
 path. The naming and media-management compatibility config endpoints reflect
-the active Librarry roots and naming templates; persisted Readarr-style config
-writes are still future work.
+the active Librarry roots and naming templates; root folder writes are persisted,
+while broader Readarr-style config writes are still future work.
 
 The Readarr-compatible `/api/v1/bookfile` surface maps native Librarry file
 records back into Arr-style bookfile records with stable numeric IDs, nested

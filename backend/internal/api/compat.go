@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"hash/fnv"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
@@ -153,7 +155,11 @@ func (h *handler) compatHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatDiskspace(w http.ResponseWriter, r *http.Request) {
-	roots := h.compatRootFolderRecords()
+	roots, err := h.compatRootFolderRecords(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
 	records := make([]map[string]any, 0, len(roots))
 	for _, root := range roots {
 		records = append(records, map[string]any{
@@ -370,13 +376,22 @@ func (h *handler) compatParse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatRootFolders(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatRootFolderRecords())
+	roots, err := h.compatRootFolderRecords(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, roots)
 }
 
 func (h *handler) compatRootFolder(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(r.PathValue("id"))
-	for _, root := range h.compatRootFolderRecords() {
-		if root["id"] == id {
+	roots, err := h.compatRootFolderRecords(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	for _, root := range roots {
+		if compatRootFolderRecordMatches(r.PathValue("id"), root) {
 			writeJSON(w, http.StatusOK, root)
 			return
 		}
@@ -385,23 +400,80 @@ func (h *handler) compatRootFolder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatCreateRootFolder(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var payload struct {
-		Path string `json:"path"`
-		Name string `json:"name"`
+	payload, ok := decodeCompatObjectPayload(w, r, "root folder")
+	if !ok {
+		return
 	}
-	_ = json.NewDecoder(r.Body).Decode(&payload)
-	path := strings.TrimSpace(payload.Path)
+	path := firstNonEmptyString(payloadString(payload, "path"), payloadString(payload, "rootFolderPath"))
 	if path == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "path is required"})
 		return
 	}
-	root := compatRootFolderRecord(stableInt(path), defaultString(payload.Name, "Books"), path)
+	name := firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "label"), "Books")
+	mediaFormat := firstNonEmptyString(payloadString(payload, "mediaFormat"), payloadString(payload, "format"), "mixed")
+	if h.deps.Compat != nil {
+		root, err := h.deps.Compat.CreateRootFolder(r.Context(), compatdata.RootFolder{
+			Name:        name,
+			Path:        path,
+			MediaFormat: mediaFormat,
+			Metadata:    map[string]any{"source": "readarr-compatible-api"},
+		})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusCreated, compatStoredRootFolderRecord(root))
+		return
+	}
+	root := compatRootFolderRecord(stableInt(path), name, path)
+	root["mediaFormat"] = mediaFormat
 	writeJSON(w, http.StatusCreated, root)
 }
 
 func (h *handler) compatDeleteRootFolder(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNoContent)
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "root folder id is required"})
+		return
+	}
+	if h.deps.Compat != nil {
+		roots, err := h.deps.Compat.ListRootFolders(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		for _, root := range roots {
+			if compatStoredRootFolderMatches(id, root) {
+				deleted, err := h.deps.Compat.DeleteRootFolder(r.Context(), root.ID)
+				if err != nil {
+					writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+					return
+				}
+				if deleted {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				writeJSON(w, http.StatusNotFound, map[string]any{"error": "root folder not found"})
+				return
+			}
+		}
+		deleted, err := h.deps.Compat.DeleteRootFolder(r.Context(), id)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		if deleted {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+	for _, root := range h.defaultRootFolderRecords() {
+		if compatRootFolderRecordMatches(id, root) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "root folder not found"})
 }
 
 func (h *handler) compatQueue(w http.ResponseWriter, r *http.Request) {
@@ -1690,7 +1762,36 @@ func (h *handler) compatCategoryForFormat(format string) string {
 	}
 }
 
-func (h *handler) compatRootFolderRecords() []map[string]any {
+func (h *handler) compatRootFolderRecords(ctx context.Context) ([]map[string]any, error) {
+	records := h.defaultRootFolderRecords()
+	if h.deps.Compat == nil {
+		return records, nil
+	}
+	roots, err := h.deps.Compat.ListRootFolders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]int{}
+	for index, record := range records {
+		seen[rootFolderPathKey(payloadString(record, "path"))] = index
+	}
+	for _, root := range roots {
+		if strings.TrimSpace(root.Path) == "" {
+			continue
+		}
+		record := compatStoredRootFolderRecord(root)
+		key := rootFolderPathKey(root.Path)
+		if index, ok := seen[key]; ok {
+			records[index] = record
+			continue
+		}
+		seen[key] = len(records)
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func (h *handler) defaultRootFolderRecords() []map[string]any {
 	return []map[string]any{
 		compatRootFolderRecord(1, "Ebooks", defaultString(h.deps.Config.EbookLibraryRoot, "/data/media/books/ebooks")),
 		compatRootFolderRecord(2, "Audiobooks", defaultString(h.deps.Config.AudiobookLibraryRoot, "/data/media/books/audiobooks")),
@@ -1856,6 +1957,36 @@ func compatRootFolderRecord(id int, name string, path string) map[string]any {
 		"totalSpace":      total,
 		"unmappedFolders": []any{},
 	}
+}
+
+func compatStoredRootFolderRecord(root compatdata.RootFolder) map[string]any {
+	idSource := firstNonEmptyString(root.ID, root.Path)
+	record := compatRootFolderRecord(stableInt(idSource), defaultString(root.Name, "Books"), root.Path)
+	record["librarryId"] = root.ID
+	record["mediaFormat"] = defaultString(root.MediaFormat, "mixed")
+	record["metadata"] = root.Metadata
+	return record
+}
+
+func compatRootFolderRecordMatches(pathValue string, root map[string]any) bool {
+	id := payloadIntDefault(root, "id", 0)
+	if id > 0 && strings.TrimSpace(pathValue) == strconv.Itoa(id) {
+		return true
+	}
+	return compatIDMatches(
+		pathValue,
+		payloadString(root, "librarryId"),
+		payloadString(root, "name"),
+		payloadString(root, "path"),
+	)
+}
+
+func compatStoredRootFolderMatches(pathValue string, root compatdata.RootFolder) bool {
+	return compatIDMatches(pathValue, root.ID, root.Name, root.Path)
+}
+
+func rootFolderPathKey(path string) string {
+	return strings.ToLower(strings.TrimSpace(path))
 }
 
 func compatCalendarRecord(item wanted.WantedItem) map[string]any {
@@ -3558,6 +3689,10 @@ func payloadIntDefault(payload map[string]any, key string, fallback int) int {
 		return fallback
 	}
 	switch typed := value.(type) {
+	case int:
+		return typed
+	case int64:
+		return int(typed)
 	case float64:
 		return int(typed)
 	case string:

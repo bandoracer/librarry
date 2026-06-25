@@ -12,6 +12,7 @@ import (
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/api"
+	compatstore "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/database"
 	"github.com/bandoracer/librarry/backend/internal/library"
@@ -30,6 +31,7 @@ func main() {
 	var downloadStore acquisition.DownloadStore
 	var wantedStore *wanted.Store
 	var libraryStore *library.Store
+	var compatStore *compatstore.Store
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -46,6 +48,7 @@ func main() {
 		downloadStore = acquisition.NewSQLDownloadStore(db)
 		wantedStore = wanted.NewStore(db)
 		libraryStore = library.NewStore(db)
+		compatStore = compatstore.NewStore(db)
 		logger.Info("database migrations applied")
 	} else {
 		logger.Warn("LIBRARRY_DATABASE_URL is not set; starting without database-backed persistence")
@@ -119,6 +122,7 @@ func main() {
 		Acquire:  acquire,
 		Wanted:   wantedService,
 		Library:  libraryService,
+		Compat:   compatStore,
 	})
 
 	server := &http.Server{

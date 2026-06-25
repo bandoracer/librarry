@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
@@ -101,6 +102,64 @@ func TestCompatRootFolderAndDiskspaceEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"totalSpace"`) {
 		t.Fatalf("expected diskspace records, got %s", res.Body.String())
+	}
+}
+
+func TestCompatRootFolderPersistenceEndpoints(t *testing.T) {
+	compatResources := &fakeCompatResources{
+		roots: []compatdata.RootFolder{{
+			ID:          "root-1",
+			Name:        "Comics",
+			Path:        "/srv/books/comics",
+			MediaFormat: "ebook",
+			Metadata:    map[string]any{"source": "test"},
+		}},
+	}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", EbookLibraryRoot: "/tmp/ebooks", AudiobookLibraryRoot: "/tmp/audiobooks"},
+		Metadata: metadata.NewService(nil),
+		Compat:   compatResources,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/rootfolder", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"/srv/books/comics"`) || !strings.Contains(res.Body.String(), `"librarryId":"root-1"`) {
+		t.Fatalf("expected persisted root folder, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"/srv/books/comics"`) {
+		t.Fatalf("expected persisted root folder lookup, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/rootfolder", strings.NewReader(`{"name":"Audiobooks Extra","path":"/srv/books/audio-extra","mediaFormat":"audiobook"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"/srv/books/audio-extra"`) || !strings.Contains(res.Body.String(), `"mediaFormat":"audiobook"`) {
+		t.Fatalf("expected created persisted root folder, got %s", res.Body.String())
+	}
+	if len(compatResources.roots) != 2 {
+		t.Fatalf("expected root folder to be persisted, got %d roots", len(compatResources.roots))
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(compatResources.deleted) != 1 || compatResources.deleted[0] != "root-1" {
+		t.Fatalf("expected delete by stored id, got %#v", compatResources.deleted)
 	}
 }
 
@@ -1817,6 +1876,41 @@ func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.Histor
 		Message:    "Searched wanted releases",
 		CreatedAt:  time.Now().UTC(),
 	}}, nil
+}
+
+type fakeCompatResources struct {
+	roots   []compatdata.RootFolder
+	deleted []string
+}
+
+func (f *fakeCompatResources) ListRootFolders(context.Context) ([]compatdata.RootFolder, error) {
+	return append([]compatdata.RootFolder(nil), f.roots...), nil
+}
+
+func (f *fakeCompatResources) CreateRootFolder(_ context.Context, root compatdata.RootFolder) (compatdata.RootFolder, error) {
+	if root.ID == "" {
+		root.ID = "root-" + strconv.Itoa(len(f.roots)+1)
+	}
+	if root.MediaFormat == "" {
+		root.MediaFormat = "mixed"
+	}
+	if root.Metadata == nil {
+		root.Metadata = map[string]any{}
+	}
+	f.roots = append(f.roots, root)
+	return root, nil
+}
+
+func (f *fakeCompatResources) DeleteRootFolder(_ context.Context, id string) (bool, error) {
+	for index, root := range f.roots {
+		if root.ID != id {
+			continue
+		}
+		f.deleted = append(f.deleted, id)
+		f.roots = append(f.roots[:index], f.roots[index+1:]...)
+		return true, nil
+	}
+	return false, nil
 }
 
 type fakeBlocklistWanted struct {

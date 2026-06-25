@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
@@ -26,6 +27,7 @@ type Dependencies struct {
 	Acquire  acquisitionService
 	Wanted   wantedService
 	Library  libraryService
+	Compat   compatResourceService
 }
 
 type acquisitionService interface {
@@ -68,6 +70,12 @@ type libraryService interface {
 	Import(ctx context.Context, request library.ImportRequest) (library.ImportOutcome, error)
 	ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request library.CompletedImportRequest) (library.CompletedImportOutcome, error)
 	ResolveImportReview(ctx context.Context, id string, request library.ReviewDecisionRequest) (library.ReviewDecisionOutcome, error)
+}
+
+type compatResourceService interface {
+	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
+	CreateRootFolder(ctx context.Context, folder compatdata.RootFolder) (compatdata.RootFolder, error)
+	DeleteRootFolder(ctx context.Context, id string) (bool, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {
