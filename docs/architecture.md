@@ -55,17 +55,20 @@ data came from and why a match was accepted or sent to review.
 
 ## Acquisition
 
-Librarry integrates directly with Prowlarr and qBittorrent. Prowlarr is queried
-for book releases through `/api/v1/releases/search`, and qBittorrent is used for
-paused grabs through `/api/v1/grabs`. Startup and `/api/v1/integrations/bootstrap`
+Librarry integrates directly with Prowlarr, qBittorrent, and SABnzbd. Prowlarr
+is queried for book releases through `/api/v1/releases/search`. Torrent releases
+are sent to qBittorrent, while Usenet/NZB releases are sent to SABnzbd through
+the same `/api/v1/grabs` API. Startup and `/api/v1/integrations/bootstrap`
 ensure the book categories exist in qBittorrent.
 
-Download state is reconciled from qBittorrent through `/api/v1/downloads` and
-stored in Postgres when database persistence is configured. Torrent actions are
-exposed through `/api/v1/downloads/actions` for start, stop, delete, recheck,
-priority changes, category changes, and location changes. The API accepts
-multiple download IDs for these actions, and the web UI exposes selected-row
-bulk controls for the common queue operations.
+Download state is reconciled from qBittorrent and SABnzbd through
+`/api/v1/downloads` and stored in Postgres when database persistence is
+configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
+start, stop, delete, recheck, priority changes, category changes, and location
+changes. SABnzbd actions currently support start, stop, and delete. The API
+accepts multiple download IDs for these actions, routes each ID back to its
+owning client when possible, and the web UI exposes selected-row bulk controls
+for the common queue operations.
 
 Failed-download recovery can be triggered manually through
 `POST /api/v1/downloads/recover-failed` and can also run on an interval in the
@@ -77,7 +80,8 @@ auto-grab and failed-torrent removal are explicit settings.
 
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and
-record explicit rejection reasons before a candidate is sent to qBittorrent.
+record explicit rejection reasons before a candidate is sent to the matching
+download client.
 
 Quality profiles are stored in Postgres and applied anywhere a release is
 evaluated: manual wanted search, scheduled monitoring, feed sync, failed
@@ -90,7 +94,8 @@ The wanted monitor can be triggered manually through
 `POST /api/v1/wanted/monitor` and can also run on an interval in the API process.
 It selects due wanted items, reuses the same release evaluator as manual search,
 records monitor run summaries, writes history events, and optionally sends the
-best approved release to qBittorrent when `LIBRARRY_MONITOR_AUTO_GRAB=true`.
+best approved release to the matching download client when
+`LIBRARRY_MONITOR_AUTO_GRAB=true`.
 
 Author subscriptions are stored separately from wanted items. A subscription
 captures provider provenance, author identity, target format, and quality
@@ -113,8 +118,8 @@ single aggregate RSS endpoint, so Librarry lists RSS-enabled Prowlarr indexers,
 pulls each Prowlarr-compatible Torznab/Newznab feed, stores seen releases, and
 matches feed entries against wanted items with the same release evaluator used by
 manual search. Feed sync defaults to search-only and only sends approved
-releases to qBittorrent when `LIBRARRY_FEED_SYNC_AUTO_GRAB=true` or a manual
-request sets `autoGrab`.
+releases to the matching download client when
+`LIBRARRY_FEED_SYNC_AUTO_GRAB=true` or a manual request sets `autoGrab`.
 
 ## Library Import
 

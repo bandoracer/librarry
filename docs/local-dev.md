@@ -35,9 +35,32 @@ docker compose up --build
 but it intentionally contains placeholder secrets. Build `librarry-api:local`
 and `librarry-web:local` on the TrueNAS host or replace the images with registry
 tags before installing the custom app. Do not commit a real Prowlarr API key.
+Do not commit SABnzbd or download-client credentials either.
 
 The default TrueNAS port is `192.168.1.221:30200`, with `/mnt/HDD_pool/vault/media-stack`
 mounted into the API container as `/data`.
+
+## Acquisition
+
+Prowlarr provides release search. qBittorrent handles torrent releases and
+SABnzbd handles Usenet/NZB releases.
+
+```dotenv
+LIBRARRY_PROWLARR_URL=
+LIBRARRY_PROWLARR_API_KEY=
+LIBRARRY_QBITTORRENT_URL=
+LIBRARRY_QBITTORRENT_USERNAME=
+LIBRARRY_QBITTORRENT_PASSWORD=
+LIBRARRY_SABNZBD_URL=
+LIBRARRY_SABNZBD_API_KEY=
+LIBRARRY_SABNZBD_USERNAME=
+LIBRARRY_SABNZBD_PASSWORD=
+```
+
+`LIBRARRY_QBITTORRENT_URL` is enough for trusted LAN deployments with qBittorrent
+auth disabled for the calling host. SABnzbd requires both URL and API key;
+username/password are only needed when SABnzbd itself is protected by basic
+auth.
 
 ## Quality Profiles
 
@@ -133,7 +156,8 @@ and only grabs or removes torrents when explicitly requested.
 
 The download queue UI uses `POST /api/v1/downloads/actions` for single and
 selected-row bulk actions. Supported queue actions include start, stop, delete,
-recheck, priority movement, category changes, and location changes.
+recheck, priority movement, category changes, and location changes for
+qBittorrent. SABnzbd queue actions currently support start, stop, and delete.
 
 ## Library Roots
 

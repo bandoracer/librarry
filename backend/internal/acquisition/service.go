@@ -16,6 +16,10 @@ type IntegrationConfig struct {
 	QBittorrentURL    string
 	QBittorrentUser   string
 	QBittorrentPass   string
+	SABnzbdURL        string
+	SABnzbdAPIKey     string
+	SABnzbdUser       string
+	SABnzbdPass       string
 	EbookCategory     string
 	AudiobookCategory string
 	BookTorrentRoot   string
@@ -38,6 +42,7 @@ type Service struct {
 	config   IntegrationConfig
 	prowlarr *ProwlarrClient
 	qbit     *QBittorrentClient
+	sab      *SABnzbdClient
 	store    DownloadStore
 }
 
@@ -57,6 +62,13 @@ func NewService(config IntegrationConfig) *Service {
 			config.QBittorrentPass,
 			shortClient,
 		),
+		sab: NewSABnzbdClient(
+			config.SABnzbdURL,
+			config.SABnzbdAPIKey,
+			config.SABnzbdUser,
+			config.SABnzbdPass,
+			shortClient,
+		),
 		store: config.DownloadStore,
 	}
 }
@@ -65,6 +77,7 @@ func (s *Service) Health(ctx context.Context) []IntegrationHealth {
 	return []IntegrationHealth{
 		s.prowlarr.Health(ctx),
 		s.qbit.Health(ctx),
+		s.sab.Health(ctx),
 	}
 }
 
@@ -97,7 +110,8 @@ func (s *Service) Grab(ctx context.Context, request DownloadRequest) (DownloadSt
 	if len(request.Tags) == 0 {
 		request.Tags = []string{"librarry"}
 	}
-	status, err := s.qbit.Add(ctx, request)
+	client := s.downloadClientForRequest(request)
+	status, err := client.Add(ctx, request)
 	if err != nil {
 		return DownloadStatus{}, err
 	}
@@ -106,38 +120,95 @@ func (s *Service) Grab(ctx context.Context, request DownloadRequest) (DownloadSt
 }
 
 func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]DownloadStatus, error) {
-	statuses, err := s.qbit.List(ctx, query)
-	if err == nil {
-		_ = s.storeDownloads(ctx, statuses)
-		statuses = s.mergeStoredDownloadState(ctx, statuses, query)
-		return statuses, nil
+	var statuses []DownloadStatus
+	var firstErr error
+
+	if s.includeClient(query, s.qbit.Name()) && s.qbit.Configured() {
+		qbitStatuses, err := s.qbit.List(ctx, query)
+		if err != nil {
+			firstErr = err
+		} else {
+			statuses = append(statuses, qbitStatuses...)
+		}
 	}
+	if s.includeClient(query, s.sab.Name()) && s.sab.Configured() {
+		sabStatuses, err := s.sab.List(ctx, query)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		} else if err == nil {
+			statuses = append(statuses, sabStatuses...)
+		}
+	}
+
+	if len(statuses) > 0 {
+		_ = s.storeDownloads(ctx, statuses)
+		return s.mergeStoredDownloadState(ctx, statuses, query), nil
+	}
+
 	if s.store != nil {
 		stored, storeErr := s.store.ListDownloads(ctx, query)
 		if storeErr == nil && len(stored) > 0 {
 			return stored, nil
 		}
 	}
-	return nil, err
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return []DownloadStatus{}, nil
 }
 
 func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
-	result, err := s.qbit.Action(ctx, request)
-	if err != nil {
-		return DownloadActionResult{}, err
+	ids := compactStrings(request.IDs)
+	if len(ids) == 0 {
+		return DownloadActionResult{}, errors.New("at least one download id is required")
 	}
-	if normalizeAction(request.Action) == DownloadActionDelete {
+
+	qbitIDs, sabIDs := s.partitionDownloadIDs(ctx, ids)
+	if len(qbitIDs) == 0 && len(sabIDs) == 0 {
+		if s.sab.Configured() && !s.qbit.Configured() {
+			sabIDs = ids
+		} else {
+			qbitIDs = ids
+		}
+	}
+
+	action := normalizeAction(request.Action)
+	if len(sabIDs) > 0 && !sabSupportsAction(action) {
+		return DownloadActionResult{}, errors.New("SABnzbd supports only start, stop, and delete actions")
+	}
+
+	var appliedIDs []string
+	var refreshed []DownloadStatus
+	if len(qbitIDs) > 0 {
+		qbitRequest := request
+		qbitRequest.IDs = qbitIDs
+		result, err := s.qbit.Action(ctx, qbitRequest)
+		if err != nil {
+			return DownloadActionResult{}, err
+		}
+		appliedIDs = append(appliedIDs, result.IDs...)
+	}
+	if len(sabIDs) > 0 {
+		sabRequest := request
+		sabRequest.IDs = sabIDs
+		result, err := s.sab.Action(ctx, sabRequest)
+		if err != nil {
+			return DownloadActionResult{}, err
+		}
+		appliedIDs = append(appliedIDs, result.IDs...)
+	}
+
+	if action == DownloadActionDelete {
 		if s.store != nil {
-			_ = s.store.MarkDownloadsDeleted(ctx, result.IDs)
+			_ = s.store.MarkDownloadsDeleted(ctx, appliedIDs)
 		}
 	} else {
-		statuses, listErr := s.qbit.List(ctx, DownloadListQuery{IDs: result.IDs})
+		statuses, listErr := s.Downloads(ctx, DownloadListQuery{IDs: appliedIDs})
 		if listErr == nil {
-			_ = s.storeDownloads(ctx, statuses)
-			result.Downloads = statuses
+			refreshed = statuses
 		}
 	}
-	return result, nil
+	return DownloadActionResult{Action: action, IDs: appliedIDs, Applied: true, Downloads: refreshed}, nil
 }
 
 func (s *Service) MarkDownloadFailed(ctx context.Context, id string, reason string) error {
@@ -192,6 +263,56 @@ func (s *Service) bookTorrentRoot() string {
 	return DefaultTorrentRoot
 }
 
+func (s *Service) downloadClientForRequest(request DownloadRequest) downloadClient {
+	if s.shouldUseSAB(request) {
+		return s.sab
+	}
+	return s.qbit
+}
+
+func (s *Service) shouldUseSAB(request DownloadRequest) bool {
+	protocol := strings.ToLower(strings.TrimSpace(request.Protocol))
+	switch protocol {
+	case "usenet", "nzb", "newznab":
+		return true
+	case "torrent", "torznab":
+		return false
+	}
+	urlText := strings.ToLower(strings.TrimSpace(request.ReleaseURL))
+	if strings.Contains(urlText, ".nzb") || strings.Contains(urlText, "t=get") && strings.Contains(urlText, "apikey=") {
+		return true
+	}
+	return s.sab.Configured() && !s.qbit.Configured()
+}
+
+func (s *Service) includeClient(query DownloadListQuery, client string) bool {
+	requested := strings.TrimSpace(query.Client)
+	return requested == "" || strings.EqualFold(requested, client)
+}
+
+func (s *Service) partitionDownloadIDs(ctx context.Context, ids []string) ([]string, []string) {
+	statuses, err := s.Downloads(ctx, DownloadListQuery{IDs: ids})
+	if err != nil {
+		return nil, nil
+	}
+	clientsByID := make(map[string]string, len(statuses))
+	for _, status := range statuses {
+		clientsByID[status.ID] = status.Client
+	}
+	var qbitIDs []string
+	var sabIDs []string
+	for _, id := range ids {
+		client := clientsByID[id]
+		switch {
+		case strings.EqualFold(client, s.sab.Name()):
+			sabIDs = append(sabIDs, id)
+		case strings.EqualFold(client, s.qbit.Name()):
+			qbitIDs = append(qbitIDs, id)
+		}
+	}
+	return qbitIDs, sabIDs
+}
+
 func (s *Service) storeDownloads(ctx context.Context, downloads []DownloadStatus) error {
 	if s.store == nil {
 		return nil
@@ -211,6 +332,7 @@ func (s *Service) mergeStoredDownloadState(ctx context.Context, downloads []Down
 	}
 	stored, err := s.store.ListDownloads(ctx, DownloadListQuery{
 		IDs:      ids,
+		Client:   query.Client,
 		Tag:      query.Tag,
 		Category: query.Category,
 	})
@@ -219,10 +341,10 @@ func (s *Service) mergeStoredDownloadState(ctx context.Context, downloads []Down
 	}
 	byID := make(map[string]DownloadStatus, len(stored))
 	for _, item := range stored {
-		byID[item.ID] = item
+		byID[downloadStateKey(item.Client, item.ID)] = item
 	}
 	for i := range downloads {
-		if item, ok := byID[downloads[i].ID]; ok {
+		if item, ok := byID[downloadStateKey(downloads[i].Client, downloads[i].ID)]; ok {
 			downloads[i].ImportStatus = item.ImportStatus
 			downloads[i].ImportedFileID = item.ImportedFileID
 			downloads[i].ImportedAt = item.ImportedAt
@@ -234,4 +356,21 @@ func (s *Service) mergeStoredDownloadState(ctx context.Context, downloads []Down
 		}
 	}
 	return downloads
+}
+
+type downloadClient interface {
+	Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error)
+}
+
+func downloadStateKey(client string, id string) string {
+	return strings.ToLower(strings.TrimSpace(client)) + ":" + strings.TrimSpace(id)
+}
+
+func sabSupportsAction(action string) bool {
+	switch action {
+	case DownloadActionStart, DownloadActionStop, DownloadActionDelete:
+		return true
+	default:
+		return false
+	}
 }

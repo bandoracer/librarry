@@ -917,6 +917,7 @@ func (s *Service) grabRelease(ctx context.Context, item WantedItem, release Rele
 		ReleaseURL: release.DownloadURL,
 		InfoHash:   release.InfoHash,
 		Title:      release.Title,
+		Protocol:   release.Protocol,
 		Category:   s.acquire.CategoryForFormat(item.Format),
 		SavePath:   s.acquire.TorrentRoot(),
 		Paused:     paused,

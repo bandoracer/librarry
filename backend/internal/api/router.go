@@ -229,6 +229,7 @@ func (h *handler) downloads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	statuses, err := h.deps.Acquire.Downloads(r.Context(), acquisition.DownloadListQuery{
+		Client:   r.URL.Query().Get("client"),
 		Tag:      r.URL.Query().Get("tag"),
 		Category: r.URL.Query().Get("category"),
 	})

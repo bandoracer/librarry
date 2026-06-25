@@ -18,6 +18,10 @@ type Config struct {
 	QBittorrentURL            string
 	QBittorrentUser           string
 	QBittorrentPass           string
+	SABnzbdURL                string
+	SABnzbdAPIKey             string
+	SABnzbdUser               string
+	SABnzbdPass               string
 	EbookCategory             string
 	AudiobookCategory         string
 	BookTorrentRoot           string
@@ -67,6 +71,10 @@ func FromEnv() Config {
 		QBittorrentURL:            strings.TrimRight(strings.TrimSpace(os.Getenv("LIBRARRY_QBITTORRENT_URL")), "/"),
 		QBittorrentUser:           strings.TrimSpace(os.Getenv("LIBRARRY_QBITTORRENT_USERNAME")),
 		QBittorrentPass:           strings.TrimSpace(os.Getenv("LIBRARRY_QBITTORRENT_PASSWORD")),
+		SABnzbdURL:                strings.TrimRight(strings.TrimSpace(os.Getenv("LIBRARRY_SABNZBD_URL")), "/"),
+		SABnzbdAPIKey:             strings.TrimSpace(os.Getenv("LIBRARRY_SABNZBD_API_KEY")),
+		SABnzbdUser:               strings.TrimSpace(os.Getenv("LIBRARRY_SABNZBD_USERNAME")),
+		SABnzbdPass:               strings.TrimSpace(os.Getenv("LIBRARRY_SABNZBD_PASSWORD")),
 		EbookCategory:             env("LIBRARRY_EBOOK_CATEGORY", "books-ebook"),
 		AudiobookCategory:         env("LIBRARRY_AUDIOBOOK_CATEGORY", "books-audiobook"),
 		BookTorrentRoot:           env("LIBRARRY_BOOK_TORRENT_ROOT", "/data/torrents/books"),

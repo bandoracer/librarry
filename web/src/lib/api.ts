@@ -55,6 +55,7 @@ export type Release = {
 };
 
 export type DownloadStatus = {
+  client?: string;
   id: string;
   name: string;
   state: string;
@@ -446,6 +447,7 @@ export async function grabRelease(release: Release, format: string): Promise<Dow
       releaseUrl: release.downloadUrl,
       infoHash: release.infoHash,
       title: release.title,
+      protocol: release.protocol,
       category,
       paused: true,
       tags: ["librarry", "librarry-ui"]

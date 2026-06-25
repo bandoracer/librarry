@@ -113,7 +113,7 @@ export function App() {
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
-  const [selectedDownloadIDs, setSelectedDownloadIDs] = useState<string[]>([]);
+  const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("Project Hail Mary");
   const [importPath, setImportPath] = useState("");
   const [format, setFormat] = useState("any");
@@ -204,11 +204,13 @@ export function App() {
     () => wantedItems.find((item) => item.id === selectedWantedID) ?? wantedItems[0],
     [wantedItems, selectedWantedID]
   );
-  const selectableDownloadIDs = useMemo(() => downloads.map((download) => download.id).filter(Boolean), [downloads]);
-  const selectedDownloadIDSet = useMemo(() => new Set(selectedDownloadIDs), [selectedDownloadIDs]);
-  const selectedDownloads = useMemo(() => downloads.filter((download) => selectedDownloadIDSet.has(download.id)), [downloads, selectedDownloadIDSet]);
+  const selectableDownloadKeys = useMemo(() => downloads.map(downloadKey).filter(Boolean), [downloads]);
+  const selectedDownloadKeySet = useMemo(() => new Set(selectedDownloadKeys), [selectedDownloadKeys]);
+  const selectedDownloads = useMemo(() => downloads.filter((download) => selectedDownloadKeySet.has(downloadKey(download))), [downloads, selectedDownloadKeySet]);
   const selectedActionDownloadIDs = selectedDownloads.map((download) => download.id);
-  const allDownloadsSelected = selectableDownloadIDs.length > 0 && selectableDownloadIDs.every((id) => selectedDownloadIDSet.has(id));
+  const allDownloadsSelected = selectableDownloadKeys.length > 0 && selectableDownloadKeys.every((key) => selectedDownloadKeySet.has(key));
+  const selectedDownloadsSupportRecheck = selectedDownloads.every((download) => supportsDownloadAction(download, "recheck"));
+  const selectedDownloadsSupportPriority = selectedDownloads.every((download) => supportsDownloadAction(download, "topPriority"));
   const downloadQueueStats = useMemo(() => summarizeDownloads(downloads), [downloads]);
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
@@ -578,7 +580,7 @@ export function App() {
       } else if (action === "delete") {
         const deleted = new Set(actionIDs);
         setDownloads((current) => current.filter((item) => !deleted.has(item.id)));
-        setSelectedDownloadIDs((current) => current.filter((id) => !deleted.has(id)));
+        setSelectedDownloadKeys((current) => current.filter((key) => !deleted.has(key.split(":").slice(1).join(":"))));
       } else {
         await refreshDownloads();
       }
@@ -589,20 +591,21 @@ export function App() {
     }
   }
 
-  function toggleDownloadSelection(id: string) {
-    if (!id) return;
-    setSelectedDownloadIDs((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  function toggleDownloadSelection(download: DownloadStatus) {
+    const key = downloadKey(download);
+    if (!key) return;
+    setSelectedDownloadKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]));
   }
 
   function toggleAllDownloads() {
-    setSelectedDownloadIDs((current) => {
+    setSelectedDownloadKeys((current) => {
       const next = new Set(current);
-      const everyVisibleSelected = selectableDownloadIDs.length > 0 && selectableDownloadIDs.every((id) => next.has(id));
-      for (const id of selectableDownloadIDs) {
+      const everyVisibleSelected = selectableDownloadKeys.length > 0 && selectableDownloadKeys.every((key) => next.has(key));
+      for (const key of selectableDownloadKeys) {
         if (everyVisibleSelected) {
-          next.delete(id);
+          next.delete(key);
         } else {
-          next.add(id);
+          next.add(key);
         }
       }
       return Array.from(next);
@@ -839,7 +842,7 @@ export function App() {
               <h2>Release search</h2>
               <p>
                 {releases.length
-                  ? `${releases.length} Prowlarr releases ready for paused qBittorrent grab.`
+                  ? `${releases.length} Prowlarr releases ready for paused download-client grab.`
                   : "Search releases from the selected metadata match."}
               </p>
             </div>
@@ -1248,7 +1251,7 @@ export function App() {
               <h2>Downloads</h2>
               <p>
                 {downloads.length
-                  ? `${downloads.length} qBittorrent items tracked; ${selectedDownloads.length} selected for queue actions.`
+                  ? `${downloads.length} download-client items tracked; ${selectedDownloads.length} selected for queue actions.`
                   : "No Librarry-tagged downloads are currently visible."}
               </p>
             </div>
@@ -1295,15 +1298,15 @@ export function App() {
               <Pause size={16} />
               Stop
             </button>
-            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("recheck", selectedActionDownloadIDs)} type="button">
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || !selectedDownloadsSupportRecheck || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("recheck", selectedActionDownloadIDs)} type="button">
               <RefreshCw size={16} />
               Recheck
             </button>
-            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("topPriority", selectedActionDownloadIDs)} type="button">
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || !selectedDownloadsSupportPriority || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("topPriority", selectedActionDownloadIDs)} type="button">
               <ChevronsUp size={16} />
               Top
             </button>
-            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("bottomPriority", selectedActionDownloadIDs)} type="button">
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || !selectedDownloadsSupportPriority || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("bottomPriority", selectedActionDownloadIDs)} type="button">
               <ChevronsDown size={16} />
               Bottom
             </button>
@@ -1344,12 +1347,12 @@ export function App() {
 	          ) : null}
           <div className="download-list">
             {downloads.map((download) => {
-              const selectedDownload = selectedDownloadIDSet.has(download.id);
+              const selectedDownload = selectedDownloadKeySet.has(downloadKey(download));
               const busy = downloadActionID.startsWith(`${download.id}:`) || (downloadActionID.startsWith("bulk:") && selectedDownload);
               return (
-                <article className={selectedDownload ? "download-row selected" : "download-row"} key={download.id}>
+                <article className={selectedDownload ? "download-row selected" : "download-row"} key={downloadKey(download)}>
                   <label className="download-select" title="Select download">
-                    <input checked={selectedDownload} onChange={() => toggleDownloadSelection(download.id)} type="checkbox" aria-label={`Select ${download.name || download.id}`} />
+                    <input checked={selectedDownload} onChange={() => toggleDownloadSelection(download)} type="checkbox" aria-label={`Select ${download.name || download.id}`} />
                   </label>
                   <div className="download-main">
                     <div className="download-title-line">
@@ -1357,6 +1360,7 @@ export function App() {
                       <span className={`download-badge ${stateTone(download.state)}`}>{download.state}</span>
                     </div>
                     <div className="download-meta">
+                      <span>{download.client || "qBittorrent"}</span>
                       <span>{download.category || "uncategorized"}</span>
                       <span>{formatBytes(download.downloadedBytes ?? 0)} / {formatBytes(download.sizeBytes ?? 0)}</span>
                       <span>{formatSpeed(download.downloadRate ?? 0)} down</span>
@@ -1380,10 +1384,10 @@ export function App() {
                     <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("stop", download)} type="button" aria-label="Stop download" title="Stop">
                       <Pause size={16} />
                     </button>
-                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("recheck", download)} type="button" aria-label="Recheck download" title="Recheck">
+                    <button className="icon-button" disabled={busy || !supportsDownloadAction(download, "recheck")} onClick={() => applyDownloadAction("recheck", download)} type="button" aria-label="Recheck download" title="Recheck">
                       <RefreshCw size={16} />
                     </button>
-                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("increasePriority", download)} type="button" aria-label="Increase priority" title="Increase priority">
+                    <button className="icon-button" disabled={busy || !supportsDownloadAction(download, "increasePriority")} onClick={() => applyDownloadAction("increasePriority", download)} type="button" aria-label="Increase priority" title="Increase priority">
                       <span className="priority-glyph">+</span>
                     </button>
                     <button className="icon-button" disabled={busy || isImportingCompleted} onClick={() => runCompletedImport(download)} type="button" aria-label="Import completed download" title="Import completed">
@@ -1537,11 +1541,22 @@ function formatDateTime(value: string) {
 }
 
 function mergeDownloads(current: DownloadStatus[], next: DownloadStatus[]) {
-  const byID = new Map(current.map((download) => [download.id, download]));
+  const byID = new Map(current.map((download) => [downloadKey(download), download]));
   for (const download of next) {
-    byID.set(download.id, download);
+    byID.set(downloadKey(download), download);
   }
   return Array.from(byID.values());
+}
+
+function downloadKey(download: DownloadStatus) {
+  return `${download.client || "qBittorrent"}:${download.id}`;
+}
+
+function supportsDownloadAction(download: DownloadStatus, action: DownloadAction) {
+  if ((download.client || "qBittorrent").toLowerCase() !== "sabnzbd") {
+    return true;
+  }
+  return action === "start" || action === "stop" || action === "delete";
 }
 
 function summarizeDownloads(downloads: DownloadStatus[]) {

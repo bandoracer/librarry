@@ -37,6 +37,10 @@ func (s *SQLDownloadStore) UpsertDownloads(ctx context.Context, downloads []Down
 		if strings.TrimSpace(download.ID) == "" {
 			continue
 		}
+		client := strings.TrimSpace(download.Client)
+		if client == "" {
+			client = "qBittorrent"
+		}
 		lastSeenAt := download.LastSeenAt
 		if lastSeenAt == nil {
 			now := time.Now().UTC()
@@ -50,9 +54,9 @@ func (s *SQLDownloadStore) UpsertDownloads(ctx context.Context, downloads []Down
 				last_seen_at, import_status, failure_reason, failed_at, retry_count,
 				replacement_external_id, updated_at
 			) values (
-				'qBittorrent', $1, $2, $3, $4, $5, $6, $7,
-				$8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-				$20, $21, $22, $23, $24, $25, now()
+				$1, $2, $3, $4, $5, $6, $7, $8,
+				$9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+				$21, $22, $23, $24, $25, $26, now()
 			)
 			on conflict (client, external_id) where external_id is not null do update set
 				name = excluded.name,
@@ -90,7 +94,7 @@ func (s *SQLDownloadStore) UpsertDownloads(ctx context.Context, downloads []Down
 					else downloads.replacement_external_id
 				end,
 				updated_at = now()
-		`, download.ID, download.Name, download.Category, download.SavePath, download.State, download.Progress, strings.Join(download.Tags, ","),
+		`, client, download.ID, download.Name, download.Category, download.SavePath, download.State, download.Progress, strings.Join(download.Tags, ","),
 			download.SizeBytes, download.DownloadedBytes, download.UploadedBytes, download.DownloadRate, download.UploadRate,
 			download.ETASeconds, download.Ratio, download.Seeders, download.Peers, download.AddedAt, download.CompletedAt,
 			download.LastActivityAt, lastSeenAt, importStatusForDownload(download), download.FailureReason, download.FailedAt,
@@ -106,7 +110,11 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 		return nil, nil
 	}
 	args := []any{}
-	where := []string{"client = 'qBittorrent'", "external_id is not null"}
+	where := []string{"external_id is not null"}
+	if client := strings.TrimSpace(query.Client); client != "" {
+		args = append(args, client)
+		where = append(where, "client = $"+strconv.Itoa(len(args)))
+	}
 	if tag := strings.TrimSpace(query.Tag); tag != "" {
 		args = append(args, tag)
 		where = append(where, "tags like '%' || $"+strconv.Itoa(len(args))+" || '%'")
@@ -131,7 +139,7 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 	}
 	sqlText := `
 		select
-			external_id, name, state, progress, save_path, category, tags,
+			client, external_id, name, state, progress, save_path, category, tags,
 			size_bytes, downloaded_bytes, uploaded_bytes, download_rate, upload_rate,
 			eta_seconds, ratio, seeders, peers, added_at, completed_at, last_activity_at,
 			last_seen_at, import_status, coalesce(imported_file_id::text, ''), imported_at,
@@ -153,7 +161,7 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 		var tags string
 		var addedAt, completedAt, lastActivityAt, lastSeenAt, importedAt, failedAt sql.NullTime
 		if err := rows.Scan(
-			&item.ID, &item.Name, &item.State, &item.Progress, &item.SavePath, &item.Category, &tags,
+			&item.Client, &item.ID, &item.Name, &item.State, &item.Progress, &item.SavePath, &item.Category, &tags,
 			&item.SizeBytes, &item.DownloadedBytes, &item.UploadedBytes, &item.DownloadRate, &item.UploadRate,
 			&item.ETASeconds, &item.Ratio, &item.Seeders, &item.Peers, &addedAt, &completedAt,
 			&lastActivityAt, &lastSeenAt, &item.ImportStatus, &item.ImportedFileID, &importedAt,
@@ -181,7 +189,7 @@ func (s *SQLDownloadStore) MarkDownloadsDeleted(ctx context.Context, ids []strin
 		if _, err := s.db.ExecContext(ctx, `
 			update downloads
 			set state = 'removed', last_seen_at = now(), updated_at = now()
-			where client = 'qBittorrent' and external_id = $1
+			where external_id = $1
 		`, id); err != nil {
 			return err
 		}
@@ -198,7 +206,7 @@ func (s *SQLDownloadStore) MarkDownloadFailed(ctx context.Context, id string, re
 		set failure_reason = $2,
 			failed_at = coalesce(failed_at, now()),
 			updated_at = now()
-		where client = 'qBittorrent' and external_id = $1
+		where external_id = $1
 	`, id, strings.TrimSpace(reason))
 	return err
 }
@@ -212,7 +220,7 @@ func (s *SQLDownloadStore) MarkDownloadReplacement(ctx context.Context, id strin
 		set retry_count = retry_count + 1,
 			replacement_external_id = $2,
 			updated_at = now()
-		where client = 'qBittorrent' and external_id = $1
+		where external_id = $1
 	`, id, strings.TrimSpace(replacementID))
 	return err
 }
@@ -228,7 +236,7 @@ func (s *SQLDownloadStore) MarkDownloadImported(ctx context.Context, id string, 
 			imported_at = now(),
 			import_error = '',
 			updated_at = now()
-		where client = 'qBittorrent' and external_id = $1
+		where external_id = $1
 	`, id, strings.TrimSpace(fileID))
 	return err
 }
@@ -242,7 +250,7 @@ func (s *SQLDownloadStore) MarkDownloadImportError(ctx context.Context, id strin
 		set import_status = 'error',
 			import_error = $2,
 			updated_at = now()
-		where client = 'qBittorrent' and external_id = $1
+		where external_id = $1
 	`, id, strings.TrimSpace(message))
 	return err
 }

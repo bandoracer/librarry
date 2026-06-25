@@ -9,6 +9,13 @@ func TestValidateProwlarrPair(t *testing.T) {
 	}
 }
 
+func TestValidateSABnzbdPair(t *testing.T) {
+	result := Validate(Settings{SABnzbdURL: "http://sabnzbd.local"})
+	if result.Valid {
+		t.Fatalf("expected invalid settings when sabnzbd api key is missing")
+	}
+}
+
 func TestValidateAllowsMissingOptionalProvidersWithWarnings(t *testing.T) {
 	result := Validate(Settings{})
 	if !result.Valid {

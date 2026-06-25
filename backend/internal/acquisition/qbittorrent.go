@@ -156,6 +156,7 @@ func (c *QBittorrentClient) Add(ctx context.Context, request DownloadRequest) (D
 	}
 	now := time.Now().UTC()
 	return DownloadStatus{
+		Client:     c.Name(),
 		ID:         id,
 		Name:       firstNonEmpty(request.Title, request.ReleaseURL),
 		State:      state,
@@ -251,6 +252,7 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 			size = item.TotalSize
 		}
 		statuses = append(statuses, DownloadStatus{
+			Client:          c.Name(),
 			ID:              item.Hash,
 			Name:            item.Name,
 			State:           item.State,

@@ -43,6 +43,7 @@ type DownloadRequest struct {
 	ReleaseURL string   `json:"releaseUrl"`
 	InfoHash   string   `json:"infoHash,omitempty"`
 	Title      string   `json:"title,omitempty"`
+	Protocol   string   `json:"protocol,omitempty"`
 	Category   string   `json:"category,omitempty"`
 	SavePath   string   `json:"savePath,omitempty"`
 	Paused     bool     `json:"paused"`
@@ -50,6 +51,7 @@ type DownloadRequest struct {
 }
 
 type DownloadStatus struct {
+	Client          string     `json:"client,omitempty"`
 	ID              string     `json:"id"`
 	Name            string     `json:"name"`
 	State           string     `json:"state"`
@@ -88,6 +90,7 @@ type DownloadClient interface {
 
 type DownloadListQuery struct {
 	IDs      []string
+	Client   string
 	Tag      string
 	Category string
 }
@@ -128,8 +131,10 @@ type QBittorrentConfig struct {
 }
 
 type SABnzbdConfig struct {
-	BaseURL string
-	APIKey  string
+	BaseURL  string
+	APIKey   string
+	Username string
+	Password string
 }
 
 const (

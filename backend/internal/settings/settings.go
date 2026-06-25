@@ -9,6 +9,7 @@ type Settings struct {
 	ProwlarrAPIKey    string `json:"prowlarrApiKey"`
 	QBittorrentURL    string `json:"qbittorrentUrl"`
 	SABnzbdURL        string `json:"sabnzbdUrl"`
+	SABnzbdAPIKey     string `json:"sabnzbdApiKey"`
 }
 
 type ValidationResult struct {
@@ -33,6 +34,9 @@ func Validate(input Settings) ValidationResult {
 
 	if strings.TrimSpace(input.QBittorrentURL) == "" && strings.TrimSpace(input.SABnzbdURL) == "" {
 		result.Warnings = append(result.Warnings, "No download client is configured yet.")
+	}
+	if hasAny(input.SABnzbdURL, input.SABnzbdAPIKey) && !hasAll(input.SABnzbdURL, input.SABnzbdAPIKey) {
+		result.Errors = append(result.Errors, "SABnzbd URL and API key must be provided together.")
 	}
 
 	result.Valid = len(result.Errors) == 0
