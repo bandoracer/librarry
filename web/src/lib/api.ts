@@ -104,6 +104,19 @@ export type DownloadActionResult = {
   downloads?: DownloadStatus[];
 };
 
+export type DownloadRebalancePlan = {
+  maxActive: number;
+  activeCount: number;
+  pausedCount: number;
+  completeCount: number;
+  failedCount: number;
+  startIds: string[];
+  stopIds: string[];
+  applied: boolean;
+  message: string;
+  downloads?: DownloadStatus[];
+};
+
 export type WantedItem = {
   id: string;
   workId?: string;
@@ -490,6 +503,32 @@ export async function runDownloadAction(
     throw new Error(`Download action failed: ${response.status}`);
   }
   return (await response.json()) as DownloadActionResult;
+}
+
+export async function rebalanceDownloads(options: {
+  maxActive: number;
+  client?: string;
+  tag?: string;
+  category?: string;
+  dryRun?: boolean;
+  stopOverflow?: boolean;
+}): Promise<DownloadRebalancePlan> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/rebalance`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      maxActive: options.maxActive,
+      client: options.client,
+      tag: options.tag ?? "librarry",
+      category: options.category,
+      dryRun: options.dryRun ?? false,
+      stopOverflow: options.stopOverflow ?? true
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Queue rebalance failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadRebalancePlan;
 }
 
 export async function recoverFailedDownloads(options: {

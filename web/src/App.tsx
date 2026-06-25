@@ -44,6 +44,7 @@ import {
   importCompletedDownloads,
   importLibraryFile,
   recoverFailedDownloads,
+  rebalanceDownloads,
   resolveLibraryImportReview,
   runAuthorMonitor,
   runUpgradeSearch,
@@ -60,6 +61,7 @@ import {
   type AuthorSubscription,
   type DownloadAction,
   type CompletedImportOutcome,
+  type DownloadRebalancePlan,
   type DownloadStatus,
   type FailedDownloadRun,
   type FeedSyncRun,
@@ -109,6 +111,7 @@ export function App() {
   const [authorMonitorRun, setAuthorMonitorRun] = useState<AuthorMonitorRun | null>(null);
   const [feedSyncRun, setFeedSyncRun] = useState<FeedSyncRun | null>(null);
   const [failedDownloadRun, setFailedDownloadRun] = useState<FailedDownloadRun | null>(null);
+  const [queueRebalancePlan, setQueueRebalancePlan] = useState<DownloadRebalancePlan | null>(null);
   const [upgradeRun, setUpgradeRun] = useState<UpgradeRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
@@ -131,6 +134,7 @@ export function App() {
   const [isImportingLibrary, setIsImportingLibrary] = useState(false);
   const [isImportingCompleted, setIsImportingCompleted] = useState(false);
   const [isRecoveringFailed, setIsRecoveringFailed] = useState(false);
+  const [isRebalancingDownloads, setIsRebalancingDownloads] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
@@ -560,6 +564,29 @@ export function App() {
       setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
     } finally {
       setIsRefreshingDownloads(false);
+    }
+  }
+
+  async function runQueueRebalance() {
+    setIsRebalancingDownloads(true);
+    setDownloadError("");
+    try {
+      const plan = await rebalanceDownloads({
+        maxActive: 3,
+        dryRun: false,
+        stopOverflow: true
+      });
+      setQueueRebalancePlan(plan);
+      if (plan.downloads?.length) {
+        setDownloads(plan.downloads);
+      } else {
+        await refreshDownloads();
+      }
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Queue rebalance failed");
+    } finally {
+      setIsRebalancingDownloads(false);
     }
   }
 
@@ -1268,6 +1295,10 @@ export function App() {
                 <HardDriveDownload size={16} />
                 {isRecoveringFailed ? "Recovering" : "Recover failed"}
               </button>
+              <button className="secondary-action compact" disabled={isRebalancingDownloads || downloads.length === 0} onClick={runQueueRebalance} type="button">
+                <SlidersHorizontal size={16} />
+                {isRebalancingDownloads ? "Balancing" : "Balance 3"}
+              </button>
             </div>
           </div>
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
@@ -1340,11 +1371,19 @@ export function App() {
                       {item.replacementRelease ? ` · replacement ${item.replacementRelease.title}` : ""}
                     </span>
                   </div>
-	                  {item.replacementDownload ? <em>Queued</em> : item.error ? <em>Error</em> : null}
-	                </article>
-	              ))}
-	            </div>
-	          ) : null}
+                  {item.replacementDownload ? <em>Queued</em> : item.error ? <em>Error</em> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {queueRebalancePlan ? (
+            <div className="queue-rebalance-result">
+              <strong>{queueRebalancePlan.applied ? "Queue balanced" : "Queue plan"}</strong>
+              <span>
+                active {queueRebalancePlan.activeCount}/{queueRebalancePlan.maxActive} · start {queueRebalancePlan.startIds.length} · stop {queueRebalancePlan.stopIds.length}
+              </span>
+            </div>
+          ) : null}
           <div className="download-list">
             {downloads.map((download) => {
               const selectedDownload = selectedDownloadKeySet.has(downloadKey(download));

@@ -13,6 +13,7 @@ import (
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/library"
+	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
@@ -65,6 +66,10 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/rootfolder"},
 		{"method": "GET", "path": "/api/v1/queue"},
 		{"method": "GET", "path": "/api/v1/queue/status"},
+		{"method": "GET", "path": "/api/v1/author"},
+		{"method": "GET", "path": "/api/v1/author/lookup"},
+		{"method": "GET", "path": "/api/v1/book"},
+		{"method": "GET", "path": "/api/v1/book/lookup"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
 		{"method": "GET", "path": "/api/v1/downloadclient"},
@@ -252,6 +257,228 @@ func (h *handler) compatDeleteQueueBulk(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *handler) compatAuthors(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	subscriptions, err := h.deps.Wanted.ListAuthorSubscriptions(r.Context(), r.URL.Query().Get("status"))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	books := h.compatWantedItems(r)
+	records := make([]map[string]any, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		records = append(records, compatAuthorRecord(subscription, booksForAuthor(books, subscription.AuthorName)))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatAuthor(w http.ResponseWriter, r *http.Request) {
+	subscription, books, ok := h.compatFindAuthor(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatAuthorRecord(subscription, booksForAuthor(books, subscription.AuthorName)))
+}
+
+func (h *handler) compatCreateAuthor(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var payload map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+	request := wanted.AuthorSubscribeRequest{
+		AuthorName:     firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "title"), payloadString(payload, "name")),
+		Provider:       firstNonEmptyString(payloadString(payload, "provider"), "readarr-api"),
+		ProviderKey:    firstNonEmptyString(payloadString(payload, "foreignAuthorId"), payloadString(payload, "id")),
+		Format:         firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "wantedFormat"), "ebook"),
+		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
+	}
+	monitor := true
+	if monitored, ok := payload["monitored"].(bool); ok {
+		monitor = monitored
+	}
+	request.MonitorNewItems = &monitor
+	if request.AuthorName == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "authorName is required"})
+		return
+	}
+	subscription, err := h.deps.Wanted.SubscribeAuthor(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatAuthorRecord(subscription, nil))
+}
+
+func (h *handler) compatUpdateAuthor(w http.ResponseWriter, r *http.Request) {
+	subscription, books, ok := h.compatFindAuthor(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatAuthorRecord(subscription, booksForAuthor(books, subscription.AuthorName)))
+}
+
+func (h *handler) compatDeleteAuthor(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatAuthorLookup(w http.ResponseWriter, r *http.Request) {
+	term := strings.TrimSpace(firstNonEmptyString(r.URL.Query().Get("term"), r.URL.Query().Get("query")))
+	if term == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "term is required"})
+		return
+	}
+	if h.deps.Metadata == nil {
+		writeJSON(w, http.StatusOK, []map[string]any{})
+		return
+	}
+	outcome := h.deps.Metadata.SearchDetailed(r.Context(), metadata.Query{
+		Query:  term,
+		Type:   metadata.SearchTypeAuthor,
+		Format: metadata.FormatAny,
+		Limit:  20,
+	})
+	records := make([]map[string]any, 0, len(outcome.Results))
+	for _, result := range outcome.Results {
+		records = append(records, compatAuthorLookupRecord(result))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatBooks(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), r.URL.Query().Get("status"))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	records := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		records = append(records, compatBookRecord(item))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatBook(w http.ResponseWriter, r *http.Request) {
+	item, ok := h.compatFindBook(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatBookRecord(item))
+}
+
+func (h *handler) compatBookOverview(w http.ResponseWriter, r *http.Request) {
+	item, ok := h.compatFindBook(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatBookRecord(item))
+}
+
+func (h *handler) compatCreateBook(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var payload map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+	title := firstNonEmptyString(payloadString(payload, "title"), nestedString(payload, "book", "title"))
+	authorName := firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "authorTitle"), nestedString(payload, "author", "authorName"))
+	if title == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "title is required"})
+		return
+	}
+	request := wanted.CreateRequest{
+		Result: metadata.SearchResult{
+			Provider:   firstNonEmptyString(payloadString(payload, "provider"), "readarr-api"),
+			Kind:       metadata.SearchTypeBook,
+			Score:      1,
+			Confidence: "manual",
+			MatchedOn:  []string{"readarr-api"},
+			Work: metadata.Work{
+				ID:       firstNonEmptyString(payloadString(payload, "foreignBookId"), payloadString(payload, "id"), "readarr:book:"+slug(title)),
+				Title:    title,
+				CoverURL: payloadString(payload, "remoteCover"),
+				Authors:  []metadata.Author{{ID: firstNonEmptyString(nestedString(payload, "author", "foreignAuthorId"), "readarr:author:"+slug(authorName)), Name: authorName}},
+			},
+			Edition: metadata.Edition{
+				ID:     firstNonEmptyString(payloadString(payload, "editionId"), "readarr:edition:"+slug(title)),
+				Title:  title,
+				Format: metadata.MediaFormat(firstNonEmptyString(payloadString(payload, "format"), "ebook")),
+			},
+		},
+		Format:         firstNonEmptyString(payloadString(payload, "format"), "ebook"),
+		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
+	}
+	item, err := h.deps.Wanted.Create(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatBookRecord(item))
+}
+
+func (h *handler) compatUpdateBook(w http.ResponseWriter, r *http.Request) {
+	item, ok := h.compatFindBook(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatBookRecord(item))
+}
+
+func (h *handler) compatMonitorBooks(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	records := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		records = append(records, compatBookRecord(item))
+	}
+	writeJSON(w, http.StatusAccepted, records)
+}
+
+func (h *handler) compatDeleteBook(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatBookLookup(w http.ResponseWriter, r *http.Request) {
+	term := strings.TrimSpace(firstNonEmptyString(r.URL.Query().Get("term"), r.URL.Query().Get("query")))
+	if term == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "term is required"})
+		return
+	}
+	if h.deps.Metadata == nil {
+		writeJSON(w, http.StatusOK, []map[string]any{})
+		return
+	}
+	outcome := h.deps.Metadata.SearchDetailed(r.Context(), metadata.Query{
+		Query:  term,
+		Type:   metadata.SearchTypeBook,
+		Format: metadata.FormatAny,
+		Limit:  20,
+	})
+	records := make([]map[string]any, 0, len(outcome.Results))
+	for _, result := range outcome.Results {
+		records = append(records, compatBookLookupRecord(result))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
 func (h *handler) compatWantedMissing(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
@@ -401,6 +628,55 @@ func (h *handler) compatDownloads(w http.ResponseWriter, r *http.Request) ([]acq
 	return downloads, true
 }
 
+func (h *handler) compatWantedItems(r *http.Request) []wanted.WantedItem {
+	if h.deps.Wanted == nil {
+		return nil
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "")
+	if err != nil {
+		return nil
+	}
+	return items
+}
+
+func (h *handler) compatFindAuthor(w http.ResponseWriter, r *http.Request, id string) (wanted.AuthorSubscription, []wanted.WantedItem, bool) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return wanted.AuthorSubscription{}, nil, false
+	}
+	subscriptions, err := h.deps.Wanted.ListAuthorSubscriptions(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return wanted.AuthorSubscription{}, nil, false
+	}
+	for _, subscription := range subscriptions {
+		if compatIDMatches(id, subscription.ID, subscription.ProviderKey, subscription.AuthorName) {
+			return subscription, h.compatWantedItems(r), true
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "author not found"})
+	return wanted.AuthorSubscription{}, nil, false
+}
+
+func (h *handler) compatFindBook(w http.ResponseWriter, r *http.Request, id string) (wanted.WantedItem, bool) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return wanted.WantedItem{}, false
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return wanted.WantedItem{}, false
+	}
+	for _, item := range items {
+		if compatIDMatches(id, item.ID, item.WorkID, item.SourceKey, item.Title) {
+			return item, true
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "book not found"})
+	return wanted.WantedItem{}, false
+}
+
 func (h *handler) compatRootFolderRecords() []map[string]any {
 	return []map[string]any{
 		compatRootFolderRecord(1, "Ebooks", defaultString(h.deps.Config.EbookLibraryRoot, "/data/media/books/ebooks")),
@@ -472,6 +748,149 @@ func compatMissingRecord(item wanted.WantedItem) map[string]any {
 			"path":       "",
 		},
 	}
+}
+
+func compatAuthorRecord(subscription wanted.AuthorSubscription, books []wanted.WantedItem) map[string]any {
+	id := stableInt(firstNonEmptyString(subscription.ID, subscription.ProviderKey, subscription.AuthorName))
+	bookRecords := make([]map[string]any, 0, len(books))
+	for _, book := range books {
+		bookRecords = append(bookRecords, compatAuthorBookRecord(book))
+	}
+	return map[string]any{
+		"id":                  id,
+		"authorMetadataId":    id,
+		"authorName":          subscription.AuthorName,
+		"sortName":            strings.ToLower(subscription.AuthorName),
+		"cleanName":           slug(subscription.AuthorName),
+		"titleSlug":           slug(subscription.AuthorName),
+		"foreignAuthorId":     firstNonEmptyString(subscription.ProviderKey, subscription.ID),
+		"monitored":           subscription.Status != "unmonitored",
+		"rootFolderPath":      "",
+		"path":                "",
+		"qualityProfileId":    stableInt(subscription.QualityProfile),
+		"metadataProfileId":   stableInt(subscription.Format),
+		"tags":                []int{},
+		"genres":              []string{},
+		"ratings":             map[string]any{"votes": 0, "value": 0},
+		"statistics":          map[string]any{"bookCount": len(bookRecords), "bookFileCount": 0},
+		"lastInfoSync":        subscription.LastSyncAt,
+		"added":               subscription.CreatedAt,
+		"books":               bookRecords,
+		"addOptions":          map[string]any{"monitor": "all", "searchForMissingBooks": false},
+		"librarryProvider":    subscription.Provider,
+		"librarryFormat":      subscription.Format,
+		"librarryAuthorId":    subscription.ID,
+		"librarryQualityName": subscription.QualityProfile,
+	}
+}
+
+func compatAuthorBookRecord(item wanted.WantedItem) map[string]any {
+	return map[string]any{
+		"id":             stableInt(item.ID),
+		"title":          item.Title,
+		"foreignBookId":  firstNonEmptyString(item.WorkID, item.SourceKey, item.ID),
+		"authorTitle":    item.AuthorName,
+		"authorId":       stableInt(item.AuthorName),
+		"monitored":      item.Status != "ignored",
+		"anyEditionOk":   true,
+		"qualityProfile": item.QualityProfile,
+		"releaseDate":    item.CreatedAt,
+		"statistics":     map[string]any{"bookFileCount": boolInt(item.Status == "imported")},
+	}
+}
+
+func compatBookRecord(item wanted.WantedItem) map[string]any {
+	return map[string]any{
+		"id":               stableInt(item.ID),
+		"librarryId":       item.ID,
+		"authorId":         stableInt(item.AuthorName),
+		"authorTitle":      item.AuthorName,
+		"title":            item.Title,
+		"titleSlug":        slug(item.Title),
+		"foreignBookId":    firstNonEmptyString(item.WorkID, item.SourceKey, item.ID),
+		"monitored":        item.Status != "ignored",
+		"anyEditionOk":     true,
+		"releaseDate":      item.CreatedAt,
+		"qualityProfile":   item.QualityProfile,
+		"qualityProfileId": stableInt(item.QualityProfile),
+		"statistics": map[string]any{
+			"bookFileCount": boolInt(item.Status == "imported"),
+			"sizeOnDisk":    0,
+		},
+		"images": compatImages(item.CoverURL),
+		"author": map[string]any{
+			"id":         stableInt(item.AuthorName),
+			"authorName": item.AuthorName,
+			"titleSlug":  slug(item.AuthorName),
+			"monitored":  true,
+		},
+		"addOptions":     map[string]any{"searchForNewBook": false},
+		"librarryStatus": item.Status,
+		"librarryFormat": item.Format,
+	}
+}
+
+func compatAuthorLookupRecord(result metadata.SearchResult) map[string]any {
+	author := firstAuthor(result)
+	return map[string]any{
+		"id":                stableInt(firstNonEmptyString(author.ID, author.Name, result.Work.ID)),
+		"authorName":        author.Name,
+		"sortName":          strings.ToLower(author.Name),
+		"cleanName":         slug(author.Name),
+		"titleSlug":         slug(author.Name),
+		"foreignAuthorId":   firstNonEmptyString(author.ID, result.Work.ID, "lookup:"+slug(author.Name)),
+		"monitored":         false,
+		"images":            compatImages(result.Work.CoverURL),
+		"statistics":        map[string]any{"bookCount": 0, "bookFileCount": 0},
+		"ratings":           map[string]any{"votes": 0, "value": result.Score},
+		"books":             []map[string]any{},
+		"librarryProvider":  result.Provider,
+		"librarryMatchedOn": result.MatchedOn,
+	}
+}
+
+func compatBookLookupRecord(result metadata.SearchResult) map[string]any {
+	author := firstAuthor(result)
+	return map[string]any{
+		"id":            stableInt(firstNonEmptyString(result.Work.ID, result.Edition.ID, result.Work.Title)),
+		"title":         result.Work.Title,
+		"titleSlug":     slug(result.Work.Title),
+		"foreignBookId": firstNonEmptyString(result.Work.ID, result.Edition.ID, "lookup:"+slug(result.Work.Title)),
+		"authorTitle":   author.Name,
+		"authorId":      stableInt(author.Name),
+		"monitored":     false,
+		"anyEditionOk":  true,
+		"releaseDate":   dateFromYear(result.Work.FirstPublishYear),
+		"overview":      result.Work.Description,
+		"images":        compatImages(result.Work.CoverURL),
+		"statistics":    map[string]any{"bookFileCount": 0, "sizeOnDisk": 0},
+		"author": map[string]any{
+			"id":              stableInt(firstNonEmptyString(author.ID, author.Name)),
+			"authorName":      author.Name,
+			"foreignAuthorId": author.ID,
+			"titleSlug":       slug(author.Name),
+			"monitored":       false,
+		},
+		"editions": []map[string]any{{
+			"id":               stableInt(firstNonEmptyString(result.Edition.ID, result.Work.ID, result.Work.Title)),
+			"foreignEditionId": result.Edition.ID,
+			"title":            firstNonEmptyString(result.Edition.Title, result.Work.Title),
+			"format":           result.Edition.Format,
+			"isbn13":           firstString(result.Edition.ISBNs),
+			"monitored":        false,
+			"manualAdd":        false,
+		}},
+		"librarryProvider":   result.Provider,
+		"librarryConfidence": result.Confidence,
+		"librarryMatchedOn":  result.MatchedOn,
+	}
+}
+
+func compatImages(coverURL string) []map[string]any {
+	if strings.TrimSpace(coverURL) == "" {
+		return []map[string]any{}
+	}
+	return []map[string]any{{"coverType": "cover", "url": coverURL, "remoteUrl": coverURL}}
 }
 
 func compatQualityProfileRecord(id int, profile wanted.QualityProfile) map[string]any {
@@ -648,6 +1067,103 @@ func stableInt(value string) int {
 	hash := fnv.New32a()
 	_, _ = hash.Write([]byte(strings.TrimSpace(value)))
 	return int(hash.Sum32() & 0x7fffffff)
+}
+
+func compatIDMatches(pathValue string, candidates ...string) bool {
+	pathValue = strings.TrimSpace(pathValue)
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if pathValue == candidate || pathValue == strconv.Itoa(stableInt(candidate)) {
+			return true
+		}
+	}
+	return false
+}
+
+func booksForAuthor(items []wanted.WantedItem, authorName string) []wanted.WantedItem {
+	var matches []wanted.WantedItem
+	for _, item := range items {
+		if strings.EqualFold(strings.TrimSpace(item.AuthorName), strings.TrimSpace(authorName)) {
+			matches = append(matches, item)
+		}
+	}
+	return matches
+}
+
+func firstAuthor(result metadata.SearchResult) metadata.Author {
+	if len(result.Work.Authors) > 0 {
+		return result.Work.Authors[0]
+	}
+	return metadata.Author{Name: ""}
+}
+
+func payloadString(payload map[string]any, key string) string {
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case float64:
+		if typed == float64(int64(typed)) {
+			return strconv.FormatInt(int64(typed), 10)
+		}
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	default:
+		return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(jsonString(typed)), `"`), `"`))
+	}
+}
+
+func nestedString(payload map[string]any, objectKey string, key string) string {
+	object, ok := payload[objectKey].(map[string]any)
+	if !ok {
+		return ""
+	}
+	return payloadString(object, key)
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func firstString(values []string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func dateFromYear(year int) any {
+	if year <= 0 {
+		return nil
+	}
+	return time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+}
+
+func jsonString(value any) string {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
 }
 
 func slug(value string) string {

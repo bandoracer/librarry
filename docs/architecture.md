@@ -24,6 +24,20 @@ Initial API surface:
   - `GET /api/v1/queue/status`
   - `DELETE /api/v1/queue/{id}`
   - `DELETE /api/v1/queue/bulk`
+  - `GET /api/v1/author`
+  - `POST /api/v1/author`
+  - `GET /api/v1/author/lookup`
+  - `GET /api/v1/author/{id}`
+  - `PUT /api/v1/author/{id}`
+  - `DELETE /api/v1/author/{id}`
+  - `GET /api/v1/book`
+  - `POST /api/v1/book`
+  - `GET /api/v1/book/lookup`
+  - `GET /api/v1/book/{id}`
+  - `GET /api/v1/book/{id}/overview`
+  - `PUT /api/v1/book/{id}`
+  - `PUT /api/v1/book/monitor`
+  - `DELETE /api/v1/book/{id}`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/downloadclient`
@@ -31,38 +45,39 @@ Initial API surface:
   - `GET /api/v1/command`
   - `POST /api/v1/command`
 - Librarry-native endpoints:
-- `GET /healthz`
-- `GET /api/v1/providers/health`
-- `GET /api/v1/providers/diagnostics`
-- `GET /api/v1/search?query=&type=book&format=any`
-- `GET /api/v1/integrations/health`
-- `POST /api/v1/integrations/bootstrap`
-- `POST /api/v1/releases/search`
-- `POST /api/v1/grabs`
-- `GET /api/v1/downloads`
-- `POST /api/v1/downloads/actions`
-- `POST /api/v1/downloads/recover-failed`
-- `GET /api/v1/quality-profiles`
-- `POST /api/v1/quality-profiles`
-- `GET /api/v1/authors`
-- `POST /api/v1/authors`
-- `POST /api/v1/authors/monitor`
-- `GET /api/v1/wanted`
-- `POST /api/v1/wanted`
-- `POST /api/v1/wanted/{id}/search`
-- `GET /api/v1/wanted/{id}/releases`
-- `POST /api/v1/wanted/{id}/grab`
-- `POST /api/v1/wanted/monitor`
-- `POST /api/v1/wanted/feed-sync`
-- `POST /api/v1/wanted/upgrades`
-- `GET /api/v1/history`
-- `GET /api/v1/library/files`
-- `GET /api/v1/library/import-reviews`
-- `POST /api/v1/library/scan`
-- `POST /api/v1/library/import`
-- `POST /api/v1/library/import-completed`
-- `POST /api/v1/library/import-reviews/{id}/resolve`
-- `POST /api/v1/settings/validate`
+  - `GET /healthz`
+  - `GET /api/v1/providers/health`
+  - `GET /api/v1/providers/diagnostics`
+  - `GET /api/v1/search?query=&type=book&format=any`
+  - `GET /api/v1/integrations/health`
+  - `POST /api/v1/integrations/bootstrap`
+  - `POST /api/v1/releases/search`
+  - `POST /api/v1/grabs`
+  - `GET /api/v1/downloads`
+  - `POST /api/v1/downloads/actions`
+  - `POST /api/v1/downloads/rebalance`
+  - `POST /api/v1/downloads/recover-failed`
+  - `GET /api/v1/quality-profiles`
+  - `POST /api/v1/quality-profiles`
+  - `GET /api/v1/authors`
+  - `POST /api/v1/authors`
+  - `POST /api/v1/authors/monitor`
+  - `GET /api/v1/wanted`
+  - `POST /api/v1/wanted`
+  - `POST /api/v1/wanted/{id}/search`
+  - `GET /api/v1/wanted/{id}/releases`
+  - `POST /api/v1/wanted/{id}/grab`
+  - `POST /api/v1/wanted/monitor`
+  - `POST /api/v1/wanted/feed-sync`
+  - `POST /api/v1/wanted/upgrades`
+  - `GET /api/v1/history`
+  - `GET /api/v1/library/files`
+  - `GET /api/v1/library/import-reviews`
+  - `POST /api/v1/library/scan`
+  - `POST /api/v1/library/import`
+  - `POST /api/v1/library/import-completed`
+  - `POST /api/v1/library/import-reviews/{id}/resolve`
+  - `POST /api/v1/settings/validate`
 
 ## Metadata Model
 
@@ -86,7 +101,9 @@ Download state is reconciled from qBittorrent and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is
 configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, category changes, and location
-changes. SABnzbd actions currently support start, stop, and delete. The API
+changes. `/api/v1/downloads/rebalance` adds a simple active-download limiter
+that can preview or apply start/stop operations against the visible Librarry
+queue. SABnzbd actions currently support start, stop, and delete. The API
 accepts multiple download IDs for these actions, routes each ID back to its
 owning client when possible, and the web UI exposes selected-row bulk controls
 for the common queue operations.

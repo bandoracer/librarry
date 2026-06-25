@@ -888,6 +888,31 @@ button {
   color: #9f1239;
 }
 
+.queue-rebalance-result {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f0f9ff;
+  border-bottom: 1px solid var(--border);
+}
+
+.queue-rebalance-result strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.queue-rebalance-result span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .upgrade-results {
   display: grid;
   border-top: 1px solid var(--border);

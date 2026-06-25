@@ -6,9 +6,10 @@ provider provenance, and first-class support for manual correction when upstream
 book data is incomplete or ambiguous.
 
 > Status: early alpha. The current build has real metadata search, provider
-> health, Prowlarr release search, qBittorrent category bootstrap, and paused
-> qBittorrent grabs with download polling and torrent actions. SABnzbd NZB/Usenet
-> grabs, queue/history polling, and start/stop/delete actions are implemented.
+> health, Prowlarr release search, qBittorrent category bootstrap, paused
+> qBittorrent grabs, download polling, torrent actions, and simple active-queue
+> rebalancing. SABnzbd NZB/Usenet grabs, queue/history polling, and
+> start/stop/delete actions are implemented.
 > Wanted items, author subscriptions, and release evaluation are implemented,
 > with manual and scheduled wanted and author monitoring plus history. Feed-based
 > indexer sync is implemented through Prowlarr-compatible RSS feeds. Library scan
@@ -19,9 +20,9 @@ book data is incomplete or ambiguous.
 > review for unlinked completed downloads and configurable naming templates are
 > implemented. Persisted quality profiles now drive release scoring, preferred
 > and rejected terms, size limits, seeder minimums, and upgrade cutoffs. Librarry
-> is not yet a complete Readarr-style torrent manager; queue depth, conflict
-> handling, native torrent queue arbitration, and broad download-client parity
-> are still early.
+> is not yet a complete Readarr-style torrent manager; conflict handling,
+> advanced torrent queue arbitration, and broad download-client parity are still
+> early.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -59,8 +60,8 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/SABnzbd grabs, download reconciliation, and bulk selected-download actions. | Add richer review flows, missing-book policy, and conflict handling. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, qBittorrent controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
-| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add queue arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
-| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, root folders, queue, missing wanted books, quality profiles, download clients, indexers, and basic commands. | Expand toward full OpenAPI compatibility, including author/book CRUD, import lists, notifications, remote path mappings, manual import, rename/retag, and Calibre endpoints. |
+| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls and simple active-queue rebalancing are implemented. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
+| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, root folders, queue, author/book list/create/lookup, missing wanted books, quality profiles, download clients, indexers, and basic commands. | Expand toward full OpenAPI compatibility, including durable author/book update/delete semantics, import lists, notifications, remote path mappings, manual import, rename/retag, and Calibre endpoints. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, and queue unlinked files for review. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
@@ -109,15 +110,18 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Metadata provider abstraction with initial adapters for Hardcover, Open
   Library, Google Books, and local OPF/embedded metadata.
 - Prowlarr-compatible release search for book indexers.
-- qBittorrent integration for book categories, paused grabs, polling, single and
-  bulk start, stop, delete, recheck, import, recovery, and priority actions.
+- qBittorrent integration for book categories, paused grabs, polling, simple
+  active-queue rebalancing, single and bulk start, stop, delete, recheck,
+  import, recovery, and priority actions.
 - SABnzbd integration for NZB/Usenet grabs, queue/history polling, and start,
   stop, and delete actions.
 - Readarr-compatible API shim for common client probes and status views,
   including `/ping`, `/api/v1/system/status`, `/api/v1/health`,
   `/api/v1/diskspace`, `/api/v1/rootfolder`, `/api/v1/queue`,
-  `/api/v1/wanted/missing`, `/api/v1/qualityprofile`,
-  `/api/v1/downloadclient`, `/api/v1/indexer`, and `/api/v1/command`.
+  `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/book`,
+  `/api/v1/book/lookup`, `/api/v1/wanted/missing`,
+  `/api/v1/qualityprofile`, `/api/v1/downloadclient`, `/api/v1/indexer`, and
+  `/api/v1/command`.
 - Docker Compose and TrueNAS custom-app deployment templates.
 
 ## Metadata Strategy
@@ -164,6 +168,20 @@ Important API surfaces:
   - `GET /api/v1/queue/status`
   - `DELETE /api/v1/queue/{id}`
   - `DELETE /api/v1/queue/bulk`
+  - `GET /api/v1/author`
+  - `POST /api/v1/author`
+  - `GET /api/v1/author/lookup`
+  - `GET /api/v1/author/{id}`
+  - `PUT /api/v1/author/{id}`
+  - `DELETE /api/v1/author/{id}`
+  - `GET /api/v1/book`
+  - `POST /api/v1/book`
+  - `GET /api/v1/book/lookup`
+  - `GET /api/v1/book/{id}`
+  - `GET /api/v1/book/{id}/overview`
+  - `PUT /api/v1/book/{id}`
+  - `PUT /api/v1/book/monitor`
+  - `DELETE /api/v1/book/{id}`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/downloadclient`
@@ -171,38 +189,39 @@ Important API surfaces:
   - `GET /api/v1/command`
   - `POST /api/v1/command`
 - Librarry-native endpoints:
-- `GET /healthz`
-- `GET /api/v1/providers/health`
-- `GET /api/v1/providers/diagnostics`
-- `GET /api/v1/search?query=Project%20Hail%20Mary`
-- `GET /api/v1/integrations/health`
-- `POST /api/v1/integrations/bootstrap`
-- `POST /api/v1/releases/search`
-- `POST /api/v1/grabs`
-- `GET /api/v1/downloads`
-- `POST /api/v1/downloads/actions`
-- `POST /api/v1/downloads/recover-failed`
-- `GET /api/v1/quality-profiles`
-- `POST /api/v1/quality-profiles`
-- `GET /api/v1/authors`
-- `POST /api/v1/authors`
-- `POST /api/v1/authors/monitor`
-- `GET /api/v1/wanted`
-- `POST /api/v1/wanted`
-- `POST /api/v1/wanted/{id}/search`
-- `GET /api/v1/wanted/{id}/releases`
-- `POST /api/v1/wanted/{id}/grab`
-- `POST /api/v1/wanted/monitor`
-- `POST /api/v1/wanted/feed-sync`
-- `POST /api/v1/wanted/upgrades`
-- `GET /api/v1/history`
-- `GET /api/v1/library/files`
-- `GET /api/v1/library/import-reviews`
-- `POST /api/v1/library/scan`
-- `POST /api/v1/library/import`
-- `POST /api/v1/library/import-completed`
-- `POST /api/v1/library/import-reviews/{id}/resolve`
-- `POST /api/v1/settings/validate`
+  - `GET /healthz`
+  - `GET /api/v1/providers/health`
+  - `GET /api/v1/providers/diagnostics`
+  - `GET /api/v1/search?query=Project%20Hail%20Mary`
+  - `GET /api/v1/integrations/health`
+  - `POST /api/v1/integrations/bootstrap`
+  - `POST /api/v1/releases/search`
+  - `POST /api/v1/grabs`
+  - `GET /api/v1/downloads`
+  - `POST /api/v1/downloads/actions`
+  - `POST /api/v1/downloads/rebalance`
+  - `POST /api/v1/downloads/recover-failed`
+  - `GET /api/v1/quality-profiles`
+  - `POST /api/v1/quality-profiles`
+  - `GET /api/v1/authors`
+  - `POST /api/v1/authors`
+  - `POST /api/v1/authors/monitor`
+  - `GET /api/v1/wanted`
+  - `POST /api/v1/wanted`
+  - `POST /api/v1/wanted/{id}/search`
+  - `GET /api/v1/wanted/{id}/releases`
+  - `POST /api/v1/wanted/{id}/grab`
+  - `POST /api/v1/wanted/monitor`
+  - `POST /api/v1/wanted/feed-sync`
+  - `POST /api/v1/wanted/upgrades`
+  - `GET /api/v1/history`
+  - `GET /api/v1/library/files`
+  - `GET /api/v1/library/import-reviews`
+  - `POST /api/v1/library/scan`
+  - `POST /api/v1/library/import`
+  - `POST /api/v1/library/import-completed`
+  - `POST /api/v1/library/import-reviews/{id}/resolve`
+  - `POST /api/v1/settings/validate`
 
 ## Quick Start
 
@@ -367,7 +386,7 @@ will grow as the automation path stabilizes.
 - Conflict policies, bulk import review, and per-profile organization rules.
 - Better edition selection for narrator, language, format, and ISBN.
 - Hardcover and Google Books fixture coverage.
-- Additional download clients and per-client capability policies.
+- Conflict-aware queue arbitration and additional download clients.
 - Public image publishing and release builds.
 
 ## Contributing

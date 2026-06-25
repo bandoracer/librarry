@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -216,6 +217,114 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatAuthorAndBookEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/author", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"authorName":"Andy Weir"`) || !strings.Contains(res.Body.String(), `"books"`) {
+		t.Fatalf("expected author payload, got %s", res.Body.String())
+	}
+
+	authorID := stableInt("author-sub-1")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/author/"+strconv.Itoa(authorID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"foreignAuthorId":"openlibrary:OL123A"`) {
+		t.Fatalf("expected single author payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/book", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"title":"Project Hail Mary"`) || !strings.Contains(res.Body.String(), `"authorTitle":"Andy Weir"`) {
+		t.Fatalf("expected book payload, got %s", res.Body.String())
+	}
+
+	bookID := stableInt("wanted-1")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/book/"+strconv.Itoa(bookID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"librarryId":"wanted-1"`) {
+		t.Fatalf("expected single book payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatAuthorAndBookCreateEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/author", strings.NewReader(`{"authorName":"Andy Weir","foreignAuthorId":"ol:andy","monitored":true}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"authorName":"Andy Weir"`) {
+		t.Fatalf("expected created author payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/book", strings.NewReader(`{"title":"Project Hail Mary","authorTitle":"Andy Weir","foreignBookId":"ol:work"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"title":"Project Hail Mary"`) || !strings.Contains(res.Body.String(), `"authorTitle":"Andy Weir"`) {
+		t.Fatalf("expected created book payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatAuthorAndBookLookupEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService([]metadata.Provider{fakeMetadataProvider{}}),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/author/lookup?term=Andy%20Weir", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"authorName":"Andy Weir"`) || !strings.Contains(res.Body.String(), `"foreignAuthorId":"openlibrary:OL123A"`) {
+		t.Fatalf("expected author lookup payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/book/lookup?term=Project%20Hail%20Mary", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"title":"Project Hail Mary"`) || !strings.Contains(res.Body.String(), `"foreignBookId":"openlibrary:OL1W"`) {
+		t.Fatalf("expected book lookup payload, got %s", res.Body.String())
+	}
+}
+
 func TestSettingsValidateEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -256,6 +365,69 @@ func TestDownloadActionEndpoint(t *testing.T) {
 	}
 	if payload.Action != acquisition.DownloadActionStop || !payload.Applied || payload.IDs[0] != "abc123" {
 		t.Fatalf("unexpected action payload: %+v", payload)
+	}
+}
+
+func TestDownloadRebalanceEndpointStartsPausedDownloads(t *testing.T) {
+	now := time.Now().UTC()
+	acquire := &fakeRebalanceAcquire{downloads: []acquisition.DownloadStatus{
+		{ID: "active-1", Name: "Active", State: "downloading", Progress: 0.4, AddedAt: &now},
+		{ID: "paused-low", Name: "Paused Low", State: "pausedDL", Progress: 0.1, AddedAt: &now},
+		{ID: "paused-high", Name: "Paused High", State: "stoppedDL", Progress: 0.8, AddedAt: &now},
+		{ID: "done-1", Name: "Done", State: "uploading", Progress: 1, AddedAt: &now},
+	}}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  acquire,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/rebalance", strings.NewReader(`{"maxActive":2,"dryRun":false}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload downloadRebalancePlan
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.Applied || payload.StartIDs[0] != "paused-high" || len(payload.StopIDs) != 0 {
+		t.Fatalf("unexpected rebalance payload: %+v", payload)
+	}
+	if len(acquire.actions) != 1 || acquire.actions[0].Action != acquisition.DownloadActionStart || acquire.actions[0].IDs[0] != "paused-high" {
+		t.Fatalf("expected start action for paused-high, got %+v", acquire.actions)
+	}
+}
+
+func TestDownloadRebalanceEndpointDryRunStopsOverflow(t *testing.T) {
+	now := time.Now().UTC()
+	acquire := &fakeRebalanceAcquire{downloads: []acquisition.DownloadStatus{
+		{ID: "active-high", Name: "Active High", State: "downloading", Progress: 0.9, AddedAt: &now},
+		{ID: "active-low", Name: "Active Low", State: "stalledDL", Progress: 0.2, AddedAt: &now},
+	}}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  acquire,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/rebalance", strings.NewReader(`{"maxActive":1,"stopOverflow":true,"dryRun":true}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload downloadRebalancePlan
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Applied || payload.StopIDs[0] != "active-low" || len(acquire.actions) != 0 {
+		t.Fatalf("unexpected dry-run payload/actions: %+v actions=%+v", payload, acquire.actions)
 	}
 }
 
@@ -660,14 +832,53 @@ func (fakeAcquire) DownloadAction(_ context.Context, request acquisition.Downloa
 	}, nil
 }
 
+type fakeRebalanceAcquire struct {
+	fakeAcquire
+	downloads []acquisition.DownloadStatus
+	actions   []acquisition.DownloadActionRequest
+}
+
+func (f *fakeRebalanceAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
+	return f.downloads, nil
+}
+
+func (f *fakeRebalanceAcquire) DownloadAction(_ context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error) {
+	f.actions = append(f.actions, request)
+	return acquisition.DownloadActionResult{
+		Action:  request.Action,
+		IDs:     request.IDs,
+		Applied: true,
+	}, nil
+}
+
 type fakeWanted struct{}
 
 func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedItem, error) {
-	return wanted.WantedItem{ID: "wanted-1", Title: "Project Hail Mary", Format: "ebook", Status: "wanted"}, nil
+	return wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "openlibrary:OL1W",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}, nil
 }
 
 func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
-	return []wanted.WantedItem{{ID: "wanted-1", Title: "Project Hail Mary", Format: "ebook", Status: "wanted"}}, nil
+	return []wanted.WantedItem{{
+		ID:             "wanted-1",
+		WorkID:         "openlibrary:OL1W",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}}, nil
 }
 
 func (fakeWanted) ListQualityProfiles(context.Context) ([]wanted.QualityProfile, error) {
@@ -927,4 +1138,44 @@ func (fakeLibrary) ImportCompletedDownloads(_ context.Context, downloads []acqui
 			},
 		}},
 	}, nil
+}
+
+type fakeMetadataProvider struct{}
+
+func (fakeMetadataProvider) Name() string {
+	return "Fake Metadata"
+}
+
+func (fakeMetadataProvider) Health(metadata.Context) metadata.ProviderHealth {
+	return metadata.ProviderHealth{Name: "Fake Metadata", Status: "ready", Configured: true, Message: "Ready", CheckedAt: time.Now().UTC()}
+}
+
+func (fakeMetadataProvider) Diagnostics(metadata.Context) metadata.Diagnostic {
+	return metadata.Diagnostic{Name: "Fake Metadata", Configured: true}
+}
+
+func (fakeMetadataProvider) Search(_ metadata.Context, query metadata.Query) ([]metadata.SearchResult, error) {
+	return []metadata.SearchResult{{
+		Provider:   "Fake Metadata",
+		Kind:       query.Type,
+		Score:      99,
+		Confidence: "high",
+		MatchedOn:  []string{"title_author"},
+		Work: metadata.Work{
+			ID:               "openlibrary:OL1W",
+			Title:            "Project Hail Mary",
+			FirstPublishYear: 2021,
+			CoverURL:         "https://covers.example/project-hail-mary.jpg",
+			Authors: []metadata.Author{{
+				ID:   "openlibrary:OL123A",
+				Name: "Andy Weir",
+			}},
+		},
+		Edition: metadata.Edition{
+			ID:     "openlibrary:OL1M",
+			Title:  "Project Hail Mary",
+			Format: metadata.FormatEbook,
+			ISBNs:  []string{"9780593135204"},
+		},
+	}}, nil
 }

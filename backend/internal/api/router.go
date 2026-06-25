@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -83,6 +84,20 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/queue/status", handler.compatQueueStatus)
 	mux.HandleFunc("DELETE /api/v1/queue/{id}", handler.compatDeleteQueue)
 	mux.HandleFunc("DELETE /api/v1/queue/bulk", handler.compatDeleteQueueBulk)
+	mux.HandleFunc("GET /api/v1/author/lookup", handler.compatAuthorLookup)
+	mux.HandleFunc("GET /api/v1/author", handler.compatAuthors)
+	mux.HandleFunc("POST /api/v1/author", handler.compatCreateAuthor)
+	mux.HandleFunc("GET /api/v1/author/{id}", handler.compatAuthor)
+	mux.HandleFunc("PUT /api/v1/author/{id}", handler.compatUpdateAuthor)
+	mux.HandleFunc("DELETE /api/v1/author/{id}", handler.compatDeleteAuthor)
+	mux.HandleFunc("GET /api/v1/book/lookup", handler.compatBookLookup)
+	mux.HandleFunc("PUT /api/v1/book/monitor", handler.compatMonitorBooks)
+	mux.HandleFunc("GET /api/v1/book", handler.compatBooks)
+	mux.HandleFunc("POST /api/v1/book", handler.compatCreateBook)
+	mux.HandleFunc("GET /api/v1/book/{id}", handler.compatBook)
+	mux.HandleFunc("GET /api/v1/book/{id}/overview", handler.compatBookOverview)
+	mux.HandleFunc("PUT /api/v1/book/{id}", handler.compatUpdateBook)
+	mux.HandleFunc("DELETE /api/v1/book/{id}", handler.compatDeleteBook)
 	mux.HandleFunc("GET /api/v1/wanted/missing", handler.compatWantedMissing)
 	mux.HandleFunc("GET /api/v1/qualityprofile", handler.compatQualityProfiles)
 	mux.HandleFunc("GET /api/v1/downloadclient", handler.compatDownloadClients)
@@ -99,6 +114,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
+	mux.HandleFunc("POST /api/v1/downloads/rebalance", handler.rebalanceDownloads)
 	mux.HandleFunc("POST /api/v1/downloads/recover-failed", handler.recoverFailedDownloads)
 	mux.HandleFunc("GET /api/v1/quality-profiles", handler.qualityProfiles)
 	mux.HandleFunc("POST /api/v1/quality-profiles", handler.saveQualityProfile)
@@ -279,6 +295,90 @@ func (h *handler) downloadAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+type downloadRebalanceRequest struct {
+	MaxActive    int    `json:"maxActive"`
+	Client       string `json:"client,omitempty"`
+	Tag          string `json:"tag,omitempty"`
+	Category     string `json:"category,omitempty"`
+	DryRun       bool   `json:"dryRun,omitempty"`
+	StopOverflow bool   `json:"stopOverflow,omitempty"`
+}
+
+type downloadRebalancePlan struct {
+	MaxActive     int                          `json:"maxActive"`
+	ActiveCount   int                          `json:"activeCount"`
+	PausedCount   int                          `json:"pausedCount"`
+	CompleteCount int                          `json:"completeCount"`
+	FailedCount   int                          `json:"failedCount"`
+	StartIDs      []string                     `json:"startIds"`
+	StopIDs       []string                     `json:"stopIds"`
+	Applied       bool                         `json:"applied"`
+	Message       string                       `json:"message"`
+	Downloads     []acquisition.DownloadStatus `json:"downloads,omitempty"`
+}
+
+func (h *handler) rebalanceDownloads(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request downloadRebalanceRequest
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&request)
+	}
+	if request.MaxActive <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "maxActive must be greater than zero"})
+		return
+	}
+	if strings.TrimSpace(request.Tag) == "" && strings.TrimSpace(request.Client) == "" && strings.TrimSpace(request.Category) == "" {
+		request.Tag = "librarry"
+	}
+	query := acquisition.DownloadListQuery{
+		Client:   request.Client,
+		Tag:      request.Tag,
+		Category: request.Category,
+	}
+	downloads, err := h.deps.Acquire.Downloads(r.Context(), query)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	plan := planDownloadRebalance(downloads, request.MaxActive, request.StopOverflow)
+	plan.MaxActive = request.MaxActive
+
+	if !request.DryRun {
+		if len(plan.StopIDs) > 0 {
+			if _, err := h.deps.Acquire.DownloadAction(r.Context(), acquisition.DownloadActionRequest{Action: acquisition.DownloadActionStop, IDs: plan.StopIDs}); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "plan": plan})
+				return
+			}
+		}
+		if len(plan.StartIDs) > 0 {
+			if _, err := h.deps.Acquire.DownloadAction(r.Context(), acquisition.DownloadActionRequest{Action: acquisition.DownloadActionStart, IDs: plan.StartIDs}); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "plan": plan})
+				return
+			}
+		}
+		plan.Applied = true
+		refreshed, refreshErr := h.deps.Acquire.Downloads(r.Context(), query)
+		if refreshErr == nil {
+			plan.Downloads = refreshed
+		}
+	}
+	if plan.Message == "" {
+		switch {
+		case len(plan.StartIDs) == 0 && len(plan.StopIDs) == 0:
+			plan.Message = "queue already matches active-download limit"
+		case request.DryRun:
+			plan.Message = "queue rebalance plan created"
+		default:
+			plan.Message = "queue rebalance applied"
+		}
+	}
+	writeJSON(w, http.StatusOK, plan)
 }
 
 func (h *handler) recoverFailedDownloads(w http.ResponseWriter, r *http.Request) {
@@ -671,6 +771,128 @@ func (h *handler) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, outcome)
 }
 
+func planDownloadRebalance(downloads []acquisition.DownloadStatus, maxActive int, stopOverflow bool) downloadRebalancePlan {
+	var active []acquisition.DownloadStatus
+	var paused []acquisition.DownloadStatus
+	plan := downloadRebalancePlan{}
+	for _, download := range downloads {
+		switch {
+		case isFailedDownloadState(download):
+			plan.FailedCount++
+		case isCompleteDownloadState(download):
+			plan.CompleteCount++
+		case isPausedDownloadState(download):
+			plan.PausedCount++
+			paused = append(paused, download)
+		case isActiveDownloadState(download):
+			plan.ActiveCount++
+			active = append(active, download)
+		}
+	}
+	if plan.ActiveCount < maxActive {
+		sortStartCandidates(paused)
+		slots := maxActive - plan.ActiveCount
+		for _, download := range paused {
+			if slots <= 0 {
+				break
+			}
+			if strings.TrimSpace(download.ID) == "" {
+				continue
+			}
+			plan.StartIDs = append(plan.StartIDs, download.ID)
+			slots--
+		}
+		return plan
+	}
+	if plan.ActiveCount > maxActive && stopOverflow {
+		sortKeepActiveCandidates(active)
+		for _, download := range active[maxActive:] {
+			if strings.TrimSpace(download.ID) != "" {
+				plan.StopIDs = append(plan.StopIDs, download.ID)
+			}
+		}
+	}
+	return plan
+}
+
+func sortStartCandidates(downloads []acquisition.DownloadStatus) {
+	sort.SliceStable(downloads, func(i, j int) bool {
+		if downloads[i].Progress != downloads[j].Progress {
+			return downloads[i].Progress > downloads[j].Progress
+		}
+		return earlierDownload(downloads[i], downloads[j])
+	})
+}
+
+func sortKeepActiveCandidates(downloads []acquisition.DownloadStatus) {
+	sort.SliceStable(downloads, func(i, j int) bool {
+		if downloads[i].Progress != downloads[j].Progress {
+			return downloads[i].Progress > downloads[j].Progress
+		}
+		return earlierDownload(downloads[i], downloads[j])
+	})
+}
+
+func earlierDownload(a acquisition.DownloadStatus, b acquisition.DownloadStatus) bool {
+	if a.AddedAt != nil && b.AddedAt != nil && !a.AddedAt.Equal(*b.AddedAt) {
+		return a.AddedAt.Before(*b.AddedAt)
+	}
+	return strings.ToLower(a.Name) < strings.ToLower(b.Name)
+}
+
+func isActiveDownloadState(download acquisition.DownloadStatus) bool {
+	state := normalizedDownloadState(download.State)
+	if state == "" {
+		return false
+	}
+	if isCompleteDownloadState(download) || isFailedDownloadState(download) || isPausedDownloadState(download) {
+		return false
+	}
+	return strings.Contains(state, "download") ||
+		strings.Contains(state, "stalled") ||
+		strings.Contains(state, "meta") ||
+		strings.Contains(state, "queued") ||
+		strings.Contains(state, "checking") ||
+		strings.Contains(state, "forced") ||
+		strings.Contains(state, "moving") ||
+		strings.Contains(state, "allocating")
+}
+
+func isPausedDownloadState(download acquisition.DownloadStatus) bool {
+	state := normalizedDownloadState(download.State)
+	if isCompleteDownloadState(download) || isFailedDownloadState(download) {
+		return false
+	}
+	return strings.Contains(state, "pause") ||
+		strings.Contains(state, "stop") ||
+		state == "idle"
+}
+
+func isCompleteDownloadState(download acquisition.DownloadStatus) bool {
+	state := normalizedDownloadState(download.State)
+	return download.CompletedAt != nil ||
+		download.Progress >= 1 ||
+		strings.Contains(state, "complete") ||
+		strings.Contains(state, "upload") ||
+		strings.Contains(state, "seed")
+}
+
+func isFailedDownloadState(download acquisition.DownloadStatus) bool {
+	state := normalizedDownloadState(download.State)
+	return strings.Contains(state, "error") ||
+		strings.Contains(state, "missing") ||
+		strings.Contains(state, "failed") ||
+		strings.TrimSpace(download.FailureReason) != ""
+}
+
+func normalizedDownloadState(state string) string {
+	state = strings.ToLower(strings.TrimSpace(state))
+	state = strings.ReplaceAll(state, "_", "")
+	state = strings.ReplaceAll(state, "-", "")
+	state = strings.ReplaceAll(state, " ", "")
+	return state
+}
+
 func withCORS(webOrigin string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
@@ -678,7 +900,7 @@ func withCORS(webOrigin string, next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
