@@ -1495,18 +1495,76 @@ button {
   flex-wrap: wrap;
 }
 
+.download-queue-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+
+.download-queue-metric {
+  min-height: 64px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 10px 16px;
+  background: var(--surface-subtle);
+  border-right: 1px solid var(--border);
+}
+
+.download-queue-metric:last-child {
+  border-right: 0;
+}
+
+.download-queue-metric span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.download-queue-metric strong {
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.download-bulkbar {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
 .download-row {
   min-height: 92px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   gap: 16px;
   align-items: center;
   padding: 12px 18px;
   border-top: 1px solid var(--border);
 }
 
+.download-row.selected {
+  background: #f1f6ff;
+}
+
 .download-row:first-child {
   border-top: 0;
+}
+
+.download-select {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+}
+
+.download-select input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 
 .download-main {
@@ -1831,9 +1889,25 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .download-row {
-    grid-template-columns: 1fr;
+  .download-queue-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .download-queue-metric {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .download-bulkbar {
     align-items: stretch;
+  }
+
+  .download-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .download-actions {
+    grid-column: 1 / -1;
   }
 
   .monitor-grid,

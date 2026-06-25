@@ -471,7 +471,7 @@ export async function fetchDownloads(tag = "librarry"): Promise<DownloadStatus[]
 export async function runDownloadAction(
   action: DownloadAction,
   ids: string[],
-  options: { deleteFiles?: boolean } = {}
+  options: { deleteFiles?: boolean; category?: string; savePath?: string } = {}
 ): Promise<DownloadActionResult> {
   const response = await fetch(`${apiBase}/api/v1/downloads/actions`, {
     method: "POST",
@@ -479,7 +479,9 @@ export async function runDownloadAction(
     body: JSON.stringify({
       action,
       ids,
-      deleteFiles: options.deleteFiles ?? false
+      deleteFiles: options.deleteFiles ?? false,
+      category: options.category,
+      savePath: options.savePath
     })
   });
   if (!response.ok) {

@@ -1,6 +1,9 @@
 import {
   Activity,
   BookOpen,
+  CheckSquare,
+  ChevronsDown,
+  ChevronsUp,
   CheckCircle2,
   Clock3,
   Database,
@@ -18,6 +21,7 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
+  Square,
   Trash2,
   TrendingUp,
   UploadCloud,
@@ -109,6 +113,7 @@ export function App() {
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
+  const [selectedDownloadIDs, setSelectedDownloadIDs] = useState<string[]>([]);
   const [query, setQuery] = useState("Project Hail Mary");
   const [importPath, setImportPath] = useState("");
   const [format, setFormat] = useState("any");
@@ -199,6 +204,12 @@ export function App() {
     () => wantedItems.find((item) => item.id === selectedWantedID) ?? wantedItems[0],
     [wantedItems, selectedWantedID]
   );
+  const selectableDownloadIDs = useMemo(() => downloads.map((download) => download.id).filter(Boolean), [downloads]);
+  const selectedDownloadIDSet = useMemo(() => new Set(selectedDownloadIDs), [selectedDownloadIDs]);
+  const selectedDownloads = useMemo(() => downloads.filter((download) => selectedDownloadIDSet.has(download.id)), [downloads, selectedDownloadIDSet]);
+  const selectedActionDownloadIDs = selectedDownloads.map((download) => download.id);
+  const allDownloadsSelected = selectableDownloadIDs.length > 0 && selectableDownloadIDs.every((id) => selectedDownloadIDSet.has(id));
+  const downloadQueueStats = useMemo(() => summarizeDownloads(downloads), [downloads]);
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
     const author = selected?.work.authors?.[0];
@@ -447,12 +458,18 @@ export function App() {
     }
   }
 
-  async function runCompletedImport(download?: DownloadStatus) {
+  async function runCompletedImport(download?: DownloadStatus | DownloadStatus[]) {
+    const targets = Array.isArray(download) ? download : download ? [download] : [];
+    const downloadIDs = targets.map((item) => item.id).filter(Boolean);
+    const actionID = downloadIDs.length > 1 ? "bulk:import" : downloadIDs[0] ? `${downloadIDs[0]}:import` : "";
     setIsImportingCompleted(true);
+    if (actionID) {
+      setDownloadActionID(actionID);
+    }
     setLibraryError("");
     try {
       const outcome = await importCompletedDownloads({
-        downloadIds: download ? [download.id] : [],
+        downloadIds: downloadIDs,
         move: false,
         limit: 50
       });
@@ -468,6 +485,9 @@ export function App() {
       setLibraryError(error instanceof Error ? error.message : "Completed import failed");
     } finally {
       setIsImportingCompleted(false);
+      if (actionID) {
+        setDownloadActionID("");
+      }
     }
   }
 
@@ -497,8 +517,10 @@ export function App() {
     }
   }
 
-  async function runFailedRecovery(download?: DownloadStatus, options: { autoGrab?: boolean; removeFailed?: boolean; force?: boolean } = {}) {
-    const actionID = download ? `${download.id}:recover` : "";
+  async function runFailedRecovery(download?: DownloadStatus | DownloadStatus[], options: { autoGrab?: boolean; removeFailed?: boolean; force?: boolean } = {}) {
+    const targets = Array.isArray(download) ? download : download ? [download] : [];
+    const downloadIDs = targets.map((item) => item.id).filter(Boolean);
+    const actionID = downloadIDs.length > 1 ? "bulk:recover" : downloadIDs[0] ? `${downloadIDs[0]}:recover` : "";
     setIsRecoveringFailed(true);
     if (actionID) {
       setDownloadActionID(actionID);
@@ -506,11 +528,11 @@ export function App() {
     setDownloadError("");
     try {
       const run = await recoverFailedDownloads({
-        downloadIds: download ? [download.id] : [],
+        downloadIds: downloadIDs,
         autoGrab: options.autoGrab ?? false,
         paused: true,
         removeFailed: options.removeFailed ?? false,
-        force: options.force ?? Boolean(download)
+        force: options.force ?? downloadIDs.length > 0
       });
       setFailedDownloadRun(run);
       await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
@@ -540,14 +562,23 @@ export function App() {
   }
 
   async function applyDownloadAction(action: DownloadAction, download: DownloadStatus, deleteFiles = false) {
-    setDownloadActionID(`${download.id}:${action}`);
+    await applyDownloadActionToIDs(action, [download.id], deleteFiles);
+  }
+
+  async function applyDownloadActionToIDs(action: DownloadAction, ids: string[], deleteFiles = false) {
+    const actionIDs = ids.filter(Boolean);
+    if (!actionIDs.length) return;
+    const isBulk = actionIDs.length > 1;
+    setDownloadActionID(isBulk ? `bulk:${action}` : `${actionIDs[0]}:${action}`);
     setDownloadError("");
     try {
-      const result = await runDownloadAction(action, [download.id], { deleteFiles });
+      const result = await runDownloadAction(action, actionIDs, { deleteFiles });
       if (result.downloads?.length) {
         setDownloads((current) => mergeDownloads(current, result.downloads ?? []));
       } else if (action === "delete") {
-        setDownloads((current) => current.filter((item) => item.id !== download.id));
+        const deleted = new Set(actionIDs);
+        setDownloads((current) => current.filter((item) => !deleted.has(item.id)));
+        setSelectedDownloadIDs((current) => current.filter((id) => !deleted.has(id)));
       } else {
         await refreshDownloads();
       }
@@ -556,6 +587,26 @@ export function App() {
     } finally {
       setDownloadActionID("");
     }
+  }
+
+  function toggleDownloadSelection(id: string) {
+    if (!id) return;
+    setSelectedDownloadIDs((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  function toggleAllDownloads() {
+    setSelectedDownloadIDs((current) => {
+      const next = new Set(current);
+      const everyVisibleSelected = selectableDownloadIDs.length > 0 && selectableDownloadIDs.every((id) => next.has(id));
+      for (const id of selectableDownloadIDs) {
+        if (everyVisibleSelected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+      return Array.from(next);
+    });
   }
 
   function updateQualityProfile(profile: QualityProfile, changes: Partial<QualityProfile>) {
@@ -1197,7 +1248,7 @@ export function App() {
               <h2>Downloads</h2>
               <p>
                 {downloads.length
-                  ? `${downloads.length} qBittorrent items tracked with Librarry tags.`
+                  ? `${downloads.length} qBittorrent items tracked; ${selectedDownloads.length} selected for queue actions.`
                   : "No Librarry-tagged downloads are currently visible."}
               </p>
             </div>
@@ -1217,6 +1268,58 @@ export function App() {
             </div>
           </div>
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
+          <div className="download-queue-strip" aria-label="Download queue summary">
+            {[
+              ["Active", downloadQueueStats.active],
+              ["Paused", downloadQueueStats.paused],
+              ["Complete", downloadQueueStats.complete],
+              ["Failed", downloadQueueStats.failed],
+              ["Selected", selectedDownloads.length]
+            ].map(([label, value]) => (
+              <div className="download-queue-metric" key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="download-bulkbar" aria-label="Bulk download actions">
+            <button className="secondary-action compact" disabled={downloads.length === 0} onClick={toggleAllDownloads} type="button">
+              {allDownloadsSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+              {allDownloadsSelected ? "Clear all" : "Select all"}
+            </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("start", selectedActionDownloadIDs)} type="button">
+              <Play size={16} />
+              Start
+            </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("stop", selectedActionDownloadIDs)} type="button">
+              <Pause size={16} />
+              Stop
+            </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("recheck", selectedActionDownloadIDs)} type="button">
+              <RefreshCw size={16} />
+              Recheck
+            </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("topPriority", selectedActionDownloadIDs)} type="button">
+              <ChevronsUp size={16} />
+              Top
+            </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("bottomPriority", selectedActionDownloadIDs)} type="button">
+              <ChevronsDown size={16} />
+              Bottom
+            </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || isImportingCompleted} onClick={() => runCompletedImport(selectedDownloads)} type="button">
+              <UploadCloud size={16} />
+              Import
+            </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || isRecoveringFailed} onClick={() => runFailedRecovery(selectedDownloads, { autoGrab: true, force: true })} type="button">
+              <HardDriveDownload size={16} />
+              Recover
+            </button>
+            <button className="secondary-action compact danger-outline" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("delete", selectedActionDownloadIDs, false)} type="button">
+              <Trash2 size={16} />
+              Remove
+            </button>
+          </div>
           {failedDownloadRun ? (
             <div className="failed-download-results">
               <div className="failed-download-summary">
@@ -1234,16 +1337,20 @@ export function App() {
                       {item.replacementRelease ? ` · replacement ${item.replacementRelease.title}` : ""}
                     </span>
                   </div>
-                  {item.replacementDownload ? <em>Queued</em> : item.error ? <em>Error</em> : null}
-                </article>
-              ))}
-            </div>
-          ) : null}
+	                  {item.replacementDownload ? <em>Queued</em> : item.error ? <em>Error</em> : null}
+	                </article>
+	              ))}
+	            </div>
+	          ) : null}
           <div className="download-list">
             {downloads.map((download) => {
-              const busy = downloadActionID.startsWith(`${download.id}:`);
+              const selectedDownload = selectedDownloadIDSet.has(download.id);
+              const busy = downloadActionID.startsWith(`${download.id}:`) || (downloadActionID.startsWith("bulk:") && selectedDownload);
               return (
-                <article className="download-row" key={download.id}>
+                <article className={selectedDownload ? "download-row selected" : "download-row"} key={download.id}>
+                  <label className="download-select" title="Select download">
+                    <input checked={selectedDownload} onChange={() => toggleDownloadSelection(download.id)} type="checkbox" aria-label={`Select ${download.name || download.id}`} />
+                  </label>
                   <div className="download-main">
                     <div className="download-title-line">
                       <strong>{download.name || download.id}</strong>
@@ -1435,6 +1542,22 @@ function mergeDownloads(current: DownloadStatus[], next: DownloadStatus[]) {
     byID.set(download.id, download);
   }
   return Array.from(byID.values());
+}
+
+function summarizeDownloads(downloads: DownloadStatus[]) {
+  return downloads.reduce(
+    (summary, download) => {
+      const tone = stateTone(download.state);
+      if (tone === "active") summary.active += 1;
+      if (tone === "paused") summary.paused += 1;
+      if (tone === "error") summary.failed += 1;
+      if ((download.progress ?? 0) >= 1 || download.importStatus === "ready" || download.importStatus === "imported") {
+        summary.complete += 1;
+      }
+      return summary;
+    },
+    { active: 0, paused: 0, complete: 0, failed: 0 }
+  );
 }
 
 function mergeWanted(current: WantedItem[], next: WantedItem[]) {

@@ -18,8 +18,8 @@ book data is incomplete or ambiguous.
 > implemented. Persisted quality profiles now drive release scoring, preferred
 > and rejected terms, size limits, seeder minimums, and upgrade cutoffs. Librarry
 > is not yet a complete Readarr-style torrent manager; queue depth, conflict
-> handling, bulk decisions, native torrent queue arbitration, and multi-client
-> support are still early.
+> handling, native torrent queue arbitration, and multi-client support are still
+> early.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -54,7 +54,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, tracked in Postgres, manually imported, fed by completed qBittorrent imports, and reviewed when completed downloads are not linked to wanted items. | Add OPF, EPUB, audio-tag extraction, missing-book detection, and stronger import matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add richer review flows, missing-book policy, and bulk queue operations. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, download reconciliation, and bulk selected-download actions. | Add richer review flows, missing-book policy, and conflict handling. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, and qBittorrent controls. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented; SABnzbd interface is stubbed. This is not yet a full multi-client torrent manager. | Add clients only behind small interfaces once metadata and matching are stable. |
@@ -106,8 +106,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Metadata provider abstraction with initial adapters for Hardcover, Open
   Library, Google Books, and local OPF/embedded metadata.
 - Prowlarr-compatible release search for book indexers.
-- qBittorrent integration for book categories, paused grabs, polling, start,
-  stop, delete, recheck, and priority actions.
+- qBittorrent integration for book categories, paused grabs, polling, single and
+  bulk start, stop, delete, recheck, import, recovery, and priority actions.
 - Docker Compose and TrueNAS custom-app deployment templates.
 
 ## Metadata Strategy

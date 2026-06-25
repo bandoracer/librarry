@@ -42,6 +42,78 @@ func TestQBittorrentActionStop(t *testing.T) {
 	}
 }
 
+func TestQBittorrentActionSetCategoryAndLocation(t *testing.T) {
+	tests := []struct {
+		name       string
+		request    DownloadActionRequest
+		endpoint   string
+		field      string
+		wantValue  string
+		wantHashes string
+	}{
+		{
+			name: "category",
+			request: DownloadActionRequest{
+				Action:   DownloadActionSetCategory,
+				IDs:      []string{"abc"},
+				Category: "books-audiobook",
+			},
+			endpoint:   "/api/v2/torrents/setCategory",
+			field:      "category",
+			wantValue:  "books-audiobook",
+			wantHashes: "abc",
+		},
+		{
+			name: "location",
+			request: DownloadActionRequest{
+				Action:   DownloadActionSetLocation,
+				IDs:      []string{"abc", "def"},
+				SavePath: "/data/torrents/books/audio",
+			},
+			endpoint:   "/api/v2/torrents/setLocation",
+			field:      "location",
+			wantValue:  "/data/torrents/books/audio",
+			wantHashes: "abc|def",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var endpoint string
+			var hashes string
+			var fieldValue string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				endpoint = r.URL.Path
+				if err := r.ParseForm(); err != nil {
+					t.Fatal(err)
+				}
+				hashes = r.Form.Get("hashes")
+				fieldValue = r.Form.Get(test.field)
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			client := NewQBittorrentClient(server.URL, "", "", server.Client())
+			result, err := client.Action(context.Background(), test.request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if endpoint != test.endpoint {
+				t.Fatalf("expected endpoint %s, got %s", test.endpoint, endpoint)
+			}
+			if hashes != test.wantHashes {
+				t.Fatalf("expected hashes %s, got %s", test.wantHashes, hashes)
+			}
+			if fieldValue != test.wantValue {
+				t.Fatalf("expected %s %s, got %s", test.field, test.wantValue, fieldValue)
+			}
+			if !result.Applied || result.Action != normalizeAction(test.request.Action) {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+		})
+	}
+}
+
 func TestQBittorrentListMapsDownloadStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/torrents/info" {

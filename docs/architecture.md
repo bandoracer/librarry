@@ -63,7 +63,9 @@ ensure the book categories exist in qBittorrent.
 Download state is reconciled from qBittorrent through `/api/v1/downloads` and
 stored in Postgres when database persistence is configured. Torrent actions are
 exposed through `/api/v1/downloads/actions` for start, stop, delete, recheck,
-and priority changes.
+priority changes, category changes, and location changes. The API accepts
+multiple download IDs for these actions, and the web UI exposes selected-row
+bulk controls for the common queue operations.
 
 Failed-download recovery can be triggered manually through
 `POST /api/v1/downloads/recover-failed` and can also run on an interval in the

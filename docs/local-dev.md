@@ -131,6 +131,10 @@ qBittorrent error/missing-file states and stale stalled downloads with no
 seeders, marks the linked wanted item wanted again, searches for replacements,
 and only grabs or removes torrents when explicitly requested.
 
+The download queue UI uses `POST /api/v1/downloads/actions` for single and
+selected-row bulk actions. Supported queue actions include start, stop, delete,
+recheck, priority movement, category changes, and location changes.
+
 ## Library Roots
 
 Library scans and manual imports use these roots by default:
