@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -273,6 +274,73 @@ func TestCompatReleaseSearchAndGrabEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"librarryWantedId":"wanted-1"`) {
 		t.Fatalf("expected wanted item linkage, got %s", res.Body.String())
+	}
+}
+
+func TestCompatReleaseGrabResolvesStoredDecisionID(t *testing.T) {
+	wantedClient := &fakeReleaseWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", EbookCategory: "books-ebook", BookTorrentRoot: "/downloads/books"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+		Wanted:   wantedClient,
+	})
+
+	bookID := stableInt("wanted-1")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/release?bookId="+strconv.Itoa(bookID), nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var records []map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&records); err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 || records[0]["librarryReleaseId"] != "release-1" || records[0]["guid"] != "release-1" {
+		t.Fatalf("expected persisted release decision payload, got %+v", records)
+	}
+	returnedID := int(records[0]["id"].(float64))
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/release", strings.NewReader(`{"id":`+strconv.Itoa(returnedID)+`,"bookId":`+strconv.Itoa(bookID)+`}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.grabs) != 1 || wantedClient.grabs[0].ReleaseID != "release-1" {
+		t.Fatalf("expected resolved wanted grab for release-1, got %+v", wantedClient.grabs)
+	}
+	if !strings.Contains(res.Body.String(), `"grabbed":true`) || !strings.Contains(res.Body.String(), `"librarryWantedId":"wanted-1"`) {
+		t.Fatalf("expected Readarr grabbed release payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatReleaseGrabDoesNotBypassRejectedStoredDecision(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", EbookCategory: "books-ebook", BookTorrentRoot: "/downloads/books"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+		Wanted:   fakeRejectedReleaseWanted{},
+	})
+
+	bookID := stableInt("wanted-1")
+	releaseID := stableInt("release-1")
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/release",
+		strings.NewReader(`{"id":`+strconv.Itoa(releaseID)+`,"bookId":`+strconv.Itoa(bookID)+`,"downloadUrl":"magnet:?xt=urn:btih:projecthailmary"}`),
+	)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusBadGateway {
+		t.Fatalf("expected rejected stored decision to block direct fallback, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "release is rejected") {
+		t.Fatalf("expected rejected release error, got %s", res.Body.String())
 	}
 }
 
@@ -1883,11 +1951,11 @@ func (fakeWanted) MonitorAuthors(context.Context, wanted.AuthorMonitorRequest) (
 }
 
 func (fakeWanted) SearchReleases(context.Context, string, wanted.SearchReleasesRequest) (wanted.SearchOutcome, error) {
-	return wanted.SearchOutcome{}, nil
+	return fakeWantedSearchOutcome(), nil
 }
 
 func (fakeWanted) ListReleases(context.Context, string) (wanted.SearchOutcome, error) {
-	return wanted.SearchOutcome{}, nil
+	return fakeWantedSearchOutcome(), nil
 }
 
 func (fakeWanted) Grab(context.Context, string, wanted.GrabRequest) (acquisition.DownloadStatus, error) {
@@ -1950,6 +2018,84 @@ func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.Histor
 		Message:    "Searched wanted releases",
 		CreatedAt:  time.Now().UTC(),
 	}}, nil
+}
+
+type fakeReleaseWanted struct {
+	fakeWanted
+	grabs []wanted.GrabRequest
+}
+
+func (f *fakeReleaseWanted) Grab(_ context.Context, _ string, request wanted.GrabRequest) (acquisition.DownloadStatus, error) {
+	f.grabs = append(f.grabs, request)
+	return acquisition.DownloadStatus{
+		Client:   "qBittorrent",
+		ID:       "download-1",
+		Name:     "Project Hail Mary EPUB",
+		State:    "stoppedDL",
+		SavePath: "/downloads/books",
+		Category: "books-ebook",
+		Tags:     []string{"librarry", "wanted:wanted-1"},
+	}, nil
+}
+
+type fakeRejectedReleaseWanted struct {
+	fakeWanted
+}
+
+func (fakeRejectedReleaseWanted) SearchReleases(context.Context, string, wanted.SearchReleasesRequest) (wanted.SearchOutcome, error) {
+	outcome := fakeWantedSearchOutcome()
+	outcome.Releases[0].Approved = false
+	outcome.Releases[0].RejectedReason = "release is rejected"
+	return outcome, nil
+}
+
+func (fakeRejectedReleaseWanted) ListReleases(context.Context, string) (wanted.SearchOutcome, error) {
+	outcome := fakeWantedSearchOutcome()
+	outcome.Releases[0].Approved = false
+	outcome.Releases[0].RejectedReason = "release is rejected"
+	return outcome, nil
+}
+
+func (fakeRejectedReleaseWanted) Grab(context.Context, string, wanted.GrabRequest) (acquisition.DownloadStatus, error) {
+	return acquisition.DownloadStatus{}, errors.New("release is rejected: release is rejected")
+}
+
+func fakeWantedSearchOutcome() wanted.SearchOutcome {
+	now := time.Now().UTC()
+	item := wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "openlibrary:OL1W",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	return wanted.SearchOutcome{
+		WantedItem: item,
+		Releases: []wanted.ReleaseDecision{{
+			ID:           "release-1",
+			WantedItemID: item.ID,
+			SourceID:     "prowlarr:release-1",
+			InfoHash:     "projecthailmary",
+			Indexer:      "Prowlarr",
+			Title:        "Andy Weir - Project Hail Mary EPUB",
+			Protocol:     "torrent",
+			DownloadURL:  "magnet:?xt=urn:btih:projecthailmary",
+			InfoURL:      "https://indexer.example/releases/release-1",
+			SizeBytes:    7340032,
+			Seeders:      12,
+			Leechers:     1,
+			Categories:   []string{"ebook", "epub"},
+			Score:        92,
+			Approved:     true,
+			PublishedAt:  time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC),
+			SearchedAt:   now,
+			CreatedAt:    now,
+		}},
+	}
 }
 
 type fakeCompatResources struct {

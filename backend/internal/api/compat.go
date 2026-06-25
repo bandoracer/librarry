@@ -1241,13 +1241,34 @@ func (h *handler) compatIndexers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatReleases(w http.ResponseWriter, r *http.Request) {
-	if h.deps.Acquire == nil {
+	if h.deps.Acquire == nil && h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
 		return
 	}
 	query, item := h.compatReleaseSearchQuery(r)
 	if strings.TrimSpace(query.Query) == "" && strings.TrimSpace(query.ISBN) == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "term, query, isbn, or bookId is required"})
+		return
+	}
+	if h.deps.Wanted != nil && item != nil {
+		outcome, err := h.deps.Wanted.SearchReleases(r.Context(), item.ID, wanted.SearchReleasesRequest{Limit: query.Limit})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		records := make([]map[string]any, 0, len(outcome.Releases))
+		wantedItem := outcome.WantedItem
+		if strings.TrimSpace(wantedItem.ID) == "" {
+			wantedItem = *item
+		}
+		for _, release := range outcome.Releases {
+			records = append(records, compatReleaseDecisionRecord(release, &wantedItem))
+		}
+		writeJSON(w, http.StatusOK, records)
+		return
+	}
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
 		return
 	}
 	releases, err := h.deps.Acquire.Search(r.Context(), query)
@@ -1278,21 +1299,24 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 	releaseID := firstNonEmptyString(payloadString(payload, "releaseId"), payloadString(payload, "id"), payloadString(payload, "guid"), payloadString(payload, "sourceId"))
 	client := firstNonEmptyString(payloadString(payload, "client"), payloadString(payload, "downloadClient"), payloadString(payload, "downloadClientName"))
 	paused := payloadBoolDefault(payload, "paused", true)
-	if h.deps.Wanted != nil && wantedID != "" && releaseID != "" && compatReleaseURLFromPayload(payload) == "" {
-		status, err := h.deps.Wanted.Grab(r.Context(), wantedID, wanted.GrabRequest{ReleaseID: releaseID, Client: client, Paused: paused})
-		if err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+	releaseURL := compatReleaseURLFromPayload(payload)
+	if h.deps.Wanted != nil && wantedID != "" && releaseID != "" {
+		resolvedReleaseID, matchedRelease := h.compatResolveWantedReleaseID(r.Context(), wantedID, releaseID)
+		if matchedRelease || releaseURL == "" {
+			status, err := h.deps.Wanted.Grab(r.Context(), wantedID, wanted.GrabRequest{ReleaseID: resolvedReleaseID, Client: client, Paused: paused})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+				return
+			}
+			writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
 			return
 		}
-		writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
-		return
 	}
 
 	if h.deps.Acquire == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
 		return
 	}
-	releaseURL := compatReleaseURLFromPayload(payload)
 	if releaseURL == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "downloadUrl, releaseUrl, or guid is required"})
 		return
@@ -1674,6 +1698,23 @@ func (h *handler) compatWantedIDForRelease(r *http.Request, payload map[string]a
 		return item.ID
 	}
 	return ""
+}
+
+func (h *handler) compatResolveWantedReleaseID(ctx context.Context, wantedID string, releaseID string) (string, bool) {
+	releaseID = strings.TrimSpace(releaseID)
+	if h.deps.Wanted == nil || strings.TrimSpace(wantedID) == "" || releaseID == "" {
+		return releaseID, false
+	}
+	outcome, err := h.deps.Wanted.ListReleases(ctx, wantedID)
+	if err != nil {
+		return releaseID, false
+	}
+	for _, release := range outcome.Releases {
+		if compatIDMatches(releaseID, compatReleaseDecisionIDCandidates(release)...) {
+			return firstNonEmptyString(release.ID, release.SourceID, releaseID), true
+		}
+	}
+	return releaseID, false
 }
 
 func (h *handler) compatFindWantedItemForID(r *http.Request, id string) *wanted.WantedItem {
@@ -2672,6 +2713,61 @@ func fileMetadataString(file library.FileRecord, key string) string {
 		return strings.TrimSpace(text)
 	}
 	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(jsonString(value)), `"`), `"`))
+}
+
+func compatReleaseDecisionRecord(decision wanted.ReleaseDecision, item *wanted.WantedItem) map[string]any {
+	release := acquisition.Release{
+		ID:          firstNonEmptyString(decision.SourceID, decision.ID),
+		InfoHash:    decision.InfoHash,
+		Indexer:     decision.Indexer,
+		Title:       decision.Title,
+		SizeBytes:   decision.SizeBytes,
+		Seeders:     decision.Seeders,
+		Leechers:    decision.Leechers,
+		DownloadURL: decision.DownloadURL,
+		InfoURL:     decision.InfoURL,
+		Protocol:    decision.Protocol,
+		Categories:  decision.Categories,
+		PublishedAt: decision.PublishedAt,
+	}
+	record := compatReleaseRecord(release, item)
+	releaseID := firstNonEmptyString(decision.ID, decision.SourceID, decision.InfoHash, decision.DownloadURL, decision.Title)
+	rejections := compatReleaseDecisionRejections(decision)
+	approved := decision.Approved && len(rejections) == 0
+	record["id"] = stableInt(releaseID)
+	record["guid"] = releaseID
+	record["sourceId"] = decision.SourceID
+	record["approved"] = approved
+	record["rejections"] = rejections
+	record["releaseWeight"] = compatReleaseWeight(release, approved)
+	record["librarryReleaseId"] = decision.ID
+	record["librarryWantedId"] = decision.WantedItemID
+	record["librarryReleaseDecision"] = decision
+	return record
+}
+
+func compatReleaseDecisionRejections(decision wanted.ReleaseDecision) []map[string]any {
+	rejections := compatReleaseRejections(acquisition.Release{DownloadURL: decision.DownloadURL})
+	if !decision.Approved {
+		reason := strings.TrimSpace(decision.RejectedReason)
+		if reason == "" {
+			reason = "release did not satisfy the quality profile"
+		}
+		rejections = append(rejections, map[string]any{"reason": reason, "type": "error"})
+	}
+	return rejections
+}
+
+func compatReleaseDecisionIDCandidates(decision wanted.ReleaseDecision) []string {
+	return []string{
+		decision.ID,
+		decision.SourceID,
+		decision.InfoHash,
+		decision.DownloadURL,
+		decision.InfoURL,
+		decision.Title,
+		firstNonEmptyString(decision.ID, decision.SourceID, decision.InfoHash, decision.DownloadURL, decision.Title),
+	}
 }
 
 func compatReleaseRecord(release acquisition.Release, item *wanted.WantedItem) map[string]any {

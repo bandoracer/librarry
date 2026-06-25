@@ -192,7 +192,11 @@ Librarry integrates directly with Prowlarr, qBittorrent, Transmission, and
 SABnzbd. Prowlarr is queried for book releases through
 `/api/v1/releases/search`; the
 Readarr-compatible `/api/v1/release` endpoint maps the same acquisition flow
-into interactive release-search and grab payloads. Torrent releases are sent to
+into interactive release-search and grab payloads. When a Readarr-compatible
+release search is tied to a known book or wanted item, Librarry routes it
+through the wanted-release evaluator, persists the scored release decisions,
+returns Readarr-style integer release IDs, and resolves those IDs back to the
+stored Librarry release decision on grab. Torrent releases are sent to
 qBittorrent by default, or Transmission when qBittorrent is absent or the grab
 payload requests it. Usenet/NZB releases are sent to SABnzbd through the same
 `/api/v1/grabs` API. Startup and `/api/v1/integrations/bootstrap` ensure the
