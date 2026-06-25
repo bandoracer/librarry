@@ -1207,6 +1207,18 @@ func (h *handler) compatUpdateNotification(w http.ResponseWriter, r *http.Reques
 	h.writeCompatResourceUpdate(w, r, "notification", "notification", compatNotificationRecord)
 }
 
+func (h *handler) compatNotificationSchema(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{compatNotificationSchemaRecord("Webhook")})
+}
+
+func (h *handler) compatNotificationTest(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTest(w, r, "notification", "notification", compatNotificationRecord)
+}
+
+func (h *handler) compatNotificationTestAll(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTestAll(w, r, "notification", nil, compatNotificationRecord)
+}
+
 func (h *handler) compatImportLists(w http.ResponseWriter, r *http.Request) {
 	h.writeCompatResourceList(w, r, "import-list", nil, compatImportListRecord)
 }
@@ -1221,6 +1233,18 @@ func (h *handler) compatCreateImportList(w http.ResponseWriter, r *http.Request)
 
 func (h *handler) compatUpdateImportList(w http.ResponseWriter, r *http.Request) {
 	h.writeCompatResourceUpdate(w, r, "import-list", "import list", compatImportListRecord)
+}
+
+func (h *handler) compatImportListSchema(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{compatImportListSchemaRecord("ReadarrImportList")})
+}
+
+func (h *handler) compatImportListTest(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTest(w, r, "import-list", "import list", compatImportListRecord)
+}
+
+func (h *handler) compatImportListTestAll(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTestAll(w, r, "import-list", nil, compatImportListRecord)
 }
 
 func (h *handler) compatRemotePathMappings(w http.ResponseWriter, r *http.Request) {
@@ -1251,6 +1275,38 @@ func (h *handler) compatDeleteResource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatDownloadClients(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceList(w, r, "download-client", h.defaultDownloadClientRecords(), compatDownloadClientResourceRecord)
+}
+
+func (h *handler) compatDownloadClient(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceGet(w, r, "download-client", h.defaultDownloadClientRecords(), compatDownloadClientResourceRecord)
+}
+
+func (h *handler) compatCreateDownloadClient(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceCreate(w, r, "download-client", "download client", compatDownloadClientResourceRecord)
+}
+
+func (h *handler) compatUpdateDownloadClient(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceUpdate(w, r, "download-client", "download client", compatDownloadClientResourceRecord)
+}
+
+func (h *handler) compatDownloadClientSchema(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{
+		compatDownloadClientSchemaRecord("qBittorrent", "torrent"),
+		compatDownloadClientSchemaRecord("Transmission", "torrent"),
+		compatDownloadClientSchemaRecord("SABnzbd", "usenet"),
+	})
+}
+
+func (h *handler) compatDownloadClientTest(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTest(w, r, "download-client", "download client", compatDownloadClientResourceRecord)
+}
+
+func (h *handler) compatDownloadClientTestAll(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTestAll(w, r, "download-client", h.defaultDownloadClientRecords(), compatDownloadClientResourceRecord)
+}
+
+func (h *handler) defaultDownloadClientRecords() []map[string]any {
 	var records []map[string]any
 	if strings.TrimSpace(h.deps.Config.QBittorrentURL) != "" {
 		records = append(records, compatDownloadClientRecord(1, "qBittorrent", "torrent", h.deps.Config.QBittorrentURL, h.deps.Config.EbookCategory))
@@ -1261,15 +1317,45 @@ func (h *handler) compatDownloadClients(w http.ResponseWriter, r *http.Request) 
 	if strings.TrimSpace(h.deps.Config.SABnzbdURL) != "" {
 		records = append(records, compatDownloadClientRecord(2, "SABnzbd", "usenet", h.deps.Config.SABnzbdURL, h.deps.Config.EbookCategory))
 	}
-	writeJSON(w, http.StatusOK, records)
+	return records
 }
 
 func (h *handler) compatIndexers(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceList(w, r, "indexer", h.defaultIndexerRecords(), compatIndexerRecord)
+}
+
+func (h *handler) compatIndexer(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceGet(w, r, "indexer", h.defaultIndexerRecords(), compatIndexerRecord)
+}
+
+func (h *handler) compatCreateIndexer(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceCreate(w, r, "indexer", "indexer", compatIndexerRecord)
+}
+
+func (h *handler) compatUpdateIndexer(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceUpdate(w, r, "indexer", "indexer", compatIndexerRecord)
+}
+
+func (h *handler) compatIndexerSchema(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{
+		compatIndexerSchemaRecord("Torznab", "torrent"),
+		compatIndexerSchemaRecord("Newznab", "usenet"),
+	})
+}
+
+func (h *handler) compatIndexerTest(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTest(w, r, "indexer", "indexer", compatIndexerRecord)
+}
+
+func (h *handler) compatIndexerTestAll(w http.ResponseWriter, r *http.Request) {
+	h.writeCompatResourceTestAll(w, r, "indexer", h.defaultIndexerRecords(), compatIndexerRecord)
+}
+
+func (h *handler) defaultIndexerRecords() []map[string]any {
 	if strings.TrimSpace(h.deps.Config.ProwlarrURL) == "" {
-		writeJSON(w, http.StatusOK, []map[string]any{})
-		return
+		return []map[string]any{}
 	}
-	writeJSON(w, http.StatusOK, []map[string]any{{
+	return []map[string]any{{
 		"id":                      1,
 		"name":                    "Prowlarr",
 		"implementation":          "Torznab",
@@ -1283,7 +1369,7 @@ func (h *handler) compatIndexers(w http.ResponseWriter, r *http.Request) {
 			{"name": "baseUrl", "value": h.deps.Config.ProwlarrURL},
 			{"name": "apiKey", "value": maskedValue(h.deps.Config.ProwlarrAPIKey)},
 		},
-	}})
+	}}
 }
 
 func (h *handler) compatReleases(w http.ResponseWriter, r *http.Request) {
@@ -2013,6 +2099,120 @@ func (h *handler) writeCompatResourceUpdate(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, compatStoredResourceRecord(resource, recordFn))
 }
 
+func (h *handler) writeCompatResourceTest(w http.ResponseWriter, r *http.Request, resourceType string, payloadName string, recordFn compatResourceRecordFunc) {
+	payload, ok := decodeCompatObjectPayload(w, r, payloadName)
+	if !ok {
+		return
+	}
+	record := recordFn(payload, payloadIntDefault(payload, "id", stablePayloadID(payload, resourceType)))
+	writeJSON(w, http.StatusOK, compatResourceTestResult(resourceType, record))
+}
+
+func (h *handler) writeCompatResourceTestAll(w http.ResponseWriter, r *http.Request, resourceType string, defaults []map[string]any, recordFn compatResourceRecordFunc) {
+	records, err := h.compatResourceRecords(r.Context(), resourceType, defaults, recordFn)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	results := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		results = append(results, compatResourceTestResult(resourceType, record))
+	}
+	writeJSON(w, http.StatusOK, results)
+}
+
+func (h *handler) compatResourceAction(w http.ResponseWriter, r *http.Request) {
+	if r.Body != nil {
+		defer r.Body.Close()
+	}
+	var payload map[string]any
+	if r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&payload)
+	}
+	action := strings.TrimSpace(r.PathValue("name"))
+	resourceType := compatResourceTypeFromPath(r.URL.Path)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"action":       action,
+		"resourceType": resourceType,
+		"status":       "completed",
+		"message":      "compatibility action accepted",
+		"payload":      payload,
+	})
+}
+
+func (h *handler) compatResourceBulkUpdate(w http.ResponseWriter, r *http.Request) {
+	resourceType := compatResourceTypeFromPath(r.URL.Path)
+	recordFn := compatResourceRecordFuncForType(resourceType)
+	if resourceType == "" || recordFn == nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "resource type is not supported"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "bulk resource update")
+	if !ok {
+		return
+	}
+	ids := compatResourceBulkIDs(payload)
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "ids is required"})
+		return
+	}
+	records := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		updatePayload := compatBulkPayloadForID(payload, id)
+		updatePayload["id"] = id
+		if h.deps.Compat == nil {
+			records = append(records, recordFn(updatePayload, id))
+			continue
+		}
+		existing, ok, err := h.deps.Compat.GetResource(r.Context(), resourceType, id)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		if ok {
+			updatePayload = mergeCompatPayload(existing.Payload, updatePayload)
+		}
+		resource, err := h.deps.Compat.UpsertResource(r.Context(), compatdata.Resource{
+			ResourceType: resourceType,
+			CompatID:     id,
+			Name:         compatResourceName(updatePayload),
+			Payload:      updatePayload,
+		})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		records = append(records, compatStoredResourceRecord(resource, recordFn))
+	}
+	writeJSON(w, http.StatusAccepted, records)
+}
+
+func (h *handler) compatResourceBulkDelete(w http.ResponseWriter, r *http.Request) {
+	resourceType := compatResourceTypeFromPath(r.URL.Path)
+	if resourceType == "" {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "resource type is not supported"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "bulk resource delete")
+	if !ok {
+		return
+	}
+	ids := compatResourceBulkIDs(payload)
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "ids is required"})
+		return
+	}
+	if h.deps.Compat != nil {
+		for _, id := range ids {
+			if _, err := h.deps.Compat.DeleteResource(r.Context(), resourceType, id); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+				return
+			}
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *handler) compatResourceRecords(ctx context.Context, resourceType string, defaults []map[string]any, recordFn compatResourceRecordFunc) ([]map[string]any, error) {
 	records := cloneCompatRecords(defaults)
 	if h.deps.Compat == nil {
@@ -2131,9 +2331,115 @@ func compatResourceTypeFromPath(path string) string {
 		return "import-list"
 	case "remotepathmapping":
 		return "remote-path-mapping"
+	case "downloadclient":
+		return "download-client"
+	case "indexer":
+		return "indexer"
 	default:
 		return ""
 	}
+}
+
+func compatResourceRecordFuncForType(resourceType string) compatResourceRecordFunc {
+	switch resourceType {
+	case "delay-profile":
+		return compatDelayProfileRecord
+	case "quality-definition":
+		return compatQualityDefinitionCompatRecord
+	case "language-profile":
+		return compatLanguageProfileRecord
+	case "metadata-profile":
+		return compatMetadataProfileRecord
+	case "custom-format":
+		return compatCustomFormatRecord
+	case "tag":
+		return compatTagRecord
+	case "restriction":
+		return compatRestrictionRecord
+	case "notification":
+		return compatNotificationRecord
+	case "import-list":
+		return compatImportListRecord
+	case "remote-path-mapping":
+		return compatRemotePathMappingRecord
+	case "download-client":
+		return compatDownloadClientResourceRecord
+	case "indexer":
+		return compatIndexerRecord
+	default:
+		return nil
+	}
+}
+
+func compatResourceTestResult(resourceType string, record map[string]any) map[string]any {
+	return map[string]any{
+		"id":   payloadIntDefault(record, "id", 0),
+		"name": firstNonEmptyString(payloadString(record, "name"), payloadString(record, "implementation"), resourceType),
+		"implementation": firstNonEmptyString(
+			payloadString(record, "implementation"),
+			payloadString(record, "implementationName"),
+		),
+		"resourceType": resourceType,
+		"isValid":      true,
+		"valid":        true,
+		"testPassed":   true,
+		"warnings":     []map[string]any{},
+		"failures":     []map[string]any{},
+	}
+}
+
+func compatResourceBulkIDs(payload map[string]any) []int {
+	values := payloadStringList(payload, "ids", "id", "resourceIds", "resourceIDs")
+	for _, item := range compatPayloadArray(payload, "resources") {
+		if object, ok := item.(map[string]any); ok {
+			values = append(values, payloadStringList(object, "id")...)
+			continue
+		}
+		if text := stringValue(item); text != "" {
+			values = append(values, text)
+		}
+	}
+	ids := make([]int, 0, len(values))
+	seen := map[int]bool{}
+	for _, value := range values {
+		id, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || id <= 0 || seen[id] {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func compatBulkPayloadForID(payload map[string]any, id int) map[string]any {
+	next := cloneCompatRecord(payload)
+	delete(next, "ids")
+	delete(next, "resourceIds")
+	delete(next, "resourceIDs")
+	delete(next, "resources")
+	if changes, ok := payload["changes"].(map[string]any); ok {
+		next = mergeCompatPayload(next, changes)
+	}
+	for _, item := range compatPayloadArray(payload, "resources") {
+		object, ok := item.(map[string]any)
+		if !ok || payloadIntDefault(object, "id", 0) != id {
+			continue
+		}
+		next = mergeCompatPayload(next, object)
+	}
+	return next
+}
+
+func mergeCompatPayload(base map[string]any, updates map[string]any) map[string]any {
+	merged := cloneCompatRecord(base)
+	for key, value := range updates {
+		if value == nil {
+			continue
+		}
+		merged[key] = value
+	}
+	return merged
 }
 
 func (h *handler) compatNamingConfigRecord(overrides map[string]any) map[string]any {
@@ -3704,6 +4010,147 @@ func compatDownloadClientRecord(id int, name string, protocol string, baseURL st
 			{"name": "host", "value": baseURL},
 			{"name": "category", "value": category},
 		},
+	}
+}
+
+func compatDownloadClientResourceRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "download-client")
+	}
+	implementation := firstNonEmptyString(payloadString(payload, "implementation"), payloadString(payload, "implementationName"), payloadString(payload, "name"), "qBittorrent")
+	name := firstNonEmptyString(payloadString(payload, "name"), implementation)
+	protocol := firstNonEmptyString(payloadString(payload, "protocol"), protocolForDownloadClient(implementation))
+	fields := compatPayloadArray(payload, "fields")
+	if len(fields) == 0 {
+		fields = downloadClientFields(implementation, payloadString(payload, "host"), payloadString(payload, "category"))
+	}
+	return map[string]any{
+		"id":                 id,
+		"name":               name,
+		"implementation":     implementation,
+		"implementationName": firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
+		"configContract":     firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
+		"protocol":           protocol,
+		"enable":             payloadBoolDefault(payload, "enable", true),
+		"priority":           payloadIntDefault(payload, "priority", 1),
+		"fields":             fields,
+		"tags":               compatPayloadIntArray(payload, "tags"),
+		"librarryEphemeral":  true,
+	}
+}
+
+func compatDownloadClientSchemaRecord(implementation string, protocol string) map[string]any {
+	return compatDownloadClientResourceRecord(map[string]any{
+		"name":               implementation,
+		"implementation":     implementation,
+		"implementationName": implementation,
+		"configContract":     implementation + "Settings",
+		"protocol":           protocol,
+		"fields":             downloadClientFields(implementation, "", ""),
+	}, stableInt("download-client-schema:"+implementation))
+}
+
+func compatIndexerRecord(payload map[string]any, id int) map[string]any {
+	if id <= 0 {
+		id = stablePayloadID(payload, "indexer")
+	}
+	implementation := firstNonEmptyString(payloadString(payload, "implementation"), payloadString(payload, "implementationName"), "Torznab")
+	name := firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "implementationName"), implementation)
+	protocol := firstNonEmptyString(payloadString(payload, "protocol"), protocolForIndexer(implementation))
+	fields := compatPayloadArray(payload, "fields")
+	if len(fields) == 0 {
+		fields = indexerFields(payloadString(payload, "baseUrl"))
+	}
+	return map[string]any{
+		"id":                      id,
+		"name":                    name,
+		"implementation":          implementation,
+		"implementationName":      firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
+		"configContract":          firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
+		"protocol":                protocol,
+		"enable":                  payloadBoolDefault(payload, "enable", true),
+		"enableRss":               payloadBoolDefault(payload, "enableRss", true),
+		"enableAutomaticSearch":   payloadBoolDefault(payload, "enableAutomaticSearch", true),
+		"enableInteractiveSearch": payloadBoolDefault(payload, "enableInteractiveSearch", true),
+		"priority":                payloadIntDefault(payload, "priority", 25),
+		"fields":                  fields,
+		"tags":                    compatPayloadIntArray(payload, "tags"),
+		"librarryEphemeral":       true,
+	}
+}
+
+func compatIndexerSchemaRecord(implementation string, protocol string) map[string]any {
+	return compatIndexerRecord(map[string]any{
+		"name":               implementation,
+		"implementation":     implementation,
+		"implementationName": implementation,
+		"configContract":     implementation + "Settings",
+		"protocol":           protocol,
+		"fields":             indexerFields(""),
+	}, stableInt("indexer-schema:"+implementation))
+}
+
+func compatNotificationSchemaRecord(implementation string) map[string]any {
+	return compatNotificationRecord(map[string]any{
+		"name":               implementation,
+		"implementation":     implementation,
+		"implementationName": implementation,
+		"configContract":     implementation + "Settings",
+		"fields": []any{
+			map[string]any{"name": "url", "label": "URL", "type": "textbox", "value": ""},
+			map[string]any{"name": "method", "label": "Method", "type": "select", "value": "POST"},
+		},
+	}, stableInt("notification-schema:"+implementation))
+}
+
+func compatImportListSchemaRecord(implementation string) map[string]any {
+	return compatImportListRecord(map[string]any{
+		"name":               implementation,
+		"implementation":     implementation,
+		"implementationName": implementation,
+		"configContract":     implementation + "Settings",
+		"fields": []any{
+			map[string]any{"name": "rootFolderPath", "label": "Root Folder", "type": "path", "value": ""},
+			map[string]any{"name": "qualityProfileId", "label": "Quality Profile", "type": "select", "value": 1},
+			map[string]any{"name": "metadataProfileId", "label": "Metadata Profile", "type": "select", "value": 1},
+		},
+	}, stableInt("import-list-schema:"+implementation))
+}
+
+func downloadClientFields(implementation string, host string, category string) []any {
+	return []any{
+		map[string]any{"name": "host", "label": "Host", "type": "textbox", "value": host},
+		map[string]any{"name": "username", "label": "Username", "type": "textbox", "value": ""},
+		map[string]any{"name": "password", "label": "Password", "type": "password", "value": ""},
+		map[string]any{"name": "category", "label": "Category", "type": "textbox", "value": category},
+		map[string]any{"name": "recentPriority", "label": "Recent Priority", "type": "select", "value": 0},
+		map[string]any{"name": "librarryImplementation", "label": "Librarry Client", "type": "textbox", "value": implementation},
+	}
+}
+
+func indexerFields(baseURL string) []any {
+	return []any{
+		map[string]any{"name": "baseUrl", "label": "Base URL", "type": "textbox", "value": baseURL},
+		map[string]any{"name": "apiKey", "label": "API Key", "type": "password", "value": ""},
+		map[string]any{"name": "categories", "label": "Categories", "type": "textbox", "value": "7020,8010"},
+	}
+}
+
+func protocolForDownloadClient(implementation string) string {
+	switch strings.ToLower(strings.TrimSpace(implementation)) {
+	case "sabnzbd", "nzbget":
+		return "usenet"
+	default:
+		return "torrent"
+	}
+}
+
+func protocolForIndexer(implementation string) string {
+	switch strings.ToLower(strings.TrimSpace(implementation)) {
+	case "newznab":
+		return "usenet"
+	default:
+		return "torrent"
 	}
 }
 

@@ -110,11 +110,23 @@ Initial API surface:
   - `PUT /api/v1/restriction/{id}`
   - `DELETE /api/v1/restriction/{id}`
   - `GET /api/v1/notification`
+  - `GET /api/v1/notification/schema`
+  - `POST /api/v1/notification/test`
+  - `POST /api/v1/notification/testall`
+  - `POST /api/v1/notification/action/{name}`
+  - `PUT /api/v1/notification/bulk`
+  - `DELETE /api/v1/notification/bulk`
   - `POST /api/v1/notification`
   - `GET /api/v1/notification/{id}`
   - `PUT /api/v1/notification/{id}`
   - `DELETE /api/v1/notification/{id}`
   - `GET /api/v1/importlist`
+  - `GET /api/v1/importlist/schema`
+  - `POST /api/v1/importlist/test`
+  - `POST /api/v1/importlist/testall`
+  - `POST /api/v1/importlist/action/{name}`
+  - `PUT /api/v1/importlist/bulk`
+  - `DELETE /api/v1/importlist/bulk`
   - `POST /api/v1/importlist`
   - `GET /api/v1/importlist/{id}`
   - `PUT /api/v1/importlist/{id}`
@@ -125,7 +137,27 @@ Initial API surface:
   - `PUT /api/v1/remotepathmapping/{id}`
   - `DELETE /api/v1/remotepathmapping/{id}`
   - `GET /api/v1/downloadclient`
+  - `GET /api/v1/downloadclient/schema`
+  - `POST /api/v1/downloadclient/test`
+  - `POST /api/v1/downloadclient/testall`
+  - `POST /api/v1/downloadclient/action/{name}`
+  - `PUT /api/v1/downloadclient/bulk`
+  - `DELETE /api/v1/downloadclient/bulk`
+  - `POST /api/v1/downloadclient`
+  - `GET /api/v1/downloadclient/{id}`
+  - `PUT /api/v1/downloadclient/{id}`
+  - `DELETE /api/v1/downloadclient/{id}`
   - `GET /api/v1/indexer`
+  - `GET /api/v1/indexer/schema`
+  - `POST /api/v1/indexer/test`
+  - `POST /api/v1/indexer/testall`
+  - `POST /api/v1/indexer/action/{name}`
+  - `PUT /api/v1/indexer/bulk`
+  - `DELETE /api/v1/indexer/bulk`
+  - `POST /api/v1/indexer`
+  - `GET /api/v1/indexer/{id}`
+  - `PUT /api/v1/indexer/{id}`
+  - `DELETE /api/v1/indexer/{id}`
   - `GET /api/v1/release`
   - `POST /api/v1/release`
   - `GET /api/v1/manualimport`
@@ -250,6 +282,10 @@ import lists, and remote path mappings. These endpoints render useful defaults
 and persist create, update, and delete operations in `compat_resources` using
 the Readarr-style integer ID exposed to API clients. Resource payloads are kept
 as JSON so Librarry can preserve fields it does not natively interpret yet.
+Download-client, indexer, notification, and import-list resources also expose
+Readarr-style schema, test, test-all, action, and bulk mutation endpoints so
+Arr clients that validate resource implementations before saving can complete
+their normal probe flow.
 
 Compatibility config endpoints for naming, media-management, host, UI,
 download-client, and indexer settings render current Librarry defaults and

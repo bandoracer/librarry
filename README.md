@@ -80,7 +80,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, manual magnet/torrent/NZB URL add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL add and selected-row bulk actions. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, per-file skip/normal/high/max priority actions, and simple active-queue rebalancing are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, set location, labels, and per-torrent speed limits. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
-| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename preview and RenameFiles command handling, manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, notifications, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, and basic commands. | Expand toward full OpenAPI compatibility, including deeper native config side effects, retagging, Calibre endpoints, and broader native behavior behind compatibility resources. |
+| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename preview and RenameFiles command handling, manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, notifications, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, basic commands, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, retagging, Calibre endpoints, and broader native behavior behind compatibility resources. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, queue unlinked files for review, and rename tracked files through native or Readarr-compatible APIs. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
@@ -187,7 +187,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   `/api/v1/remotepathmapping`, `/api/v1/downloadclient`, `/api/v1/indexer`,
   `/api/v1/release`, `/api/v1/command`, and `/api/v1/system/task`, plus
   read-compatible host, UI, naming, media-management, indexer, and
-  download-client config.
+  download-client config. Download-client, indexer, notification, and import-list
+  compatibility resources include schema, test, action, and bulk mutation routes
+  expected by common Arr clients.
 - Docker Compose and TrueNAS custom-app deployment templates.
 
 ## Metadata Strategy
@@ -320,11 +322,23 @@ Important API surfaces:
   - `PUT /api/v1/restriction/{id}`
   - `DELETE /api/v1/restriction/{id}`
   - `GET /api/v1/notification`
+  - `GET /api/v1/notification/schema`
+  - `POST /api/v1/notification/test`
+  - `POST /api/v1/notification/testall`
+  - `POST /api/v1/notification/action/{name}`
+  - `PUT /api/v1/notification/bulk`
+  - `DELETE /api/v1/notification/bulk`
   - `POST /api/v1/notification`
   - `GET /api/v1/notification/{id}`
   - `PUT /api/v1/notification/{id}`
   - `DELETE /api/v1/notification/{id}`
   - `GET /api/v1/importlist`
+  - `GET /api/v1/importlist/schema`
+  - `POST /api/v1/importlist/test`
+  - `POST /api/v1/importlist/testall`
+  - `POST /api/v1/importlist/action/{name}`
+  - `PUT /api/v1/importlist/bulk`
+  - `DELETE /api/v1/importlist/bulk`
   - `POST /api/v1/importlist`
   - `GET /api/v1/importlist/{id}`
   - `PUT /api/v1/importlist/{id}`
@@ -335,7 +349,27 @@ Important API surfaces:
   - `PUT /api/v1/remotepathmapping/{id}`
   - `DELETE /api/v1/remotepathmapping/{id}`
   - `GET /api/v1/downloadclient`
+  - `GET /api/v1/downloadclient/schema`
+  - `POST /api/v1/downloadclient/test`
+  - `POST /api/v1/downloadclient/testall`
+  - `POST /api/v1/downloadclient/action/{name}`
+  - `PUT /api/v1/downloadclient/bulk`
+  - `DELETE /api/v1/downloadclient/bulk`
+  - `POST /api/v1/downloadclient`
+  - `GET /api/v1/downloadclient/{id}`
+  - `PUT /api/v1/downloadclient/{id}`
+  - `DELETE /api/v1/downloadclient/{id}`
   - `GET /api/v1/indexer`
+  - `GET /api/v1/indexer/schema`
+  - `POST /api/v1/indexer/test`
+  - `POST /api/v1/indexer/testall`
+  - `POST /api/v1/indexer/action/{name}`
+  - `PUT /api/v1/indexer/bulk`
+  - `DELETE /api/v1/indexer/bulk`
+  - `POST /api/v1/indexer`
+  - `GET /api/v1/indexer/{id}`
+  - `PUT /api/v1/indexer/{id}`
+  - `DELETE /api/v1/indexer/{id}`
   - `GET /api/v1/release`
   - `POST /api/v1/release`
   - `GET /api/v1/manualimport`

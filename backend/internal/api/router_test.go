@@ -572,6 +572,92 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatArrResourceUtilityEndpointsPersist(t *testing.T) {
+	compatResources := &fakeCompatResources{}
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{
+			WebOrigin:       "*",
+			ProwlarrURL:     "http://prowlarr.local",
+			ProwlarrAPIKey:  "secret",
+			QBittorrentURL:  "http://qbittorrent.local",
+			EbookCategory:   "books-ebook",
+			BookTorrentRoot: "/downloads/books",
+		},
+		Metadata: metadata.NewService(nil),
+		Compat:   compatResources,
+	})
+
+	checks := []struct {
+		method string
+		path   string
+		body   string
+		status int
+		want   []string
+	}{
+		{http.MethodGet, "/api/v1/downloadclient/schema", "", http.StatusOK, []string{`"implementation":"qBittorrent"`, `"implementation":"SABnzbd"`}},
+		{http.MethodPost, "/api/v1/downloadclient/test", `{"name":"qBittorrent","implementation":"qBittorrent"}`, http.StatusOK, []string{`"testPassed":true`, `"resourceType":"download-client"`}},
+		{http.MethodPost, "/api/v1/downloadclient/action/getCategories", `{"id":1}`, http.StatusOK, []string{`"action":"getCategories"`, `"status":"completed"`}},
+		{http.MethodGet, "/api/v1/indexer/schema", "", http.StatusOK, []string{`"implementation":"Torznab"`, `"implementation":"Newznab"`}},
+		{http.MethodPost, "/api/v1/indexer/test", `{"name":"Prowlarr","implementation":"Torznab"}`, http.StatusOK, []string{`"testPassed":true`, `"resourceType":"indexer"`}},
+		{http.MethodGet, "/api/v1/notification/schema", "", http.StatusOK, []string{`"implementation":"Webhook"`, `"configContract":"WebhookSettings"`}},
+		{http.MethodPost, "/api/v1/notification/test", `{"name":"Webhook","implementation":"Webhook","enable":true}`, http.StatusOK, []string{`"testPassed":true`, `"resourceType":"notification"`}},
+		{http.MethodGet, "/api/v1/importlist/schema", "", http.StatusOK, []string{`"implementation":"ReadarrImportList"`, `"rootFolderPath"`}},
+		{http.MethodPost, "/api/v1/importlist/testall", `{}`, http.StatusOK, []string{`[]`}},
+	}
+	for _, check := range checks {
+		req := httptest.NewRequest(check.method, check.path, strings.NewReader(check.body))
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		if res.Code != check.status {
+			t.Fatalf("%s %s expected %d, got %d: %s", check.method, check.path, check.status, res.Code, res.Body.String())
+		}
+		for _, want := range check.want {
+			if !strings.Contains(res.Body.String(), want) {
+				t.Fatalf("%s %s expected %s, got %s", check.method, check.path, want, res.Body.String())
+			}
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/downloadclient/50", strings.NewReader(`{"name":"Deluge","implementation":"Deluge","protocol":"torrent","enable":true}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"name":"Deluge"`) || !strings.Contains(res.Body.String(), `"librarryPersisted":true`) {
+		t.Fatalf("expected persisted download client update, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/downloadclient/50", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"name":"Deluge"`) {
+		t.Fatalf("expected persisted download client lookup, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/indexer/44", strings.NewReader(`{"name":"Books Torznab","implementation":"Torznab","protocol":"torrent","enableRss":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"name":"Books Torznab"`) {
+		t.Fatalf("expected persisted indexer update, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/indexer/bulk", strings.NewReader(`{"ids":[44],"enableRss":false,"priority":12}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusAccepted || !strings.Contains(res.Body.String(), `"enableRss":false`) || !strings.Contains(res.Body.String(), `"priority":12`) {
+		t.Fatalf("expected persisted indexer bulk update, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/indexer/bulk", strings.NewReader(`{"ids":[44]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected indexer bulk delete 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(compatResources.deletedResources) != 1 || compatResources.deletedResources[0] != "indexer:44" {
+		t.Fatalf("expected persisted indexer bulk delete, got %#v", compatResources.deletedResources)
+	}
+}
+
 func TestCompatAuthorAndBookEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
