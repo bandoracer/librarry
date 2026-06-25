@@ -219,6 +219,46 @@ func TestHistoryEndpoint(t *testing.T) {
 	}
 }
 
+func TestQualityProfilesEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/quality-profiles", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"minSeeders":2`) {
+		t.Fatalf("expected profile payload in response, got %s", res.Body.String())
+	}
+}
+
+func TestSaveQualityProfileEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/quality-profiles", strings.NewReader(`{"name":"retail","mediaFormat":"ebook","minScore":70,"cutoffScore":92,"minSeeders":3,"rejectedTerms":["summary"]}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"name":"retail"`) {
+		t.Fatalf("expected saved profile in response, got %s", res.Body.String())
+	}
+}
+
 func TestLibraryFilesEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -388,6 +428,31 @@ func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedIt
 
 func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
 	return []wanted.WantedItem{{ID: "wanted-1", Title: "Project Hail Mary", Format: "ebook", Status: "wanted"}}, nil
+}
+
+func (fakeWanted) ListQualityProfiles(context.Context) ([]wanted.QualityProfile, error) {
+	return []wanted.QualityProfile{{
+		ID:             "profile-1",
+		Name:           "standard",
+		MediaFormat:    "ebook",
+		MinScore:       60,
+		CutoffScore:    85,
+		MinSeeders:     2,
+		MaxSizeBytes:   786432000,
+		PreferredTerms: []string{"epub"},
+		RejectedTerms:  []string{"summary", "review"},
+		PreferredScore: 8,
+		UpgradeAllowed: true,
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}}, nil
+}
+
+func (fakeWanted) SaveQualityProfile(_ context.Context, profile wanted.QualityProfile) (wanted.QualityProfile, error) {
+	profile.ID = "profile-2"
+	profile.CreatedAt = time.Now().UTC()
+	profile.UpdatedAt = profile.CreatedAt
+	return profile, nil
 }
 
 func (fakeWanted) SearchReleases(context.Context, string, wanted.SearchReleasesRequest) (wanted.SearchOutcome, error) {

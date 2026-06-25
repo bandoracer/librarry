@@ -130,6 +130,90 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 	return items, rows.Err()
 }
 
+func (s *Store) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select
+			id, name, media_format, min_score, cutoff_score, min_seeders,
+			max_size_bytes, preferred_terms, required_terms, rejected_terms,
+			preferred_score, upgrade_allowed, created_at, updated_at
+		from quality_profiles
+		order by name, media_format
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var profiles []QualityProfile
+	for rows.Next() {
+		profile, err := scanQualityProfile(rows)
+		if err != nil {
+			return nil, err
+		}
+		profiles = append(profiles, profile)
+	}
+	return profiles, rows.Err()
+}
+
+func (s *Store) GetQualityProfile(ctx context.Context, name string, format string) (QualityProfile, error) {
+	if !s.Configured() {
+		return QualityProfile{}, errors.New("wanted store is unavailable")
+	}
+	name = normalizeQualityProfile(name)
+	format = normalizeProfileFormat(format)
+	row := s.db.QueryRowContext(ctx, `
+		select
+			id, name, media_format, min_score, cutoff_score, min_seeders,
+			max_size_bytes, preferred_terms, required_terms, rejected_terms,
+			preferred_score, upgrade_allowed, created_at, updated_at
+		from quality_profiles
+		where name = $1 and media_format in ($2, 'any')
+		order by case when media_format = $2 then 0 else 1 end
+		limit 1
+	`, name, format)
+	return scanQualityProfile(row)
+}
+
+func (s *Store) UpsertQualityProfile(ctx context.Context, profile QualityProfile) (QualityProfile, error) {
+	if !s.Configured() {
+		return QualityProfile{}, errors.New("wanted store is unavailable")
+	}
+	profile = normalizeProfileForStorage(profile)
+	if strings.TrimSpace(profile.Name) == "" {
+		return QualityProfile{}, errors.New("quality profile name is required")
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into quality_profiles (
+			name, media_format, min_score, cutoff_score, min_seeders, max_size_bytes,
+			preferred_terms, required_terms, rejected_terms, preferred_score, upgrade_allowed
+		) values (
+			$1, $2, $3, $4, $5, $6,
+			$7, $8, $9, $10, $11
+		)
+		on conflict (name, media_format) do update set
+			min_score = excluded.min_score,
+			cutoff_score = excluded.cutoff_score,
+			min_seeders = excluded.min_seeders,
+			max_size_bytes = excluded.max_size_bytes,
+			preferred_terms = excluded.preferred_terms,
+			required_terms = excluded.required_terms,
+			rejected_terms = excluded.rejected_terms,
+			preferred_score = excluded.preferred_score,
+			upgrade_allowed = excluded.upgrade_allowed,
+			updated_at = now()
+		returning
+			id, name, media_format, min_score, cutoff_score, min_seeders,
+			max_size_bytes, preferred_terms, required_terms, rejected_terms,
+			preferred_score, upgrade_allowed, created_at, updated_at
+	`, profile.Name, profile.MediaFormat, profile.MinScore, profile.CutoffScore, profile.MinSeeders, profile.MaxSizeBytes,
+		strings.Join(cleanTerms(profile.PreferredTerms), ","), strings.Join(cleanTerms(profile.RequiredTerms), ","),
+		strings.Join(cleanTerms(profile.RejectedTerms), ","), profile.PreferredScore, profile.UpgradeAllowed)
+	return scanQualityProfile(row)
+}
+
 func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 	if !s.Configured() {
 		return WantedItem{}, errors.New("wanted store is unavailable")
@@ -826,6 +910,23 @@ func scanRelease(rows *sql.Rows) (ReleaseDecision, error) {
 	return release, nil
 }
 
+func scanQualityProfile(row wantedScanner) (QualityProfile, error) {
+	var profile QualityProfile
+	var preferredTerms, requiredTerms, rejectedTerms string
+	if err := row.Scan(
+		&profile.ID, &profile.Name, &profile.MediaFormat, &profile.MinScore,
+		&profile.CutoffScore, &profile.MinSeeders, &profile.MaxSizeBytes,
+		&preferredTerms, &requiredTerms, &rejectedTerms, &profile.PreferredScore,
+		&profile.UpgradeAllowed, &profile.CreatedAt, &profile.UpdatedAt,
+	); err != nil {
+		return QualityProfile{}, err
+	}
+	profile.PreferredTerms = splitComma(preferredTerms)
+	profile.RequiredTerms = splitComma(requiredTerms)
+	profile.RejectedTerms = splitComma(rejectedTerms)
+	return profile, nil
+}
+
 func scanMonitorRun(row wantedScanner) (MonitorRun, error) {
 	var run MonitorRun
 	var finishedAt sql.NullTime
@@ -953,6 +1054,60 @@ func wantedFormat(request CreateRequest) string {
 		format = string(request.Result.Edition.Format)
 	}
 	return normalizeFormat(format)
+}
+
+func normalizeProfileForStorage(profile QualityProfile) QualityProfile {
+	if strings.TrimSpace(profile.Name) != "" {
+		profile.Name = normalizeQualityProfile(profile.Name)
+	}
+	profile.MediaFormat = normalizeProfileFormat(profile.MediaFormat)
+	if profile.MinScore <= 0 {
+		profile.MinScore = 60
+	}
+	if profile.MinScore > 100 {
+		profile.MinScore = 100
+	}
+	if profile.CutoffScore <= 0 {
+		profile.CutoffScore = 85
+	}
+	if profile.CutoffScore > 100 {
+		profile.CutoffScore = 100
+	}
+	if profile.MinSeeders < 0 {
+		profile.MinSeeders = 0
+	}
+	if profile.PreferredScore <= 0 {
+		profile.PreferredScore = 8
+	}
+	if len(cleanTerms(profile.RejectedTerms)) == 0 {
+		profile.RejectedTerms = []string{"summary", "review"}
+	}
+	return profile
+}
+
+func normalizeProfileFormat(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "audiobook", "audio":
+		return "audiobook"
+	case "ebook", "book":
+		return "ebook"
+	default:
+		return "any"
+	}
+}
+
+func cleanTerms(values []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = normalizeText(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
 }
 
 func sortValue(value string) string {

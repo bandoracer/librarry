@@ -26,6 +26,23 @@ type CreateRequest struct {
 	QualityProfile string                `json:"qualityProfile,omitempty"`
 }
 
+type QualityProfile struct {
+	ID             string    `json:"id,omitempty"`
+	Name           string    `json:"name"`
+	MediaFormat    string    `json:"mediaFormat"`
+	MinScore       float64   `json:"minScore"`
+	CutoffScore    float64   `json:"cutoffScore"`
+	MinSeeders     int       `json:"minSeeders"`
+	MaxSizeBytes   int64     `json:"maxSizeBytes"`
+	PreferredTerms []string  `json:"preferredTerms,omitempty"`
+	RequiredTerms  []string  `json:"requiredTerms,omitempty"`
+	RejectedTerms  []string  `json:"rejectedTerms,omitempty"`
+	PreferredScore float64   `json:"preferredScore"`
+	UpgradeAllowed bool      `json:"upgradeAllowed"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
 type SearchReleasesRequest struct {
 	Limit int `json:"limit,omitempty"`
 }

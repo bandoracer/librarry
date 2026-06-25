@@ -123,6 +123,23 @@ export type WantedItem = {
   updatedAt: string;
 };
 
+export type QualityProfile = {
+  id?: string;
+  name: string;
+  mediaFormat: "any" | "ebook" | "audiobook";
+  minScore: number;
+  cutoffScore: number;
+  minSeeders: number;
+  maxSizeBytes: number;
+  preferredTerms?: string[];
+  requiredTerms?: string[];
+  rejectedTerms?: string[];
+  preferredScore: number;
+  upgradeAllowed: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type ReleaseDecision = {
   id: string;
   wantedItemId: string;
@@ -475,6 +492,27 @@ export async function fetchWanted(): Promise<WantedItem[]> {
   }
   const payload = (await response.json()) as { wanted: WantedItem[] };
   return payload.wanted;
+}
+
+export async function fetchQualityProfiles(): Promise<QualityProfile[]> {
+  const response = await fetch(`${apiBase}/api/v1/quality-profiles`);
+  if (!response.ok) {
+    throw new Error(`Quality profiles refresh failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as { profiles: QualityProfile[] };
+  return payload.profiles;
+}
+
+export async function saveQualityProfile(profile: QualityProfile): Promise<QualityProfile> {
+  const response = await fetch(`${apiBase}/api/v1/quality-profiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile)
+  });
+  if (!response.ok) {
+    throw new Error(`Quality profile save failed: ${response.status}`);
+  }
+  return (await response.json()) as QualityProfile;
 }
 
 export async function createWanted(result: SearchResult, format: string): Promise<WantedItem> {

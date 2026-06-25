@@ -21,6 +21,8 @@ Initial API surface:
 - `GET /api/v1/downloads`
 - `POST /api/v1/downloads/actions`
 - `POST /api/v1/downloads/recover-failed`
+- `GET /api/v1/quality-profiles`
+- `POST /api/v1/quality-profiles`
 - `GET /api/v1/wanted`
 - `POST /api/v1/wanted`
 - `POST /api/v1/wanted/{id}/search`
@@ -71,6 +73,13 @@ auto-grab and failed-torrent removal are explicit settings.
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and
 record explicit rejection reasons before a candidate is sent to qBittorrent.
+
+Quality profiles are stored in Postgres and applied anywhere a release is
+evaluated: manual wanted search, scheduled monitoring, feed sync, failed
+download replacement search, and upgrade search. Profiles currently control
+minimum approval score, upgrade cutoff score, minimum torrent seeders, maximum
+size, preferred terms, required terms, rejected terms, and whether upgrade
+search is allowed.
 
 The wanted monitor can be triggered manually through
 `POST /api/v1/wanted/monitor` and can also run on an interval in the API process.

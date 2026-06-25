@@ -15,9 +15,10 @@ book data is incomplete or ambiguous.
 > library roots. Failed-download detection and replacement search/grab are
 > implemented. Score-based upgrade search/grab is implemented. Pending import
 > review for unlinked completed downloads and configurable naming templates are
-> implemented. Librarry is not yet a complete Readarr-style torrent manager;
-> queue depth, conflict handling, bulk decisions, and richer quality logic are
-> still early.
+> implemented. Persisted quality profiles now drive release scoring, preferred
+> and rejected terms, size limits, seeder minimums, and upgrade cutoffs. Librarry
+> is not yet a complete Readarr-style torrent manager; queue depth, conflict
+> handling, bulk decisions, and multi-client support are still early.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -52,7 +53,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, tracked in Postgres, manually imported, fed by completed qBittorrent imports, and reviewed when completed downloads are not linked to wanted items. | Add OPF, EPUB, audio-tag extraction, missing-book detection, and stronger import matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, manual/interval wanted monitoring, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add author subscriptions, deeper quality profiles, richer review flows, and bulk queue operations. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, persisted quality profiles, release evaluation, manual/interval wanted monitoring, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add author subscriptions, richer review flows, and bulk queue operations. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, and qBittorrent controls. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented; SABnzbd interface is stubbed. This is not yet a full multi-client torrent manager. | Add clients only behind small interfaces once metadata and matching are stable. |
@@ -78,6 +79,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Postgres-backed download reconciliation from qBittorrent state.
 - Wanted-item persistence and release evaluation with approved/rejected
   decisions.
+- Persisted quality profiles for ebooks and audiobooks, including minimum
+  scores, upgrade cutoffs, seeder minimums, size limits, preferred terms,
+  required terms, and rejected terms.
 - Manual and scheduled wanted monitoring with monitor-run summaries and history
   events.
 - Manual and scheduled feed sync for Prowlarr-compatible indexer RSS feeds,
@@ -144,6 +148,8 @@ Important API surfaces:
 - `GET /api/v1/downloads`
 - `POST /api/v1/downloads/actions`
 - `POST /api/v1/downloads/recover-failed`
+- `GET /api/v1/quality-profiles`
+- `POST /api/v1/quality-profiles`
 - `GET /api/v1/wanted`
 - `POST /api/v1/wanted`
 - `POST /api/v1/wanted/{id}/search`

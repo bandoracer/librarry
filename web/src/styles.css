@@ -354,7 +354,8 @@ button {
 .wanted-panel,
 .library-panel,
 .monitor-panel,
-.downloads-panel {
+.downloads-panel,
+.settings-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1479,6 +1480,73 @@ button {
   gap: 6px;
 }
 
+.quality-profile-list {
+  display: grid;
+}
+
+.quality-profile-row {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: minmax(120px, 0.75fr) repeat(4, minmax(70px, 0.45fr)) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.quality-profile-row:first-child {
+  border-top: 0;
+}
+
+.quality-profile-title {
+  min-width: 0;
+}
+
+.quality-profile-title strong,
+.quality-profile-title span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quality-profile-title strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.quality-profile-title span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quality-profile-row label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.quality-profile-row label span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.quality-profile-row input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  color: var(--text);
+  padding: 0 9px;
+  font-size: 13px;
+}
+
 .priority-glyph {
   font-size: 18px;
   line-height: 1;
@@ -1641,6 +1709,7 @@ button {
   .feed-sync-row,
   .library-file-row,
   .import-review-row,
+  .quality-profile-row,
   .library-import-row,
   .history-row {
     grid-template-columns: 1fr;

@@ -49,6 +49,24 @@ func (s *Service) List(ctx context.Context, status string) ([]WantedItem, error)
 	return s.store.ListWanted(ctx, status)
 }
 
+func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
+	if !s.Available() {
+		return nil, errors.New("wanted service requires database persistence")
+	}
+	return s.store.ListQualityProfiles(ctx)
+}
+
+func (s *Service) SaveQualityProfile(ctx context.Context, profile QualityProfile) (QualityProfile, error) {
+	if !s.Available() {
+		return QualityProfile{}, errors.New("wanted service requires database persistence")
+	}
+	profile = normalizeProfileForStorage(profile)
+	if strings.TrimSpace(profile.Name) == "" {
+		return QualityProfile{}, errors.New("quality profile name is required")
+	}
+	return s.store.UpsertQualityProfile(ctx, profile)
+}
+
 func (s *Service) SearchReleases(ctx context.Context, wantedID string, request SearchReleasesRequest) (SearchOutcome, error) {
 	if !s.Available() {
 		return SearchOutcome{}, errors.New("wanted service requires database persistence")
@@ -81,9 +99,10 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 	if err != nil {
 		return SearchOutcome{}, err
 	}
+	profile := s.qualityProfileForItem(ctx, item)
 	decisions := make([]ReleaseDecision, 0, len(releases))
 	for _, release := range releases {
-		decisions = append(decisions, evaluateRelease(item, release))
+		decisions = append(decisions, evaluateReleaseWithProfile(item, release, profile))
 	}
 	sort.SliceStable(decisions, func(i, j int) bool {
 		if decisions[i].Approved != decisions[j].Approved {
@@ -331,12 +350,13 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 		if !formatMatchesRequest(request.Format, item.Format) {
 			continue
 		}
+		profile := s.qualityProfileForItem(ctx, item)
 		var decisions []ReleaseDecision
 		for _, release := range releases {
 			if !feedReleaseMatchesWanted(item, release) {
 				continue
 			}
-			decisions = append(decisions, evaluateRelease(item, release))
+			decisions = append(decisions, evaluateReleaseWithProfile(item, release, profile))
 		}
 		if len(decisions) == 0 {
 			continue
@@ -652,12 +672,19 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		default:
 		}
 
+		profile := s.qualityProfileForItem(ctx, item)
 		currentScore := s.currentReleaseScore(ctx, item)
-		cutoff := upgradeCutoffFor(item)
+		cutoff := profile.CutoffScore
 		result := UpgradeItemResult{
 			WantedItem:   item,
 			CurrentScore: currentScore,
 			CutoffScore:  cutoff,
+		}
+		if !profile.UpgradeAllowed {
+			run.WantedChecked++
+			_ = s.store.MarkWantedUpgradeSearched(ctx, item.ID)
+			run.Items = append(run.Items, result)
+			continue
 		}
 		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
 		run.WantedChecked++
@@ -850,6 +877,17 @@ func (s *Service) currentReleaseScore(ctx context.Context, item WantedItem) floa
 	return 0
 }
 
+func (s *Service) qualityProfileForItem(ctx context.Context, item WantedItem) QualityProfile {
+	if s.store == nil {
+		return defaultQualityProfile(item.QualityProfile, item.Format)
+	}
+	profile, err := s.store.GetQualityProfile(ctx, item.QualityProfile, item.Format)
+	if err != nil {
+		return defaultQualityProfile(item.QualityProfile, item.Format)
+	}
+	return normalizeProfile(profile, item)
+}
+
 func bestUpgradeRelease(releases []ReleaseDecision, currentScore float64, cutoffScore float64, minDelta float64) (ReleaseDecision, bool) {
 	if currentScore >= cutoffScore {
 		return ReleaseDecision{}, false
@@ -873,14 +911,7 @@ func bestUpgradeRelease(releases []ReleaseDecision, currentScore float64, cutoff
 }
 
 func upgradeCutoffFor(item WantedItem) float64 {
-	switch normalizeQualityProfile(item.QualityProfile) {
-	case "large", "best", "preferred":
-		return 90
-	case "strict":
-		return 95
-	default:
-		return 85
-	}
+	return defaultQualityProfile(item.QualityProfile, item.Format).CutoffScore
 }
 
 func monitorMessage(run MonitorRun) string {

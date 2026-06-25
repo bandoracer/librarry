@@ -39,6 +39,15 @@ tags before installing the custom app. Do not commit a real Prowlarr API key.
 The default TrueNAS port is `192.168.1.221:30200`, with `/mnt/HDD_pool/vault/media-stack`
 mounted into the API container as `/data`.
 
+## Quality Profiles
+
+Quality profiles are available through `GET /api/v1/quality-profiles` and can be
+updated with `POST /api/v1/quality-profiles`. Default ebook and audiobook
+profiles are seeded by migrations for `standard` and `large`.
+
+The evaluator uses these rows for manual wanted searches, scheduled monitoring,
+feed sync, failed-download recovery, and upgrade search.
+
 ## Wanted Monitor
 
 The API can run wanted monitoring on an interval:

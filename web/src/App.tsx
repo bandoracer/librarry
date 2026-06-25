@@ -31,6 +31,7 @@ import {
   fetchLibraryFiles,
   fetchLibraryImportReviews,
   fetchProviderHealth,
+  fetchQualityProfiles,
   fetchWanted,
   grabWanted,
   grabRelease,
@@ -42,6 +43,7 @@ import {
   runWantedFeedSync,
   runWantedMonitor,
   runDownloadAction,
+  saveQualityProfile,
   scanLibrary,
   searchMetadata,
   searchReleases,
@@ -59,6 +61,7 @@ import {
   type LibraryScanOutcome,
   type MonitorRun,
   type ProviderHealth,
+  type QualityProfile,
   type ReleaseDecision,
   type Release,
   type SearchResult,
@@ -87,6 +90,7 @@ export function App() {
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
   const [importReviews, setImportReviews] = useState<ImportReview[]>([]);
+  const [qualityProfiles, setQualityProfiles] = useState<QualityProfile[]>([]);
   const [libraryScan, setLibraryScan] = useState<LibraryScanOutcome | null>(null);
   const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
   const [completedImport, setCompletedImport] = useState<CompletedImportOutcome | null>(null);
@@ -113,6 +117,7 @@ export function App() {
   const [isImportingCompleted, setIsImportingCompleted] = useState(false);
   const [isRecoveringFailed, setIsRecoveringFailed] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
+  const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
@@ -123,6 +128,7 @@ export function App() {
   const [historyError, setHistoryError] = useState("");
   const [libraryError, setLibraryError] = useState("");
   const [downloadError, setDownloadError] = useState("");
+  const [settingsError, setSettingsError] = useState("");
 
   useEffect(() => {
     Promise.all([fetchProviderHealth(), fetchIntegrationHealth()])
@@ -146,6 +152,11 @@ export function App() {
       })
       .catch((error) => {
         setWantedError(error instanceof Error ? error.message : "Wanted refresh failed");
+      });
+    fetchQualityProfiles()
+      .then(setQualityProfiles)
+      .catch((error) => {
+        setSettingsError(error instanceof Error ? error.message : "Quality profiles refresh failed");
       });
     fetchHistory()
       .then(setHistoryEvents)
@@ -480,6 +491,26 @@ export function App() {
       setDownloadError(error instanceof Error ? error.message : "Download action failed");
     } finally {
       setDownloadActionID("");
+    }
+  }
+
+  function updateQualityProfile(profile: QualityProfile, changes: Partial<QualityProfile>) {
+    const key = profileKey(profile);
+    setQualityProfiles((current) => current.map((item) => (profileKey(item) === key ? { ...item, ...changes } : item)));
+  }
+
+  async function persistQualityProfile(profile: QualityProfile) {
+    const key = profileKey(profile);
+    setSavingProfileID(key);
+    setSettingsError("");
+    try {
+      const saved = await saveQualityProfile(profile);
+      setQualityProfiles((current) => current.map((item) => (profileKey(item) === key ? saved : item)));
+      setAPIState("live");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "Quality profile save failed");
+    } finally {
+      setSavingProfileID("");
     }
   }
 
@@ -1124,6 +1155,83 @@ export function App() {
           </div>
         </section>
 
+        <section className="settings-panel" aria-label="Quality profiles">
+          <div className="panel-heading">
+            <div>
+              <h2>Quality Profiles</h2>
+              <p>{qualityProfiles.length} release policy profiles used by search, feeds, recovery, and upgrades.</p>
+            </div>
+            <button className="secondary-action compact" onClick={() => fetchQualityProfiles().then(setQualityProfiles).catch((error) => setSettingsError(error instanceof Error ? error.message : "Quality profiles refresh failed"))} type="button">
+              <RefreshCw size={16} />
+              Refresh
+            </button>
+          </div>
+          {settingsError ? <div className="inline-error">{settingsError}</div> : null}
+          <div className="quality-profile-list">
+            {qualityProfiles.map((profile) => {
+              const key = profileKey(profile);
+              return (
+                <article className="quality-profile-row" key={key}>
+                  <div className="quality-profile-title">
+                    <strong>{profile.name}</strong>
+                    <span>{profile.mediaFormat}</span>
+                  </div>
+                  <label>
+                    <span>Min</span>
+                    <input
+                      inputMode="decimal"
+                      value={profile.minScore}
+                      onChange={(event) => updateQualityProfile(profile, { minScore: Number(event.target.value) || 0 })}
+                    />
+                  </label>
+                  <label>
+                    <span>Cutoff</span>
+                    <input
+                      inputMode="decimal"
+                      value={profile.cutoffScore}
+                      onChange={(event) => updateQualityProfile(profile, { cutoffScore: Number(event.target.value) || 0 })}
+                    />
+                  </label>
+                  <label>
+                    <span>Seeds</span>
+                    <input
+                      inputMode="numeric"
+                      value={profile.minSeeders}
+                      onChange={(event) => updateQualityProfile(profile, { minSeeders: Number(event.target.value) || 0 })}
+                    />
+                  </label>
+                  <label>
+                    <span>GB</span>
+                    <input
+                      inputMode="decimal"
+                      value={bytesToGiB(profile.maxSizeBytes)}
+                      onChange={(event) => updateQualityProfile(profile, { maxSizeBytes: giBToBytes(Number(event.target.value) || 0) })}
+                    />
+                  </label>
+                  <label className="quality-terms">
+                    <span>Prefer</span>
+                    <input
+                      value={(profile.preferredTerms ?? []).join(", ")}
+                      onChange={(event) => updateQualityProfile(profile, { preferredTerms: splitTerms(event.target.value) })}
+                    />
+                  </label>
+                  <label className="quality-terms">
+                    <span>Reject</span>
+                    <input
+                      value={(profile.rejectedTerms ?? []).join(", ")}
+                      onChange={(event) => updateQualityProfile(profile, { rejectedTerms: splitTerms(event.target.value) })}
+                    />
+                  </label>
+                  <button className="secondary-action compact" disabled={Boolean(savingProfileID)} onClick={() => persistQualityProfile(profile)} type="button">
+                    <CheckCircle2 size={16} />
+                    {savingProfileID === key ? "Saving" : "Save"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
         <section className="history-panel" aria-label="Activity history">
           <div className="panel-heading">
             <div>
@@ -1211,6 +1319,27 @@ function mergeLibraryFiles(current: LibraryFile[], next: LibraryFile[]) {
     const bTime = Date.parse(b.updatedAt || "");
     return bTime - aTime;
   });
+}
+
+function profileKey(profile: QualityProfile) {
+  return profile.id || `${profile.name}:${profile.mediaFormat}`;
+}
+
+function splitTerms(value: string) {
+  return value
+    .split(",")
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
+function bytesToGiB(bytes: number) {
+  if (!bytes) return 0;
+  return Number((bytes / 1024 / 1024 / 1024).toFixed(2));
+}
+
+function giBToBytes(value: number) {
+  if (!value || value < 0) return 0;
+  return Math.round(value * 1024 * 1024 * 1024);
 }
 
 function stateTone(state: string) {

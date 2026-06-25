@@ -8,18 +8,23 @@ import (
 )
 
 type releasePolicy struct {
-	format         string
-	qualityProfile string
+	format  string
+	profile QualityProfile
 }
 
 func evaluateRelease(item WantedItem, release acquisition.Release) ReleaseDecision {
+	return evaluateReleaseWithProfile(item, release, defaultQualityProfile(item.QualityProfile, item.Format))
+}
+
+func evaluateReleaseWithProfile(item WantedItem, release acquisition.Release, profile QualityProfile) ReleaseDecision {
 	policy := releasePolicy{
-		format:         normalizeFormat(item.Format),
-		qualityProfile: normalizeQualityProfile(item.QualityProfile),
+		format:  normalizeFormat(item.Format),
+		profile: normalizeProfile(profile, item),
 	}
 	score := 20.0
 	var reasons []string
 
+	haystackNorm := normalizeText(release.Title + " " + strings.Join(release.Categories, " "))
 	titleNorm := normalizeText(release.Title)
 	wantedTitle := normalizeText(item.Title)
 	authorName := normalizeText(item.AuthorName)
@@ -47,24 +52,43 @@ func evaluateRelease(item WantedItem, release acquisition.Release) ReleaseDecisi
 	if policy.format == "audiobook" && !looksLikeAudiobook(release) {
 		reasons = append(reasons, "does not look like an audiobook release")
 	}
-	if strings.EqualFold(release.Protocol, "torrent") && release.Seeders <= 0 {
-		reasons = append(reasons, "no seeders")
+	if strings.EqualFold(release.Protocol, "torrent") && release.Seeders < policy.profile.MinSeeders {
+		reasons = append(reasons, "below profile minimum seeders")
 	} else if release.Seeders > 0 {
 		score += math.Min(float64(release.Seeders), 50) * 0.5
 	}
 
-	maxSize := maxSizeFor(policy)
-	if release.SizeBytes > maxSize {
+	maxSize := policy.profile.MaxSizeBytes
+	if maxSize <= 0 {
+		maxSize = maxSizeFor(policy)
+	}
+	if maxSize > 0 && release.SizeBytes > maxSize {
 		reasons = append(reasons, "release exceeds profile size limit")
 	} else if release.SizeBytes > 0 {
 		score += 5
 	}
-	if strings.Contains(titleNorm, "summary") || strings.Contains(titleNorm, "review") {
-		reasons = append(reasons, "summary or review release")
+	for _, term := range policy.profile.RequiredTerms {
+		if !containsNormalizedTerm(haystackNorm, term) {
+			reasons = append(reasons, "missing required term: "+term)
+		}
+	}
+	for _, term := range policy.profile.RejectedTerms {
+		if containsNormalizedTerm(haystackNorm, term) {
+			reasons = append(reasons, "rejected term: "+term)
+		}
+	}
+	preferredMatches := 0
+	for _, term := range policy.profile.PreferredTerms {
+		if containsNormalizedTerm(haystackNorm, term) {
+			preferredMatches++
+		}
+	}
+	if preferredMatches > 0 && policy.profile.PreferredScore > 0 {
+		score += math.Min(float64(preferredMatches), 3) * policy.profile.PreferredScore
 	}
 
-	if len(reasons) > 0 && score > 59 {
-		score = 59
+	if len(reasons) > 0 && score >= policy.profile.MinScore {
+		score = policy.profile.MinScore - 1
 	}
 	if score > 100 {
 		score = 100
@@ -86,7 +110,7 @@ func evaluateRelease(item WantedItem, release acquisition.Release) ReleaseDecisi
 		Leechers:       release.Leechers,
 		Categories:     release.Categories,
 		Score:          math.Round(score*1000) / 1000,
-		Approved:       len(reasons) == 0 && score >= 60,
+		Approved:       len(reasons) == 0 && score >= policy.profile.MinScore,
 		RejectedReason: strings.Join(reasons, "; "),
 		PublishedAt:    release.PublishedAt,
 	}
@@ -131,15 +155,88 @@ func looksLikeAudiobook(release acquisition.Release) bool {
 
 func maxSizeFor(policy releasePolicy) int64 {
 	if policy.format == "audiobook" {
-		if policy.qualityProfile == "large" {
+		if normalizeQualityProfile(policy.profile.Name) == "large" {
 			return 20 * 1024 * 1024 * 1024
 		}
 		return 8 * 1024 * 1024 * 1024
 	}
-	if policy.qualityProfile == "large" {
+	if normalizeQualityProfile(policy.profile.Name) == "large" {
 		return 2 * 1024 * 1024 * 1024
 	}
 	return 750 * 1024 * 1024
+}
+
+func defaultQualityProfile(name string, format string) QualityProfile {
+	name = normalizeQualityProfile(name)
+	format = normalizeFormat(format)
+	profile := QualityProfile{
+		Name:           name,
+		MediaFormat:    format,
+		MinScore:       60,
+		CutoffScore:    85,
+		MinSeeders:     1,
+		MaxSizeBytes:   750 * 1024 * 1024,
+		PreferredTerms: []string{},
+		RejectedTerms:  []string{"summary", "review"},
+		PreferredScore: 8,
+		UpgradeAllowed: true,
+	}
+	if format == "audiobook" {
+		profile.MaxSizeBytes = 8 * 1024 * 1024 * 1024
+	}
+	if name == "large" || name == "best" || name == "preferred" {
+		profile.MinScore = 65
+		profile.CutoffScore = 90
+		if format == "audiobook" {
+			profile.MaxSizeBytes = 20 * 1024 * 1024 * 1024
+		} else {
+			profile.MaxSizeBytes = 2 * 1024 * 1024 * 1024
+		}
+	}
+	if name == "strict" {
+		profile.MinScore = 75
+		profile.CutoffScore = 95
+	}
+	if format == "audiobook" {
+		profile.PreferredTerms = []string{"m4b", "mp3"}
+	} else {
+		profile.PreferredTerms = []string{"epub", "azw3"}
+	}
+	return profile
+}
+
+func normalizeProfile(profile QualityProfile, item WantedItem) QualityProfile {
+	if strings.TrimSpace(profile.Name) == "" {
+		profile = defaultQualityProfile(item.QualityProfile, item.Format)
+	}
+	profile.Name = normalizeQualityProfile(profile.Name)
+	if strings.TrimSpace(profile.MediaFormat) == "" || profile.MediaFormat == "any" {
+		profile.MediaFormat = normalizeFormat(item.Format)
+	}
+	if profile.MinScore <= 0 {
+		profile.MinScore = 60
+	}
+	if profile.CutoffScore <= 0 {
+		profile.CutoffScore = upgradeCutoffFor(item)
+	}
+	if profile.MinSeeders < 0 {
+		profile.MinSeeders = 0
+	}
+	if profile.PreferredScore <= 0 {
+		profile.PreferredScore = 8
+	}
+	if len(profile.RejectedTerms) == 0 {
+		profile.RejectedTerms = []string{"summary", "review"}
+	}
+	return profile
+}
+
+func containsNormalizedTerm(haystack string, term string) bool {
+	term = normalizeText(term)
+	if term == "" {
+		return false
+	}
+	return strings.Contains(haystack, term)
 }
 
 func normalizeText(value string) string {

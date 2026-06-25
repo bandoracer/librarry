@@ -38,6 +38,8 @@ type acquisitionService interface {
 type wantedService interface {
 	Create(ctx context.Context, request wanted.CreateRequest) (wanted.WantedItem, error)
 	List(ctx context.Context, status string) ([]wanted.WantedItem, error)
+	ListQualityProfiles(ctx context.Context) ([]wanted.QualityProfile, error)
+	SaveQualityProfile(ctx context.Context, profile wanted.QualityProfile) (wanted.QualityProfile, error)
 	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
 	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
@@ -73,6 +75,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
 	mux.HandleFunc("POST /api/v1/downloads/recover-failed", handler.recoverFailedDownloads)
+	mux.HandleFunc("GET /api/v1/quality-profiles", handler.qualityProfiles)
+	mux.HandleFunc("POST /api/v1/quality-profiles", handler.saveQualityProfile)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
@@ -267,6 +271,38 @@ func (h *handler) recoverFailedDownloads(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, run)
+}
+
+func (h *handler) qualityProfiles(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	profiles, err := h.deps.Wanted.ListQualityProfiles(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"profiles": profiles})
+}
+
+func (h *handler) saveQualityProfile(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var profile wanted.QualityProfile
+	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid quality profile payload"})
+		return
+	}
+	saved, err := h.deps.Wanted.SaveQualityProfile(r.Context(), profile)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, saved)
 }
 
 func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
