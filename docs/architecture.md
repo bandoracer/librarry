@@ -18,6 +18,13 @@ Initial API surface:
   - `GET /api/v1/system/routes/duplicate`
   - `GET /api/v1/health`
   - `GET /api/v1/diskspace`
+  - `GET /api/v1/config/naming`
+  - `GET /api/v1/config/naming/{id}`
+  - `PUT /api/v1/config/naming/{id}`
+  - `GET /api/v1/config/naming/examples`
+  - `GET /api/v1/config/mediamanagement`
+  - `GET /api/v1/config/mediamanagement/{id}`
+  - `PUT /api/v1/config/mediamanagement/{id}`
   - `GET /api/v1/rootfolder`
   - `GET /api/v1/queue`
   - `GET /api/v1/queue/details`
@@ -42,6 +49,8 @@ Initial API surface:
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/downloadclient`
   - `GET /api/v1/indexer`
+  - `GET /api/v1/manualimport`
+  - `POST /api/v1/manualimport`
   - `GET /api/v1/command`
   - `POST /api/v1/command`
 - Librarry-native endpoints:
@@ -168,6 +177,14 @@ source file path, optionally ties it to a wanted item, and copies or moves the
 file into a sanitized path below the format root. The default naming policy is
 `Author/Title/Title.ext`; deployments can change the author folder, book folder,
 file name, and space replacement templates.
+
+The Readarr-compatible `/api/v1/manualimport` surface maps to the same import
+engine. `GET /api/v1/manualimport` lists pending import reviews, can scan a
+provided folder for supported ebook/audiobook candidates, and `POST
+/api/v1/manualimport` imports selected files through the regular library import
+path. The naming and media-management compatibility config endpoints reflect
+the active Librarry roots and naming templates; persisted Readarr-style config
+writes are still future work.
 
 Completed-download import refreshes Librarry-tagged qBittorrent items, filters
 for completed torrents, locates the best supported ebook or audiobook file below

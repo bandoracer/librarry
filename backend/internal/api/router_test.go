@@ -325,6 +325,102 @@ func TestCompatAuthorAndBookLookupEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatManualImportEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  fakeLibrary{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/manualimport?downloadId=abc123", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"librarryReviewId":"review-1"`) || !strings.Contains(res.Body.String(), `"downloadId":"abc123"`) {
+		t.Fatalf("expected pending import review, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/manualimport?folder=/downloads/books", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"librarrySource":"folderScan"`) || !strings.Contains(res.Body.String(), `"path":"`) {
+		t.Fatalf("expected scanned import candidate, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"path":"/downloads/Project Hail Mary.epub","wantedId":"wanted-1","downloadId":"abc123","importMode":"copy","mediaFormat":"ebook"}]`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"imported":true`) || !strings.Contains(res.Body.String(), `"destinationPath":"`) {
+		t.Fatalf("expected imported manual import payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatConfigEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{
+			WebOrigin:              "*",
+			EbookLibraryRoot:       "/media/books/ebooks",
+			AudiobookLibraryRoot:   "/media/books/audiobooks",
+			NamingAuthorFolder:     "{Author}",
+			NamingBookFolder:       "{Title} ({Format})",
+			NamingFileName:         "{Author} - {Title}{Ext}",
+			NamingSpaceReplacement: "_",
+		},
+		Metadata: metadata.NewService(nil),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/config/naming", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"standardBookFormat":"{Author} - {Title}{Ext}"`) || !strings.Contains(res.Body.String(), `"replaceSpacesWith":"_"`) {
+		t.Fatalf("expected naming config, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/config/naming/examples", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "Andy_Weir") || !strings.Contains(res.Body.String(), "Project_Hail_Mary") {
+		t.Fatalf("expected naming example, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/config/naming/1", strings.NewReader(`{"standardBookFormat":"{Title}{Ext}","replaceSpaces":false}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"standardBookFormat":"{Title}{Ext}"`) || !strings.Contains(res.Body.String(), `"replaceSpaces":false`) {
+		t.Fatalf("expected echoed naming update, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/config/mediamanagement", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"/media/books/ebooks"`) || !strings.Contains(res.Body.String(), `"/media/books/audiobooks"`) {
+		t.Fatalf("expected media management roots, got %s", res.Body.String())
+	}
+}
+
 func TestSettingsValidateEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),

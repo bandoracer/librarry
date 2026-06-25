@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -63,6 +64,8 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/system/status"},
 		{"method": "GET", "path": "/api/v1/health"},
 		{"method": "GET", "path": "/api/v1/diskspace"},
+		{"method": "GET", "path": "/api/v1/config/naming"},
+		{"method": "GET", "path": "/api/v1/config/mediamanagement"},
 		{"method": "GET", "path": "/api/v1/rootfolder"},
 		{"method": "GET", "path": "/api/v1/queue"},
 		{"method": "GET", "path": "/api/v1/queue/status"},
@@ -74,6 +77,8 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
 		{"method": "GET", "path": "/api/v1/downloadclient"},
 		{"method": "GET", "path": "/api/v1/indexer"},
+		{"method": "GET", "path": "/api/v1/manualimport"},
+		{"method": "POST", "path": "/api/v1/manualimport"},
 		{"method": "GET", "path": "/api/v1/command"},
 		{"method": "POST", "path": "/api/v1/command"},
 	})
@@ -123,6 +128,46 @@ func (h *handler) compatDiskspace(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatNamingConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.compatNamingConfigRecord(nil))
+}
+
+func (h *handler) compatUpdateNamingConfig(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var payload map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+	writeJSON(w, http.StatusOK, h.compatNamingConfigRecord(payload))
+}
+
+func (h *handler) compatNamingConfigExamples(w http.ResponseWriter, r *http.Request) {
+	record := h.compatNamingConfigRecord(nil)
+	author := "Andy Weir"
+	title := "Project Hail Mary"
+	format := "ebook"
+	ext := ".epub"
+	writeJSON(w, http.StatusOK, map[string]any{
+		"singleBookExample": renderCompatNamingExample(record, author, title, format, ext),
+		"examples": []map[string]any{{
+			"author":      author,
+			"title":       title,
+			"mediaFormat": format,
+			"extension":   ext,
+			"path":        renderCompatNamingExample(record, author, title, format, ext),
+		}},
+	})
+}
+
+func (h *handler) compatMediaManagementConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.compatMediaManagementConfigRecord(nil))
+}
+
+func (h *handler) compatUpdateMediaManagementConfig(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var payload map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+	writeJSON(w, http.StatusOK, h.compatMediaManagementConfigRecord(payload))
 }
 
 func (h *handler) compatRootFolders(w http.ResponseWriter, r *http.Request) {
@@ -554,6 +599,84 @@ func (h *handler) compatIndexers(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
+func (h *handler) compatManualImport(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	folder := strings.TrimSpace(firstNonEmptyString(r.URL.Query().Get("folder"), r.URL.Query().Get("path")))
+	var records []map[string]any
+	if folder != "" {
+		outcome, err := h.deps.Library.Scan(r.Context(), library.ScanRequest{Root: folder, Limit: limit, Format: r.URL.Query().Get("format")})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		for _, file := range outcome.Files {
+			records = append(records, compatManualImportFileRecord(file, "folderScan"))
+		}
+		writeJSON(w, http.StatusOK, records)
+		return
+	}
+	reviews, err := h.deps.Library.ListImportReviews(r.Context(), library.ReviewListQuery{Status: defaultString(r.URL.Query().Get("status"), "pending"), Limit: limit})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	downloadID := strings.TrimSpace(r.URL.Query().Get("downloadId"))
+	for _, review := range reviews {
+		if downloadID != "" && review.DownloadID != downloadID {
+			continue
+		}
+		records = append(records, compatManualImportReviewRecord(review))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatCreateManualImport(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var payload any
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid manual import payload"})
+		return
+	}
+	items := manualImportPayloads(payload)
+	if len(items) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "at least one manual import item is required"})
+		return
+	}
+	records := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		sourcePath := firstNonEmptyString(payloadString(item, "path"), payloadString(item, "sourcePath"))
+		if sourcePath == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "path is required"})
+			return
+		}
+		request := library.ImportRequest{
+			SourcePath: sourcePath,
+			WantedID:   h.compatWantedIDForManualImport(r, item),
+			DownloadID: firstNonEmptyString(payloadString(item, "downloadId"), payloadString(item, "downloadID")),
+			Format:     firstNonEmptyString(payloadString(item, "mediaFormat"), payloadString(item, "format"), nestedString(item, "quality", "name"), nestedString(item, "book", "librarryFormat")),
+			Move:       manualImportMove(item),
+		}
+		outcome, err := h.deps.Library.Import(r.Context(), request)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "path": sourcePath})
+			return
+		}
+		records = append(records, compatManualImportOutcomeRecord(outcome, request))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
 func (h *handler) compatCommands(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, []map[string]any{})
 }
@@ -677,10 +800,78 @@ func (h *handler) compatFindBook(w http.ResponseWriter, r *http.Request, id stri
 	return wanted.WantedItem{}, false
 }
 
+func (h *handler) compatWantedIDForManualImport(r *http.Request, payload map[string]any) string {
+	wantedID := firstNonEmptyString(payloadString(payload, "wantedId"), payloadString(payload, "librarryWantedId"))
+	if wantedID != "" {
+		return wantedID
+	}
+	bookID := firstNonEmptyString(payloadString(payload, "bookId"), payloadString(payload, "bookID"), nestedString(payload, "book", "id"), nestedString(payload, "book", "librarryId"))
+	if bookID == "" {
+		return ""
+	}
+	for _, item := range h.compatWantedItems(r) {
+		if compatIDMatches(bookID, item.ID, item.WorkID, item.SourceKey, item.Title) {
+			return item.ID
+		}
+	}
+	return ""
+}
+
 func (h *handler) compatRootFolderRecords() []map[string]any {
 	return []map[string]any{
 		compatRootFolderRecord(1, "Ebooks", defaultString(h.deps.Config.EbookLibraryRoot, "/data/media/books/ebooks")),
 		compatRootFolderRecord(2, "Audiobooks", defaultString(h.deps.Config.AudiobookLibraryRoot, "/data/media/books/audiobooks")),
+	}
+}
+
+func (h *handler) compatNamingConfigRecord(overrides map[string]any) map[string]any {
+	authorFolder := firstNonEmptyString(payloadString(overrides, "authorFolderFormat"), payloadString(overrides, "authorFolderTemplate"), h.deps.Config.NamingAuthorFolder)
+	bookFolder := firstNonEmptyString(payloadString(overrides, "bookFolderFormat"), payloadString(overrides, "bookFolderTemplate"), h.deps.Config.NamingBookFolder)
+	fileName := firstNonEmptyString(payloadString(overrides, "standardBookFormat"), payloadString(overrides, "fileNameFormat"), h.deps.Config.NamingFileName)
+	spaceReplacement := firstNonEmptyString(payloadString(overrides, "replaceSpacesWith"), h.deps.Config.NamingSpaceReplacement)
+	replaceSpaces := payloadBoolDefault(overrides, "replaceSpaces", spaceReplacement != "")
+	return map[string]any{
+		"id":                           1,
+		"renameBooks":                  payloadBoolDefault(overrides, "renameBooks", true),
+		"replaceIllegalCharacters":     payloadBoolDefault(overrides, "replaceIllegalCharacters", true),
+		"colonReplacementFormat":       firstNonEmptyString(payloadString(overrides, "colonReplacementFormat"), "delete"),
+		"standardBookFormat":           defaultString(fileName, "{Title}{Ext}"),
+		"authorFolderFormat":           defaultString(authorFolder, "{Author}"),
+		"bookFolderFormat":             defaultString(bookFolder, "{Title}"),
+		"includeAuthorName":            payloadBoolDefault(overrides, "includeAuthorName", true),
+		"includeBookTitle":             payloadBoolDefault(overrides, "includeBookTitle", true),
+		"includeQuality":               payloadBoolDefault(overrides, "includeQuality", false),
+		"replaceSpaces":                replaceSpaces,
+		"replaceSpacesWith":            spaceReplacement,
+		"multiAuthorStyle":             firstNonEmptyString(payloadString(overrides, "multiAuthorStyle"), "standard"),
+		"librarryAuthorFolderTemplate": defaultString(authorFolder, "{Author}"),
+		"librarryBookFolderTemplate":   defaultString(bookFolder, "{Title}"),
+		"librarryFileNameTemplate":     defaultString(fileName, "{Title}{Ext}"),
+	}
+}
+
+func (h *handler) compatMediaManagementConfigRecord(overrides map[string]any) map[string]any {
+	return map[string]any{
+		"id":                                     1,
+		"autoUnmonitorPreviouslyDownloadedBooks": payloadBoolDefault(overrides, "autoUnmonitorPreviouslyDownloadedBooks", false),
+		"recycleBin":                             payloadString(overrides, "recycleBin"),
+		"recycleBinCleanupDays":                  payloadIntDefault(overrides, "recycleBinCleanupDays", 7),
+		"downloadPropersAndRepacks":              firstNonEmptyString(payloadString(overrides, "downloadPropersAndRepacks"), "preferAndUpgrade"),
+		"createEmptyAuthorFolders":               payloadBoolDefault(overrides, "createEmptyAuthorFolders", false),
+		"deleteEmptyFolders":                     payloadBoolDefault(overrides, "deleteEmptyFolders", true),
+		"fileDate":                               firstNonEmptyString(payloadString(overrides, "fileDate"), "none"),
+		"rescanAfterRefresh":                     firstNonEmptyString(payloadString(overrides, "rescanAfterRefresh"), "always"),
+		"setPermissionsLinux":                    payloadBoolDefault(overrides, "setPermissionsLinux", false),
+		"chmodFolder":                            firstNonEmptyString(payloadString(overrides, "chmodFolder"), "755"),
+		"chownGroup":                             payloadString(overrides, "chownGroup"),
+		"skipFreeSpaceCheckWhenImporting":        payloadBoolDefault(overrides, "skipFreeSpaceCheckWhenImporting", false),
+		"minimumFreeSpaceWhenImporting":          payloadIntDefault(overrides, "minimumFreeSpaceWhenImporting", 100),
+		"copyUsingHardlinks":                     payloadBoolDefault(overrides, "copyUsingHardlinks", false),
+		"importExtraFiles":                       payloadBoolDefault(overrides, "importExtraFiles", false),
+		"extraFileExtensions":                    payloadString(overrides, "extraFileExtensions"),
+		"enableMediaInfo":                        payloadBoolDefault(overrides, "enableMediaInfo", true),
+		"ebookRootFolderPath":                    defaultString(h.deps.Config.EbookLibraryRoot, "/data/media/books/ebooks"),
+		"audiobookRootFolderPath":                defaultString(h.deps.Config.AudiobookLibraryRoot, "/data/media/books/audiobooks"),
 	}
 }
 
@@ -694,6 +885,88 @@ func compatRootFolderRecord(id int, name string, path string) map[string]any {
 		"freeSpace":       free,
 		"totalSpace":      total,
 		"unmappedFolders": []any{},
+	}
+}
+
+func compatManualImportReviewRecord(review library.ImportReview) map[string]any {
+	record := compatManualImportBaseRecord(stableInt(firstNonEmptyString(review.ID, review.SourcePath)), review.SourcePath, review.MediaFormat, review.Title, review.AuthorName, review.SizeBytes)
+	record["downloadId"] = review.DownloadID
+	record["librarryReviewId"] = review.ID
+	record["librarryStatus"] = review.Status
+	record["librarryReason"] = review.Reason
+	if strings.TrimSpace(review.WantedID) != "" {
+		record["librarryWantedId"] = review.WantedID
+		record["bookId"] = stableInt(review.WantedID)
+	}
+	if strings.TrimSpace(review.Reason) != "" {
+		record["rejections"] = []map[string]any{{"reason": review.Reason, "type": "warning"}}
+	}
+	return record
+}
+
+func compatManualImportFileRecord(file library.FileRecord, source string) map[string]any {
+	record := compatManualImportBaseRecord(stableInt(firstNonEmptyString(file.ID, file.Path)), file.Path, file.MediaFormat, file.Title, file.AuthorName, file.SizeBytes)
+	record["librarryFileId"] = file.ID
+	record["librarryImportStatus"] = file.ImportStatus
+	record["librarrySource"] = source
+	return record
+}
+
+func compatManualImportOutcomeRecord(outcome library.ImportOutcome, request library.ImportRequest) map[string]any {
+	record := compatManualImportFileRecord(outcome.File, "manualImport")
+	record["imported"] = true
+	record["destinationPath"] = outcome.DestinationPath
+	record["importMode"] = map[bool]string{true: "move", false: "copy"}[outcome.Moved]
+	record["downloadId"] = request.DownloadID
+	if strings.TrimSpace(request.WantedID) != "" {
+		record["librarryWantedId"] = request.WantedID
+		record["bookId"] = stableInt(request.WantedID)
+	}
+	return record
+}
+
+func compatManualImportBaseRecord(id int, path string, mediaFormat string, title string, authorName string, sizeBytes int64) map[string]any {
+	mediaFormat = defaultString(mediaFormat, "ebook")
+	title = defaultString(title, strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))
+	qualityName := strings.ToUpper(mediaFormat[:1]) + mediaFormat[1:]
+	return map[string]any{
+		"id":                   id,
+		"path":                 path,
+		"relativePath":         filepath.Base(path),
+		"folderName":           filepath.Dir(path),
+		"name":                 filepath.Base(path),
+		"size":                 sizeBytes,
+		"qualityWeight":        1,
+		"downloadId":           "",
+		"additionalFile":       false,
+		"replaceExistingFiles": false,
+		"disableReleaseSwitch": false,
+		"importMode":           "copy",
+		"rejections":           []map[string]any{},
+		"author": map[string]any{
+			"id":         stableInt(authorName),
+			"authorName": authorName,
+			"titleSlug":  slug(authorName),
+		},
+		"book": map[string]any{
+			"id":             stableInt(title),
+			"title":          title,
+			"authorTitle":    authorName,
+			"titleSlug":      slug(title),
+			"librarryFormat": mediaFormat,
+		},
+		"quality": map[string]any{
+			"quality": map[string]any{
+				"id":   stableInt(mediaFormat),
+				"name": qualityName,
+			},
+			"revision": map[string]any{
+				"version":  1,
+				"real":     0,
+				"isRepack": false,
+			},
+		},
+		"languages": []map[string]any{{"id": 1, "name": "English"}},
 	}
 }
 
@@ -1142,6 +1415,113 @@ func firstString(values []string) string {
 		}
 	}
 	return ""
+}
+
+func payloadBoolDefault(payload map[string]any, key string, fallback bool) bool {
+	if payload == nil {
+		return fallback
+	}
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return fallback
+	}
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(typed))
+		if err == nil {
+			return parsed
+		}
+	case float64:
+		return typed != 0
+	}
+	return fallback
+}
+
+func payloadIntDefault(payload map[string]any, key string, fallback int) int {
+	if payload == nil {
+		return fallback
+	}
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return fallback
+	}
+	switch typed := value.(type) {
+	case float64:
+		return int(typed)
+	case string:
+		parsed, err := strconv.Atoi(strings.TrimSpace(typed))
+		if err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func manualImportPayloads(payload any) []map[string]any {
+	switch typed := payload.(type) {
+	case []any:
+		return mapsFromValues(typed)
+	case map[string]any:
+		for _, key := range []string{"items", "files", "manualImports"} {
+			if values, ok := typed[key].([]any); ok {
+				return mapsFromValues(values)
+			}
+		}
+		return []map[string]any{typed}
+	default:
+		return nil
+	}
+}
+
+func mapsFromValues(values []any) []map[string]any {
+	records := make([]map[string]any, 0, len(values))
+	for _, value := range values {
+		if record, ok := value.(map[string]any); ok {
+			records = append(records, record)
+		}
+	}
+	return records
+}
+
+func manualImportMove(payload map[string]any) bool {
+	mode := strings.ToLower(strings.TrimSpace(firstNonEmptyString(payloadString(payload, "importMode"), payloadString(payload, "mode"))))
+	if mode == "move" {
+		return true
+	}
+	if mode == "copy" {
+		return false
+	}
+	return payloadBoolDefault(payload, "move", false)
+}
+
+func renderCompatNamingExample(record map[string]any, author string, title string, format string, ext string) string {
+	values := map[string]string{
+		"Author": author,
+		"Title":  title,
+		"Format": format,
+		"Ext":    ext,
+	}
+	spaceReplacement := payloadString(record, "replaceSpacesWith")
+	parts := []string{
+		renderCompatTemplate(payloadString(record, "authorFolderFormat"), values, spaceReplacement),
+		renderCompatTemplate(payloadString(record, "bookFolderFormat"), values, spaceReplacement),
+		renderCompatTemplate(payloadString(record, "standardBookFormat"), values, spaceReplacement),
+	}
+	return strings.Join(parts, "/")
+}
+
+func renderCompatTemplate(template string, values map[string]string, spaceReplacement string) string {
+	template = defaultString(template, "{Title}")
+	for key, value := range values {
+		template = strings.ReplaceAll(template, "{"+key+"}", value)
+		template = strings.ReplaceAll(template, "{"+strings.ToLower(key)+"}", value)
+	}
+	if spaceReplacement != "" {
+		template = strings.ReplaceAll(template, " ", spaceReplacement)
+	}
+	return template
 }
 
 func boolInt(value bool) int {
