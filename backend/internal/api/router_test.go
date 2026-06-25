@@ -992,6 +992,74 @@ func TestCompatHostUIIndexerDownloadConfigAndTasks(t *testing.T) {
 	}
 }
 
+func TestCompatConfigPersistenceEndpoints(t *testing.T) {
+	compatResources := &fakeCompatResources{}
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{
+			WebOrigin:            "*",
+			ListenAddr:           ":9090",
+			BookTorrentRoot:      "/downloads/books",
+			EbookCategory:        "books-ebook",
+			AudiobookCategory:    "books-audiobook",
+			EbookLibraryRoot:     "/media/books/ebooks",
+			AudiobookLibraryRoot: "/media/books/audiobooks",
+		},
+		Metadata: metadata.NewService(nil),
+		Compat:   compatResources,
+	})
+
+	checks := []struct {
+		path    string
+		payload string
+		want    []string
+	}{
+		{"/api/v1/config/naming/1", `{"standardBookFormat":"{Author}/{Title}{Ext}","replaceSpaces":false}`, []string{`"standardBookFormat":"{Author}/{Title}{Ext}"`, `"replaceSpaces":false`}},
+		{"/api/v1/config/mediamanagement/1", `{"recycleBin":"/trash","copyUsingHardlinks":true}`, []string{`"recycleBin":"/trash"`, `"copyUsingHardlinks":true`}},
+		{"/api/v1/config/host/1", `{"port":8081,"instanceName":"Public Librarry"}`, []string{`"port":8081`, `"instanceName":"Public Librarry"`}},
+		{"/api/v1/config/ui/1", `{"theme":"dark","showRelativeDates":false}`, []string{`"theme":"dark"`, `"showRelativeDates":false`}},
+		{"/api/v1/config/downloadclient/1", `{"removeCompletedDownloads":true,"autoRedownloadFailed":true}`, []string{`"removeCompletedDownloads":true`, `"autoRedownloadFailed":true`}},
+		{"/api/v1/config/indexer/1", `{"rssSyncInterval":30,"minimumAge":5}`, []string{`"rssSyncInterval":30`, `"minimumAge":5`}},
+	}
+
+	for _, check := range checks {
+		req := httptest.NewRequest(http.MethodPut, check.path, strings.NewReader(check.payload))
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		if res.Code != http.StatusOK {
+			t.Fatalf("%s expected update 200, got %d: %s", check.path, res.Code, res.Body.String())
+		}
+		if !strings.Contains(res.Body.String(), `"librarryPersistedViaNative":true`) {
+			t.Fatalf("%s expected persisted update response, got %s", check.path, res.Body.String())
+		}
+		for _, want := range check.want {
+			if !strings.Contains(res.Body.String(), want) {
+				t.Fatalf("%s expected update response to contain %s, got %s", check.path, want, res.Body.String())
+			}
+		}
+
+		getPath := strings.TrimSuffix(check.path, "/1")
+		req = httptest.NewRequest(http.MethodGet, getPath, nil)
+		res = httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		if res.Code != http.StatusOK {
+			t.Fatalf("%s expected persisted get 200, got %d: %s", getPath, res.Code, res.Body.String())
+		}
+		if !strings.Contains(res.Body.String(), `"librarryPersistedViaNative":true`) {
+			t.Fatalf("%s expected persisted get response, got %s", getPath, res.Body.String())
+		}
+		for _, want := range check.want {
+			if !strings.Contains(res.Body.String(), want) {
+				t.Fatalf("%s expected get response to contain %s, got %s", getPath, want, res.Body.String())
+			}
+		}
+	}
+
+	if len(compatResources.resources) != len(checks) {
+		t.Fatalf("expected %d persisted config resources, got %+v", len(checks), compatResources.resources)
+	}
+}
+
 func TestSettingsValidateEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),

@@ -173,18 +173,19 @@ func (h *handler) compatDiskspace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatNamingConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatNamingConfigRecord(nil))
+	h.writeCompatConfigRecord(w, r, "config-naming", h.compatNamingConfigRecord)
 }
 
 func (h *handler) compatUpdateNamingConfig(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var payload map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&payload)
-	writeJSON(w, http.StatusOK, h.compatNamingConfigRecord(payload))
+	h.writeCompatConfigUpdate(w, r, "config-naming", "naming config", h.compatNamingConfigRecord)
 }
 
 func (h *handler) compatNamingConfigExamples(w http.ResponseWriter, r *http.Request) {
-	record := h.compatNamingConfigRecord(nil)
+	record, err := h.compatConfigRecord(r.Context(), "config-naming", h.compatNamingConfigRecord)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
 	author := "Andy Weir"
 	title := "Project Hail Mary"
 	format := "ebook"
@@ -202,62 +203,43 @@ func (h *handler) compatNamingConfigExamples(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *handler) compatMediaManagementConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatMediaManagementConfigRecord(nil))
+	h.writeCompatConfigRecord(w, r, "config-media-management", h.compatMediaManagementConfigRecord)
 }
 
 func (h *handler) compatUpdateMediaManagementConfig(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var payload map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&payload)
-	writeJSON(w, http.StatusOK, h.compatMediaManagementConfigRecord(payload))
+	h.writeCompatConfigUpdate(w, r, "config-media-management", "media management config", h.compatMediaManagementConfigRecord)
 }
 
 func (h *handler) compatHostConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatHostConfigRecord(nil))
+	h.writeCompatConfigRecord(w, r, "config-host", h.compatHostConfigRecord)
 }
 
 func (h *handler) compatUpdateHostConfig(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "host config")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, h.compatHostConfigRecord(payload))
+	h.writeCompatConfigUpdate(w, r, "config-host", "host config", h.compatHostConfigRecord)
 }
 
 func (h *handler) compatUIConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatUIConfigRecord(nil))
+	h.writeCompatConfigRecord(w, r, "config-ui", h.compatUIConfigRecord)
 }
 
 func (h *handler) compatUpdateUIConfig(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "UI config")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, h.compatUIConfigRecord(payload))
+	h.writeCompatConfigUpdate(w, r, "config-ui", "UI config", h.compatUIConfigRecord)
 }
 
 func (h *handler) compatDownloadClientConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatDownloadClientConfigRecord(nil))
+	h.writeCompatConfigRecord(w, r, "config-download-client", h.compatDownloadClientConfigRecord)
 }
 
 func (h *handler) compatUpdateDownloadClientConfig(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "download client config")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, h.compatDownloadClientConfigRecord(payload))
+	h.writeCompatConfigUpdate(w, r, "config-download-client", "download client config", h.compatDownloadClientConfigRecord)
 }
 
 func (h *handler) compatIndexerConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatIndexerConfigRecord(nil))
+	h.writeCompatConfigRecord(w, r, "config-indexer", h.compatIndexerConfigRecord)
 }
 
 func (h *handler) compatUpdateIndexerConfig(w http.ResponseWriter, r *http.Request) {
-	payload, ok := decodeCompatObjectPayload(w, r, "indexer config")
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, h.compatIndexerConfigRecord(payload))
+	h.writeCompatConfigUpdate(w, r, "config-indexer", "indexer config", h.compatIndexerConfigRecord)
 }
 
 func (h *handler) compatCalendar(w http.ResponseWriter, r *http.Request) {
@@ -1776,6 +1758,63 @@ func (h *handler) defaultRootFolderRecords() []map[string]any {
 }
 
 type compatResourceRecordFunc func(map[string]any, int) map[string]any
+type compatConfigRecordFunc func(map[string]any) map[string]any
+
+func (h *handler) writeCompatConfigRecord(w http.ResponseWriter, r *http.Request, resourceType string, recordFn compatConfigRecordFunc) {
+	record, err := h.compatConfigRecord(r.Context(), resourceType, recordFn)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, record)
+}
+
+func (h *handler) writeCompatConfigUpdate(w http.ResponseWriter, r *http.Request, resourceType string, name string, recordFn compatConfigRecordFunc) {
+	payload, ok := decodeCompatObjectPayload(w, r, name)
+	if !ok {
+		return
+	}
+	record := recordFn(payload)
+	record["id"] = 1
+	if h.deps.Compat == nil {
+		writeJSON(w, http.StatusOK, record)
+		return
+	}
+	resource, err := h.deps.Compat.UpsertResource(r.Context(), compatdata.Resource{
+		ResourceType: resourceType,
+		CompatID:     1,
+		Name:         name,
+		Payload:      record,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, compatStoredConfigRecord(resource, recordFn))
+}
+
+func (h *handler) compatConfigRecord(ctx context.Context, resourceType string, recordFn compatConfigRecordFunc) (map[string]any, error) {
+	if h.deps.Compat != nil {
+		resource, ok, err := h.deps.Compat.GetResource(ctx, resourceType, 1)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return compatStoredConfigRecord(resource, recordFn), nil
+		}
+	}
+	return recordFn(nil), nil
+}
+
+func compatStoredConfigRecord(resource compatdata.Resource, recordFn compatConfigRecordFunc) map[string]any {
+	payload := cloneCompatRecord(resource.Payload)
+	payload["id"] = 1
+	record := recordFn(payload)
+	record["id"] = 1
+	record["librarryPersisted"] = true
+	record["librarryPersistedViaNative"] = true
+	return record
+}
 
 func (h *handler) writeCompatResourceList(w http.ResponseWriter, r *http.Request, resourceType string, defaults []map[string]any, recordFn compatResourceRecordFunc) {
 	records, err := h.compatResourceRecords(r.Context(), resourceType, defaults, recordFn)

@@ -247,12 +247,15 @@ and persist create, update, and delete operations in `compat_resources` using
 the Readarr-style integer ID exposed to API clients. Resource payloads are kept
 as JSON so Librarry can preserve fields it does not natively interpret yet.
 
-Compatibility config endpoints for host, UI, download-client, and indexer
-settings mirror current Librarry environment/native config and echo update
-payloads for API callers. Delay profiles and system tasks are exposed in the
-same compatibility layer; tasks are derived from Librarry scheduler intervals
-for feed sync, missing-book monitoring, author refresh, failed-download
-recovery, and upgrade search.
+Compatibility config endpoints for naming, media-management, host, UI,
+download-client, and indexer settings render current Librarry defaults and
+persist compatible PUT updates in `compat_resources` as singleton records.
+These records preserve Readarr-shaped fields that Librarry does not natively
+interpret yet, while the active scheduler/task behavior remains derived from
+native Librarry config. Delay profiles and system tasks are exposed in the same
+compatibility layer; tasks are derived from Librarry scheduler intervals for
+feed sync, missing-book monitoring, author refresh, failed-download recovery,
+and upgrade search.
 
 Wanted items are stored in Postgres from normalized metadata results. A wanted
 item can search releases through Prowlarr, persist scored release decisions, and
@@ -312,8 +315,9 @@ engine. `GET /api/v1/manualimport` lists pending import reviews, can scan a
 provided folder for supported ebook/audiobook candidates, and `POST
 /api/v1/manualimport` imports selected files through the regular library import
 path. The naming and media-management compatibility config endpoints reflect
-the active Librarry roots and naming templates; root folder writes are persisted,
-while broader Readarr-style config writes are still future work.
+the active Librarry roots and naming templates and persist compatible overrides
+through `compat_resources`; root folder writes are persisted in
+`compat_root_folders`.
 
 The Readarr-compatible `/api/v1/bookfile` surface maps native Librarry file
 records back into Arr-style bookfile records with stable numeric IDs, nested
