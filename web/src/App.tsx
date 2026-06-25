@@ -29,6 +29,7 @@ import {
   fetchDownloads,
   fetchHistory,
   fetchLibraryFiles,
+  fetchLibraryImportReviews,
   fetchProviderHealth,
   fetchWanted,
   grabWanted,
@@ -36,6 +37,7 @@ import {
   importCompletedDownloads,
   importLibraryFile,
   recoverFailedDownloads,
+  resolveLibraryImportReview,
   runUpgradeSearch,
   runWantedFeedSync,
   runWantedMonitor,
@@ -50,6 +52,7 @@ import {
   type FailedDownloadRun,
   type FeedSyncRun,
   type HistoryEvent,
+  type ImportReview,
   type IntegrationHealth,
   type LibraryFile,
   type LibraryImportOutcome,
@@ -83,6 +86,7 @@ export function App() {
   const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
+  const [importReviews, setImportReviews] = useState<ImportReview[]>([]);
   const [libraryScan, setLibraryScan] = useState<LibraryScanOutcome | null>(null);
   const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
   const [completedImport, setCompletedImport] = useState<CompletedImportOutcome | null>(null);
@@ -109,6 +113,7 @@ export function App() {
   const [isImportingCompleted, setIsImportingCompleted] = useState(false);
   const [isRecoveringFailed, setIsRecoveringFailed] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
+  const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
@@ -151,6 +156,11 @@ export function App() {
       .then(setLibraryFiles)
       .catch((error) => {
         setLibraryError(error instanceof Error ? error.message : "Library refresh failed");
+      });
+    fetchLibraryImportReviews()
+      .then(setImportReviews)
+      .catch((error) => {
+        setLibraryError(error instanceof Error ? error.message : "Import review refresh failed");
       });
   }, []);
 
@@ -376,12 +386,39 @@ export function App() {
       if (importedFiles.length) {
         setLibraryFiles((current) => mergeLibraryFiles(current, importedFiles));
       }
-      await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+      const [reviews] = await Promise.all([fetchLibraryImportReviews(), refreshDownloads(), refreshWantedAndHistory()]);
+      setImportReviews(reviews);
       setAPIState("live");
     } catch (error) {
       setLibraryError(error instanceof Error ? error.message : "Completed import failed");
     } finally {
       setIsImportingCompleted(false);
+    }
+  }
+
+  async function runResolveImportReview(review: ImportReview, action: "import" | "skip" | "reject") {
+    const actionID = `${review.id}:${action}`;
+    setReviewActionID(actionID);
+    setLibraryError("");
+    try {
+      const nextFormat = review.mediaFormat === "unknown" ? (selectedWanted?.format ?? (format === "any" ? "ebook" : format)) : review.mediaFormat;
+      const outcome = await resolveLibraryImportReview(review.id, {
+        action,
+        wantedId: action === "import" ? (selectedWanted?.id ?? review.wantedId) : review.wantedId,
+        format: nextFormat,
+        move: false
+      });
+      if (outcome.import) {
+        setLibraryImport(outcome.import);
+        setLibraryFiles((current) => mergeLibraryFiles(current, [outcome.import!.file]));
+      }
+      setImportReviews((current) => current.filter((item) => item.id !== review.id));
+      await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+      setAPIState("live");
+    } catch (error) {
+      setLibraryError(error instanceof Error ? error.message : "Import review update failed");
+    } finally {
+      setReviewActionID("");
     }
   }
 
@@ -792,7 +829,8 @@ export function App() {
           {completedImport ? (
             <div className="library-import-result">
               <strong>
-                Completed import: {completedImport.imported} imported, {completedImport.skipped} skipped, {completedImport.errored} errors
+                Completed import: {completedImport.imported} imported, {completedImport.reviewQueued} review, {completedImport.skipped} skipped,{" "}
+                {completedImport.errored} errors
               </strong>
               <span>{completedImport.checked} downloads checked from the Librarry queue.</span>
             </div>
@@ -801,6 +839,7 @@ export function App() {
             {[
               ["Tracked", libraryFiles.length],
               ["Imported", libraryFiles.filter((file) => file.importStatus === "imported").length],
+              ["Review", importReviews.length],
               ["Ebooks", libraryFiles.filter((file) => file.mediaFormat === "ebook").length],
               ["Audiobooks", libraryFiles.filter((file) => file.mediaFormat === "audiobook").length],
               ["Scanned", libraryScan?.scanned ?? 0],
@@ -812,6 +851,41 @@ export function App() {
               </div>
             ))}
           </div>
+          {importReviews.length ? (
+            <div className="import-review-list">
+              {importReviews.slice(0, 6).map((review) => (
+                <article className="import-review-row" key={review.id}>
+                  <div>
+                    <strong>{review.title || review.sourcePath.split("/").pop() || "Pending import"}</strong>
+                    <span>
+                      {review.authorName || "Unknown author"} · {review.mediaFormat} · {formatBytes(review.sizeBytes ?? 0)} · {review.reason}
+                    </span>
+                    <small>{review.sourcePath}</small>
+                  </div>
+                  <div className="import-review-actions">
+                    <button
+                      className="secondary-action compact"
+                      disabled={Boolean(reviewActionID)}
+                      onClick={() => runResolveImportReview(review, "import")}
+                      type="button"
+                    >
+                      <CheckCircle2 size={16} />
+                      {reviewActionID === `${review.id}:import` ? "Importing" : "Import"}
+                    </button>
+                    <button
+                      className="secondary-action compact danger-outline"
+                      disabled={Boolean(reviewActionID)}
+                      onClick={() => runResolveImportReview(review, "skip")}
+                      type="button"
+                    >
+                      <Trash2 size={16} />
+                      Skip
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : null}
           <div className="library-file-list">
             {libraryFiles.slice(0, 8).map((file) => (
               <article className="library-file-row" key={file.id || file.path}>

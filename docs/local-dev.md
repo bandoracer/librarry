@@ -113,9 +113,16 @@ Library scans and manual imports use these roots by default:
 ```dotenv
 LIBRARRY_EBOOK_LIBRARY_ROOT=/data/media/books/ebooks
 LIBRARRY_AUDIOBOOK_LIBRARY_ROOT=/data/media/books/audiobooks
+LIBRARRY_NAMING_AUTHOR_FOLDER={Author}
+LIBRARRY_NAMING_BOOK_FOLDER={Title}
+LIBRARRY_NAMING_FILE_NAME={Title}{Ext}
+LIBRARRY_NAMING_SPACE_REPLACEMENT=
 ```
 
 `POST /api/v1/library/scan` indexes existing files. `POST /api/v1/library/import`
 copies or moves a single source file into the organized format root.
 `POST /api/v1/library/import-completed` imports completed Librarry-tagged
-qBittorrent downloads into the same organized roots.
+qBittorrent downloads into the same organized roots when they are linked to a
+wanted item. Unlinked completed downloads are queued in
+`GET /api/v1/library/import-reviews` and resolved through
+`POST /api/v1/library/import-reviews/{id}/resolve`.

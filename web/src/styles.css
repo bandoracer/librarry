@@ -1032,7 +1032,7 @@ button {
 
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   border-bottom: 1px solid var(--border);
 }
 
@@ -1059,6 +1059,55 @@ button {
   color: var(--text);
   font-size: 22px;
   line-height: 1;
+}
+
+.import-review-list {
+  display: grid;
+  border-bottom: 1px solid var(--border);
+}
+
+.import-review-row {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: #fffdf7;
+}
+
+.import-review-row:first-child {
+  border-top: 0;
+}
+
+.import-review-row strong,
+.import-review-row span,
+.import-review-row small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-review-row strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.import-review-row span,
+.import-review-row small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.import-review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .library-file-list {
@@ -1591,9 +1640,14 @@ button {
   .monitor-result,
   .feed-sync-row,
   .library-file-row,
+  .import-review-row,
   .library-import-row,
   .history-row {
     grid-template-columns: 1fr;
+  }
+
+  .import-review-actions {
+    justify-content: stretch;
   }
 
   .feed-sync-summary {

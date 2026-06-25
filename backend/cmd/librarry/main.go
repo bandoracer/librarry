@@ -78,8 +78,12 @@ func main() {
 	}
 	wantedService := wanted.NewService(wantedStore, acquire)
 	libraryService := library.NewService(libraryStore, library.Config{
-		EbookRoot:     cfg.EbookLibraryRoot,
-		AudiobookRoot: cfg.AudiobookLibraryRoot,
+		EbookRoot:                  cfg.EbookLibraryRoot,
+		AudiobookRoot:              cfg.AudiobookLibraryRoot,
+		NamingAuthorFolderTemplate: cfg.NamingAuthorFolder,
+		NamingBookFolderTemplate:   cfg.NamingBookFolder,
+		NamingFileNameTemplate:     cfg.NamingFileName,
+		NamingSpaceReplacement:     cfg.NamingSpaceReplacement,
 	}, wantedStore, downloadStore)
 	var monitorWG sync.WaitGroup
 	if cfg.MonitorEnabled && wantedService.Available() {

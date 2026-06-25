@@ -294,6 +294,25 @@ export type LibraryImportOutcome = {
   moved: boolean;
 };
 
+export type ImportReview = {
+  id: string;
+  sourcePath: string;
+  downloadId?: string;
+  wantedId?: string;
+  mediaFormat: "ebook" | "audiobook" | "unknown";
+  title?: string;
+  authorName?: string;
+  sizeBytes?: number;
+  reason: string;
+  status: string;
+  decision?: string;
+  destinationPath?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+};
+
 export type DownloadImportResult = {
   download: DownloadStatus;
   status: string;
@@ -301,14 +320,21 @@ export type DownloadImportResult = {
   sourcePath?: string;
   wantedId?: string;
   import?: LibraryImportOutcome;
+  review?: ImportReview;
 };
 
 export type CompletedImportOutcome = {
   checked: number;
   imported: number;
+  reviewQueued: number;
   skipped: number;
   errored: number;
   results: DownloadImportResult[];
+};
+
+export type ReviewDecisionOutcome = {
+  review: ImportReview;
+  import?: LibraryImportOutcome;
 };
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -592,6 +618,16 @@ export async function fetchLibraryFiles(format = "any", limit = 100): Promise<Li
   return payload.files;
 }
 
+export async function fetchLibraryImportReviews(status = "pending", limit = 100): Promise<ImportReview[]> {
+  const params = new URLSearchParams({ status, limit: String(limit) });
+  const response = await fetch(`${apiBase}/api/v1/library/import-reviews?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Import review refresh failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as { reviews: ImportReview[] };
+  return payload.reviews;
+}
+
 export async function scanLibrary(format = "any"): Promise<LibraryScanOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/scan`, {
     method: "POST",
@@ -639,4 +675,24 @@ export async function importCompletedDownloads(options: {
     throw new Error(`Completed import failed: ${response.status}`);
   }
   return (await response.json()) as CompletedImportOutcome;
+}
+
+export async function resolveLibraryImportReview(
+  reviewId: string,
+  options: {
+    action: "import" | "skip" | "reject";
+    wantedId?: string;
+    format?: string;
+    move?: boolean;
+  }
+): Promise<ReviewDecisionOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-reviews/${encodeURIComponent(reviewId)}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options)
+  });
+  if (!response.ok) {
+    throw new Error(`Import review update failed: ${response.status}`);
+  }
+  return (await response.json()) as ReviewDecisionOutcome;
 }

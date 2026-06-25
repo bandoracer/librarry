@@ -49,6 +49,13 @@ func (s *Service) ListFiles(ctx context.Context, query FileListQuery) ([]FileRec
 	return s.store.ListFiles(ctx, query)
 }
 
+func (s *Service) ListImportReviews(ctx context.Context, query ReviewListQuery) ([]ImportReview, error) {
+	if !s.Available() {
+		return nil, errors.New("library service requires database persistence")
+	}
+	return s.store.ListImportReviews(ctx, query)
+}
+
 func (s *Service) Scan(ctx context.Context, request ScanRequest) (ScanOutcome, error) {
 	if !s.Available() {
 		return ScanOutcome{}, errors.New("library service requires database persistence")
@@ -226,6 +233,25 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 		}
 		result.SourcePath = sourcePath
 		format = firstNonEmpty(formatFromDownload(download), format)
+		if strings.TrimSpace(result.WantedID) == "" {
+			review, err := s.queueImportReview(ctx, download, sourcePath, format, "download is not linked to a wanted item")
+			if err != nil {
+				result.Status = "error"
+				result.Message = err.Error()
+				outcome.Errored++
+				if s.downloads != nil {
+					_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+				}
+				outcome.Results = append(outcome.Results, result)
+				continue
+			}
+			result.Status = "review"
+			result.Message = review.Reason
+			result.Review = &review
+			outcome.ReviewQueued++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
 		imported, err := s.Import(ctx, ImportRequest{
 			SourcePath: sourcePath,
 			WantedID:   result.WantedID,
@@ -254,6 +280,63 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 	return outcome, nil
 }
 
+func (s *Service) ResolveImportReview(ctx context.Context, id string, request ReviewDecisionRequest) (ReviewDecisionOutcome, error) {
+	if !s.Available() {
+		return ReviewDecisionOutcome{}, errors.New("library service requires database persistence")
+	}
+	review, err := s.store.GetImportReview(ctx, id)
+	if err != nil {
+		return ReviewDecisionOutcome{}, err
+	}
+	if review.Status != "pending" {
+		return ReviewDecisionOutcome{}, errors.New("import review is already resolved")
+	}
+	action := strings.ToLower(strings.TrimSpace(request.Action))
+	if action == "" {
+		action = "import"
+	}
+	switch action {
+	case "import":
+		wantedID := firstNonEmpty(request.WantedID, review.WantedID)
+		format := firstNonEmpty(request.Format, review.MediaFormat)
+		if normalized := normalizeFormat(format); normalized != "ebook" && normalized != "audiobook" {
+			format = ""
+		}
+		imported, err := s.Import(ctx, ImportRequest{
+			SourcePath: review.SourcePath,
+			WantedID:   wantedID,
+			DownloadID: review.DownloadID,
+			Format:     format,
+			Move:       request.Move,
+		})
+		if err != nil {
+			return ReviewDecisionOutcome{}, err
+		}
+		resolved, err := s.store.ResolveImportReview(ctx, review.ID, "imported", action, imported.DestinationPath, wantedID)
+		if err != nil {
+			return ReviewDecisionOutcome{}, err
+		}
+		if strings.TrimSpace(review.DownloadID) != "" && s.downloads != nil {
+			_ = s.downloads.MarkDownloadImported(ctx, review.DownloadID, imported.File.ID)
+		}
+		return ReviewDecisionOutcome{Review: resolved, Import: &imported}, nil
+	case "skip":
+		resolved, err := s.store.ResolveImportReview(ctx, review.ID, "skipped", action, "", firstNonEmpty(request.WantedID, review.WantedID))
+		if err != nil {
+			return ReviewDecisionOutcome{}, err
+		}
+		return ReviewDecisionOutcome{Review: resolved}, nil
+	case "reject":
+		resolved, err := s.store.ResolveImportReview(ctx, review.ID, "rejected", action, "", firstNonEmpty(request.WantedID, review.WantedID))
+		if err != nil {
+			return ReviewDecisionOutcome{}, err
+		}
+		return ReviewDecisionOutcome{Review: resolved}, nil
+	default:
+		return ReviewDecisionOutcome{}, errors.New("review action must be import, skip, or reject")
+	}
+}
+
 func (s *Service) scanRoots(request ScanRequest) []string {
 	if strings.TrimSpace(request.Root) != "" {
 		return []string{filepath.Clean(request.Root)}
@@ -276,10 +359,34 @@ func (s *Service) destinationPath(format string, parsed parsedBook, ext string) 
 	if strings.TrimSpace(root) == "" {
 		return ""
 	}
-	author := safePathSegment(firstNonEmpty(parsed.AuthorName, "Unknown Author"))
-	title := safePathSegment(firstNonEmpty(parsed.Title, "Unknown Title"))
-	fileName := title + strings.ToLower(ext)
-	return filepath.Join(root, author, title, fileName)
+	policy := s.namingPolicy()
+	values := map[string]string{
+		"Author": firstNonEmpty(parsed.AuthorName, "Unknown Author"),
+		"Title":  firstNonEmpty(parsed.Title, "Unknown Title"),
+		"Format": normalizeFormat(format),
+		"Ext":    strings.ToLower(ext),
+	}
+	parts := []string{root}
+	parts = append(parts, renderPathSegments(policy.AuthorFolderTemplate, values, policy.SpaceReplacement)...)
+	parts = append(parts, renderPathSegments(policy.BookFolderTemplate, values, policy.SpaceReplacement)...)
+	fileName := renderFileName(policy.FileNameTemplate, values, policy.SpaceReplacement, ext)
+	return filepath.Join(append(parts, fileName)...)
+}
+
+type namingPolicy struct {
+	AuthorFolderTemplate string
+	BookFolderTemplate   string
+	FileNameTemplate     string
+	SpaceReplacement     string
+}
+
+func (s *Service) namingPolicy() namingPolicy {
+	return namingPolicy{
+		AuthorFolderTemplate: firstNonEmpty(s.config.NamingAuthorFolderTemplate, "{Author}"),
+		BookFolderTemplate:   firstNonEmpty(s.config.NamingBookFolderTemplate, "{Title}"),
+		FileNameTemplate:     firstNonEmpty(s.config.NamingFileNameTemplate, "{Title}{Ext}"),
+		SpaceReplacement:     safeSpaceReplacement(s.config.NamingSpaceReplacement),
+	}
 }
 
 func (s *Service) ebookRoot() string {
@@ -301,6 +408,36 @@ func (s *Service) lookupWanted(ctx context.Context, id string) (wanted.WantedIte
 		return wanted.WantedItem{}, errors.New("wanted store is unavailable")
 	}
 	return s.wanted.GetWanted(ctx, id)
+}
+
+func (s *Service) queueImportReview(ctx context.Context, download acquisition.DownloadStatus, sourcePath string, format string, reason string) (ImportReview, error) {
+	source := filepath.Clean(strings.TrimSpace(sourcePath))
+	if source == "." || source == "" {
+		return ImportReview{}, errors.New("review source path is required")
+	}
+	info, err := os.Stat(source)
+	if err != nil {
+		return ImportReview{}, err
+	}
+	parsed := parseBookFilename(source)
+	metadata := map[string]any{
+		"downloadName":     download.Name,
+		"downloadCategory": download.Category,
+		"downloadState":    download.State,
+		"tags":             download.Tags,
+	}
+	return s.store.CreateImportReview(ctx, ImportReview{
+		SourcePath:  source,
+		DownloadID:  download.ID,
+		WantedID:    wantedIDFromTags(download.Tags),
+		MediaFormat: firstNonEmpty(normalizeFormat(format), "unknown"),
+		Title:       parsed.Title,
+		AuthorName:  parsed.AuthorName,
+		SizeBytes:   info.Size(),
+		Reason:      reason,
+		Status:      "pending",
+		Metadata:    metadata,
+	})
 }
 
 func fileRecordFromPath(path string, format string, info fs.FileInfo, status string) FileRecord {
@@ -393,6 +530,66 @@ func safePathSegment(value string) string {
 		value = strings.TrimSpace(string(runes[:120]))
 	}
 	return firstNonEmpty(value, "Unknown")
+}
+
+func renderPathSegments(template string, values map[string]string, spaceReplacement string) []string {
+	parts := strings.FieldsFunc(template, func(r rune) bool {
+		return r == '/' || r == '\\'
+	})
+	segments := make([]string, 0, len(parts))
+	for _, part := range parts {
+		segment := applySpaceReplacement(safePathSegment(renderTemplate(part, values)), spaceReplacement)
+		if segment != "" && segment != "." && segment != ".." {
+			segments = append(segments, segment)
+		}
+	}
+	if len(segments) == 0 {
+		return []string{"Unknown"}
+	}
+	return segments
+}
+
+func renderFileName(template string, values map[string]string, spaceReplacement string, ext string) string {
+	fileName := applySpaceReplacement(safePathSegment(renderTemplate(template, values)), spaceReplacement)
+	if fileName == "" {
+		fileName = "Unknown"
+	}
+	ext = strings.ToLower(ext)
+	if ext != "" && !strings.EqualFold(filepath.Ext(fileName), ext) && filepath.Ext(fileName) == "" {
+		fileName += ext
+	}
+	return fileName
+}
+
+func renderTemplate(template string, values map[string]string) string {
+	rendered := template
+	for key, value := range values {
+		rendered = strings.ReplaceAll(rendered, "{"+key+"}", value)
+		rendered = strings.ReplaceAll(rendered, "{"+strings.ToLower(key)+"}", value)
+	}
+	return rendered
+}
+
+func applySpaceReplacement(value string, replacement string) string {
+	if replacement == "" {
+		return value
+	}
+	return strings.ReplaceAll(value, " ", replacement)
+}
+
+func safeSpaceReplacement(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if strings.ContainsAny(value, `/\:*?"<>|`) {
+		return "_"
+	}
+	runes := []rune(value)
+	if len(runes) > 8 {
+		value = string(runes[:8])
+	}
+	return value
 }
 
 func copyOrMoveFile(source string, destination string, move bool) error {

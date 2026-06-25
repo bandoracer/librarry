@@ -58,6 +58,21 @@ func TestDestinationPathSanitizesSegments(t *testing.T) {
 	}
 }
 
+func TestDestinationPathUsesNamingPolicy(t *testing.T) {
+	service := NewService(nil, Config{
+		AudiobookRoot:              "/library/audio",
+		NamingAuthorFolderTemplate: "{Author}",
+		NamingBookFolderTemplate:   "{Format}/{Title}",
+		NamingFileNameTemplate:     "{Author} - {Title}",
+		NamingSpaceReplacement:     "_",
+	}, nil, nil)
+	got := service.destinationPath("audiobook", parsedBook{AuthorName: "Andy Weir", Title: "Project Hail Mary"}, ".m4b")
+	want := filepath.Join("/library/audio", "Andy_Weir", "audiobook", "Project_Hail_Mary", "Andy_Weir_-_Project_Hail_Mary.m4b")
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}
+
 func TestAvailableDestinationAvoidsOverwrite(t *testing.T) {
 	dir := t.TempDir()
 	first := filepath.Join(dir, "Book.epub")

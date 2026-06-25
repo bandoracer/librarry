@@ -300,6 +300,46 @@ func TestImportCompletedDownloadsEndpoint(t *testing.T) {
 	}
 }
 
+func TestImportReviewsEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fakeLibrary{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/library/import-reviews?status=pending", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"reason":"download is not linked to a wanted item"`) {
+		t.Fatalf("expected review list in response, got %s", res.Body.String())
+	}
+}
+
+func TestResolveImportReviewEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fakeLibrary{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/import-reviews/review-1/resolve", strings.NewReader(`{"action":"import","wantedId":"wanted-1"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"status":"imported"`) {
+		t.Fatalf("expected review resolution in response, got %s", res.Body.String())
+	}
+}
+
 type fakeAcquire struct{}
 
 func (fakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
@@ -435,6 +475,20 @@ func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.
 	}}, nil
 }
 
+func (fakeLibrary) ListImportReviews(context.Context, library.ReviewListQuery) ([]library.ImportReview, error) {
+	return []library.ImportReview{{
+		ID:          "review-1",
+		SourcePath:  "/downloads/Project Hail Mary.epub",
+		DownloadID:  "abc123",
+		MediaFormat: "ebook",
+		Title:       "Project Hail Mary",
+		Reason:      "download is not linked to a wanted item",
+		Status:      "pending",
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
+	}}, nil
+}
+
 func (fakeLibrary) Scan(context.Context, library.ScanRequest) (library.ScanOutcome, error) {
 	file := library.FileRecord{
 		ID:           "file-1",
@@ -451,6 +505,37 @@ func (fakeLibrary) Scan(context.Context, library.ScanRequest) (library.ScanOutco
 		Scanned:  1,
 		Upserted: 1,
 		Files:    []library.FileRecord{file},
+	}, nil
+}
+
+func (fakeLibrary) ResolveImportReview(context.Context, string, library.ReviewDecisionRequest) (library.ReviewDecisionOutcome, error) {
+	file := library.FileRecord{
+		ID:           "file-1",
+		MediaFormat:  "ebook",
+		Path:         "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
+		Title:        "Project Hail Mary",
+		AuthorName:   "Andy Weir",
+		ImportStatus: "imported",
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}
+	return library.ReviewDecisionOutcome{
+		Review: library.ImportReview{
+			ID:              "review-1",
+			SourcePath:      "/downloads/Project Hail Mary.epub",
+			MediaFormat:     "ebook",
+			Title:           "Project Hail Mary",
+			Reason:          "download is not linked to a wanted item",
+			Status:          "imported",
+			Decision:        "import",
+			DestinationPath: file.Path,
+			CreatedAt:       time.Now().UTC(),
+			UpdatedAt:       time.Now().UTC(),
+		},
+		Import: &library.ImportOutcome{
+			File:            file,
+			DestinationPath: file.Path,
+		},
 	}, nil
 }
 

@@ -50,9 +50,11 @@ type wantedService interface {
 
 type libraryService interface {
 	ListFiles(ctx context.Context, query library.FileListQuery) ([]library.FileRecord, error)
+	ListImportReviews(ctx context.Context, query library.ReviewListQuery) ([]library.ImportReview, error)
 	Scan(ctx context.Context, request library.ScanRequest) (library.ScanOutcome, error)
 	Import(ctx context.Context, request library.ImportRequest) (library.ImportOutcome, error)
 	ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request library.CompletedImportRequest) (library.CompletedImportOutcome, error)
+	ResolveImportReview(ctx context.Context, id string, request library.ReviewDecisionRequest) (library.ReviewDecisionOutcome, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -81,9 +83,11 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
 	mux.HandleFunc("GET /api/v1/history", handler.history)
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
+	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
+	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/resolve", handler.resolveImportReview)
 
 	return withCORS(deps.Config.WebOrigin, mux)
 }
@@ -441,6 +445,23 @@ func (h *handler) libraryFiles(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"files": files})
 }
 
+func (h *handler) importReviews(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	reviews, err := h.deps.Library.ListImportReviews(r.Context(), library.ReviewListQuery{
+		Status: r.URL.Query().Get("status"),
+		Limit:  limit,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"reviews": reviews})
+}
+
 func (h *handler) scanLibrary(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Library == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
@@ -501,6 +522,30 @@ func (h *handler) importCompletedDownloads(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	outcome, err := h.deps.Library.ImportCompletedDownloads(r.Context(), downloads, request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) resolveImportReview(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "review id is required"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.ReviewDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid review decision payload"})
+		return
+	}
+	outcome, err := h.deps.Library.ResolveImportReview(r.Context(), id, request)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return

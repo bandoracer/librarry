@@ -7,8 +7,12 @@ import (
 )
 
 type Config struct {
-	EbookRoot     string
-	AudiobookRoot string
+	EbookRoot                  string
+	AudiobookRoot              string
+	NamingAuthorFolderTemplate string
+	NamingBookFolderTemplate   string
+	NamingFileNameTemplate     string
+	NamingSpaceReplacement     string
 }
 
 type FileRecord struct {
@@ -71,11 +75,12 @@ type CompletedImportRequest struct {
 }
 
 type CompletedImportOutcome struct {
-	Checked  int                    `json:"checked"`
-	Imported int                    `json:"imported"`
-	Skipped  int                    `json:"skipped"`
-	Errored  int                    `json:"errored"`
-	Results  []DownloadImportResult `json:"results"`
+	Checked      int                    `json:"checked"`
+	Imported     int                    `json:"imported"`
+	ReviewQueued int                    `json:"reviewQueued"`
+	Skipped      int                    `json:"skipped"`
+	Errored      int                    `json:"errored"`
+	Results      []DownloadImportResult `json:"results"`
 }
 
 type DownloadImportResult struct {
@@ -85,4 +90,41 @@ type DownloadImportResult struct {
 	SourcePath string                     `json:"sourcePath,omitempty"`
 	WantedID   string                     `json:"wantedId,omitempty"`
 	Import     *ImportOutcome             `json:"import,omitempty"`
+	Review     *ImportReview              `json:"review,omitempty"`
+}
+
+type ReviewListQuery struct {
+	Status string `json:"status,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
+type ImportReview struct {
+	ID              string         `json:"id,omitempty"`
+	SourcePath      string         `json:"sourcePath"`
+	DownloadID      string         `json:"downloadId,omitempty"`
+	WantedID        string         `json:"wantedId,omitempty"`
+	MediaFormat     string         `json:"mediaFormat"`
+	Title           string         `json:"title,omitempty"`
+	AuthorName      string         `json:"authorName,omitempty"`
+	SizeBytes       int64          `json:"sizeBytes,omitempty"`
+	Reason          string         `json:"reason"`
+	Status          string         `json:"status"`
+	Decision        string         `json:"decision,omitempty"`
+	DestinationPath string         `json:"destinationPath,omitempty"`
+	Metadata        map[string]any `json:"metadata,omitempty"`
+	CreatedAt       time.Time      `json:"createdAt"`
+	UpdatedAt       time.Time      `json:"updatedAt"`
+	ResolvedAt      *time.Time     `json:"resolvedAt,omitempty"`
+}
+
+type ReviewDecisionRequest struct {
+	Action   string `json:"action"`
+	WantedID string `json:"wantedId,omitempty"`
+	Format   string `json:"format,omitempty"`
+	Move     bool   `json:"move,omitempty"`
+}
+
+type ReviewDecisionOutcome struct {
+	Review ImportReview   `json:"review"`
+	Import *ImportOutcome `json:"import,omitempty"`
 }

@@ -23,6 +23,10 @@ type Config struct {
 	BookTorrentRoot           string
 	EbookLibraryRoot          string
 	AudiobookLibraryRoot      string
+	NamingAuthorFolder        string
+	NamingBookFolder          string
+	NamingFileName            string
+	NamingSpaceReplacement    string
 	MonitorEnabled            bool
 	MonitorInterval           time.Duration
 	MonitorSearchInterval     time.Duration
@@ -64,6 +68,10 @@ func FromEnv() Config {
 		BookTorrentRoot:           env("LIBRARRY_BOOK_TORRENT_ROOT", "/data/torrents/books"),
 		EbookLibraryRoot:          env("LIBRARRY_EBOOK_LIBRARY_ROOT", "/data/media/books/ebooks"),
 		AudiobookLibraryRoot:      env("LIBRARRY_AUDIOBOOK_LIBRARY_ROOT", "/data/media/books/audiobooks"),
+		NamingAuthorFolder:        env("LIBRARRY_NAMING_AUTHOR_FOLDER", "{Author}"),
+		NamingBookFolder:          env("LIBRARRY_NAMING_BOOK_FOLDER", "{Title}"),
+		NamingFileName:            env("LIBRARRY_NAMING_FILE_NAME", "{Title}{Ext}"),
+		NamingSpaceReplacement:    strings.TrimSpace(os.Getenv("LIBRARRY_NAMING_SPACE_REPLACEMENT")),
 		MonitorEnabled:            envBool("LIBRARRY_MONITOR_ENABLED", true),
 		MonitorInterval:           envDuration("LIBRARRY_MONITOR_INTERVAL", 30*time.Minute),
 		MonitorSearchInterval:     envDuration("LIBRARRY_MONITOR_SEARCH_INTERVAL", 6*time.Hour),

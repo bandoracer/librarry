@@ -31,9 +31,11 @@ Initial API surface:
 - `POST /api/v1/wanted/upgrades`
 - `GET /api/v1/history`
 - `GET /api/v1/library/files`
+- `GET /api/v1/library/import-reviews`
 - `POST /api/v1/library/scan`
 - `POST /api/v1/library/import`
 - `POST /api/v1/library/import-completed`
+- `POST /api/v1/library/import-reviews/{id}/resolve`
 - `POST /api/v1/settings/validate`
 
 ## Metadata Model
@@ -98,17 +100,21 @@ Library scanning walks the configured ebook and audiobook roots, classifies
 supported file extensions, stores file records in Postgres, and keeps a
 fingerprint in file metadata for later reconciliation. Manual import accepts a
 source file path, optionally ties it to a wanted item, and copies or moves the
-file into a sanitized `Author/Title/Title.ext` path below the format root.
+file into a sanitized path below the format root. The default naming policy is
+`Author/Title/Title.ext`; deployments can change the author folder, book folder,
+file name, and space replacement templates.
 
 Completed-download import refreshes Librarry-tagged qBittorrent items, filters
 for completed torrents, locates the best supported ebook or audiobook file below
-the torrent save path, imports that file, and records imported/error state on
-the download row.
+the torrent save path, imports linked wanted downloads, and records
+imported/error state on the download row. Completed downloads without a wanted
+tag are persisted as pending import reviews instead of being guessed directly
+into the library. Review decisions can import, skip, or reject the pending file.
 
 The implemented import path is intentionally conservative: it avoids overwriting
 existing files and marks wanted items imported only after the destination file is
-persisted. Future work should add OPF, EPUB, audio-tag extraction, richer rename
-profiles, conflict policies, and review queues for ambiguous matches.
+persisted. Future work should add OPF, EPUB, audio-tag extraction, richer
+matching evidence, conflict policies, and bulk review flows.
 
 - `books-ebook`
 - `books-audiobook`

@@ -13,8 +13,11 @@ book data is incomplete or ambiguous.
 > Prowlarr-compatible RSS feeds. Library scan and manual file import are
 > implemented. Completed qBittorrent downloads can be imported into organized
 > library roots. Failed-download detection and replacement search/grab are
-> implemented. Score-based upgrade search/grab is implemented. Richer import
-> review is still in progress.
+> implemented. Score-based upgrade search/grab is implemented. Pending import
+> review for unlinked completed downloads and configurable naming templates are
+> implemented. Librarry is not yet a complete Readarr-style torrent manager;
+> queue depth, conflict handling, bulk decisions, and richer quality logic are
+> still early.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
@@ -48,13 +51,13 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Metadata source model | Historically depended on centralized metadata; the retirement announcement names metadata failure as the blocking issue. | Multi-provider abstraction with Hardcover, Open Library, Google Books fallback, and local metadata stubs. | Local canonical graph with provider provenance, explainable matches, and resilient fallback behavior. |
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
-| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, tracked in Postgres, manually imported, and fed by completed qBittorrent imports. | Add OPF, EPUB, audio-tag extraction, missing-book detection, and import review matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, manual/interval wanted monitoring, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add sorting, renaming, and richer review flows. |
+| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, tracked in Postgres, manually imported, fed by completed qBittorrent imports, and reviewed when completed downloads are not linked to wanted items. | Add OPF, EPUB, audio-tag extraction, missing-book detection, and stronger import matching. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, metadata search, release evaluation, manual/interval wanted monitoring, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent grabs, and download reconciliation. | Add author subscriptions, deeper quality profiles, richer review flows, and bulk queue operations. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, and qBittorrent controls. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
-| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented; SABnzbd interface is stubbed. | Add clients only behind small interfaces once metadata and matching are stable. |
+| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | qBittorrent add/list/start/stop/delete/recheck/priority controls are implemented; SABnzbd interface is stubbed. This is not yet a full multi-client torrent manager. | Add clients only behind small interfaces once metadata and matching are stable. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
-| Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots and mark wanted items imported. | Add rename profiles, conflict policies, and manual review queues. |
+| Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, and queue unlinked files for review. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
 | License | GPL-3.0. | AGPL-3.0. | Keep network-service modifications available to users. |
 
@@ -84,6 +87,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   organized book folders.
 - Completed-download import for Librarry-tagged qBittorrent items, with
   imported/error state persisted on download records.
+- Pending import review queue for completed downloads that are not linked to a
+  wanted item, with import/skip resolution from the UI.
+- Configurable library naming templates for author folder, book folder, file
+  name, and optional space replacement.
 - Failed-download recovery for qBittorrent error/missing-file states and stale
   no-seed stalled downloads, with replacement search/grab and optional removal
   of failed torrents.
@@ -147,9 +154,11 @@ Important API surfaces:
 - `POST /api/v1/wanted/upgrades`
 - `GET /api/v1/history`
 - `GET /api/v1/library/files`
+- `GET /api/v1/library/import-reviews`
 - `POST /api/v1/library/scan`
 - `POST /api/v1/library/import`
 - `POST /api/v1/library/import-completed`
+- `POST /api/v1/library/import-reviews/{id}/resolve`
 - `POST /api/v1/settings/validate`
 
 ## Quick Start
@@ -214,6 +223,10 @@ LIBRARRY_AUDIOBOOK_CATEGORY=books-audiobook
 LIBRARRY_BOOK_TORRENT_ROOT=/data/torrents/books
 LIBRARRY_EBOOK_LIBRARY_ROOT=/data/media/books/ebooks
 LIBRARRY_AUDIOBOOK_LIBRARY_ROOT=/data/media/books/audiobooks
+LIBRARRY_NAMING_AUTHOR_FOLDER={Author}
+LIBRARRY_NAMING_BOOK_FOLDER={Title}
+LIBRARRY_NAMING_FILE_NAME={Title}{Ext}
+LIBRARRY_NAMING_SPACE_REPLACEMENT=
 LIBRARRY_MONITOR_ENABLED=true
 LIBRARRY_MONITOR_INTERVAL=30m
 LIBRARRY_MONITOR_SEARCH_INTERVAL=6h
@@ -259,6 +272,8 @@ Provider notes:
 - Upgrade search is enabled by default in search-only mode. Set
   `LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=true` only when you want approved upgrades
   to be sent to qBittorrent automatically.
+- Naming templates support `{Author}`, `{Title}`, `{Format}`, and `{Ext}`.
+  Defaults keep the layout as `Author/Title/Title.ext`.
 
 ## Deployment
 
@@ -292,7 +307,7 @@ will grow as the automation path stabilizes.
 
 - OPF, EPUB, and audio-tag extraction during library scans.
 - Author subscriptions.
-- Manual import review, rename profiles, and conflict policies.
+- Conflict policies, bulk import review, and per-profile organization rules.
 - Better edition selection for narrator, language, format, and ISBN.
 - Hardcover and Google Books fixture coverage.
 - Optional download clients beyond qBittorrent.
