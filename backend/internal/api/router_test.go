@@ -811,13 +811,14 @@ func TestSettingsValidateEndpoint(t *testing.T) {
 }
 
 func TestDownloadActionEndpoint(t *testing.T) {
+	acquire := &fakeActionAcquire{}
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
 		Config:   config.Config{WebOrigin: "*"},
 		Metadata: metadata.NewService(nil),
-		Acquire:  fakeAcquire{},
+		Acquire:  acquire,
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/actions", strings.NewReader(`{"action":"stop","ids":["abc123"]}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/actions", strings.NewReader(`{"action":"setDownloadLimit","ids":["abc123"],"downloadLimit":1048576}`))
 	res := httptest.NewRecorder()
 
 	router.ServeHTTP(res, req)
@@ -829,8 +830,11 @@ func TestDownloadActionEndpoint(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.Action != acquisition.DownloadActionStop || !payload.Applied || payload.IDs[0] != "abc123" {
+	if payload.Action != acquisition.DownloadActionSetDownloadLimit || !payload.Applied || payload.IDs[0] != "abc123" {
 		t.Fatalf("unexpected action payload: %+v", payload)
+	}
+	if len(acquire.requests) != 1 || acquire.requests[0].DownloadLimit != 1_048_576 {
+		t.Fatalf("expected download limit request, got %+v", acquire.requests)
 	}
 }
 
@@ -1568,10 +1572,20 @@ func (fakeAcquire) DownloadDetails(context.Context, string, string) (acquisition
 
 func (fakeAcquire) DownloadAction(_ context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error) {
 	return acquisition.DownloadActionResult{
-		Action:  acquisition.DownloadActionStop,
+		Action:  request.Action,
 		IDs:     request.IDs,
 		Applied: true,
 	}, nil
+}
+
+type fakeActionAcquire struct {
+	fakeAcquire
+	requests []acquisition.DownloadActionRequest
+}
+
+func (f *fakeActionAcquire) DownloadAction(_ context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error) {
+	f.requests = append(f.requests, request)
+	return fakeAcquire{}.DownloadAction(context.Background(), request)
 }
 
 func (fakeAcquire) DownloadFileAction(_ context.Context, id string, request acquisition.DownloadFileActionRequest) (acquisition.DownloadFileActionResult, error) {

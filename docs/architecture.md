@@ -200,8 +200,9 @@ Download state is reconciled from qBittorrent and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is
 configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, category changes, and location
-changes. qBittorrent details are exposed through `/api/v1/downloads/{id}` with
-properties, peer state, tracker state, and torrent file lists. Per-file
+changes, plus per-torrent download and upload speed limits. qBittorrent details
+are exposed through `/api/v1/downloads/{id}` with properties, peer state,
+tracker state, and torrent file lists. Per-file
 qBittorrent priority changes are exposed through
 `/api/v1/downloads/{id}/files/actions` for skip/normal/high/max file selection.
 Tracker add/edit/remove actions are exposed through

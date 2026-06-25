@@ -157,11 +157,11 @@ and only grabs or removes torrents when explicitly requested.
 The download queue UI uses `POST /api/v1/downloads/actions` for single and
 selected-row bulk actions. Supported queue actions include start, stop, delete,
 recheck, priority movement, category changes, and location changes for
-qBittorrent. `GET /api/v1/downloads/{id}` returns qBittorrent properties,
-files, trackers, and peers; `/api/v1/downloads/{id}/files/actions` changes file
-priority, and `/api/v1/downloads/{id}/trackers/actions` adds, replaces, or
-removes trackers. SABnzbd queue actions currently support start, stop, and
-delete.
+qBittorrent, plus per-torrent download and upload speed limits. `GET
+/api/v1/downloads/{id}` returns qBittorrent properties, files, trackers, and
+peers; `/api/v1/downloads/{id}/files/actions` changes file priority, and
+`/api/v1/downloads/{id}/trackers/actions` adds, replaces, or removes trackers.
+SABnzbd queue actions currently support start, stop, and delete.
 
 ## Library Roots
 

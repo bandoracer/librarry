@@ -75,6 +75,30 @@ func TestQBittorrentActionSetCategoryAndLocation(t *testing.T) {
 			wantValue:  "/data/torrents/books/audio",
 			wantHashes: "abc|def",
 		},
+		{
+			name: "download limit",
+			request: DownloadActionRequest{
+				Action:        DownloadActionSetDownloadLimit,
+				IDs:           []string{"abc"},
+				DownloadLimit: 1_048_576,
+			},
+			endpoint:   "/api/v2/torrents/setDownloadLimit",
+			field:      "limit",
+			wantValue:  "1048576",
+			wantHashes: "abc",
+		},
+		{
+			name: "upload limit",
+			request: DownloadActionRequest{
+				Action:      DownloadActionSetUploadLimit,
+				IDs:         []string{"abc", "def"},
+				UploadLimit: 262_144,
+			},
+			endpoint:   "/api/v2/torrents/setUploadLimit",
+			field:      "limit",
+			wantValue:  "262144",
+			wantHashes: "abc|def",
+		},
 	}
 
 	for _, test := range tests {

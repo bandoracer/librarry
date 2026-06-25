@@ -173,11 +173,13 @@ type DownloadListQuery struct {
 }
 
 type DownloadActionRequest struct {
-	Action      string   `json:"action"`
-	IDs         []string `json:"ids"`
-	DeleteFiles bool     `json:"deleteFiles,omitempty"`
-	Category    string   `json:"category,omitempty"`
-	SavePath    string   `json:"savePath,omitempty"`
+	Action        string   `json:"action"`
+	IDs           []string `json:"ids"`
+	DeleteFiles   bool     `json:"deleteFiles,omitempty"`
+	Category      string   `json:"category,omitempty"`
+	SavePath      string   `json:"savePath,omitempty"`
+	DownloadLimit int64    `json:"downloadLimit,omitempty"`
+	UploadLimit   int64    `json:"uploadLimit,omitempty"`
 }
 
 type DownloadActionResult struct {
@@ -233,6 +235,8 @@ const (
 	DownloadActionBottomPriority   = "bottomPriority"
 	DownloadActionSetCategory      = "setCategory"
 	DownloadActionSetLocation      = "setLocation"
+	DownloadActionSetDownloadLimit = "setDownloadLimit"
+	DownloadActionSetUploadLimit   = "setUploadLimit"
 )
 
 const (

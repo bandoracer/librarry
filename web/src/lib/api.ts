@@ -173,7 +173,9 @@ export type DownloadAction =
   | "topPriority"
   | "bottomPriority"
   | "setCategory"
-  | "setLocation";
+  | "setLocation"
+  | "setDownloadLimit"
+  | "setUploadLimit";
 
 export type DownloadFileAction = "skip" | "normal" | "high" | "max" | "priority";
 export type DownloadTrackerAction = "add" | "edit" | "remove";
@@ -597,7 +599,7 @@ export async function fetchDownloadDetails(id: string, client?: string): Promise
 export async function runDownloadAction(
   action: DownloadAction,
   ids: string[],
-  options: { deleteFiles?: boolean; category?: string; savePath?: string } = {}
+  options: { deleteFiles?: boolean; category?: string; savePath?: string; downloadLimit?: number; uploadLimit?: number } = {}
 ): Promise<DownloadActionResult> {
   const response = await fetch(`${apiBase}/api/v1/downloads/actions`, {
     method: "POST",
@@ -607,7 +609,9 @@ export async function runDownloadAction(
       ids,
       deleteFiles: options.deleteFiles ?? false,
       category: options.category,
-      savePath: options.savePath
+      savePath: options.savePath,
+      downloadLimit: options.downloadLimit,
+      uploadLimit: options.uploadLimit
     })
   });
   if (!response.ok) {

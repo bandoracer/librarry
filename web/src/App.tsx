@@ -148,6 +148,8 @@ export function App() {
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
   const [trackerURL, setTrackerURL] = useState("");
+  const [downloadLimitKiB, setDownloadLimitKiB] = useState("");
+  const [uploadLimitKiB, setUploadLimitKiB] = useState("");
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
   const [monitorError, setMonitorError] = useState("");
@@ -606,6 +608,8 @@ export function App() {
     try {
       const details = await fetchDownloadDetails(download.id, download.client);
       setDownloadDetails(details);
+      setDownloadLimitKiB(limitBytesToKiBInput(details.properties?.downloadLimit));
+      setUploadLimitKiB(limitBytesToKiBInput(details.properties?.uploadLimit));
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download details failed");
@@ -664,6 +668,32 @@ export function App() {
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download tracker action failed");
+    } finally {
+      setDownloadActionID("");
+    }
+  }
+
+  async function applyDownloadBandwidthLimit(kind: "download" | "upload") {
+    const downloadID = downloadDetails?.status.id;
+    if (!downloadID) return;
+    const text = kind === "download" ? downloadLimitKiB : uploadLimitKiB;
+    const limit = bandwidthInputToBytes(text);
+    if (limit < 0) return;
+    const action: DownloadAction = kind === "download" ? "setDownloadLimit" : "setUploadLimit";
+    setDownloadActionID(`${downloadID}:${action}`);
+    setDownloadError("");
+    try {
+      await runDownloadAction(action, [downloadID], {
+        downloadLimit: kind === "download" ? limit : undefined,
+        uploadLimit: kind === "upload" ? limit : undefined
+      });
+      const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
+      setDownloadDetails(refreshed);
+      setDownloadLimitKiB(limitBytesToKiBInput(refreshed.properties?.downloadLimit));
+      setUploadLimitKiB(limitBytesToKiBInput(refreshed.properties?.uploadLimit));
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download bandwidth action failed");
     } finally {
       setDownloadActionID("");
     }
@@ -1499,6 +1529,22 @@ export function App() {
                       </div>
                     ))}
                   </div>
+                  <div className="download-bandwidth-tools">
+                    <label>
+                      <span>Download KiB/s</span>
+                      <input inputMode="numeric" min="0" value={downloadLimitKiB} onChange={(event) => setDownloadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
+                    </label>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(downloadLimitKiB) < 0} onClick={() => applyDownloadBandwidthLimit("download")} type="button">
+                      Set down
+                    </button>
+                    <label>
+                      <span>Upload KiB/s</span>
+                      <input inputMode="numeric" min="0" value={uploadLimitKiB} onChange={(event) => setUploadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
+                    </label>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(uploadLimitKiB) < 0} onClick={() => applyDownloadBandwidthLimit("upload")} type="button">
+                      Set up
+                    </button>
+                  </div>
                   <div className="download-tracker-tools">
                     <input value={trackerURL} onChange={(event) => setTrackerURL(event.target.value)} placeholder="https://tracker.example/announce" />
                     <button className="secondary-action compact" disabled={!trackerURL.trim() || Boolean(downloadActionID)} onClick={() => applyDownloadTrackerAction("add")} type="button">
@@ -1910,6 +1956,19 @@ function bytesToGiB(bytes: number) {
 function giBToBytes(value: number) {
   if (!value || value < 0) return 0;
   return Math.round(value * 1024 * 1024 * 1024);
+}
+
+function limitBytesToKiBInput(value?: number) {
+  if (!value || value < 0) return "";
+  return String(Math.round(value / 1024));
+}
+
+function bandwidthInputToBytes(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return 0;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) return -1;
+  return Math.round(parsed * 1024);
 }
 
 function wantedFormat(format: string) {

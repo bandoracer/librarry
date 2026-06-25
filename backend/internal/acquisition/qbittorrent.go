@@ -391,6 +391,22 @@ func (c *QBittorrentClient) Action(ctx context.Context, request DownloadActionRe
 		if err := c.postTorrentAction(ctx, "setLocation", values); err != nil {
 			return DownloadActionResult{}, err
 		}
+	case DownloadActionSetDownloadLimit:
+		if request.DownloadLimit < 0 {
+			return DownloadActionResult{}, errors.New("downloadLimit must be zero or greater")
+		}
+		values.Set("limit", strconv.FormatInt(request.DownloadLimit, 10))
+		if err := c.postTorrentAction(ctx, "setDownloadLimit", values); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionSetUploadLimit:
+		if request.UploadLimit < 0 {
+			return DownloadActionResult{}, errors.New("uploadLimit must be zero or greater")
+		}
+		values.Set("limit", strconv.FormatInt(request.UploadLimit, 10))
+		if err := c.postTorrentAction(ctx, "setUploadLimit", values); err != nil {
+			return DownloadActionResult{}, err
+		}
 	default:
 		return DownloadActionResult{}, fmt.Errorf("unsupported download action %q", request.Action)
 	}
@@ -804,6 +820,10 @@ func normalizeAction(value string) string {
 		return DownloadActionSetCategory
 	case "setlocation", "set_location":
 		return DownloadActionSetLocation
+	case "setdownloadlimit", "set_download_limit", "downloadlimit", "download_limit":
+		return DownloadActionSetDownloadLimit
+	case "setuploadlimit", "set_upload_limit", "uploadlimit", "upload_limit":
+		return DownloadActionSetUploadLimit
 	default:
 		return strings.TrimSpace(value)
 	}
