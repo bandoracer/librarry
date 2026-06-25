@@ -8,18 +8,25 @@ import {
   FileSearch,
   HardDriveDownload,
   Library,
+  Pause,
+  Play,
+  RefreshCw,
   Search,
   Settings,
   SlidersHorizontal,
+  Trash2,
   UploadCloud
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   fetchIntegrationHealth,
+  fetchDownloads,
   fetchProviderHealth,
   grabRelease,
+  runDownloadAction,
   searchMetadata,
   searchReleases,
+  type DownloadAction,
   type DownloadStatus,
   type IntegrationHealth,
   type ProviderHealth,
@@ -42,6 +49,7 @@ export function App() {
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
+  const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [query, setQuery] = useState("Project Hail Mary");
@@ -49,7 +57,10 @@ export function App() {
   const [apiState, setAPIState] = useState<"checking" | "live" | "offline">("checking");
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchingReleases, setIsSearchingReleases] = useState(false);
+  const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
+  const [downloadActionID, setDownloadActionID] = useState("");
   const [releaseError, setReleaseError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
 
   useEffect(() => {
     Promise.all([fetchProviderHealth(), fetchIntegrationHealth()])
@@ -60,6 +71,11 @@ export function App() {
       })
       .catch(() => {
         setAPIState("offline");
+      });
+    fetchDownloads()
+      .then(setDownloads)
+      .catch((error) => {
+        setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
       });
   }, []);
 
@@ -103,8 +119,42 @@ export function App() {
     try {
       const status = await grabRelease(release, selected?.edition?.format ?? format);
       setDownloadStatus(status);
+      await refreshDownloads();
     } catch (error) {
       setReleaseError(error instanceof Error ? error.message : "Grab failed");
+    }
+  }
+
+  async function refreshDownloads() {
+    setIsRefreshingDownloads(true);
+    setDownloadError("");
+    try {
+      const nextDownloads = await fetchDownloads();
+      setDownloads(nextDownloads);
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
+    } finally {
+      setIsRefreshingDownloads(false);
+    }
+  }
+
+  async function applyDownloadAction(action: DownloadAction, download: DownloadStatus, deleteFiles = false) {
+    setDownloadActionID(`${download.id}:${action}`);
+    setDownloadError("");
+    try {
+      const result = await runDownloadAction(action, [download.id], { deleteFiles });
+      if (result.downloads?.length) {
+        setDownloads((current) => mergeDownloads(current, result.downloads ?? []));
+      } else if (action === "delete") {
+        setDownloads((current) => current.filter((item) => item.id !== download.id));
+      } else {
+        await refreshDownloads();
+      }
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download action failed");
+    } finally {
+      setDownloadActionID("");
     }
   }
 
@@ -336,6 +386,68 @@ export function App() {
             ))}
           </div>
         </section>
+
+        <section className="downloads-panel" aria-label="Download manager">
+          <div className="panel-heading">
+            <div>
+              <h2>Downloads</h2>
+              <p>
+                {downloads.length
+                  ? `${downloads.length} qBittorrent items tracked with Librarry tags.`
+                  : "No Librarry-tagged downloads are currently visible."}
+              </p>
+            </div>
+            <button className="secondary-action compact" onClick={refreshDownloads} type="button">
+              <RefreshCw size={16} />
+              {isRefreshingDownloads ? "Refreshing" : "Refresh"}
+            </button>
+          </div>
+          {downloadError ? <div className="inline-error">{downloadError}</div> : null}
+          <div className="download-list">
+            {downloads.map((download) => {
+              const busy = downloadActionID.startsWith(`${download.id}:`);
+              return (
+                <article className="download-row" key={download.id}>
+                  <div className="download-main">
+                    <div className="download-title-line">
+                      <strong>{download.name || download.id}</strong>
+                      <span className={`download-badge ${stateTone(download.state)}`}>{download.state}</span>
+                    </div>
+                    <div className="download-meta">
+                      <span>{download.category || "uncategorized"}</span>
+                      <span>{formatBytes(download.downloadedBytes ?? 0)} / {formatBytes(download.sizeBytes ?? 0)}</span>
+                      <span>{formatSpeed(download.downloadRate ?? 0)} down</span>
+                      <span>{formatSpeed(download.uploadRate ?? 0)} up</span>
+                      <span>ratio {(download.ratio ?? 0).toFixed(2)}</span>
+                      <span>{download.seeders ?? 0} seeders</span>
+                    </div>
+                    <div className="progress-track" aria-label={`Download progress ${Math.round((download.progress ?? 0) * 100)} percent`}>
+                      <span style={{ width: `${Math.max(0, Math.min(100, (download.progress ?? 0) * 100))}%` }} />
+                    </div>
+                    <div className="download-path">{download.savePath}</div>
+                  </div>
+                  <div className="download-actions">
+                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("start", download)} type="button" aria-label="Start download" title="Start">
+                      <Play size={16} />
+                    </button>
+                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("stop", download)} type="button" aria-label="Stop download" title="Stop">
+                      <Pause size={16} />
+                    </button>
+                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("recheck", download)} type="button" aria-label="Recheck download" title="Recheck">
+                      <RefreshCw size={16} />
+                    </button>
+                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("increasePriority", download)} type="button" aria-label="Increase priority" title="Increase priority">
+                      <span className="priority-glyph">+</span>
+                    </button>
+                    <button className="icon-button danger" disabled={busy} onClick={() => applyDownloadAction("delete", download, false)} type="button" aria-label="Remove download" title="Remove without deleting files">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       </main>
     </div>
   );
@@ -351,4 +463,26 @@ function formatBytes(bytes: number) {
     unit += 1;
   }
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
+}
+
+function formatSpeed(bytesPerSecond: number) {
+  if (!bytesPerSecond) return "0 B/s";
+  return `${formatBytes(bytesPerSecond)}/s`;
+}
+
+function mergeDownloads(current: DownloadStatus[], next: DownloadStatus[]) {
+  const byID = new Map(current.map((download) => [download.id, download]));
+  for (const download of next) {
+    byID.set(download.id, download);
+  }
+  return Array.from(byID.values());
+}
+
+function stateTone(state: string) {
+  const normalized = state.toLowerCase();
+  if (normalized.includes("error") || normalized.includes("missing")) return "error";
+  if (normalized.includes("stop") || normalized.includes("pause")) return "paused";
+  if (normalized.includes("upload") || normalized.includes("seed")) return "seeding";
+  if (normalized.includes("download") || normalized.includes("meta")) return "active";
+  return "idle";
 }

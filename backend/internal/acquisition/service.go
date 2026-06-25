@@ -19,6 +19,7 @@ type IntegrationConfig struct {
 	EbookCategory     string
 	AudiobookCategory string
 	BookTorrentRoot   string
+	DownloadStore     DownloadStore
 }
 
 type IntegrationHealth struct {
@@ -37,6 +38,7 @@ type Service struct {
 	config   IntegrationConfig
 	prowlarr *ProwlarrClient
 	qbit     *QBittorrentClient
+	store    DownloadStore
 }
 
 func NewService(config IntegrationConfig) *Service {
@@ -55,6 +57,7 @@ func NewService(config IntegrationConfig) *Service {
 			config.QBittorrentPass,
 			shortClient,
 		),
+		store: config.DownloadStore,
 	}
 }
 
@@ -90,11 +93,46 @@ func (s *Service) Grab(ctx context.Context, request DownloadRequest) (DownloadSt
 	if len(request.Tags) == 0 {
 		request.Tags = []string{"librarry"}
 	}
-	return s.qbit.Add(ctx, request)
+	status, err := s.qbit.Add(ctx, request)
+	if err != nil {
+		return DownloadStatus{}, err
+	}
+	_ = s.storeDownloads(ctx, []DownloadStatus{status})
+	return status, nil
 }
 
-func (s *Service) Downloads(ctx context.Context, tag string) ([]DownloadStatus, error) {
-	return s.qbit.List(ctx, tag)
+func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]DownloadStatus, error) {
+	statuses, err := s.qbit.List(ctx, query)
+	if err == nil {
+		_ = s.storeDownloads(ctx, statuses)
+		return statuses, nil
+	}
+	if s.store != nil {
+		stored, storeErr := s.store.ListDownloads(ctx, query)
+		if storeErr == nil && len(stored) > 0 {
+			return stored, nil
+		}
+	}
+	return nil, err
+}
+
+func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
+	result, err := s.qbit.Action(ctx, request)
+	if err != nil {
+		return DownloadActionResult{}, err
+	}
+	if normalizeAction(request.Action) == DownloadActionDelete {
+		if s.store != nil {
+			_ = s.store.MarkDownloadsDeleted(ctx, result.IDs)
+		}
+	} else {
+		statuses, listErr := s.qbit.List(ctx, DownloadListQuery{IDs: result.IDs})
+		if listErr == nil {
+			_ = s.storeDownloads(ctx, statuses)
+			result.Downloads = statuses
+		}
+	}
+	return result, nil
 }
 
 func (s *Service) CategoryForFormat(format string) string {
@@ -133,4 +171,11 @@ func (s *Service) bookTorrentRoot() string {
 		return strings.TrimSpace(s.config.BookTorrentRoot)
 	}
 	return DefaultTorrentRoot
+}
+
+func (s *Service) storeDownloads(ctx context.Context, downloads []DownloadStatus) error {
+	if s.store == nil {
+		return nil
+	}
+	return s.store.UpsertDownloads(ctx, downloads)
 }

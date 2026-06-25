@@ -23,6 +23,7 @@ func main() {
 
 	cfg := config.FromEnv()
 	ctx := context.Background()
+	var downloadStore acquisition.DownloadStore
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -36,6 +37,7 @@ func main() {
 			logger.Error("database migrations failed", "error", err)
 			os.Exit(1)
 		}
+		downloadStore = acquisition.NewSQLDownloadStore(db)
 		logger.Info("database migrations applied")
 	} else {
 		logger.Warn("LIBRARRY_DATABASE_URL is not set; starting without database-backed persistence")
@@ -55,6 +57,7 @@ func main() {
 		EbookCategory:     cfg.EbookCategory,
 		AudiobookCategory: cfg.AudiobookCategory,
 		BookTorrentRoot:   cfg.BookTorrentRoot,
+		DownloadStore:     downloadStore,
 	})
 	if cfg.QBittorrentURL != "" {
 		bootstrapCtx, cancel := context.WithTimeout(ctx, 20*time.Second)

@@ -33,6 +33,11 @@ for book releases through `/api/v1/releases/search`, and qBittorrent is used for
 paused grabs through `/api/v1/grabs`. Startup and `/api/v1/integrations/bootstrap`
 ensure the book categories exist in qBittorrent.
 
+Download state is reconciled from qBittorrent through `/api/v1/downloads` and
+stored in Postgres when database persistence is configured. Torrent actions are
+exposed through `/api/v1/downloads/actions` for start, stop, delete, recheck,
+and priority changes.
+
 - `books-ebook`
 - `books-audiobook`
 

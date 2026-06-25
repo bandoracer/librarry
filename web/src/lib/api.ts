@@ -62,6 +62,36 @@ export type DownloadStatus = {
   savePath: string;
   category: string;
   tags?: string[];
+  sizeBytes?: number;
+  downloadedBytes?: number;
+  uploadedBytes?: number;
+  downloadRate?: number;
+  uploadRate?: number;
+  etaSeconds?: number;
+  ratio?: number;
+  seeders?: number;
+  peers?: number;
+  addedAt?: string;
+  completedAt?: string;
+  lastSeenAt?: string;
+};
+
+export type DownloadAction =
+  | "start"
+  | "stop"
+  | "delete"
+  | "recheck"
+  | "increasePriority"
+  | "decreasePriority"
+  | "topPriority"
+  | "bottomPriority";
+
+export type DownloadActionResult = {
+  action: DownloadAction;
+  ids: string[];
+  applied: boolean;
+  message?: string;
+  downloads?: DownloadStatus[];
 };
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -129,4 +159,35 @@ export async function grabRelease(release: Release, format: string): Promise<Dow
     throw new Error(`Grab failed: ${response.status}`);
   }
   return (await response.json()) as DownloadStatus;
+}
+
+export async function fetchDownloads(tag = "librarry"): Promise<DownloadStatus[]> {
+  const params = new URLSearchParams();
+  if (tag) params.set("tag", tag);
+  const response = await fetch(`${apiBase}/api/v1/downloads?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Download refresh failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as { downloads: DownloadStatus[] };
+  return payload.downloads;
+}
+
+export async function runDownloadAction(
+  action: DownloadAction,
+  ids: string[],
+  options: { deleteFiles?: boolean } = {}
+): Promise<DownloadActionResult> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/actions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      ids,
+      deleteFiles: options.deleteFiles ?? false
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Download action failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadActionResult;
 }

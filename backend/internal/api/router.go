@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -17,7 +18,16 @@ type Dependencies struct {
 	Logger   *slog.Logger
 	Config   config.Config
 	Metadata *metadata.Service
-	Acquire  *acquisition.Service
+	Acquire  acquisitionService
+}
+
+type acquisitionService interface {
+	Health(ctx context.Context) []acquisition.IntegrationHealth
+	Bootstrap(ctx context.Context) (acquisition.BootstrapResult, error)
+	Search(ctx context.Context, query acquisition.ReleaseSearchQuery) ([]acquisition.Release, error)
+	Grab(ctx context.Context, request acquisition.DownloadRequest) (acquisition.DownloadStatus, error)
+	Downloads(ctx context.Context, query acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error)
+	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -34,6 +44,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/releases/search", handler.releaseSearch)
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
+	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
 
 	return withCORS(deps.Config.WebOrigin, mux)
 }
@@ -164,12 +175,34 @@ func (h *handler) downloads(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
 		return
 	}
-	statuses, err := h.deps.Acquire.Downloads(r.Context(), r.URL.Query().Get("tag"))
+	statuses, err := h.deps.Acquire.Downloads(r.Context(), acquisition.DownloadListQuery{
+		Tag:      r.URL.Query().Get("tag"),
+		Category: r.URL.Query().Get("category"),
+	})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"downloads": statuses})
+}
+
+func (h *handler) downloadAction(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request acquisition.DownloadActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid download action payload"})
+		return
+	}
+	result, err := h.deps.Acquire.DownloadAction(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func withCORS(webOrigin string, next http.Handler) http.Handler {
@@ -179,7 +212,7 @@ func withCORS(webOrigin string, next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

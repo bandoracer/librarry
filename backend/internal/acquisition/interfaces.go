@@ -45,13 +45,25 @@ type DownloadRequest struct {
 }
 
 type DownloadStatus struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	State    string   `json:"state"`
-	Progress float64  `json:"progress"`
-	SavePath string   `json:"savePath"`
-	Category string   `json:"category"`
-	Tags     []string `json:"tags,omitempty"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	State           string     `json:"state"`
+	Progress        float64    `json:"progress"`
+	SavePath        string     `json:"savePath"`
+	Category        string     `json:"category"`
+	Tags            []string   `json:"tags,omitempty"`
+	SizeBytes       int64      `json:"sizeBytes,omitempty"`
+	DownloadedBytes int64      `json:"downloadedBytes,omitempty"`
+	UploadedBytes   int64      `json:"uploadedBytes,omitempty"`
+	DownloadRate    int64      `json:"downloadRate,omitempty"`
+	UploadRate      int64      `json:"uploadRate,omitempty"`
+	ETASeconds      int64      `json:"etaSeconds,omitempty"`
+	Ratio           float64    `json:"ratio,omitempty"`
+	Seeders         int        `json:"seeders,omitempty"`
+	Peers           int        `json:"peers,omitempty"`
+	AddedAt         *time.Time `json:"addedAt,omitempty"`
+	CompletedAt     *time.Time `json:"completedAt,omitempty"`
+	LastSeenAt      *time.Time `json:"lastSeenAt,omitempty"`
 }
 
 type DownloadClient interface {
@@ -59,6 +71,41 @@ type DownloadClient interface {
 	Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error)
 	Status(ctx context.Context, id string) (DownloadStatus, error)
 }
+
+type DownloadListQuery struct {
+	IDs      []string
+	Tag      string
+	Category string
+}
+
+type DownloadActionRequest struct {
+	Action      string   `json:"action"`
+	IDs         []string `json:"ids"`
+	DeleteFiles bool     `json:"deleteFiles,omitempty"`
+	Category    string   `json:"category,omitempty"`
+	SavePath    string   `json:"savePath,omitempty"`
+}
+
+type DownloadActionResult struct {
+	Action    string           `json:"action"`
+	IDs       []string         `json:"ids"`
+	Applied   bool             `json:"applied"`
+	Message   string           `json:"message,omitempty"`
+	Downloads []DownloadStatus `json:"downloads,omitempty"`
+}
+
+const (
+	DownloadActionStart            = "start"
+	DownloadActionStop             = "stop"
+	DownloadActionDelete           = "delete"
+	DownloadActionRecheck          = "recheck"
+	DownloadActionIncreasePriority = "increasePriority"
+	DownloadActionDecreasePriority = "decreasePriority"
+	DownloadActionTopPriority      = "topPriority"
+	DownloadActionBottomPriority   = "bottomPriority"
+	DownloadActionSetCategory      = "setCategory"
+	DownloadActionSetLocation      = "setLocation"
+)
 
 type QBittorrentConfig struct {
 	BaseURL  string
