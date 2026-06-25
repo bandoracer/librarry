@@ -169,6 +169,124 @@ func TestQBittorrentListMapsDownloadStatus(t *testing.T) {
 	}
 }
 
+func TestQBittorrentDetailsMapsPropertiesFilesAndTrackers(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("hash") != "abc123" && r.URL.Query().Get("hashes") != "abc123" {
+			t.Fatalf("expected hash query for %s, got %s", r.URL.Path, r.URL.RawQuery)
+		}
+		switch r.URL.Path {
+		case "/api/v2/torrents/info":
+			_ = json.NewEncoder(w).Encode([]map[string]any{{
+				"hash":          "abc123",
+				"name":          "Book.epub",
+				"state":         "downloading",
+				"progress":      0.5,
+				"save_path":     "/data/torrents/books",
+				"category":      "books-ebook",
+				"tags":          "librarry",
+				"size":          1000,
+				"downloaded":    500,
+				"dlspeed":       12,
+				"num_seeds":     8,
+				"num_leechs":    2,
+				"added_on":      1_700_000_000,
+				"last_activity": 1_700_000_120,
+			}})
+		case "/api/v2/torrents/properties":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"save_path":            "/data/torrents/books",
+				"addition_date":        1_700_000_000,
+				"completion_date":      0,
+				"total_size":           1000,
+				"total_downloaded":     500,
+				"total_uploaded":       25,
+				"dl_speed":             12,
+				"up_speed":             3,
+				"eta":                  42,
+				"share_ratio":          0.25,
+				"nb_connections":       6,
+				"nb_connections_limit": 50,
+				"piece_size":           16,
+				"pieces_have":          4,
+				"pieces_num":           8,
+				"created_by":           "librarry-test",
+			})
+		case "/api/v2/torrents/files":
+			_ = json.NewEncoder(w).Encode([]map[string]any{{
+				"name":         "Book.epub",
+				"size":         1000,
+				"progress":     0.5,
+				"priority":     1,
+				"availability": 3.5,
+				"piece_range":  []int{0, 7},
+			}})
+		case "/api/v2/torrents/trackers":
+			_ = json.NewEncoder(w).Encode([]map[string]any{{
+				"url":            "https://tracker.example/announce",
+				"status":         2,
+				"tier":           0,
+				"msg":            "working",
+				"num_peers":      10,
+				"num_seeds":      8,
+				"num_leeches":    2,
+				"num_downloaded": 12,
+			}})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := NewQBittorrentClient(server.URL, "", "", server.Client())
+	details, err := client.Details(context.Background(), "abc123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if details.Status.ID != "abc123" || details.Properties.TotalSizeBytes != 1000 || details.Properties.PiecesTotal != 8 {
+		t.Fatalf("unexpected details: %+v", details)
+	}
+	if len(details.Files) != 1 || details.Files[0].ID != 0 || details.Files[0].FirstPiece != 0 || details.Files[0].LastPiece != 7 {
+		t.Fatalf("unexpected files: %+v", details.Files)
+	}
+	if len(details.Trackers) != 1 || details.Trackers[0].Status != "working" || details.Trackers[0].Seeds != 8 {
+		t.Fatalf("unexpected trackers: %+v", details.Trackers)
+	}
+}
+
+func TestQBittorrentFileActionSetsPriority(t *testing.T) {
+	var endpoint string
+	var hash string
+	var fileIDs string
+	var priority string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		endpoint = r.URL.Path
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		hash = r.Form.Get("hash")
+		fileIDs = r.Form.Get("id")
+		priority = r.Form.Get("priority")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewQBittorrentClient(server.URL, "", "", server.Client())
+	result, err := client.FileAction(context.Background(), DownloadFileActionRequest{
+		DownloadID: "abc123",
+		Action:     DownloadFileActionHigh,
+		IDs:        []int{0, 2, 2},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if endpoint != "/api/v2/torrents/filePrio" || hash != "abc123" || fileIDs != "0|2" || priority != "6" {
+		t.Fatalf("unexpected file action form endpoint=%s hash=%s ids=%s priority=%s", endpoint, hash, fileIDs, priority)
+	}
+	if !result.Applied || result.Action != DownloadFileActionHigh || result.Priority != 6 {
+		t.Fatalf("unexpected file action result: %+v", result)
+	}
+}
+
 func TestMergeStoredDownloadStateIncludesFailureMetadata(t *testing.T) {
 	failedAt := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
 	service := &Service{store: fakeDownloadStore{downloads: []DownloadStatus{{

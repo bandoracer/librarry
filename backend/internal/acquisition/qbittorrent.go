@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -278,6 +279,41 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 	return statuses, nil
 }
 
+func (c *QBittorrentClient) Details(ctx context.Context, id string) (DownloadDetails, error) {
+	if !c.Configured() {
+		return DownloadDetails{}, ErrIntegrationNotConfigured
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DownloadDetails{}, errors.New("download id is required")
+	}
+	statuses, err := c.List(ctx, DownloadListQuery{IDs: []string{id}})
+	if err != nil {
+		return DownloadDetails{}, err
+	}
+	if len(statuses) == 0 {
+		return DownloadDetails{}, ErrDownloadNotFound
+	}
+	properties, err := c.properties(ctx, id)
+	if err != nil {
+		return DownloadDetails{}, err
+	}
+	files, err := c.files(ctx, id)
+	if err != nil {
+		return DownloadDetails{}, err
+	}
+	trackers, err := c.trackers(ctx, id)
+	if err != nil {
+		return DownloadDetails{}, err
+	}
+	return DownloadDetails{
+		Status:     statuses[0],
+		Properties: properties,
+		Files:      files,
+		Trackers:   trackers,
+	}, nil
+}
+
 func (c *QBittorrentClient) Action(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
 	if !c.Configured() {
 		return DownloadActionResult{}, ErrIntegrationNotConfigured
@@ -355,6 +391,198 @@ func (c *QBittorrentClient) Action(ctx context.Context, request DownloadActionRe
 	}
 
 	return DownloadActionResult{Action: action, IDs: ids, Applied: true}, nil
+}
+
+func (c *QBittorrentClient) FileAction(ctx context.Context, request DownloadFileActionRequest) (DownloadFileActionResult, error) {
+	if !c.Configured() {
+		return DownloadFileActionResult{}, ErrIntegrationNotConfigured
+	}
+	id := strings.TrimSpace(request.DownloadID)
+	if id == "" {
+		return DownloadFileActionResult{}, errors.New("download id is required")
+	}
+	fileIDs := compactInts(request.IDs)
+	if len(fileIDs) == 0 {
+		return DownloadFileActionResult{}, errors.New("at least one file id is required")
+	}
+	action, priority, err := normalizeFilePriorityAction(request.Action, request.Priority)
+	if err != nil {
+		return DownloadFileActionResult{}, err
+	}
+	if err := c.login(ctx); err != nil {
+		return DownloadFileActionResult{}, err
+	}
+	values := url.Values{}
+	values.Set("hash", id)
+	values.Set("id", joinInts(fileIDs, "|"))
+	values.Set("priority", strconv.Itoa(priority))
+	if err := c.postTorrentAction(ctx, "filePrio", values); err != nil {
+		return DownloadFileActionResult{}, err
+	}
+	return DownloadFileActionResult{
+		Action:     action,
+		DownloadID: id,
+		IDs:        fileIDs,
+		Priority:   priority,
+		Applied:    true,
+	}, nil
+}
+
+func (c *QBittorrentClient) properties(ctx context.Context, id string) (DownloadProperties, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/torrents/properties?hash="+url.QueryEscape(id), nil)
+	if err != nil {
+		return DownloadProperties{}, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return DownloadProperties{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return DownloadProperties{}, fmt.Errorf("qBittorrent properties returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var raw struct {
+		SavePath         string  `json:"save_path"`
+		CreationDate     int64   `json:"creation_date"`
+		AdditionDate     int64   `json:"addition_date"`
+		CompletionDate   int64   `json:"completion_date"`
+		TotalSize        int64   `json:"total_size"`
+		TotalDownloaded  int64   `json:"total_downloaded"`
+		TotalUploaded    int64   `json:"total_uploaded"`
+		DownloadLimit    int64   `json:"dl_limit"`
+		UploadLimit      int64   `json:"up_limit"`
+		DownloadSpeed    int64   `json:"dl_speed"`
+		UploadSpeed      int64   `json:"up_speed"`
+		ETA              int64   `json:"eta"`
+		Ratio            float64 `json:"share_ratio"`
+		Connections      int     `json:"nb_connections"`
+		ConnectionsLimit int     `json:"nb_connections_limit"`
+		TimeElapsed      int64   `json:"time_elapsed"`
+		SeedingTime      int64   `json:"seeding_time"`
+		PieceSize        int64   `json:"piece_size"`
+		PiecesHave       int     `json:"pieces_have"`
+		PiecesTotal      int     `json:"pieces_num"`
+		Reannounce       int64   `json:"reannounce"`
+		CreatedBy        string  `json:"created_by"`
+		Comment          string  `json:"comment"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return DownloadProperties{}, err
+	}
+	return DownloadProperties{
+		SavePath:           raw.SavePath,
+		CreationDate:       unixTime(raw.CreationDate),
+		AdditionDate:       unixTime(raw.AdditionDate),
+		CompletionDate:     unixTime(raw.CompletionDate),
+		TotalSizeBytes:     raw.TotalSize,
+		TotalDownloaded:    raw.TotalDownloaded,
+		TotalUploaded:      raw.TotalUploaded,
+		DownloadLimit:      raw.DownloadLimit,
+		UploadLimit:        raw.UploadLimit,
+		DownloadSpeed:      raw.DownloadSpeed,
+		UploadSpeed:        raw.UploadSpeed,
+		ETASeconds:         raw.ETA,
+		Ratio:              raw.Ratio,
+		Connections:        raw.Connections,
+		ConnectionsLimit:   raw.ConnectionsLimit,
+		TimeElapsedSeconds: raw.TimeElapsed,
+		SeedingTimeSeconds: raw.SeedingTime,
+		PieceSizeBytes:     raw.PieceSize,
+		PiecesHave:         raw.PiecesHave,
+		PiecesTotal:        raw.PiecesTotal,
+		ReannounceSeconds:  raw.Reannounce,
+		CreatedBy:          strings.TrimSpace(raw.CreatedBy),
+		Comment:            strings.TrimSpace(raw.Comment),
+	}, nil
+}
+
+func (c *QBittorrentClient) files(ctx context.Context, id string) ([]DownloadFile, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/torrents/files?hash="+url.QueryEscape(id), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("qBittorrent files returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var raw []struct {
+		Name         string  `json:"name"`
+		Size         int64   `json:"size"`
+		Progress     float64 `json:"progress"`
+		Priority     int     `json:"priority"`
+		Availability float64 `json:"availability"`
+		IsSeed       bool    `json:"is_seed"`
+		PieceRange   []int   `json:"piece_range"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, err
+	}
+	files := make([]DownloadFile, 0, len(raw))
+	for i, item := range raw {
+		firstPiece, lastPiece := pieceRange(item.PieceRange)
+		files = append(files, DownloadFile{
+			ID:           i,
+			Name:         item.Name,
+			SizeBytes:    item.Size,
+			Progress:     item.Progress,
+			Priority:     item.Priority,
+			Availability: item.Availability,
+			IsSeed:       item.IsSeed,
+			FirstPiece:   firstPiece,
+			LastPiece:    lastPiece,
+		})
+	}
+	return files, nil
+}
+
+func (c *QBittorrentClient) trackers(ctx context.Context, id string) ([]DownloadTracker, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/torrents/trackers?hash="+url.QueryEscape(id), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("qBittorrent trackers returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var raw []struct {
+		URL       string `json:"url"`
+		Status    int    `json:"status"`
+		Tier      int    `json:"tier"`
+		Message   string `json:"msg"`
+		Peers     int    `json:"num_peers"`
+		Seeds     int    `json:"num_seeds"`
+		Leeches   int    `json:"num_leeches"`
+		Downloads int    `json:"num_downloaded"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, err
+	}
+	trackers := make([]DownloadTracker, 0, len(raw))
+	for _, item := range raw {
+		trackers = append(trackers, DownloadTracker{
+			URL:        item.URL,
+			StatusCode: item.Status,
+			Status:     trackerStatus(item.Status),
+			Tier:       item.Tier,
+			Message:    strings.TrimSpace(item.Message),
+			Peers:      item.Peers,
+			Seeds:      item.Seeds,
+			Leeches:    item.Leeches,
+			Downloads:  item.Downloads,
+		})
+	}
+	return trackers, nil
 }
 
 func (c *QBittorrentClient) editCategory(ctx context.Context, category string, savePath string) error {
@@ -464,6 +692,82 @@ func splitTags(value string) []string {
 		}
 	}
 	return tags
+}
+
+func compactInts(values []int) []int {
+	var compacted []int
+	seen := map[int]bool{}
+	for _, value := range values {
+		if value < 0 || seen[value] {
+			continue
+		}
+		seen[value] = true
+		compacted = append(compacted, value)
+	}
+	return compacted
+}
+
+func joinInts(values []int, sep string) string {
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, strconv.Itoa(value))
+	}
+	return strings.Join(parts, sep)
+}
+
+func normalizeFilePriorityAction(action string, priority int) (string, int, error) {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "skip", "ignore", "do_not_download", "donotdownload":
+		return DownloadFileActionSkip, 0, nil
+	case "normal", "download":
+		return DownloadFileActionNormal, 1, nil
+	case "high":
+		return DownloadFileActionHigh, 6, nil
+	case "max", "maximum":
+		return DownloadFileActionMax, 7, nil
+	case "priority", "setpriority", "set_priority":
+		if priority == 0 || priority == 1 || priority == 6 || priority == 7 {
+			return actionOrDefault(action, "priority"), priority, nil
+		}
+		return "", 0, fmt.Errorf("unsupported file priority %d", priority)
+	default:
+		if priority == 0 || priority == 1 || priority == 6 || priority == 7 {
+			return actionOrDefault(action, "priority"), priority, nil
+		}
+		return "", 0, fmt.Errorf("unsupported download file action %q", action)
+	}
+}
+
+func actionOrDefault(action string, fallback string) string {
+	action = strings.TrimSpace(action)
+	if action == "" {
+		return fallback
+	}
+	return action
+}
+
+func pieceRange(values []int) (int, int) {
+	if len(values) < 2 {
+		return 0, 0
+	}
+	return values[0], values[1]
+}
+
+func trackerStatus(value int) string {
+	switch value {
+	case 0:
+		return "disabled"
+	case 1:
+		return "not_contacted"
+	case 2:
+		return "working"
+	case 3:
+		return "updating"
+	case 4:
+		return "not_working"
+	default:
+		return "unknown"
+	}
 }
 
 func firstNonEmpty(values ...string) string {

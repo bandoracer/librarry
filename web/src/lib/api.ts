@@ -86,6 +86,63 @@ export type DownloadStatus = {
   replacementId?: string;
 };
 
+export type DownloadDetails = {
+  status: DownloadStatus;
+  properties?: DownloadProperties;
+  files?: DownloadFile[];
+  trackers?: DownloadTracker[];
+};
+
+export type DownloadProperties = {
+  savePath?: string;
+  creationDate?: string;
+  additionDate?: string;
+  completionDate?: string;
+  totalSizeBytes?: number;
+  totalDownloaded?: number;
+  totalUploaded?: number;
+  downloadLimit?: number;
+  uploadLimit?: number;
+  downloadSpeed?: number;
+  uploadSpeed?: number;
+  etaSeconds?: number;
+  ratio?: number;
+  connections?: number;
+  connectionsLimit?: number;
+  timeElapsedSeconds?: number;
+  seedingTimeSeconds?: number;
+  pieceSizeBytes?: number;
+  piecesHave?: number;
+  piecesTotal?: number;
+  reannounceSeconds?: number;
+  createdBy?: string;
+  comment?: string;
+};
+
+export type DownloadFile = {
+  id: number;
+  name: string;
+  sizeBytes?: number;
+  progress: number;
+  priority: number;
+  availability?: number;
+  isSeed?: boolean;
+  firstPiece?: number;
+  lastPiece?: number;
+};
+
+export type DownloadTracker = {
+  url: string;
+  statusCode: number;
+  status: string;
+  tier?: number;
+  message?: string;
+  peers?: number;
+  seeds?: number;
+  leeches?: number;
+  downloads?: number;
+};
+
 export type DownloadAction =
   | "start"
   | "stop"
@@ -94,7 +151,11 @@ export type DownloadAction =
   | "increasePriority"
   | "decreasePriority"
   | "topPriority"
-  | "bottomPriority";
+  | "bottomPriority"
+  | "setCategory"
+  | "setLocation";
+
+export type DownloadFileAction = "skip" | "normal" | "high" | "max" | "priority";
 
 export type DownloadActionResult = {
   action: DownloadAction;
@@ -102,6 +163,16 @@ export type DownloadActionResult = {
   applied: boolean;
   message?: string;
   downloads?: DownloadStatus[];
+};
+
+export type DownloadFileActionResult = {
+  action: DownloadFileAction;
+  downloadId: string;
+  ids: number[];
+  priority: number;
+  applied: boolean;
+  message?: string;
+  download?: DownloadDetails;
 };
 
 export type DownloadRebalancePlan = {
@@ -483,6 +554,16 @@ export async function fetchDownloads(tag = "librarry"): Promise<DownloadStatus[]
   return payload.downloads;
 }
 
+export async function fetchDownloadDetails(id: string, client?: string): Promise<DownloadDetails> {
+  const params = new URLSearchParams();
+  if (client) params.set("client", client);
+  const response = await fetch(`${apiBase}/api/v1/downloads/${encodeURIComponent(id)}?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Download details failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadDetails;
+}
+
 export async function runDownloadAction(
   action: DownloadAction,
   ids: string[],
@@ -503,6 +584,27 @@ export async function runDownloadAction(
     throw new Error(`Download action failed: ${response.status}`);
   }
   return (await response.json()) as DownloadActionResult;
+}
+
+export async function runDownloadFileAction(
+  id: string,
+  action: DownloadFileAction,
+  ids: number[],
+  options: { priority?: number } = {}
+): Promise<DownloadFileActionResult> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/${encodeURIComponent(id)}/files/actions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      ids,
+      priority: options.priority
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Download file action failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadFileActionResult;
 }
 
 export async function rebalanceDownloads(options: {

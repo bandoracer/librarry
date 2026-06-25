@@ -82,6 +82,63 @@ type DownloadStatus struct {
 	ReplacementID   string     `json:"replacementId,omitempty"`
 }
 
+type DownloadDetails struct {
+	Status     DownloadStatus     `json:"status"`
+	Properties DownloadProperties `json:"properties,omitempty"`
+	Files      []DownloadFile     `json:"files,omitempty"`
+	Trackers   []DownloadTracker  `json:"trackers,omitempty"`
+}
+
+type DownloadProperties struct {
+	SavePath           string     `json:"savePath,omitempty"`
+	CreationDate       *time.Time `json:"creationDate,omitempty"`
+	AdditionDate       *time.Time `json:"additionDate,omitempty"`
+	CompletionDate     *time.Time `json:"completionDate,omitempty"`
+	TotalSizeBytes     int64      `json:"totalSizeBytes,omitempty"`
+	TotalDownloaded    int64      `json:"totalDownloaded,omitempty"`
+	TotalUploaded      int64      `json:"totalUploaded,omitempty"`
+	DownloadLimit      int64      `json:"downloadLimit,omitempty"`
+	UploadLimit        int64      `json:"uploadLimit,omitempty"`
+	DownloadSpeed      int64      `json:"downloadSpeed,omitempty"`
+	UploadSpeed        int64      `json:"uploadSpeed,omitempty"`
+	ETASeconds         int64      `json:"etaSeconds,omitempty"`
+	Ratio              float64    `json:"ratio,omitempty"`
+	Connections        int        `json:"connections,omitempty"`
+	ConnectionsLimit   int        `json:"connectionsLimit,omitempty"`
+	TimeElapsedSeconds int64      `json:"timeElapsedSeconds,omitempty"`
+	SeedingTimeSeconds int64      `json:"seedingTimeSeconds,omitempty"`
+	PieceSizeBytes     int64      `json:"pieceSizeBytes,omitempty"`
+	PiecesHave         int        `json:"piecesHave,omitempty"`
+	PiecesTotal        int        `json:"piecesTotal,omitempty"`
+	ReannounceSeconds  int64      `json:"reannounceSeconds,omitempty"`
+	CreatedBy          string     `json:"createdBy,omitempty"`
+	Comment            string     `json:"comment,omitempty"`
+}
+
+type DownloadFile struct {
+	ID           int     `json:"id"`
+	Name         string  `json:"name"`
+	SizeBytes    int64   `json:"sizeBytes,omitempty"`
+	Progress     float64 `json:"progress"`
+	Priority     int     `json:"priority"`
+	Availability float64 `json:"availability,omitempty"`
+	IsSeed       bool    `json:"isSeed,omitempty"`
+	FirstPiece   int     `json:"firstPiece,omitempty"`
+	LastPiece    int     `json:"lastPiece,omitempty"`
+}
+
+type DownloadTracker struct {
+	URL        string `json:"url"`
+	StatusCode int    `json:"statusCode"`
+	Status     string `json:"status"`
+	Tier       int    `json:"tier,omitempty"`
+	Message    string `json:"message,omitempty"`
+	Peers      int    `json:"peers,omitempty"`
+	Seeds      int    `json:"seeds,omitempty"`
+	Leeches    int    `json:"leeches,omitempty"`
+	Downloads  int    `json:"downloads,omitempty"`
+}
+
 type DownloadClient interface {
 	Name() string
 	Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error)
@@ -111,6 +168,23 @@ type DownloadActionResult struct {
 	Downloads []DownloadStatus `json:"downloads,omitempty"`
 }
 
+type DownloadFileActionRequest struct {
+	DownloadID string `json:"downloadId,omitempty"`
+	Action     string `json:"action"`
+	IDs        []int  `json:"ids"`
+	Priority   int    `json:"priority,omitempty"`
+}
+
+type DownloadFileActionResult struct {
+	Action     string           `json:"action"`
+	DownloadID string           `json:"downloadId"`
+	IDs        []int            `json:"ids"`
+	Priority   int              `json:"priority"`
+	Applied    bool             `json:"applied"`
+	Message    string           `json:"message,omitempty"`
+	Download   *DownloadDetails `json:"download,omitempty"`
+}
+
 const (
 	DownloadActionStart            = "start"
 	DownloadActionStop             = "stop"
@@ -122,6 +196,13 @@ const (
 	DownloadActionBottomPriority   = "bottomPriority"
 	DownloadActionSetCategory      = "setCategory"
 	DownloadActionSetLocation      = "setLocation"
+)
+
+const (
+	DownloadFileActionSkip   = "skip"
+	DownloadFileActionNormal = "normal"
+	DownloadFileActionHigh   = "high"
+	DownloadFileActionMax    = "max"
 )
 
 type QBittorrentConfig struct {

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -33,7 +34,9 @@ type acquisitionService interface {
 	Search(ctx context.Context, query acquisition.ReleaseSearchQuery) ([]acquisition.Release, error)
 	Grab(ctx context.Context, request acquisition.DownloadRequest) (acquisition.DownloadStatus, error)
 	Downloads(ctx context.Context, query acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error)
+	DownloadDetails(ctx context.Context, id string, client string) (acquisition.DownloadDetails, error)
 	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
+	DownloadFileAction(ctx context.Context, id string, request acquisition.DownloadFileActionRequest) (acquisition.DownloadFileActionResult, error)
 }
 
 type wantedService interface {
@@ -197,7 +200,9 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/releases/search", handler.releaseSearch)
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
+	mux.HandleFunc("GET /api/v1/downloads/{id}", handler.downloadDetails)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
+	mux.HandleFunc("POST /api/v1/downloads/{id}/files/actions", handler.downloadFileAction)
 	mux.HandleFunc("POST /api/v1/downloads/rebalance", handler.rebalanceDownloads)
 	mux.HandleFunc("POST /api/v1/downloads/recover-failed", handler.recoverFailedDownloads)
 	mux.HandleFunc("GET /api/v1/quality-profiles", handler.qualityProfiles)
@@ -362,6 +367,31 @@ func (h *handler) downloads(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"downloads": statuses})
 }
 
+func (h *handler) downloadDetails(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "download id is required"})
+		return
+	}
+	details, err := h.deps.Acquire.DownloadDetails(r.Context(), id, r.URL.Query().Get("client"))
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, acquisition.ErrDownloadNotFound) {
+			status = http.StatusNotFound
+		}
+		if errors.Is(err, acquisition.ErrDownloadDetailsUnsupported) {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, details)
+}
+
 func (h *handler) downloadAction(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Acquire == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
@@ -376,6 +406,37 @@ func (h *handler) downloadAction(w http.ResponseWriter, r *http.Request) {
 	result, err := h.deps.Acquire.DownloadAction(r.Context(), request)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *handler) downloadFileAction(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "download id is required"})
+		return
+	}
+	defer r.Body.Close()
+	var request acquisition.DownloadFileActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid download file action payload"})
+		return
+	}
+	result, err := h.deps.Acquire.DownloadFileAction(r.Context(), id, request)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, acquisition.ErrDownloadNotFound) {
+			status = http.StatusNotFound
+		}
+		if errors.Is(err, acquisition.ErrDownloadDetailsUnsupported) {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, result)

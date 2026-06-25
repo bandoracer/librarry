@@ -31,6 +31,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   createWanted,
   fetchAuthorSubscriptions,
+  fetchDownloadDetails,
   fetchIntegrationHealth,
   fetchDownloads,
   fetchHistory,
@@ -51,6 +52,7 @@ import {
   runWantedFeedSync,
   runWantedMonitor,
   runDownloadAction,
+  runDownloadFileAction,
   saveQualityProfile,
   scanLibrary,
   searchMetadata,
@@ -61,6 +63,8 @@ import {
   type AuthorSubscription,
   type DownloadAction,
   type CompletedImportOutcome,
+  type DownloadDetails,
+  type DownloadFileAction,
   type DownloadRebalancePlan,
   type DownloadStatus,
   type FailedDownloadRun,
@@ -114,6 +118,7 @@ export function App() {
   const [queueRebalancePlan, setQueueRebalancePlan] = useState<DownloadRebalancePlan | null>(null);
   const [upgradeRun, setUpgradeRun] = useState<UpgradeRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
+  const [downloadDetails, setDownloadDetails] = useState<DownloadDetails | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
@@ -136,6 +141,7 @@ export function App() {
   const [isRecoveringFailed, setIsRecoveringFailed] = useState(false);
   const [isRebalancingDownloads, setIsRebalancingDownloads] = useState(false);
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
+  const [isLoadingDownloadDetails, setIsLoadingDownloadDetails] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
@@ -590,6 +596,43 @@ export function App() {
     }
   }
 
+  async function openDownloadDetails(download: DownloadStatus) {
+    if (!download.id) return;
+    setIsLoadingDownloadDetails(true);
+    setDownloadError("");
+    try {
+      const details = await fetchDownloadDetails(download.id, download.client);
+      setDownloadDetails(details);
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download details failed");
+    } finally {
+      setIsLoadingDownloadDetails(false);
+    }
+  }
+
+  async function applyDownloadFileAction(action: DownloadFileAction, ids: number[]) {
+    const downloadID = downloadDetails?.status.id;
+    if (!downloadID || ids.length === 0) return;
+    setDownloadActionID(`${downloadID}:file:${action}`);
+    setDownloadError("");
+    try {
+      const result = await runDownloadFileAction(downloadID, action, ids);
+      if (result.download) {
+        setDownloadDetails(result.download);
+      } else {
+        const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
+        setDownloadDetails(refreshed);
+      }
+      await refreshDownloads();
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download file action failed");
+    } finally {
+      setDownloadActionID("");
+    }
+  }
+
   async function applyDownloadAction(action: DownloadAction, download: DownloadStatus, deleteFiles = false) {
     await applyDownloadActionToIDs(action, [download.id], deleteFiles);
   }
@@ -608,6 +651,7 @@ export function App() {
         const deleted = new Set(actionIDs);
         setDownloads((current) => current.filter((item) => !deleted.has(item.id)));
         setSelectedDownloadKeys((current) => current.filter((key) => !deleted.has(key.split(":").slice(1).join(":"))));
+        setDownloadDetails((current) => (current && deleted.has(current.status.id) ? null : current));
       } else {
         await refreshDownloads();
       }
@@ -1384,6 +1428,100 @@ export function App() {
               </span>
             </div>
           ) : null}
+          {downloadDetails || isLoadingDownloadDetails ? (
+            <div className="download-detail-panel">
+              <div className="download-detail-header">
+                <div>
+                  <strong>{downloadDetails?.status.name || "Loading download details"}</strong>
+                  <span>
+                    {downloadDetails
+                      ? `${downloadDetails.status.client || "qBittorrent"} · ${downloadDetails.status.category || "uncategorized"} · ${formatBytes(downloadDetails.status.sizeBytes ?? downloadDetails.properties?.totalSizeBytes ?? 0)}`
+                      : "Fetching qBittorrent state"}
+                  </span>
+                </div>
+                {downloadDetails ? (
+                  <button className="secondary-action compact" disabled={isLoadingDownloadDetails} onClick={() => openDownloadDetails(downloadDetails.status)} type="button">
+                    <RefreshCw size={16} />
+                    {isLoadingDownloadDetails ? "Loading" : "Refresh details"}
+                  </button>
+                ) : null}
+              </div>
+              {downloadDetails ? (
+                <>
+                  <div className="download-detail-metrics">
+                    {[
+                      ["Progress", `${Math.round((downloadDetails.status.progress ?? 0) * 100)}%`],
+                      ["ETA", formatDuration(downloadDetails.properties?.etaSeconds ?? downloadDetails.status.etaSeconds)],
+                      ["Speed", `${formatSpeed(downloadDetails.properties?.downloadSpeed ?? downloadDetails.status.downloadRate ?? 0)} down`],
+                      ["Peers", `${downloadDetails.status.seeders ?? 0} seeders · ${downloadDetails.status.peers ?? 0} peers`],
+                      ["Pieces", `${downloadDetails.properties?.piecesHave ?? 0}/${downloadDetails.properties?.piecesTotal ?? 0}`],
+                      ["Connections", `${downloadDetails.properties?.connections ?? 0}/${downloadDetails.properties?.connectionsLimit ?? 0}`]
+                    ].map(([label, value]) => (
+                      <div className="download-detail-metric" key={label}>
+                        <span>{label}</span>
+                        <strong>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  {downloadDetails.trackers?.length ? (
+                    <div className="download-tracker-list">
+                      {downloadDetails.trackers.map((tracker) => (
+                        <article className="download-tracker-row" key={`${tracker.url}-${tracker.tier ?? 0}`}>
+                          <div>
+                            <strong>{tracker.url || "tracker"}</strong>
+                            <span>{tracker.message || tracker.status}</span>
+                          </div>
+                          <span className={`download-badge ${tracker.status === "working" ? "seeding" : tracker.status === "not_working" ? "error" : "idle"}`}>
+                            {tracker.status}
+                          </span>
+                          <em>
+                            {tracker.seeds ?? 0} seeds · {tracker.leeches ?? 0} leeches
+                          </em>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+                  {downloadDetails.files?.length ? (
+                    <div className="download-file-list">
+                      {downloadDetails.files.map((file) => {
+                        const fileBusy = downloadActionID.startsWith(`${downloadDetails.status.id}:file:`);
+                        return (
+                          <article className="download-file-row" key={`${downloadDetails.status.id}:${file.id}`}>
+                            <div className="download-file-main">
+                              <strong>{file.name}</strong>
+                              <span>
+                                {formatBytes(file.sizeBytes ?? 0)} · {Math.round((file.progress ?? 0) * 100)}% · {filePriorityLabel(file.priority)}
+                                {file.availability ? ` · ${file.availability.toFixed(1)} available` : ""}
+                              </span>
+                              <div className="progress-track" aria-label={`File progress ${Math.round((file.progress ?? 0) * 100)} percent`}>
+                                <span style={{ width: `${Math.max(0, Math.min(100, (file.progress ?? 0) * 100))}%` }} />
+                              </div>
+                            </div>
+                            <div className="file-action-buttons">
+                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("skip", [file.id])} type="button">
+                                Skip
+                              </button>
+                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("normal", [file.id])} type="button">
+                                Normal
+                              </button>
+                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("high", [file.id])} type="button">
+                                High
+                              </button>
+                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("max", [file.id])} type="button">
+                                Max
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="empty-detail">Loading torrent details</div>
+              )}
+            </div>
+          ) : null}
           <div className="download-list">
             {downloads.map((download) => {
               const selectedDownload = selectedDownloadKeySet.has(downloadKey(download));
@@ -1428,6 +1566,9 @@ export function App() {
                     </button>
                     <button className="icon-button" disabled={busy || !supportsDownloadAction(download, "increasePriority")} onClick={() => applyDownloadAction("increasePriority", download)} type="button" aria-label="Increase priority" title="Increase priority">
                       <span className="priority-glyph">+</span>
+                    </button>
+                    <button className="icon-button" disabled={busy || (download.client || "qBittorrent").toLowerCase() === "sabnzbd"} onClick={() => openDownloadDetails(download)} type="button" aria-label="Download details" title="Details">
+                      <FileSearch size={16} />
                     </button>
                     <button className="icon-button" disabled={busy || isImportingCompleted} onClick={() => runCompletedImport(download)} type="button" aria-label="Import completed download" title="Import completed">
                       <UploadCloud size={16} />
@@ -1570,6 +1711,34 @@ function formatBytes(bytes: number) {
 function formatSpeed(bytesPerSecond: number) {
   if (!bytesPerSecond) return "0 B/s";
   return `${formatBytes(bytesPerSecond)}/s`;
+}
+
+function formatDuration(seconds?: number) {
+  if (!seconds || seconds < 0 || !Number.isFinite(seconds)) return "unknown";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours < 24) return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return remainingHours ? `${days}d ${remainingHours}h` : `${days}d`;
+}
+
+function filePriorityLabel(priority: number) {
+  switch (priority) {
+    case 0:
+      return "skipped";
+    case 1:
+      return "normal";
+    case 6:
+      return "high";
+    case 7:
+      return "max";
+    default:
+      return `priority ${priority}`;
+  }
 }
 
 function formatDateTime(value: string) {

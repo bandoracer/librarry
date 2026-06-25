@@ -9,6 +9,8 @@ import (
 )
 
 var ErrIntegrationNotConfigured = errors.New("integration is not configured")
+var ErrDownloadNotFound = errors.New("download not found")
+var ErrDownloadDetailsUnsupported = errors.New("download details are only supported for qBittorrent downloads")
 
 type IntegrationConfig struct {
 	ProwlarrURL       string
@@ -157,6 +159,17 @@ func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]Dow
 	return []DownloadStatus{}, nil
 }
 
+func (s *Service) DownloadDetails(ctx context.Context, id string, client string) (DownloadDetails, error) {
+	client = strings.TrimSpace(client)
+	if client != "" && strings.EqualFold(client, s.sab.Name()) {
+		return DownloadDetails{}, ErrDownloadDetailsUnsupported
+	}
+	if client != "" && !strings.EqualFold(client, s.qbit.Name()) {
+		return DownloadDetails{}, ErrDownloadDetailsUnsupported
+	}
+	return s.qbit.Details(ctx, id)
+}
+
 func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
 	ids := compactStrings(request.IDs)
 	if len(ids) == 0 {
@@ -209,6 +222,19 @@ func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequ
 		}
 	}
 	return DownloadActionResult{Action: action, IDs: appliedIDs, Applied: true, Downloads: refreshed}, nil
+}
+
+func (s *Service) DownloadFileAction(ctx context.Context, id string, request DownloadFileActionRequest) (DownloadFileActionResult, error) {
+	request.DownloadID = strings.TrimSpace(id)
+	result, err := s.qbit.FileAction(ctx, request)
+	if err != nil {
+		return DownloadFileActionResult{}, err
+	}
+	details, detailErr := s.qbit.Details(ctx, id)
+	if detailErr == nil {
+		result.Download = &details
+	}
+	return result, nil
 }
 
 func (s *Service) MarkDownloadFailed(ctx context.Context, id string, reason string) error {

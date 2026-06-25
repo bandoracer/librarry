@@ -694,6 +694,57 @@ func TestDownloadActionEndpoint(t *testing.T) {
 	}
 }
 
+func TestDownloadDetailsEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads/abc123?client=qBittorrent", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload acquisition.DownloadDetails
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Status.ID != "abc123" || len(payload.Files) != 1 || payload.Files[0].Name != "Project Hail Mary.epub" {
+		t.Fatalf("unexpected details payload: %+v", payload)
+	}
+	if len(payload.Trackers) != 1 || payload.Trackers[0].Status != "working" {
+		t.Fatalf("unexpected tracker payload: %+v", payload.Trackers)
+	}
+}
+
+func TestDownloadFileActionEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/abc123/files/actions", strings.NewReader(`{"action":"skip","ids":[0]}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload acquisition.DownloadFileActionResult
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.Applied || payload.DownloadID != "abc123" || payload.Action != acquisition.DownloadFileActionSkip || payload.Priority != 0 {
+		t.Fatalf("unexpected file action payload: %+v", payload)
+	}
+}
+
 func TestDownloadRebalanceEndpointStartsPausedDownloads(t *testing.T) {
 	now := time.Now().UTC()
 	acquire := &fakeRebalanceAcquire{downloads: []acquisition.DownloadStatus{
@@ -1218,6 +1269,7 @@ func (fakeAcquire) Grab(_ context.Context, request acquisition.DownloadRequest) 
 func (fakeAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
 	now := time.Now().UTC()
 	return []acquisition.DownloadStatus{{
+		Client:      "qBittorrent",
 		ID:          "abc123",
 		Name:        "Project Hail Mary.epub",
 		State:       "uploading",
@@ -1229,11 +1281,77 @@ func (fakeAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]
 	}}, nil
 }
 
+func (fakeAcquire) DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error) {
+	now := time.Now().UTC()
+	return acquisition.DownloadDetails{
+		Status: acquisition.DownloadStatus{
+			Client:       "qBittorrent",
+			ID:           "abc123",
+			Name:         "Project Hail Mary.epub",
+			State:        "downloading",
+			Progress:     0.5,
+			SavePath:     "/downloads",
+			Category:     "books-ebook",
+			Tags:         []string{"librarry", "wanted:wanted-1"},
+			SizeBytes:    1000,
+			AddedAt:      &now,
+			LastSeenAt:   &now,
+			DownloadRate: 12,
+			UploadRate:   3,
+		},
+		Properties: acquisition.DownloadProperties{
+			SavePath:          "/downloads",
+			TotalSizeBytes:    1000,
+			TotalDownloaded:   500,
+			TotalUploaded:     25,
+			PieceSizeBytes:    16,
+			PiecesHave:        4,
+			PiecesTotal:       8,
+			Connections:       6,
+			ConnectionsLimit:  50,
+			DownloadSpeed:     12,
+			UploadSpeed:       3,
+			ETASeconds:        42,
+			ReannounceSeconds: 1200,
+		},
+		Files: []acquisition.DownloadFile{{
+			ID:           0,
+			Name:         "Project Hail Mary.epub",
+			SizeBytes:    1000,
+			Progress:     0.5,
+			Priority:     1,
+			Availability: 3.5,
+		}},
+		Trackers: []acquisition.DownloadTracker{{
+			URL:        "https://tracker.example/announce",
+			StatusCode: 2,
+			Status:     "working",
+			Peers:      10,
+			Seeds:      8,
+			Leeches:    2,
+		}},
+	}, nil
+}
+
 func (fakeAcquire) DownloadAction(_ context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error) {
 	return acquisition.DownloadActionResult{
 		Action:  acquisition.DownloadActionStop,
 		IDs:     request.IDs,
 		Applied: true,
+	}, nil
+}
+
+func (fakeAcquire) DownloadFileAction(_ context.Context, id string, request acquisition.DownloadFileActionRequest) (acquisition.DownloadFileActionResult, error) {
+	priority := 1
+	if request.Action == acquisition.DownloadFileActionSkip {
+		priority = 0
+	}
+	return acquisition.DownloadFileActionResult{
+		Action:     request.Action,
+		DownloadID: id,
+		IDs:        request.IDs,
+		Priority:   priority,
+		Applied:    true,
 	}, nil
 }
 
