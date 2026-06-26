@@ -367,6 +367,11 @@ export type MetadataFieldCandidate = {
   matchedOn?: string[];
 };
 
+export type MetadataCorrectionRequest = {
+  fieldName: string;
+  value: string;
+};
+
 export type MetadataFieldEvidence = {
   fieldName: string;
   label: string;
@@ -1291,6 +1296,18 @@ export async function fetchWantedMetadataReview(): Promise<MetadataReviewQueue> 
     throw new Error(await apiError(response, "Wanted metadata review failed"));
   }
   return (await response.json()) as MetadataReviewQueue;
+}
+
+export async function applyWantedMetadataCorrection(wantedID: string, request: MetadataCorrectionRequest): Promise<MetadataProvenance> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/${encodeURIComponent(wantedID)}/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Wanted metadata correction failed"));
+  }
+  return (await response.json()) as MetadataProvenance;
 }
 
 export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {

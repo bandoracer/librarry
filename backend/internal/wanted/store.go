@@ -844,6 +844,24 @@ func (s *Store) WantedMetadataReviewQueue(ctx context.Context) (MetadataReviewQu
 	}, nil
 }
 
+func (s *Store) ApplyWantedMetadataCorrection(ctx context.Context, wantedID string, request MetadataCorrectionRequest) (MetadataProvenance, error) {
+	if !s.Configured() {
+		return MetadataProvenance{}, errors.New("wanted store is unavailable")
+	}
+	wantedID = strings.TrimSpace(wantedID)
+	if wantedID == "" {
+		return MetadataProvenance{}, errors.New("wanted item id is required")
+	}
+	update, err := metadataCorrectionUpdateRequest(request)
+	if err != nil {
+		return MetadataProvenance{}, err
+	}
+	if _, err := s.UpdateWanted(ctx, wantedID, update); err != nil {
+		return MetadataProvenance{}, err
+	}
+	return s.WantedMetadataProvenance(ctx, wantedID)
+}
+
 func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID string, field string) error {
 	switch field {
 	case "title":
@@ -1096,6 +1114,29 @@ func latestProviderRecordFetchedAt(records []ProviderMetadataRecord) *time.Time 
 		}
 	}
 	return latest
+}
+
+func metadataCorrectionUpdateRequest(request MetadataCorrectionRequest) (WantedUpdateRequest, error) {
+	field := normalizeWantedOverrideField(request.FieldName)
+	if !validWantedOverrideField(field) {
+		return WantedUpdateRequest{}, fmt.Errorf("unsupported wanted metadata field %q", request.FieldName)
+	}
+	value := strings.TrimSpace(request.Value)
+	if value == "" {
+		return WantedUpdateRequest{}, errors.New("metadata correction value is required")
+	}
+	switch field {
+	case "title":
+		return WantedUpdateRequest{Title: value}, nil
+	case "author_name":
+		return WantedUpdateRequest{AuthorName: value}, nil
+	case "cover_url":
+		return WantedUpdateRequest{CoverURL: value}, nil
+	case "quality_profile":
+		return WantedUpdateRequest{QualityProfile: value}, nil
+	default:
+		return WantedUpdateRequest{}, fmt.Errorf("unsupported wanted metadata field %q", request.FieldName)
+	}
 }
 
 func normalizeWantedOverrideFields(fields []string) ([]string, error) {

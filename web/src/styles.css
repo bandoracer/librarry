@@ -2168,6 +2168,19 @@ select {
   white-space: nowrap;
 }
 
+.metadata-field-candidate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.metadata-field-candidate-actions .secondary-action.compact {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
 .metadata-section-label {
   min-height: 32px;
   display: flex;

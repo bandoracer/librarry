@@ -2482,6 +2482,33 @@ func TestWantedMetadataReviewEndpointReturnsConflicts(t *testing.T) {
 	}
 }
 
+func TestApplyWantedMetadataCorrectionEndpointReturnsUpdatedProvenance(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeMetadataWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/metadata/wanted-1/apply", strings.NewReader(`{"fieldName":"title","value":"Project Hail Mary: A Novel"}`))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	for _, want := range []string{
+		`"canonicalValue":"Project Hail Mary: A Novel"`,
+		`"protected":true`,
+		`"wantedItem"`,
+	} {
+		if !strings.Contains(res.Body.String(), want) {
+			t.Fatalf("expected %s in correction response, got %s", want, res.Body.String())
+		}
+	}
+}
+
 func TestGrabWantedEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3866,6 +3893,42 @@ func (fakeMetadataWanted) MetadataReviewQueue(context.Context) (wanted.MetadataR
 			RecordCount:    2,
 			CandidateCount: 2,
 			LastFetchedAt:  &now,
+		}},
+		GeneratedAt: now,
+	}, nil
+}
+
+func (fakeMetadataWanted) ApplyMetadataCorrection(_ context.Context, _ string, request wanted.MetadataCorrectionRequest) (wanted.MetadataProvenance, error) {
+	now := time.Now().UTC()
+	item := wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "work-1",
+		Title:          request.Value,
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		ManualOverrides: []wanted.ManualOverride{{
+			FieldName: request.FieldName,
+			Value:     request.Value,
+			Reason:    "manual wanted metadata correction",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	return wanted.MetadataProvenance{
+		WantedItem:      item,
+		ManualOverrides: item.ManualOverrides,
+		Fields: []wanted.MetadataFieldEvidence{{
+			FieldName:       request.FieldName,
+			Label:           "Title",
+			CanonicalValue:  request.Value,
+			CanonicalSource: "manual_override",
+			Protected:       true,
+			Conflict:        false,
 		}},
 		GeneratedAt: now,
 	}, nil

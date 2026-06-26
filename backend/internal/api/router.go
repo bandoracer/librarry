@@ -86,6 +86,7 @@ type wantedService interface {
 type metadataProvenanceService interface {
 	MetadataProvenance(ctx context.Context, id string) (wanted.MetadataProvenance, error)
 	MetadataReviewQueue(ctx context.Context) (wanted.MetadataReviewQueue, error)
+	ApplyMetadataCorrection(ctx context.Context, id string, request wanted.MetadataCorrectionRequest) (wanted.MetadataProvenance, error)
 }
 
 type libraryService interface {
@@ -353,6 +354,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}", handler.deleteWanted)
 	mux.HandleFunc("GET /api/v1/wanted/metadata/review", handler.wantedMetadataReview)
 	mux.HandleFunc("GET /api/v1/wanted/metadata/{id}", handler.wantedMetadata)
+	mux.HandleFunc("POST /api/v1/wanted/metadata/{id}/apply", handler.applyWantedMetadataCorrection)
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}/overrides/{field}", handler.clearWantedOverride)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
 	mux.HandleFunc("POST /api/v1/wanted/feed-sync", handler.feedSyncWanted)
@@ -1214,6 +1216,39 @@ func (h *handler) wantedMetadataReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, queue)
+}
+
+func (h *handler) applyWantedMetadataCorrection(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	provenanceService, ok := h.deps.Wanted.(metadataProvenanceService)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted metadata correction is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "wanted item id is required"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.MetadataCorrectionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted metadata correction payload"})
+		return
+	}
+	provenance, err := provenanceService.ApplyMetadataCorrection(r.Context(), id, request)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, provenance)
 }
 
 func decodeWantedUpdateRequest(body io.Reader) (wanted.WantedUpdateRequest, error) {

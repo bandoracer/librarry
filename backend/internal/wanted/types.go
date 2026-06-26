@@ -196,6 +196,11 @@ type MetadataReviewItem struct {
 	LastFetchedAt  *time.Time              `json:"lastFetchedAt,omitempty"`
 }
 
+type MetadataCorrectionRequest struct {
+	FieldName string `json:"fieldName"`
+	Value     string `json:"value"`
+}
+
 type ProviderMetadataRecord struct {
 	ID          string               `json:"id"`
 	Provider    string               `json:"provider"`

@@ -94,7 +94,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   the active manual overrides that protect corrected fields. Field-level
   evidence also marks canonical values, provider candidates, and conflicts that
   need manual review. A metadata review queue surfaces wanted items with
-  conflicts or protected fields before they become hidden library debt.
+  conflicts or protected fields before they become hidden library debt, and
+  supported provider candidates can be applied as protected corrections without
+  copying values by hand.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Scoped acquisition activity for configured qBittorrent, Transmission, and
@@ -494,6 +496,7 @@ Important API surfaces:
   - `DELETE /api/v1/wanted/{id}`
   - `GET /api/v1/wanted/metadata/review`
   - `GET /api/v1/wanted/metadata/{id}`
+  - `POST /api/v1/wanted/metadata/{id}/apply`
   - `DELETE /api/v1/wanted/{id}/overrides/{field}`
   - `POST /api/v1/wanted/{id}/search`
   - `GET /api/v1/wanted/releases/{id}`

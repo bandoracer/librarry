@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  applyWantedMetadataCorrection,
   clearWantedOverride,
   createWanted,
   deleteWanted,
@@ -101,6 +102,7 @@ import {
   type LibraryImportOutcome,
   type LibraryScanOutcome,
   type MetadataFieldEvidence,
+  type MetadataFieldCandidate,
   type MetadataProvenance,
   type MetadataReviewItem,
   type MetadataReviewQueue,
@@ -283,6 +285,7 @@ export function App() {
   const [isLoadingWantedMetadata, setIsLoadingWantedMetadata] = useState(false);
   const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
   const [isRemovingWanted, setIsRemovingWanted] = useState(false);
+  const [applyingMetadataCandidateID, setApplyingMetadataCandidateID] = useState("");
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isSubscribingAuthor, setIsSubscribingAuthor] = useState(false);
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
@@ -842,6 +845,29 @@ export function App() {
       setWantedError(error instanceof Error ? error.message : "Wanted override reset failed");
     } finally {
       setClearingWantedOverrideField("");
+    }
+  }
+
+  async function applySelectedMetadataCandidate(field: MetadataFieldEvidence, candidate: MetadataFieldCandidate) {
+    const item = selectedWanted;
+    if (!item || !metadataFieldCanApply(field)) return;
+    const actionID = `${field.fieldName}:${candidate.provider}:${candidate.value}`;
+    setApplyingMetadataCandidateID(actionID);
+    setWantedError("");
+    try {
+      const provenance = await applyWantedMetadataCorrection(item.id, {
+        fieldName: field.fieldName,
+        value: candidate.value
+      });
+      setWantedMetadata(provenance);
+      setWantedItems((current) => mergeWanted(current, [provenance.wantedItem]));
+      setSelectedWantedID(provenance.wantedItem.id);
+      await refreshWantedMetadataReview();
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted metadata correction failed");
+    } finally {
+      setApplyingMetadataCandidateID("");
     }
   }
 
@@ -2280,6 +2306,24 @@ export function App() {
                             <div>
                               <strong>{field.canonicalValue || "No canonical value"}</strong>
                               <span>{metadataFieldCandidateSummary(field)}</span>
+                              {metadataFieldApplicableCandidates(field).length ? (
+                                <div className="metadata-field-candidate-actions" aria-label={`${field.label} provider candidates`}>
+                                  {metadataFieldApplicableCandidates(field).map((candidate) => {
+                                    const actionID = `${field.fieldName}:${candidate.provider}:${candidate.value}`;
+                                    return (
+                                      <button
+                                        className="secondary-action compact"
+                                        disabled={applyingMetadataCandidateID === actionID}
+                                        key={`${candidate.provider}:${candidate.providerKey}:${candidate.value}`}
+                                        onClick={() => applySelectedMetadataCandidate(field, candidate)}
+                                        type="button"
+                                      >
+                                        {applyingMetadataCandidateID === actionID ? "Applying" : `Use ${candidate.provider}`}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
                             </div>
                             <em>{field.conflict ? "review" : field.protected ? "protected" : "ok"}</em>
                           </article>
@@ -4286,6 +4330,26 @@ function metadataFieldCandidateSummary(field: MetadataFieldEvidence) {
   const candidates = field.candidates.slice(0, 3).map((candidate) => `${candidate.provider}: ${candidate.value}`);
   const extra = field.candidates.length - candidates.length;
   return extra > 0 ? `${candidates.join(" · ")} · ${extra} more` : candidates.join(" · ");
+}
+
+function metadataFieldCanApply(field: MetadataFieldEvidence) {
+  return ["title", "author_name", "cover_url", "quality_profile"].includes(field.fieldName);
+}
+
+function metadataFieldApplicableCandidates(field: MetadataFieldEvidence) {
+  if (!metadataFieldCanApply(field)) return [];
+  const canonical = normalizeMetadataValue(field.canonicalValue);
+  const seen = new Set<string>();
+  return (field.candidates ?? []).filter((candidate) => {
+    const value = normalizeMetadataValue(candidate.value);
+    if (!value || value === canonical || seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  }).slice(0, 3);
+}
+
+function normalizeMetadataValue(value?: string) {
+  return (value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function metadataRecordPrimaryLine(record: ProviderMetadataRecord) {

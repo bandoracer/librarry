@@ -124,6 +124,59 @@ func TestMetadataReviewItemSummarizesReviewFields(t *testing.T) {
 	}
 }
 
+func TestMetadataCorrectionUpdateRequestMapsSupportedFields(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		request MetadataCorrectionRequest
+		assert  func(t *testing.T, update WantedUpdateRequest)
+	}{
+		{
+			name:    "title",
+			request: MetadataCorrectionRequest{FieldName: "title", Value: "Project Hail Mary"},
+			assert: func(t *testing.T, update WantedUpdateRequest) {
+				if update.Title != "Project Hail Mary" {
+					t.Fatalf("expected title correction, got %+v", update)
+				}
+			},
+		},
+		{
+			name:    "author alias",
+			request: MetadataCorrectionRequest{FieldName: "authorName", Value: "Andy Weir"},
+			assert: func(t *testing.T, update WantedUpdateRequest) {
+				if update.AuthorName != "Andy Weir" {
+					t.Fatalf("expected author correction, got %+v", update)
+				}
+			},
+		},
+		{
+			name:    "cover alias",
+			request: MetadataCorrectionRequest{FieldName: "coverUrl", Value: "https://example.test/cover.jpg"},
+			assert: func(t *testing.T, update WantedUpdateRequest) {
+				if update.CoverURL != "https://example.test/cover.jpg" {
+					t.Fatalf("expected cover correction, got %+v", update)
+				}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			update, err := metadataCorrectionUpdateRequest(tc.request)
+			if err != nil {
+				t.Fatalf("unexpected correction error: %v", err)
+			}
+			tc.assert(t, update)
+		})
+	}
+}
+
+func TestMetadataCorrectionUpdateRequestRejectsUnsupportedFields(t *testing.T) {
+	if _, err := metadataCorrectionUpdateRequest(MetadataCorrectionRequest{FieldName: "publisher", Value: "Ballantine"}); err == nil {
+		t.Fatal("expected unsupported field error")
+	}
+	if _, err := metadataCorrectionUpdateRequest(MetadataCorrectionRequest{FieldName: "title", Value: "  "}); err == nil {
+		t.Fatal("expected empty value error")
+	}
+}
+
 func findMetadataField(fields []MetadataFieldEvidence, fieldName string) (MetadataFieldEvidence, bool) {
 	for _, field := range fields {
 		if field.FieldName == fieldName {
