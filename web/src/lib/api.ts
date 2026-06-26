@@ -1175,7 +1175,7 @@ export async function clearWantedOverride(wantedID: string, fieldName: string): 
 }
 
 export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {
-  const response = await fetch(`${apiBase}/api/v1/wanted/${wantedID}/search`, {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(wantedID)}/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ limit: 20 })
@@ -1186,13 +1186,22 @@ export async function searchWantedReleases(wantedID: string): Promise<WantedSear
   return (await response.json()) as WantedSearchOutcome;
 }
 
-export async function grabWanted(wantedID: string, releaseID?: string): Promise<DownloadStatus> {
-  const response = await fetch(`${apiBase}/api/v1/wanted/${wantedID}/grab`, {
+export async function fetchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/releases/${encodeURIComponent(wantedID)}`);
+  if (!response.ok) {
+    throw new Error(`Wanted release decisions refresh failed: ${response.status}`);
+  }
+  return (await response.json()) as WantedSearchOutcome;
+}
+
+export async function grabWanted(wantedID: string, releaseID?: string, options: { paused?: boolean; force?: boolean } = {}): Promise<DownloadStatus> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(wantedID)}/grab`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       releaseId: releaseID,
-      paused: true
+      paused: options.paused ?? true,
+      force: options.force ?? false
     })
   });
   if (!response.ok) {

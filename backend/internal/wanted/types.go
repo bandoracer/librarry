@@ -147,6 +147,7 @@ type GrabRequest struct {
 	ReleaseID string `json:"releaseId,omitempty"`
 	Client    string `json:"client,omitempty"`
 	Paused    bool   `json:"paused"`
+	Force     bool   `json:"force,omitempty"`
 }
 
 type WantedItem struct {

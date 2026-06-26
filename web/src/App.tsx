@@ -47,6 +47,7 @@ import {
   fetchProviderHealth,
   fetchQualityProfiles,
   fetchWanted,
+  fetchWantedReleases,
   getStoredAPIKey,
   grabManualDownload,
   grabWanted,
@@ -164,6 +165,7 @@ type ViewID = (typeof navItems)[number]["id"];
 type DownloadScope = "all" | "librarry";
 type DownloadStateFilter = "all" | "active" | "paused" | "complete" | "failed";
 type WantedViewFilter = "missing" | "wanted" | "grabbed" | "all";
+type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 
 function emptyIntegrationSettings(): IntegrationSettings {
   return {
@@ -238,6 +240,7 @@ export function App() {
   const [selectedImportReviewIDs, setSelectedImportReviewIDs] = useState<string[]>([]);
   const [downloadScope, setDownloadScope] = useState<DownloadScope>("all");
   const [wantedViewFilter, setWantedViewFilter] = useState<WantedViewFilter>("missing");
+  const [wantedReleaseFilter, setWantedReleaseFilter] = useState<ReleaseDecisionFilter>("all");
   const [downloadClientFilter, setDownloadClientFilter] = useState("");
   const [downloadResourceClient, setDownloadResourceClient] = useState("qBittorrent");
   const [downloadCategoryFilter, setDownloadCategoryFilter] = useState("");
@@ -254,6 +257,7 @@ export function App() {
   const [isSearchingReleases, setIsSearchingReleases] = useState(false);
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
+  const [isLoadingWantedReleases, setIsLoadingWantedReleases] = useState(false);
   const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
   const [isRemovingWanted, setIsRemovingWanted] = useState(false);
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
@@ -278,6 +282,7 @@ export function App() {
   const [downloadActionID, setDownloadActionID] = useState("");
   const [downloadResourceActionID, setDownloadResourceActionID] = useState("");
   const [clearingWantedOverrideField, setClearingWantedOverrideField] = useState("");
+  const [grabbingWantedReleaseID, setGrabbingWantedReleaseID] = useState("");
   const [trackerURL, setTrackerURL] = useState("");
   const [downloadNameInput, setDownloadNameInput] = useState("");
   const [downloadTagsInput, setDownloadTagsInput] = useState("");
@@ -439,6 +444,11 @@ export function App() {
     () => qualityProfiles.filter((profile) => !selectedWanted || profile.mediaFormat === "any" || profile.mediaFormat === selectedWanted.format),
     [qualityProfiles, selectedWanted]
   );
+  const wantedReleaseSummary = useMemo(() => summarizeReleaseDecisions(wantedReleases), [wantedReleases]);
+  const visibleWantedReleases = useMemo(
+    () => wantedReleases.filter((release) => releaseDecisionVisibleForFilter(release, wantedReleaseFilter)),
+    [wantedReleases, wantedReleaseFilter]
+  );
   const filteredDownloads = useMemo(
     () => downloads.filter((download) => downloadMatchesFilters(download, {
       client: downloadClientFilter,
@@ -506,6 +516,29 @@ export function App() {
     setWantedEditQualityProfile(selectedWanted?.qualityProfile ?? "standard");
     setWantedEditMonitored(selectedWanted?.monitored ?? true);
   }, [selectedWanted?.id, selectedWanted?.title, selectedWanted?.authorName, selectedWanted?.coverUrl, selectedWanted?.qualityProfile, selectedWanted?.monitored]);
+
+  useEffect(() => {
+    if (activeView !== "wanted" || !selectedWanted?.id) return;
+    let canceled = false;
+    setIsLoadingWantedReleases(true);
+    fetchWantedReleases(selectedWanted.id)
+      .then((outcome) => {
+        if (canceled) return;
+        setWantedItems((current) => mergeWanted(current, [outcome.wantedItem]));
+        setWantedReleases(outcome.releases);
+        setWantedReleaseFilter("all");
+        setAPIState("live");
+      })
+      .catch((error) => {
+        if (!canceled) setWantedError(error instanceof Error ? error.message : "Wanted release decisions refresh failed");
+      })
+      .finally(() => {
+        if (!canceled) setIsLoadingWantedReleases(false);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [activeView, selectedWanted?.id]);
 
   async function runSearch() {
     if (!query.trim()) return;
@@ -615,11 +648,29 @@ export function App() {
       const outcome = await searchWantedReleases(item.id);
       setWantedItems((current) => mergeWanted(current, [outcome.wantedItem]));
       setWantedReleases(outcome.releases);
+      setWantedReleaseFilter("all");
       setSelectedWantedID(item.id);
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted release search failed");
     } finally {
       setIsSearchingWanted(false);
+    }
+  }
+
+  async function loadWantedReleaseDecisions(item = selectedWanted) {
+    if (!item) return;
+    setIsLoadingWantedReleases(true);
+    setWantedError("");
+    try {
+      const outcome = await fetchWantedReleases(item.id);
+      setWantedItems((current) => mergeWanted(current, [outcome.wantedItem]));
+      setWantedReleases(outcome.releases);
+      setSelectedWantedID(item.id);
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted release decisions refresh failed");
+    } finally {
+      setIsLoadingWantedReleases(false);
     }
   }
 
@@ -683,17 +734,21 @@ export function App() {
     }
   }
 
-  async function grabWantedRelease(release?: ReleaseDecision) {
+  async function grabWantedRelease(release?: ReleaseDecision, force = false) {
     const item = selectedWanted;
     if (!item) return;
+    const actionID = release ? releaseActionID(release, force) : "auto";
+    setGrabbingWantedReleaseID(actionID);
     setWantedError("");
     try {
-      const status = await grabWanted(item.id, release?.id);
+      const status = await grabWanted(item.id, release?.id, { paused: true, force });
       setDownloadStatus(status);
       await refreshDownloads();
       await refreshWantedAndHistory();
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted grab failed");
+    } finally {
+      setGrabbingWantedReleaseID("");
     }
   }
 
@@ -1829,10 +1884,7 @@ export function App() {
                   <button
                     className={wantedViewFilter === scope ? "selected" : ""}
                     key={scope}
-                    onClick={() => {
-                      setWantedViewFilter(scope);
-                      setWantedReleases([]);
-                    }}
+                    onClick={() => setWantedViewFilter(scope)}
                     type="button"
                   >
                     {scope}
@@ -1857,6 +1909,7 @@ export function App() {
                       key={item.id}
                       onClick={() => {
                         setSelectedWantedID(item.id);
+                        setWantedReleaseFilter("all");
                         setWantedReleases([]);
                       }}
                       type="button"
@@ -1945,8 +1998,31 @@ export function App() {
                   </div>
                 </div>
               ) : null}
-              {wantedReleases.length ? (
-                wantedReleases.map((release) => (
+              <div className="wanted-release-review-bar">
+                <div>
+                  <strong>Release review</strong>
+                  <span>
+                    {wantedReleases.length
+                      ? `${wantedReleaseSummary.approved} approved · ${wantedReleaseSummary.rejected} rejected · ${wantedReleases.length} stored`
+                      : "No stored decisions for this wanted item."}
+                  </span>
+                </div>
+                <div className="wanted-release-review-actions">
+                  <div className="segmented compact" aria-label="Release decision filter">
+                    {(["all", "approved", "rejected"] as ReleaseDecisionFilter[]).map((scope) => (
+                      <button className={wantedReleaseFilter === scope ? "selected" : ""} key={scope} onClick={() => setWantedReleaseFilter(scope)} type="button">
+                        {scope}
+                      </button>
+                    ))}
+                  </div>
+                  <button className="secondary-action compact" disabled={!selectedWanted || isLoadingWantedReleases} onClick={() => loadWantedReleaseDecisions()} type="button">
+                    <RefreshCw size={15} />
+                    {isLoadingWantedReleases ? "Loading" : "Previous"}
+                  </button>
+                </div>
+              </div>
+              {visibleWantedReleases.length ? (
+                visibleWantedReleases.map((release) => (
                   <article className={release.approved ? "wanted-release approved" : "wanted-release rejected"} key={release.id}>
                     <div>
                       <div className="wanted-release-title">
@@ -1954,18 +2030,39 @@ export function App() {
                         <span>{release.approved ? "Approved" : "Rejected"}</span>
                       </div>
                       <p>
-                        {release.indexer} · score {release.score.toFixed(1)} · {formatBytes(release.sizeBytes ?? 0)} · {release.seeders ?? 0} seeders
+                        {release.indexer} · {release.protocol || "release"} · score {release.score.toFixed(1)} · {formatBytes(release.sizeBytes ?? 0)} · {release.seeders ?? 0} seeders · {release.leechers ?? 0} leechers
                       </p>
-                      {release.rejectedReason ? <small>{release.rejectedReason}</small> : null}
+                      {release.categories?.length ? <small>{release.categories.join(", ")}</small> : null}
+                      {release.rejectedReason ? <small className="wanted-release-rejection">{release.rejectedReason}</small> : null}
                     </div>
-                    <button className="secondary-action compact" disabled={!release.approved} onClick={() => grabWantedRelease(release)} type="button">
-                      Grab paused
-                    </button>
+                    <div className="wanted-release-actions">
+                      {release.infoUrl ? (
+                        <a className="secondary-action compact" href={release.infoUrl} rel="noreferrer" target="_blank">
+                          Details
+                        </a>
+                      ) : null}
+                      <button
+                        className={release.approved ? "secondary-action compact" : "secondary-action compact danger-outline"}
+                        disabled={grabbingWantedReleaseID === releaseActionID(release, !release.approved)}
+                        onClick={() => grabWantedRelease(release, !release.approved)}
+                        type="button"
+                      >
+                        {grabbingWantedReleaseID === releaseActionID(release, !release.approved)
+                          ? "Grabbing"
+                          : release.approved
+                            ? "Grab paused"
+                            : "Force grab"}
+                      </button>
+                    </div>
                   </article>
                 ))
               ) : (
                 <div className="wanted-empty">
-                  {selectedWanted ? "Search wanted releases to evaluate candidates." : "No wanted item selected."}
+                  {isLoadingWantedReleases
+                    ? "Loading stored release decisions."
+                    : selectedWanted
+                      ? "Search wanted releases to evaluate candidates."
+                      : "No wanted item selected."}
                 </div>
               )}
             </div>
@@ -3591,6 +3688,30 @@ function summarizeWantedItems(items: WantedItem[], presence: Map<string, WantedP
     },
     { missing: 0, grabbed: 0, present: 0 }
   );
+}
+
+function summarizeReleaseDecisions(releases: ReleaseDecision[]) {
+  return releases.reduce(
+    (summary, release) => {
+      if (release.approved) {
+        summary.approved += 1;
+      } else {
+        summary.rejected += 1;
+      }
+      return summary;
+    },
+    { approved: 0, rejected: 0 }
+  );
+}
+
+function releaseDecisionVisibleForFilter(release: ReleaseDecision, filter: ReleaseDecisionFilter) {
+  if (filter === "approved") return release.approved;
+  if (filter === "rejected") return !release.approved;
+  return true;
+}
+
+function releaseActionID(release: ReleaseDecision, force: boolean) {
+  return `${release.id || release.sourceId || release.title}:${force ? "force" : "grab"}`;
 }
 
 function wantedItemVisibleForFilter(item: WantedItem, presence: WantedPresence | undefined, filter: WantedViewFilter) {

@@ -254,6 +254,17 @@ select {
   color: var(--accent-ink);
 }
 
+.segmented.compact {
+  height: 34px;
+  box-shadow: none;
+}
+
+.segmented.compact button {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
 .primary-action,
 .secondary-action,
 .icon-button {
@@ -602,6 +613,7 @@ select {
   color: var(--muted-strong);
   font-size: 13px;
   font-weight: 650;
+  text-decoration: none;
 }
 
 .secondary-action.compact {
@@ -1778,6 +1790,45 @@ select {
   gap: 8px;
 }
 
+.wanted-release-review-bar {
+  min-height: 58px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #fff;
+}
+
+.wanted-release-review-bar > div:first-child {
+  min-width: 0;
+}
+
+.wanted-release-review-bar strong,
+.wanted-release-review-bar span {
+  display: block;
+  min-width: 0;
+}
+
+.wanted-release-review-bar strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.wanted-release-review-bar span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wanted-release-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .wanted-release {
   min-height: 76px;
   border-top: 1px solid var(--border);
@@ -1842,6 +1893,17 @@ select {
   color: var(--muted);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.wanted-release-rejection {
+  color: #9f1239 !important;
+}
+
+.wanted-release-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .wanted-empty {

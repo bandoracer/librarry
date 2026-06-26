@@ -448,6 +448,11 @@ from acquisition/import status so Readarr-compatible monitor/unmonitor calls do
 not erase grabbed or imported state. A wanted item can search releases through
 Prowlarr, persist scored release decisions, and record explicit rejection
 reasons before a candidate is sent to the matching download client.
+`GET /api/v1/wanted/releases/{id}` reloads the stored decision set for manual
+review. `POST /api/v1/wanted/{id}/grab` only accepts approved decisions unless
+the request includes `force: true`; forced grabs are recorded in history while
+scheduled monitor, feed, failed-download, and upgrade flows continue to select
+approved decisions only.
 Readarr-compatible book updates persist monitored state, quality profile
 changes, title/author display overrides, and soft removal.
 The book editor endpoints apply the same durable mutations in bulk for common

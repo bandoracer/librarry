@@ -101,6 +101,15 @@ Manual monitor runs are available through `POST /api/v1/wanted/monitor`.
 `LIBRARRY_MONITOR_AUTO_GRAB=false` keeps scheduled runs search-only while still
 recording release decisions and history.
 
+Manual wanted search uses `POST /api/v1/wanted/{id}/search` to persist scored
+release decisions. The web UI reloads those decisions with
+`GET /api/v1/wanted/releases/{id}` when a wanted item is selected, so operators
+can review previous approved and rejected candidates without rerunning indexer
+search. Native wanted grabs still reject failed policy decisions by default; a
+manual request can pass `force: true` to `POST /api/v1/wanted/{id}/grab` to send
+a selected rejected release to the download client and record that override in
+history.
+
 ## Author Monitor
 
 The API can refresh monitored authors on an interval:

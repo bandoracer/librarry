@@ -350,10 +350,10 @@ func (s *Service) Grab(ctx context.Context, wantedID string, request GrabRequest
 	if err != nil {
 		return acquisition.DownloadStatus{}, err
 	}
-	if !release.Approved {
+	if !release.Approved && !request.Force {
 		return acquisition.DownloadStatus{}, errors.New("release is rejected: " + release.RejectedReason)
 	}
-	return s.grabRelease(ctx, item, release, request.Paused, request.Client, "manual")
+	return s.grabRelease(ctx, item, release, request.Paused, request.Client, "manual", request.Force)
 }
 
 func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorRun, error) {
@@ -454,7 +454,7 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 
 		if request.AutoGrab {
 			if release, ok := firstApproved(outcome.Releases); ok {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "monitor")
+				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "monitor", false)
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -590,7 +590,7 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 				run.RejectedCount++
 			}
 			if request.AutoGrab && decision.Approved && !grabbedWanted[item.ID] {
-				status, err := s.grabRelease(ctx, item, decision, request.Paused, "", "feed")
+				status, err := s.grabRelease(ctx, item, decision, request.Paused, "", "feed", false)
 				if err != nil {
 					match.Error = err.Error()
 					run.ErrorCount++
@@ -758,7 +758,7 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 				result.Error = "no approved replacement release is available"
 				run.ErrorCount++
 			} else {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, replacement, request.Paused, "", "failed-download")
+				status, err := s.grabRelease(ctx, outcome.WantedItem, replacement, request.Paused, "", "failed-download", false)
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -925,7 +925,7 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 				},
 			})
 			if request.AutoGrab {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "upgrade")
+				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "upgrade", false)
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -980,7 +980,7 @@ func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEve
 	return s.store.ListHistory(ctx, query)
 }
 
-func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string) (acquisition.DownloadStatus, error) {
+func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string, forced bool) (acquisition.DownloadStatus, error) {
 	status, err := s.acquire.Grab(ctx, acquisition.DownloadRequest{
 		Client:     client,
 		ReleaseURL: release.DownloadURL,
@@ -1006,17 +1006,26 @@ func (s *Service) grabRelease(ctx context.Context, item WantedItem, release Rele
 		EntityType: "wanted_item",
 		EntityID:   item.ID,
 		Severity:   "info",
-		Message:    "Grabbed approved release for " + item.Title,
+		Message:    grabHistoryMessage(item, forced),
 		Data: map[string]any{
-			"trigger":    trigger,
-			"releaseId":  release.ID,
-			"sourceId":   release.SourceID,
-			"downloadId": status.ID,
-			"title":      release.Title,
-			"paused":     paused,
+			"trigger":        trigger,
+			"releaseId":      release.ID,
+			"sourceId":       release.SourceID,
+			"downloadId":     status.ID,
+			"title":          release.Title,
+			"paused":         paused,
+			"forced":         forced,
+			"rejectedReason": release.RejectedReason,
 		},
 	})
 	return status, nil
+}
+
+func grabHistoryMessage(item WantedItem, forced bool) string {
+	if forced {
+		return "Force grabbed manually selected release for " + item.Title
+	}
+	return "Grabbed approved release for " + item.Title
 }
 
 func (s *Service) pickRelease(ctx context.Context, wantedID string, releaseID string) (ReleaseDecision, error) {

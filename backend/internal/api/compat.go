@@ -2440,11 +2440,12 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 	releaseID := firstNonEmptyString(payloadString(payload, "releaseId"), payloadString(payload, "id"), payloadString(payload, "guid"), payloadString(payload, "sourceId"))
 	client := firstNonEmptyString(payloadString(payload, "client"), payloadString(payload, "downloadClient"), payloadString(payload, "downloadClientName"))
 	paused := payloadBoolDefault(payload, "paused", true)
+	force := payloadBoolDefault(payload, "force", false)
 	releaseURL := compatReleaseURLFromPayload(payload)
 	if h.deps.Wanted != nil && wantedID != "" && releaseID != "" {
 		resolvedReleaseID, matchedRelease := h.compatResolveWantedReleaseID(r.Context(), wantedID, releaseID)
 		if matchedRelease || releaseURL == "" {
-			status, err := h.deps.Wanted.Grab(r.Context(), wantedID, wanted.GrabRequest{ReleaseID: resolvedReleaseID, Client: client, Paused: paused})
+			status, err := h.deps.Wanted.Grab(r.Context(), wantedID, wanted.GrabRequest{ReleaseID: resolvedReleaseID, Client: client, Paused: paused, Force: force})
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 				return

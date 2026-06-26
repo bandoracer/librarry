@@ -2445,6 +2445,27 @@ func TestGrabWantedEndpoint(t *testing.T) {
 	}
 }
 
+func TestGrabWantedEndpointAcceptsForcedRejectedRelease(t *testing.T) {
+	wantedClient := &fakeReleaseWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   wantedClient,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/wanted-1/grab", strings.NewReader(`{"releaseId":"release-1","paused":true,"force":true}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.grabs) != 1 || !wantedClient.grabs[0].Force {
+		t.Fatalf("expected forced wanted grab request, got %+v", wantedClient.grabs)
+	}
+}
+
 func TestMonitorWantedEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
