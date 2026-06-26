@@ -2817,6 +2817,33 @@ select {
   display: grid;
 }
 
+.download-empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 22px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.download-empty strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.download-empty span {
+  max-width: 720px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.download-empty div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .download-toolbar {
   display: flex;
   align-items: center;
@@ -2833,6 +2860,52 @@ select {
 .download-scope button {
   height: 30px;
   white-space: nowrap;
+}
+
+.download-client-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfe;
+}
+
+.download-client-status {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.download-client-status strong,
+.download-client-status span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-client-status strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.download-client-status span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.download-client-strip > .secondary-action {
+  align-self: center;
 }
 
 .manual-grab-panel {
@@ -3761,6 +3834,7 @@ select {
   .manual-grab-panel,
   .manual-grab-main,
   .manual-grab-options,
+  .download-client-strip,
   .download-filterbar,
   .download-resource-editor,
   .download-resource-editor.tag-editor,
@@ -3789,6 +3863,10 @@ select {
   }
 
   .download-resource-row .icon-button {
+    width: 100%;
+  }
+
+  .download-client-strip > .secondary-action {
     width: 100%;
   }
 

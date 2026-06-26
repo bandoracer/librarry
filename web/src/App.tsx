@@ -8,6 +8,7 @@ import {
   Clock3,
   Database,
   Download,
+  FilterX,
   FileCheck2,
   FileSearch,
   FolderSearch,
@@ -162,10 +163,10 @@ const navItems = [
   },
   {
     id: "downloads",
-    label: "Activity",
+    label: "Downloads",
     icon: HardDriveDownload,
-    title: "Acquisition activity",
-    description: "Watch book acquisition jobs and use scoped client actions when imports need attention."
+    title: "Downloads",
+    description: "Search, add, review, and recover book acquisition jobs across configured clients."
   },
   {
     id: "imports",
@@ -466,19 +467,6 @@ export function App() {
       .catch((error) => {
         setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
       });
-    fetchDownloadResources()
-      .then(setDownloadResources)
-      .catch((error) => {
-        setDownloadError(error instanceof Error ? error.message : "Download resources refresh failed");
-      });
-    fetchDownloadPreferences()
-      .then((preferences) => {
-        setDownloadPreferences(preferences);
-        hydrateDownloadPreferenceForm(preferences);
-      })
-      .catch(() => {
-        setDownloadPreferences(null);
-      });
     fetchWanted()
       .then((items) => {
         setWantedItems(items);
@@ -533,7 +521,7 @@ export function App() {
     refreshDownloadResources(true);
     refreshDownloadPreferences(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [downloadResourceClient]);
+  }, [downloadResourceClient, integrations]);
 
   const selected = useMemo(
     () => results.find((result) => result.work.id === selectedID) ?? results[0],
@@ -613,7 +601,9 @@ export function App() {
   const resourceClientIsSABnzbd = downloadResourceClient.toLowerCase() === "sabnzbd";
   const resourceClientIsQbittorrent = downloadResourceClient.toLowerCase() === "qbittorrent";
   const resourceClientSupportsPreferences = resourceClientIsQbittorrent || resourceClientIsTransmission;
+  const resourceClientConfigured = Boolean(integrations.find((integration) => integration.name.toLowerCase() === downloadResourceClient.toLowerCase())?.configured);
   const downloadCategoryOptions = useMemo(() => uniqueDownloadCategories(downloads, downloadResources), [downloads, downloadResources]);
+  const downloadIntegrationStatuses = useMemo(() => downloadClientHealthRows(integrations), [integrations]);
   const selectableDownloadKeys = useMemo(() => filteredDownloads.map(downloadKey).filter(Boolean), [filteredDownloads]);
   const selectedDownloadKeySet = useMemo(() => new Set(selectedDownloadKeys), [selectedDownloadKeys]);
   const selectedDownloads = useMemo(() => filteredDownloads.filter((download) => selectedDownloadKeySet.has(downloadKey(download))), [filteredDownloads, selectedDownloadKeySet]);
@@ -1390,7 +1380,9 @@ export function App() {
     try {
       const nextDownloads = await fetchDownloads(downloadListOptions());
       setDownloads(nextDownloads);
-      await refreshDownloadResources(true);
+      if (resourceClientConfigured) {
+        await refreshDownloadResources(true);
+      }
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
@@ -1400,6 +1392,11 @@ export function App() {
   }
 
   async function refreshDownloadResources(silent = false) {
+    if (!resourceClientConfigured) {
+      setDownloadResources({ client: downloadResourceClient, categories: [], tags: [] });
+      setIsLoadingDownloadResources(false);
+      return;
+    }
     setIsLoadingDownloadResources(true);
     if (!silent) {
       setDownloadError("");
@@ -1433,8 +1430,9 @@ export function App() {
   }
 
   async function refreshDownloadPreferences(silent = false) {
-    if (!resourceClientSupportsPreferences) {
+    if (!resourceClientSupportsPreferences || !resourceClientConfigured) {
       setDownloadPreferences(null);
+      setIsLoadingDownloadPreferences(false);
       return;
     }
     setIsLoadingDownloadPreferences(true);
@@ -3315,6 +3313,21 @@ export function App() {
               </button>
             </div>
           </div>
+          <div className="download-client-strip" aria-label="Download client status">
+            {downloadIntegrationStatuses.map((client) => (
+              <article className="download-client-status" key={client.name}>
+                <div>
+                  <strong>{client.name}</strong>
+                  <span>{client.message}</span>
+                </div>
+                <em className={`download-badge ${integrationStatusTone(client.status)}`}>{client.status}</em>
+              </article>
+            ))}
+            <button className="secondary-action compact" onClick={() => setActiveView("settings")} type="button">
+              <Settings size={16} />
+              Clients
+            </button>
+          </div>
           <div className="download-filterbar" aria-label="Download filters">
             <label>
               <span>Find</span>
@@ -3383,18 +3396,18 @@ export function App() {
               </label>
               <button
                 className="secondary-action compact"
-                disabled={!resourceCategoryName.trim() || (resourceClientIsTransmission && !resourceCategoryNewName.trim()) || Boolean(downloadResourceActionID)}
+                disabled={!resourceClientConfigured || !resourceCategoryName.trim() || (resourceClientIsTransmission && !resourceCategoryNewName.trim()) || Boolean(downloadResourceActionID)}
                 onClick={saveDownloadCategoryResource}
                 type="button"
               >
                 <FolderSearch size={16} />
                 {resourceClientIsTransmission ? "Rename cat" : "Save cat"}
               </button>
-              <button className="secondary-action compact danger-outline" disabled={!resourceCategoryName.trim() || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadCategoryResource()} type="button">
+              <button className="secondary-action compact danger-outline" disabled={!resourceClientConfigured || !resourceCategoryName.trim() || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadCategoryResource()} type="button">
                 <Trash2 size={16} />
                 Delete cat
               </button>
-              <button className="secondary-action compact" disabled={isLoadingDownloadResources || Boolean(downloadResourceActionID)} onClick={() => refreshDownloadResources()} type="button">
+              <button className="secondary-action compact" disabled={!resourceClientConfigured || isLoadingDownloadResources || Boolean(downloadResourceActionID)} onClick={() => refreshDownloadResources()} type="button">
                 <RefreshCw size={16} />
                 {isLoadingDownloadResources ? "Loading" : "Refresh map"}
               </button>
@@ -3414,6 +3427,7 @@ export function App() {
                 <button
                   className="secondary-action compact"
                   disabled={
+                    !resourceClientConfigured ||
                     splitTagInput(resourceTagName).length === 0 ||
                     (resourceClientIsTransmission && (!resourceTagNewName.trim() || splitTagInput(resourceTagName).length !== 1)) ||
                     Boolean(downloadResourceActionID)
@@ -3424,7 +3438,7 @@ export function App() {
                   <Tags size={16} />
                   {resourceClientIsTransmission ? "Rename tag" : "Create tag"}
                 </button>
-                <button className="secondary-action compact danger-outline" disabled={splitTagInput(resourceTagName).length === 0 || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadTagResource()} type="button">
+                <button className="secondary-action compact danger-outline" disabled={!resourceClientConfigured || splitTagInput(resourceTagName).length === 0 || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadTagResource()} type="button">
                   <Trash2 size={16} />
                   Delete tag
                 </button>
@@ -3473,7 +3487,7 @@ export function App() {
               </div>
             </div>
           </div>
-          {resourceClientSupportsPreferences ? (
+          {resourceClientSupportsPreferences && resourceClientConfigured ? (
             <div className="download-preference-panel" aria-label={`${downloadResourceClient} preferences`}>
               <div className="download-preference-header">
                 <strong>{downloadResourceClient}</strong>
@@ -3924,7 +3938,43 @@ export function App() {
             </div>
           ) : null}
           <div className="download-list">
-            {filteredDownloads.map((download) => {
+            {filteredDownloads.length === 0 ? (
+              <div className="download-empty">
+                <strong>{downloads.length === 0 ? "No downloads returned from configured clients." : "No downloads match the current filters."}</strong>
+                <span>
+                  {downloads.length === 0
+                    ? "Manual adds, wanted grabs, feed grabs, and completed-download imports will appear here after a client accepts work."
+                    : "Clear filters or switch scope to review the full acquisition queue."}
+                </span>
+                <div>
+                  <button className="secondary-action compact" onClick={refreshDownloads} type="button">
+                    <RefreshCw size={16} />
+                    Refresh
+                  </button>
+                  {downloads.length === 0 ? (
+                    <button className="secondary-action compact" onClick={() => setActiveView("settings")} type="button">
+                      <Settings size={16} />
+                      Client settings
+                    </button>
+                  ) : (
+                    <button
+                      className="secondary-action compact"
+                      onClick={() => {
+                        setDownloadTextFilter("");
+                        setDownloadClientFilter("");
+                        setDownloadCategoryFilter("");
+                        setDownloadStateFilter("all");
+                        changeDownloadScope("all");
+                      }}
+                      type="button"
+                    >
+                      <FilterX size={16} />
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : filteredDownloads.map((download) => {
               const selectedDownload = selectedDownloadKeySet.has(downloadKey(download));
               const busy = downloadActionID.startsWith(`${download.id}:`) || (downloadActionID.startsWith("bulk:") && selectedDownload);
               return (
@@ -4401,6 +4451,33 @@ function uniqueDownloadResourceClients(downloads: DownloadStatus[], integrations
     }
   });
   return Array.from(clients).sort((a, b) => a.localeCompare(b));
+}
+
+function downloadClientHealthRows(integrations: IntegrationHealth[]) {
+  const clients = ["qBittorrent", "Transmission", "SABnzbd"];
+  return clients.map((name) => {
+    const health = integrations.find((integration) => integration.name.toLowerCase() === name.toLowerCase());
+    if (!health) {
+      return {
+        name,
+        status: "unknown",
+        message: "Health not checked yet"
+      };
+    }
+    return {
+      name,
+      status: health.configured ? health.status : "not configured",
+      message: health.message || (health.configured ? "Configured" : "Not configured")
+    };
+  });
+}
+
+function integrationStatusTone(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("ready") || normalized.includes("ok")) return "seeding";
+  if (normalized.includes("missing") || normalized.includes("not configured") || normalized.includes("unknown")) return "idle";
+  if (normalized.includes("error") || normalized.includes("failed")) return "error";
+  return "active";
 }
 
 function uniqueDownloadCategories(downloads: DownloadStatus[], resources?: DownloadResources | null) {
