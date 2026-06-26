@@ -67,6 +67,66 @@ func TestEvaluateReleaseRejectsWrongFormat(t *testing.T) {
 	}
 }
 
+func TestEvaluateReleaseApprovesExactISBNMatchWithWeakTitle(t *testing.T) {
+	item := WantedItem{
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		ManualOverrides: []ManualOverride{
+			{FieldName: "isbn", Value: "9780593135204"},
+		},
+	}
+	release := acquisition.Release{
+		ID:          "r1",
+		Title:       "978-0-593-13520-4 EPUB retail",
+		DownloadURL: "magnet:?xt=urn:btih:abc",
+		Protocol:    "torrent",
+		Seeders:     20,
+		SizeBytes:   2_000_000,
+		Categories:  []string{"Books/EBook"},
+	}
+	decision := evaluateRelease(item, release)
+	if !decision.Approved {
+		t.Fatalf("expected exact ISBN release to be approved, got rejection %q score %0.2f", decision.RejectedReason, decision.Score)
+	}
+	if strings.Contains(decision.RejectedReason, "weak title match") {
+		t.Fatalf("expected ISBN match to avoid weak-title rejection, got %q", decision.RejectedReason)
+	}
+}
+
+func TestEvaluateReleaseEnforcesProtectedNonEnglishLanguage(t *testing.T) {
+	item := WantedItem{
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		ManualOverrides: []ManualOverride{
+			{FieldName: "language", Value: "German"},
+		},
+	}
+	release := acquisition.Release{
+		ID:          "r1",
+		Title:       "Project Hail Mary by Andy Weir EPUB",
+		DownloadURL: "magnet:?xt=urn:btih:abc",
+		Protocol:    "torrent",
+		Seeders:     20,
+		SizeBytes:   2_000_000,
+		Categories:  []string{"Books/EBook"},
+	}
+	decision := evaluateRelease(item, release)
+	if decision.Approved {
+		t.Fatal("expected release without protected German language marker to be rejected")
+	}
+	if !strings.Contains(decision.RejectedReason, "missing requested language") {
+		t.Fatalf("expected protected language rejection, got %q", decision.RejectedReason)
+	}
+
+	release.Title = "Project Hail Mary by Andy Weir German EPUB"
+	decision = evaluateRelease(item, release)
+	if !decision.Approved {
+		t.Fatalf("expected explicit German release to be approved, got %q", decision.RejectedReason)
+	}
+}
+
 func TestEvaluateReleaseUsesProfileRequiredAndRejectedTerms(t *testing.T) {
 	item := WantedItem{Title: "Project Hail Mary", AuthorName: "Andy Weir", Format: "ebook", QualityProfile: "strict"}
 	release := acquisition.Release{

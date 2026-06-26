@@ -152,6 +152,57 @@ func TestProwlarrFeedPollsAllIndexersBeforeLimit(t *testing.T) {
 	}
 }
 
+func TestProwlarrSearchTriesISBNBeforeTitleAndDeduplicates(t *testing.T) {
+	var queries []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/search" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Api-Key") != "test-key" {
+			t.Fatalf("expected api key header, got %q", r.Header.Get("X-Api-Key"))
+		}
+		queries = append(queries, r.URL.Query().Get("query"))
+		if r.URL.Query().Get("categories") != "7000" {
+			t.Fatalf("expected ebook category, got %q", r.URL.Query().Get("categories"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("query") {
+		case "9780593135204":
+			_, _ = w.Write([]byte(`[
+				{"guid":"same-guid","indexer":"Books","title":"Project Hail Mary Andy Weir EPUB","size":1024,"seeders":5,"downloadUrl":"https://prowlarr.example/download/same","protocol":"torrent"}
+			]`))
+		case "Project Hail Mary Andy Weir":
+			_, _ = w.Write([]byte(`[
+				{"guid":"same-guid","indexer":"Books","title":"Project Hail Mary Andy Weir EPUB","size":1024,"seeders":5,"downloadUrl":"https://prowlarr.example/download/same","protocol":"torrent"},
+				{"guid":"other-guid","indexer":"Books","title":"Project Hail Mary Andy Weir AZW3","size":2048,"seeders":3,"downloadUrl":"https://prowlarr.example/download/other","protocol":"torrent"}
+			]`))
+		default:
+			t.Fatalf("unexpected query: %q", r.URL.Query().Get("query"))
+		}
+	}))
+	defer server.Close()
+
+	client := NewProwlarrClient(server.URL, "test-key", server.Client())
+	releases, err := client.Search(context.Background(), ReleaseSearchQuery{
+		Query:  "Project Hail Mary Andy Weir",
+		ISBN:   "9780593135204",
+		Format: "ebook",
+		Limit:  10,
+	})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if strings.Join(queries, "|") != "9780593135204|Project Hail Mary Andy Weir" {
+		t.Fatalf("expected ISBN-first queries, got %#v", queries)
+	}
+	if len(releases) != 2 {
+		t.Fatalf("expected duplicate releases to collapse, got %d: %#v", len(releases), releases)
+	}
+	if releases[0].Title != "Project Hail Mary Andy Weir EPUB" || releases[1].Title != "Project Hail Mary Andy Weir AZW3" {
+		t.Fatalf("unexpected release order: %#v", releases)
+	}
+}
+
 func TestCategoriesForAnyFormatIncludeAudiobooks(t *testing.T) {
 	if got := categoriesForFormat("any"); got != "7000,3030" {
 		t.Fatalf("expected any format to include book and audiobook categories, got %q", got)

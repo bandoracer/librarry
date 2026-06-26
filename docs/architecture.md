@@ -466,8 +466,10 @@ without keeping the item in the operator's review queue.
 library files or download-client data. Monitoring state is stored separately
 from acquisition/import status so Readarr-compatible monitor/unmonitor calls do
 not erase grabbed or imported state. A wanted item can search releases through
-Prowlarr, persist scored release decisions, and record explicit rejection
-reasons before a candidate is sent to the matching download client.
+Prowlarr, using protected ISBN corrections before broad title/author terms,
+persist scored release decisions, enforce protected language corrections during
+scoring, and record explicit rejection reasons before a candidate is sent to the
+matching download client.
 `GET /api/v1/wanted/releases/{id}` reloads the stored decision set for manual
 review. `POST /api/v1/wanted/{id}/grab` only accepts approved decisions unless
 the request includes `force: true`; forced grabs are recorded in history while

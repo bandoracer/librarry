@@ -403,16 +403,7 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 	if limit <= 0 || limit > 50 {
 		limit = defaultWantedMonitorSearchLimit
 	}
-	queryText := item.Title
-	if strings.TrimSpace(item.AuthorName) != "" {
-		queryText += " " + item.AuthorName
-	}
-	releases, err := s.acquire.Search(ctx, acquisition.ReleaseSearchQuery{
-		Query:  queryText,
-		Author: item.AuthorName,
-		Format: item.Format,
-		Limit:  limit,
-	})
+	releases, err := s.acquire.Search(ctx, releaseSearchQueryForWanted(item, limit))
 	if err != nil {
 		return SearchOutcome{}, err
 	}
@@ -440,6 +431,68 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 	}
 	item, _ = s.store.GetWanted(ctx, item.ID)
 	return SearchOutcome{WantedItem: item, Releases: stored}, nil
+}
+
+func releaseSearchQueryForWanted(item WantedItem, limit int) acquisition.ReleaseSearchQuery {
+	queryText := strings.TrimSpace(item.Title)
+	if author := strings.TrimSpace(item.AuthorName); author != "" {
+		queryText = strings.TrimSpace(queryText + " " + author)
+	}
+	overrides := wantedManualOverrideValues(item)
+	return acquisition.ReleaseSearchQuery{
+		Query:     queryText,
+		Author:    strings.TrimSpace(item.AuthorName),
+		ISBN:      wantedISBNQuery(overrides),
+		Format:    item.Format,
+		Languages: wantedReleaseLanguages(overrides),
+		Limit:     limit,
+	}
+}
+
+func wantedManualOverrideValues(item WantedItem) map[string]string {
+	values := make(map[string]string, len(item.ManualOverrides))
+	for _, override := range item.ManualOverrides {
+		field := strings.TrimSpace(override.FieldName)
+		value := strings.TrimSpace(override.Value)
+		if field == "" || value == "" {
+			continue
+		}
+		values[field] = value
+	}
+	return values
+}
+
+func wantedISBNQuery(overrides map[string]string) string {
+	return strings.Join(splitWantedISBNs(overrides["isbn"]), ",")
+}
+
+func splitWantedISBNs(value string) []string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '\t'
+	})
+	isbns := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		isbn := strings.TrimSpace(part)
+		if isbn == "" {
+			continue
+		}
+		key := strings.ToLower(isbn)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		isbns = append(isbns, isbn)
+	}
+	return isbns
+}
+
+func wantedReleaseLanguages(overrides map[string]string) []string {
+	language := strings.TrimSpace(overrides["language"])
+	if language == "" {
+		return nil
+	}
+	return []string{language}
 }
 
 func (s *Service) ListReleases(ctx context.Context, wantedID string) (SearchOutcome, error) {

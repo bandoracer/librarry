@@ -131,3 +131,28 @@ func TestAcquisitionQueueItemStatesReadarrWorkflow(t *testing.T) {
 		t.Fatalf("expected blocked recovery row, got %+v", row)
 	}
 }
+
+func TestReleaseSearchQueryForWantedUsesProtectedBibliographicMetadata(t *testing.T) {
+	query := releaseSearchQueryForWanted(WantedItem{
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		ManualOverrides: []ManualOverride{
+			{FieldName: "isbn", Value: "9780593135204; 9780593135211"},
+			{FieldName: "language", Value: "German"},
+		},
+	}, 12)
+
+	if query.Query != "Project Hail Mary Andy Weir" {
+		t.Fatalf("expected title-author query, got %q", query.Query)
+	}
+	if query.Author != "Andy Weir" || query.Format != "ebook" || query.Limit != 12 {
+		t.Fatalf("unexpected search query fields: %+v", query)
+	}
+	if query.ISBN != "9780593135204,9780593135211" {
+		t.Fatalf("expected protected ISBNs in search query, got %q", query.ISBN)
+	}
+	if len(query.Languages) != 1 || query.Languages[0] != "German" {
+		t.Fatalf("expected protected language in search query, got %#v", query.Languages)
+	}
+}

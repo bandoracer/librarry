@@ -2869,7 +2869,10 @@ export function App() {
                           title={`Clear ${wantedOverrideLabel(override.fieldName)} override`}
                           type="button"
                         >
-                          <span>{wantedOverrideLabel(override.fieldName)}</span>
+                          <span>
+                            <strong>{wantedOverrideLabel(override.fieldName)}</strong>
+                            <small>{override.value || "protected"}</small>
+                          </span>
                           <em>{clearingWantedOverrideField === override.fieldName ? "Clearing" : "Reset"}</em>
                         </button>
                       ))}

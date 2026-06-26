@@ -72,10 +72,45 @@ func (c *ProwlarrClient) Search(ctx context.Context, query ReleaseSearchQuery) (
 	if !c.Configured() {
 		return nil, ErrIntegrationNotConfigured
 	}
+	limit := query.Limit
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	queries := prowlarrSearchQueries(query)
+	releases := make([]Release, 0, limit)
+	seen := map[string]bool{}
+	var firstErr error
+	for _, queryText := range queries {
+		found, err := c.searchOnce(ctx, queryText, query.Format, limit)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		for _, release := range found {
+			key := prowlarrReleaseKey(release)
+			if key == "" || seen[key] {
+				continue
+			}
+			seen[key] = true
+			releases = append(releases, release)
+			if len(releases) >= limit {
+				return releases, nil
+			}
+		}
+	}
+	if len(releases) == 0 && firstErr != nil {
+		return nil, firstErr
+	}
+	return releases, nil
+}
+
+func (c *ProwlarrClient) searchOnce(ctx context.Context, queryText string, format string, limit int) ([]Release, error) {
 	values := url.Values{}
-	values.Set("query", strings.TrimSpace(query.Query))
+	values.Set("query", strings.TrimSpace(queryText))
 	values.Set("type", "search")
-	values.Set("categories", categoriesForFormat(query.Format))
+	values.Set("categories", categoriesForFormat(format))
 
 	endpoint := "/api/v1/search?" + values.Encode()
 	req, err := c.request(ctx, http.MethodGet, endpoint, nil)
@@ -90,11 +125,76 @@ func (c *ProwlarrClient) Search(ctx context.Context, query ReleaseSearchQuery) (
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("prowlarr search returned %s", resp.Status)
 	}
-	limit := query.Limit
-	if limit <= 0 || limit > 50 {
-		limit = 20
-	}
 	return decodeProwlarrReleases(resp.Body, limit)
+}
+
+func prowlarrSearchQueries(query ReleaseSearchQuery) []string {
+	queries := make([]string, 0, 4)
+	for _, isbn := range splitSearchISBNs(query.ISBN) {
+		queries = appendUniqueSearchQuery(queries, isbn)
+		if compact := compactISBN(isbn); compact != "" && !strings.EqualFold(compact, isbn) {
+			queries = appendUniqueSearchQuery(queries, compact)
+		}
+	}
+	queries = appendUniqueSearchQuery(queries, query.Query)
+	if len(queries) == 0 && strings.TrimSpace(query.Author) != "" {
+		queries = appendUniqueSearchQuery(queries, query.Author)
+	}
+	if len(queries) == 0 {
+		queries = append(queries, "")
+	}
+	return queries
+}
+
+func splitSearchISBNs(value string) []string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '\t'
+	})
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		out = appendUniqueSearchQuery(out, part)
+		if len(out) >= 4 {
+			break
+		}
+	}
+	return out
+}
+
+func appendUniqueSearchQuery(queries []string, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return queries
+	}
+	for _, existing := range queries {
+		if strings.EqualFold(existing, value) {
+			return queries
+		}
+	}
+	return append(queries, value)
+}
+
+func compactISBN(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var builder strings.Builder
+	for _, r := range value {
+		if r >= '0' && r <= '9' || r == 'X' || r == 'x' {
+			builder.WriteRune(r)
+		}
+	}
+	return strings.ToUpper(builder.String())
+}
+
+func prowlarrReleaseKey(release Release) string {
+	for _, value := range []string{release.InfoHash, release.DownloadURL, release.ID, release.Title} {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return strings.ToLower(value)
+		}
+	}
+	return ""
 }
 
 func (c *ProwlarrClient) Feed(ctx context.Context, query ReleaseFeedQuery) ([]Release, error) {

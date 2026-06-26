@@ -32,9 +32,14 @@ func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, pro
 	titleNorm := normalizeText(release.Title)
 	wantedTitle := normalizeText(item.Title)
 	authorName := normalizeText(item.AuthorName)
+	overrides := wantedManualOverrideValues(item)
+	isbnMatched := wantedISBNMatchesRelease(overrides["isbn"], release)
 
 	if release.DownloadURL == "" {
 		reasons = append(reasons, "missing download URL")
+	}
+	if isbnMatched {
+		score += 45
 	}
 	if wantedTitle != "" {
 		if strings.Contains(titleNorm, wantedTitle) {
@@ -42,13 +47,18 @@ func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, pro
 		} else {
 			overlap := tokenOverlap(wantedTitle, titleNorm)
 			score += overlap * 30
-			if overlap < 0.45 {
+			if overlap < 0.45 && !isbnMatched {
 				reasons = append(reasons, "weak title match")
 			}
 		}
 	}
 	if authorName != "" && strings.Contains(titleNorm, authorName) {
 		score += 10
+	}
+	if languageReason := releaseLanguageRejection(overrides["language"], haystackNorm); languageReason != "" {
+		reasons = append(reasons, languageReason)
+	} else if strings.TrimSpace(overrides["language"]) != "" {
+		score += 8
 	}
 	if policy.format == "ebook" && !looksLikeEbook(release) {
 		reasons = append(reasons, "does not look like an ebook release")
@@ -118,6 +128,139 @@ func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, pro
 		RejectedReason: strings.Join(reasons, "; "),
 		PublishedAt:    release.PublishedAt,
 	}
+}
+
+func wantedISBNMatchesRelease(value string, release acquisition.Release) bool {
+	identifierText := compactIdentifier(release.Title + " " + strings.Join(release.Categories, " "))
+	if identifierText == "" {
+		return false
+	}
+	for _, isbn := range splitWantedISBNs(value) {
+		normalized := compactIdentifier(isbn)
+		if len(normalized) >= 10 && strings.Contains(identifierText, normalized) {
+			return true
+		}
+	}
+	return false
+}
+
+func compactIdentifier(value string) string {
+	var builder strings.Builder
+	for _, r := range value {
+		if r >= '0' && r <= '9' || r == 'x' || r == 'X' {
+			builder.WriteRune(r)
+		}
+	}
+	return strings.ToUpper(builder.String())
+}
+
+func releaseLanguageRejection(language string, haystack string) string {
+	language = strings.TrimSpace(language)
+	if language == "" {
+		return ""
+	}
+	canonical := canonicalLanguageName(language)
+	if canonical == "" {
+		return ""
+	}
+	targetAliases := languageAliases(canonical)
+	if containsAnyLanguageTerm(haystack, targetAliases) {
+		return ""
+	}
+	if canonical == "english" {
+		if found := firstExplicitLanguage(haystack, canonical); found != "" {
+			return "language mismatch: " + found
+		}
+		return ""
+	}
+	if found := firstExplicitLanguage(haystack, canonical); found != "" {
+		return "language mismatch: " + found
+	}
+	return "missing requested language: " + language
+}
+
+func canonicalLanguageName(language string) string {
+	normalized := normalizeText(language)
+	for canonical, aliases := range releaseLanguageAliases() {
+		if normalized == canonical || containsString(aliases, normalized) {
+			return canonical
+		}
+	}
+	if normalized == "" {
+		return ""
+	}
+	return normalized
+}
+
+func languageAliases(canonical string) []string {
+	aliases := releaseLanguageAliases()[canonical]
+	if len(aliases) == 0 {
+		return []string{canonical}
+	}
+	return append([]string{canonical}, aliases...)
+}
+
+func firstExplicitLanguage(haystack string, exceptCanonical string) string {
+	for canonical, aliases := range releaseLanguageAliases() {
+		if canonical == exceptCanonical {
+			continue
+		}
+		if containsAnyLanguageTerm(haystack, append([]string{canonical}, aliases...)) {
+			return canonical
+		}
+	}
+	return ""
+}
+
+func releaseLanguageAliases() map[string][]string {
+	return map[string][]string{
+		"english":    {"eng"},
+		"german":     {"deutsch", "ger"},
+		"french":     {"francais", "fre"},
+		"spanish":    {"espanol", "spa"},
+		"italian":    {"ita"},
+		"dutch":      {"nederlands"},
+		"japanese":   {"jpn"},
+		"chinese":    {"mandarin"},
+		"korean":     {"kor"},
+		"portuguese": {"por"},
+		"russian":    {"rus"},
+		"polish":     {"pol"},
+		"swedish":    {"swe"},
+		"danish":     {"dan"},
+		"norwegian":  {"nor"},
+	}
+}
+
+func containsAnyNormalizedTerm(haystack string, terms []string) bool {
+	for _, term := range terms {
+		if containsNormalizedTerm(haystack, term) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAnyLanguageTerm(haystack string, terms []string) bool {
+	for _, term := range terms {
+		term = normalizeText(term)
+		if term == "" {
+			continue
+		}
+		if haystack == term || strings.Contains(" "+haystack+" ", " "+term+" ") {
+			return true
+		}
+	}
+	return false
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
 }
 
 func NewReleaseRestriction(id string, required string, ignored string, preferred string, tags []int) ReleaseRestriction {

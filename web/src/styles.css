@@ -2453,21 +2453,40 @@ select {
 }
 
 .wanted-override-chip {
-  min-height: 30px;
+  min-height: 34px;
+  max-width: min(100%, 360px);
   border: 1px solid #d8e2ee;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #eef5ff;
   color: var(--muted-strong);
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 4px 9px;
   font-size: 12px;
 }
 
 .wanted-override-chip span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+
+.wanted-override-chip strong {
   color: var(--text);
   font-weight: 700;
+  line-height: 1.2;
+}
+
+.wanted-override-chip small {
+  overflow: hidden;
+  color: var(--muted-strong);
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wanted-override-chip em {
