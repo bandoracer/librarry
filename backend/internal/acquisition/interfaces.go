@@ -155,6 +155,41 @@ type DownloadResources struct {
 	Tags       []string           `json:"tags"`
 }
 
+type DownloadPreferences struct {
+	Client                       string `json:"client"`
+	SavePath                     string `json:"savePath,omitempty"`
+	TempPathEnabled              bool   `json:"tempPathEnabled,omitempty"`
+	TempPath                     string `json:"tempPath,omitempty"`
+	StartPaused                  bool   `json:"startPaused"`
+	DownloadLimit                int64  `json:"downloadLimit"`
+	UploadLimit                  int64  `json:"uploadLimit"`
+	AlternativeDownloadLimit     int64  `json:"alternativeDownloadLimit,omitempty"`
+	AlternativeUploadLimit       int64  `json:"alternativeUploadLimit,omitempty"`
+	SpeedScheduleEnabled         bool   `json:"speedScheduleEnabled"`
+	QueueingEnabled              bool   `json:"queueingEnabled"`
+	MaxActiveDownloads           int    `json:"maxActiveDownloads"`
+	MaxActiveUploads             int    `json:"maxActiveUploads"`
+	MaxActiveTorrents            int    `json:"maxActiveTorrents"`
+	LibrarryPreferenceWriteScope string `json:"librarryPreferenceWriteScope"`
+}
+
+type DownloadPreferencesUpdate struct {
+	Client                   string  `json:"client,omitempty"`
+	SavePath                 *string `json:"savePath,omitempty"`
+	TempPathEnabled          *bool   `json:"tempPathEnabled,omitempty"`
+	TempPath                 *string `json:"tempPath,omitempty"`
+	StartPaused              *bool   `json:"startPaused,omitempty"`
+	DownloadLimit            *int64  `json:"downloadLimit,omitempty"`
+	UploadLimit              *int64  `json:"uploadLimit,omitempty"`
+	AlternativeDownloadLimit *int64  `json:"alternativeDownloadLimit,omitempty"`
+	AlternativeUploadLimit   *int64  `json:"alternativeUploadLimit,omitempty"`
+	SpeedScheduleEnabled     *bool   `json:"speedScheduleEnabled,omitempty"`
+	QueueingEnabled          *bool   `json:"queueingEnabled,omitempty"`
+	MaxActiveDownloads       *int    `json:"maxActiveDownloads,omitempty"`
+	MaxActiveUploads         *int    `json:"maxActiveUploads,omitempty"`
+	MaxActiveTorrents        *int    `json:"maxActiveTorrents,omitempty"`
+}
+
 type DownloadCategoryActionRequest struct {
 	Client   string `json:"client,omitempty"`
 	Action   string `json:"action"`

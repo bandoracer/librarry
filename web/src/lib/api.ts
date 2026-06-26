@@ -156,6 +156,28 @@ export type DownloadResources = {
   tags: string[];
 };
 
+export type DownloadPreferences = {
+  client: string;
+  savePath?: string;
+  tempPathEnabled?: boolean;
+  tempPath?: string;
+  startPaused: boolean;
+  downloadLimit: number;
+  uploadLimit: number;
+  alternativeDownloadLimit?: number;
+  alternativeUploadLimit?: number;
+  speedScheduleEnabled: boolean;
+  queueingEnabled: boolean;
+  maxActiveDownloads: number;
+  maxActiveUploads: number;
+  maxActiveTorrents: number;
+  librarryPreferenceWriteScope?: string;
+};
+
+export type DownloadPreferencesUpdate = Partial<Omit<DownloadPreferences, "client" | "librarryPreferenceWriteScope">> & {
+  client?: string;
+};
+
 export type DownloadPeer = {
   id: string;
   ip: string;
@@ -739,6 +761,28 @@ export async function fetchDownloadResources(client = "qBittorrent"): Promise<Do
     throw new Error(`Download resources failed: ${response.status}`);
   }
   return (await response.json()) as DownloadResources;
+}
+
+export async function fetchDownloadPreferences(client = "qBittorrent"): Promise<DownloadPreferences> {
+  const params = new URLSearchParams();
+  if (client) params.set("client", client);
+  const response = await fetch(`${apiBase}/api/v1/downloads/preferences?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Download preferences failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadPreferences;
+}
+
+export async function saveDownloadPreferences(update: DownloadPreferencesUpdate): Promise<DownloadPreferences> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/preferences`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update)
+  });
+  if (!response.ok) {
+    throw new Error(`Download preferences update failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadPreferences;
 }
 
 export async function runDownloadCategoryAction(options: {

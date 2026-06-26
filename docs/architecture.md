@@ -229,6 +229,8 @@ Initial API surface:
   - `GET /api/v1/downloads`
   - `GET /api/v1/downloads/{id}`
   - `GET /api/v1/downloads/resources`
+  - `GET /api/v1/downloads/preferences`
+  - `PUT /api/v1/downloads/preferences`
   - `POST /api/v1/downloads/categories/actions`
   - `POST /api/v1/downloads/tags/actions`
   - `POST /api/v1/downloads/actions`
@@ -300,14 +302,17 @@ configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, force-start, sequential-download
 toggle, first/last-piece priority toggle, rename, tag add/remove, category
 changes, and location changes, plus delete-with-data removal and per-torrent
-download and upload speed limits. qBittorrent category/tag namespaces and
-Transmission label-derived category/tag resources are exposed through
+download and upload speed limits. qBittorrent global preferences are exposed
+through `/api/v1/downloads/preferences` for save paths, temp-path usage,
+paused-add behavior, global and alternate speed limits, scheduler toggles, and
+active-queue caps. qBittorrent category/tag namespaces and Transmission
+label-derived category/tag resources are exposed through
 `/api/v1/downloads/resources`,
 `/api/v1/downloads/categories/actions`, and
 `/api/v1/downloads/tags/actions`. The Downloads page filters by client, state,
 category, and text, and uses the same native actions for name, tags, category,
-save-path, bandwidth, tracker, file, namespace, and bulk queue controls. qBittorrent and
-Transmission details are exposed through
+save-path, bandwidth, preferences, tracker, file, namespace, and bulk queue
+controls. qBittorrent and Transmission details are exposed through
 `/api/v1/downloads/{id}` with properties, peer state, tracker state, and torrent
 file lists. Per-file priority changes are exposed through
 `/api/v1/downloads/{id}/files/actions` for qBittorrent and Transmission

@@ -34,6 +34,7 @@ import {
   createWanted,
   fetchAuthorSubscriptions,
   fetchDownloadDetails,
+  fetchDownloadPreferences,
   fetchDownloadResources,
   fetchIntegrationHealth,
   fetchDownloads,
@@ -63,6 +64,7 @@ import {
   runDownloadTagAction,
   runDownloadTrackerAction,
   saveQualityProfile,
+  saveDownloadPreferences,
   scanLibrary,
   searchMetadata,
   searchReleases,
@@ -75,6 +77,7 @@ import {
   type CompletedImportOutcome,
   type DownloadDetails,
   type DownloadFileAction,
+  type DownloadPreferences,
   type DownloadRebalancePlan,
   type DownloadResources,
   type DownloadStatus,
@@ -182,6 +185,7 @@ export function App() {
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [downloadDetails, setDownloadDetails] = useState<DownloadDetails | null>(null);
   const [downloadResources, setDownloadResources] = useState<DownloadResources | null>(null);
+  const [downloadPreferences, setDownloadPreferences] = useState<DownloadPreferences | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
@@ -217,6 +221,8 @@ export function App() {
   const [isLoadingDownloadDetails, setIsLoadingDownloadDetails] = useState(false);
   const [isAddingDownload, setIsAddingDownload] = useState(false);
   const [isLoadingDownloadResources, setIsLoadingDownloadResources] = useState(false);
+  const [isLoadingDownloadPreferences, setIsLoadingDownloadPreferences] = useState(false);
+  const [isSavingDownloadPreferences, setIsSavingDownloadPreferences] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
@@ -232,6 +238,19 @@ export function App() {
   const [resourceTagName, setResourceTagName] = useState("");
   const [resourceTagNewName, setResourceTagNewName] = useState("");
   const [downloadRebalanceMax, setDownloadRebalanceMax] = useState("3");
+  const [preferenceSavePath, setPreferenceSavePath] = useState("");
+  const [preferenceTempPath, setPreferenceTempPath] = useState("");
+  const [preferenceTempPathEnabled, setPreferenceTempPathEnabled] = useState(false);
+  const [preferenceStartPaused, setPreferenceStartPaused] = useState(false);
+  const [preferenceQueueingEnabled, setPreferenceQueueingEnabled] = useState(true);
+  const [preferenceSpeedScheduleEnabled, setPreferenceSpeedScheduleEnabled] = useState(false);
+  const [preferenceDownloadLimitKiB, setPreferenceDownloadLimitKiB] = useState("");
+  const [preferenceUploadLimitKiB, setPreferenceUploadLimitKiB] = useState("");
+  const [preferenceAltDownloadLimitKiB, setPreferenceAltDownloadLimitKiB] = useState("");
+  const [preferenceAltUploadLimitKiB, setPreferenceAltUploadLimitKiB] = useState("");
+  const [preferenceMaxActiveDownloads, setPreferenceMaxActiveDownloads] = useState("-1");
+  const [preferenceMaxActiveUploads, setPreferenceMaxActiveUploads] = useState("-1");
+  const [preferenceMaxActiveTorrents, setPreferenceMaxActiveTorrents] = useState("-1");
   const [manualGrabURL, setManualGrabURL] = useState("");
   const [manualGrabFile, setManualGrabFile] = useState<File | null>(null);
   const [manualGrabFileInputKey, setManualGrabFileInputKey] = useState(0);
@@ -280,6 +299,14 @@ export function App() {
       .catch((error) => {
         setDownloadError(error instanceof Error ? error.message : "Download resources refresh failed");
       });
+    fetchDownloadPreferences()
+      .then((preferences) => {
+        setDownloadPreferences(preferences);
+        hydrateDownloadPreferenceForm(preferences);
+      })
+      .catch(() => {
+        setDownloadPreferences(null);
+      });
     fetchWanted()
       .then((items) => {
         setWantedItems(items);
@@ -322,6 +349,7 @@ export function App() {
 
   useEffect(() => {
     refreshDownloadResources(true);
+    refreshDownloadPreferences(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [downloadResourceClient]);
 
@@ -345,6 +373,7 @@ export function App() {
   const downloadClientOptions = useMemo(() => uniqueDownloadClients(downloads), [downloads]);
   const downloadResourceClientOptions = useMemo(() => uniqueDownloadResourceClients(downloads, integrations), [downloads, integrations]);
   const resourceClientIsTransmission = downloadResourceClient.toLowerCase() === "transmission";
+  const resourceClientIsQbittorrent = downloadResourceClient.toLowerCase() === "qbittorrent";
   const downloadCategoryOptions = useMemo(() => uniqueDownloadCategories(downloads, downloadResources), [downloads, downloadResources]);
   const selectableDownloadKeys = useMemo(() => filteredDownloads.map(downloadKey).filter(Boolean), [filteredDownloads]);
   const selectedDownloadKeySet = useMemo(() => new Set(selectedDownloadKeys), [selectedDownloadKeys]);
@@ -832,6 +861,87 @@ export function App() {
       }
     } finally {
       setIsLoadingDownloadResources(false);
+    }
+  }
+
+  function hydrateDownloadPreferenceForm(preferences: DownloadPreferences) {
+    setPreferenceSavePath(preferences.savePath || "");
+    setPreferenceTempPath(preferences.tempPath || "");
+    setPreferenceTempPathEnabled(Boolean(preferences.tempPathEnabled));
+    setPreferenceStartPaused(Boolean(preferences.startPaused));
+    setPreferenceQueueingEnabled(Boolean(preferences.queueingEnabled));
+    setPreferenceSpeedScheduleEnabled(Boolean(preferences.speedScheduleEnabled));
+    setPreferenceDownloadLimitKiB(limitBytesToKiBInput(preferences.downloadLimit));
+    setPreferenceUploadLimitKiB(limitBytesToKiBInput(preferences.uploadLimit));
+    setPreferenceAltDownloadLimitKiB(limitBytesToKiBInput(preferences.alternativeDownloadLimit));
+    setPreferenceAltUploadLimitKiB(limitBytesToKiBInput(preferences.alternativeUploadLimit));
+    setPreferenceMaxActiveDownloads(String(preferences.maxActiveDownloads ?? -1));
+    setPreferenceMaxActiveUploads(String(preferences.maxActiveUploads ?? -1));
+    setPreferenceMaxActiveTorrents(String(preferences.maxActiveTorrents ?? -1));
+  }
+
+  async function refreshDownloadPreferences(silent = false) {
+    if (!resourceClientIsQbittorrent) {
+      setDownloadPreferences(null);
+      return;
+    }
+    setIsLoadingDownloadPreferences(true);
+    if (!silent) {
+      setDownloadError("");
+    }
+    try {
+      const preferences = await fetchDownloadPreferences(downloadResourceClient);
+      setDownloadPreferences(preferences);
+      hydrateDownloadPreferenceForm(preferences);
+    } catch (error) {
+      setDownloadPreferences(null);
+      if (!silent) {
+        setDownloadError(error instanceof Error ? error.message : "Download preferences refresh failed");
+      }
+    } finally {
+      setIsLoadingDownloadPreferences(false);
+    }
+  }
+
+  async function applyDownloadPreferences() {
+    if (!resourceClientIsQbittorrent) return;
+    const downloadLimit = bandwidthInputToBytes(preferenceDownloadLimitKiB);
+    const uploadLimit = bandwidthInputToBytes(preferenceUploadLimitKiB);
+    const altDownloadLimit = bandwidthInputToBytes(preferenceAltDownloadLimitKiB);
+    const altUploadLimit = bandwidthInputToBytes(preferenceAltUploadLimitKiB);
+    const maxActiveDownloads = queueLimitInputToInt(preferenceMaxActiveDownloads);
+    const maxActiveUploads = queueLimitInputToInt(preferenceMaxActiveUploads);
+    const maxActiveTorrents = queueLimitInputToInt(preferenceMaxActiveTorrents);
+    if ([downloadLimit, uploadLimit, altDownloadLimit, altUploadLimit].some((value) => value < 0) || [maxActiveDownloads, maxActiveUploads, maxActiveTorrents].some((value) => value < -1)) {
+      setDownloadError("Download preferences contain invalid limits");
+      return;
+    }
+    setIsSavingDownloadPreferences(true);
+    setDownloadError("");
+    try {
+      const preferences = await saveDownloadPreferences({
+        client: downloadResourceClient,
+        savePath: preferenceSavePath.trim(),
+        tempPathEnabled: preferenceTempPathEnabled,
+        tempPath: preferenceTempPath.trim(),
+        startPaused: preferenceStartPaused,
+        queueingEnabled: preferenceQueueingEnabled,
+        speedScheduleEnabled: preferenceSpeedScheduleEnabled,
+        downloadLimit,
+        uploadLimit,
+        alternativeDownloadLimit: altDownloadLimit,
+        alternativeUploadLimit: altUploadLimit,
+        maxActiveDownloads,
+        maxActiveUploads,
+        maxActiveTorrents
+      });
+      setDownloadPreferences(preferences);
+      hydrateDownloadPreferenceForm(preferences);
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download preferences update failed");
+    } finally {
+      setIsSavingDownloadPreferences(false);
     }
   }
 
@@ -2149,6 +2259,84 @@ export function App() {
               </div>
             </div>
           </div>
+          {resourceClientIsQbittorrent ? (
+            <div className="download-preference-panel" aria-label="qBittorrent preferences">
+              <div className="download-preference-header">
+                <strong>qBittorrent</strong>
+                <span>
+                  {downloadPreferences
+                    ? `${formatLimitSpeed(downloadPreferences.downloadLimit)} down · ${formatLimitSpeed(downloadPreferences.uploadLimit)} up · ${downloadPreferences.maxActiveTorrents} active`
+                    : isLoadingDownloadPreferences
+                      ? "Loading preferences"
+                      : "Preferences unavailable"}
+                </span>
+              </div>
+              <div className="download-preference-grid">
+                <label>
+                  <span>Save path</span>
+                  <input value={preferenceSavePath} onChange={(event) => setPreferenceSavePath(event.target.value)} placeholder="/data/torrents/books" />
+                </label>
+                <label>
+                  <span>Temp path</span>
+                  <input disabled={!preferenceTempPathEnabled} value={preferenceTempPath} onChange={(event) => setPreferenceTempPath(event.target.value)} placeholder="/data/torrents/incomplete" />
+                </label>
+                <label>
+                  <span>Down KiB/s</span>
+                  <input inputMode="numeric" min="0" value={preferenceDownloadLimitKiB} onChange={(event) => setPreferenceDownloadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
+                </label>
+                <label>
+                  <span>Up KiB/s</span>
+                  <input inputMode="numeric" min="0" value={preferenceUploadLimitKiB} onChange={(event) => setPreferenceUploadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
+                </label>
+                <label>
+                  <span>Alt down</span>
+                  <input inputMode="numeric" min="0" value={preferenceAltDownloadLimitKiB} onChange={(event) => setPreferenceAltDownloadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
+                </label>
+                <label>
+                  <span>Alt up</span>
+                  <input inputMode="numeric" min="0" value={preferenceAltUploadLimitKiB} onChange={(event) => setPreferenceAltUploadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
+                </label>
+                <label>
+                  <span>Active DL</span>
+                  <input inputMode="numeric" min="-1" value={preferenceMaxActiveDownloads} onChange={(event) => setPreferenceMaxActiveDownloads(event.target.value)} type="number" />
+                </label>
+                <label>
+                  <span>Active seed</span>
+                  <input inputMode="numeric" min="-1" value={preferenceMaxActiveUploads} onChange={(event) => setPreferenceMaxActiveUploads(event.target.value)} type="number" />
+                </label>
+                <label>
+                  <span>Active total</span>
+                  <input inputMode="numeric" min="-1" value={preferenceMaxActiveTorrents} onChange={(event) => setPreferenceMaxActiveTorrents(event.target.value)} type="number" />
+                </label>
+              </div>
+              <div className="download-preference-toggles">
+                <label>
+                  <input checked={preferenceStartPaused} onChange={(event) => setPreferenceStartPaused(event.target.checked)} type="checkbox" />
+                  <span>Start paused</span>
+                </label>
+                <label>
+                  <input checked={preferenceQueueingEnabled} onChange={(event) => setPreferenceQueueingEnabled(event.target.checked)} type="checkbox" />
+                  <span>Queueing</span>
+                </label>
+                <label>
+                  <input checked={preferenceTempPathEnabled} onChange={(event) => setPreferenceTempPathEnabled(event.target.checked)} type="checkbox" />
+                  <span>Temp path</span>
+                </label>
+                <label>
+                  <input checked={preferenceSpeedScheduleEnabled} onChange={(event) => setPreferenceSpeedScheduleEnabled(event.target.checked)} type="checkbox" />
+                  <span>Schedule</span>
+                </label>
+                <button className="secondary-action compact" disabled={isLoadingDownloadPreferences || isSavingDownloadPreferences} onClick={() => refreshDownloadPreferences()} type="button">
+                  <RefreshCw size={16} />
+                  {isLoadingDownloadPreferences ? "Loading" : "Refresh prefs"}
+                </button>
+                <button className="secondary-action compact" disabled={isSavingDownloadPreferences || isLoadingDownloadPreferences} onClick={applyDownloadPreferences} type="button">
+                  <SlidersHorizontal size={16} />
+                  {isSavingDownloadPreferences ? "Saving" : "Save prefs"}
+                </button>
+              </div>
+            </div>
+          ) : null}
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
           <div className="manual-grab-panel" aria-label="Manual download add">
             <div className="manual-grab-main">
@@ -2749,6 +2937,11 @@ function formatSpeed(bytesPerSecond: number) {
   return `${formatBytes(bytesPerSecond)}/s`;
 }
 
+function formatLimitSpeed(bytesPerSecond?: number) {
+  if (!bytesPerSecond || bytesPerSecond < 0) return "unlimited";
+  return formatSpeed(bytesPerSecond);
+}
+
 function formatDuration(seconds?: number) {
   if (!seconds || seconds < 0 || !Number.isFinite(seconds)) return "unknown";
   if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -3010,6 +3203,14 @@ function bandwidthInputToBytes(value: string) {
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed) || parsed < 0) return -1;
   return Math.round(parsed * 1024);
+}
+
+function queueLimitInputToInt(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return -1;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < -1) return -2;
+  return Math.trunc(parsed);
 }
 
 function wantedFormat(format: string) {

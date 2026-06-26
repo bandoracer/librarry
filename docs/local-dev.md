@@ -194,6 +194,9 @@ labels depending on the selected `client`. `POST
 categories and can rename/delete Transmission category labels.
 `POST /api/v1/downloads/tags/actions` creates or deletes qBittorrent tags and
 can rename/delete Transmission labels.
+`GET` and `PUT /api/v1/downloads/preferences` read and write qBittorrent global
+save-path, temp-path, speed-limit, scheduler, paused-add, and queue-cap
+preferences.
 `GET /api/v1/downloads/{id}` returns qBittorrent and Transmission properties,
 files, trackers, and peers; `/api/v1/downloads/{id}/files/actions` changes file
 priority for qBittorrent and Transmission, and

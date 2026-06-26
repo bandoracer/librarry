@@ -314,6 +314,53 @@ func (c *QBittorrentClient) Resources(ctx context.Context) (DownloadResources, e
 	}, nil
 }
 
+func (c *QBittorrentClient) Preferences(ctx context.Context) (DownloadPreferences, error) {
+	if !c.Configured() {
+		return DownloadPreferences{}, ErrIntegrationNotConfigured
+	}
+	if err := c.login(ctx); err != nil {
+		return DownloadPreferences{}, err
+	}
+	return c.preferences(ctx)
+}
+
+func (c *QBittorrentClient) UpdatePreferences(ctx context.Context, request DownloadPreferencesUpdate) (DownloadPreferences, error) {
+	if !c.Configured() {
+		return DownloadPreferences{}, ErrIntegrationNotConfigured
+	}
+	values, err := qbittorrentPreferencePatch(request)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	if len(values) == 0 {
+		return c.Preferences(ctx)
+	}
+	if err := c.login(ctx); err != nil {
+		return DownloadPreferences{}, err
+	}
+	payload, err := json.Marshal(values)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	form := url.Values{}
+	form.Set("json", string(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v2/app/setPreferences", strings.NewReader(form.Encode()))
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return DownloadPreferences{}, fmt.Errorf("qBittorrent set preferences returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return c.preferences(ctx)
+}
+
 func (c *QBittorrentClient) CategoryAction(ctx context.Context, request DownloadCategoryActionRequest) (DownloadResourceActionResult, error) {
 	if !c.Configured() {
 		return DownloadResourceActionResult{}, ErrIntegrationNotConfigured
@@ -942,6 +989,122 @@ func (c *QBittorrentClient) tags(ctx context.Context) ([]string, error) {
 		return strings.ToLower(tags[i]) < strings.ToLower(tags[j])
 	})
 	return tags, nil
+}
+
+func (c *QBittorrentClient) preferences(ctx context.Context) (DownloadPreferences, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/app/preferences", nil)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return DownloadPreferences{}, fmt.Errorf("qBittorrent preferences returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var raw struct {
+		SavePath                 string `json:"save_path"`
+		TempPathEnabled          bool   `json:"temp_path_enabled"`
+		TempPath                 string `json:"temp_path"`
+		StartPaused              bool   `json:"start_paused_enabled"`
+		DownloadLimit            int64  `json:"dl_limit"`
+		UploadLimit              int64  `json:"up_limit"`
+		AlternativeDownloadLimit int64  `json:"alt_dl_limit"`
+		AlternativeUploadLimit   int64  `json:"alt_up_limit"`
+		SpeedScheduleEnabled     bool   `json:"scheduler_enabled"`
+		QueueingEnabled          bool   `json:"queueing_enabled"`
+		MaxActiveDownloads       int    `json:"max_active_downloads"`
+		MaxActiveUploads         int    `json:"max_active_uploads"`
+		MaxActiveTorrents        int    `json:"max_active_torrents"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return DownloadPreferences{}, err
+	}
+	return DownloadPreferences{
+		Client:                       c.Name(),
+		SavePath:                     strings.TrimSpace(raw.SavePath),
+		TempPathEnabled:              raw.TempPathEnabled,
+		TempPath:                     strings.TrimSpace(raw.TempPath),
+		StartPaused:                  raw.StartPaused,
+		DownloadLimit:                raw.DownloadLimit,
+		UploadLimit:                  raw.UploadLimit,
+		AlternativeDownloadLimit:     raw.AlternativeDownloadLimit,
+		AlternativeUploadLimit:       raw.AlternativeUploadLimit,
+		SpeedScheduleEnabled:         raw.SpeedScheduleEnabled,
+		QueueingEnabled:              raw.QueueingEnabled,
+		MaxActiveDownloads:           raw.MaxActiveDownloads,
+		MaxActiveUploads:             raw.MaxActiveUploads,
+		MaxActiveTorrents:            raw.MaxActiveTorrents,
+		LibrarryPreferenceWriteScope: "qbittorrent-app-preferences",
+	}, nil
+}
+
+func qbittorrentPreferencePatch(request DownloadPreferencesUpdate) (map[string]any, error) {
+	values := map[string]any{}
+	if request.SavePath != nil {
+		values["save_path"] = strings.TrimSpace(*request.SavePath)
+	}
+	if request.TempPathEnabled != nil {
+		values["temp_path_enabled"] = *request.TempPathEnabled
+	}
+	if request.TempPath != nil {
+		values["temp_path"] = strings.TrimSpace(*request.TempPath)
+	}
+	if request.StartPaused != nil {
+		values["start_paused_enabled"] = *request.StartPaused
+	}
+	if request.DownloadLimit != nil {
+		if *request.DownloadLimit < 0 {
+			return nil, errors.New("downloadLimit must be zero or greater")
+		}
+		values["dl_limit"] = *request.DownloadLimit
+	}
+	if request.UploadLimit != nil {
+		if *request.UploadLimit < 0 {
+			return nil, errors.New("uploadLimit must be zero or greater")
+		}
+		values["up_limit"] = *request.UploadLimit
+	}
+	if request.AlternativeDownloadLimit != nil {
+		if *request.AlternativeDownloadLimit < 0 {
+			return nil, errors.New("alternativeDownloadLimit must be zero or greater")
+		}
+		values["alt_dl_limit"] = *request.AlternativeDownloadLimit
+	}
+	if request.AlternativeUploadLimit != nil {
+		if *request.AlternativeUploadLimit < 0 {
+			return nil, errors.New("alternativeUploadLimit must be zero or greater")
+		}
+		values["alt_up_limit"] = *request.AlternativeUploadLimit
+	}
+	if request.SpeedScheduleEnabled != nil {
+		values["scheduler_enabled"] = *request.SpeedScheduleEnabled
+	}
+	if request.QueueingEnabled != nil {
+		values["queueing_enabled"] = *request.QueueingEnabled
+	}
+	if request.MaxActiveDownloads != nil {
+		if *request.MaxActiveDownloads < -1 {
+			return nil, errors.New("maxActiveDownloads must be -1 or greater")
+		}
+		values["max_active_downloads"] = *request.MaxActiveDownloads
+	}
+	if request.MaxActiveUploads != nil {
+		if *request.MaxActiveUploads < -1 {
+			return nil, errors.New("maxActiveUploads must be -1 or greater")
+		}
+		values["max_active_uploads"] = *request.MaxActiveUploads
+	}
+	if request.MaxActiveTorrents != nil {
+		if *request.MaxActiveTorrents < -1 {
+			return nil, errors.New("maxActiveTorrents must be -1 or greater")
+		}
+		values["max_active_torrents"] = *request.MaxActiveTorrents
+	}
+	return values, nil
 }
 
 func (c *QBittorrentClient) editCategory(ctx context.Context, category string, savePath string) error {

@@ -382,6 +382,75 @@ func TestQBittorrentResourcesListsCategoriesAndTags(t *testing.T) {
 	}
 }
 
+func TestQBittorrentPreferencesReadAndUpdate(t *testing.T) {
+	var preferenceReads int
+	var posted map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/app/preferences":
+			preferenceReads++
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"save_path":            "/downloads/books",
+				"temp_path_enabled":    true,
+				"temp_path":            "/downloads/incomplete",
+				"start_paused_enabled": true,
+				"dl_limit":             1024,
+				"up_limit":             512,
+				"alt_dl_limit":         2048,
+				"alt_up_limit":         1024,
+				"scheduler_enabled":    false,
+				"queueing_enabled":     true,
+				"max_active_downloads": 3,
+				"max_active_uploads":   2,
+				"max_active_torrents":  5,
+			})
+		case "/api/v2/app/setPreferences":
+			if err := r.ParseForm(); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(r.Form.Get("json")), &posted); err != nil {
+				t.Fatalf("expected json form payload, got %q: %v", r.Form.Get("json"), err)
+			}
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := NewQBittorrentClient(server.URL, "", "", server.Client())
+	preferences, err := client.Preferences(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preferences.Client != "qBittorrent" || preferences.SavePath != "/downloads/books" || !preferences.StartPaused || preferences.DownloadLimit != 1024 || preferences.MaxActiveTorrents != 5 {
+		t.Fatalf("unexpected preferences: %+v", preferences)
+	}
+
+	savePath := "/downloads/books/audio"
+	downloadLimit := int64(4096)
+	queueing := false
+	maxActive := 7
+	updated, err := client.UpdatePreferences(context.Background(), DownloadPreferencesUpdate{
+		SavePath:          &savePath,
+		DownloadLimit:     &downloadLimit,
+		QueueingEnabled:   &queueing,
+		MaxActiveTorrents: &maxActive,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preferenceReads != 2 {
+		t.Fatalf("expected initial and post-update preference reads, got %d", preferenceReads)
+	}
+	if posted["save_path"] != savePath || int64(posted["dl_limit"].(float64)) != downloadLimit || posted["queueing_enabled"] != queueing || int(posted["max_active_torrents"].(float64)) != maxActive {
+		t.Fatalf("unexpected setPreferences payload: %+v", posted)
+	}
+	if updated.LibrarryPreferenceWriteScope != "qbittorrent-app-preferences" {
+		t.Fatalf("expected write scope on refreshed preferences, got %+v", updated)
+	}
+}
+
 func TestQBittorrentCategoryAndTagActions(t *testing.T) {
 	tests := []struct {
 		name       string

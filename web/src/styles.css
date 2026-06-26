@@ -2006,6 +2006,101 @@ select {
   font-size: 12px;
 }
 
+.download-preference-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.download-preference-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.download-preference-header strong,
+.download-preference-header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-preference-header strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.download-preference-header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.download-preference-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) repeat(7, minmax(82px, 0.45fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.download-preference-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.download-preference-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.download-preference-grid input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fbfcfe;
+  padding: 0 10px;
+  outline: 0;
+}
+
+.download-preference-grid input:disabled {
+  color: var(--muted);
+  background: #f1f4f8;
+}
+
+.download-preference-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.download-preference-toggles label {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fbfcfe;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.download-preference-toggles input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}
+
 .download-tag-cloud {
   min-height: 46px;
   display: flex;
@@ -2478,8 +2573,14 @@ select {
   .download-resource-editor,
   .download-resource-editor.tag-editor,
   .download-resource-lists,
-  .download-resource-row {
+  .download-resource-row,
+  .download-preference-grid {
     grid-template-columns: 1fr;
+  }
+
+  .download-preference-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .download-resource-row .icon-button {

@@ -1990,6 +1990,43 @@ func TestDownloadResourcesEndpoint(t *testing.T) {
 	}
 }
 
+func TestDownloadPreferencesEndpoints(t *testing.T) {
+	acquire := &fakePreferenceAcquire{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  acquire,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads/preferences?client=qBittorrent", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected preferences 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var preferences acquisition.DownloadPreferences
+	if err := json.NewDecoder(res.Body).Decode(&preferences); err != nil {
+		t.Fatal(err)
+	}
+	if preferences.Client != "qBittorrent" || preferences.SavePath != "/downloads/books" || preferences.DownloadLimit != 1_048_576 {
+		t.Fatalf("unexpected preferences payload: %+v", preferences)
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/downloads/preferences", strings.NewReader(`{"client":"qBittorrent","savePath":"/downloads/audio","downloadLimit":2097152,"queueingEnabled":false,"maxActiveTorrents":8}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected preference update 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if acquire.update.Client != "qBittorrent" || acquire.update.SavePath == nil || *acquire.update.SavePath != "/downloads/audio" ||
+		acquire.update.DownloadLimit == nil || *acquire.update.DownloadLimit != 2_097_152 ||
+		acquire.update.QueueingEnabled == nil || *acquire.update.QueueingEnabled ||
+		acquire.update.MaxActiveTorrents == nil || *acquire.update.MaxActiveTorrents != 8 {
+		t.Fatalf("expected preference update request, got %+v", acquire.update)
+	}
+}
+
 func TestDownloadResourceActionEndpoints(t *testing.T) {
 	acquire := &fakeResourceAcquire{}
 	router := NewRouter(Dependencies{
@@ -3076,6 +3113,30 @@ func (fakeAcquire) DownloadResources(context.Context, string) (acquisition.Downl
 	}, nil
 }
 
+func (fakeAcquire) DownloadPreferences(context.Context, string) (acquisition.DownloadPreferences, error) {
+	return acquisition.DownloadPreferences{
+		Client:                       "qBittorrent",
+		SavePath:                     "/downloads/books",
+		TempPathEnabled:              true,
+		TempPath:                     "/downloads/incomplete",
+		StartPaused:                  true,
+		DownloadLimit:                1_048_576,
+		UploadLimit:                  262_144,
+		AlternativeDownloadLimit:     524_288,
+		AlternativeUploadLimit:       131_072,
+		SpeedScheduleEnabled:         false,
+		QueueingEnabled:              true,
+		MaxActiveDownloads:           3,
+		MaxActiveUploads:             2,
+		MaxActiveTorrents:            5,
+		LibrarryPreferenceWriteScope: "qbittorrent-app-preferences",
+	}, nil
+}
+
+func (fakeAcquire) UpdateDownloadPreferences(context.Context, acquisition.DownloadPreferencesUpdate) (acquisition.DownloadPreferences, error) {
+	return fakeAcquire{}.DownloadPreferences(context.Background(), "qBittorrent")
+}
+
 func (fakeAcquire) DownloadCategoryAction(_ context.Context, request acquisition.DownloadCategoryActionRequest) (acquisition.DownloadResourceActionResult, error) {
 	resources, _ := fakeAcquire{}.DownloadResources(context.Background(), request.Client)
 	return acquisition.DownloadResourceActionResult{
@@ -3098,6 +3159,16 @@ func (fakeAcquire) DownloadTagAction(_ context.Context, request acquisition.Down
 
 func (fakeAcquire) ClearDownloadFailure(context.Context, string) error {
 	return nil
+}
+
+type fakePreferenceAcquire struct {
+	fakeAcquire
+	update acquisition.DownloadPreferencesUpdate
+}
+
+func (f *fakePreferenceAcquire) UpdateDownloadPreferences(_ context.Context, request acquisition.DownloadPreferencesUpdate) (acquisition.DownloadPreferences, error) {
+	f.update = request
+	return fakeAcquire{}.UpdateDownloadPreferences(context.Background(), request)
 }
 
 type fakeResourceAcquire struct {

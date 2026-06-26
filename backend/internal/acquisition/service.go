@@ -352,6 +352,32 @@ func (s *Service) DownloadResources(ctx context.Context, client string) (Downloa
 	}
 }
 
+func (s *Service) DownloadPreferences(ctx context.Context, client string) (DownloadPreferences, error) {
+	resolvedClient, err := s.resolveResourceClient(client)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		return s.qbit.Preferences(ctx)
+	default:
+		return DownloadPreferences{}, fmt.Errorf("download preferences are not supported for %s", resolvedClient)
+	}
+}
+
+func (s *Service) UpdateDownloadPreferences(ctx context.Context, request DownloadPreferencesUpdate) (DownloadPreferences, error) {
+	resolvedClient, err := s.resolveResourceClient(request.Client)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		return s.qbit.UpdatePreferences(ctx, request)
+	default:
+		return DownloadPreferences{}, fmt.Errorf("download preferences are not supported for %s", resolvedClient)
+	}
+}
+
 func (s *Service) DownloadCategoryAction(ctx context.Context, request DownloadCategoryActionRequest) (DownloadResourceActionResult, error) {
 	resolvedClient, err := s.resolveResourceClient(request.Client)
 	if err != nil {

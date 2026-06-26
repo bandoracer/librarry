@@ -45,6 +45,8 @@ type acquisitionService interface {
 	DownloadFileAction(ctx context.Context, id string, request acquisition.DownloadFileActionRequest) (acquisition.DownloadFileActionResult, error)
 	DownloadTrackerAction(ctx context.Context, id string, request acquisition.DownloadTrackerActionRequest) (acquisition.DownloadTrackerActionResult, error)
 	DownloadResources(ctx context.Context, client string) (acquisition.DownloadResources, error)
+	DownloadPreferences(ctx context.Context, client string) (acquisition.DownloadPreferences, error)
+	UpdateDownloadPreferences(ctx context.Context, request acquisition.DownloadPreferencesUpdate) (acquisition.DownloadPreferences, error)
 	DownloadCategoryAction(ctx context.Context, request acquisition.DownloadCategoryActionRequest) (acquisition.DownloadResourceActionResult, error)
 	DownloadTagAction(ctx context.Context, request acquisition.DownloadTagActionRequest) (acquisition.DownloadResourceActionResult, error)
 	ClearDownloadFailure(ctx context.Context, id string) error
@@ -315,6 +317,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("GET /api/v1/downloads/{id}", handler.downloadDetails)
 	mux.HandleFunc("GET /api/v1/downloads/resources", handler.downloadResources)
+	mux.HandleFunc("GET /api/v1/downloads/preferences", handler.downloadPreferences)
+	mux.HandleFunc("PUT /api/v1/downloads/preferences", handler.updateDownloadPreferences)
 	mux.HandleFunc("POST /api/v1/downloads/categories/actions", handler.downloadCategoryAction)
 	mux.HandleFunc("POST /api/v1/downloads/tags/actions", handler.downloadTagAction)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
@@ -627,6 +631,41 @@ func (h *handler) downloadResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, resources)
+}
+
+func (h *handler) downloadPreferences(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	preferences, err := h.deps.Acquire.DownloadPreferences(r.Context(), r.URL.Query().Get("client"))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, preferences)
+}
+
+func (h *handler) updateDownloadPreferences(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request acquisition.DownloadPreferencesUpdate
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid download preferences payload"})
+		return
+	}
+	if request.Client == "" {
+		request.Client = r.URL.Query().Get("client")
+	}
+	preferences, err := h.deps.Acquire.UpdateDownloadPreferences(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, preferences)
 }
 
 func (h *handler) downloadCategoryAction(w http.ResponseWriter, r *http.Request) {
