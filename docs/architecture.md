@@ -366,6 +366,11 @@ Download-client, indexer, notification, and import-list resources also expose
 Readarr-style schema, test, test-all, action, and bulk mutation endpoints so
 Arr clients that validate resource implementations before saving can complete
 their normal probe flow.
+Webhook notification resources have native side effects: enabled Webhook
+notifications are delivered for grab, release import, upgrade, failed-download,
+and test events using the stored URL/method fields. Other notification
+implementations remain compatibility records until they are backed by native
+delivery code.
 
 Compatibility config endpoints for naming, media-management, host, UI,
 download-client, and indexer settings render current Librarry defaults and

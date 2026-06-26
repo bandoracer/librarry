@@ -1892,11 +1892,26 @@ func (h *handler) compatNotificationSchema(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *handler) compatNotificationTest(w http.ResponseWriter, r *http.Request) {
-	h.writeCompatResourceTest(w, r, "notification", "notification", compatNotificationRecord)
+	payload, ok := decodeCompatObjectPayload(w, r, "notification")
+	if !ok {
+		return
+	}
+	record := compatNotificationRecord(payload, payloadIntDefault(payload, "id", stablePayloadID(payload, "notification")))
+	record = mergeCompatPayload(record, payload)
+	writeJSON(w, http.StatusOK, h.testNotification(r.Context(), record))
 }
 
 func (h *handler) compatNotificationTestAll(w http.ResponseWriter, r *http.Request) {
-	h.writeCompatResourceTestAll(w, r, "notification", nil, compatNotificationRecord)
+	records, err := h.compatResourceRecords(r.Context(), "notification", nil, compatNotificationRecord)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	results := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		results = append(results, h.testNotification(r.Context(), record))
+	}
+	writeJSON(w, http.StatusOK, results)
 }
 
 func (h *handler) compatImportLists(w http.ResponseWriter, r *http.Request) {
@@ -2136,6 +2151,7 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 				return
 			}
+			h.notifyDownloadGrab(r.Context(), "compat-release-grab", status, wantedID)
 			writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
 			return
 		}
@@ -2170,6 +2186,7 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
+	h.notifyDownloadGrab(r.Context(), "compat-release-grab", status, wantedID)
 	writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
 }
 
@@ -2246,6 +2263,7 @@ func (h *handler) compatCreateManualImport(w http.ResponseWriter, r *http.Reques
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "path": sourcePath})
 			return
 		}
+		h.notifyReleaseImport(r.Context(), "compat-manual-import", outcome)
 		records = append(records, compatManualImportOutcomeRecord(outcome, request))
 	}
 	writeJSON(w, http.StatusOK, records)
@@ -5160,20 +5178,25 @@ func compatNotificationRecord(payload map[string]any, id int) map[string]any {
 	}
 	implementation := firstNonEmptyString(payloadString(payload, "implementation"), "Webhook")
 	return map[string]any{
-		"id":                 id,
-		"name":               firstNonEmptyString(payloadString(payload, "name"), implementation),
-		"implementation":     implementation,
-		"implementationName": firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
-		"configContract":     firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
-		"enable":             payloadBoolDefault(payload, "enable", false),
-		"onGrab":             payloadBoolDefault(payload, "onGrab", true),
-		"onReleaseImport":    payloadBoolDefault(payload, "onReleaseImport", true),
-		"onUpgrade":          payloadBoolDefault(payload, "onUpgrade", true),
-		"supportsOnGrab":     true,
-		"supportsOnDownload": true,
-		"fields":             compatPayloadArray(payload, "fields"),
-		"tags":               compatPayloadIntArray(payload, "tags"),
-		"librarryEphemeral":  true,
+		"id":                        id,
+		"name":                      firstNonEmptyString(payloadString(payload, "name"), implementation),
+		"implementation":            implementation,
+		"implementationName":        firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
+		"configContract":            firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
+		"enable":                    payloadBoolDefault(payload, "enable", false),
+		"url":                       payloadString(payload, "url"),
+		"method":                    firstNonEmptyString(payloadString(payload, "method"), "POST"),
+		"onGrab":                    payloadBoolDefault(payload, "onGrab", true),
+		"onReleaseImport":           payloadBoolDefault(payload, "onReleaseImport", true),
+		"onUpgrade":                 payloadBoolDefault(payload, "onUpgrade", true),
+		"onDownloadFailure":         payloadBoolDefault(payload, "onDownloadFailure", true),
+		"supportsOnGrab":            true,
+		"supportsOnDownload":        true,
+		"supportsOnUpgrade":         true,
+		"supportsOnDownloadFailure": true,
+		"fields":                    compatPayloadArray(payload, "fields"),
+		"tags":                      compatPayloadIntArray(payload, "tags"),
+		"librarryEphemeral":         true,
 	}
 }
 

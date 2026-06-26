@@ -823,6 +823,10 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 
 func TestCompatArrResourceUtilityEndpointsPersist(t *testing.T) {
 	compatResources := &fakeCompatResources{}
+	webhook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer webhook.Close()
 	router := NewRouter(Dependencies{
 		Logger: slog.Default(),
 		Config: config.Config{
@@ -850,7 +854,7 @@ func TestCompatArrResourceUtilityEndpointsPersist(t *testing.T) {
 		{http.MethodGet, "/api/v1/indexer/schema", "", http.StatusOK, []string{`"implementation":"Torznab"`, `"implementation":"Newznab"`}},
 		{http.MethodPost, "/api/v1/indexer/test", `{"name":"Prowlarr","implementation":"Torznab"}`, http.StatusOK, []string{`"testPassed":true`, `"resourceType":"indexer"`}},
 		{http.MethodGet, "/api/v1/notification/schema", "", http.StatusOK, []string{`"implementation":"Webhook"`, `"configContract":"WebhookSettings"`}},
-		{http.MethodPost, "/api/v1/notification/test", `{"name":"Webhook","implementation":"Webhook","enable":true}`, http.StatusOK, []string{`"testPassed":true`, `"resourceType":"notification"`}},
+		{http.MethodPost, "/api/v1/notification/test", `{"name":"Webhook","implementation":"Webhook","enable":true,"url":"` + webhook.URL + `"}`, http.StatusOK, []string{`"testPassed":true`, `"resourceType":"notification"`}},
 		{http.MethodGet, "/api/v1/importlist/schema", "", http.StatusOK, []string{`"implementation":"ReadarrImportList"`, `"rootFolderPath"`}},
 		{http.MethodPost, "/api/v1/importlist/testall", `{}`, http.StatusOK, []string{`[]`}},
 	}
@@ -1824,6 +1828,107 @@ func TestDownloadRebalanceEndpointDryRunStopsOverflow(t *testing.T) {
 	}
 	if payload.Applied || payload.StopIDs[0] != "active-low" || len(acquire.actions) != 0 {
 		t.Fatalf("unexpected dry-run payload/actions: %+v actions=%+v", payload, acquire.actions)
+	}
+}
+
+func TestNotificationWebhookFiresOnGrab(t *testing.T) {
+	var delivered map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Readarr-EventType") != notificationEventGrab {
+			t.Fatalf("expected grab event header, got %s", r.Header.Get("X-Readarr-EventType"))
+		}
+		if err := json.NewDecoder(r.Body).Decode(&delivered); err != nil {
+			t.Fatal(err)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+		Compat:   fakeNotificationCompat(server.URL, map[string]any{"onReleaseImport": false}),
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/grabs", strings.NewReader(`{"releaseUrl":"magnet:?xt=urn:btih:abc123","title":"Project Hail Mary EPUB","paused":true}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if delivered["eventType"] != notificationEventGrab || delivered["downloadId"] != "download-1" || delivered["releaseTitle"] != "Project Hail Mary EPUB" {
+		t.Fatalf("unexpected webhook payload: %+v", delivered)
+	}
+}
+
+func TestNotificationWebhookFiresOnLibraryImport(t *testing.T) {
+	var delivered map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&delivered); err != nil {
+			t.Fatal(err)
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer server.Close()
+
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fakeLibrary{},
+		Compat:   fakeNotificationCompat(server.URL, map[string]any{"onGrab": false}),
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/import", strings.NewReader(`{"sourcePath":"/downloads/Project Hail Mary.epub","format":"ebook"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if delivered["eventType"] != notificationEventReleaseImport || delivered["destinationPath"] != "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" {
+		t.Fatalf("unexpected import webhook payload: %+v", delivered)
+	}
+	bookFile, ok := delivered["bookFile"].(map[string]any)
+	if !ok || bookFile["path"] != "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" {
+		t.Fatalf("expected bookFile payload, got %+v", delivered["bookFile"])
+	}
+}
+
+func TestNotificationTestEndpointDeliversWebhook(t *testing.T) {
+	var delivered map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&delivered); err != nil {
+			t.Fatal(err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notification/test", strings.NewReader(`{"name":"Webhook","implementation":"Webhook","enable":false,"url":"`+server.URL+`"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if delivered["eventType"] != notificationEventTest {
+		t.Fatalf("expected test webhook payload, got %+v", delivered)
+	}
+	if !strings.Contains(res.Body.String(), `"testPassed":true`) {
+		t.Fatalf("expected test pass response, got %s", res.Body.String())
 	}
 }
 
@@ -3013,6 +3118,28 @@ func cloneFakeCompatResource(resource compatdata.Resource) compatdata.Resource {
 		cloned.Payload[key] = value
 	}
 	return cloned
+}
+
+func fakeNotificationCompat(url string, overrides map[string]any) *fakeCompatResources {
+	payload := map[string]any{
+		"name":           "Webhook",
+		"implementation": "Webhook",
+		"enable":         true,
+		"fields": []any{
+			map[string]any{"name": "url", "value": url},
+			map[string]any{"name": "method", "value": "POST"},
+		},
+	}
+	for key, value := range overrides {
+		payload[key] = value
+	}
+	return &fakeCompatResources{resources: []compatdata.Resource{{
+		ID:           "compat-resource-1",
+		ResourceType: "notification",
+		CompatID:     1,
+		Name:         "Webhook",
+		Payload:      payload,
+	}}}
 }
 
 type fakeBlocklistWanted struct {
