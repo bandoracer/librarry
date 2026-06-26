@@ -1410,6 +1410,14 @@ select {
   font-size: 13px;
 }
 
+.inline-note {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  color: #155e75;
+  background: #ecfeff;
+  font-size: 13px;
+}
+
 .release-list {
   display: grid;
 }
@@ -1957,6 +1965,55 @@ select {
   display: grid;
 }
 
+.settings-auth-row {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.5fr) minmax(240px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-auth-title {
+  min-width: 0;
+}
+
+.settings-auth-title strong,
+.settings-auth-title span,
+.settings-api-key span {
+  display: block;
+}
+
+.settings-auth-title strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.settings-auth-title span,
+.settings-api-key span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-api-key {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.settings-api-key input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  color: var(--text);
+  padding: 0 10px;
+}
+
 .quality-profile-row {
   min-height: 76px;
   display: grid;
@@ -2240,10 +2297,15 @@ select {
   .feed-sync-row,
   .library-file-row,
   .import-review-row,
+  .settings-auth-row,
   .quality-profile-row,
   .library-import-row,
   .history-row {
     grid-template-columns: 1fr;
+  }
+
+  .settings-auth-row .secondary-action.compact {
+    width: 100%;
   }
 
   .import-review-actions {

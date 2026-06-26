@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -314,7 +315,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/resolve", handler.resolveImportReview)
 
-	return withCORS(deps.Config.WebOrigin, mux)
+	return withCORS(deps.Config.WebOrigin, withAPIKeyAuth(deps.Config.APIKey, mux))
 }
 
 type handler struct {
@@ -1241,7 +1242,7 @@ func withCORS(webOrigin string, next http.Handler) http.Handler {
 		if origin != "" && (webOrigin == "*" || origin == webOrigin || strings.HasPrefix(origin, "http://127.0.0.1:517")) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		}
 		if r.Method == http.MethodOptions {
@@ -1250,6 +1251,72 @@ func withCORS(webOrigin string, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func withAPIKeyAuth(apiKey string, next http.Handler) http.Handler {
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if authExemptPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !validAPIKey(r, apiKey) {
+			w.Header().Set("WWW-Authenticate", `X-Api-Key realm="librarry"`)
+			writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"error": "API key is missing or invalid",
+			})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func authExemptPath(path string) bool {
+	switch path {
+	case "/healthz", "/ping":
+		return true
+	default:
+		return false
+	}
+}
+
+func validAPIKey(r *http.Request, expected string) bool {
+	for _, candidate := range requestAPIKeyCandidates(r) {
+		if subtle.ConstantTimeCompare([]byte(candidate), []byte(expected)) == 1 {
+			return true
+		}
+	}
+	return false
+}
+
+func requestAPIKeyCandidates(r *http.Request) []string {
+	query := r.URL.Query()
+	candidates := []string{
+		r.Header.Get("X-Api-Key"),
+		query.Get("apikey"),
+		query.Get("apiKey"),
+	}
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	if auth != "" {
+		fields := strings.Fields(auth)
+		if len(fields) == 2 && (strings.EqualFold(fields[0], "Bearer") || strings.EqualFold(fields[0], "ApiKey")) {
+			candidates = append(candidates, fields[1])
+		}
+	}
+	compact := candidates[:0]
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate) != "" {
+			compact = append(compact, strings.TrimSpace(candidate))
+		}
+	}
+	return compact
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

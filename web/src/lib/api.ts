@@ -509,6 +509,31 @@ export type ReviewDecisionOutcome = {
 };
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
+const apiKeyStorageKey = "librarry.apiKey";
+
+export function getStoredAPIKey(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(apiKeyStorageKey)?.trim() ?? "";
+}
+
+export function setStoredAPIKey(value: string) {
+  if (typeof window === "undefined") return;
+  const normalized = value.trim();
+  if (normalized) {
+    window.localStorage.setItem(apiKeyStorageKey, normalized);
+  } else {
+    window.localStorage.removeItem(apiKeyStorageKey);
+  }
+}
+
+async function fetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  const apiKey = getStoredAPIKey();
+  if (apiKey && !headers.has("X-Api-Key")) {
+    headers.set("X-Api-Key", apiKey);
+  }
+  return globalThis.fetch(input, { ...init, headers });
+}
 
 export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
   const response = await fetch(`${apiBase}/api/v1/providers/health`);

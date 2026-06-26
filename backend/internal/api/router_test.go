@@ -42,6 +42,85 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
+func TestAPIKeyAuthIsOptionalWhenUnset(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/system/status", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected unset API key to allow request, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
+func TestAPIKeyAuthRequiresConfiguredKeyForAPIPaths(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", APIKey: "secret"},
+		Metadata: metadata.NewService(nil),
+	})
+
+	for _, tt := range []struct {
+		name       string
+		path       string
+		header     string
+		authHeader string
+		want       int
+	}{
+		{name: "missing", path: "/api/v1/system/status", want: http.StatusUnauthorized},
+		{name: "wrong header", path: "/api/v1/system/status", header: "wrong", want: http.StatusUnauthorized},
+		{name: "x api key header", path: "/api/v1/system/status", header: "secret", want: http.StatusOK},
+		{name: "lowercase query", path: "/api/v1/system/status?apikey=secret", want: http.StatusOK},
+		{name: "camel query", path: "/api/v1/system/status?apiKey=secret", want: http.StatusOK},
+		{name: "bearer header", path: "/api/v1/system/status", authHeader: "Bearer secret", want: http.StatusOK},
+		{name: "apikey auth header", path: "/api/v1/system/status", authHeader: "ApiKey secret", want: http.StatusOK},
+		{name: "health exempt", path: "/healthz", want: http.StatusOK},
+		{name: "ping exempt", path: "/ping", want: http.StatusOK},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			if tt.header != "" {
+				req.Header.Set("X-Api-Key", tt.header)
+			}
+			if tt.authHeader != "" {
+				req.Header.Set("Authorization", tt.authHeader)
+			}
+			res := httptest.NewRecorder()
+
+			router.ServeHTTP(res, req)
+
+			if res.Code != tt.want {
+				t.Fatalf("expected %d, got %d: %s", tt.want, res.Code, res.Body.String())
+			}
+		})
+	}
+}
+
+func TestAPIKeyAuthCORSAllowsArrHeader(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", APIKey: "secret"},
+		Metadata: metadata.NewService(nil),
+	})
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/system/status", nil)
+	req.Header.Set("Origin", "http://127.0.0.1:5173")
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected CORS preflight to bypass auth, got %d: %s", res.Code, res.Body.String())
+	}
+	if got := res.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "X-Api-Key") {
+		t.Fatalf("expected X-Api-Key in CORS headers, got %q", got)
+	}
+}
+
 func TestCompatSystemStatusAndPingEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),

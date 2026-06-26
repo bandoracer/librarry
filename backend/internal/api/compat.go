@@ -2693,7 +2693,7 @@ func (h *handler) compatHostConfigRecord(overrides map[string]any) map[string]an
 		"logLevel":                   firstNonEmptyString(payloadString(overrides, "logLevel"), "info"),
 		"consoleLogLevel":            firstNonEmptyString(payloadString(overrides, "consoleLogLevel"), "info"),
 		"branch":                     firstNonEmptyString(payloadString(overrides, "branch"), "main"),
-		"apiKey":                     payloadString(overrides, "apiKey"),
+		"apiKey":                     firstNonEmptyString(payloadString(overrides, "apiKey"), h.deps.Config.APIKey),
 		"sslCertPath":                payloadString(overrides, "sslCertPath"),
 		"sslCertPassword":            "",
 		"urlBase":                    payloadString(overrides, "urlBase"),

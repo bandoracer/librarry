@@ -11,6 +11,11 @@ LIBRARRY_DATABASE_URL=postgres://librarry:librarry@127.0.0.1:5432/librarry?sslmo
 If `LIBRARRY_DATABASE_URL` is omitted, the API starts without persistence so
 provider search and health endpoints can be developed independently.
 
+Set `LIBRARRY_API_KEY` to protect the API with Readarr-style API-key auth. When
+configured, `/api/` accepts `X-Api-Key`, `apikey`, `apiKey`, or bearer auth;
+`/healthz` and `/ping` remain unauthenticated for local and container probes.
+The web UI stores the key per browser from Settings.
+
 ## Frontend
 
 ```bash

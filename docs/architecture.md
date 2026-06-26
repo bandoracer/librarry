@@ -8,6 +8,11 @@ The backend owns provider credentials, metadata normalization, provider health,
 matching policy, acquisition workers, and Postgres persistence. Provider tokens
 never need to be exposed to the browser.
 
+When `LIBRARRY_API_KEY` is configured, the router enforces Readarr-compatible
+API-key auth on `/api/` routes before dispatching to native or compatibility
+handlers. It accepts `X-Api-Key`, `apikey`, `apiKey`, and bearer auth while
+leaving `/healthz` and `/ping` open for service probes.
+
 Initial API surface:
 
 - Readarr-compatible endpoints:

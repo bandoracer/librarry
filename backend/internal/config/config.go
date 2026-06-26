@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	ListenAddr                string
+	APIKey                    string
 	DatabaseURL               string
 	MigrationsDir             string
 	HardcoverToken            string
@@ -65,6 +66,7 @@ type Config struct {
 func FromEnv() Config {
 	return Config{
 		ListenAddr:                env("LIBRARRY_LISTEN_ADDR", ":8080"),
+		APIKey:                    strings.TrimSpace(os.Getenv("LIBRARRY_API_KEY")),
 		DatabaseURL:               strings.TrimSpace(os.Getenv("LIBRARRY_DATABASE_URL")),
 		MigrationsDir:             env("LIBRARRY_MIGRATIONS_DIR", "backend/migrations"),
 		HardcoverToken:            strings.TrimSpace(os.Getenv("LIBRARRY_HARDCOVER_TOKEN")),

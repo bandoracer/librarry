@@ -80,7 +80,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, manual magnet/torrent/NZB URL add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL add and selected-row bulk actions. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, per-file skip/normal/high/max priority actions, and simple active-queue rebalancing are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, set location, labels, and per-torrent speed limits. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
-| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename preview and RenameFiles command handling, manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, notifications, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, basic commands, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, retagging, Calibre endpoints, and broader native behavior behind compatibility resources. |
+| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers optional Readarr-style API-key auth, common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename preview and RenameFiles command handling, manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, notifications, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, basic commands, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, retagging, Calibre endpoints, and broader native behavior behind compatibility resources. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Not implemented. | Possible future integration, but not before import, matching, and organization are reliable. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, queue unlinked files for review, and rename tracked files through native or Readarr-compatible APIs. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
@@ -177,7 +177,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - SABnzbd integration for NZB/Usenet grabs, queue/history polling, and start,
   stop, and delete actions.
 - Readarr-compatible API shim for common client probes and status views,
-  including `/ping`, `/api/v1/system/status`, `/api/v1/health`,
+  including optional `X-Api-Key`/`apikey`/bearer authentication, `/ping`,
+  `/api/v1/system/status`, `/api/v1/health`,
   `/api/v1/system/backup`, `/api/v1/update`, `/api/v1/diskspace`,
   `/api/v1/filesystem`, `/api/v1/language`, `/api/v1/localization`,
   `/api/v1/log`, `/api/v1/rootfolder`, `/api/v1/queue`,
@@ -500,6 +501,7 @@ Common settings:
 
 ```dotenv
 LIBRARRY_DATABASE_URL=postgres://librarry:librarry@postgres:5432/librarry?sslmode=disable
+LIBRARRY_API_KEY=
 LIBRARRY_HARDCOVER_TOKEN=
 LIBRARRY_GOOGLE_BOOKS_API_KEY=
 LIBRARRY_PROWLARR_URL=
@@ -549,6 +551,11 @@ LIBRARRY_UPGRADE_SEARCH_LIMIT=50
 LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=false
 LIBRARRY_UPGRADE_SEARCH_MIN_DELTA=5
 ```
+
+`LIBRARRY_API_KEY` is optional for local development. When it is set, all
+`/api/` routes require a Readarr-compatible key through `X-Api-Key`, `apikey`,
+`apiKey`, or `Authorization: Bearer ...`; `/healthz` and `/ping` stay open for
+service probes. The web UI can store the key per browser from Settings.
 
 Provider notes:
 

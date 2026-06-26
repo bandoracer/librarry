@@ -40,6 +40,7 @@ import {
   fetchProviderHealth,
   fetchQualityProfiles,
   fetchWanted,
+  getStoredAPIKey,
   grabManualDownload,
   grabWanted,
   grabRelease,
@@ -60,6 +61,7 @@ import {
   searchMetadata,
   searchReleases,
   searchWantedReleases,
+  setStoredAPIKey,
   subscribeAuthor,
   type AuthorMonitorRun,
   type AuthorSubscription,
@@ -175,6 +177,7 @@ export function App() {
   const [importPath, setImportPath] = useState("");
   const [format, setFormat] = useState("any");
   const [apiState, setAPIState] = useState<"checking" | "live" | "offline">("checking");
+  const [apiKeyInput, setAPIKeyInput] = useState(() => getStoredAPIKey());
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchingReleases, setIsSearchingReleases] = useState(false);
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
@@ -212,6 +215,7 @@ export function App() {
   const [libraryError, setLibraryError] = useState("");
   const [downloadError, setDownloadError] = useState("");
   const [settingsError, setSettingsError] = useState("");
+  const [settingsNotice, setSettingsNotice] = useState("");
 
   useEffect(() => {
     Promise.all([fetchProviderHealth(), fetchIntegrationHealth()])
@@ -843,6 +847,21 @@ export function App() {
       setSettingsError(error instanceof Error ? error.message : "Quality profile save failed");
     } finally {
       setSavingProfileID("");
+    }
+  }
+
+  async function saveAPIKeySetting() {
+    setStoredAPIKey(apiKeyInput);
+    setSettingsError("");
+    setSettingsNotice(apiKeyInput.trim() ? "API key saved for this browser." : "API key cleared for this browser.");
+    try {
+      const [nextProviders, nextIntegrations] = await Promise.all([fetchProviderHealth(), fetchIntegrationHealth()]);
+      setProviders(nextProviders);
+      setIntegrations(nextIntegrations);
+      setAPIState("live");
+    } catch (error) {
+      setAPIState("offline");
+      setSettingsError(error instanceof Error ? error.message : "API key saved, but the API is still unavailable");
     }
   }
 
@@ -1821,10 +1840,10 @@ export function App() {
           </div>
         </section>
 
-        <section className="settings-panel" aria-label="Quality profiles" hidden={activeView !== "settings"}>
+        <section className="settings-panel" aria-label="Settings" hidden={activeView !== "settings"}>
           <div className="panel-heading">
             <div>
-              <h2>Quality Profiles</h2>
+              <h2>Settings</h2>
               <p>{qualityProfiles.length} release policy profiles used by search, feeds, recovery, and upgrades.</p>
             </div>
             <button className="secondary-action compact" onClick={() => fetchQualityProfiles().then(setQualityProfiles).catch((error) => setSettingsError(error instanceof Error ? error.message : "Quality profiles refresh failed"))} type="button">
@@ -1832,6 +1851,43 @@ export function App() {
               Refresh
             </button>
           </div>
+          <div className="settings-auth-row">
+            <div className="settings-auth-title">
+              <strong>API key</strong>
+              <span>{getStoredAPIKey() ? "Saved in this browser" : "Not saved"}</span>
+            </div>
+            <label className="settings-api-key">
+              <span>Key</span>
+              <input
+                autoComplete="off"
+                type="password"
+                value={apiKeyInput}
+                onChange={(event) => setAPIKeyInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") saveAPIKeySetting();
+                }}
+                placeholder="Readarr-compatible API key"
+              />
+            </label>
+            <button className="secondary-action compact" onClick={saveAPIKeySetting} type="button">
+              <CheckCircle2 size={16} />
+              Save key
+            </button>
+            <button
+              className="secondary-action compact danger-outline"
+              onClick={() => {
+                setAPIKeyInput("");
+                setStoredAPIKey("");
+                setSettingsError("");
+                setSettingsNotice("API key cleared for this browser.");
+              }}
+              type="button"
+            >
+              <Trash2 size={16} />
+              Clear
+            </button>
+          </div>
+          {settingsNotice ? <div className="inline-note">{settingsNotice}</div> : null}
           {settingsError ? <div className="inline-error">{settingsError}</div> : null}
           <div className="quality-profile-list">
             {qualityProfiles.map((profile) => {
