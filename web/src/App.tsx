@@ -157,6 +157,7 @@ const navItems = [
 type ViewID = (typeof navItems)[number]["id"];
 type DownloadScope = "all" | "librarry";
 type DownloadStateFilter = "all" | "active" | "paused" | "complete" | "failed";
+type WantedViewFilter = "missing" | "wanted" | "grabbed" | "all";
 
 export function App() {
   const [activeView, setActiveView] = useState<ViewID>("downloads");
@@ -191,6 +192,7 @@ export function App() {
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
   const [selectedImportReviewIDs, setSelectedImportReviewIDs] = useState<string[]>([]);
   const [downloadScope, setDownloadScope] = useState<DownloadScope>("all");
+  const [wantedViewFilter, setWantedViewFilter] = useState<WantedViewFilter>("missing");
   const [downloadClientFilter, setDownloadClientFilter] = useState("");
   const [downloadResourceClient, setDownloadResourceClient] = useState("qBittorrent");
   const [downloadCategoryFilter, setDownloadCategoryFilter] = useState("");
@@ -357,9 +359,15 @@ export function App() {
     () => results.find((result) => result.work.id === selectedID) ?? results[0],
     [results, selectedID]
   );
+  const wantedPresence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
+  const wantedSummary = useMemo(() => summarizeWantedItems(wantedItems, wantedPresence), [wantedItems, wantedPresence]);
+  const visibleWantedItems = useMemo(
+    () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, wantedPresence.get(item.id), wantedViewFilter)),
+    [wantedItems, wantedPresence, wantedViewFilter]
+  );
   const selectedWanted = useMemo(
-    () => wantedItems.find((item) => item.id === selectedWantedID) ?? wantedItems[0],
-    [wantedItems, selectedWantedID]
+    () => visibleWantedItems.find((item) => item.id === selectedWantedID) ?? visibleWantedItems[0],
+    [visibleWantedItems, selectedWantedID]
   );
   const filteredDownloads = useMemo(
     () => downloads.filter((download) => downloadMatchesFilters(download, {
@@ -408,6 +416,18 @@ export function App() {
       return Boolean((authorID && providerKey === authorID) || (authorName && subscriptionName === authorName));
     });
   }, [authorSubscriptions, selected, selectedAuthorFormat]);
+
+  useEffect(() => {
+    if (!visibleWantedItems.length) {
+      setSelectedWantedID("");
+      setWantedReleases([]);
+      return;
+    }
+    if (!visibleWantedItems.some((item) => item.id === selectedWantedID)) {
+      setSelectedWantedID(visibleWantedItems[0].id);
+      setWantedReleases([]);
+    }
+  }, [visibleWantedItems, selectedWantedID]);
 
   async function runSearch() {
     if (!query.trim()) return;
@@ -1633,35 +1653,59 @@ export function App() {
               <h2>Wanted queue</h2>
               <p>
                 {wantedItems.length
-                  ? `${wantedItems.length} wanted books ready for release evaluation.`
+                  ? `${wantedSummary.missing} missing · ${wantedSummary.grabbed} grabbed · ${wantedSummary.present} present · ${visibleWantedItems.length} shown.`
                   : "Mark a metadata result wanted to start Readarr-style acquisition planning."}
               </p>
             </div>
-            <button className="secondary-action compact" disabled={!selectedWanted || isSearchingWanted} onClick={() => runWantedReleaseSearch()} type="button">
-              <FileSearch size={16} />
-              {isSearchingWanted ? "Searching" : "Search wanted"}
-            </button>
+            <div className="monitor-actions">
+              <div className="segmented wanted-scope" aria-label="Wanted queue filter">
+                {(["missing", "wanted", "grabbed", "all"] as WantedViewFilter[]).map((scope) => (
+                  <button
+                    className={wantedViewFilter === scope ? "selected" : ""}
+                    key={scope}
+                    onClick={() => {
+                      setWantedViewFilter(scope);
+                      setWantedReleases([]);
+                    }}
+                    type="button"
+                  >
+                    {scope}
+                  </button>
+                ))}
+              </div>
+              <button className="secondary-action compact" disabled={!selectedWanted || isSearchingWanted} onClick={() => runWantedReleaseSearch()} type="button">
+                <FileSearch size={16} />
+                {isSearchingWanted ? "Searching" : "Search wanted"}
+              </button>
+            </div>
           </div>
           {wantedError ? <div className="inline-error">{wantedError}</div> : null}
           <div className="wanted-grid">
             <div className="wanted-list">
-              {wantedItems.map((item) => (
-                <button
-                  className={item.id === selectedWanted?.id ? "wanted-item selected" : "wanted-item"}
-                  key={item.id}
-                  onClick={() => {
-                    setSelectedWantedID(item.id);
-                    setWantedReleases([]);
-                  }}
-                  type="button"
-                >
-                  <span>
-                    <strong>{item.title}</strong>
-                    <small>{item.authorName || "Unknown author"}</small>
-                  </span>
-                  <em>{item.status === "wanted" ? item.format : `${item.status} · ${item.format}`}</em>
-                </button>
-              ))}
+              {visibleWantedItems.length ? (
+                visibleWantedItems.map((item) => {
+                  const presence = wantedPresence.get(item.id);
+                  return (
+                    <button
+                      className={item.id === selectedWanted?.id ? "wanted-item selected" : "wanted-item"}
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedWantedID(item.id);
+                        setWantedReleases([]);
+                      }}
+                      type="button"
+                    >
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>{item.authorName || "Unknown author"}</small>
+                      </span>
+                      <em className={`wanted-badge ${presence ?? "missing"}`}>{wantedBadgeLabel(item, presence)}</em>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="wanted-empty">No items match this wanted filter.</div>
+              )}
             </div>
             <div className="wanted-release-list">
               {wantedReleases.length ? (
@@ -3184,6 +3228,88 @@ function stringMetadataValue(value: unknown) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return "";
+}
+
+type WantedPresence = "missing" | "grabbed" | "present";
+
+function wantedPresenceMap(items: WantedItem[], files: LibraryFile[]) {
+  const entries = new Map<string, WantedPresence>();
+  items.forEach((item) => {
+    const status = (item.status || "").toLowerCase();
+    if (wantedItemHasLibraryFile(item, files)) {
+      entries.set(item.id, "present");
+    } else if (status === "grabbed") {
+      entries.set(item.id, "grabbed");
+    } else {
+      entries.set(item.id, "missing");
+    }
+  });
+  return entries;
+}
+
+function summarizeWantedItems(items: WantedItem[], presence: Map<string, WantedPresence>) {
+  return items.reduce(
+    (summary, item) => {
+      const state = presence.get(item.id) ?? "missing";
+      if (state === "present") summary.present += 1;
+      if (state === "grabbed") summary.grabbed += 1;
+      if (state === "missing") summary.missing += 1;
+      return summary;
+    },
+    { missing: 0, grabbed: 0, present: 0 }
+  );
+}
+
+function wantedItemVisibleForFilter(item: WantedItem, presence: WantedPresence | undefined, filter: WantedViewFilter) {
+  const status = (item.status || "").toLowerCase();
+  switch (filter) {
+    case "missing":
+      return (presence ?? "missing") !== "present";
+    case "wanted":
+      return status === "wanted";
+    case "grabbed":
+      return status === "grabbed";
+    default:
+      return true;
+  }
+}
+
+function wantedBadgeLabel(item: WantedItem, presence: WantedPresence | undefined) {
+  const state = presence ?? "missing";
+  if (state === "present") return `Present · ${item.format}`;
+  if (state === "grabbed") return `Grabbed · ${item.format}`;
+  return `Missing · ${item.format}`;
+}
+
+function wantedItemHasLibraryFile(item: WantedItem, files: LibraryFile[]) {
+  return files.some((file) => libraryFileCountsAsPresent(file) && libraryFileMatchesWanted(item, file));
+}
+
+function libraryFileCountsAsPresent(file: LibraryFile) {
+  const status = (file.importStatus || "").toLowerCase();
+  return Boolean(file.path) && (status === "" || status === "available" || status === "imported");
+}
+
+function libraryFileMatchesWanted(item: WantedItem, file: LibraryFile) {
+  const wantedID = stringMetadataValue(file.metadata?.wantedId) || stringMetadataValue(file.metadata?.librarryWantedId);
+  if (wantedID && [item.id, item.workId, item.editionId, item.sourceKey].filter(Boolean).includes(wantedID)) return true;
+  if (item.editionId && file.editionId === item.editionId) return true;
+  if (item.format && file.mediaFormat && item.format !== file.mediaFormat) return false;
+  const itemTitle = normalizedWantedText(item.title);
+  const fileTitle = normalizedWantedText(file.title);
+  if (!itemTitle || itemTitle !== fileTitle) return false;
+  const itemAuthor = normalizedWantedText(item.authorName);
+  const fileAuthor = normalizedWantedText(file.authorName);
+  return !itemAuthor || !fileAuthor || itemAuthor === fileAuthor;
+}
+
+function normalizedWantedText(value?: string) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/^(a|an|the)\s+/, "")
+    .replace(/\s+/g, " ");
 }
 
 function summarizeDownloads(downloads: DownloadStatus[]) {

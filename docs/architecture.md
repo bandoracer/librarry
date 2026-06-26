@@ -428,6 +428,9 @@ download client. Readarr-compatible book updates persist monitored state,
 quality profile changes, title/author display overrides, and soft removal.
 The book editor endpoints apply the same durable mutations in bulk for common
 Arr mass-editor clients.
+The native Wanted queue uses tracked library files to segment active items into
+missing, grabbed, present, and all views, so operators can focus on books that
+still need acquisition or import without losing visibility into grabbed items.
 
 Quality profiles are stored in Postgres and applied anywhere a release is
 evaluated: manual wanted search, scheduled monitoring, feed sync, failed

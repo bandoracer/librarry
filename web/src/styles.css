@@ -1573,6 +1573,11 @@ select {
   background: var(--surface-subtle);
 }
 
+.wanted-scope {
+  height: 38px;
+  box-shadow: none;
+}
+
 .wanted-item {
   width: 100%;
   min-height: 62px;
@@ -1625,6 +1630,21 @@ select {
   font-style: normal;
   text-transform: capitalize;
   white-space: nowrap;
+}
+
+.wanted-item .wanted-badge.missing {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.wanted-item .wanted-badge.grabbed {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.wanted-item .wanted-badge.present {
+  background: #e7f7ed;
+  color: #0f6b2e;
 }
 
 .wanted-release-list {

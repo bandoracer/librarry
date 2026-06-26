@@ -121,8 +121,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   provider diagnostics, release search, integration bootstrap, paused grabs, and
   download status.
 - React and TypeScript web UI with dedicated views for provider health, metadata
-  search, wanted queue management, downloads, imports, settings, and operations
-  history.
+  search, missing-focused wanted queue management, downloads, imports, settings,
+  and operations history.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Postgres-backed download reconciliation from qBittorrent, Transmission, and
@@ -144,6 +144,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   paused by default with ebook/audiobook category selection.
 - Wanted-item persistence and release evaluation with approved/rejected
   decisions.
+- Native Wanted queue filters for missing, wanted, grabbed, and all active items,
+  with present-file suppression driven by tracked library files.
 - Persisted quality profiles for ebooks and audiobooks, including minimum
   scores, upgrade cutoffs, seeder minimums, size limits, preferred terms,
   required terms, and rejected terms.
@@ -719,7 +721,8 @@ will grow as the automation path stabilizes.
 
 ## Roadmap
 
-- Author-level missing-book policy and review controls.
+- Author-level missing-book policy and review controls beyond the current
+  library-aware missing queue.
 - Per-profile organization rules.
 - Richer Calibre edition metadata sync, embedded metadata writes, path refresh
   after Calibre renames, and import rollback.
