@@ -198,7 +198,7 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 	if request.MinSyncIntervalMinutes > 0 {
 		minSyncInterval = time.Duration(request.MinSyncIntervalMinutes) * time.Minute
 	}
-	subscriptions, err := s.store.ListDueAuthorSubscriptions(ctx, limit, minSyncInterval, request.Force)
+	subscriptions, err := s.store.ListDueAuthorSubscriptions(ctx, limit, minSyncInterval, request.Force, request.AuthorIDs, request.ProviderKeys)
 	if err != nil {
 		run.Status = "failed"
 		run.ErrorCount = 1

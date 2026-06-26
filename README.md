@@ -85,6 +85,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Metadata search supports both book candidates and direct author identities, so
   an author can be monitored from a provider-backed author record without first
   selecting one of their books.
+- Newly monitored authors are immediately eligible for a targeted bibliography
+  refresh, which creates or reviews wanted books from metadata before release
+  acquisition starts.
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.

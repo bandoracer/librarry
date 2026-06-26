@@ -2656,6 +2656,33 @@ func TestMonitorAuthorsEndpoint(t *testing.T) {
 	}
 }
 
+func TestMonitorAuthorsEndpointPassesTargetFilters(t *testing.T) {
+	recorder := &recordingWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   recorder,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/authors/monitor", strings.NewReader(`{"force":true,"authorIds":["author-sub-1"],"providerKeys":["openlibrary:OL123A"],"limit":1,"searchLimit":3}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !recorder.request.Force || recorder.request.Limit != 1 || recorder.request.SearchLimit != 3 {
+		t.Fatalf("expected monitor request options to pass through, got %+v", recorder.request)
+	}
+	if len(recorder.request.AuthorIDs) != 1 || recorder.request.AuthorIDs[0] != "author-sub-1" {
+		t.Fatalf("expected targeted author id, got %+v", recorder.request.AuthorIDs)
+	}
+	if len(recorder.request.ProviderKeys) != 1 || recorder.request.ProviderKeys[0] != "openlibrary:OL123A" {
+		t.Fatalf("expected targeted provider key, got %+v", recorder.request.ProviderKeys)
+	}
+}
+
 func TestAuthorMetadataReviewsEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3792,6 +3819,16 @@ func (fakeWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.Aut
 		CreatedAt:         time.Now().UTC(),
 		UpdatedAt:         time.Now().UTC(),
 	}}, nil
+}
+
+type recordingWanted struct {
+	fakeWanted
+	request wanted.AuthorMonitorRequest
+}
+
+func (f *recordingWanted) MonitorAuthors(ctx context.Context, request wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error) {
+	f.request = request
+	return f.fakeWanted.MonitorAuthors(ctx, request)
 }
 
 func (fakeWanted) MonitorAuthors(context.Context, wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error) {

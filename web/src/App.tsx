@@ -327,6 +327,7 @@ export function App() {
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isSubscribingAuthor, setIsSubscribingAuthor] = useState(false);
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
+  const [authorMonitorTargetKey, setAuthorMonitorTargetKey] = useState("");
   const [updatingAuthorID, setUpdatingAuthorID] = useState("");
   const [markingAuthorSkippedKey, setMarkingAuthorSkippedKey] = useState("");
   const [authorReviewActionID, setAuthorReviewActionID] = useState("");
@@ -780,6 +781,7 @@ export function App() {
       const subscription = await subscribeAuthor(result, result.edition?.format ?? format, "standard", authorMissingPolicy);
       setAuthorSubscriptions((current) => mergeAuthorSubscriptions(current, [subscription]));
       setAPIState("live");
+      await runAuthorSubscriptionMonitor(authorSubscriptionMonitorOptions(subscription));
     } catch (error) {
       setAuthorError(error instanceof Error ? error.message : "Author subscription failed");
     } finally {
@@ -1001,11 +1003,16 @@ export function App() {
     }
   }
 
-  async function runAuthorSubscriptionMonitor(options: { force?: boolean } = {}) {
+  async function runAuthorSubscriptionMonitor(options: { authorIds?: string[]; providerKeys?: string[]; force?: boolean; targetKey?: string } = {}) {
     setIsRunningAuthorMonitor(true);
+    setAuthorMonitorTargetKey(options.targetKey ?? (options.authorIds?.[0] || options.providerKeys?.[0] || ""));
     setAuthorError("");
     try {
-      const run = await runAuthorMonitor({ force: options.force ?? false });
+      const run = await runAuthorMonitor({
+        authorIds: options.authorIds ?? [],
+        providerKeys: options.providerKeys ?? [],
+        force: options.force ?? false
+      });
       setAuthorMonitorRun(run);
       const created = run.items?.flatMap((item) => item.wantedItems ?? []) ?? [];
       if (created.length) {
@@ -1019,6 +1026,7 @@ export function App() {
       setAuthorError(error instanceof Error ? error.message : "Author monitor failed");
     } finally {
       setIsRunningAuthorMonitor(false);
+      setAuthorMonitorTargetKey("");
     }
   }
 
@@ -2683,6 +2691,8 @@ export function App() {
                 authorSubscriptions.map((subscription) => {
                   const policy = normalizedAuthorMissingPolicy(subscription.missingBookPolicy);
                   const updating = updatingAuthorID === subscription.id;
+                  const monitorKey = authorSubscriptionKey(subscription);
+                  const refreshingAuthor = authorMonitorTargetKey === monitorKey;
                   return (
                     <article className="author-row" key={subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`}>
                       <div>
@@ -2704,6 +2714,15 @@ export function App() {
                             </option>
                           ))}
                         </select>
+                        <button
+                          className="secondary-action compact"
+                          disabled={isRunningAuthorMonitor}
+                          onClick={() => runAuthorSubscriptionMonitor(authorSubscriptionMonitorOptions(subscription))}
+                          type="button"
+                        >
+                          <RefreshCw size={15} />
+                          {refreshingAuthor ? "Refreshing" : "Refresh"}
+                        </button>
                         <em>{subscription.lastSyncAt ? formatDateTime(subscription.lastSyncAt) : "never synced"}</em>
                       </div>
                     </article>
@@ -4709,6 +4728,15 @@ function mergeAuthorSubscriptions(current: AuthorSubscription[], next: AuthorSub
 
 function authorSubscriptionKey(subscription: AuthorSubscription) {
   return subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`;
+}
+
+function authorSubscriptionMonitorOptions(subscription: AuthorSubscription) {
+  return {
+    authorIds: subscription.id ? [subscription.id] : [],
+    providerKeys: subscription.providerKey ? [subscription.providerKey] : [],
+    force: true,
+    targetKey: authorSubscriptionKey(subscription)
+  };
 }
 
 function normalizedAuthorMissingPolicy(policy?: string): AuthorMissingBookPolicy {

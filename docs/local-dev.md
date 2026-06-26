@@ -125,7 +125,9 @@ Author subscriptions are available through `GET /api/v1/authors` and can be
 created with `POST /api/v1/authors` from a normalized metadata result. The web
 Search view can switch between book candidates and author identities; author
 mode is the preferred path for monitoring an author before choosing individual
-books. Set
+books. The web app runs a targeted author monitor after saving a subscription,
+and each author row has a refresh action that sends that author's subscription
+ID/provider key to `POST /api/v1/authors/monitor`. Set
 `missingBookPolicy` to `all`, `future`, or `none` to control whether a monitored
 author backfills the visible bibliography, only creates wanted items for
 future-dated metadata, or only syncs author metadata. Existing subscriptions can

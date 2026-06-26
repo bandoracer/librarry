@@ -1302,6 +1302,8 @@ export async function resolveAuthorMetadataReview(reviewId: string, action: "wan
 }
 
 export async function runAuthorMonitor(options: {
+  authorIds?: string[];
+  providerKeys?: string[];
   force?: boolean;
   limit?: number;
   searchLimit?: number;
@@ -1311,6 +1313,8 @@ export async function runAuthorMonitor(options: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       trigger: "manual",
+      authorIds: options.authorIds ?? [],
+      providerKeys: options.providerKeys ?? [],
       force: options.force ?? false,
       limit: options.limit ?? 50,
       searchLimit: options.searchLimit ?? 20

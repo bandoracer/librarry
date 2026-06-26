@@ -139,11 +139,13 @@ type UpgradeRequest struct {
 }
 
 type AuthorMonitorRequest struct {
-	Trigger                string `json:"trigger,omitempty"`
-	Limit                  int    `json:"limit,omitempty"`
-	SearchLimit            int    `json:"searchLimit,omitempty"`
-	Force                  bool   `json:"force,omitempty"`
-	MinSyncIntervalMinutes int    `json:"minSyncIntervalMinutes,omitempty"`
+	Trigger                string   `json:"trigger,omitempty"`
+	AuthorIDs              []string `json:"authorIds,omitempty"`
+	ProviderKeys           []string `json:"providerKeys,omitempty"`
+	Limit                  int      `json:"limit,omitempty"`
+	SearchLimit            int      `json:"searchLimit,omitempty"`
+	Force                  bool     `json:"force,omitempty"`
+	MinSyncIntervalMinutes int      `json:"minSyncIntervalMinutes,omitempty"`
 }
 
 type GrabRequest struct {

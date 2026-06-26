@@ -459,7 +459,7 @@ func (s *Store) DeleteAuthorSubscription(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minInterval time.Duration, force bool) ([]AuthorSubscription, error) {
+func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minInterval time.Duration, force bool, authorIDs []string, providerKeys []string) ([]AuthorSubscription, error) {
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
 	}
@@ -470,6 +470,8 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 		minInterval = 24 * time.Hour
 	}
 	cutoff := time.Now().UTC().Add(-minInterval)
+	authorIDList := strings.Join(compactStrings(authorIDs), ",")
+	providerKeyList := strings.Join(compactStrings(providerKeys), ",")
 	rows, err := s.db.QueryContext(ctx, `
 		select
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
@@ -479,9 +481,14 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 			and monitor_new_items = true
 			and missing_book_policy <> 'none'
 			and ($1::boolean or last_sync_at is null or last_sync_at <= $2)
+			and (
+				($4 = '' and $5 = '')
+				or ($4 <> '' and id::text = any(string_to_array($4, ',')))
+				or ($5 <> '' and provider_key = any(string_to_array($5, ',')))
+			)
 		order by coalesce(last_sync_at, 'epoch'::timestamptz), author_name
 		limit $3
-	`, force, cutoff, limit)
+		`, force, cutoff, limit, authorIDList, providerKeyList)
 	if err != nil {
 		return nil, err
 	}
