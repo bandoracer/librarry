@@ -655,6 +655,19 @@ func (s *Service) applyCalibreImport(ctx context.Context, destination string, re
 		}
 		record.Metadata["calibreMetadataSyncedAt"] = time.Now().UTC().Format(time.RFC3339)
 	}
+	conversion, err := s.calibre.Convert(ctx, calibre.ConvertRequest{
+		Settings:    settings,
+		ID:          result.ID,
+		InputFormat: firstNonEmpty(record.Extension, filepath.Ext(record.Path)),
+	})
+	if err != nil {
+		return err
+	}
+	if len(conversion.Jobs) > 0 || len(conversion.Skipped) > 0 {
+		record.Metadata["calibreConversionJobs"] = calibreConversionJobMetadata(conversion.Jobs)
+		record.Metadata["calibreConversionSkipped"] = conversion.Skipped
+		record.Metadata["calibreConversionStartedAt"] = time.Now().UTC().Format(time.RFC3339)
+	}
 	return nil
 }
 
@@ -754,6 +767,20 @@ func calibreIdentifiers(record FileRecord) map[string]string {
 	}
 	if len(result) == 0 {
 		return nil
+	}
+	return result
+}
+
+func calibreConversionJobMetadata(jobs []calibre.ConvertJob) []map[string]any {
+	result := make([]map[string]any, 0, len(jobs))
+	for _, job := range jobs {
+		if strings.TrimSpace(job.OutputFormat) == "" || job.JobID <= 0 {
+			continue
+		}
+		result = append(result, map[string]any{
+			"outputFormat": job.OutputFormat,
+			"jobId":        job.JobID,
+		})
 	}
 	return result
 }

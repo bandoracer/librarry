@@ -238,3 +238,102 @@ func TestSetFieldsNoopsWithoutMetadataChanges(t *testing.T) {
 		t.Fatal("expected no request without metadata changes")
 	}
 }
+
+func TestConvertStartsConfiguredOutputFormats(t *testing.T) {
+	var gotGetPath string
+	var gotGetQuery string
+	var gotStartPaths []string
+	var gotPayloads []map[string]any
+	var gotAuthUser string
+	var gotAuthPass string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuthUser, gotAuthPass, _ = r.BasicAuth()
+		switch {
+		case r.Method == http.MethodGet && r.URL.EscapedPath() == "/calibre/conversion/book-data/99":
+			gotGetPath = r.URL.EscapedPath()
+			gotGetQuery = r.URL.RawQuery
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"conversion_options":{"options":{},"input_fmt":"EPUB"},"book_id":99,"input_formats":["EPUB"],"output_formats":["AZW3","MOBI"]}`))
+		case r.Method == http.MethodPost && r.URL.EscapedPath() == "/calibre/conversion/start/99":
+			gotStartPaths = append(gotStartPaths, r.URL.EscapedPath()+"?"+r.URL.RawQuery)
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatal(err)
+			}
+			gotPayloads = append(gotPayloads, payload)
+			_, _ = w.Write([]byte(`700` + string(rune('0'+len(gotPayloads)))))
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.Client()).Convert(context.Background(), ConvertRequest{
+		ID:          99,
+		InputFormat: ".epub",
+		Settings: Settings{
+			Host:          strings.TrimPrefix(server.URL, "http://"),
+			URLBase:       "/calibre",
+			Username:      "reader",
+			Password:      "secret",
+			Library:       "Main Library",
+			OutputFormat:  "EPUB, AZW3, MOBI, AZW3",
+			OutputProfile: "kindle",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotGetPath != "/calibre/conversion/book-data/99" || gotGetQuery != "library_id=Main+Library" {
+		t.Fatalf("unexpected book-data request: %s?%s", gotGetPath, gotGetQuery)
+	}
+	if gotAuthUser != "reader" || gotAuthPass != "secret" {
+		t.Fatalf("expected basic auth, got %q/%q", gotAuthUser, gotAuthPass)
+	}
+	if len(result.Skipped) != 1 || result.Skipped[0] != "EPUB" {
+		t.Fatalf("expected EPUB skip, got %+v", result)
+	}
+	if len(result.Jobs) != 2 || result.Jobs[0].OutputFormat != "AZW3" || result.Jobs[0].JobID != 7001 ||
+		result.Jobs[1].OutputFormat != "MOBI" || result.Jobs[1].JobID != 7002 {
+		t.Fatalf("unexpected conversion result: %+v", result)
+	}
+	if len(gotStartPaths) != 2 || gotStartPaths[0] != "/calibre/conversion/start/99?library_id=Main+Library" ||
+		gotStartPaths[1] != "/calibre/conversion/start/99?library_id=Main+Library" {
+		t.Fatalf("unexpected start paths: %+v", gotStartPaths)
+	}
+	first := gotPayloads[0]
+	if first["input_fmt"] != "EPUB" || first["output_fmt"] != "AZW3" {
+		t.Fatalf("unexpected first conversion payload: %#v", first)
+	}
+	options := first["options"].(map[string]any)
+	if options["output_profile"] != "kindle" {
+		t.Fatalf("unexpected output profile: %#v", options)
+	}
+	second := gotPayloads[1]
+	if second["input_fmt"] != "EPUB" || second["output_fmt"] != "MOBI" {
+		t.Fatalf("unexpected second conversion payload: %#v", second)
+	}
+}
+
+func TestConvertNoopsWithoutOutputFormats(t *testing.T) {
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.Client()).Convert(context.Background(), ConvertRequest{
+		ID:       99,
+		Settings: Settings{Host: strings.TrimPrefix(server.URL, "http://")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("expected no request without output formats")
+	}
+	if len(result.Jobs) != 0 || len(result.Skipped) != 0 {
+		t.Fatalf("expected empty conversion result, got %+v", result)
+	}
+}

@@ -332,11 +332,13 @@ completed-download import lands under a Calibre-enabled root, Librarry posts the
 file bytes to the Calibre Content Server add-book endpoint and records the
 returned Calibre book ID on the imported file. Librarry then calls the
 Content Server set-fields endpoint with the imported title, author, and common
-identifiers available on the file record. When a Calibre-backed file is
-physically deleted, Librarry calls the Content Server delete-books endpoint
-before removing the local file record. Conversion, richer edition metadata,
-embedded metadata writes, path refresh after Calibre renames, and rollback for
-failed Calibre imports are still future work.
+identifiers available on the file record. If the root folder has output formats
+configured, Librarry fetches Calibre conversion book data and starts conversion
+jobs for target formats that are not already present. When a Calibre-backed file
+is physically deleted, Librarry calls the Content Server delete-books endpoint
+before removing the local file record. Conversion status polling, richer edition
+metadata, embedded metadata writes, path refresh after Calibre renames, and
+rollback for failed Calibre imports are still future work.
 
 Readarr-compatible operational support endpoints expose filesystem browsing,
 languages, localization strings, logs, update records, and backup records. The

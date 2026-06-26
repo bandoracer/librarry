@@ -50,6 +50,22 @@ type SetFieldsRequest struct {
 	Metadata Metadata
 }
 
+type ConvertRequest struct {
+	Settings    Settings
+	ID          int
+	InputFormat string
+}
+
+type ConvertResult struct {
+	Jobs    []ConvertJob `json:"jobs,omitempty"`
+	Skipped []string     `json:"skipped,omitempty"`
+}
+
+type ConvertJob struct {
+	OutputFormat string `json:"outputFormat"`
+	JobID        int64  `json:"jobId"`
+}
+
 type Metadata struct {
 	Title       string
 	Authors     []string
@@ -70,6 +86,7 @@ type Manager interface {
 	Importer
 	DeleteBooks(ctx context.Context, request DeleteBooksRequest) error
 	SetFields(ctx context.Context, request SetFieldsRequest) error
+	Convert(ctx context.Context, request ConvertRequest) (ConvertResult, error)
 }
 
 type Client struct {
@@ -217,6 +234,51 @@ func (c *Client) SetFields(ctx context.Context, request SetFieldsRequest) error 
 	return nil
 }
 
+func (c *Client) Convert(ctx context.Context, request ConvertRequest) (ConvertResult, error) {
+	if c == nil {
+		return ConvertResult{}, errors.New("calibre client is unavailable")
+	}
+	settings := normalizeSettings(request.Settings)
+	if settings.Host == "" {
+		return ConvertResult{}, errors.New("calibre host is required")
+	}
+	if request.ID <= 0 {
+		return ConvertResult{}, errors.New("calibre book id is required")
+	}
+	targets := outputFormats(settings.OutputFormat)
+	if len(targets) == 0 {
+		return ConvertResult{}, nil
+	}
+	bookData, err := c.conversionBookData(ctx, settings, request.ID)
+	if err != nil {
+		return ConvertResult{}, err
+	}
+	inputFormat := normalizeFormat(request.InputFormat)
+	if inputFormat == "" {
+		inputFormat = normalizeFormat(bookData.ConversionOptions.InputFormat)
+	}
+	result := ConvertResult{}
+	for _, target := range targets {
+		if formatMatches(target, inputFormat) || formatInList(target, bookData.InputFormats) {
+			result.Skipped = append(result.Skipped, target)
+			continue
+		}
+		options := bookData.ConversionOptions
+		options.InputFormat = inputFormat
+		options.OutputFormat = target
+		profile := normalizeOutputProfile(settings.OutputProfile)
+		if profile != "" {
+			options.Options.OutputProfile = profile
+		}
+		jobID, err := c.startConversion(ctx, settings, request.ID, options)
+		if err != nil {
+			return result, err
+		}
+		result.Jobs = append(result.Jobs, ConvertJob{OutputFormat: target, JobID: jobID})
+	}
+	return result, nil
+}
+
 func addBookURL(settings Settings, jobID int, ext string) (string, error) {
 	base, err := baseURL(settings)
 	if err != nil {
@@ -282,6 +344,40 @@ func setFieldsURL(settings Settings, id int) (string, error) {
 	return base.String(), nil
 }
 
+func conversionBookDataURL(settings Settings, id int) (string, error) {
+	base, err := baseURL(settings)
+	if err != nil {
+		return "", err
+	}
+	if id <= 0 {
+		id = 1
+	}
+	base.Path = joinURLPath(strings.Trim(base.Path, "/"), "conversion", "book-data", strconv.Itoa(id))
+	values := base.Query()
+	if settings.Library != "" {
+		values.Set("library_id", settings.Library)
+	}
+	base.RawQuery = values.Encode()
+	return base.String(), nil
+}
+
+func conversionStartURL(settings Settings, id int) (string, error) {
+	base, err := baseURL(settings)
+	if err != nil {
+		return "", err
+	}
+	if id <= 0 {
+		id = 1
+	}
+	base.Path = joinURLPath(strings.Trim(base.Path, "/"), "conversion", "start", strconv.Itoa(id))
+	values := base.Query()
+	if settings.Library != "" {
+		values.Set("library_id", settings.Library)
+	}
+	base.RawQuery = values.Encode()
+	return base.String(), nil
+}
+
 func baseURL(settings Settings) (*url.URL, error) {
 	host := strings.TrimSpace(settings.Host)
 	if host == "" {
@@ -327,6 +423,69 @@ func normalizeSettings(settings Settings) Settings {
 	return settings
 }
 
+func (c *Client) conversionBookData(ctx context.Context, settings Settings, id int) (conversionBookData, error) {
+	endpoint, err := conversionBookDataURL(settings, id)
+	if err != nil {
+		return conversionBookData{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return conversionBookData{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if settings.Username != "" {
+		req.SetBasicAuth(settings.Username, settings.Password)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return conversionBookData{}, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return conversionBookData{}, fmt.Errorf("calibre conversion book-data returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
+	}
+	var data conversionBookData
+	if err := json.Unmarshal(respBody, &data); err != nil {
+		return conversionBookData{}, err
+	}
+	return data, nil
+}
+
+func (c *Client) startConversion(ctx context.Context, settings Settings, id int, options conversionOptions) (int64, error) {
+	endpoint, err := conversionStartURL(settings, id)
+	if err != nil {
+		return 0, err
+	}
+	body, err := json.Marshal(options)
+	if err != nil {
+		return 0, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	if settings.Username != "" {
+		req.SetBasicAuth(settings.Username, settings.Password)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return 0, fmt.Errorf("calibre conversion start returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
+	}
+	var jobID int64
+	if err := json.Unmarshal(respBody, &jobID); err != nil {
+		return 0, err
+	}
+	return jobID, nil
+}
+
 func compactPositiveIDs(ids []int) []int {
 	seen := map[int]bool{}
 	result := make([]int, 0, len(ids))
@@ -338,6 +497,48 @@ func compactPositiveIDs(ids []int) []int {
 		result = append(result, id)
 	}
 	return result
+}
+
+func outputFormats(value string) []string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';'
+	})
+	seen := map[string]bool{}
+	var result []string
+	for _, part := range parts {
+		format := normalizeFormat(part)
+		if format == "" || seen[format] {
+			continue
+		}
+		seen[format] = true
+		result = append(result, format)
+	}
+	return result
+}
+
+func normalizeFormat(value string) string {
+	return strings.ToUpper(strings.Trim(strings.TrimSpace(value), "."))
+}
+
+func normalizeOutputProfile(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || value == "0" || strings.EqualFold(value, "default") {
+		return ""
+	}
+	return value
+}
+
+func formatMatches(left string, right string) bool {
+	return normalizeFormat(left) != "" && normalizeFormat(left) == normalizeFormat(right)
+}
+
+func formatInList(format string, values []string) bool {
+	for _, value := range values {
+		if formatMatches(format, value) {
+			return true
+		}
+	}
+	return false
 }
 
 type setFieldsPayload struct {
@@ -411,6 +612,23 @@ func compactStringMap(values map[string]string) map[string]string {
 		return nil
 	}
 	return result
+}
+
+type conversionBookData struct {
+	ConversionOptions conversionOptions `json:"conversion_options"`
+	BookID            int               `json:"book_id"`
+	InputFormats      []string          `json:"input_formats"`
+	OutputFormats     []string          `json:"output_formats"`
+}
+
+type conversionOptions struct {
+	Options      conversionOptionSettings `json:"options"`
+	InputFormat  string                   `json:"input_fmt,omitempty"`
+	OutputFormat string                   `json:"output_fmt,omitempty"`
+}
+
+type conversionOptionSettings struct {
+	OutputProfile string `json:"output_profile,omitempty"`
 }
 
 func joinURLPath(parts ...string) string {

@@ -184,14 +184,20 @@ func TestCalibreSettingsForDestinationUsesBestMatchingRoot(t *testing.T) {
 func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "ebooks")
 	destination := filepath.Join(root, "Andy Weir", "Project Hail Mary.epub")
-	importer := &fakeCalibreImporter{id: 77}
+	importer := &fakeCalibreImporter{
+		id: 77,
+		convertResult: calibre.ConvertResult{
+			Jobs:    []calibre.ConvertJob{{OutputFormat: "AZW3", JobID: 901}},
+			Skipped: []string{"EPUB"},
+		},
+	}
 	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, fakeRootFolders{roots: []compatdata.RootFolder{{
 		Path: root,
 		Metadata: map[string]any{
 			"isCalibreLibrary": true,
 			"host":             "calibre.local",
 			"library":          "Main",
-			"outputFormat":     "EPUB",
+			"outputFormat":     "EPUB,AZW3",
 			"outputProfile":    "kindle",
 		},
 	}}})
@@ -199,6 +205,7 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 		Path:       destination,
 		Title:      "Project Hail Mary",
 		AuthorName: "Andy Weir",
+		Extension:  ".epub",
 		Metadata:   map[string]any{"isbn13": "9780593135204"},
 	}
 
@@ -209,7 +216,7 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 		t.Fatalf("unexpected importer request: %+v", importer.request)
 	}
 	if record.Metadata["calibreId"] != 77 || record.Metadata["calibreLibrary"] != "Main" ||
-		record.Metadata["calibreOutputFormat"] != "EPUB" || record.Metadata["calibreOutputProfile"] != "kindle" ||
+		record.Metadata["calibreOutputFormat"] != "EPUB,AZW3" || record.Metadata["calibreOutputProfile"] != "kindle" ||
 		record.Metadata["calibreMetadataSyncedAt"] == "" {
 		t.Fatalf("expected Calibre metadata, got %#v", record.Metadata)
 	}
@@ -219,6 +226,16 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 		importer.setFieldsRequests[0].Metadata.Authors[0] != "Andy Weir" ||
 		importer.setFieldsRequests[0].Metadata.Identifiers["isbn"] != "9780593135204" {
 		t.Fatalf("unexpected Calibre set-fields request: %+v", importer.setFieldsRequests)
+	}
+	if len(importer.convertRequests) != 1 || importer.convertRequests[0].ID != 77 ||
+		importer.convertRequests[0].InputFormat != ".epub" ||
+		importer.convertRequests[0].Settings.OutputFormat != "EPUB,AZW3" {
+		t.Fatalf("unexpected Calibre conversion request: %+v", importer.convertRequests)
+	}
+	jobs, _ := record.Metadata["calibreConversionJobs"].([]map[string]any)
+	if len(jobs) != 1 || jobs[0]["outputFormat"] != "AZW3" || jobs[0]["jobId"] != int64(901) ||
+		record.Metadata["calibreConversionStartedAt"] == "" {
+		t.Fatalf("expected conversion metadata, got %#v", record.Metadata)
 	}
 }
 
@@ -297,6 +314,8 @@ type fakeCalibreImporter struct {
 	request           calibre.AddBookRequest
 	deleteRequests    []calibre.DeleteBooksRequest
 	setFieldsRequests []calibre.SetFieldsRequest
+	convertRequests   []calibre.ConvertRequest
+	convertResult     calibre.ConvertResult
 }
 
 func (f *fakeCalibreImporter) AddBook(_ context.Context, request calibre.AddBookRequest) (calibre.AddBookResult, error) {
@@ -316,6 +335,11 @@ func (f *fakeCalibreImporter) DeleteBooks(_ context.Context, request calibre.Del
 func (f *fakeCalibreImporter) SetFields(_ context.Context, request calibre.SetFieldsRequest) error {
 	f.setFieldsRequests = append(f.setFieldsRequests, request)
 	return nil
+}
+
+func (f *fakeCalibreImporter) Convert(_ context.Context, request calibre.ConvertRequest) (calibre.ConvertResult, error) {
+	f.convertRequests = append(f.convertRequests, request)
+	return f.convertResult, nil
 }
 
 func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {
