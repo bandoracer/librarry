@@ -73,6 +73,16 @@ export type IntegrationSettingsResponse = {
   integrations?: IntegrationHealth[];
 };
 
+export type LibrarySettings = {
+  ebookLibraryRoot: string;
+  audiobookLibraryRoot: string;
+};
+
+export type LibrarySettingsResponse = {
+  settings: LibrarySettings;
+  persisted: boolean;
+};
+
 export type SystemStatus = {
   appName: string;
   instanceName?: string;
@@ -868,6 +878,26 @@ export async function saveIntegrationSettings(settings: Partial<IntegrationSetti
     throw new Error(`Integration settings update failed: ${response.status}`);
   }
   return (await response.json()) as IntegrationSettingsResponse;
+}
+
+export async function fetchLibrarySettings(): Promise<LibrarySettingsResponse> {
+  const response = await fetch(`${apiBase}/api/v1/library/config`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Library settings refresh failed"));
+  }
+  return (await response.json()) as LibrarySettingsResponse;
+}
+
+export async function saveLibrarySettings(settings: LibrarySettings): Promise<LibrarySettingsResponse> {
+  const response = await fetch(`${apiBase}/api/v1/library/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Library settings update failed"));
+  }
+  return (await response.json()) as LibrarySettingsResponse;
 }
 
 export async function searchReleases(query: string, format: string): Promise<Release[]> {

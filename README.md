@@ -92,6 +92,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.
+- Native library-root settings API and UI for persisted ebook and audiobook
+  import roots. Saved roots reconfigure scans/import destinations immediately,
+  are written as Readarr-compatible root-folder records, and are loaded again on
+  restart.
 - Native wanted metadata correction for title, author, cover URL, quality
   profile, and monitoring state, with `manual_overrides` persistence so provider
   refreshes do not overwrite corrected display metadata. Wanted payloads include
@@ -526,6 +530,8 @@ Important API surfaces:
   - `POST /api/v1/wanted/feed-sync`
   - `POST /api/v1/wanted/upgrades`
   - `GET /api/v1/librarry/history`
+  - `GET /api/v1/library/config`
+  - `PUT /api/v1/library/config`
   - `GET /api/v1/library/files`
   - `DELETE /api/v1/library/files/{id}`
   - `POST /api/v1/library/files/delete`

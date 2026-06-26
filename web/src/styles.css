@@ -3423,6 +3423,14 @@ select {
   grid-column: span 2;
 }
 
+.library-settings-grid {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
+.library-settings-grid label.wide {
+  grid-column: auto;
+}
+
 .integration-settings-grid label span {
   min-width: 0;
   color: var(--muted);

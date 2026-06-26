@@ -105,6 +105,11 @@ type libraryService interface {
 	ResolveImportReview(ctx context.Context, id string, request library.ReviewDecisionRequest) (library.ReviewDecisionOutcome, error)
 }
 
+type configurableLibraryService interface {
+	Config() library.Config
+	Reconfigure(config library.Config)
+}
+
 type compatResourceService interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 	CreateRootFolder(ctx context.Context, folder compatdata.RootFolder) (compatdata.RootFolder, error)
@@ -370,6 +375,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/wanted/releases/{id}", handler.listWantedReleases)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
 	mux.HandleFunc("GET /api/v1/librarry/history", handler.history)
+	mux.HandleFunc("GET /api/v1/library/config", handler.libraryConfig)
+	mux.HandleFunc("PUT /api/v1/library/config", handler.updateLibraryConfig)
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
 	mux.HandleFunc("DELETE /api/v1/library/files/{id}", handler.deleteLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/files/delete", handler.deleteLibraryFiles)
@@ -519,6 +526,182 @@ func (h *handler) effectiveIntegrationConfig(ctx context.Context) (acquisition.I
 		BookTorrentRoot:   h.deps.Config.BookTorrentRoot,
 	}
 	return integrationsettings.FromResources(ctx, h.deps.Compat, base)
+}
+
+type libraryConfigSettings struct {
+	EbookLibraryRoot     string `json:"ebookLibraryRoot"`
+	AudiobookLibraryRoot string `json:"audiobookLibraryRoot"`
+}
+
+func (h *handler) libraryConfig(w http.ResponseWriter, r *http.Request) {
+	config, err := h.effectiveLibraryConfig(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings":  libraryConfigSettingsFromConfig(config),
+		"persisted": h.deps.Compat != nil,
+	})
+}
+
+func (h *handler) updateLibraryConfig(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var settings libraryConfigSettings
+	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library config payload"})
+		return
+	}
+	current, err := h.effectiveLibraryConfig(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	next, err := applyLibraryConfigSettings(current, settings)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	if h.deps.Compat != nil {
+		if _, err := h.saveLibraryRootFolders(r.Context(), next); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+	}
+	if configurable, ok := h.deps.Library.(configurableLibraryService); ok {
+		configurable.Reconfigure(next)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings":  libraryConfigSettingsFromConfig(next),
+		"persisted": h.deps.Compat != nil,
+	})
+}
+
+func (h *handler) effectiveLibraryConfig(ctx context.Context) (library.Config, error) {
+	if configurable, ok := h.deps.Library.(configurableLibraryService); ok {
+		return configurable.Config(), nil
+	}
+	base := library.Config{
+		EbookRoot:                  h.deps.Config.EbookLibraryRoot,
+		AudiobookRoot:              h.deps.Config.AudiobookLibraryRoot,
+		NamingAuthorFolderTemplate: h.deps.Config.NamingAuthorFolder,
+		NamingBookFolderTemplate:   h.deps.Config.NamingBookFolder,
+		NamingFileNameTemplate:     h.deps.Config.NamingFileName,
+		NamingSpaceReplacement:     h.deps.Config.NamingSpaceReplacement,
+	}
+	if h.deps.Compat == nil {
+		return library.NormalizeConfig(base), nil
+	}
+	roots, err := h.deps.Compat.ListRootFolders(ctx)
+	if err != nil {
+		return library.Config{}, err
+	}
+	return library.ConfigWithRootFolders(base, roots), nil
+}
+
+func libraryConfigSettingsFromConfig(config library.Config) libraryConfigSettings {
+	config = library.NormalizeConfig(config)
+	return libraryConfigSettings{
+		EbookLibraryRoot:     config.EbookRoot,
+		AudiobookLibraryRoot: config.AudiobookRoot,
+	}
+}
+
+func applyLibraryConfigSettings(current library.Config, settings libraryConfigSettings) (library.Config, error) {
+	next := library.NormalizeConfig(current)
+	ebookRoot := strings.TrimSpace(settings.EbookLibraryRoot)
+	audiobookRoot := strings.TrimSpace(settings.AudiobookLibraryRoot)
+	if ebookRoot == "" {
+		return library.Config{}, errors.New("ebook library root is required")
+	}
+	if audiobookRoot == "" {
+		return library.Config{}, errors.New("audiobook library root is required")
+	}
+	next.EbookRoot = ebookRoot
+	next.AudiobookRoot = audiobookRoot
+	return next, nil
+}
+
+func (h *handler) saveLibraryRootFolders(ctx context.Context, config library.Config) ([]compatdata.RootFolder, error) {
+	if h.deps.Compat == nil {
+		return nil, nil
+	}
+	existing, err := h.deps.Compat.ListRootFolders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	config = library.NormalizeConfig(config)
+	saved := make([]compatdata.RootFolder, 0, 2)
+	for _, target := range []struct {
+		format string
+		name   string
+		path   string
+	}{
+		{format: "ebook", name: "Ebooks", path: config.EbookRoot},
+		{format: "audiobook", name: "Audiobooks", path: config.AudiobookRoot},
+	} {
+		folder := compatdata.RootFolder{
+			Name:        target.name,
+			Path:        target.path,
+			MediaFormat: target.format,
+			Metadata:    libraryRootMetadata(nil),
+		}
+		if root, ok := libraryRootFolderForFormat(existing, target.format); ok {
+			folder.Metadata = libraryRootMetadata(root.Metadata)
+			updated, found, err := h.deps.Compat.UpdateRootFolder(ctx, root.ID, folder)
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				saved = append(saved, updated)
+				continue
+			}
+		}
+		created, err := h.deps.Compat.CreateRootFolder(ctx, folder)
+		if err != nil {
+			return nil, err
+		}
+		saved = append(saved, created)
+	}
+	return saved, nil
+}
+
+func libraryRootFolderForFormat(roots []compatdata.RootFolder, format string) (compatdata.RootFolder, bool) {
+	for _, root := range roots {
+		if !payloadBoolDefault(root.Metadata, "librarryLibraryRoot", false) || !libraryRootFolderMatchesFormat(root, format) {
+			continue
+		}
+		return root, true
+	}
+	for _, root := range roots {
+		if libraryRootFolderMatchesFormat(root, format) {
+			return root, true
+		}
+	}
+	return compatdata.RootFolder{}, false
+}
+
+func libraryRootFolderMatchesFormat(root compatdata.RootFolder, format string) bool {
+	mediaFormat := strings.ToLower(strings.TrimSpace(root.MediaFormat))
+	if mediaFormat == format {
+		return true
+	}
+	name := strings.ToLower(strings.TrimSpace(root.Name))
+	if format == "ebook" {
+		return mediaFormat == "books" || strings.Contains(name, "ebook")
+	}
+	return format == "audiobook" && strings.Contains(name, "audio")
+}
+
+func libraryRootMetadata(existing map[string]any) map[string]any {
+	metadata := map[string]any{}
+	for key, value := range existing {
+		metadata[key] = value
+	}
+	metadata["source"] = "librarry-settings"
+	metadata["updatedBy"] = "native-library-settings"
+	metadata["librarryLibraryRoot"] = true
+	return metadata
 }
 
 func (h *handler) integrationBootstrap(w http.ResponseWriter, r *http.Request) {

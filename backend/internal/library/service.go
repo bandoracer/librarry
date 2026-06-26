@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -66,6 +67,7 @@ type importReviewWantedCandidate struct {
 type Service struct {
 	store       *Store
 	config      Config
+	configMu    sync.RWMutex
 	wanted      WantedStore
 	downloads   DownloadStore
 	calibre     calibre.Manager
@@ -87,6 +89,24 @@ func (s *Service) WithCalibre(manager calibre.Manager, rootFolders RootFolderPro
 
 func (s *Service) Available() bool {
 	return s != nil && s.store != nil && s.store.Configured()
+}
+
+func (s *Service) Config() Config {
+	if s == nil {
+		return NormalizeConfig(Config{})
+	}
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return NormalizeConfig(s.config)
+}
+
+func (s *Service) Reconfigure(config Config) {
+	if s == nil {
+		return
+	}
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+	s.config = NormalizeConfig(config)
 }
 
 func (s *Service) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecord, error) {
@@ -786,26 +806,21 @@ type namingPolicy struct {
 }
 
 func (s *Service) namingPolicy() namingPolicy {
+	config := s.Config()
 	return namingPolicy{
-		AuthorFolderTemplate: firstNonEmpty(s.config.NamingAuthorFolderTemplate, "{Author}"),
-		BookFolderTemplate:   firstNonEmpty(s.config.NamingBookFolderTemplate, "{Title}"),
-		FileNameTemplate:     firstNonEmpty(s.config.NamingFileNameTemplate, "{Title}{Ext}"),
-		SpaceReplacement:     safeSpaceReplacement(s.config.NamingSpaceReplacement),
+		AuthorFolderTemplate: config.NamingAuthorFolderTemplate,
+		BookFolderTemplate:   config.NamingBookFolderTemplate,
+		FileNameTemplate:     config.NamingFileNameTemplate,
+		SpaceReplacement:     safeSpaceReplacement(config.NamingSpaceReplacement),
 	}
 }
 
 func (s *Service) ebookRoot() string {
-	if strings.TrimSpace(s.config.EbookRoot) != "" {
-		return strings.TrimSpace(s.config.EbookRoot)
-	}
-	return "/data/media/books/ebooks"
+	return s.Config().EbookRoot
 }
 
 func (s *Service) audiobookRoot() string {
-	if strings.TrimSpace(s.config.AudiobookRoot) != "" {
-		return strings.TrimSpace(s.config.AudiobookRoot)
-	}
-	return "/data/media/books/audiobooks"
+	return s.Config().AudiobookRoot
 }
 
 func (s *Service) lookupWanted(ctx context.Context, id string) (wanted.WantedItem, error) {

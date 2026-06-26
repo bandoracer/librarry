@@ -646,7 +646,7 @@ func (h *handler) compatUpdateRootFolder(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-	for _, root := range h.defaultRootFolderRecords() {
+	for _, root := range h.defaultRootFolderRecords(r.Context()) {
 		if compatRootFolderRecordMatches(id, root) {
 			if name != "" {
 				root["name"] = name
@@ -708,7 +708,7 @@ func (h *handler) compatDeleteRootFolder(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-	for _, root := range h.defaultRootFolderRecords() {
+	for _, root := range h.defaultRootFolderRecords(r.Context()) {
 		if compatRootFolderRecordMatches(id, root) {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -3904,7 +3904,7 @@ func (h *handler) compatCategoryForFormat(format string) string {
 }
 
 func (h *handler) compatRootFolderRecords(ctx context.Context) ([]map[string]any, error) {
-	records := h.defaultRootFolderRecords()
+	records := h.defaultRootFolderRecords(ctx)
 	if h.deps.Compat == nil {
 		return records, nil
 	}
@@ -3932,10 +3932,18 @@ func (h *handler) compatRootFolderRecords(ctx context.Context) ([]map[string]any
 	return records, nil
 }
 
-func (h *handler) defaultRootFolderRecords() []map[string]any {
+func (h *handler) defaultRootFolderRecords(ctx context.Context) []map[string]any {
+	config, err := h.effectiveLibraryConfig(ctx)
+	if err != nil {
+		config = library.Config{
+			EbookRoot:     h.deps.Config.EbookLibraryRoot,
+			AudiobookRoot: h.deps.Config.AudiobookLibraryRoot,
+		}
+	}
+	config = library.NormalizeConfig(config)
 	return []map[string]any{
-		compatRootFolderRecord(1, "Ebooks", defaultString(h.deps.Config.EbookLibraryRoot, "/data/media/books/ebooks")),
-		compatRootFolderRecord(2, "Audiobooks", defaultString(h.deps.Config.AudiobookLibraryRoot, "/data/media/books/audiobooks")),
+		compatRootFolderRecord(1, "Ebooks", config.EbookRoot),
+		compatRootFolderRecord(2, "Audiobooks", config.AudiobookRoot),
 	}
 }
 

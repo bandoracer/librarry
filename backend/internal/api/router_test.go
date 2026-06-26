@@ -3372,6 +3372,67 @@ func TestUpdateIntegrationConfigPersistsAndReconfiguresAcquireService(t *testing
 	}
 }
 
+func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) {
+	libraryService := &configurableFakeLibrary{config: library.Config{
+		EbookRoot:                  "/data/media/books/ebooks",
+		AudiobookRoot:              "/data/media/books/audiobooks",
+		NamingAuthorFolderTemplate: "{Author}",
+		NamingBookFolderTemplate:   "{Title}",
+		NamingFileNameTemplate:     "{Title}{Ext}",
+	}}
+	compatResources := &fakeCompatResources{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  libraryService,
+		Compat:   compatResources,
+	})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/library/config", strings.NewReader(`{
+		"ebookLibraryRoot":"/srv/media/books/ebooks",
+		"audiobookLibraryRoot":"/srv/media/books/audiobooks"
+	}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(libraryService.reconfigured) != 1 {
+		t.Fatalf("expected library service reconfigure, got %#v", libraryService.reconfigured)
+	}
+	if libraryService.config.EbookRoot != "/srv/media/books/ebooks" || libraryService.config.AudiobookRoot != "/srv/media/books/audiobooks" {
+		t.Fatalf("expected library roots to apply, got %+v", libraryService.config)
+	}
+	if len(compatResources.roots) != 2 {
+		t.Fatalf("expected persisted ebook and audiobook roots, got %#v", compatResources.roots)
+	}
+	if compatResources.roots[0].MediaFormat != "ebook" || compatResources.roots[0].Path != "/srv/media/books/ebooks" {
+		t.Fatalf("unexpected persisted ebook root: %#v", compatResources.roots[0])
+	}
+	if compatResources.roots[1].MediaFormat != "audiobook" || compatResources.roots[1].Path != "/srv/media/books/audiobooks" {
+		t.Fatalf("unexpected persisted audiobook root: %#v", compatResources.roots[1])
+	}
+	if !payloadBoolDefault(compatResources.roots[0].Metadata, "librarryLibraryRoot", false) || !payloadBoolDefault(compatResources.roots[1].Metadata, "librarryLibraryRoot", false) {
+		t.Fatalf("expected persisted roots to be marked as native library roots: %#v", compatResources.roots)
+	}
+	if !strings.Contains(res.Body.String(), `"/srv/media/books/ebooks"`) || !strings.Contains(res.Body.String(), `"persisted":true`) {
+		t.Fatalf("expected response to include saved roots and persistence state, got %s", res.Body.String())
+	}
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/rootfolder", nil)
+	res = httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected rootfolder 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"/srv/media/books/ebooks"`) || strings.Contains(res.Body.String(), `"/data/media/books/ebooks"`) {
+		t.Fatalf("expected Readarr root folders to reflect effective library roots, got %s", res.Body.String())
+	}
+}
+
 type fakeAcquire struct{}
 
 type configurableFakeAcquire struct {
@@ -4556,6 +4617,21 @@ func (f fakeMissingWanted) List(context.Context, string) ([]wanted.WantedItem, e
 }
 
 type fakeLibrary struct{}
+
+type configurableFakeLibrary struct {
+	fakeLibrary
+	config       library.Config
+	reconfigured []library.Config
+}
+
+func (f *configurableFakeLibrary) Config() library.Config {
+	return f.config
+}
+
+func (f *configurableFakeLibrary) Reconfigure(config library.Config) {
+	f.config = config
+	f.reconfigured = append(f.reconfigured, config)
+}
 
 func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.FileRecord, error) {
 	return []library.FileRecord{fakeLibraryFile()}, nil

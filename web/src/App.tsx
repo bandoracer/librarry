@@ -47,6 +47,7 @@ import {
   fetchHistory,
   fetchLibraryFiles,
   fetchLibraryImportReviews,
+  fetchLibrarySettings,
   fetchProviderHealth,
   fetchQualityProfiles,
   fetchSystemStatus,
@@ -76,6 +77,7 @@ import {
   runDownloadTrackerAction,
   saveQualityProfile,
   saveIntegrationSettings,
+  saveLibrarySettings,
   saveDownloadPreferences,
   scanLibrary,
   searchMetadata,
@@ -108,6 +110,7 @@ import {
   type LibraryFile,
   type LibraryImportOutcome,
   type LibraryScanOutcome,
+  type LibrarySettings,
   type MetadataSearchType,
   type MetadataFieldEvidence,
   type MetadataFieldCandidate,
@@ -257,6 +260,13 @@ function integrationSettingsForm(settings: IntegrationSettings): IntegrationSett
   };
 }
 
+function emptyLibrarySettings(): LibrarySettings {
+  return {
+    ebookLibraryRoot: "/data/media/books/ebooks",
+    audiobookLibraryRoot: "/data/media/books/audiobooks"
+  };
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<ViewID>("library");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
@@ -266,6 +276,9 @@ export function App() {
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
   const [integrationForm, setIntegrationForm] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
   const [integrationSettingsPersisted, setIntegrationSettingsPersisted] = useState(false);
+  const [librarySettings, setLibrarySettings] = useState<LibrarySettings>(() => emptyLibrarySettings());
+  const [librarySettingsForm, setLibrarySettingsForm] = useState<LibrarySettings>(() => emptyLibrarySettings());
+  const [librarySettingsPersisted, setLibrarySettingsPersisted] = useState(false);
   const [releases, setReleases] = useState<Release[]>([]);
   const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
@@ -348,6 +361,7 @@ export function App() {
   const [isLoadingDownloadPreferences, setIsLoadingDownloadPreferences] = useState(false);
   const [isSavingDownloadPreferences, setIsSavingDownloadPreferences] = useState(false);
   const [isSavingIntegrationSettings, setIsSavingIntegrationSettings] = useState(false);
+  const [isSavingLibrarySettings, setIsSavingLibrarySettings] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
@@ -433,6 +447,15 @@ export function App() {
       })
       .catch((error) => {
         setSettingsError(error instanceof Error ? error.message : "Integration settings refresh failed");
+      });
+    fetchLibrarySettings()
+      .then((response) => {
+        setLibrarySettings(response.settings);
+        setLibrarySettingsForm(response.settings);
+        setLibrarySettingsPersisted(response.persisted);
+      })
+      .catch((error) => {
+        setSettingsError(error instanceof Error ? error.message : "Library settings refresh failed");
       });
     fetchDownloads(downloadListOptions(downloadScope))
       .then(setDownloads)
@@ -1899,6 +1922,10 @@ export function App() {
     setIntegrationForm((current) => ({ ...current, ...changes }));
   }
 
+  function updateLibrarySettingsForm(changes: Partial<LibrarySettings>) {
+    setLibrarySettingsForm((current) => ({ ...current, ...changes }));
+  }
+
   async function persistIntegrationSettings() {
     setIsSavingIntegrationSettings(true);
     setSettingsError("");
@@ -1920,6 +1947,24 @@ export function App() {
       setSettingsError(error instanceof Error ? error.message : "Integration settings save failed");
     } finally {
       setIsSavingIntegrationSettings(false);
+    }
+  }
+
+  async function persistLibrarySettings() {
+    setIsSavingLibrarySettings(true);
+    setSettingsError("");
+    setSettingsNotice("");
+    try {
+      const response = await saveLibrarySettings(librarySettingsForm);
+      setLibrarySettings(response.settings);
+      setLibrarySettingsForm(response.settings);
+      setLibrarySettingsPersisted(response.persisted);
+      setSettingsNotice(response.persisted ? "Library roots saved and applied." : "Library roots applied for this process. Add Postgres to persist them.");
+      setAPIState("live");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "Library settings save failed");
+    } finally {
+      setIsSavingLibrarySettings(false);
     }
   }
 
@@ -3986,6 +4031,55 @@ export function App() {
           </div>
           {settingsNotice ? <div className="inline-note">{settingsNotice}</div> : null}
           {settingsError ? <div className={isPersistenceRequiredError(settingsError) ? "inline-note" : "inline-error"}>{appErrorMessage(settingsError)}</div> : null}
+          <div className="integration-settings-panel library-settings-panel">
+            <div className="integration-settings-header">
+              <div>
+                <strong>Library roots</strong>
+                <span>
+                  {librarySettingsPersisted ? "Postgres" : "runtime"} · ebooks {librarySettings.ebookLibraryRoot || "unset"} · audio{" "}
+                  {librarySettings.audiobookLibraryRoot || "unset"}
+                </span>
+              </div>
+              <div className="integration-settings-actions">
+                <button
+                  className="secondary-action compact"
+                  disabled={isSavingLibrarySettings}
+                  onClick={() =>
+                    fetchLibrarySettings()
+                      .then((response) => {
+                        setLibrarySettings(response.settings);
+                        setLibrarySettingsForm(response.settings);
+                        setLibrarySettingsPersisted(response.persisted);
+                      })
+                      .catch((error) => setSettingsError(error instanceof Error ? error.message : "Library settings refresh failed"))
+                  }
+                  type="button"
+                >
+                  <RefreshCw size={16} />
+                  Refresh
+                </button>
+                <button
+                  className="primary-action compact"
+                  disabled={isSavingLibrarySettings || !librarySettingsForm.ebookLibraryRoot.trim() || !librarySettingsForm.audiobookLibraryRoot.trim()}
+                  onClick={persistLibrarySettings}
+                  type="button"
+                >
+                  <CheckCircle2 size={16} />
+                  {isSavingLibrarySettings ? "Saving" : "Save roots"}
+                </button>
+              </div>
+            </div>
+            <div className="integration-settings-grid library-settings-grid">
+              <label className="wide">
+                <span>Ebook library root</span>
+                <input value={librarySettingsForm.ebookLibraryRoot} onChange={(event) => updateLibrarySettingsForm({ ebookLibraryRoot: event.target.value })} placeholder="/data/media/books/ebooks" />
+              </label>
+              <label className="wide">
+                <span>Audiobook library root</span>
+                <input value={librarySettingsForm.audiobookLibraryRoot} onChange={(event) => updateLibrarySettingsForm({ audiobookLibraryRoot: event.target.value })} placeholder="/data/media/books/audiobooks" />
+              </label>
+            </div>
+          </div>
           <div className="integration-settings-panel">
             <div className="integration-settings-header">
               <div>

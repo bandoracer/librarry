@@ -99,14 +99,27 @@ func main() {
 	}
 	wantedService := wanted.NewService(wantedStore, acquire, metadataService).
 		WithReleaseRestrictionProvider(compatstore.NewReleaseRestrictionProvider(compatStore))
-	libraryService := library.NewService(libraryStore, library.Config{
+	libraryConfig := library.Config{
 		EbookRoot:                  cfg.EbookLibraryRoot,
 		AudiobookRoot:              cfg.AudiobookLibraryRoot,
 		NamingAuthorFolderTemplate: cfg.NamingAuthorFolder,
 		NamingBookFolderTemplate:   cfg.NamingBookFolder,
 		NamingFileNameTemplate:     cfg.NamingFileName,
 		NamingSpaceReplacement:     cfg.NamingSpaceReplacement,
-	}, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), compatStore)
+	}
+	if compatStore != nil {
+		roots, err := compatStore.ListRootFolders(ctx)
+		if err != nil {
+			logger.Warn("persisted library roots unavailable", "error", err)
+		} else {
+			libraryConfig = library.ConfigWithRootFolders(libraryConfig, roots)
+		}
+	}
+	var rootFolders library.RootFolderProvider
+	if compatStore != nil {
+		rootFolders = compatStore
+	}
+	libraryService := library.NewService(libraryStore, libraryConfig, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), rootFolders)
 	var monitorWG sync.WaitGroup
 	if cfg.MonitorEnabled && wantedService.Available() {
 		monitorWG.Add(1)
@@ -133,15 +146,18 @@ func main() {
 		go runCalibreConversionRefresh(ctx, &monitorWG, logger, libraryService, cfg)
 	}
 
-	router := api.NewRouter(api.Dependencies{
+	deps := api.Dependencies{
 		Logger:   logger,
 		Config:   cfg,
 		Metadata: metadataService,
 		Acquire:  acquire,
 		Wanted:   wantedService,
 		Library:  libraryService,
-		Compat:   compatStore,
-	})
+	}
+	if compatStore != nil {
+		deps.Compat = compatStore
+	}
+	router := api.NewRouter(deps)
 
 	server := &http.Server{
 		Addr:              cfg.ListenAddr,
