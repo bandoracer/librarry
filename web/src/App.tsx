@@ -204,7 +204,7 @@ function integrationSettingsForm(settings: IntegrationSettings): IntegrationSett
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<ViewID>("downloads");
+  const [activeView, setActiveView] = useState<ViewID>("wanted");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
@@ -609,12 +609,14 @@ export function App() {
     }
   }
 
-  async function markSelectedWanted() {
-    if (!selected) return;
+  async function markWantedResult(result = selected) {
+    if (!result) return;
     setIsMarkingWanted(true);
     setWantedError("");
+    setSelectedID(result.work.id);
+    setActiveView("wanted");
     try {
-      const item = await createWanted(selected, selected.edition?.format ?? format);
+      const item = await createWanted(result, result.edition?.format ?? format);
       setWantedItems((current) => mergeWanted(current, [item]));
       setSelectedWantedID(item.id);
       setAPIState("live");
@@ -1755,27 +1757,25 @@ export function App() {
                 <span>Action</span>
               </div>
               {results.map((result) => (
-                <button
-                  className={result.work.id === selected?.work.id ? "table-row result-row selected" : "table-row result-row"}
-                  key={`${result.provider}-${result.work.id}`}
-                  onClick={() => setSelectedID(result.work.id)}
-                  role="row"
-                  type="button"
-                >
-                  <span className="title-cell">
+                <div className={result.work.id === selected?.work.id ? "table-row result-row selected" : "table-row result-row"} key={`${result.provider}-${result.work.id}`} role="row">
+                  <button className="title-cell result-select" onClick={() => setSelectedID(result.work.id)} type="button">
                     <BookOpen size={16} />
                     <span>
                       <strong>{result.work.title}</strong>
                       <small>{result.work.authors?.[0]?.name ?? "Unknown author"}</small>
                     </span>
-                  </span>
+                  </button>
                   <span>{result.edition?.format ?? "any"}</span>
                   <span>{result.provider}</span>
                   <span>
                     <em className={`confidence ${result.confidence}`}>{result.confidence}</em>
                   </span>
-                  <span className="row-action">Review</span>
-                </button>
+                  <span className="row-action">
+                    <button className="row-action-button" disabled={isMarkingWanted} onClick={() => markWantedResult(result)} type="button">
+                      {isMarkingWanted && result.work.id === selected?.work.id ? "Marking" : "Mark"}
+                    </button>
+                  </span>
+                </div>
               ))}
             </div>
           </section>
@@ -1817,7 +1817,7 @@ export function App() {
                 </dl>
 
                 <div className="detail-actions">
-                  <button className="secondary-action" onClick={markSelectedWanted} disabled={isMarkingWanted} type="button">
+                  <button className="secondary-action" onClick={() => markWantedResult(selected)} disabled={isMarkingWanted} type="button">
                     <HardDriveDownload size={17} />
                     <span>{isMarkingWanted ? "Marking" : "Mark wanted"}</span>
                   </button>
@@ -1897,7 +1897,7 @@ export function App() {
               </button>
             </div>
           </div>
-          {wantedError ? <div className="inline-error">{wantedError}</div> : null}
+          {wantedError ? <div className={isPersistenceRequiredError(wantedError) ? "inline-note" : "inline-error"}>{appErrorMessage(wantedError)}</div> : null}
           <div className="wanted-grid">
             <div className="wanted-list">
               {visibleWantedItems.length ? (
@@ -2092,7 +2092,7 @@ export function App() {
               </button>
             </div>
           </div>
-          {authorError ? <div className="inline-error">{authorError}</div> : null}
+          {authorError ? <div className={isPersistenceRequiredError(authorError) ? "inline-note" : "inline-error"}>{appErrorMessage(authorError)}</div> : null}
           <div className="author-grid">
             <div className="author-list">
               {authorSubscriptions.length ? (
@@ -3658,6 +3658,15 @@ function stringMetadataValue(value: unknown) {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return "";
+}
+
+function isPersistenceRequiredError(message: string) {
+  return message.toLowerCase().includes("requires database persistence");
+}
+
+function appErrorMessage(message: string) {
+  if (!isPersistenceRequiredError(message)) return message;
+  return `${message}. Set LIBRARRY_DATABASE_URL to a Postgres database and restart the API to enable wanted queues, author monitoring, and release decisions.`;
 }
 
 type WantedPresence = "missing" | "grabbed" | "present";

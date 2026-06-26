@@ -657,10 +657,25 @@ async function fetch(input: RequestInfo | URL, init: RequestInit = {}) {
   return globalThis.fetch(input, { ...init, headers });
 }
 
+async function apiError(response: Response, label: string) {
+  let detail = "";
+  try {
+    const payload = (await response.clone().json()) as { error?: unknown; message?: unknown };
+    detail = typeof payload.error === "string" ? payload.error : typeof payload.message === "string" ? payload.message : "";
+  } catch {
+    try {
+      detail = (await response.text()).trim();
+    } catch {
+      detail = "";
+    }
+  }
+  return `${label}: ${detail || response.status}`;
+}
+
 export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
   const response = await fetch(`${apiBase}/api/v1/providers/health`);
   if (!response.ok) {
-    throw new Error(`Provider health failed: ${response.status}`);
+    throw new Error(await apiError(response, "Provider health failed"));
   }
   const payload = (await response.json()) as { providers: ProviderHealth[] };
   return payload.providers;
@@ -1051,7 +1066,7 @@ export async function recoverFailedDownloads(options: {
 export async function fetchWanted(): Promise<WantedItem[]> {
   const response = await fetch(`${apiBase}/api/v1/wanted`);
   if (!response.ok) {
-    throw new Error(`Wanted refresh failed: ${response.status}`);
+    throw new Error(await apiError(response, "Wanted refresh failed"));
   }
   const payload = (await response.json()) as { wanted: WantedItem[] };
   return payload.wanted.filter((item) => !["imported", "removed", "ignored"].includes((item.status || "").toLowerCase()));
@@ -1060,7 +1075,7 @@ export async function fetchWanted(): Promise<WantedItem[]> {
 export async function fetchQualityProfiles(): Promise<QualityProfile[]> {
   const response = await fetch(`${apiBase}/api/v1/quality-profiles`);
   if (!response.ok) {
-    throw new Error(`Quality profiles refresh failed: ${response.status}`);
+    throw new Error(await apiError(response, "Quality profiles refresh failed"));
   }
   const payload = (await response.json()) as { profiles: QualityProfile[] };
   return payload.profiles;
@@ -1082,7 +1097,7 @@ export async function fetchAuthorSubscriptions(status = "monitored"): Promise<Au
   const params = new URLSearchParams({ status });
   const response = await fetch(`${apiBase}/api/v1/authors?${params.toString()}`);
   if (!response.ok) {
-    throw new Error(`Author subscriptions refresh failed: ${response.status}`);
+    throw new Error(await apiError(response, "Author subscriptions refresh failed"));
   }
   const payload = (await response.json()) as { authors: AuthorSubscription[] };
   return payload.authors;
@@ -1100,7 +1115,7 @@ export async function subscribeAuthor(result: SearchResult, format: string, qual
     })
   });
   if (!response.ok) {
-    throw new Error(`Author subscription failed: ${response.status}`);
+    throw new Error(await apiError(response, "Author subscription failed"));
   }
   return (await response.json()) as AuthorSubscription;
 }
@@ -1138,7 +1153,7 @@ export async function createWanted(result: SearchResult, format: string): Promis
     })
   });
   if (!response.ok) {
-    throw new Error(`Mark wanted failed: ${response.status}`);
+    throw new Error(await apiError(response, "Mark wanted failed"));
   }
   return (await response.json()) as WantedItem;
 }
