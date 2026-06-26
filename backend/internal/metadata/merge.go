@@ -283,12 +283,17 @@ func mergeEdition(base Edition, candidate Edition) Edition {
 	if base.PublishedDate == "" || len(candidate.PublishedDate) > len(base.PublishedDate) {
 		base.PublishedDate = firstNonEmpty(candidate.PublishedDate, base.PublishedDate)
 	}
+	base.ProviderIDs = appendUniqueStrings(base.ProviderIDs, candidate.ProviderIDs...)
+	if candidate.ID != "" {
+		base.ProviderIDs = appendUniqueStrings(base.ProviderIDs, candidate.ID)
+	}
 	return base
 }
 
 func enrichResultProviderIDs(result SearchResult) SearchResult {
 	result.Work.ProviderIDs = appendUniqueStrings(result.Work.ProviderIDs, result.Work.ID)
 	result.Work.Authors = enrichAuthorProviderIDs(result.Work.Authors)
+	result.Edition.ProviderIDs = appendUniqueStrings(result.Edition.ProviderIDs, result.Edition.ID)
 	return result
 }
 

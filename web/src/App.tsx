@@ -466,6 +466,7 @@ function searchResultSourceNames(result: SearchResult) {
   const names = compactStringList([
     result.provider,
     ...(result.work.providerIds ?? []).map(providerNameFromIdentity),
+    ...(result.edition?.providerIds ?? []).map(providerNameFromIdentity),
     ...(result.work.authors ?? []).flatMap((author) => (author.providerIds ?? []).map(providerNameFromIdentity))
   ]);
   const seen = new Set<string>();

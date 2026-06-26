@@ -52,6 +52,7 @@ type Edition struct {
 	ASIN          string      `json:"asin,omitempty"`
 	Publisher     string      `json:"publisher,omitempty"`
 	PublishedDate string      `json:"publishedDate,omitempty"`
+	ProviderIDs   []string    `json:"providerIds,omitempty"`
 }
 
 type SearchResult struct {

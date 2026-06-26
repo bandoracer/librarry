@@ -29,6 +29,7 @@ export type SearchResult = {
     asin?: string;
     publisher?: string;
     publishedDate?: string;
+    providerIds?: string[];
   };
   score: number;
   confidence: "high" | "medium" | "review";

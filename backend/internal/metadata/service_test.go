@@ -72,6 +72,9 @@ func TestSearchDetailedMergesDuplicateISBNResults(t *testing.T) {
 	if !hasString(result.Edition.ISBNs, "9780593135211") || result.Edition.Publisher != "Ballantine Books" {
 		t.Fatalf("expected edition enrichment from fallback provider, got %+v", result.Edition)
 	}
+	if !hasString(result.Edition.ProviderIDs, "openlibrary:OL32695809M") || !hasString(result.Edition.ProviderIDs, "googlebooks:abc123:edition") {
+		t.Fatalf("expected merged edition provider IDs, got %+v", result.Edition.ProviderIDs)
+	}
 	if !hasString(result.MatchedOn, "provider corroboration") {
 		t.Fatalf("expected merged match evidence, got %+v", result.MatchedOn)
 	}

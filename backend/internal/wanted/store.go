@@ -18,6 +18,11 @@ type Store struct {
 	db *sql.DB
 }
 
+type providerAlias struct {
+	Provider string
+	Key      string
+}
+
 const (
 	manualOverrideReasonCorrection        = "manual wanted metadata correction"
 	manualOverrideReasonCanonicalAccepted = "metadata review canonical accepted"
@@ -2205,9 +2210,13 @@ func (s *Store) UpsertFeedReleases(ctx context.Context, releases []acquisition.R
 }
 
 func (s *Store) upsertWork(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, raw []byte) (string, error) {
-	if id, ok, err := lookupProviderEntity(ctx, tx, result.Provider, result.Work.ID); err != nil || ok {
+	aliases := workProviderAliases(result)
+	if id, ok, err := lookupProviderEntityAliases(ctx, tx, aliases); err != nil || ok {
 		if ok {
 			_, _ = tx.ExecContext(ctx, `update works set title = $1, sort_title = $2, cover_url = $3, updated_at = now() where id = $4`, result.Work.Title, sortValue(result.Work.Title), result.Work.CoverURL, id)
+			if err := insertProviderAliases(ctx, tx, aliases, "work", id, raw, result.Score); err != nil {
+				return "", err
+			}
 		}
 		return id, err
 	}
@@ -2219,7 +2228,7 @@ func (s *Store) upsertWork(ctx context.Context, tx *sql.Tx, result metadata.Sear
 	`, result.Work.Title, sortValue(result.Work.Title), result.Work.FirstPublishYear, result.Work.Description, result.Work.CoverURL).Scan(&id); err != nil {
 		return "", err
 	}
-	return id, insertProviderRecord(ctx, tx, result.Provider, result.Work.ID, "work", id, raw, result.Score)
+	return id, insertProviderAliases(ctx, tx, aliases, "work", id, raw, result.Score)
 }
 
 func (s *Store) upsertPrimaryAuthor(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, workID string, raw []byte) (string, error) {
@@ -2227,8 +2236,8 @@ func (s *Store) upsertPrimaryAuthor(ctx context.Context, tx *sql.Tx, result meta
 		return "", nil
 	}
 	author := result.Work.Authors[0]
-	authorKey := firstNonEmpty(author.ID, result.Provider+":author:"+normalizeText(author.Name))
-	id, ok, err := lookupProviderEntity(ctx, tx, result.Provider, authorKey)
+	aliases := authorProviderAliases(result, author)
+	id, ok, err := lookupProviderEntityAliases(ctx, tx, aliases)
 	if err != nil {
 		return "", err
 	}
@@ -2240,9 +2249,11 @@ func (s *Store) upsertPrimaryAuthor(ctx context.Context, tx *sql.Tx, result meta
 		`, author.Name, sortValue(author.Name)).Scan(&id); err != nil {
 			return "", err
 		}
-		if err := insertProviderRecord(ctx, tx, result.Provider, authorKey, "author", id, raw, result.Score); err != nil {
-			return "", err
-		}
+	} else {
+		_, _ = tx.ExecContext(ctx, `update authors set canonical_name = $1, sort_name = $2, updated_at = now() where id = $3`, author.Name, sortValue(author.Name), id)
+	}
+	if err := insertProviderAliases(ctx, tx, aliases, "author", id, raw, result.Score); err != nil {
+		return "", err
 	}
 	if _, err := tx.ExecContext(ctx, `
 		insert into work_authors(work_id, author_id, role)
@@ -2256,8 +2267,13 @@ func (s *Store) upsertPrimaryAuthor(ctx context.Context, tx *sql.Tx, result meta
 
 func (s *Store) upsertEdition(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, workID string, format string, raw []byte) (string, error) {
 	edition := result.Edition
-	editionKey := firstNonEmpty(edition.ID, result.Provider+":edition:"+result.Work.ID+":"+format)
-	if id, ok, err := lookupProviderEntity(ctx, tx, result.Provider, editionKey); err != nil || ok {
+	aliases := editionProviderAliases(result, format)
+	if id, ok, err := lookupProviderEntityAliases(ctx, tx, aliases); err != nil || ok {
+		if ok {
+			if err := insertProviderAliases(ctx, tx, aliases, "edition", id, raw, result.Score); err != nil {
+				return "", err
+			}
+		}
 		return id, err
 	}
 	title := firstNonEmpty(edition.Title, result.Work.Title)
@@ -2273,7 +2289,7 @@ func (s *Store) upsertEdition(ctx context.Context, tx *sql.Tx, result metadata.S
 	`, workID, title, mediaFormat, edition.Language, edition.Publisher, edition.PublishedDate, edition.ASIN).Scan(&id); err != nil {
 		return "", err
 	}
-	if err := insertProviderRecord(ctx, tx, result.Provider, editionKey, "edition", id, raw, result.Score); err != nil {
+	if err := insertProviderAliases(ctx, tx, aliases, "edition", id, raw, result.Score); err != nil {
 		return "", err
 	}
 	for _, isbn := range edition.ISBNs {
@@ -2528,6 +2544,16 @@ func lookupProviderEntity(ctx context.Context, tx *sql.Tx, provider string, key 
 	return id, true, nil
 }
 
+func lookupProviderEntityAliases(ctx context.Context, tx *sql.Tx, aliases []providerAlias) (string, bool, error) {
+	for _, alias := range aliases {
+		id, ok, err := lookupProviderEntity(ctx, tx, alias.Provider, alias.Key)
+		if err != nil || ok {
+			return id, ok, err
+		}
+	}
+	return "", false, nil
+}
+
 func insertProviderRecord(ctx context.Context, tx *sql.Tx, provider string, key string, entityType string, entityID string, raw []byte, confidence float64) error {
 	if strings.TrimSpace(provider) == "" || strings.TrimSpace(key) == "" {
 		return nil
@@ -2543,6 +2569,64 @@ func insertProviderRecord(ctx context.Context, tx *sql.Tx, provider string, key 
 			fetched_at = now()
 	`, provider, key, entityType, entityID, string(raw), confidence)
 	return err
+}
+
+func insertProviderAliases(ctx context.Context, tx *sql.Tx, aliases []providerAlias, entityType string, entityID string, raw []byte, confidence float64) error {
+	for _, alias := range aliases {
+		if err := insertProviderRecord(ctx, tx, alias.Provider, alias.Key, entityType, entityID, raw, confidence); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func workProviderAliases(result metadata.SearchResult) []providerAlias {
+	return providerAliases(result.Provider, append([]string{result.Work.ID}, result.Work.ProviderIDs...))
+}
+
+func authorProviderAliases(result metadata.SearchResult, author metadata.Author) []providerAlias {
+	keys := append([]string{author.ID}, author.ProviderIDs...)
+	if len(compactStrings(keys)) == 0 {
+		keys = append(keys, result.Provider+":author:"+normalizeText(author.Name))
+	}
+	return providerAliases(result.Provider, keys)
+}
+
+func editionProviderAliases(result metadata.SearchResult, format string) []providerAlias {
+	fallbackKey := result.Provider + ":edition:" + result.Work.ID + ":" + format
+	return providerAliases(result.Provider, append([]string{result.Edition.ID, fallbackKey}, result.Edition.ProviderIDs...))
+}
+
+func providerAliases(fallbackProvider string, keys []string) []providerAlias {
+	seen := map[string]bool{}
+	aliases := []providerAlias{}
+	for _, key := range compactStrings(keys) {
+		provider := providerNameFromMetadataKey(key, fallbackProvider)
+		if strings.TrimSpace(provider) == "" || strings.TrimSpace(key) == "" {
+			continue
+		}
+		seenKey := strings.ToLower(provider) + "\x00" + strings.ToLower(key)
+		if seen[seenKey] {
+			continue
+		}
+		seen[seenKey] = true
+		aliases = append(aliases, providerAlias{Provider: provider, Key: strings.TrimSpace(key)})
+	}
+	return aliases
+}
+
+func providerNameFromMetadataKey(key string, fallbackProvider string) string {
+	value := strings.ToLower(strings.TrimSpace(key))
+	switch {
+	case strings.HasPrefix(value, "hardcover:") || strings.HasPrefix(value, "hardcover-author:"):
+		return "Hardcover"
+	case strings.HasPrefix(value, "openlibrary:") || strings.HasPrefix(value, "/authors/") || strings.HasPrefix(value, "/works/"):
+		return "Open Library"
+	case strings.HasPrefix(value, "googlebooks:") || strings.HasPrefix(value, "googlebooks-author:"):
+		return "Google Books"
+	default:
+		return strings.TrimSpace(fallbackProvider)
+	}
 }
 
 func wantedFormat(request CreateRequest) string {
