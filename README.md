@@ -84,6 +84,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - React and TypeScript web UI with dedicated views for provider health, metadata
   search, missing-focused wanted queue management, downloads, imports, settings,
   and operations history.
+- Operations dashboard review inbox for the book workflow: metadata conflicts,
+  skipped author candidates, unmatched import reviews, blocked acquisitions, and
+  failed downloads are surfaced with direct navigation or recovery actions.
 - Metadata search supports both book candidates and direct author identities, so
   an author can be monitored from a provider-backed author record without first
   selecting one of their books.

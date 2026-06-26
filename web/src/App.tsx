@@ -177,8 +177,8 @@ const navItems = [
     id: "downloads",
     label: "Queue",
     icon: HardDriveDownload,
-    title: "External queue",
-    description: "Review Librarry-grabbed book jobs in configured download clients and import completed files."
+    title: "Download activity",
+    description: "Review book jobs in external clients and import completed files."
   },
   {
     id: "imports",
@@ -681,6 +681,18 @@ export function App() {
   const selectedDownloadsSupportForceStart = selectedDownloads.length > 0 && selectedDownloads.every((download) => supportsDownloadAction(download, "forceStart"));
   const selectedDownloadsSupportQbitControls = selectedDownloads.length > 0 && selectedDownloads.every(downloadSupportsQbitManagerActions);
   const downloadQueueStats = useMemo(() => summarizeDownloads(filteredDownloads), [filteredDownloads]);
+  const dashboardMetadataReviews = (wantedMetadataReview?.items ?? []).slice(0, 4);
+  const dashboardAuthorReviews = authorMetadataReviews.slice(0, 4);
+  const dashboardImportReviews = importReviews.slice(0, 4);
+  const dashboardBlockedItems = acquisitionQueueRows.filter((item) => item.state === "blocked").slice(0, 4);
+  const dashboardFailedDownloads = downloads.filter(downloadNeedsRecovery);
+  const dashboardFailedDownloadRows = dashboardFailedDownloads.slice(0, 4);
+  const reviewInboxTotal =
+    metadataReviewSummary.items +
+    authorMetadataReviews.length +
+    importReviews.length +
+    (acquisitionQueue?.summary.blocked ?? dashboardBlockedItems.length) +
+    dashboardFailedDownloads.length;
   const visibleImportReviews = useMemo(() => importReviews.slice(0, 6), [importReviews]);
   const selectableImportReviewIDs = useMemo(() => visibleImportReviews.map((review) => review.id).filter(Boolean), [visibleImportReviews]);
   const selectedImportReviewSet = useMemo(() => new Set(selectedImportReviewIDs), [selectedImportReviewIDs]);
@@ -967,6 +979,20 @@ export function App() {
     setWantedReleases([]);
     setWantedMetadata(null);
     setActiveView("wanted");
+  }
+
+  function openImportReview(review: ImportReview) {
+    if (review.id) {
+      setSelectedImportReviewIDs([review.id]);
+    }
+    setActiveView("imports");
+  }
+
+  function openDownloadActivity(download: DownloadStatus) {
+    setDownloadTextFilter(download.name || download.id);
+    setDownloadStateFilter("all");
+    setDownloadScope("all");
+    setActiveView("downloads");
   }
 
   function openAuthorSubscriptionBooks(subscription: AuthorSubscription) {
@@ -2233,7 +2259,7 @@ export function App() {
           </div>
           <div>
             <strong>Librarry</strong>
-            <span>Metadata ops</span>
+            <span>Readarr replacement</span>
           </div>
         </div>
 
@@ -2370,6 +2396,215 @@ export function App() {
             <FileSearch size={17} />
             <span>{isSearching ? "Searching" : searchMode === "author" ? "Find author" : "Search"}</span>
           </button>
+        </section>
+
+        <section className="review-inbox" aria-label="Review inbox" hidden={activeView !== "dashboard"}>
+          <div className="panel-heading review-inbox-heading">
+            <div>
+              <h2>Review inbox</h2>
+              <p>
+                {reviewInboxTotal
+                  ? `${reviewInboxTotal} book workflow items need review or recovery.`
+                  : "No metadata, import, or acquisition reviews are pending."}
+              </p>
+            </div>
+            <div className="monitor-actions">
+              <button className="secondary-action compact" disabled={isRefreshingAcquisitionQueue} onClick={() => refreshAcquisitionQueue()} type="button">
+                <RefreshCw size={16} />
+                {isRefreshingAcquisitionQueue ? "Refreshing" : "Refresh queue"}
+              </button>
+              <button className="secondary-action compact" onClick={refreshWantedAndHistory} type="button">
+                <HistoryIcon size={16} />
+                Refresh reviews
+              </button>
+            </div>
+          </div>
+          <div className="review-inbox-metrics">
+            {[
+              ["Metadata", metadataReviewSummary.items, `${metadataReviewSummary.conflicts} conflicts`],
+              ["Authors", authorMetadataReviews.length, "skipped candidates"],
+              ["Imports", importReviews.length, "pending files"],
+              ["Blocked", acquisitionQueue?.summary.blocked ?? dashboardBlockedItems.length, "book acquisitions"],
+              ["Failed", dashboardFailedDownloads.length, "downloads"]
+            ].map(([label, value, detail]) => (
+              <div className="review-inbox-metric" key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+                <em>{detail}</em>
+              </div>
+            ))}
+          </div>
+          <div className="review-inbox-lanes">
+            <article className="review-lane">
+              <div className="review-lane-heading">
+                <div>
+                  <strong>Metadata review</strong>
+                  <span>{metadataReviewSummary.protected} protected fields</span>
+                </div>
+                <button className="secondary-action compact" onClick={() => setActiveView("wanted")} type="button">
+                  Wanted
+                </button>
+              </div>
+              <div className="review-lane-list">
+                {dashboardMetadataReviews.length ? (
+                  dashboardMetadataReviews.map((review) => (
+                    <button className="review-inbox-row" key={review.wantedItem.id} onClick={() => openWantedItem(review.wantedItem)} type="button">
+                      <div>
+                        <strong>{review.wantedItem.title}</strong>
+                        <span>
+                          {review.wantedItem.authorName || review.wantedItem.format} · {review.conflictCount} conflict{review.conflictCount === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <em>{review.recordCount} records</em>
+                    </button>
+                  ))
+                ) : (
+                  <div className="review-inbox-empty">No wanted metadata conflicts.</div>
+                )}
+              </div>
+            </article>
+
+            <article className="review-lane">
+              <div className="review-lane-heading">
+                <div>
+                  <strong>Author candidates</strong>
+                  <span>{authorMetadataReviews.length} skipped by policy</span>
+                </div>
+                <button className="secondary-action compact" onClick={() => setActiveView("wanted")} type="button">
+                  Authors
+                </button>
+              </div>
+              <div className="review-lane-list">
+                {dashboardAuthorReviews.length ? (
+                  dashboardAuthorReviews.map((review) => {
+                    const wantedActionID = `${review.id}:wanted`;
+                    const ignoreActionID = `${review.id}:ignore`;
+                    return (
+                      <article className="review-inbox-row action-row" key={review.id}>
+                        <div>
+                          <strong>{review.title || review.result.work.title || "Untitled"}</strong>
+                          <span>
+                            {review.authorName || firstAuthorName(review.result)} · {authorSkippedDateLabel(review.result)} · {review.reason}
+                          </span>
+                        </div>
+                        <div className="review-inbox-actions">
+                          <button className="secondary-action compact" disabled={Boolean(authorReviewActionID)} onClick={() => resolveAuthorReview(review, "wanted")} type="button">
+                            {authorReviewActionID === wantedActionID ? "Marking" : "Wanted"}
+                          </button>
+                          <button className="secondary-action compact danger-outline" disabled={Boolean(authorReviewActionID)} onClick={() => resolveAuthorReview(review, "ignore")} type="button">
+                            {authorReviewActionID === ignoreActionID ? "Ignoring" : "Ignore"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="review-inbox-empty">No author candidates pending.</div>
+                )}
+              </div>
+            </article>
+
+            <article className="review-lane">
+              <div className="review-lane-heading">
+                <div>
+                  <strong>Import review</strong>
+                  <span>{importReviews.length} unmatched files</span>
+                </div>
+                <button className="secondary-action compact" onClick={() => setActiveView("imports")} type="button">
+                  Imports
+                </button>
+              </div>
+              <div className="review-lane-list">
+                {dashboardImportReviews.length ? (
+                  dashboardImportReviews.map((review) => (
+                    <button className="review-inbox-row" key={review.id} onClick={() => openImportReview(review)} type="button">
+                      <div>
+                        <strong>{review.title || review.sourcePath.split("/").pop() || "Pending import"}</strong>
+                        <span>
+                          {review.authorName || "Unknown author"} · {review.mediaFormat} · {review.reason}
+                        </span>
+                      </div>
+                      <em>{formatBytes(review.sizeBytes ?? 0)}</em>
+                    </button>
+                  ))
+                ) : (
+                  <div className="review-inbox-empty">No import reviews pending.</div>
+                )}
+              </div>
+            </article>
+
+            <article className="review-lane">
+              <div className="review-lane-heading">
+                <div>
+                  <strong>Blocked acquisition</strong>
+                  <span>{acquisitionQueue?.summary.blocked ?? dashboardBlockedItems.length} books blocked</span>
+                </div>
+                <button className="secondary-action compact" onClick={() => setActiveView("wanted")} type="button">
+                  Wanted
+                </button>
+              </div>
+              <div className="review-lane-list">
+                {dashboardBlockedItems.length ? (
+                  dashboardBlockedItems.map((item) => {
+                    const ActionIcon = acquisitionQueueActionIcon(item.state);
+                    const actionID = acquisitionQueueActionID(item);
+                    return (
+                      <article className="review-inbox-row action-row" key={item.wantedItem.id}>
+                        <button className="review-inbox-row-main" onClick={() => openWantedItem(item.wantedItem)} type="button">
+                          <strong>{item.wantedItem.title}</strong>
+                          <span>{item.nextAction}</span>
+                        </button>
+                        <button
+                          className="secondary-action compact"
+                          disabled={acquisitionQueueActionDisabled(item) || acquisitionActionID === actionID}
+                          onClick={() => runAcquisitionQueueAction(item)}
+                          type="button"
+                        >
+                          <ActionIcon size={15} />
+                          {acquisitionActionID === actionID ? "Working" : acquisitionQueueActionLabel(item)}
+                        </button>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="review-inbox-empty">No blocked book acquisitions.</div>
+                )}
+              </div>
+            </article>
+
+            <article className="review-lane">
+              <div className="review-lane-heading">
+                <div>
+                  <strong>Failed downloads</strong>
+                  <span>{dashboardFailedDownloads.length} need recovery</span>
+                </div>
+                <button className="secondary-action compact" onClick={() => setActiveView("downloads")} type="button">
+                  Queue
+                </button>
+              </div>
+              <div className="review-lane-list">
+                {dashboardFailedDownloadRows.length ? (
+                  dashboardFailedDownloadRows.map((download) => {
+                    const actionID = `${download.id}:recover`;
+                    return (
+                      <article className="review-inbox-row action-row" key={downloadKey(download)}>
+                        <button className="review-inbox-row-main" onClick={() => openDownloadActivity(download)} type="button">
+                          <strong>{download.name || download.id}</strong>
+                          <span>{download.failureReason || download.importError || download.state}</span>
+                        </button>
+                        <button className="secondary-action compact" disabled={isRecoveringFailed} onClick={() => runFailedRecovery(download, { autoGrab: true, force: true })} type="button">
+                          <HardDriveDownload size={15} />
+                          {downloadActionID === actionID ? "Recovering" : "Recover"}
+                        </button>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="review-inbox-empty">No failed downloads.</div>
+                )}
+              </div>
+            </article>
+          </div>
         </section>
 
         <section className="provider-grid" aria-label="Provider health" hidden={activeView !== "dashboard" && activeView !== "providers"}>
@@ -3661,10 +3896,10 @@ export function App() {
           ) : null}
         </section>
 
-        <section className="downloads-panel" aria-label="Download manager" hidden={activeView !== "dashboard" && activeView !== "downloads"}>
+        <section className="downloads-panel" aria-label="Download activity" hidden={activeView !== "dashboard" && activeView !== "downloads"}>
           <div className="panel-heading">
             <div>
-              <h2>Downloads</h2>
+              <h2>Download activity</h2>
               <p>
                 {filteredDownloads.length
                   ? `${filteredDownloads.length} of ${downloads.length} ${downloadScope === "all" ? "download-client" : "Librarry-tagged"} items visible; ${selectedDownloads.length} selected for queue actions.`
@@ -5071,9 +5306,11 @@ function queueDownloadsForImport(item: AcquisitionQueueItem) {
 }
 
 function queueDownloadsForRecovery(item: AcquisitionQueueItem) {
-  return (item.downloads ?? []).filter((download) =>
-    Boolean(download.failureReason || download.importError || stateTone(download.state) === "error")
-  );
+  return (item.downloads ?? []).filter(downloadNeedsRecovery);
+}
+
+function downloadNeedsRecovery(download: DownloadStatus) {
+  return Boolean(download.failureReason || download.importError || stateTone(download.state) === "error");
 }
 
 function uniqueDownloadCategories(downloads: DownloadStatus[], resources?: DownloadResources | null) {
