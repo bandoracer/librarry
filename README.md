@@ -485,6 +485,7 @@ Important API surfaces:
   - `GET /healthz`
   - `GET /api/v1/providers/health`
   - `GET /api/v1/providers/diagnostics`
+  - `GET /api/v1/readiness`
   - `GET /api/v1/search?query=Project%20Hail%20Mary`
   - `GET /api/v1/integrations/health`
   - `GET /api/v1/integrations/config`

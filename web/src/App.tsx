@@ -51,6 +51,7 @@ import {
   fetchLibrarySettings,
   fetchProviderHealth,
   fetchQualityProfiles,
+  fetchReadiness,
   fetchSystemStatus,
   fetchWanted,
   fetchWantedMetadata,
@@ -122,6 +123,7 @@ import {
   type ProviderHealth,
   type ProviderMetadataRecord,
   type QualityProfile,
+  type ReadinessReport,
   type ReleaseDecision,
   type Release,
   type ReviewBulkDecisionOutcome,
@@ -276,6 +278,7 @@ export function App() {
   const [activeView, setActiveView] = useState<ViewID>("library");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
@@ -431,11 +434,12 @@ export function App() {
   }
 
   useEffect(() => {
-    Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus()])
-      .then(([nextProviders, nextIntegrations, nextStatus]) => {
+    Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus(), fetchReadiness()])
+      .then(([nextProviders, nextIntegrations, nextStatus, nextReadiness]) => {
         setProviders(nextProviders);
         setIntegrations(nextIntegrations);
         setSystemStatus(nextStatus);
+        setReadiness(nextReadiness);
         setAPIState("live");
       })
       .catch(() => {
@@ -1913,6 +1917,7 @@ export function App() {
     try {
       const saved = await saveQualityProfile(profile);
       setQualityProfiles((current) => current.map((item) => (profileKey(item) === key ? saved : item)));
+      setReadiness(await fetchReadiness());
       setAPIState("live");
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "Quality profile save failed");
@@ -1944,6 +1949,7 @@ export function App() {
         setIntegrations(await fetchIntegrationHealth());
       }
       await Promise.allSettled([refreshDownloads(), refreshDownloadResources(true), refreshDownloadPreferences(true)]);
+      setReadiness(await fetchReadiness());
       setSettingsNotice(response.persisted ? "Integration settings saved and applied." : "Integration settings applied for this process. Add Postgres to persist them.");
       setAPIState("live");
     } catch (error) {
@@ -1962,6 +1968,7 @@ export function App() {
       setLibrarySettings(response.settings);
       setLibrarySettingsForm(response.settings);
       setLibrarySettingsPersisted(response.persisted);
+      setReadiness(await fetchReadiness());
       setSettingsNotice(response.persisted ? "Library settings saved and applied." : "Library settings applied for this process. Add Postgres to persist them.");
       setAPIState("live");
     } catch (error) {
@@ -1976,10 +1983,11 @@ export function App() {
     setSettingsError("");
     setSettingsNotice(apiKeyInput.trim() ? "API key saved for this browser." : "API key cleared for this browser.");
     try {
-      const [nextProviders, nextIntegrations, nextStatus] = await Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus()]);
+      const [nextProviders, nextIntegrations, nextStatus, nextReadiness] = await Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus(), fetchReadiness()]);
       setProviders(nextProviders);
       setIntegrations(nextIntegrations);
       setSystemStatus(nextStatus);
+      setReadiness(nextReadiness);
       setAPIState("live");
     } catch (error) {
       setAPIState("offline");
@@ -2052,6 +2060,39 @@ export function App() {
               <Settings size={16} />
               Settings
             </button>
+          </section>
+        ) : null}
+
+        {readiness && (activeView === "dashboard" || activeView === "providers" || activeView === "settings") ? (
+          <section className={`setup-checklist ${readiness.status}`} aria-label="Readarr workflow setup">
+            <div className="setup-checklist-header">
+              <div>
+                <h2>Readarr workflow setup</h2>
+                <p>{readiness.summary}</p>
+              </div>
+              <span className={`setup-status-badge ${readiness.status}`}>{readiness.status.replace(/_/g, " ")}</span>
+            </div>
+            <div className="setup-step-grid">
+              {readiness.steps.map((step) => (
+                <article className={`setup-step ${step.status}`} key={step.id}>
+                  <div className="setup-step-main">
+                    <span className={`status-dot ${step.status === "ready" ? "ready" : "warn"}`} />
+                    <div>
+                      <strong>{step.title}</strong>
+                      <span>{step.message}</span>
+                    </div>
+                  </div>
+                  <div className="setup-step-side">
+                    {step.required ? <em>Required</em> : <em>Optional</em>}
+                    {step.actionLabel && step.targetView ? (
+                      <button className="secondary-action compact" onClick={() => setActiveView(readinessTargetView(step.targetView!))} type="button">
+                        {step.actionLabel}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
           </section>
         ) : null}
 
@@ -4451,6 +4492,10 @@ function uniqueDownloadResourceClients(downloads: DownloadStatus[], integrations
     }
   });
   return Array.from(clients).sort((a, b) => a.localeCompare(b));
+}
+
+function readinessTargetView(value: string): ViewID {
+  return navItems.some((item) => item.id === value) ? (value as ViewID) : "settings";
 }
 
 function downloadClientHealthRows(integrations: IntegrationHealth[]) {

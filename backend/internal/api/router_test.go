@@ -44,6 +44,54 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
+func TestReadinessEndpointReportsReadarrWorkflowSetup(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(metadata.DefaultProviders(metadata.ProviderConfig{})),
+		Acquire:  acquisition.NewService(acquisition.IntegrationConfig{}),
+		Wanted:   wanted.NewService(nil, nil),
+		Library: library.NewService(nil, library.Config{
+			EbookRoot:     "/books/ebooks",
+			AudiobookRoot: "/books/audiobooks",
+		}, nil, nil),
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/readiness", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var report readinessReport
+	if err := json.NewDecoder(res.Body).Decode(&report); err != nil {
+		t.Fatalf("decode readiness report: %v", err)
+	}
+	if report.Status != "blocked" {
+		t.Fatalf("expected blocked setup, got %+v", report)
+	}
+	steps := map[string]readinessStep{}
+	for _, step := range report.Steps {
+		steps[step.ID] = step
+	}
+	if steps["database"].Status != "blocked" || steps["database"].TargetView != "settings" {
+		t.Fatalf("expected blocked database step with settings target, got %+v", steps["database"])
+	}
+	if steps["metadata"].Status != "warning" {
+		t.Fatalf("expected metadata warning for optional provider enrichment, got %+v", steps["metadata"])
+	}
+	if steps["library"].Status != "ready" {
+		t.Fatalf("expected ready library step, got %+v", steps["library"])
+	}
+	if steps["indexer"].Status != "blocked" || steps["download-client"].Status != "blocked" {
+		t.Fatalf("expected blocked acquisition steps, got indexer=%+v download=%+v", steps["indexer"], steps["download-client"])
+	}
+	if steps["quality-profiles"].Status != "ready" {
+		t.Fatalf("expected default quality profiles to be ready, got %+v", steps["quality-profiles"])
+	}
+}
+
 func TestAPIKeyAuthIsOptionalWhenUnset(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),

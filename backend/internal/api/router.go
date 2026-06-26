@@ -329,6 +329,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/system/task/{id}", handler.compatSystemTask)
 	mux.HandleFunc("GET /api/v1/providers/health", handler.providerHealth)
 	mux.HandleFunc("GET /api/v1/providers/diagnostics", handler.providerDiagnostics)
+	mux.HandleFunc("GET /api/v1/readiness", handler.readiness)
 	mux.HandleFunc("GET /api/v1/search", handler.search)
 	mux.HandleFunc("POST /api/v1/settings/validate", handler.validateSettings)
 	mux.HandleFunc("GET /api/v1/integrations/health", handler.integrationHealth)
@@ -415,6 +416,331 @@ func (h *handler) providerDiagnostics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"providers": h.deps.Metadata.Diagnostics(r.Context()),
 	})
+}
+
+type readinessReport struct {
+	Status      string          `json:"status"`
+	Summary     string          `json:"summary"`
+	Steps       []readinessStep `json:"steps"`
+	GeneratedAt time.Time       `json:"generatedAt"`
+}
+
+type readinessStep struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	Required    bool   `json:"required"`
+	Message     string `json:"message"`
+	ActionLabel string `json:"actionLabel,omitempty"`
+	TargetView  string `json:"targetView,omitempty"`
+}
+
+func (h *handler) readiness(w http.ResponseWriter, r *http.Request) {
+	report := h.readinessReport(r.Context())
+	writeJSON(w, http.StatusOK, report)
+}
+
+func (h *handler) readinessReport(ctx context.Context) readinessReport {
+	steps := []readinessStep{
+		h.databaseReadinessStep(),
+		h.metadataReadinessStep(ctx),
+		h.libraryReadinessStep(ctx),
+		h.indexerReadinessStep(ctx),
+		h.downloadClientReadinessStep(ctx),
+		h.qualityProfileReadinessStep(ctx),
+	}
+
+	blocked := 0
+	warnings := 0
+	for _, step := range steps {
+		switch step.Status {
+		case "blocked":
+			if step.Required {
+				blocked++
+			} else {
+				warnings++
+			}
+		case "warning":
+			warnings++
+		}
+	}
+
+	status := "ready"
+	summary := "Readarr workflow is ready for metadata search, monitoring, release decisions, and imports."
+	if blocked > 0 {
+		status = "blocked"
+		summary = strconv.Itoa(blocked) + " required setup step"
+		if blocked != 1 {
+			summary += "s"
+		}
+		summary += " must be completed before the Readarr workflow is usable."
+	} else if warnings > 0 {
+		status = "warning"
+		summary = "Core Readarr workflow is usable; " + strconv.Itoa(warnings) + " setup step"
+		if warnings != 1 {
+			summary += "s"
+		}
+		summary += " need attention."
+	}
+
+	return readinessReport{
+		Status:      status,
+		Summary:     summary,
+		Steps:       steps,
+		GeneratedAt: time.Now().UTC(),
+	}
+}
+
+func (h *handler) databaseReadinessStep() readinessStep {
+	if databaseType(h.deps.Config.DatabaseURL) != "none" {
+		return readinessStep{
+			ID:       "database",
+			Title:    "Postgres persistence",
+			Status:   "ready",
+			Required: true,
+			Message:  "Database-backed wanted queues, history, root folders, and compatibility resources are enabled.",
+		}
+	}
+	return readinessStep{
+		ID:          "database",
+		Title:       "Postgres persistence",
+		Status:      "blocked",
+		Required:    true,
+		Message:     "Set LIBRARRY_DATABASE_URL and restart the API to persist Readarr workflow state.",
+		ActionLabel: "Open settings",
+		TargetView:  "settings",
+	}
+}
+
+func (h *handler) metadataReadinessStep(ctx context.Context) readinessStep {
+	if h.deps.Metadata == nil {
+		return readinessStep{
+			ID:          "metadata",
+			Title:       "Metadata providers",
+			Status:      "blocked",
+			Required:    true,
+			Message:     "No metadata service is available.",
+			ActionLabel: "Providers",
+			TargetView:  "providers",
+		}
+	}
+	health := h.deps.Metadata.Health(ctx)
+	ready := 0
+	configured := 0
+	for _, provider := range health {
+		if provider.Configured {
+			configured++
+		}
+		if provider.Status == "ready" {
+			ready++
+		}
+	}
+	if ready > 0 {
+		status := "ready"
+		message := strconv.Itoa(ready) + "/" + strconv.Itoa(len(health)) + " providers are ready for lookup and import evidence."
+		if configured < len(health) {
+			status = "warning"
+			message += " Add Hardcover for richer series and edition metadata."
+		}
+		return readinessStep{
+			ID:          "metadata",
+			Title:       "Metadata providers",
+			Status:      status,
+			Required:    true,
+			Message:     message,
+			ActionLabel: "Providers",
+			TargetView:  "providers",
+		}
+	}
+	return readinessStep{
+		ID:          "metadata",
+		Title:       "Metadata providers",
+		Status:      "blocked",
+		Required:    true,
+		Message:     "Configure at least one metadata provider before monitoring authors or books.",
+		ActionLabel: "Providers",
+		TargetView:  "providers",
+	}
+}
+
+func (h *handler) libraryReadinessStep(ctx context.Context) readinessStep {
+	config, err := h.effectiveLibraryConfig(ctx)
+	if err != nil {
+		return readinessStep{
+			ID:          "library",
+			Title:       "Library roots",
+			Status:      "blocked",
+			Required:    true,
+			Message:     err.Error(),
+			ActionLabel: "Library settings",
+			TargetView:  "settings",
+		}
+	}
+	config = library.NormalizeConfig(config)
+	ebookRoot := strings.TrimSpace(config.EbookRoot)
+	audiobookRoot := strings.TrimSpace(config.AudiobookRoot)
+	switch {
+	case ebookRoot != "" && audiobookRoot != "":
+		return readinessStep{
+			ID:       "library",
+			Title:    "Library roots",
+			Status:   "ready",
+			Required: true,
+			Message:  "Ebook and audiobook import roots are configured.",
+		}
+	case ebookRoot != "" || audiobookRoot != "":
+		return readinessStep{
+			ID:          "library",
+			Title:       "Library roots",
+			Status:      "warning",
+			Required:    true,
+			Message:     "One library root is configured. Add the other root when managing both ebooks and audiobooks.",
+			ActionLabel: "Library settings",
+			TargetView:  "settings",
+		}
+	default:
+		return readinessStep{
+			ID:          "library",
+			Title:       "Library roots",
+			Status:      "blocked",
+			Required:    true,
+			Message:     "Configure ebook and audiobook roots so imports and rename previews know where books belong.",
+			ActionLabel: "Library settings",
+			TargetView:  "settings",
+		}
+	}
+}
+
+func (h *handler) indexerReadinessStep(ctx context.Context) readinessStep {
+	health := h.integrationHealthList(ctx)
+	for _, integration := range health {
+		if integration.Name != "Prowlarr" {
+			continue
+		}
+		if integration.Status == "ready" {
+			return readinessStep{
+				ID:       "indexer",
+				Title:    "Prowlarr indexer",
+				Status:   "ready",
+				Required: true,
+				Message:  integration.Message,
+			}
+		}
+		status := "blocked"
+		if integration.Configured {
+			status = "warning"
+		}
+		return readinessStep{
+			ID:          "indexer",
+			Title:       "Prowlarr indexer",
+			Status:      status,
+			Required:    true,
+			Message:     integration.Message,
+			ActionLabel: "Integrations",
+			TargetView:  "settings",
+		}
+	}
+	return readinessStep{
+		ID:          "indexer",
+		Title:       "Prowlarr indexer",
+		Status:      "blocked",
+		Required:    true,
+		Message:     "Configure Prowlarr so wanted searches and feed sync can find book releases.",
+		ActionLabel: "Integrations",
+		TargetView:  "settings",
+	}
+}
+
+func (h *handler) downloadClientReadinessStep(ctx context.Context) readinessStep {
+	health := h.integrationHealthList(ctx)
+	var configured []string
+	var ready []string
+	for _, integration := range health {
+		if integration.Name == "Prowlarr" {
+			continue
+		}
+		if integration.Configured {
+			configured = append(configured, integration.Name)
+		}
+		if integration.Status == "ready" {
+			ready = append(ready, integration.Name)
+		}
+	}
+	if len(ready) > 0 {
+		return readinessStep{
+			ID:       "download-client",
+			Title:    "Download client",
+			Status:   "ready",
+			Required: true,
+			Message:  strings.Join(ready, ", ") + " ready for approved book releases.",
+		}
+	}
+	status := "blocked"
+	message := "Configure qBittorrent, Transmission, or SABnzbd so approved releases can be sent to a client."
+	if len(configured) > 0 {
+		status = "warning"
+		message = strings.Join(configured, ", ") + " configured but not ready. Check credentials and network access."
+	}
+	return readinessStep{
+		ID:          "download-client",
+		Title:       "Download client",
+		Status:      status,
+		Required:    true,
+		Message:     message,
+		ActionLabel: "Integrations",
+		TargetView:  "settings",
+	}
+}
+
+func (h *handler) qualityProfileReadinessStep(ctx context.Context) readinessStep {
+	if h.deps.Wanted == nil {
+		return readinessStep{
+			ID:          "quality-profiles",
+			Title:       "Quality profiles",
+			Status:      "warning",
+			Required:    false,
+			Message:     "Wanted service is unavailable; release decisions will use built-in defaults only.",
+			ActionLabel: "Profiles",
+			TargetView:  "settings",
+		}
+	}
+	profiles, err := h.deps.Wanted.ListQualityProfiles(ctx)
+	if err != nil {
+		return readinessStep{
+			ID:          "quality-profiles",
+			Title:       "Quality profiles",
+			Status:      "warning",
+			Required:    false,
+			Message:     err.Error(),
+			ActionLabel: "Profiles",
+			TargetView:  "settings",
+		}
+	}
+	if len(profiles) == 0 {
+		return readinessStep{
+			ID:          "quality-profiles",
+			Title:       "Quality profiles",
+			Status:      "warning",
+			Required:    false,
+			Message:     "No quality profiles are configured. Add profiles to tune release scoring and upgrades.",
+			ActionLabel: "Profiles",
+			TargetView:  "settings",
+		}
+	}
+	return readinessStep{
+		ID:       "quality-profiles",
+		Title:    "Quality profiles",
+		Status:   "ready",
+		Required: false,
+		Message:  strconv.Itoa(len(profiles)) + " release policy profiles are available.",
+	}
+}
+
+func (h *handler) integrationHealthList(ctx context.Context) []acquisition.IntegrationHealth {
+	if h.deps.Acquire == nil {
+		return nil
+	}
+	return h.deps.Acquire.Health(ctx)
 }
 
 func (h *handler) search(w http.ResponseWriter, r *http.Request) {

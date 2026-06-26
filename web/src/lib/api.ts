@@ -97,6 +97,23 @@ export type SystemStatus = {
   runtimeVersion?: string;
 };
 
+export type ReadinessStep = {
+  id: string;
+  title: string;
+  status: "ready" | "warning" | "blocked";
+  required: boolean;
+  message: string;
+  actionLabel?: string;
+  targetView?: string;
+};
+
+export type ReadinessReport = {
+  status: "ready" | "warning" | "blocked";
+  summary: string;
+  steps: ReadinessStep[];
+  generatedAt: string;
+};
+
 export type Release = {
   id: string;
   infoHash?: string;
@@ -862,6 +879,14 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
     throw new Error(await apiError(response, "System status failed"));
   }
   return (await response.json()) as SystemStatus;
+}
+
+export async function fetchReadiness(): Promise<ReadinessReport> {
+  const response = await fetch(`${apiBase}/api/v1/readiness`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Readiness failed"));
+  }
+  return (await response.json()) as ReadinessReport;
 }
 
 export async function fetchIntegrationSettings(): Promise<IntegrationSettingsResponse> {

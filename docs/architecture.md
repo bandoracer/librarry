@@ -221,6 +221,7 @@ Initial API surface:
   - `GET /healthz`
   - `GET /api/v1/providers/health`
   - `GET /api/v1/providers/diagnostics`
+  - `GET /api/v1/readiness`
   - `GET /api/v1/search?query=&type=book&format=any`
   - `GET /api/v1/integrations/health`
   - `GET /api/v1/integrations/config`
