@@ -1483,6 +1483,31 @@ func TestCompatManualImportEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatManualImportPersistsModeAndConflictPolicy(t *testing.T) {
+	capture := &capturingImportLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  capture,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"path":"/downloads/Project Hail Mary.epub","wantedId":"wanted-1","downloadId":"abc123","importMode":"hardlinkOrCopy","existingFileAction":"replace","mediaFormat":"ebook"}]`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if capture.request.ImportMode != "hardlinkOrCopy" || capture.request.ConflictAction != "replace" || capture.request.Move {
+		t.Fatalf("expected import mode/conflict request, got %+v", capture.request)
+	}
+	if !strings.Contains(res.Body.String(), `"importMode":"hardlinkOrCopy"`) || !strings.Contains(res.Body.String(), `"conflictAction":"replace"`) {
+		t.Fatalf("expected mode/conflict response, got %s", res.Body.String())
+	}
+}
+
 func TestCompatConfigEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger: slog.Default(),
@@ -3480,6 +3505,7 @@ func (fakeLibrary) ResolveImportReview(context.Context, string, library.ReviewDe
 		Import: &library.ImportOutcome{
 			File:            file,
 			DestinationPath: file.Path,
+			Imported:        true,
 		},
 	}, nil
 }
@@ -3499,7 +3525,25 @@ func (fakeLibrary) Import(context.Context, library.ImportRequest) (library.Impor
 		File:            file,
 		DestinationPath: file.Path,
 		Moved:           false,
+		Imported:        true,
 	}, nil
+}
+
+type capturingImportLibrary struct {
+	fakeLibrary
+	request library.ImportRequest
+}
+
+func (f *capturingImportLibrary) Import(ctx context.Context, request library.ImportRequest) (library.ImportOutcome, error) {
+	f.request = request
+	outcome, err := f.fakeLibrary.Import(ctx, request)
+	if strings.TrimSpace(request.ImportMode) != "" {
+		outcome.ImportMode = request.ImportMode
+	}
+	if strings.TrimSpace(request.ConflictAction) != "" {
+		outcome.ConflictAction = request.ConflictAction
+	}
+	return outcome, err
 }
 
 func (fakeLibrary) ImportCompletedDownloads(_ context.Context, downloads []acquisition.DownloadStatus, _ library.CompletedImportRequest) (library.CompletedImportOutcome, error) {
@@ -3522,6 +3566,7 @@ func (fakeLibrary) ImportCompletedDownloads(_ context.Context, downloads []acqui
 			Import: &library.ImportOutcome{
 				File:            file,
 				DestinationPath: file.Path,
+				Imported:        true,
 			},
 		}},
 	}, nil

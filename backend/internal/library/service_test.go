@@ -238,6 +238,122 @@ func TestAvailableDestinationAvoidsOverwrite(t *testing.T) {
 	}
 }
 
+func TestPlanImportDestinationConflictActions(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "incoming.epub")
+	destination := filepath.Join(dir, "Book.epub")
+	if err := os.WriteFile(source, []byte("incoming"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	renamePlan, err := planImportDestination(source, destination, "rename")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renamePlan.DestinationPath != filepath.Join(dir, "Book (2).epub") || renamePlan.ConflictPath != destination || renamePlan.Replaced || renamePlan.Skipped {
+		t.Fatalf("unexpected rename plan: %+v", renamePlan)
+	}
+
+	replacePlan, err := planImportDestination(source, destination, "replace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replacePlan.DestinationPath != destination || !replacePlan.Replaced || replacePlan.Skipped {
+		t.Fatalf("unexpected replace plan: %+v", replacePlan)
+	}
+
+	skipPlan, err := planImportDestination(source, destination, "skip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !skipPlan.Skipped || skipPlan.Message == "" {
+		t.Fatalf("unexpected skip plan: %+v", skipPlan)
+	}
+
+	if _, err := planImportDestination(source, destination, "fail"); err == nil {
+		t.Fatal("expected fail conflict action to reject existing destination")
+	}
+}
+
+func TestImportFileModes(t *testing.T) {
+	t.Run("copy", func(t *testing.T) {
+		dir := t.TempDir()
+		source := filepath.Join(dir, "source.epub")
+		destination := filepath.Join(dir, "destination.epub")
+		if err := os.WriteFile(source, []byte("copy"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		operation, err := importFile(source, destination, "copy", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if operation.Mode != "copy" || operation.Moved || operation.Hardlinked {
+			t.Fatalf("unexpected copy operation: %+v", operation)
+		}
+		if _, err := os.Stat(source); err != nil {
+			t.Fatalf("expected source to remain, got %v", err)
+		}
+		if data, err := os.ReadFile(destination); err != nil || string(data) != "copy" {
+			t.Fatalf("expected copied destination, data=%q err=%v", data, err)
+		}
+	})
+
+	t.Run("move", func(t *testing.T) {
+		dir := t.TempDir()
+		source := filepath.Join(dir, "source.epub")
+		destination := filepath.Join(dir, "destination.epub")
+		if err := os.WriteFile(source, []byte("move"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		operation, err := importFile(source, destination, "move", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if operation.Mode != "move" || !operation.Moved {
+			t.Fatalf("unexpected move operation: %+v", operation)
+		}
+		if _, err := os.Stat(source); !os.IsNotExist(err) {
+			t.Fatalf("expected source to be moved away, stat err=%v", err)
+		}
+		if data, err := os.ReadFile(destination); err != nil || string(data) != "move" {
+			t.Fatalf("expected moved destination, data=%q err=%v", data, err)
+		}
+	})
+
+	t.Run("hardlink replace", func(t *testing.T) {
+		dir := t.TempDir()
+		source := filepath.Join(dir, "source.epub")
+		destination := filepath.Join(dir, "destination.epub")
+		if err := os.WriteFile(source, []byte("link"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(destination, []byte("old"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		operation, err := importFile(source, destination, "hardlink", true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if operation.Mode != "hardlink" || !operation.Hardlinked || operation.Moved {
+			t.Fatalf("unexpected hardlink operation: %+v", operation)
+		}
+		sourceInfo, err := os.Stat(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		destinationInfo, err := os.Stat(destination)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !os.SameFile(sourceInfo, destinationInfo) {
+			t.Fatal("expected source and destination to be hardlinks to the same file")
+		}
+	})
+}
+
 func TestRemoveLibraryFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "Book.epub")

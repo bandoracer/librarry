@@ -55,23 +55,37 @@ type ScanOutcome struct {
 }
 
 type ImportRequest struct {
-	SourcePath string `json:"sourcePath"`
-	WantedID   string `json:"wantedId,omitempty"`
-	DownloadID string `json:"downloadId,omitempty"`
-	Format     string `json:"format,omitempty"`
-	Move       bool   `json:"move,omitempty"`
+	SourcePath     string `json:"sourcePath"`
+	WantedID       string `json:"wantedId,omitempty"`
+	DownloadID     string `json:"downloadId,omitempty"`
+	Format         string `json:"format,omitempty"`
+	Move           bool   `json:"move,omitempty"`
+	ImportMode     string `json:"importMode,omitempty"`
+	ConflictAction string `json:"conflictAction,omitempty"`
+	Overwrite      bool   `json:"overwrite,omitempty"`
 }
 
 type ImportOutcome struct {
 	File            FileRecord `json:"file"`
 	DestinationPath string     `json:"destinationPath"`
 	Moved           bool       `json:"moved"`
+	Imported        bool       `json:"imported"`
+	Skipped         bool       `json:"skipped,omitempty"`
+	Replaced        bool       `json:"replaced,omitempty"`
+	Hardlinked      bool       `json:"hardlinked,omitempty"`
+	ImportMode      string     `json:"importMode,omitempty"`
+	ConflictAction  string     `json:"conflictAction,omitempty"`
+	ConflictPath    string     `json:"conflictPath,omitempty"`
+	Message         string     `json:"message,omitempty"`
 }
 
 type CompletedImportRequest struct {
-	DownloadIDs []string `json:"downloadIds,omitempty"`
-	Move        bool     `json:"move,omitempty"`
-	Limit       int      `json:"limit,omitempty"`
+	DownloadIDs    []string `json:"downloadIds,omitempty"`
+	Move           bool     `json:"move,omitempty"`
+	ImportMode     string   `json:"importMode,omitempty"`
+	ConflictAction string   `json:"conflictAction,omitempty"`
+	Overwrite      bool     `json:"overwrite,omitempty"`
+	Limit          int      `json:"limit,omitempty"`
 }
 
 type CompletedImportOutcome struct {
@@ -194,10 +208,13 @@ type ImportReview struct {
 }
 
 type ReviewDecisionRequest struct {
-	Action   string `json:"action"`
-	WantedID string `json:"wantedId,omitempty"`
-	Format   string `json:"format,omitempty"`
-	Move     bool   `json:"move,omitempty"`
+	Action         string `json:"action"`
+	WantedID       string `json:"wantedId,omitempty"`
+	Format         string `json:"format,omitempty"`
+	Move           bool   `json:"move,omitempty"`
+	ImportMode     string `json:"importMode,omitempty"`
+	ConflictAction string `json:"conflictAction,omitempty"`
+	Overwrite      bool   `json:"overwrite,omitempty"`
 }
 
 type ReviewDecisionOutcome struct {

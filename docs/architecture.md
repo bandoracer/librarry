@@ -497,17 +497,21 @@ quality-profile cutoffs. The web UI keeps using the native
 `/api/v1/librarry/history` event feed so external Arr clients can use the
 Readarr-shaped `/api/v1/history` response.
 
-Completed-download import refreshes Librarry-tagged qBittorrent items, filters
+Completed-download import refreshes Librarry-tagged download-client items, filters
 for completed torrents, locates the best supported ebook or audiobook file below
 the torrent save path, imports linked wanted downloads, and records
-imported/error state on the download row. Completed downloads without a wanted
-tag are persisted as pending import reviews instead of being guessed directly
-into the library. Review decisions can import, skip, or reject the pending file.
+imported/error/skipped state on the download row. Completed downloads without a
+wanted tag are persisted as pending import reviews instead of being guessed
+directly into the library. Review decisions can import, skip, or reject the
+pending file.
 
-The implemented import path is intentionally conservative: it avoids overwriting
-existing files and marks wanted items imported only after the destination file is
-persisted. Future work should add richer matching evidence, conflict policies,
-and bulk review flows.
+Manual imports, completed-download imports, and import-review import decisions
+share the same organization policy. `importMode` supports `copy`, `move`,
+`hardlink`, and `hardlinkOrCopy`; `conflictAction` supports keep-both renaming,
+replacement, skip, and fail behavior. Successful imports record the chosen mode,
+conflict action, replacement path, and hardlink status in file metadata, and
+wanted items are marked imported only after the destination file is persisted.
+Future work should add richer matching evidence and bulk review flows.
 
 - `books-ebook`
 - `books-audiobook`

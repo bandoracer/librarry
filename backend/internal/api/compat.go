@@ -2262,18 +2262,23 @@ func (h *handler) compatCreateManualImport(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		request := library.ImportRequest{
-			SourcePath: sourcePath,
-			WantedID:   h.compatWantedIDForManualImport(r, item),
-			DownloadID: firstNonEmptyString(payloadString(item, "downloadId"), payloadString(item, "downloadID")),
-			Format:     firstNonEmptyString(payloadString(item, "mediaFormat"), payloadString(item, "format"), nestedString(item, "quality", "name"), nestedString(item, "book", "librarryFormat")),
-			Move:       manualImportMove(item),
+			SourcePath:     sourcePath,
+			WantedID:       h.compatWantedIDForManualImport(r, item),
+			DownloadID:     firstNonEmptyString(payloadString(item, "downloadId"), payloadString(item, "downloadID")),
+			Format:         firstNonEmptyString(payloadString(item, "mediaFormat"), payloadString(item, "format"), nestedString(item, "quality", "name"), nestedString(item, "book", "librarryFormat")),
+			Move:           manualImportMove(item),
+			ImportMode:     manualImportMode(item),
+			ConflictAction: manualImportConflictAction(item),
+			Overwrite:      manualImportOverwrite(item),
 		}
 		outcome, err := h.deps.Library.Import(r.Context(), request)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "path": sourcePath})
 			return
 		}
-		h.notifyReleaseImport(r.Context(), "compat-manual-import", outcome)
+		if outcome.Imported {
+			h.notifyReleaseImport(r.Context(), "compat-manual-import", outcome)
+		}
 		records = append(records, compatManualImportOutcomeRecord(outcome, request))
 	}
 	writeJSON(w, http.StatusOK, records)
@@ -3960,13 +3965,20 @@ func compatManualImportFileRecord(file library.FileRecord, source string) map[st
 
 func compatManualImportOutcomeRecord(outcome library.ImportOutcome, request library.ImportRequest) map[string]any {
 	record := compatManualImportFileRecord(outcome.File, "manualImport")
-	record["imported"] = true
+	record["imported"] = outcome.Imported || !outcome.Skipped
+	record["skipped"] = outcome.Skipped
 	record["destinationPath"] = outcome.DestinationPath
-	record["importMode"] = map[bool]string{true: "move", false: "copy"}[outcome.Moved]
+	record["importMode"] = firstNonEmptyString(outcome.ImportMode, request.ImportMode, map[bool]string{true: "move", false: "copy"}[outcome.Moved])
+	record["conflictAction"] = firstNonEmptyString(outcome.ConflictAction, request.ConflictAction)
+	record["replaced"] = outcome.Replaced
+	record["hardlinked"] = outcome.Hardlinked
 	record["downloadId"] = request.DownloadID
 	if strings.TrimSpace(request.WantedID) != "" {
 		record["librarryWantedId"] = request.WantedID
 		record["bookId"] = stableInt(request.WantedID)
+	}
+	if strings.TrimSpace(outcome.Message) != "" {
+		record["librarryMessage"] = outcome.Message
 	}
 	return record
 }
@@ -6200,6 +6212,27 @@ func manualImportMove(payload map[string]any) bool {
 		return false
 	}
 	return payloadBoolDefault(payload, "move", false)
+}
+
+func manualImportMode(payload map[string]any) string {
+	return firstNonEmptyString(
+		payloadString(payload, "importMode"),
+		payloadString(payload, "mode"),
+		payloadString(payload, "librarryImportMode"),
+	)
+}
+
+func manualImportConflictAction(payload map[string]any) string {
+	return firstNonEmptyString(
+		payloadString(payload, "conflictAction"),
+		payloadString(payload, "existingFileAction"),
+		payloadString(payload, "duplicateAction"),
+		payloadString(payload, "librarryConflictAction"),
+	)
+}
+
+func manualImportOverwrite(payload map[string]any) bool {
+	return payloadBoolDefault(payload, "overwrite", payloadBoolDefault(payload, "replaceExisting", false))
 }
 
 func renderCompatNamingExample(record map[string]any, author string, title string, format string, ext string) string {

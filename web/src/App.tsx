@@ -184,6 +184,8 @@ export function App() {
   const [downloadTextFilter, setDownloadTextFilter] = useState("");
   const [query, setQuery] = useState("Project Hail Mary");
   const [importPath, setImportPath] = useState("");
+  const [libraryImportMode, setLibraryImportMode] = useState<"copy" | "move" | "hardlink" | "hardlinkOrCopy">("copy");
+  const [libraryConflictAction, setLibraryConflictAction] = useState<"rename" | "replace" | "skip" | "fail">("rename");
   const [format, setFormat] = useState("any");
   const [apiState, setAPIState] = useState<"checking" | "live" | "offline">("checking");
   const [apiKeyInput, setAPIKeyInput] = useState(() => getStoredAPIKey());
@@ -582,10 +584,15 @@ export function App() {
         sourcePath: importPath.trim(),
         wantedId: selectedWanted?.id,
         format: selectedWanted?.format ?? (format === "any" ? "ebook" : format),
-        move: false
+        move: libraryImportMode === "move",
+        importMode: libraryImportMode,
+        conflictAction: libraryConflictAction,
+        overwrite: libraryConflictAction === "replace"
       });
       setLibraryImport(outcome);
-      setLibraryFiles((current) => mergeLibraryFiles(current, [outcome.file]));
+      if (outcome.imported) {
+        setLibraryFiles((current) => mergeLibraryFiles(current, [outcome.file]));
+      }
       const nextWanted = await fetchWanted();
       setWantedItems(nextWanted);
       setAPIState("live");
@@ -608,11 +615,14 @@ export function App() {
     try {
       const outcome = await importCompletedDownloads({
         downloadIds: downloadIDs,
-        move: false,
+        move: libraryImportMode === "move",
+        importMode: libraryImportMode,
+        conflictAction: libraryConflictAction,
+        overwrite: libraryConflictAction === "replace",
         limit: 50
       });
       setCompletedImport(outcome);
-      const importedFiles = outcome.results.flatMap((result) => (result.import ? [result.import.file] : []));
+      const importedFiles = outcome.results.flatMap((result) => (result.import?.imported ? [result.import.file] : []));
       if (importedFiles.length) {
         setLibraryFiles((current) => mergeLibraryFiles(current, importedFiles));
       }
@@ -639,9 +649,12 @@ export function App() {
         action,
         wantedId: action === "import" ? (selectedWanted?.id ?? review.wantedId) : review.wantedId,
         format: nextFormat,
-        move: false
+        move: libraryImportMode === "move",
+        importMode: libraryImportMode,
+        conflictAction: libraryConflictAction,
+        overwrite: libraryConflictAction === "replace"
       });
-      if (outcome.import) {
+      if (outcome.import?.imported) {
         setLibraryImport(outcome.import);
         setLibraryFiles((current) => mergeLibraryFiles(current, [outcome.import!.file]));
       }
@@ -1442,10 +1455,30 @@ export function App() {
               {isImportingLibrary ? "Importing" : "Import"}
             </button>
           </div>
+          <div className="library-import-options">
+            <label>
+              <span>Mode</span>
+              <select value={libraryImportMode} onChange={(event) => setLibraryImportMode(event.target.value as typeof libraryImportMode)}>
+                <option value="copy">Copy</option>
+                <option value="move">Move</option>
+                <option value="hardlink">Hardlink</option>
+                <option value="hardlinkOrCopy">Hardlink or copy</option>
+              </select>
+            </label>
+            <label>
+              <span>Conflict</span>
+              <select value={libraryConflictAction} onChange={(event) => setLibraryConflictAction(event.target.value as typeof libraryConflictAction)}>
+                <option value="rename">Keep both</option>
+                <option value="replace">Replace</option>
+                <option value="skip">Skip</option>
+                <option value="fail">Fail</option>
+              </select>
+            </label>
+          </div>
           {libraryImport ? (
             <div className="library-import-result">
-              <strong>{libraryImport.file.title || "Imported file"}</strong>
-              <span>{libraryImport.destinationPath}</span>
+              <strong>{libraryImport.skipped ? "Import skipped" : libraryImport.file.title || "Imported file"}</strong>
+              <span>{libraryImport.message || libraryImport.destinationPath}</span>
             </div>
           ) : null}
           {completedImport ? (

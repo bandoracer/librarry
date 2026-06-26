@@ -1205,7 +1205,9 @@ func (h *handler) importLibraryFile(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyReleaseImport(r.Context(), "library-import", outcome)
+	if outcome.Imported {
+		h.notifyReleaseImport(r.Context(), "library-import", outcome)
+	}
 	writeJSON(w, http.StatusOK, outcome)
 }
 
@@ -1261,7 +1263,9 @@ func (h *handler) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyReviewImport(r.Context(), "import-review", outcome)
+	if outcome.Import != nil && outcome.Import.Imported {
+		h.notifyReviewImport(r.Context(), "import-review", outcome)
+	}
 	writeJSON(w, http.StatusOK, outcome)
 }
 

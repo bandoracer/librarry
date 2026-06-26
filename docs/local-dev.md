@@ -193,12 +193,17 @@ LIBRARRY_NAMING_SPACE_REPLACEMENT=
 ```
 
 `POST /api/v1/library/scan` indexes existing files. `POST /api/v1/library/import`
-copies or moves a single source file into the organized format root.
+imports a single source file into the organized format root using `importMode`
+values of `copy`, `move`, `hardlink`, or `hardlinkOrCopy`.
+`conflictAction` controls duplicate destinations with `rename`/keep-both,
+`replace`/overwrite, `skip`, or `fail`; `overwrite=true` is treated as
+`replace`.
 `POST /api/v1/library/import-completed` imports completed Librarry-tagged
-qBittorrent downloads into the same organized roots when they are linked to a
+downloads into the same organized roots when they are linked to a
 wanted item. Unlinked completed downloads are queued in
 `GET /api/v1/library/import-reviews` and resolved through
-`POST /api/v1/library/import-reviews/{id}/resolve`. OPF sidecars and embedded
+`POST /api/v1/library/import-reviews/{id}/resolve` with the same import mode
+and conflict policy fields. OPF sidecars and embedded
 EPUB package metadata plus MP3 ID3 and M4B/MP4 audio tags are extracted during
 scan/import and used for title, author, identifiers, language, publisher,
 series, album, year, and track evidence before falling back to filename parsing.

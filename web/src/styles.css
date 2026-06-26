@@ -1267,6 +1267,37 @@ select {
   font-size: 13px;
 }
 
+.library-import-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 220px));
+  gap: 10px;
+  align-items: end;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.library-import-options label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.library-import-options span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.library-import-options select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+}
+
 .library-import-result {
   display: grid;
   gap: 4px;
@@ -2367,6 +2398,7 @@ select {
   .settings-auth-row,
   .quality-profile-row,
   .library-import-row,
+  .library-import-options,
   .history-row {
     grid-template-columns: 1fr;
   }

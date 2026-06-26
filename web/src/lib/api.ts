@@ -470,6 +470,14 @@ export type LibraryImportOutcome = {
   file: LibraryFile;
   destinationPath: string;
   moved: boolean;
+  imported: boolean;
+  skipped?: boolean;
+  replaced?: boolean;
+  hardlinked?: boolean;
+  importMode?: string;
+  conflictAction?: string;
+  conflictPath?: string;
+  message?: string;
 };
 
 export type ImportReview = {
@@ -1081,6 +1089,9 @@ export async function importLibraryFile(options: {
   wantedId?: string;
   format?: string;
   move?: boolean;
+  importMode?: "copy" | "move" | "hardlink" | "hardlinkOrCopy";
+  conflictAction?: "rename" | "replace" | "skip" | "fail";
+  overwrite?: boolean;
 }): Promise<LibraryImportOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import`, {
     method: "POST",
@@ -1096,6 +1107,9 @@ export async function importLibraryFile(options: {
 export async function importCompletedDownloads(options: {
   downloadIds?: string[];
   move?: boolean;
+  importMode?: "copy" | "move" | "hardlink" | "hardlinkOrCopy";
+  conflictAction?: "rename" | "replace" | "skip" | "fail";
+  overwrite?: boolean;
   limit?: number;
 } = {}): Promise<CompletedImportOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import-completed`, {
@@ -1104,6 +1118,9 @@ export async function importCompletedDownloads(options: {
     body: JSON.stringify({
       downloadIds: options.downloadIds ?? [],
       move: options.move ?? false,
+      importMode: options.importMode,
+      conflictAction: options.conflictAction,
+      overwrite: options.overwrite ?? false,
       limit: options.limit ?? 50
     })
   });
@@ -1120,6 +1137,9 @@ export async function resolveLibraryImportReview(
     wantedId?: string;
     format?: string;
     move?: boolean;
+    importMode?: "copy" | "move" | "hardlink" | "hardlinkOrCopy";
+    conflictAction?: "rename" | "replace" | "skip" | "fail";
+    overwrite?: boolean;
   }
 ): Promise<ReviewDecisionOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import-reviews/${encodeURIComponent(reviewId)}/resolve`, {

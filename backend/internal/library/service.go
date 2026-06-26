@@ -34,6 +34,21 @@ type RootFolderProvider interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 }
 
+type importFileOperation struct {
+	Mode       string
+	Moved      bool
+	Hardlinked bool
+}
+
+type importDestinationPlan struct {
+	DestinationPath string
+	ConflictPath    string
+	ConflictAction  string
+	Replaced        bool
+	Skipped         bool
+	Message         string
+}
+
 type Service struct {
 	store       *Store
 	config      Config
@@ -385,13 +400,28 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	if destination == "" {
 		return ImportOutcome{}, errors.New("library root is not configured")
 	}
-	if filepath.Clean(source) != filepath.Clean(destination) {
-		destination = availableDestination(destination)
+	mode := normalizeImportMode(request.ImportMode, request.Move)
+	conflictAction := normalizeConflictAction(request.ConflictAction, request.Overwrite)
+	plan, err := planImportDestination(source, destination, conflictAction)
+	if err != nil {
+		return ImportOutcome{}, err
 	}
+	if plan.Skipped {
+		return ImportOutcome{
+			DestinationPath: plan.DestinationPath,
+			Skipped:         true,
+			ImportMode:      mode,
+			ConflictAction:  plan.ConflictAction,
+			ConflictPath:    plan.ConflictPath,
+			Message:         plan.Message,
+		}, nil
+	}
+	destination = plan.DestinationPath
 	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
 		return ImportOutcome{}, err
 	}
-	if err := copyOrMoveFile(source, destination, request.Move); err != nil {
+	operation, err := importFile(source, destination, mode, plan.Replaced)
+	if err != nil {
 		return ImportOutcome{}, err
 	}
 	destinationInfo, err := os.Stat(destination)
@@ -403,7 +433,18 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	record.Title = parsed.Title
 	record.AuthorName = parsed.AuthorName
 	record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
-	record.Metadata["move"] = request.Move
+	record.Metadata["move"] = operation.Moved
+	record.Metadata["importMode"] = operation.Mode
+	record.Metadata["conflictAction"] = plan.ConflictAction
+	if plan.ConflictPath != "" {
+		record.Metadata["conflictPath"] = plan.ConflictPath
+	}
+	if plan.Replaced {
+		record.Metadata["replacedExisting"] = true
+	}
+	if operation.Hardlinked {
+		record.Metadata["hardlinked"] = true
+	}
 	if strings.TrimSpace(request.WantedID) != "" {
 		record.Metadata["wantedId"] = strings.TrimSpace(request.WantedID)
 	}
@@ -420,7 +461,17 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	if strings.TrimSpace(request.WantedID) != "" && s.wanted != nil {
 		_ = s.wanted.MarkWantedStatus(ctx, request.WantedID, "imported")
 	}
-	return ImportOutcome{File: stored, DestinationPath: destination, Moved: request.Move}, nil
+	return ImportOutcome{
+		File:            stored,
+		DestinationPath: destination,
+		Moved:           operation.Moved,
+		Imported:        true,
+		Replaced:        plan.Replaced,
+		Hardlinked:      operation.Hardlinked,
+		ImportMode:      operation.Mode,
+		ConflictAction:  plan.ConflictAction,
+		ConflictPath:    plan.ConflictPath,
+	}, nil
 }
 
 func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request CompletedImportRequest) (CompletedImportOutcome, error) {
@@ -492,11 +543,14 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			continue
 		}
 		imported, err := s.Import(ctx, ImportRequest{
-			SourcePath: sourcePath,
-			WantedID:   result.WantedID,
-			DownloadID: download.ID,
-			Format:     format,
-			Move:       request.Move,
+			SourcePath:     sourcePath,
+			WantedID:       result.WantedID,
+			DownloadID:     download.ID,
+			Format:         format,
+			Move:           request.Move,
+			ImportMode:     request.ImportMode,
+			ConflictAction: request.ConflictAction,
+			Overwrite:      request.Overwrite,
 		})
 		if err != nil {
 			result.Status = "error"
@@ -505,6 +559,14 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			if s.downloads != nil {
 				_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
 			}
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		if imported.Skipped {
+			result.Status = "skipped"
+			result.Message = imported.Message
+			result.Import = &imported
+			outcome.Skipped++
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
@@ -542,14 +604,24 @@ func (s *Service) ResolveImportReview(ctx context.Context, id string, request Re
 			format = ""
 		}
 		imported, err := s.Import(ctx, ImportRequest{
-			SourcePath: review.SourcePath,
-			WantedID:   wantedID,
-			DownloadID: review.DownloadID,
-			Format:     format,
-			Move:       request.Move,
+			SourcePath:     review.SourcePath,
+			WantedID:       wantedID,
+			DownloadID:     review.DownloadID,
+			Format:         format,
+			Move:           request.Move,
+			ImportMode:     request.ImportMode,
+			ConflictAction: request.ConflictAction,
+			Overwrite:      request.Overwrite,
 		})
 		if err != nil {
 			return ReviewDecisionOutcome{}, err
+		}
+		if imported.Skipped {
+			resolved, err := s.store.ResolveImportReview(ctx, review.ID, "skipped", action, imported.DestinationPath, wantedID)
+			if err != nil {
+				return ReviewDecisionOutcome{}, err
+			}
+			return ReviewDecisionOutcome{Review: resolved, Import: &imported}, nil
 		}
 		resolved, err := s.store.ResolveImportReview(ctx, review.ID, "imported", action, imported.DestinationPath, wantedID)
 		if err != nil {
@@ -1326,22 +1398,128 @@ func safeSpaceReplacement(value string) string {
 	return value
 }
 
-func copyOrMoveFile(source string, destination string, move bool) error {
-	if source == destination {
-		return nil
+func planImportDestination(source string, destination string, conflictAction string) (importDestinationPlan, error) {
+	source = filepath.Clean(strings.TrimSpace(source))
+	destination = filepath.Clean(strings.TrimSpace(destination))
+	conflictAction = normalizeConflictAction(conflictAction, false)
+	plan := importDestinationPlan{
+		DestinationPath: destination,
+		ConflictAction:  conflictAction,
 	}
-	if move {
-		if err := os.Rename(source, destination); err == nil {
-			return nil
+	if source == destination {
+		return plan, nil
+	}
+	if _, err := os.Stat(destination); errors.Is(err, os.ErrNotExist) {
+		return plan, nil
+	} else if err != nil {
+		return plan, err
+	}
+	plan.ConflictPath = destination
+	switch conflictAction {
+	case "rename":
+		plan.DestinationPath = availableDestination(destination)
+		return plan, nil
+	case "replace":
+		plan.Replaced = true
+		return plan, nil
+	case "skip":
+		plan.Skipped = true
+		plan.Message = "destination already exists"
+		return plan, nil
+	default:
+		return plan, fmt.Errorf("destination already exists: %s", destination)
+	}
+}
+
+func normalizeImportMode(mode string, move bool) string {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	normalized = strings.ReplaceAll(normalized, "_", "")
+	normalized = strings.ReplaceAll(normalized, "-", "")
+	normalized = strings.ReplaceAll(normalized, " ", "")
+	switch normalized {
+	case "move":
+		return "move"
+	case "hardlink", "link":
+		return "hardlink"
+	case "hardlinkorcopy", "linkorcopy", "copyorhardlink", "auto":
+		return "hardlinkOrCopy"
+	case "copy":
+		return "copy"
+	default:
+		if move {
+			return "move"
+		}
+		return "copy"
+	}
+}
+
+func normalizeConflictAction(action string, overwrite bool) string {
+	normalized := strings.ToLower(strings.TrimSpace(action))
+	normalized = strings.ReplaceAll(normalized, "_", "")
+	normalized = strings.ReplaceAll(normalized, "-", "")
+	normalized = strings.ReplaceAll(normalized, " ", "")
+	switch normalized {
+	case "replace", "overwrite":
+		return "replace"
+	case "skip", "ignore":
+		return "skip"
+	case "fail", "error", "reject":
+		return "fail"
+	case "rename", "keepboth", "keep", "newname", "new":
+		return "rename"
+	default:
+		if overwrite {
+			return "replace"
+		}
+		return "rename"
+	}
+}
+
+func copyOrMoveFile(source string, destination string, move bool) error {
+	_, err := importFile(source, destination, normalizeImportMode("", move), false)
+	return err
+}
+
+func importFile(source string, destination string, mode string, replace bool) (importFileOperation, error) {
+	source = filepath.Clean(strings.TrimSpace(source))
+	destination = filepath.Clean(strings.TrimSpace(destination))
+	mode = normalizeImportMode(mode, false)
+	operation := importFileOperation{Mode: mode, Moved: mode == "move"}
+	if source == destination {
+		operation.Moved = false
+		return operation, nil
+	}
+	if replace {
+		if err := os.Remove(destination); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return operation, err
 		}
 	}
-	if err := copyFile(source, destination); err != nil {
-		return err
+	switch mode {
+	case "move":
+		if err := os.Rename(source, destination); err == nil {
+			return operation, nil
+		}
+		if err := copyFile(source, destination); err != nil {
+			return operation, err
+		}
+		return operation, os.Remove(source)
+	case "hardlink":
+		if err := os.Link(source, destination); err != nil {
+			return operation, err
+		}
+		operation.Hardlinked = true
+		return operation, nil
+	case "hardlinkOrCopy":
+		if err := os.Link(source, destination); err == nil {
+			operation.Hardlinked = true
+			return operation, nil
+		}
+		operation.Mode = "copy"
+		return operation, copyFile(source, destination)
+	default:
+		operation.Mode = "copy"
+		return operation, copyFile(source, destination)
 	}
-	if move {
-		return os.Remove(source)
-	}
-	return nil
 }
 
 func removeLibraryFile(path string) error {
