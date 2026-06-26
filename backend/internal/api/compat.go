@@ -1725,16 +1725,13 @@ func (h *handler) compatWantedMissing(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
 		return
 	}
-	items, err := h.deps.Wanted.List(r.Context(), "wanted")
+	items, err := h.compatMissingWantedItems(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
 	records := make([]map[string]any, 0, len(items))
 	for _, item := range items {
-		if !compatWantedItemVisible(item) || !item.Monitored {
-			continue
-		}
 		records = append(records, compatMissingRecord(item))
 	}
 	page, pageSize := pageParams(r, len(records))
@@ -1758,19 +1755,92 @@ func (h *handler) compatWantedMissingItem(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "wanted item id is required"})
 		return
 	}
-	items, err := h.deps.Wanted.List(r.Context(), "wanted")
+	items, err := h.compatMissingWantedItems(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
 	for _, item := range items {
-		if !compatWantedItemVisible(item) || !item.Monitored || !wantedItemMatchesAnyID(item, []string{id}) {
+		if !wantedItemMatchesAnyID(item, []string{id}) {
 			continue
 		}
 		writeJSON(w, http.StatusOK, compatMissingRecord(item))
 		return
 	}
 	writeJSON(w, http.StatusNotFound, map[string]any{"error": "wanted missing item not found"})
+}
+
+func (h *handler) compatMissingWantedItems(ctx context.Context) ([]wanted.WantedItem, error) {
+	items, err := h.deps.Wanted.List(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	files := []library.FileRecord{}
+	if h.deps.Library != nil {
+		files, err = h.deps.Library.ListFiles(ctx, library.FileListQuery{Limit: 500})
+		if err != nil {
+			return nil, err
+		}
+	}
+	missing := make([]wanted.WantedItem, 0, len(items))
+	for _, item := range items {
+		if !compatWantedItemVisible(item) || !item.Monitored || !compatWantedItemMissingEligible(item) {
+			continue
+		}
+		if compatWantedItemHasLibraryFile(item, files) {
+			continue
+		}
+		missing = append(missing, item)
+	}
+	return missing, nil
+}
+
+func compatWantedItemMissingEligible(item wanted.WantedItem) bool {
+	switch strings.ToLower(strings.TrimSpace(item.Status)) {
+	case "imported", "removed", "ignored":
+		return false
+	default:
+		return true
+	}
+}
+
+func compatWantedItemHasLibraryFile(item wanted.WantedItem, files []library.FileRecord) bool {
+	for _, file := range files {
+		if !compatLibraryFileCountsAsPresent(file) {
+			continue
+		}
+		if compatLibraryFileMatchesWanted(item, file) {
+			return true
+		}
+	}
+	return false
+}
+
+func compatLibraryFileCountsAsPresent(file library.FileRecord) bool {
+	switch strings.ToLower(strings.TrimSpace(file.ImportStatus)) {
+	case "", "available", "imported":
+		return strings.TrimSpace(file.Path) != ""
+	default:
+		return false
+	}
+}
+
+func compatLibraryFileMatchesWanted(item wanted.WantedItem, file library.FileRecord) bool {
+	if compatIDMatches(payloadString(file.Metadata, "wantedId"), item.ID, item.WorkID, item.EditionID, item.SourceKey) ||
+		compatIDMatches(payloadString(file.Metadata, "librarryWantedId"), item.ID, item.WorkID, item.EditionID, item.SourceKey) {
+		return true
+	}
+	if strings.TrimSpace(item.EditionID) != "" && compatIDMatches(file.EditionID, item.EditionID) {
+		return true
+	}
+	itemFormat := strings.ToLower(strings.TrimSpace(item.Format))
+	fileFormat := strings.ToLower(strings.TrimSpace(file.MediaFormat))
+	if itemFormat != "" && fileFormat != "" && itemFormat != fileFormat {
+		return false
+	}
+	return slug(item.Title) != "" &&
+		slug(item.Title) == slug(file.Title) &&
+		(slug(item.AuthorName) == "" || slug(file.AuthorName) == "" || slug(item.AuthorName) == slug(file.AuthorName))
 }
 
 func (h *handler) compatWantedCutoff(w http.ResponseWriter, r *http.Request) {

@@ -721,7 +721,7 @@ export function App() {
       const nextFormat = review.mediaFormat === "unknown" ? (selectedWanted?.format ?? (format === "any" ? "ebook" : format)) : review.mediaFormat;
       const outcome = await resolveLibraryImportReview(review.id, {
         action,
-        wantedId: action === "import" ? (selectedWanted?.id ?? review.wantedId) : review.wantedId,
+        wantedId: action === "import" ? (review.wantedId || selectedWanted?.id) : review.wantedId,
         format: nextFormat,
         move: libraryImportMode === "move",
         importMode: libraryImportMode,
@@ -759,7 +759,7 @@ export function App() {
       const outcome = await resolveLibraryImportReviewsBulk({
         ids: reviewIDs,
         action,
-        wantedId: action === "import" && singleReview ? (selectedWanted?.id ?? singleReview.wantedId) : undefined,
+        wantedId: action === "import" && singleReview ? (singleReview.wantedId || selectedWanted?.id) : undefined,
         format: action === "import" ? singleReviewFormat : undefined,
         move: libraryImportMode === "move",
         importMode: libraryImportMode,
@@ -1659,7 +1659,7 @@ export function App() {
                     <strong>{item.title}</strong>
                     <small>{item.authorName || "Unknown author"}</small>
                   </span>
-                  <em>{item.format}</em>
+                  <em>{item.status === "wanted" ? item.format : `${item.status} · ${item.format}`}</em>
                 </button>
               ))}
             </div>

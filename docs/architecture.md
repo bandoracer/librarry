@@ -527,8 +527,11 @@ that follow the normal Arr command polling and cancel flow. `RssSync`,
 `RescanFolders` map to native Librarry work.
 
 Readarr-compatible calendar, history, parse, missing, and cutoff-unmet endpoints
-are derived from wanted items, Librarry history events, title parsing, and
-quality-profile cutoffs. The web UI keeps using the native
+are derived from wanted items, tracked library files, Librarry history events,
+title parsing, and quality-profile cutoffs. The missing endpoints include
+wanted/grabbed monitored books that do not have a matching present file; a file
+can satisfy a wanted item through explicit `wantedId` metadata or normalized
+title, author, and format matching. The web UI keeps using the native
 `/api/v1/librarry/history` event feed so external Arr clients can use the
 Readarr-shaped `/api/v1/history` response.
 

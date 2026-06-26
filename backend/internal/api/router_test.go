@@ -600,6 +600,66 @@ func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 	}
 }
 
+func TestCompatWantedMissingUsesLibraryPresence(t *testing.T) {
+	now := time.Now().UTC()
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted: fakeMissingWanted{items: []wanted.WantedItem{{
+			ID:             "wanted-1",
+			WorkID:         "openlibrary:OL1W",
+			Title:          "Project Hail Mary",
+			AuthorName:     "Andy Weir",
+			Format:         "ebook",
+			QualityProfile: "standard",
+			Status:         "wanted",
+			Monitored:      true,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}, {
+			ID:             "wanted-2",
+			WorkID:         "openlibrary:OL2W",
+			Title:          "The Martian",
+			AuthorName:     "Andy Weir",
+			Format:         "ebook",
+			QualityProfile: "standard",
+			Status:         "grabbed",
+			Monitored:      true,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}}},
+		Library: fakeMissingLibrary{files: []library.FileRecord{fakeLibraryFile()}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wanted/missing", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"totalRecords":1`) || !strings.Contains(res.Body.String(), `"librarryId":"wanted-2"`) {
+		t.Fatalf("expected only grabbed unimported book to be missing, got %s", res.Body.String())
+	}
+	if strings.Contains(res.Body.String(), `"librarryId":"wanted-1"`) {
+		t.Fatalf("expected imported library file to suppress missing item, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/missing/wanted-1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected imported wanted item to be absent from missing endpoint, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/missing/wanted-2", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"librarryId":"wanted-2"`) {
+		t.Fatalf("expected grabbed unimported wanted item to remain missing, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestCompatCatalogResourceEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3801,10 +3861,28 @@ func (fakeBlocklistWanted) History(context.Context, wanted.HistoryQuery) ([]want
 	}}, nil
 }
 
+type fakeMissingWanted struct {
+	fakeWanted
+	items []wanted.WantedItem
+}
+
+func (f fakeMissingWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
+	return f.items, nil
+}
+
 type fakeLibrary struct{}
 
 func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.FileRecord, error) {
 	return []library.FileRecord{fakeLibraryFile()}, nil
+}
+
+type fakeMissingLibrary struct {
+	fakeLibrary
+	files []library.FileRecord
+}
+
+func (f fakeMissingLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.FileRecord, error) {
+	return f.files, nil
 }
 
 func (fakeLibrary) UpdateFile(_ context.Context, file library.FileRecord) (library.FileRecord, error) {

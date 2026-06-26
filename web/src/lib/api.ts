@@ -980,12 +980,12 @@ export async function recoverFailedDownloads(options: {
 }
 
 export async function fetchWanted(): Promise<WantedItem[]> {
-  const response = await fetch(`${apiBase}/api/v1/wanted?status=wanted`);
+  const response = await fetch(`${apiBase}/api/v1/wanted`);
   if (!response.ok) {
     throw new Error(`Wanted refresh failed: ${response.status}`);
   }
   const payload = (await response.json()) as { wanted: WantedItem[] };
-  return payload.wanted;
+  return payload.wanted.filter((item) => !["imported", "removed", "ignored"].includes((item.status || "").toLowerCase()));
 }
 
 export async function fetchQualityProfiles(): Promise<QualityProfile[]> {
