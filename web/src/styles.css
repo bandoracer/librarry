@@ -1001,26 +1001,34 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
+.download-management-tools,
 .download-bandwidth-tools {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: end;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
 }
 
+.download-bandwidth-tools {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+}
+
+.download-management-tools label,
 .download-bandwidth-tools label {
   min-width: 0;
   display: grid;
   gap: 4px;
 }
 
+.download-management-tools label span,
 .download-bandwidth-tools label span {
   color: var(--muted);
   font-size: 11px;
 }
 
+.download-management-tools input,
 .download-bandwidth-tools input {
   min-width: 0;
 }
@@ -1797,6 +1805,40 @@ select {
   align-items: end;
 }
 
+.download-filterbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(130px, 0.7fr) minmax(120px, 0.6fr) minmax(150px, 0.8fr) 92px;
+  gap: 10px;
+  align-items: end;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.download-filterbar label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.download-filterbar span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.download-filterbar input,
+.download-filterbar select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0 10px;
+  outline: 0;
+}
+
 .download-queue-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2242,7 +2284,8 @@ select {
 
   .manual-grab-panel,
   .manual-grab-main,
-  .manual-grab-options {
+  .manual-grab-options,
+  .download-filterbar {
     grid-template-columns: 1fr;
   }
 
@@ -2280,6 +2323,7 @@ select {
     border-bottom: 1px solid var(--border);
   }
 
+  .download-management-tools,
   .download-bandwidth-tools,
   .download-tracker-tools,
   .download-tracker-row,

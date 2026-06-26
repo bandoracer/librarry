@@ -145,6 +145,7 @@ const navItems = [
 
 type ViewID = (typeof navItems)[number]["id"];
 type DownloadScope = "all" | "librarry";
+type DownloadStateFilter = "all" | "active" | "paused" | "complete" | "failed";
 
 export function App() {
   const [activeView, setActiveView] = useState<ViewID>("downloads");
@@ -175,6 +176,10 @@ export function App() {
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
   const [downloadScope, setDownloadScope] = useState<DownloadScope>("all");
+  const [downloadClientFilter, setDownloadClientFilter] = useState("");
+  const [downloadCategoryFilter, setDownloadCategoryFilter] = useState("");
+  const [downloadStateFilter, setDownloadStateFilter] = useState<DownloadStateFilter>("all");
+  const [downloadTextFilter, setDownloadTextFilter] = useState("");
   const [query, setQuery] = useState("Project Hail Mary");
   const [importPath, setImportPath] = useState("");
   const [format, setFormat] = useState("any");
@@ -201,6 +206,9 @@ export function App() {
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
   const [trackerURL, setTrackerURL] = useState("");
+  const [downloadCategoryInput, setDownloadCategoryInput] = useState("");
+  const [downloadSavePathInput, setDownloadSavePathInput] = useState("");
+  const [downloadRebalanceMax, setDownloadRebalanceMax] = useState("3");
   const [manualGrabURL, setManualGrabURL] = useState("");
   const [manualGrabTitle, setManualGrabTitle] = useState("");
   const [manualGrabFormat, setManualGrabFormat] = useState("ebook");
@@ -219,6 +227,14 @@ export function App() {
   const [settingsError, setSettingsError] = useState("");
   const [settingsNotice, setSettingsNotice] = useState("");
 
+  function downloadListOptions(scope = downloadScope) {
+    return {
+      tag: downloadScopeTag(scope),
+      client: downloadClientFilter.trim(),
+      category: downloadCategoryFilter.trim()
+    };
+  }
+
   useEffect(() => {
     Promise.all([fetchProviderHealth(), fetchIntegrationHealth()])
       .then(([nextProviders, nextIntegrations]) => {
@@ -229,7 +245,7 @@ export function App() {
       .catch(() => {
         setAPIState("offline");
       });
-    fetchDownloads(downloadScopeTag(downloadScope))
+    fetchDownloads(downloadListOptions(downloadScope))
       .then(setDownloads)
       .catch((error) => {
         setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
@@ -277,14 +293,25 @@ export function App() {
     () => wantedItems.find((item) => item.id === selectedWantedID) ?? wantedItems[0],
     [wantedItems, selectedWantedID]
   );
-  const selectableDownloadKeys = useMemo(() => downloads.map(downloadKey).filter(Boolean), [downloads]);
+  const filteredDownloads = useMemo(
+    () => downloads.filter((download) => downloadMatchesFilters(download, {
+      client: downloadClientFilter,
+      category: downloadCategoryFilter,
+      state: downloadStateFilter,
+      text: downloadTextFilter
+    })),
+    [downloads, downloadCategoryFilter, downloadClientFilter, downloadStateFilter, downloadTextFilter]
+  );
+  const downloadClientOptions = useMemo(() => uniqueDownloadClients(downloads), [downloads]);
+  const downloadCategoryOptions = useMemo(() => uniqueDownloadCategories(downloads), [downloads]);
+  const selectableDownloadKeys = useMemo(() => filteredDownloads.map(downloadKey).filter(Boolean), [filteredDownloads]);
   const selectedDownloadKeySet = useMemo(() => new Set(selectedDownloadKeys), [selectedDownloadKeys]);
-  const selectedDownloads = useMemo(() => downloads.filter((download) => selectedDownloadKeySet.has(downloadKey(download))), [downloads, selectedDownloadKeySet]);
+  const selectedDownloads = useMemo(() => filteredDownloads.filter((download) => selectedDownloadKeySet.has(downloadKey(download))), [filteredDownloads, selectedDownloadKeySet]);
   const selectedActionDownloadIDs = selectedDownloads.map((download) => download.id);
   const allDownloadsSelected = selectableDownloadKeys.length > 0 && selectableDownloadKeys.every((key) => selectedDownloadKeySet.has(key));
   const selectedDownloadsSupportRecheck = selectedDownloads.every((download) => supportsDownloadAction(download, "recheck"));
   const selectedDownloadsSupportPriority = selectedDownloads.every((download) => supportsDownloadAction(download, "topPriority"));
-  const downloadQueueStats = useMemo(() => summarizeDownloads(downloads), [downloads]);
+  const downloadQueueStats = useMemo(() => summarizeDownloads(filteredDownloads), [filteredDownloads]);
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
     const author = selected?.work.authors?.[0];
@@ -651,7 +678,7 @@ export function App() {
     setIsRefreshingDownloads(true);
     setDownloadError("");
     try {
-      const nextDownloads = await fetchDownloads(downloadScopeTag(downloadScope));
+      const nextDownloads = await fetchDownloads(downloadListOptions());
       setDownloads(nextDownloads);
       setAPIState("live");
     } catch (error) {
@@ -669,7 +696,7 @@ export function App() {
     setIsRefreshingDownloads(true);
     setDownloadError("");
     try {
-      const nextDownloads = await fetchDownloads(downloadScopeTag(scope));
+      const nextDownloads = await fetchDownloads(downloadListOptions(scope));
       setDownloads(nextDownloads);
       setAPIState("live");
     } catch (error) {
@@ -680,11 +707,16 @@ export function App() {
   }
 
   async function runQueueRebalance() {
+    const maxActive = boundedPositiveInt(downloadRebalanceMax, 3, 25);
+    setDownloadRebalanceMax(String(maxActive));
     setIsRebalancingDownloads(true);
     setDownloadError("");
     try {
       const plan = await rebalanceDownloads({
-        maxActive: 3,
+        maxActive,
+        client: downloadClientFilter.trim() || undefined,
+        tag: downloadScopeTag(downloadScope),
+        category: downloadCategoryFilter.trim() || undefined,
         dryRun: false,
         stopOverflow: true
       });
@@ -711,6 +743,8 @@ export function App() {
       setDownloadDetails(details);
       setDownloadLimitKiB(limitBytesToKiBInput(details.properties?.downloadLimit));
       setUploadLimitKiB(limitBytesToKiBInput(details.properties?.uploadLimit));
+      setDownloadCategoryInput(details.status.category || "");
+      setDownloadSavePathInput(details.status.savePath || details.properties?.savePath || "");
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download details failed");
@@ -795,6 +829,48 @@ export function App() {
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download bandwidth action failed");
+    } finally {
+      setDownloadActionID("");
+    }
+  }
+
+  async function applyDownloadCategory() {
+    const downloadID = downloadDetails?.status.id;
+    if (!downloadID) return;
+    const category = downloadCategoryInput.trim();
+    if (!category) return;
+    setDownloadActionID(`${downloadID}:setCategory`);
+    setDownloadError("");
+    try {
+      await runDownloadAction("setCategory", [downloadID], { category });
+      const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
+      setDownloadDetails(refreshed);
+      setDownloadCategoryInput(refreshed.status.category || category);
+      await refreshDownloads();
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download category action failed");
+    } finally {
+      setDownloadActionID("");
+    }
+  }
+
+  async function applyDownloadLocation() {
+    const downloadID = downloadDetails?.status.id;
+    if (!downloadID) return;
+    const savePath = downloadSavePathInput.trim();
+    if (!savePath) return;
+    setDownloadActionID(`${downloadID}:setLocation`);
+    setDownloadError("");
+    try {
+      await runDownloadAction("setLocation", [downloadID], { savePath });
+      const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
+      setDownloadDetails(refreshed);
+      setDownloadSavePathInput(refreshed.status.savePath || refreshed.properties?.savePath || savePath);
+      await refreshDownloads();
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download location action failed");
     } finally {
       setDownloadActionID("");
     }
@@ -1508,8 +1584,8 @@ export function App() {
             <div>
               <h2>Downloads</h2>
               <p>
-                {downloads.length
-                  ? `${downloads.length} ${downloadScope === "all" ? "download-client" : "Librarry-tagged"} items visible; ${selectedDownloads.length} selected for queue actions.`
+                {filteredDownloads.length
+                  ? `${filteredDownloads.length} of ${downloads.length} ${downloadScope === "all" ? "download-client" : "Librarry-tagged"} items visible; ${selectedDownloads.length} selected for queue actions.`
                   : downloadScope === "all"
                     ? "No download-client items are currently visible."
                     : "No Librarry-tagged downloads are currently visible."}
@@ -1528,19 +1604,59 @@ export function App() {
                 <RefreshCw size={16} />
                 {isRefreshingDownloads ? "Refreshing" : "Refresh"}
               </button>
-              <button className="secondary-action compact" disabled={isImportingCompleted || downloads.length === 0} onClick={() => runCompletedImport()} type="button">
+              <button className="secondary-action compact" disabled={isImportingCompleted || filteredDownloads.length === 0} onClick={() => runCompletedImport(filteredDownloads)} type="button">
                 <UploadCloud size={16} />
                 {isImportingCompleted ? "Importing" : "Import done"}
               </button>
-              <button className="secondary-action compact" disabled={isRecoveringFailed || downloads.length === 0} onClick={() => runFailedRecovery(undefined, { autoGrab: true })} type="button">
+              <button className="secondary-action compact" disabled={isRecoveringFailed || filteredDownloads.length === 0} onClick={() => runFailedRecovery(filteredDownloads, { autoGrab: true })} type="button">
                 <HardDriveDownload size={16} />
                 {isRecoveringFailed ? "Recovering" : "Recover failed"}
               </button>
-              <button className="secondary-action compact" disabled={isRebalancingDownloads || downloads.length === 0} onClick={runQueueRebalance} type="button">
+              <button className="secondary-action compact" disabled={isRebalancingDownloads || filteredDownloads.length === 0} onClick={runQueueRebalance} type="button">
                 <SlidersHorizontal size={16} />
-                {isRebalancingDownloads ? "Balancing" : "Balance 3"}
+                {isRebalancingDownloads ? "Balancing" : `Balance ${boundedPositiveInt(downloadRebalanceMax, 3, 25)}`}
               </button>
             </div>
+          </div>
+          <div className="download-filterbar" aria-label="Download filters">
+            <label>
+              <span>Find</span>
+              <input value={downloadTextFilter} onChange={(event) => setDownloadTextFilter(event.target.value)} placeholder="Title, hash, tag, or path" />
+            </label>
+            <label>
+              <span>Client</span>
+              <select value={downloadClientFilter} onChange={(event) => setDownloadClientFilter(event.target.value)}>
+                <option value="">All clients</option>
+                {downloadClientOptions.map((client) => (
+                  <option value={client} key={client}>
+                    {client}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>State</span>
+              <select value={downloadStateFilter} onChange={(event) => setDownloadStateFilter(event.target.value as DownloadStateFilter)}>
+                <option value="all">All states</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="complete">Complete</option>
+                <option value="failed">Failed</option>
+              </select>
+            </label>
+            <label>
+              <span>Category</span>
+              <input list="download-category-options" value={downloadCategoryFilter} onChange={(event) => setDownloadCategoryFilter(event.target.value)} placeholder="Any category" />
+            </label>
+            <label>
+              <span>Max active</span>
+              <input inputMode="numeric" min="1" max="25" value={downloadRebalanceMax} onChange={(event) => setDownloadRebalanceMax(event.target.value)} type="number" />
+            </label>
+            <datalist id="download-category-options">
+              {downloadCategoryOptions.map((category) => (
+                <option value={category} key={category} />
+              ))}
+            </datalist>
           </div>
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
           <div className="manual-grab-panel" aria-label="Manual download add">
@@ -1593,7 +1709,7 @@ export function App() {
             ))}
           </div>
           <div className="download-bulkbar" aria-label="Bulk download actions">
-            <button className="secondary-action compact" disabled={downloads.length === 0} onClick={toggleAllDownloads} type="button">
+            <button className="secondary-action compact" disabled={filteredDownloads.length === 0} onClick={toggleAllDownloads} type="button">
               {allDownloadsSelected ? <CheckSquare size={16} /> : <Square size={16} />}
               {allDownloadsSelected ? "Clear all" : "Select all"}
             </button>
@@ -1694,6 +1810,25 @@ export function App() {
                         <strong>{value}</strong>
                       </div>
                     ))}
+                  </div>
+                  <div className="download-management-tools">
+                    <label>
+                      <span>Category</span>
+                      <input value={downloadCategoryInput} onChange={(event) => setDownloadCategoryInput(event.target.value)} placeholder="books-ebook" />
+                    </label>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadCategoryInput.trim()} onClick={applyDownloadCategory} type="button">
+                      Set category
+                    </button>
+                    <label>
+                      <span>Save path</span>
+                      <input value={downloadSavePathInput} onChange={(event) => setDownloadSavePathInput(event.target.value)} placeholder="/data/torrents/books" />
+                    </label>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadSavePathInput.trim()} onClick={applyDownloadLocation} type="button">
+                      Move
+                    </button>
+                    <button className="secondary-action compact danger-outline" disabled={Boolean(downloadActionID)} onClick={() => applyDownloadAction("delete", downloadDetails.status, true)} type="button">
+                      Delete data
+                    </button>
                   </div>
                   <div className="download-bandwidth-tools">
                     <label>
@@ -1807,7 +1942,7 @@ export function App() {
             </div>
           ) : null}
           <div className="download-list">
-            {downloads.map((download) => {
+            {filteredDownloads.map((download) => {
               const selectedDownload = selectedDownloadKeySet.has(downloadKey(download));
               const busy = downloadActionID.startsWith(`${download.id}:`) || (downloadActionID.startsWith("bulk:") && selectedDownload);
               return (
@@ -2083,6 +2218,50 @@ function downloadKey(download: DownloadStatus) {
 
 function downloadScopeTag(scope: DownloadScope) {
   return scope === "librarry" ? "librarry" : "";
+}
+
+function uniqueDownloadClients(downloads: DownloadStatus[]) {
+  return Array.from(new Set(downloads.map((download) => download.client || "qBittorrent").filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function uniqueDownloadCategories(downloads: DownloadStatus[]) {
+  return Array.from(new Set(downloads.map((download) => download.category).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function downloadMatchesFilters(
+  download: DownloadStatus,
+  filters: { client: string; category: string; state: DownloadStateFilter; text: string }
+) {
+  const client = filters.client.trim().toLowerCase();
+  if (client && (download.client || "qBittorrent").toLowerCase() !== client) return false;
+  const category = filters.category.trim().toLowerCase();
+  if (category && !(download.category || "").toLowerCase().includes(category)) return false;
+  if (filters.state !== "all") {
+    if (filters.state === "complete") {
+      if ((download.progress ?? 0) < 1 && download.importStatus !== "ready" && download.importStatus !== "imported") return false;
+    } else if (filters.state === "failed") {
+      if (stateTone(download.state) !== "error" && !download.failureReason && !download.importError) return false;
+    } else if (stateTone(download.state) !== filters.state) {
+      return false;
+    }
+  }
+  const text = filters.text.trim().toLowerCase();
+  if (!text) return true;
+  const haystack = [
+    download.name,
+    download.id,
+    download.client,
+    download.category,
+    download.savePath,
+    ...(download.tags ?? [])
+  ].join(" ").toLowerCase();
+  return haystack.includes(text);
+}
+
+function boundedPositiveInt(value: string, fallback: number, max: number) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, max);
 }
 
 function supportsDownloadAction(download: DownloadStatus, action: DownloadAction) {

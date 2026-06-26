@@ -291,15 +291,18 @@ Download state is reconciled from qBittorrent, Transmission, and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is
 configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, category changes, and location
-changes, plus per-torrent download and upload speed limits. qBittorrent details
-are exposed through `/api/v1/downloads/{id}` with properties, peer state,
-tracker state, and torrent file lists. Per-file
+changes, plus delete-with-data removal and per-torrent download and upload speed
+limits. The Downloads page filters by client, state, category, and text, and
+uses the same native actions for category, save-path, bandwidth, tracker, file,
+and bulk queue controls. qBittorrent details are exposed through
+`/api/v1/downloads/{id}` with properties, peer state, tracker state, and torrent
+file lists. Per-file
 qBittorrent priority changes are exposed through
 `/api/v1/downloads/{id}/files/actions` for skip/normal/high/max file selection.
 Tracker add/edit/remove actions are exposed through
 `/api/v1/downloads/{id}/trackers/actions`. `/api/v1/downloads/rebalance` adds a
 simple active-download limiter that can preview or apply start/stop operations
-against the visible Librarry queue. Transmission actions support start, stop,
+against a filtered queue. Transmission actions support start, stop,
 delete, recheck, set location, and per-torrent speed limits. SABnzbd actions
 currently support start, stop, and delete. The API accepts multiple download IDs
 for these actions, routes

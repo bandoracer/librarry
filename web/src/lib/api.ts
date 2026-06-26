@@ -629,9 +629,18 @@ export async function grabManualDownload(request: {
   return (await response.json()) as DownloadStatus;
 }
 
-export async function fetchDownloads(tag = ""): Promise<DownloadStatus[]> {
+export type DownloadListOptions = {
+  tag?: string;
+  client?: string;
+  category?: string;
+};
+
+export async function fetchDownloads(options: string | DownloadListOptions = ""): Promise<DownloadStatus[]> {
   const params = new URLSearchParams();
-  if (tag) params.set("tag", tag);
+  const normalized = typeof options === "string" ? { tag: options } : options;
+  if (normalized.tag) params.set("tag", normalized.tag);
+  if (normalized.client) params.set("client", normalized.client);
+  if (normalized.category) params.set("category", normalized.category);
   const response = await fetch(`${apiBase}/api/v1/downloads?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Download refresh failed: ${response.status}`);
