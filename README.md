@@ -14,8 +14,9 @@ book data is incomplete or ambiguous.
 >
 > The current build has real metadata search, provider health, a Library-first
 > UI, wanted books, author subscriptions, persisted quality profiles,
-> release-decision review, Prowlarr-backed search/feed sync, library scan,
-> manual and completed-download import, Calibre Content Server handoff,
+> release-decision review, Prowlarr-backed search/feed sync, configured-root
+> and ad hoc library scan, manual and completed-download import, Calibre
+> Content Server handoff,
 > Readarr-compatible author/book/wanted/import/history/config routes, and
 > durable manual overrides for title, author, cover, quality profile, and
 > monitoring state.
@@ -59,7 +60,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Metadata source model | Historically depended on centralized metadata; the retirement announcement names metadata failure as the blocking issue. | Multi-provider abstraction with Hardcover, Open Library, Google Books fallback, and local metadata stubs. | Local canonical graph with provider provenance, explainable matches, and resilient fallback behavior. |
 | Manual correction | Supports normal app-level editing workflows. | Native wanted-item editor can correct title, author, cover URL, quality profile, and monitoring state; corrected title/author/cover/profile values write `manual_overrides` rows, provider refreshes preserve those fields, and visible override chips can reset individual fields. | Expand correction to the full author/work/edition graph, embedded file metadata writes, and batch review workflows. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
-| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, manual/completed import supports copy, move, hardlink, hardlink-or-copy, keep-both, replace, skip, and fail conflict decisions, completed Librarry-tagged downloads feed the library, unlinked completed downloads are queued for individual or bulk review resolution with explainable file, local-metadata, filename, download-context evidence, and high-confidence wanted-item suggestions, and Readarr-compatible missing pages suppress wanted items already present in tracked files. | Add broader profile-aware automatic import matching. |
+| Library import | Mature library scan and missing-book detection. | Configured ebook/audiobook roots and ad hoc root paths can be scanned from the Imports UI for ebook/audiobook files; OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, manual/completed import supports copy, move, hardlink, hardlink-or-copy, keep-both, replace, skip, and fail conflict decisions, completed Librarry-tagged downloads feed the library, unlinked completed downloads are queued for individual or bulk review resolution with explainable file, local-metadata, filename, download-context evidence, and high-confidence wanted-item suggestions, and Readarr-compatible missing pages suppress wanted items already present in tracked files. | Add broader profile-aware automatic import matching. |
 | Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions with all/future/none missing-book policies, metadata search, persisted quality profiles, Readarr-compatible release restrictions including tag-scoped rules for tagged wanted items, release evaluation, author/book tag persistence with bulk add/remove/replace editor modes, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, import-list sync into monitored wanted items, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, import conflict policies, bulk import-review resolution with evidence, and bulk selected-download actions. | Add deeper conflict reporting and broader review controls. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, native persisted Prowlarr/download-client settings, stored release-decision reload, approved/rejected review filters, explicit force-grab for manually selected rejected candidates, paused grab endpoint, manual magnet/torrent-file/torrent-URL/NZB add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and broader review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
@@ -134,9 +135,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Manual and scheduled feed sync for Prowlarr-compatible indexer RSS feeds,
   with release persistence, matching against wanted items, optional paused
   auto-grab, and history events.
-- Library scanning for ebook/audiobook roots, OPF sidecar, embedded EPUB,
-  MP3 ID3, and M4B/MP4 metadata extraction, and manual file import into
-  organized book folders.
+- Library scanning for configured ebook/audiobook roots or an ad hoc root path
+  from the Imports UI, OPF sidecar, embedded EPUB, MP3 ID3, and M4B/MP4 metadata
+  extraction, and manual file import into organized book folders.
 - Completed-download import for Librarry-tagged qBittorrent items, with
   imported/error state persisted on download records.
 - Calibre Content Server add-book handoff for manual or completed-download

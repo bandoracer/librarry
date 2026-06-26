@@ -1555,11 +1555,17 @@ export async function fetchLibraryImportReviews(status = "pending", limit = 100)
   return payload.reviews;
 }
 
-export async function scanLibrary(format = "any"): Promise<LibraryScanOutcome> {
+export async function scanLibrary(format = "any", options: { root?: string; limit?: number } = {}): Promise<LibraryScanOutcome> {
+  const root = options.root?.trim();
+  const body: { format: string; limit: number; root?: string } = {
+    format,
+    limit: options.limit ?? 1000
+  };
+  if (root) body.root = root;
   const response = await fetch(`${apiBase}/api/v1/library/scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ format, limit: 1000 })
+    body: JSON.stringify(body)
   });
   if (!response.ok) {
     throw new Error(await apiError(response, "Library scan failed"));

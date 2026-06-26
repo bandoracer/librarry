@@ -311,6 +311,7 @@ export function App() {
   const [bookQuery, setBookQuery] = useState("Project Hail Mary");
   const [authorQuery, setAuthorQuery] = useState("Andy Weir");
   const [importPath, setImportPath] = useState("");
+  const [libraryScanRoot, setLibraryScanRoot] = useState("");
   const [libraryImportMode, setLibraryImportMode] = useState<"copy" | "move" | "hardlink" | "hardlinkOrCopy">("copy");
   const [libraryConflictAction, setLibraryConflictAction] = useState<"rename" | "replace" | "skip" | "fail">("rename");
   const [format, setFormat] = useState("any");
@@ -1154,11 +1155,11 @@ export function App() {
     }
   }
 
-  async function runLibraryScan(nextFormat = format) {
+  async function runLibraryScan(nextFormat = format, options: { root?: string } = {}) {
     setIsScanningLibrary(true);
     setLibraryError("");
     try {
-      const outcome = await scanLibrary(nextFormat);
+      const outcome = await scanLibrary(nextFormat, { root: options.root });
       setLibraryScan(outcome);
       setLibraryFiles((current) => mergeLibraryFiles(current, outcome.files));
       setAPIState("live");
@@ -2892,15 +2893,15 @@ export function App() {
             <div className="library-actions">
               <button className="secondary-action compact" disabled={isScanningLibrary} onClick={() => runLibraryScan("ebook")} type="button">
                 <FolderSearch size={16} />
-                Ebooks
+                Ebook roots
               </button>
               <button className="secondary-action compact" disabled={isScanningLibrary} onClick={() => runLibraryScan("audiobook")} type="button">
                 <FolderSearch size={16} />
-                Audio
+                Audio roots
               </button>
               <button className="secondary-action compact" disabled={isScanningLibrary} onClick={() => runLibraryScan("any")} type="button">
                 <RefreshCw size={16} />
-                All
+                All roots
               </button>
               <button className="secondary-action compact" disabled={isImportingCompleted} onClick={() => runCompletedImport()} type="button">
                 <HardDriveDownload size={16} />
@@ -2909,6 +2910,36 @@ export function App() {
             </div>
           </div>
           {libraryError ? <div className={isPersistenceRequiredError(libraryError) ? "inline-note" : "inline-error"}>{appErrorMessage(libraryError)}</div> : null}
+          <div className="library-scan-row">
+            <label className="library-scan-input">
+              <FolderSearch size={17} />
+              <span>Root</span>
+              <input value={libraryScanRoot} onChange={(event) => setLibraryScanRoot(event.target.value)} placeholder="/data/media/books/ebooks" />
+            </label>
+            <div className="library-scan-buttons" role="group" aria-label="Scan custom library root">
+              <button className="secondary-action compact" disabled={!libraryScanRoot.trim() || isScanningLibrary} onClick={() => runLibraryScan("ebook", { root: libraryScanRoot })} type="button">
+                Ebooks
+              </button>
+              <button className="secondary-action compact" disabled={!libraryScanRoot.trim() || isScanningLibrary} onClick={() => runLibraryScan("audiobook", { root: libraryScanRoot })} type="button">
+                Audio
+              </button>
+              <button className="secondary-action compact" disabled={!libraryScanRoot.trim() || isScanningLibrary} onClick={() => runLibraryScan("any", { root: libraryScanRoot })} type="button">
+                All
+              </button>
+            </div>
+          </div>
+          {libraryScan?.roots.length ? (
+            <div className="library-scan-result" aria-label="Last scanned roots">
+              <strong>{isScanningLibrary ? "Scanning" : "Last scan"}</strong>
+              <div>
+                {libraryScan.roots.map((root) => (
+                  <span title={root} key={root}>
+                    {root}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="library-import-row">
             <div className="library-import-input">
               <FileCheck2 size={17} />
