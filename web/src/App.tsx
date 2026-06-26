@@ -5143,6 +5143,10 @@ function importReviewEvidenceChips(review: ImportReview) {
   if (suggestedWanted) {
     chips.push(`Suggested ${suggestedWanted}`);
   }
+  const matchedFields = importReviewSuggestedWantedMatchedFields(review);
+  if (matchedFields.length) {
+    chips.push(`Matched ${matchedFields.join(", ")}`);
+  }
   const evidence = review.metadata?.reviewEvidence;
   if (Array.isArray(evidence)) {
     evidence.slice(0, 3).forEach((item) => {
@@ -5169,6 +5173,36 @@ function importReviewSuggestedWanted(review: ImportReview) {
   const authorName = stringMetadataValue(candidate.authorName);
   if (title && authorName) return `${title} by ${authorName}`;
   return title || authorName || suggestedID;
+}
+
+function importReviewSuggestedWantedMatchedFields(review: ImportReview) {
+  const candidates = importReviewWantedCandidates(review);
+  const suggestedID = stringMetadataValue(review.metadata?.suggestedWantedId) || review.wantedId;
+  const candidate = candidates.find((item) => stringMetadataValue(item.wantedId) === suggestedID) ?? candidates[0];
+  const fields = candidate?.matchedFields;
+  if (!Array.isArray(fields)) return [];
+  return Array.from(
+    new Set(
+      fields
+        .map((field) => importReviewMatchedFieldLabel(stringMetadataValue(field)))
+        .filter(Boolean)
+    )
+  );
+}
+
+function importReviewMatchedFieldLabel(field: string) {
+  switch (field) {
+    case "isbn":
+      return "ISBN";
+    case "author":
+      return "author";
+    case "format":
+      return "format";
+    case "title":
+      return "title";
+    default:
+      return field;
+  }
 }
 
 function importReviewWantedCandidates(review: ImportReview) {

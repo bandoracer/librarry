@@ -224,6 +224,78 @@ func TestImportReviewWantedCandidatesDoNotSuggestAmbiguousMatch(t *testing.T) {
 	}
 }
 
+func TestImportReviewWantedCandidatesSuggestsExactISBNMatch(t *testing.T) {
+	service := &Service{wanted: fakeImportWantedStore{items: []wanted.WantedItem{{
+		ID:         "wanted-1",
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		Status:     "wanted",
+		ManualOverrides: []wanted.ManualOverride{{
+			FieldName: "isbn",
+			Value:     "978-0-593-13520-4",
+		}},
+	}, {
+		ID:         "wanted-2",
+		Title:      "The Martian",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		Status:     "wanted",
+	}}}}
+
+	candidates, suggestedID := service.importReviewWantedCandidates(context.Background(), parsedBook{
+		Title:       "bad filename",
+		Identifiers: map[string]string{"isbn13": "9780593135204"},
+	}, "ebook")
+
+	if suggestedID != "wanted-1" {
+		t.Fatalf("expected wanted-1 suggestion from ISBN, got %q with candidates %#v", suggestedID, candidates)
+	}
+	if len(candidates) == 0 || candidates[0].WantedID != "wanted-1" || candidates[0].Score < 0.9 {
+		t.Fatalf("expected high-confidence ISBN candidate, got %#v", candidates)
+	}
+	if !candidateHasMatchedField(candidates[0], "isbn") || !candidateHasMatchedField(candidates[0], "format") {
+		t.Fatalf("expected ISBN and format match fields, got %#v", candidates[0].MatchedFields)
+	}
+}
+
+func TestImportReviewWantedCandidatesDoesNotAutoSuggestAmbiguousISBNFormat(t *testing.T) {
+	service := &Service{wanted: fakeImportWantedStore{items: []wanted.WantedItem{{
+		ID:         "ebook",
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		Status:     "wanted",
+		ManualOverrides: []wanted.ManualOverride{{
+			FieldName: "isbn",
+			Value:     "9780593135204",
+		}},
+	}, {
+		ID:         "audio",
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "audiobook",
+		Status:     "wanted",
+		ManualOverrides: []wanted.ManualOverride{{
+			FieldName: "isbn",
+			Value:     "9780593135204",
+		}},
+	}}}}
+
+	candidates, suggestedID := service.importReviewWantedCandidates(context.Background(), parsedBook{
+		Title:       "Project Hail Mary",
+		AuthorName:  "Andy Weir",
+		Identifiers: map[string]string{"isbn": "9780593135204"},
+	}, "unknown")
+
+	if suggestedID != "" {
+		t.Fatalf("expected ambiguous ISBN/format match to stay in review, got %q", suggestedID)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("expected both ISBN format candidates, got %#v", candidates)
+	}
+}
+
 func TestCompletedImportAutoMatchDefaultsOnAndCanBeDisabled(t *testing.T) {
 	if !completedImportAutoMatchEnabled(CompletedImportRequest{}) {
 		t.Fatal("expected completed import auto-match to default on")
@@ -265,6 +337,50 @@ func TestCompletedImportAutoMatchFindsUniqueHighConfidenceWantedItem(t *testing.
 	if match.WantedID != "wanted-1" || !strings.Contains(match.Message, "Dungeon Crawler Carl") {
 		t.Fatalf("expected unique high-confidence auto-match, got %+v", match)
 	}
+}
+
+func TestCompletedImportAutoMatchUsesSidecarISBN(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "unknown-book.epub")
+	if err := os.WriteFile(path, []byte("not a zip but sidecar exists"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "unknown-book.opf"), []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata>
+    <dc:identifier>9780593135204</dc:identifier>
+  </metadata>
+</package>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	service := &Service{wanted: fakeImportWantedStore{items: []wanted.WantedItem{{
+		ID:         "wanted-1",
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		Status:     "wanted",
+		ManualOverrides: []wanted.ManualOverride{{
+			FieldName: "isbn",
+			Value:     "978-0-593-13520-4",
+		}},
+	}}}}
+
+	match, err := service.completedImportAutoMatch(context.Background(), path, "ebook")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if match.WantedID != "wanted-1" {
+		t.Fatalf("expected ISBN-driven auto-match, got %+v", match)
+	}
+}
+
+func candidateHasMatchedField(candidate importReviewWantedCandidate, field string) bool {
+	for _, matched := range candidate.MatchedFields {
+		if matched == field {
+			return true
+		}
+	}
+	return false
 }
 
 func TestParsedBookForPathReadsID3AudioTags(t *testing.T) {

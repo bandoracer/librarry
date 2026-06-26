@@ -1301,8 +1301,9 @@ func (s *Service) queueImportReview(ctx context.Context, download acquisition.Do
 	filenameParsed := parseBookFilename(source)
 	localMetadata := localBookMetadataForPath(source)
 	parsed := parsedBook{
-		Title:      firstNonEmpty(localMetadata.Title, filenameParsed.Title),
-		AuthorName: firstNonEmpty(localMetadata.AuthorName, filenameParsed.AuthorName),
+		Title:       firstNonEmpty(localMetadata.Title, filenameParsed.Title),
+		AuthorName:  firstNonEmpty(localMetadata.AuthorName, filenameParsed.AuthorName),
+		Identifiers: localMetadata.Identifiers,
 	}
 	metadata := importReviewMetadata(source, info, format, download, parsed, filenameParsed, localMetadata, reason)
 	reviewWantedID := wantedIDFromTags(download.Tags)
@@ -1343,10 +1344,11 @@ func (s *Service) completedImportAutoMatch(ctx context.Context, sourcePath strin
 	filenameParsed := parseBookFilename(source)
 	localMetadata := localBookMetadataForPath(source)
 	parsed := parsedBook{
-		Title:      firstNonEmpty(localMetadata.Title, filenameParsed.Title),
-		AuthorName: firstNonEmpty(localMetadata.AuthorName, filenameParsed.AuthorName),
+		Title:       firstNonEmpty(localMetadata.Title, filenameParsed.Title),
+		AuthorName:  firstNonEmpty(localMetadata.AuthorName, filenameParsed.AuthorName),
+		Identifiers: localMetadata.Identifiers,
 	}
-	if strings.TrimSpace(parsed.Title) == "" {
+	if !parsedBookHasImportMatchAnchor(parsed) {
 		return completedImportAutoMatch{}, nil
 	}
 	candidates, suggestedID := s.importReviewWantedCandidates(ctx, parsed, format)
@@ -1393,8 +1395,9 @@ func importReviewMetadata(source string, info fs.FileInfo, format string, downlo
 			"tags":     download.Tags,
 		},
 		"parsed": map[string]any{
-			"title":      parsed.Title,
-			"authorName": parsed.AuthorName,
+			"title":       parsed.Title,
+			"authorName":  parsed.AuthorName,
+			"identifiers": parsed.Identifiers,
 		},
 		"filenameParsed": map[string]any{
 			"title":      filenameParsed.Title,
@@ -1410,7 +1413,7 @@ func importReviewMetadata(source string, info fs.FileInfo, format string, downlo
 }
 
 func (s *Service) importReviewWantedCandidates(ctx context.Context, parsed parsedBook, format string) ([]importReviewWantedCandidate, string) {
-	if s == nil || s.wanted == nil || strings.TrimSpace(parsed.Title) == "" {
+	if s == nil || s.wanted == nil || !parsedBookHasImportMatchAnchor(parsed) {
 		return nil, ""
 	}
 	items, err := s.wanted.ListWanted(ctx, "")
@@ -1471,27 +1474,57 @@ func importReviewWantedStatusEligible(status string) bool {
 }
 
 func importReviewWantedScore(parsed parsedBook, format string, item wanted.WantedItem) (float64, []string) {
-	titleMatch := importReviewTextMatchScore(parsed.Title, item.Title)
 	var score float64
-	switch {
-	case titleMatch >= 0.95:
-		score = 0.58
-	case titleMatch >= 0.75:
-		score = 0.42
-	case titleMatch >= 0.55:
-		score = 0.30
-	default:
-		return 0, nil
+	fields := []string{}
+	isbnMatched := importReviewISBNsOverlap(parsedBookISBNs(parsed), wantedItemISBNs(item))
+	titleMatch := importReviewTextMatchScore(parsed.Title, item.Title)
+	if isbnMatched {
+		score = 0.82
+		fields = append(fields, "isbn")
+		switch {
+		case titleMatch >= 0.95:
+			score += 0.08
+			fields = append(fields, "title")
+		case titleMatch >= 0.75:
+			score += 0.05
+			fields = append(fields, "title")
+		case titleMatch >= 0.55:
+			score += 0.03
+			fields = append(fields, "title")
+		}
+	} else {
+		switch {
+		case titleMatch >= 0.95:
+			score = 0.58
+		case titleMatch >= 0.75:
+			score = 0.42
+		case titleMatch >= 0.55:
+			score = 0.30
+		default:
+			return 0, nil
+		}
+		fields = append(fields, "title")
 	}
-	fields := []string{"title"}
 	if authorScore := importReviewTextMatchScore(parsed.AuthorName, item.AuthorName); authorScore >= 0.95 {
-		score += 0.30
+		if isbnMatched {
+			score += 0.06
+		} else {
+			score += 0.30
+		}
 		fields = append(fields, "author")
 	} else if authorScore >= 0.75 {
-		score += 0.22
+		if isbnMatched {
+			score += 0.04
+		} else {
+			score += 0.22
+		}
 		fields = append(fields, "author")
 	} else if authorScore >= 0.55 {
-		score += 0.16
+		if isbnMatched {
+			score += 0.02
+		} else {
+			score += 0.16
+		}
 		fields = append(fields, "author")
 	}
 	requestedFormat := normalizeFormat(format)
@@ -1511,6 +1544,98 @@ func importReviewWantedScore(parsed parsedBook, format string, item wanted.Wante
 		return 0, nil
 	}
 	return score, fields
+}
+
+func parsedBookHasImportMatchAnchor(parsed parsedBook) bool {
+	return strings.TrimSpace(parsed.Title) != "" || len(parsedBookISBNs(parsed)) > 0
+}
+
+func parsedBookISBNs(parsed parsedBook) []string {
+	return importReviewIdentifierISBNs(parsed.Identifiers)
+}
+
+func localMetadataISBNs(metadata localBookMetadata) []string {
+	return importReviewIdentifierISBNs(metadata.Identifiers)
+}
+
+func importReviewIdentifierISBNs(identifiers map[string]string) []string {
+	if len(identifiers) == 0 {
+		return nil
+	}
+	isbns := make([]string, 0, len(identifiers))
+	seen := map[string]bool{}
+	for key, value := range identifiers {
+		normalizedKey := strings.ToLower(strings.TrimSpace(key))
+		if !strings.Contains(normalizedKey, "isbn") {
+			continue
+		}
+		for _, isbn := range splitImportReviewISBNs(value) {
+			normalized := normalizeISBN(isbn)
+			if normalized == "" || seen[normalized] {
+				continue
+			}
+			seen[normalized] = true
+			isbns = append(isbns, normalized)
+		}
+	}
+	sort.Strings(isbns)
+	return isbns
+}
+
+func wantedItemISBNs(item wanted.WantedItem) []string {
+	isbns := []string{}
+	seen := map[string]bool{}
+	for _, override := range item.ManualOverrides {
+		field := strings.ToLower(strings.TrimSpace(override.FieldName))
+		if field != "isbn" && field != "isbns" {
+			continue
+		}
+		for _, isbn := range splitImportReviewISBNs(override.Value) {
+			normalized := normalizeISBN(isbn)
+			if normalized == "" || seen[normalized] {
+				continue
+			}
+			seen[normalized] = true
+			isbns = append(isbns, normalized)
+		}
+	}
+	sort.Strings(isbns)
+	return isbns
+}
+
+func splitImportReviewISBNs(value string) []string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '\t'
+	})
+	isbns := make([]string, 0, len(parts))
+	for _, part := range parts {
+		isbn := strings.TrimSpace(part)
+		if isbn == "" {
+			continue
+		}
+		isbns = append(isbns, isbn)
+	}
+	return isbns
+}
+
+func importReviewISBNsOverlap(left []string, right []string) bool {
+	if len(left) == 0 || len(right) == 0 {
+		return false
+	}
+	rightSet := make(map[string]bool, len(right))
+	for _, isbn := range right {
+		normalized := normalizeISBN(isbn)
+		if normalized != "" {
+			rightSet[normalized] = true
+		}
+	}
+	for _, isbn := range left {
+		normalized := normalizeISBN(isbn)
+		if normalized != "" && rightSet[normalized] {
+			return true
+		}
+	}
+	return false
 }
 
 func importReviewTextMatchScore(left string, right string) float64 {
@@ -1589,7 +1714,7 @@ func addImportReviewWantedCandidateMetadata(metadata map[string]any, candidates 
 	if suggestedID != "" {
 		metadata["suggestedWantedId"] = suggestedID
 		metadata["autoLinkedWantedCandidate"] = true
-		metadata["wantedMatchStrategy"] = "unique high-confidence title, author, and format match"
+		metadata["wantedMatchStrategy"] = "unique high-confidence metadata match"
 	}
 	best := candidates[0]
 	for _, candidate := range candidates {
@@ -1605,10 +1730,11 @@ func addImportReviewWantedCandidateMetadata(metadata map[string]any, candidates 
 		"value":  importReviewCandidateValue(best),
 		"weight": map[bool]string{true: "high", false: "medium"}[suggestedID != ""],
 		"details": map[string]any{
-			"wantedId": best.WantedID,
-			"score":    best.Score,
-			"status":   best.Status,
-			"format":   best.Format,
+			"wantedId":      best.WantedID,
+			"score":         best.Score,
+			"status":        best.Status,
+			"format":        best.Format,
+			"matchedFields": best.MatchedFields,
 		},
 	}
 	if existing, ok := metadata["reviewEvidence"].([]map[string]any); ok {
@@ -1654,11 +1780,20 @@ func importReviewEvidence(source string, info fs.FileInfo, format string, downlo
 		if value == "" {
 			value = localMetadata.ExtractError
 		}
+		if value == "" {
+			if isbns := localMetadataISBNs(localMetadata); len(isbns) > 0 {
+				value = "ISBN " + strings.Join(isbns, ", ")
+			}
+		}
+		highConfidence := localMetadata.Title != "" && (localMetadata.AuthorName != "" || len(localMetadata.Authors) > 0)
+		if !highConfidence && len(localMetadataISBNs(localMetadata)) > 0 {
+			highConfidence = true
+		}
 		evidence = append(evidence, map[string]any{
 			"source": firstNonEmpty(localMetadata.Source, "local-metadata"),
 			"label":  "Embedded metadata",
 			"value":  value,
-			"weight": map[bool]string{true: "high", false: "low"}[localMetadata.Title != "" && (localMetadata.AuthorName != "" || len(localMetadata.Authors) > 0)],
+			"weight": map[bool]string{true: "high", false: "low"}[highConfidence],
 		})
 	}
 	if download.Name != "" || download.Category != "" {
@@ -1686,6 +1821,9 @@ func importReviewEvidence(source string, info fs.FileInfo, format string, downlo
 }
 
 func importReviewConfidence(parsed parsedBook, filenameParsed parsedBook, localMetadata localBookMetadata) string {
+	if len(localMetadataISBNs(localMetadata)) > 0 {
+		return "high"
+	}
 	if localMetadata.Title != "" && (localMetadata.AuthorName != "" || len(localMetadata.Authors) > 0) {
 		return "high"
 	}
@@ -1732,8 +1870,9 @@ func fileRecordFromPath(path string, format string, info fs.FileInfo, status str
 }
 
 type parsedBook struct {
-	Title      string
-	AuthorName string
+	Title       string
+	AuthorName  string
+	Identifiers map[string]string
 }
 
 func parseBookFilename(path string) parsedBook {
