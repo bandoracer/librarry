@@ -247,6 +247,9 @@ Initial API surface:
   - `POST /api/v1/authors/monitor`
   - `GET /api/v1/wanted`
   - `POST /api/v1/wanted`
+  - `PUT /api/v1/wanted/{id}`
+  - `PATCH /api/v1/wanted/{id}`
+  - `DELETE /api/v1/wanted/{id}`
   - `POST /api/v1/wanted/{id}/search`
   - `GET /api/v1/wanted/releases/{id}`
   - `POST /api/v1/wanted/{id}/grab`
@@ -429,13 +432,19 @@ compatibility layer; tasks are derived from Librarry scheduler intervals for
 feed sync, missing-book monitoring, author refresh, failed-download recovery,
 and upgrade search.
 
-Wanted items are stored in Postgres from normalized metadata results. Monitoring
-state is stored separately from acquisition/import status so Readarr-compatible
-monitor/unmonitor calls do not erase grabbed or imported state. A wanted item
-can search releases through Prowlarr, persist scored release decisions, and
-record explicit rejection reasons before a candidate is sent to the matching
-download client. Readarr-compatible book updates persist monitored state,
-quality profile changes, title/author display overrides, and soft removal.
+Wanted items are stored in Postgres from normalized metadata results. Native
+`PUT`/`PATCH /api/v1/wanted/{id}` updates title, author, cover URL,
+quality profile, monitoring state, and tags. Title, author, cover URL, and
+quality-profile edits create `manual_overrides` rows for the wanted item, and
+provider refreshes preserve those manually corrected fields during upsert.
+`DELETE /api/v1/wanted/{id}` soft-removes the wanted item without deleting
+library files or download-client data. Monitoring state is stored separately
+from acquisition/import status so Readarr-compatible monitor/unmonitor calls do
+not erase grabbed or imported state. A wanted item can search releases through
+Prowlarr, persist scored release decisions, and record explicit rejection
+reasons before a candidate is sent to the matching download client.
+Readarr-compatible book updates persist monitored state, quality profile
+changes, title/author display overrides, and soft removal.
 The book editor endpoints apply the same durable mutations in bulk for common
 Arr mass-editor clients.
 The native Wanted queue uses tracked library files to segment active items into

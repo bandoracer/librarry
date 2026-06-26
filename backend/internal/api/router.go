@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"crypto/subtle"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -341,6 +342,9 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/authors/monitor", handler.monitorAuthors)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
+	mux.HandleFunc("PUT /api/v1/wanted/{id}", handler.updateWanted)
+	mux.HandleFunc("PATCH /api/v1/wanted/{id}", handler.updateWanted)
+	mux.HandleFunc("DELETE /api/v1/wanted/{id}", handler.deleteWanted)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
 	mux.HandleFunc("POST /api/v1/wanted/feed-sync", handler.feedSyncWanted)
 	mux.HandleFunc("POST /api/v1/wanted/upgrades", handler.upgradeWanted)
@@ -1084,6 +1088,102 @@ func (h *handler) createWanted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *handler) updateWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "wanted item id is required"})
+		return
+	}
+	defer r.Body.Close()
+	request, err := decodeWantedUpdateRequest(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted update payload"})
+		return
+	}
+	item, err := h.deps.Wanted.UpdateWanted(r.Context(), id, request)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *handler) deleteWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "wanted item id is required"})
+		return
+	}
+	if err := h.deps.Wanted.DeleteWanted(r.Context(), id); err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func decodeWantedUpdateRequest(body io.Reader) (wanted.WantedUpdateRequest, error) {
+	var raw map[string]json.RawMessage
+	if err := json.NewDecoder(body).Decode(&raw); err != nil {
+		return wanted.WantedUpdateRequest{}, err
+	}
+	var request wanted.WantedUpdateRequest
+	if value, ok := raw["title"]; ok {
+		if err := json.Unmarshal(value, &request.Title); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+	}
+	if value, ok := raw["authorName"]; ok {
+		if err := json.Unmarshal(value, &request.AuthorName); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+	}
+	if value, ok := raw["coverUrl"]; ok {
+		if err := json.Unmarshal(value, &request.CoverURL); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+	}
+	if value, ok := raw["qualityProfile"]; ok {
+		if err := json.Unmarshal(value, &request.QualityProfile); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+	}
+	if value, ok := raw["status"]; ok {
+		if err := json.Unmarshal(value, &request.Status); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+	}
+	if value, ok := raw["monitored"]; ok {
+		var monitored bool
+		if err := json.Unmarshal(value, &monitored); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+		request.Monitored = &monitored
+	}
+	if value, ok := raw["tags"]; ok {
+		if err := json.Unmarshal(value, &request.Tags); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+		request.TagsSet = true
+	}
+	return request, nil
 }
 
 func (h *handler) searchWantedReleases(w http.ResponseWriter, r *http.Request) {

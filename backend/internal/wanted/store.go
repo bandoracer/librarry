@@ -74,11 +74,43 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		on conflict (metadata_provider, source_key, wanted_format)
 			where metadata_provider <> '' and source_key <> ''
 		do update set
-			quality_profile = excluded.quality_profile,
+			quality_profile = case
+				when exists (
+					select 1 from manual_overrides mo
+					where mo.entity_type = 'wanted_item'
+						and mo.entity_id = wanted_items.id
+						and mo.field_name = 'quality_profile'
+				) then wanted_items.quality_profile
+				else excluded.quality_profile
+			end,
 			status = case when wanted_items.status = 'removed' then 'wanted' else wanted_items.status end,
-			title = excluded.title,
-			author_name = excluded.author_name,
-			cover_url = excluded.cover_url,
+			title = case
+				when exists (
+					select 1 from manual_overrides mo
+					where mo.entity_type = 'wanted_item'
+						and mo.entity_id = wanted_items.id
+						and mo.field_name = 'title'
+				) then wanted_items.title
+				else excluded.title
+			end,
+			author_name = case
+				when exists (
+					select 1 from manual_overrides mo
+					where mo.entity_type = 'wanted_item'
+						and mo.entity_id = wanted_items.id
+						and mo.field_name = 'author_name'
+				) then wanted_items.author_name
+				else excluded.author_name
+			end,
+			cover_url = case
+				when exists (
+					select 1 from manual_overrides mo
+					where mo.entity_type = 'wanted_item'
+						and mo.entity_id = wanted_items.id
+						and mo.field_name = 'cover_url'
+				) then wanted_items.cover_url
+				else excluded.cover_url
+			end,
 			tags = case when excluded.tags <> '' then excluded.tags else wanted_items.tags end,
 			updated_at = now()
 		returning id
@@ -546,7 +578,13 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 		tags.Valid = true
 		tags.String = intTagsString(request.Tags)
 	}
-	result, err := s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `
 		update wanted_items set
 			title = case when $2 = '' then title else $2 end,
 			author_name = case when $3 = '' then author_name else $3 end,
@@ -573,7 +611,44 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 	if affected == 0 {
 		return WantedItem{}, sql.ErrNoRows
 	}
+	if title := strings.TrimSpace(request.Title); title != "" {
+		if err := upsertWantedManualOverride(ctx, tx, id, "title", title); err != nil {
+			return WantedItem{}, err
+		}
+	}
+	if authorName := strings.TrimSpace(request.AuthorName); authorName != "" {
+		if err := upsertWantedManualOverride(ctx, tx, id, "author_name", authorName); err != nil {
+			return WantedItem{}, err
+		}
+	}
+	if coverURL := strings.TrimSpace(request.CoverURL); coverURL != "" {
+		if err := upsertWantedManualOverride(ctx, tx, id, "cover_url", coverURL); err != nil {
+			return WantedItem{}, err
+		}
+	}
+	if qualityProfile != "" {
+		if err := upsertWantedManualOverride(ctx, tx, id, "quality_profile", qualityProfile); err != nil {
+			return WantedItem{}, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return WantedItem{}, err
+	}
 	return s.GetWanted(ctx, id)
+}
+
+func upsertWantedManualOverride(ctx context.Context, tx *sql.Tx, wantedID string, fieldName string, value string) error {
+	_, err := tx.ExecContext(ctx, `
+		insert into manual_overrides(entity_type, entity_id, field_name, value, reason)
+		select 'wanted_item', id, $2, to_jsonb($3::text), 'manual wanted metadata correction'
+		from wanted_items
+		where id::text = $1
+		on conflict (entity_type, entity_id, field_name) do update set
+			value = excluded.value,
+			reason = excluded.reason,
+			updated_at = now()
+	`, strings.TrimSpace(wantedID), strings.TrimSpace(fieldName), strings.TrimSpace(value))
+	return err
 }
 
 func (s *Store) DeleteWanted(ctx context.Context, id string) error {

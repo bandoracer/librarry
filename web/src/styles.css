@@ -1653,6 +1653,97 @@ select {
   align-content: start;
 }
 
+.wanted-edit-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfe;
+}
+
+.wanted-edit-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wanted-edit-header > div:first-child {
+  min-width: 0;
+}
+
+.wanted-edit-header strong,
+.wanted-edit-header span {
+  display: block;
+  min-width: 0;
+}
+
+.wanted-edit-header strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.wanted-edit-header span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wanted-monitor-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-strong);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.wanted-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.wanted-edit-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.wanted-edit-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.wanted-edit-grid label span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.wanted-edit-grid input,
+.wanted-edit-grid select {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.wanted-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .wanted-release {
   min-height: 76px;
   border-top: 1px solid var(--border);
@@ -2696,6 +2787,23 @@ select {
 
   .wanted-release {
     grid-template-columns: 1fr;
+  }
+
+  .wanted-edit-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wanted-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wanted-edit-actions {
+    justify-content: stretch;
+  }
+
+  .wanted-edit-actions button {
+    width: 100%;
   }
 
   .manual-grab-panel,

@@ -308,6 +308,7 @@ export type WantedItem = {
   qualityProfile: string;
   status: string;
   monitored: boolean;
+  tags?: number[];
   sourceProvider?: string;
   sourceKey?: string;
   currentReleaseId?: string;
@@ -316,6 +317,16 @@ export type WantedItem = {
   lastUpgradeSearchAt?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type WantedUpdateRequest = {
+  title?: string;
+  authorName?: string;
+  coverUrl?: string;
+  qualityProfile?: string;
+  status?: string;
+  monitored?: boolean;
+  tags?: number[];
 };
 
 export type QualityProfile = {
@@ -1121,6 +1132,27 @@ export async function createWanted(result: SearchResult, format: string): Promis
     throw new Error(`Mark wanted failed: ${response.status}`);
   }
   return (await response.json()) as WantedItem;
+}
+
+export async function updateWanted(wantedID: string, request: WantedUpdateRequest): Promise<WantedItem> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(wantedID)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(`Wanted update failed: ${response.status}`);
+  }
+  return (await response.json()) as WantedItem;
+}
+
+export async function deleteWanted(wantedID: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(wantedID)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`Wanted delete failed: ${response.status}`);
+  }
 }
 
 export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {

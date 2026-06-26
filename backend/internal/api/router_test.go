@@ -2998,6 +2998,72 @@ func TestResolveImportReviewsBulkEndpointDefaultsToPendingReviews(t *testing.T) 
 	}
 }
 
+func TestUpdateWantedEndpointPersistsMetadataCorrections(t *testing.T) {
+	wantedClient := &fakeMutableWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   wantedClient,
+	})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/wanted/wanted-1", strings.NewReader(`{
+		"title":"Corrected Title",
+		"authorName":"Corrected Author",
+		"coverUrl":"https://covers.example/corrected.jpg",
+		"qualityProfile":"retail",
+		"monitored":false,
+		"tags":[7,9]
+	}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected wanted update 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"title":"Corrected Title"`) || !strings.Contains(res.Body.String(), `"monitored":false`) {
+		t.Fatalf("expected updated wanted response, got %s", res.Body.String())
+	}
+	if len(wantedClient.wantedUpdates) != 1 {
+		t.Fatalf("expected one wanted update, got %+v", wantedClient.wantedUpdates)
+	}
+	update := wantedClient.wantedUpdates[0]
+	if update.id != "wanted-1" ||
+		update.request.Title != "Corrected Title" ||
+		update.request.AuthorName != "Corrected Author" ||
+		update.request.CoverURL != "https://covers.example/corrected.jpg" ||
+		update.request.QualityProfile != "retail" ||
+		update.request.Monitored == nil ||
+		*update.request.Monitored ||
+		!update.request.TagsSet ||
+		len(update.request.Tags) != 2 ||
+		update.request.Tags[0] != 7 ||
+		update.request.Tags[1] != 9 {
+		t.Fatalf("unexpected wanted update request: %+v", update)
+	}
+}
+
+func TestDeleteWantedEndpointSoftDeletesWantedItem(t *testing.T) {
+	wantedClient := &fakeMutableWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   wantedClient,
+	})
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/wanted/wanted-1", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected wanted delete 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.wantedDeletes) != 1 || wantedClient.wantedDeletes[0] != "wanted-1" {
+		t.Fatalf("expected wanted delete, got %+v", wantedClient.wantedDeletes)
+	}
+}
+
 func TestUpdateIntegrationConfigPersistsAndReconfiguresAcquireService(t *testing.T) {
 	acquire := &configurableFakeAcquire{config: acquisition.IntegrationConfig{
 		ProwlarrAPIKey:    "existing-prowlarr-key",

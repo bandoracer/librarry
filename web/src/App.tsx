@@ -32,6 +32,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import {
   createWanted,
+  deleteWanted,
   fetchAuthorSubscriptions,
   fetchDownloadDetails,
   fetchDownloadPreferences,
@@ -73,6 +74,7 @@ import {
   searchWantedReleases,
   setStoredAPIKey,
   subscribeAuthor,
+  updateWanted,
   type AuthorMonitorRun,
   type AuthorSubscription,
   type DownloadAction,
@@ -251,6 +253,8 @@ export function App() {
   const [isSearchingReleases, setIsSearchingReleases] = useState(false);
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
+  const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
+  const [isRemovingWanted, setIsRemovingWanted] = useState(false);
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isSubscribingAuthor, setIsSubscribingAuthor] = useState(false);
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
@@ -302,6 +306,11 @@ export function App() {
   const [manualGrabTitle, setManualGrabTitle] = useState("");
   const [manualGrabFormat, setManualGrabFormat] = useState("ebook");
   const [manualGrabClient, setManualGrabClient] = useState("");
+  const [wantedEditTitle, setWantedEditTitle] = useState("");
+  const [wantedEditAuthor, setWantedEditAuthor] = useState("");
+  const [wantedEditCoverURL, setWantedEditCoverURL] = useState("");
+  const [wantedEditQualityProfile, setWantedEditQualityProfile] = useState("standard");
+  const [wantedEditMonitored, setWantedEditMonitored] = useState(true);
   const [downloadLimitKiB, setDownloadLimitKiB] = useState("");
   const [uploadLimitKiB, setUploadLimitKiB] = useState("");
   const [releaseError, setReleaseError] = useState("");
@@ -424,6 +433,10 @@ export function App() {
     () => visibleWantedItems.find((item) => item.id === selectedWantedID) ?? visibleWantedItems[0],
     [visibleWantedItems, selectedWantedID]
   );
+  const selectedWantedQualityProfiles = useMemo(
+    () => qualityProfiles.filter((profile) => !selectedWanted || profile.mediaFormat === "any" || profile.mediaFormat === selectedWanted.format),
+    [qualityProfiles, selectedWanted]
+  );
   const filteredDownloads = useMemo(
     () => downloads.filter((download) => downloadMatchesFilters(download, {
       client: downloadClientFilter,
@@ -483,6 +496,14 @@ export function App() {
       setWantedReleases([]);
     }
   }, [visibleWantedItems, selectedWantedID]);
+
+  useEffect(() => {
+    setWantedEditTitle(selectedWanted?.title ?? "");
+    setWantedEditAuthor(selectedWanted?.authorName ?? "");
+    setWantedEditCoverURL(selectedWanted?.coverUrl ?? "");
+    setWantedEditQualityProfile(selectedWanted?.qualityProfile ?? "standard");
+    setWantedEditMonitored(selectedWanted?.monitored ?? true);
+  }, [selectedWanted?.id, selectedWanted?.title, selectedWanted?.authorName, selectedWanted?.coverUrl, selectedWanted?.qualityProfile, selectedWanted?.monitored]);
 
   async function runSearch() {
     if (!query.trim()) return;
@@ -597,6 +618,48 @@ export function App() {
       setWantedError(error instanceof Error ? error.message : "Wanted release search failed");
     } finally {
       setIsSearchingWanted(false);
+    }
+  }
+
+  async function saveWantedEdit() {
+    const item = selectedWanted;
+    if (!item || !wantedEditTitle.trim()) return;
+    setIsSavingWantedEdit(true);
+    setWantedError("");
+    try {
+      const updated = await updateWanted(item.id, {
+        title: wantedEditTitle.trim(),
+        authorName: wantedEditAuthor.trim(),
+        coverUrl: wantedEditCoverURL.trim(),
+        qualityProfile: wantedEditQualityProfile.trim() || "standard",
+        monitored: wantedEditMonitored
+      });
+      setWantedItems((current) => mergeWanted(current, [updated]));
+      setSelectedWantedID(updated.id);
+      setWantedReleases([]);
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted update failed");
+    } finally {
+      setIsSavingWantedEdit(false);
+    }
+  }
+
+  async function removeSelectedWanted() {
+    const item = selectedWanted;
+    if (!item) return;
+    setIsRemovingWanted(true);
+    setWantedError("");
+    try {
+      await deleteWanted(item.id);
+      setWantedItems((current) => current.filter((candidate) => candidate.id !== item.id));
+      setWantedReleases([]);
+      setSelectedWantedID("");
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted remove failed");
+    } finally {
+      setIsRemovingWanted(false);
     }
   }
 
@@ -1791,6 +1854,60 @@ export function App() {
               )}
             </div>
             <div className="wanted-release-list">
+              {selectedWanted ? (
+                <div className="wanted-edit-panel">
+                  <div className="wanted-edit-header">
+                    <div>
+                      <strong>Metadata correction</strong>
+                      <span>
+                        {selectedWanted.sourceProvider || "manual"} · {selectedWanted.format} · {selectedWanted.sourceKey || selectedWanted.id}
+                      </span>
+                    </div>
+                    <label className="wanted-monitor-toggle">
+                      <input checked={wantedEditMonitored} onChange={(event) => setWantedEditMonitored(event.target.checked)} type="checkbox" />
+                      <span>Monitored</span>
+                    </label>
+                  </div>
+                  <div className="wanted-edit-grid">
+                    <label>
+                      <span>Title</span>
+                      <input value={wantedEditTitle} onChange={(event) => setWantedEditTitle(event.target.value)} placeholder="Book title" />
+                    </label>
+                    <label>
+                      <span>Author</span>
+                      <input value={wantedEditAuthor} onChange={(event) => setWantedEditAuthor(event.target.value)} placeholder="Author name" />
+                    </label>
+                    <label className="wide">
+                      <span>Cover URL</span>
+                      <input value={wantedEditCoverURL} onChange={(event) => setWantedEditCoverURL(event.target.value)} placeholder="https://covers.example/book.jpg" />
+                    </label>
+                    <label>
+                      <span>Quality profile</span>
+                      <select value={wantedEditQualityProfile} onChange={(event) => setWantedEditQualityProfile(event.target.value)}>
+                        {selectedWantedQualityProfiles.length ? (
+                          selectedWantedQualityProfiles.map((profile) => (
+                            <option key={profileKey(profile)} value={profile.name}>
+                              {profile.name} · {profile.mediaFormat}
+                            </option>
+                          ))
+                        ) : (
+                          <option value={wantedEditQualityProfile || "standard"}>{wantedEditQualityProfile || "standard"}</option>
+                        )}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="wanted-edit-actions">
+                    <button className="secondary-action compact" disabled={isSavingWantedEdit || !wantedEditTitle.trim()} onClick={saveWantedEdit} type="button">
+                      <CheckCircle2 size={16} />
+                      {isSavingWantedEdit ? "Saving" : "Save correction"}
+                    </button>
+                    <button className="secondary-action compact danger-outline" disabled={isRemovingWanted} onClick={removeSelectedWanted} type="button">
+                      <Trash2 size={16} />
+                      {isRemovingWanted ? "Removing" : "Remove wanted"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               {wantedReleases.length ? (
                 wantedReleases.map((release) => (
                   <article className={release.approved ? "wanted-release approved" : "wanted-release rejected"} key={release.id}>
