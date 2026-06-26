@@ -176,6 +176,7 @@ type WantedItem struct {
 type MetadataProvenance struct {
 	WantedItem      WantedItem               `json:"wantedItem"`
 	Records         []ProviderMetadataRecord `json:"records"`
+	Fields          []MetadataFieldEvidence  `json:"fields"`
 	ManualOverrides []ManualOverride         `json:"manualOverrides,omitempty"`
 	GeneratedAt     time.Time                `json:"generatedAt"`
 }
@@ -205,6 +206,26 @@ type MetadataRecordValues struct {
 	SeriesPosition   string   `json:"seriesPosition,omitempty"`
 	MatchedOn        []string `json:"matchedOn,omitempty"`
 	SourceKey        string   `json:"sourceKey,omitempty"`
+}
+
+type MetadataFieldEvidence struct {
+	FieldName       string                   `json:"fieldName"`
+	Label           string                   `json:"label"`
+	CanonicalValue  string                   `json:"canonicalValue,omitempty"`
+	CanonicalSource string                   `json:"canonicalSource,omitempty"`
+	Protected       bool                     `json:"protected"`
+	Conflict        bool                     `json:"conflict"`
+	Candidates      []MetadataFieldCandidate `json:"candidates,omitempty"`
+}
+
+type MetadataFieldCandidate struct {
+	Provider    string    `json:"provider"`
+	ProviderKey string    `json:"providerKey"`
+	EntityType  string    `json:"entityType"`
+	Value       string    `json:"value"`
+	Confidence  float64   `json:"confidence"`
+	FetchedAt   time.Time `json:"fetchedAt"`
+	MatchedOn   []string  `json:"matchedOn,omitempty"`
 }
 
 type ManualOverride struct {

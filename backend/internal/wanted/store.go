@@ -809,6 +809,7 @@ func (s *Store) WantedMetadataProvenance(ctx context.Context, wantedID string) (
 	return MetadataProvenance{
 		WantedItem:      item,
 		Records:         records,
+		Fields:          metadataFieldEvidence(item, records),
 		ManualOverrides: item.ManualOverrides,
 		GeneratedAt:     time.Now().UTC(),
 	}, nil
@@ -899,6 +900,124 @@ func metadataValuesFromProviderRaw(raw []byte) MetadataRecordValues {
 		values.AuthorName = result.Work.Authors[0].Name
 	}
 	return values
+}
+
+type metadataFieldSpec struct {
+	name      string
+	label     string
+	canonical func(WantedItem) string
+	values    func(MetadataRecordValues) []string
+}
+
+func metadataFieldEvidence(item WantedItem, records []ProviderMetadataRecord) []MetadataFieldEvidence {
+	overrideFields := make(map[string]bool, len(item.ManualOverrides))
+	for _, override := range item.ManualOverrides {
+		overrideFields[strings.TrimSpace(override.FieldName)] = true
+	}
+	specs := []metadataFieldSpec{
+		{name: "title", label: "Title", canonical: func(item WantedItem) string { return item.Title }, values: func(values MetadataRecordValues) []string { return oneValue(values.Title) }},
+		{name: "author_name", label: "Author", canonical: func(item WantedItem) string { return item.AuthorName }, values: func(values MetadataRecordValues) []string { return oneValue(values.AuthorName) }},
+		{name: "cover_url", label: "Cover", canonical: func(item WantedItem) string { return item.CoverURL }, values: func(values MetadataRecordValues) []string { return oneValue(values.CoverURL) }},
+		{name: "format", label: "Format", canonical: func(item WantedItem) string { return item.Format }, values: func(values MetadataRecordValues) []string { return oneValue(values.Format) }},
+		{name: "quality_profile", label: "Quality Profile", canonical: func(item WantedItem) string { return item.QualityProfile }},
+		{name: "language", label: "Language", values: func(values MetadataRecordValues) []string { return oneValue(values.Language) }},
+		{name: "publisher", label: "Publisher", values: func(values MetadataRecordValues) []string { return oneValue(values.Publisher) }},
+		{name: "published_date", label: "Published", values: func(values MetadataRecordValues) []string { return oneValue(values.PublishedDate) }},
+		{name: "series", label: "Series", values: func(values MetadataRecordValues) []string { return oneValue(values.Series) }},
+		{name: "series_position", label: "Series Position", values: func(values MetadataRecordValues) []string { return oneValue(values.SeriesPosition) }},
+		{name: "isbn", label: "ISBNs", values: func(values MetadataRecordValues) []string { return values.ISBNs }},
+	}
+	evidence := make([]MetadataFieldEvidence, 0, len(specs))
+	for _, spec := range specs {
+		canonical := ""
+		if spec.canonical != nil {
+			canonical = strings.TrimSpace(spec.canonical(item))
+		}
+		candidates := metadataFieldCandidates(spec, records)
+		protected := overrideFields[spec.name]
+		if canonical == "" && len(candidates) == 0 && !protected {
+			continue
+		}
+		source := ""
+		if protected {
+			source = "manual_override"
+		} else if canonical != "" {
+			source = "wanted"
+		}
+		evidence = append(evidence, MetadataFieldEvidence{
+			FieldName:       spec.name,
+			Label:           spec.label,
+			CanonicalValue:  canonical,
+			CanonicalSource: source,
+			Protected:       protected,
+			Conflict:        metadataFieldHasConflict(canonical, candidates, protected),
+			Candidates:      candidates,
+		})
+	}
+	return evidence
+}
+
+func metadataFieldCandidates(spec metadataFieldSpec, records []ProviderMetadataRecord) []MetadataFieldCandidate {
+	if spec.values == nil {
+		return nil
+	}
+	candidates := []MetadataFieldCandidate{}
+	seen := map[string]bool{}
+	for _, record := range records {
+		for _, value := range spec.values(record.Values) {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				continue
+			}
+			key := strings.Join([]string{record.Provider, record.ProviderKey, normalizeText(value)}, "\x00")
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			candidates = append(candidates, MetadataFieldCandidate{
+				Provider:    record.Provider,
+				ProviderKey: record.ProviderKey,
+				EntityType:  record.EntityType,
+				Value:       value,
+				Confidence:  record.Confidence,
+				FetchedAt:   record.FetchedAt,
+				MatchedOn:   append([]string(nil), record.Values.MatchedOn...),
+			})
+		}
+	}
+	return candidates
+}
+
+func metadataFieldHasConflict(canonical string, candidates []MetadataFieldCandidate, protected bool) bool {
+	distinct := map[string]bool{}
+	canonicalKey := normalizeText(canonical)
+	for _, candidate := range candidates {
+		key := normalizeText(candidate.Value)
+		if key == "" {
+			continue
+		}
+		distinct[key] = true
+		if protected && canonicalKey != "" && key != canonicalKey {
+			return true
+		}
+	}
+	if canonicalKey != "" {
+		for key := range distinct {
+			if key != canonicalKey {
+				return true
+			}
+		}
+		return false
+	}
+	return len(distinct) > 1
+}
+
+func oneValue(value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return []string{value}
 }
 
 func normalizeWantedOverrideFields(fields []string) ([]string, error) {

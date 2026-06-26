@@ -91,7 +91,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   visible override state, and individual override fields can be reset.
 - Wanted metadata provenance API and UI show the stored provider records behind
   a selected wanted item, including provider, matched fields, confidence, and
-  the active manual overrides that protect corrected fields.
+  the active manual overrides that protect corrected fields. Field-level
+  evidence also marks canonical values, provider candidates, and conflicts that
+  need manual review.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Scoped acquisition activity for configured qBittorrent, Transmission, and

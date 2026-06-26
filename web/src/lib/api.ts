@@ -357,9 +357,30 @@ export type ProviderMetadataRecord = {
   values: MetadataRecordValues;
 };
 
+export type MetadataFieldCandidate = {
+  provider: string;
+  providerKey: string;
+  entityType: string;
+  value: string;
+  confidence: number;
+  fetchedAt: string;
+  matchedOn?: string[];
+};
+
+export type MetadataFieldEvidence = {
+  fieldName: string;
+  label: string;
+  canonicalValue?: string;
+  canonicalSource?: string;
+  protected: boolean;
+  conflict: boolean;
+  candidates?: MetadataFieldCandidate[];
+};
+
 export type MetadataProvenance = {
   wantedItem: WantedItem;
   records: ProviderMetadataRecord[];
+  fields: MetadataFieldEvidence[];
   manualOverrides?: ManualOverride[];
   generatedAt: string;
 };

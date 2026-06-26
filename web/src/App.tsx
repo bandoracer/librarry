@@ -99,6 +99,7 @@ import {
   type LibraryFile,
   type LibraryImportOutcome,
   type LibraryScanOutcome,
+  type MetadataFieldEvidence,
   type MetadataProvenance,
   type MonitorRun,
   type ProviderHealth,
@@ -2231,33 +2232,49 @@ export function App() {
                       <div>
                         <strong>Provider provenance</strong>
                         <span>
-                          {isLoadingWantedMetadata
-                            ? "Loading stored provider records."
-                            : wantedMetadata?.records.length
-                              ? `${wantedMetadata.records.length} stored provider records`
-                              : "No stored provider records for this wanted item."}
+                          {metadataProvenanceSummary(wantedMetadata, isLoadingWantedMetadata)}
                         </span>
                       </div>
                       {wantedMetadata?.manualOverrides?.length ? (
                         <em>{wantedMetadata.manualOverrides.length} override{wantedMetadata.manualOverrides.length === 1 ? "" : "s"} protected</em>
                       ) : null}
                     </div>
-                    {wantedMetadata?.records.length ? (
-                      <div className="metadata-record-list">
-                        {wantedMetadata.records.map((record) => (
-                          <article className="metadata-record-row" key={record.id}>
+                    {wantedMetadata?.fields.length ? (
+                      <div className="metadata-field-list" aria-label="Metadata field evidence">
+                        {wantedMetadata.fields.map((field) => (
+                          <article className={`metadata-field-row${field.conflict ? " conflict" : ""}`} key={field.fieldName}>
                             <div>
-                              <strong>{record.provider}</strong>
-                              <span>{record.entityType} · {record.providerKey}</span>
+                              <strong>{field.label}</strong>
+                              <span>{metadataFieldSourceLabel(field)}</span>
                             </div>
                             <div>
-                              <strong>{metadataRecordPrimaryLine(record)}</strong>
-                              <span>{metadataRecordSecondaryLine(record)}</span>
+                              <strong>{field.canonicalValue || "No canonical value"}</strong>
+                              <span>{metadataFieldCandidateSummary(field)}</span>
                             </div>
-                            <em>{metadataConfidenceLabel(record.confidence)}</em>
+                            <em>{field.conflict ? "review" : field.protected ? "protected" : "ok"}</em>
                           </article>
                         ))}
                       </div>
+                    ) : null}
+                    {wantedMetadata?.records.length ? (
+                      <>
+                        <div className="metadata-section-label">Provider records</div>
+                        <div className="metadata-record-list">
+                          {wantedMetadata.records.map((record) => (
+                            <article className="metadata-record-row" key={record.id}>
+                              <div>
+                                <strong>{record.provider}</strong>
+                                <span>{record.entityType} · {record.providerKey}</span>
+                              </div>
+                              <div>
+                                <strong>{metadataRecordPrimaryLine(record)}</strong>
+                                <span>{metadataRecordSecondaryLine(record)}</span>
+                              </div>
+                              <em>{metadataConfidenceLabel(record.confidence)}</em>
+                            </article>
+                          ))}
+                        </div>
+                      </>
                     ) : (
                       <div className="metadata-provenance-empty">
                         {isLoadingWantedMetadata ? "Loading provenance." : "Create or refresh this item from metadata search to attach provider records."}
@@ -4177,6 +4194,35 @@ function wantedOverrideLabel(fieldName: string) {
     default:
       return fieldName.replace(/_/g, " ");
   }
+}
+
+function metadataProvenanceSummary(metadata: MetadataProvenance | null, loading: boolean) {
+  if (loading) return "Loading stored provider records.";
+  if (!metadata) return "No stored provider records for this wanted item.";
+  const conflicts = metadata.fields.filter((field) => field.conflict).length;
+  const protectedFields = metadata.fields.filter((field) => field.protected).length;
+  if (conflicts > 0) {
+    return `${metadata.records.length} provider records, ${conflicts} field${conflicts === 1 ? "" : "s"} need review.`;
+  }
+  if (protectedFields > 0) {
+    return `${metadata.records.length} provider records, ${protectedFields} protected field${protectedFields === 1 ? "" : "s"}.`;
+  }
+  if (metadata.records.length > 0) return `${metadata.records.length} stored provider records.`;
+  return "No stored provider records for this wanted item.";
+}
+
+function metadataFieldSourceLabel(field: MetadataFieldEvidence) {
+  if (field.protected) return "Manual override";
+  if (field.canonicalSource === "wanted") return "Canonical wanted value";
+  if (field.candidates?.length) return "Provider candidates only";
+  return "No provider evidence";
+}
+
+function metadataFieldCandidateSummary(field: MetadataFieldEvidence) {
+  if (!field.candidates?.length) return "No provider candidates.";
+  const candidates = field.candidates.slice(0, 3).map((candidate) => `${candidate.provider}: ${candidate.value}`);
+  const extra = field.candidates.length - candidates.length;
+  return extra > 0 ? `${candidates.join(" · ")} · ${extra} more` : candidates.join(" · ");
 }
 
 function metadataRecordPrimaryLine(record: ProviderMetadataRecord) {

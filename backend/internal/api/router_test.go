@@ -2445,6 +2445,8 @@ func TestWantedMetadataEndpointReturnsProviderProvenance(t *testing.T) {
 		`"entityType":"work"`,
 		`"title":"Project Hail Mary"`,
 		`"fieldName":"title"`,
+		`"canonicalSource":"manual_override"`,
+		`"conflict":true`,
 	} {
 		if !strings.Contains(res.Body.String(), want) {
 			t.Fatalf("expected %s in provenance response, got %s", want, res.Body.String())
@@ -3776,6 +3778,31 @@ func (fakeMetadataWanted) MetadataProvenance(context.Context, string) (wanted.Me
 	return wanted.MetadataProvenance{
 		WantedItem:      item,
 		ManualOverrides: item.ManualOverrides,
+		Fields: []wanted.MetadataFieldEvidence{{
+			FieldName:       "title",
+			Label:           "Title",
+			CanonicalValue:  "Project Hail Mary",
+			CanonicalSource: "manual_override",
+			Protected:       true,
+			Conflict:        true,
+			Candidates: []wanted.MetadataFieldCandidate{{
+				Provider:    "Hardcover",
+				ProviderKey: "hardcover:123",
+				EntityType:  "work",
+				Value:       "Project Hail Mary",
+				Confidence:  0.98,
+				FetchedAt:   now,
+				MatchedOn:   []string{"title", "author"},
+			}, {
+				Provider:    "Open Library",
+				ProviderKey: "openlibrary:OL1W",
+				EntityType:  "work",
+				Value:       "Project Hail Mary: A Novel",
+				Confidence:  0.84,
+				FetchedAt:   now,
+				MatchedOn:   []string{"title"},
+			}},
+		}},
 		Records: []wanted.ProviderMetadataRecord{{
 			ID:          "provider-record-1",
 			Provider:    "Hardcover",
