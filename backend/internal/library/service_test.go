@@ -190,6 +190,13 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 			Jobs:    []calibre.ConvertJob{{OutputFormat: "AZW3", JobID: 901}},
 			Skipped: []string{"EPUB"},
 		},
+		conversionStatuses: []calibre.ConversionStatus{{
+			OutputFormat: "AZW3",
+			JobID:        901,
+			Running:      true,
+			OK:           false,
+			Log:          "working",
+		}},
 	}
 	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, fakeRootFolders{roots: []compatdata.RootFolder{{
 		Path: root,
@@ -236,6 +243,16 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 	if len(jobs) != 1 || jobs[0]["outputFormat"] != "AZW3" || jobs[0]["jobId"] != int64(901) ||
 		record.Metadata["calibreConversionStartedAt"] == "" {
 		t.Fatalf("expected conversion metadata, got %#v", record.Metadata)
+	}
+	if len(importer.pollRequests) != 1 || importer.pollRequests[0].MaxAttempts != 1 ||
+		len(importer.pollRequests[0].Jobs) != 1 || importer.pollRequests[0].Jobs[0].JobID != 901 {
+		t.Fatalf("unexpected Calibre poll request: %+v", importer.pollRequests)
+	}
+	statuses, _ := record.Metadata["calibreConversionStatuses"].([]map[string]any)
+	if len(statuses) != 1 || statuses[0]["jobId"] != int64(901) || statuses[0]["running"] != true ||
+		statuses[0]["ok"] != false || statuses[0]["log"] != "working" ||
+		record.Metadata["calibreConversionPolledAt"] == "" {
+		t.Fatalf("expected conversion status metadata, got %#v", record.Metadata)
 	}
 }
 
@@ -310,12 +327,14 @@ func (f fakeRootFolders) ListRootFolders(context.Context) ([]compatdata.RootFold
 }
 
 type fakeCalibreImporter struct {
-	id                int
-	request           calibre.AddBookRequest
-	deleteRequests    []calibre.DeleteBooksRequest
-	setFieldsRequests []calibre.SetFieldsRequest
-	convertRequests   []calibre.ConvertRequest
-	convertResult     calibre.ConvertResult
+	id                 int
+	request            calibre.AddBookRequest
+	deleteRequests     []calibre.DeleteBooksRequest
+	setFieldsRequests  []calibre.SetFieldsRequest
+	convertRequests    []calibre.ConvertRequest
+	convertResult      calibre.ConvertResult
+	pollRequests       []calibre.PollConversionsRequest
+	conversionStatuses []calibre.ConversionStatus
 }
 
 func (f *fakeCalibreImporter) AddBook(_ context.Context, request calibre.AddBookRequest) (calibre.AddBookResult, error) {
@@ -340,6 +359,11 @@ func (f *fakeCalibreImporter) SetFields(_ context.Context, request calibre.SetFi
 func (f *fakeCalibreImporter) Convert(_ context.Context, request calibre.ConvertRequest) (calibre.ConvertResult, error) {
 	f.convertRequests = append(f.convertRequests, request)
 	return f.convertResult, nil
+}
+
+func (f *fakeCalibreImporter) PollConversions(_ context.Context, request calibre.PollConversionsRequest) ([]calibre.ConversionStatus, error) {
+	f.pollRequests = append(f.pollRequests, request)
+	return f.conversionStatuses, nil
 }
 
 func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {

@@ -668,6 +668,20 @@ func (s *Service) applyCalibreImport(ctx context.Context, destination string, re
 		record.Metadata["calibreConversionSkipped"] = conversion.Skipped
 		record.Metadata["calibreConversionStartedAt"] = time.Now().UTC().Format(time.RFC3339)
 	}
+	if len(conversion.Jobs) > 0 {
+		statuses, err := s.calibre.PollConversions(ctx, calibre.PollConversionsRequest{
+			Settings:    settings,
+			Jobs:        conversion.Jobs,
+			MaxAttempts: 1,
+		})
+		if err != nil {
+			return err
+		}
+		if len(statuses) > 0 {
+			record.Metadata["calibreConversionStatuses"] = calibreConversionStatusMetadata(statuses)
+			record.Metadata["calibreConversionPolledAt"] = time.Now().UTC().Format(time.RFC3339)
+		}
+	}
 	return nil
 }
 
@@ -781,6 +795,30 @@ func calibreConversionJobMetadata(jobs []calibre.ConvertJob) []map[string]any {
 			"outputFormat": job.OutputFormat,
 			"jobId":        job.JobID,
 		})
+	}
+	return result
+}
+
+func calibreConversionStatusMetadata(statuses []calibre.ConversionStatus) []map[string]any {
+	result := make([]map[string]any, 0, len(statuses))
+	for _, status := range statuses {
+		if status.JobID <= 0 {
+			continue
+		}
+		record := map[string]any{
+			"jobId":        status.JobID,
+			"outputFormat": status.OutputFormat,
+			"running":      status.Running,
+			"ok":           status.OK,
+			"wasAborted":   status.WasAborted,
+		}
+		if strings.TrimSpace(status.Traceback) != "" {
+			record["traceback"] = strings.TrimSpace(status.Traceback)
+		}
+		if strings.TrimSpace(status.Log) != "" {
+			record["log"] = strings.TrimSpace(status.Log)
+		}
+		result = append(result, record)
 	}
 	return result
 }

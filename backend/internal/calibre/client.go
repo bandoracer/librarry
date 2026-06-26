@@ -66,6 +66,23 @@ type ConvertJob struct {
 	JobID        int64  `json:"jobId"`
 }
 
+type PollConversionsRequest struct {
+	Settings    Settings
+	Jobs        []ConvertJob
+	MaxAttempts int
+	Interval    time.Duration
+}
+
+type ConversionStatus struct {
+	OutputFormat string `json:"outputFormat,omitempty"`
+	JobID        int64  `json:"jobId"`
+	Running      bool   `json:"running"`
+	OK           bool   `json:"ok"`
+	WasAborted   bool   `json:"wasAborted"`
+	Traceback    string `json:"traceback,omitempty"`
+	Log          string `json:"log,omitempty"`
+}
+
 type Metadata struct {
 	Title       string
 	Authors     []string
@@ -87,6 +104,7 @@ type Manager interface {
 	DeleteBooks(ctx context.Context, request DeleteBooksRequest) error
 	SetFields(ctx context.Context, request SetFieldsRequest) error
 	Convert(ctx context.Context, request ConvertRequest) (ConvertResult, error)
+	PollConversions(ctx context.Context, request PollConversionsRequest) ([]ConversionStatus, error)
 }
 
 type Client struct {
@@ -279,6 +297,49 @@ func (c *Client) Convert(ctx context.Context, request ConvertRequest) (ConvertRe
 	return result, nil
 }
 
+func (c *Client) PollConversions(ctx context.Context, request PollConversionsRequest) ([]ConversionStatus, error) {
+	if c == nil {
+		return nil, errors.New("calibre client is unavailable")
+	}
+	settings := normalizeSettings(request.Settings)
+	if settings.Host == "" {
+		return nil, errors.New("calibre host is required")
+	}
+	jobs := compactConversionJobs(request.Jobs)
+	if len(jobs) == 0 {
+		return nil, nil
+	}
+	maxAttempts := request.MaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	statuses := make([]ConversionStatus, 0, len(jobs))
+	for _, job := range jobs {
+		var status ConversionStatus
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			latest, err := c.conversionStatus(ctx, settings, job)
+			if err != nil {
+				return statuses, err
+			}
+			status = latest
+			if !status.Running {
+				break
+			}
+			if request.Interval > 0 && attempt < maxAttempts-1 {
+				timer := time.NewTimer(request.Interval)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return statuses, ctx.Err()
+				case <-timer.C:
+				}
+			}
+		}
+		statuses = append(statuses, status)
+	}
+	return statuses, nil
+}
+
 func addBookURL(settings Settings, jobID int, ext string) (string, error) {
 	base, err := baseURL(settings)
 	if err != nil {
@@ -370,6 +431,23 @@ func conversionStartURL(settings Settings, id int) (string, error) {
 		id = 1
 	}
 	base.Path = joinURLPath(strings.Trim(base.Path, "/"), "conversion", "start", strconv.Itoa(id))
+	values := base.Query()
+	if settings.Library != "" {
+		values.Set("library_id", settings.Library)
+	}
+	base.RawQuery = values.Encode()
+	return base.String(), nil
+}
+
+func conversionStatusURL(settings Settings, jobID int64) (string, error) {
+	base, err := baseURL(settings)
+	if err != nil {
+		return "", err
+	}
+	if jobID <= 0 {
+		jobID = 1
+	}
+	base.Path = joinURLPath(strings.Trim(base.Path, "/"), "conversion", "status", strconv.FormatInt(jobID, 10))
 	values := base.Query()
 	if settings.Library != "" {
 		values.Set("library_id", settings.Library)
@@ -486,6 +564,43 @@ func (c *Client) startConversion(ctx context.Context, settings Settings, id int,
 	return jobID, nil
 }
 
+func (c *Client) conversionStatus(ctx context.Context, settings Settings, job ConvertJob) (ConversionStatus, error) {
+	endpoint, err := conversionStatusURL(settings, job.JobID)
+	if err != nil {
+		return ConversionStatus{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return ConversionStatus{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if settings.Username != "" {
+		req.SetBasicAuth(settings.Username, settings.Password)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return ConversionStatus{}, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return ConversionStatus{}, fmt.Errorf("calibre conversion status returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
+	}
+	var status conversionStatusResponse
+	if err := json.Unmarshal(respBody, &status); err != nil {
+		return ConversionStatus{}, err
+	}
+	return ConversionStatus{
+		OutputFormat: job.OutputFormat,
+		JobID:        job.JobID,
+		Running:      status.Running,
+		OK:           status.OK,
+		WasAborted:   status.WasAborted,
+		Traceback:    strings.TrimSpace(status.Traceback),
+		Log:          strings.TrimSpace(status.Log),
+	}, nil
+}
+
 func compactPositiveIDs(ids []int) []int {
 	seen := map[int]bool{}
 	result := make([]int, 0, len(ids))
@@ -495,6 +610,20 @@ func compactPositiveIDs(ids []int) []int {
 		}
 		seen[id] = true
 		result = append(result, id)
+	}
+	return result
+}
+
+func compactConversionJobs(jobs []ConvertJob) []ConvertJob {
+	result := make([]ConvertJob, 0, len(jobs))
+	seen := map[int64]bool{}
+	for _, job := range jobs {
+		if job.JobID <= 0 || seen[job.JobID] {
+			continue
+		}
+		seen[job.JobID] = true
+		job.OutputFormat = strings.TrimSpace(job.OutputFormat)
+		result = append(result, job)
 	}
 	return result
 }
@@ -629,6 +758,14 @@ type conversionOptions struct {
 
 type conversionOptionSettings struct {
 	OutputProfile string `json:"output_profile,omitempty"`
+}
+
+type conversionStatusResponse struct {
+	Running    bool   `json:"running"`
+	OK         bool   `json:"ok"`
+	WasAborted bool   `json:"was_aborted"`
+	Traceback  string `json:"traceback"`
+	Log        string `json:"log"`
 }
 
 func joinURLPath(parts ...string) string {

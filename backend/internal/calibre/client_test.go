@@ -337,3 +337,68 @@ func TestConvertNoopsWithoutOutputFormats(t *testing.T) {
 		t.Fatalf("expected empty conversion result, got %+v", result)
 	}
 }
+
+func TestPollConversionsPollsUntilJobStopsRunning(t *testing.T) {
+	attempts := 0
+	var gotPaths []string
+	var gotAuthUser string
+	var gotAuthPass string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPaths = append(gotPaths, r.URL.EscapedPath()+"?"+r.URL.RawQuery)
+		gotAuthUser, gotAuthPass, _ = r.BasicAuth()
+		attempts++
+		w.Header().Set("Content-Type", "application/json")
+		if attempts == 1 {
+			_, _ = w.Write([]byte(`{"running":true,"ok":false,"was_aborted":false,"traceback":"","log":"working"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"running":false,"ok":true,"was_aborted":false,"traceback":"","log":"done"}`))
+	}))
+	defer server.Close()
+
+	statuses, err := NewClient(server.Client()).PollConversions(context.Background(), PollConversionsRequest{
+		Settings: Settings{
+			Host:     strings.TrimPrefix(server.URL, "http://"),
+			URLBase:  "/calibre",
+			Username: "reader",
+			Password: "secret",
+			Library:  "Main Library",
+		},
+		Jobs:        []ConvertJob{{OutputFormat: "AZW3", JobID: 7001}},
+		MaxAttempts: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(gotPaths) != 2 || gotPaths[0] != "/calibre/conversion/status/7001?library_id=Main+Library" ||
+		gotPaths[1] != "/calibre/conversion/status/7001?library_id=Main+Library" {
+		t.Fatalf("unexpected status paths: %+v", gotPaths)
+	}
+	if gotAuthUser != "reader" || gotAuthPass != "secret" {
+		t.Fatalf("expected basic auth, got %q/%q", gotAuthUser, gotAuthPass)
+	}
+	if len(statuses) != 1 || statuses[0].JobID != 7001 || statuses[0].OutputFormat != "AZW3" ||
+		statuses[0].Running || !statuses[0].OK || statuses[0].Log != "done" {
+		t.Fatalf("unexpected statuses: %+v", statuses)
+	}
+}
+
+func TestPollConversionsReturnsFailedStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"running":false,"ok":false,"was_aborted":true,"traceback":"boom","log":"failed"}`))
+	}))
+	defer server.Close()
+
+	statuses, err := NewClient(server.Client()).PollConversions(context.Background(), PollConversionsRequest{
+		Settings: Settings{Host: strings.TrimPrefix(server.URL, "http://")},
+		Jobs:     []ConvertJob{{OutputFormat: "MOBI", JobID: 7002}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(statuses) != 1 || statuses[0].OK || !statuses[0].WasAborted ||
+		statuses[0].Traceback != "boom" || statuses[0].Log != "failed" {
+		t.Fatalf("unexpected failed status: %+v", statuses)
+	}
+}
