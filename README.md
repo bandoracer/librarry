@@ -240,7 +240,10 @@ Provider priority:
 1. Hardcover is the preferred rich source for modern books, editions, series,
    ebook metadata, and audiobook metadata.
 2. Open Library is the open-data backbone for works, authors, editions, ISBNs,
-   and covers.
+   and covers. Librarry treats Open Library author identity lookup separately
+   from author bibliography crawling: author lookup uses `/search/authors.json`,
+   while monitored authors with Open Library IDs use `/authors/{id}/works.json`
+   before falling back to an author-name book search.
 3. Google Books is an API-keyed exact-match fallback, not a primary graph.
 4. Local OPF, EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms
    are high-confidence import evidence.

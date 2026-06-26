@@ -6,9 +6,10 @@ type SearchType string
 type MediaFormat string
 
 const (
-	SearchTypeBook   SearchType = "book"
-	SearchTypeAuthor SearchType = "author"
-	SearchTypeSeries SearchType = "series"
+	SearchTypeBook        SearchType = "book"
+	SearchTypeAuthor      SearchType = "author"
+	SearchTypeAuthorWorks SearchType = "author_works"
+	SearchTypeSeries      SearchType = "series"
 
 	FormatAny       MediaFormat = "any"
 	FormatEbook     MediaFormat = "ebook"
@@ -16,10 +17,11 @@ const (
 )
 
 type Query struct {
-	Query  string      `json:"query"`
-	Type   SearchType  `json:"type"`
-	Format MediaFormat `json:"format"`
-	Limit  int         `json:"limit"`
+	Query       string      `json:"query"`
+	Type        SearchType  `json:"type"`
+	Format      MediaFormat `json:"format"`
+	Limit       int         `json:"limit"`
+	ProviderKey string      `json:"providerKey,omitempty"`
 }
 
 type Author struct {

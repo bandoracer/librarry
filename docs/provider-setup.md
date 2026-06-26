@@ -8,7 +8,10 @@ is used for rich metadata search, editions, series, and format hints.
 ## Open Library
 
 Open Library requires no token. Librarry uses it as the open-data backbone and
-cover fallback.
+cover fallback. Author lookup uses Open Library's author search endpoint to get
+stable author IDs. Author monitoring then uses those IDs with the works-by-author
+endpoint when available, falling back to an author-name book search for manually
+entered authors or non-Open Library identities.
 
 ## Google Books
 

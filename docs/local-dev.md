@@ -128,7 +128,9 @@ author backfills the visible bibliography, only creates wanted items for
 future-dated metadata, or only syncs author metadata. Existing subscriptions can
 be changed with `PATCH /api/v1/authors/{id}`. Manual author refreshes are
 available through `POST /api/v1/authors/monitor`; monitor results report
-metadata hits, wanted items created, and entries skipped by policy. Skipped
+metadata hits, wanted items created, and entries skipped by policy. For Open
+Library-backed subscriptions, the monitor uses the stored author ID against the
+works-by-author endpoint before falling back to a name-based book search. Skipped
 entries are persisted in `author_metadata_reviews` and include the normalized
 metadata result and skip reason so the web UI can review them and mark
 individual books wanted without changing the author policy. Use

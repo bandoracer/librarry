@@ -56,6 +56,7 @@ func (s *Service) Search(ctx context.Context, query Query) ([]SearchResult, erro
 
 func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome {
 	query.Query = strings.TrimSpace(query.Query)
+	query.ProviderKey = strings.TrimSpace(query.ProviderKey)
 	if query.Type == "" {
 		query.Type = SearchTypeBook
 	}

@@ -68,6 +68,9 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 	if p.token == "" {
 		return nil, nil
 	}
+	if query.Type == SearchTypeAuthor {
+		return nil, nil
+	}
 
 	payload := map[string]any{
 		"query": `query SearchBooks($query: String!, $limit: Int!) {
@@ -183,11 +186,157 @@ func (p *OpenLibraryProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	if strings.TrimSpace(query.Query) == "" {
 		return nil, errors.New("query is required")
 	}
+	switch query.Type {
+	case SearchTypeAuthor:
+		return p.searchAuthors(ctx, query)
+	case SearchTypeAuthorWorks:
+		if authorKey := openLibraryAuthorKey(query.ProviderKey); authorKey != "" {
+			return p.searchAuthorWorks(ctx, query, authorKey)
+		}
+	}
+	return p.searchBooks(ctx, query)
+}
+
+func (p *OpenLibraryProvider) searchAuthors(ctx Context, query Query) ([]SearchResult, error) {
+	values := url.Values{}
+	values.Set("q", query.Query)
+	values.Set("limit", strconv.Itoa(clampLimit(query.Limit)))
+	req, err := http.NewRequestWithContext(asContext(ctx), http.MethodGet, "https://openlibrary.org/search/authors.json?"+values.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "librarry/0.1")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("open library author search returned %s", resp.Status)
+	}
+
+	var decoded struct {
+		Docs []struct {
+			Key       string `json:"key"`
+			Name      string `json:"name"`
+			TopWork   string `json:"top_work"`
+			WorkCount int    `json:"work_count"`
+		} `json:"docs"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return nil, err
+	}
+
+	results := make([]SearchResult, 0, len(decoded.Docs))
+	for _, doc := range decoded.Docs {
+		authorKey := strings.TrimPrefix(strings.TrimSpace(doc.Key), "/authors/")
+		if authorKey == "" || strings.TrimSpace(doc.Name) == "" {
+			continue
+		}
+		authorID := "openlibrary:" + authorKey
+		score := authorIdentityScore(query, doc.Name)
+		results = append(results, SearchResult{
+			Provider: p.Name(),
+			Kind:     SearchTypeAuthor,
+			Work: Work{
+				ID:          authorID,
+				Title:       doc.Name,
+				Description: firstNonEmpty(doc.TopWork, fmt.Sprintf("%d Open Library works", doc.WorkCount)),
+				CoverURL:    openLibraryAuthorCoverURL(authorKey),
+				Authors: []Author{{
+					ID:          authorID,
+					Name:        doc.Name,
+					ProviderIDs: []string{"/authors/" + authorKey},
+				}},
+				ProviderIDs: []string{authorID, "/authors/" + authorKey},
+			},
+			Score:        score,
+			Confidence:   confidence(score),
+			MatchedOn:    authorMatchedOn(query, doc.Name),
+			RawSourceKey: "/authors/" + authorKey,
+		})
+	}
+	return results, nil
+}
+
+func (p *OpenLibraryProvider) searchAuthorWorks(ctx Context, query Query, authorKey string) ([]SearchResult, error) {
+	values := url.Values{}
+	values.Set("limit", strconv.Itoa(clampLimit(query.Limit)))
+	req, err := http.NewRequestWithContext(asContext(ctx), http.MethodGet, "https://openlibrary.org/authors/"+url.PathEscape(authorKey)+"/works.json?"+values.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "librarry/0.1")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("open library author works returned %s", resp.Status)
+	}
+
+	var decoded struct {
+		Entries []struct {
+			Key              string `json:"key"`
+			Title            string `json:"title"`
+			FirstPublishDate string `json:"first_publish_date"`
+			Covers           []int  `json:"covers"`
+		} `json:"entries"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return nil, err
+	}
+
+	authorID := "openlibrary:" + authorKey
+	results := make([]SearchResult, 0, len(decoded.Entries))
+	for _, entry := range decoded.Entries {
+		title := strings.TrimSpace(entry.Title)
+		if title == "" {
+			continue
+		}
+		workID := "openlibrary:" + strings.TrimPrefix(strings.TrimSpace(entry.Key), "/works/")
+		publishedYear := yearFromOpenLibraryDate(entry.FirstPublishDate)
+		score := authorWorkScore(query)
+		results = append(results, SearchResult{
+			Provider: p.Name(),
+			Kind:     SearchTypeBook,
+			Work: Work{
+				ID:               workID,
+				Title:            title,
+				FirstPublishYear: publishedYear,
+				Authors: []Author{{
+					ID:          authorID,
+					Name:        query.Query,
+					ProviderIDs: []string{"/authors/" + authorKey},
+				}},
+				CoverURL:    openLibraryCoverURL(firstInt(entry.Covers)),
+				ProviderIDs: []string{workID},
+			},
+			Edition: Edition{
+				ID:            workID + ":edition",
+				WorkID:        workID,
+				Title:         title,
+				Format:        inferFormat(query.Format, nil),
+				PublishedDate: entry.FirstPublishDate,
+			},
+			Score:        score,
+			Confidence:   confidence(score),
+			MatchedOn:    []string{"open_library_author_works"},
+			RawSourceKey: entry.Key,
+		})
+	}
+	return results, nil
+}
+
+func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchResult, error) {
 	endpoint := "https://openlibrary.org/search.json"
 	values := url.Values{}
 	if isbn := normalizeISBN(query.Query); isbn != "" {
 		values.Set("isbn", isbn)
-	} else if query.Type == SearchTypeAuthor {
+	} else if query.Type == SearchTypeAuthorWorks {
 		values.Set("author", query.Query)
 	} else {
 		values.Set("title", query.Query)
@@ -238,6 +387,9 @@ func (p *OpenLibraryProvider) Search(ctx Context, query Query) ([]SearchResult, 
 		}
 		format := inferFormat(query.Format, isbns)
 		score := scoreResult(query, doc.Title, author, isbns)
+		if query.Type == SearchTypeAuthorWorks && normalize(author) == normalize(query.Query) {
+			score = authorWorkScore(query)
+		}
 		result := SearchResult{
 			Provider: p.Name(),
 			Kind:     SearchTypeBook,
@@ -305,8 +457,11 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	if p.apiKey == "" {
 		return nil, nil
 	}
-	values := url.Values{}
 	if query.Type == SearchTypeAuthor {
+		return nil, nil
+	}
+	values := url.Values{}
+	if query.Type == SearchTypeAuthorWorks {
 		values.Set("q", "inauthor:"+query.Query)
 	} else {
 		values.Set("q", query.Query)

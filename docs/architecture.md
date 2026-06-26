@@ -484,7 +484,10 @@ monitor can be triggered manually through
 `POST /api/v1/authors/monitor` and can also run on an interval in the API
 process. It searches metadata providers for due authors, creates or refreshes
 wanted items for matching books, records sync history, and does not grab
-releases directly.
+releases directly. Metadata queries distinguish author identity lookup from
+author bibliography lookup: `/api/v1/author/lookup` asks providers for author
+records, while the author monitor asks for works by the subscribed author and
+passes the stored provider key when one is available.
 
 Upgrade search can be triggered manually through `POST /api/v1/wanted/upgrades`
 and can also run on an interval in the API process. It searches grabbed/imported

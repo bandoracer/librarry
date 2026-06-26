@@ -417,10 +417,11 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := metadata.Query{
-		Query:  queryText,
-		Type:   metadata.SearchType(defaultString(r.URL.Query().Get("type"), string(metadata.SearchTypeBook))),
-		Format: metadata.MediaFormat(defaultString(r.URL.Query().Get("format"), string(metadata.FormatAny))),
-		Limit:  10,
+		Query:       queryText,
+		Type:        metadata.SearchType(defaultString(r.URL.Query().Get("type"), string(metadata.SearchTypeBook))),
+		Format:      metadata.MediaFormat(defaultString(r.URL.Query().Get("format"), string(metadata.FormatAny))),
+		Limit:       10,
+		ProviderKey: r.URL.Query().Get("providerKey"),
 	}
 	outcome := h.deps.Metadata.SearchDetailed(r.Context(), query)
 	if len(outcome.ProviderErrors) > 0 {

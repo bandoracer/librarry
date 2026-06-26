@@ -221,10 +221,11 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 
 		result := AuthorMonitorItemResult{Subscription: subscription}
 		results, err := s.metadata.Search(ctx, metadata.Query{
-			Query:  subscription.AuthorName,
-			Type:   metadata.SearchTypeAuthor,
-			Format: metadata.MediaFormat(subscription.Format),
-			Limit:  searchLimit,
+			Query:       subscription.AuthorName,
+			Type:        metadata.SearchTypeAuthorWorks,
+			Format:      metadata.MediaFormat(subscription.Format),
+			Limit:       searchLimit,
+			ProviderKey: subscription.ProviderKey,
 		})
 		run.AuthorsChecked++
 		if err != nil {

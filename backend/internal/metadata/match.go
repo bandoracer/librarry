@@ -5,10 +5,12 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 var nonWord = regexp.MustCompile(`[^a-z0-9]+`)
+var yearPattern = regexp.MustCompile(`\b(\d{4})\b`)
 
 func scoreResult(query Query, title string, author string, isbns []string) float64 {
 	needle := normalize(query.Query)
@@ -136,10 +138,82 @@ func openLibraryCoverURL(coverID int) string {
 	return fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", coverID)
 }
 
+func openLibraryAuthorCoverURL(authorKey string) string {
+	authorKey = strings.TrimSpace(strings.TrimPrefix(authorKey, "/authors/"))
+	if authorKey == "" {
+		return ""
+	}
+	return fmt.Sprintf("https://covers.openlibrary.org/a/olid/%s-M.jpg", authorKey)
+}
+
+func openLibraryAuthorKey(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "openlibrary:")
+	value = strings.TrimPrefix(value, "/authors/")
+	value = strings.TrimPrefix(value, "authors/")
+	if strings.HasPrefix(value, "OL") && strings.HasSuffix(value, "A") {
+		return value
+	}
+	return ""
+}
+
+func authorIdentityScore(query Query, name string) float64 {
+	queryName := normalize(query.Query)
+	authorName := normalize(name)
+	switch {
+	case queryName != "" && queryName == authorName:
+		return 0.96
+	case queryName != "" && authorName != "" && (strings.Contains(authorName, queryName) || strings.Contains(queryName, authorName)):
+		return 0.86
+	default:
+		return scoreResult(query, name, "", nil)
+	}
+}
+
+func authorWorkScore(query Query) float64 {
+	if query.Format == FormatEbook || query.Format == FormatAudiobook {
+		return 0.95
+	}
+	return 0.92
+}
+
+func authorMatchedOn(query Query, name string) []string {
+	if normalize(query.Query) == normalize(name) {
+		return []string{"author"}
+	}
+	return []string{"author_fuzzy"}
+}
+
+func yearFromOpenLibraryDate(value string) int {
+	matches := yearPattern.FindStringSubmatch(value)
+	if len(matches) < 2 {
+		return 0
+	}
+	year, _ := strconv.Atoi(matches[1])
+	return year
+}
+
+func firstInt(values []int) int {
+	if len(values) == 0 {
+		return 0
+	}
+	return values[0]
+}
+
 func first(values []string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
 			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
 		}
 	}
 	return ""
