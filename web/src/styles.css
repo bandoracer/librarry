@@ -1422,6 +1422,30 @@ select {
   font-size: 12px;
 }
 
+.import-review-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.import-review-evidence span {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid #f0d98e;
+  border-radius: 6px;
+  background: #fffaf0;
+  color: #7a5a00;
+  font-size: 11px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .import-review-actions {
   display: flex;
   align-items: center;

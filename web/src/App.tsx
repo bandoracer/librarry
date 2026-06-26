@@ -1887,49 +1887,59 @@ export function App() {
                   {reviewActionID === "bulk:reject" ? "Rejecting" : "Reject"}
                 </button>
               </div>
-              {visibleImportReviews.map((review) => (
-                <article className={selectedImportReviewSet.has(review.id) ? "import-review-row selected" : "import-review-row"} key={review.id}>
-                  <label className="import-review-select" title="Select import review">
-                    <input checked={selectedImportReviewSet.has(review.id)} onChange={() => toggleImportReviewSelection(review)} type="checkbox" aria-label={`Select ${review.title || review.sourcePath}`} />
-                  </label>
-                  <div>
-                    <strong>{review.title || review.sourcePath.split("/").pop() || "Pending import"}</strong>
-                    <span>
-                      {review.authorName || "Unknown author"} · {review.mediaFormat} · {formatBytes(review.sizeBytes ?? 0)} · {review.reason}
-                    </span>
-                    <small>{review.sourcePath}</small>
-                  </div>
-                  <div className="import-review-actions">
-                    <button
-                      className="secondary-action compact"
-                      disabled={Boolean(reviewActionID)}
-                      onClick={() => runResolveImportReview(review, "import")}
-                      type="button"
-                    >
-                      <CheckCircle2 size={16} />
-                      {reviewActionID === `${review.id}:import` ? "Importing" : "Import"}
-                    </button>
-                    <button
-                      className="secondary-action compact danger-outline"
-                      disabled={Boolean(reviewActionID)}
-                      onClick={() => runResolveImportReview(review, "skip")}
-                      type="button"
-                    >
-                      <Trash2 size={16} />
-                      Skip
-                    </button>
-                    <button
-                      className="secondary-action compact danger-outline"
-                      disabled={Boolean(reviewActionID)}
-                      onClick={() => runResolveImportReview(review, "reject")}
-                      type="button"
-                    >
-                      <Trash2 size={16} />
-                      Reject
-                    </button>
-                  </div>
-                </article>
-              ))}
+              {visibleImportReviews.map((review) => {
+                const evidenceChips = importReviewEvidenceChips(review);
+                return (
+                  <article className={selectedImportReviewSet.has(review.id) ? "import-review-row selected" : "import-review-row"} key={review.id}>
+                    <label className="import-review-select" title="Select import review">
+                      <input checked={selectedImportReviewSet.has(review.id)} onChange={() => toggleImportReviewSelection(review)} type="checkbox" aria-label={`Select ${review.title || review.sourcePath}`} />
+                    </label>
+                    <div>
+                      <strong>{review.title || review.sourcePath.split("/").pop() || "Pending import"}</strong>
+                      <span>
+                        {review.authorName || "Unknown author"} · {review.mediaFormat} · {formatBytes(review.sizeBytes ?? 0)} · {review.reason}
+                      </span>
+                      <small>{review.sourcePath}</small>
+                      {evidenceChips.length ? (
+                        <div className="import-review-evidence" aria-label="Import review evidence">
+                          {evidenceChips.map((chip) => (
+                            <span key={chip}>{chip}</span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="import-review-actions">
+                      <button
+                        className="secondary-action compact"
+                        disabled={Boolean(reviewActionID)}
+                        onClick={() => runResolveImportReview(review, "import")}
+                        type="button"
+                      >
+                        <CheckCircle2 size={16} />
+                        {reviewActionID === `${review.id}:import` ? "Importing" : "Import"}
+                      </button>
+                      <button
+                        className="secondary-action compact danger-outline"
+                        disabled={Boolean(reviewActionID)}
+                        onClick={() => runResolveImportReview(review, "skip")}
+                        type="button"
+                      >
+                        <Trash2 size={16} />
+                        Skip
+                      </button>
+                      <button
+                        className="secondary-action compact danger-outline"
+                        disabled={Boolean(reviewActionID)}
+                        onClick={() => runResolveImportReview(review, "reject")}
+                        type="button"
+                      >
+                        <Trash2 size={16} />
+                        Reject
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : null}
           <div className="library-file-list">
@@ -3122,6 +3132,35 @@ function splitTagInput(value: string) {
       seen.add(tag);
       return true;
     });
+}
+
+function importReviewEvidenceChips(review: ImportReview) {
+  const chips: string[] = [];
+  const confidence = stringMetadataValue(review.metadata?.matchConfidence);
+  if (confidence) {
+    chips.push(`Confidence ${confidence}`);
+  }
+  const evidence = review.metadata?.reviewEvidence;
+  if (Array.isArray(evidence)) {
+    evidence.slice(0, 3).forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      const payload = item as Record<string, unknown>;
+      const label = stringMetadataValue(payload.label) || stringMetadataValue(payload.source);
+      const value = stringMetadataValue(payload.value);
+      if (label && value) {
+        chips.push(`${label}: ${value}`);
+      } else if (label) {
+        chips.push(label);
+      }
+    });
+  }
+  return Array.from(new Set(chips)).slice(0, 4);
+}
+
+function stringMetadataValue(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
 }
 
 function summarizeDownloads(downloads: DownloadStatus[]) {

@@ -538,7 +538,10 @@ the torrent save path, imports linked wanted downloads, and records
 imported/error/skipped state on the download row. Completed downloads without a
 wanted tag are persisted as pending import reviews instead of being guessed
 directly into the library. Review decisions can import, skip, or reject the
-pending file.
+pending file. Each review stores explainable evidence in JSON metadata:
+source-file facts, filename parsing, local OPF/embedded/audio metadata,
+download-client context, a confidence label, and the policy reason that forced
+manual review.
 
 Manual imports, completed-download imports, and individual or bulk import-review
 decisions share the same organization policy. `importMode` supports `copy`, `move`,
@@ -546,8 +549,8 @@ decisions share the same organization policy. `importMode` supports `copy`, `mov
 replacement, skip, and fail behavior. Successful imports record the chosen mode,
 conflict action, replacement path, and hardlink status in file metadata, and
 wanted items are marked imported only after the destination file is persisted.
-Future work should add richer matching evidence and per-profile organization
-rules.
+Future work should add automatic matching against wanted/library candidates and
+per-profile organization rules.
 
 - `books-ebook`
 - `books-audiobook`

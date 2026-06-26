@@ -100,6 +100,57 @@ func TestParsedBookForPathUsesSidecarOPF(t *testing.T) {
 	}
 }
 
+func TestImportReviewMetadataBuildsEvidence(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad-name.epub")
+	if err := os.WriteFile(path, []byte("not a zip but sidecar exists"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "bad-name.opf"), []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata>
+    <dc:title>Dungeon Crawler Carl</dc:title>
+    <dc:creator>Matt Dinniman</dc:creator>
+    <dc:identifier>9798986133815</dc:identifier>
+  </metadata>
+</package>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filenameParsed := parseBookFilename(path)
+	local := localBookMetadataForPath(path)
+	parsed := parsedBook{Title: firstNonEmpty(local.Title, filenameParsed.Title), AuthorName: firstNonEmpty(local.AuthorName, filenameParsed.AuthorName)}
+
+	metadata := importReviewMetadata(path, info, "ebook", acquisition.DownloadStatus{
+		Client:   "qBittorrent",
+		ID:       "abc123",
+		Name:     "Dungeon Crawler Carl EPUB",
+		Category: "books-ebook",
+		State:    "completed",
+		Tags:     []string{"librarry"},
+	}, parsed, filenameParsed, local, "download is not linked to a wanted item")
+
+	if metadata["matchConfidence"] != "high" || metadata["isbn13"] != "9798986133815" {
+		t.Fatalf("expected high-confidence identifier evidence, got %#v", metadata)
+	}
+	if source, ok := metadata["source"].(map[string]any); !ok || source["fileName"] != "bad-name.epub" || source["mediaFormat"] != "ebook" {
+		t.Fatalf("expected source evidence, got %#v", metadata["source"])
+	}
+	if parsedPayload, ok := metadata["parsed"].(map[string]any); !ok || parsedPayload["title"] != "Dungeon Crawler Carl" || parsedPayload["authorName"] != "Matt Dinniman" {
+		t.Fatalf("expected parsed title/author evidence, got %#v", metadata["parsed"])
+	}
+	evidence, ok := metadata["reviewEvidence"].([]map[string]any)
+	if !ok || len(evidence) < 4 {
+		t.Fatalf("expected review evidence list, got %#v", metadata["reviewEvidence"])
+	}
+	if evidence[len(evidence)-1]["source"] != "policy" {
+		t.Fatalf("expected policy review reason evidence, got %#v", evidence)
+	}
+}
+
 func TestParsedBookForPathReadsID3AudioTags(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad-name.mp3")

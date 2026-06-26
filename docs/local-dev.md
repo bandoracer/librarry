@@ -253,7 +253,9 @@ wanted item. Unlinked completed downloads are queued in
 `GET /api/v1/library/import-reviews` and resolved through
 `POST /api/v1/library/import-reviews/{id}/resolve` or
 `POST /api/v1/library/import-reviews/resolve-bulk` with the same import mode and
-conflict policy fields. OPF sidecars and embedded
+conflict policy fields. Review rows include confidence and evidence metadata
+from filename parsing, OPF/embedded/audio tags, source file facts, and download
+context so operators can see why manual review is required. OPF sidecars and embedded
 EPUB package metadata plus MP3 ID3 and M4B/MP4 audio tags are extracted during
 scan/import and used for title, author, identifiers, language, publisher,
 series, album, year, and track evidence before falling back to filename parsing.

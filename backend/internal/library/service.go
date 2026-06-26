@@ -1231,13 +1231,13 @@ func (s *Service) queueImportReview(ctx context.Context, download acquisition.Do
 	if err != nil {
 		return ImportReview{}, err
 	}
-	parsed := parsedBookForPath(source)
-	metadata := map[string]any{
-		"downloadName":     download.Name,
-		"downloadCategory": download.Category,
-		"downloadState":    download.State,
-		"tags":             download.Tags,
+	filenameParsed := parseBookFilename(source)
+	localMetadata := localBookMetadataForPath(source)
+	parsed := parsedBook{
+		Title:      firstNonEmpty(localMetadata.Title, filenameParsed.Title),
+		AuthorName: firstNonEmpty(localMetadata.AuthorName, filenameParsed.AuthorName),
 	}
+	metadata := importReviewMetadata(source, info, format, download, parsed, filenameParsed, localMetadata, reason)
 	return s.store.CreateImportReview(ctx, ImportReview{
 		SourcePath:  source,
 		DownloadID:  download.ID,
@@ -1250,6 +1250,131 @@ func (s *Service) queueImportReview(ctx context.Context, download acquisition.Do
 		Status:      "pending",
 		Metadata:    metadata,
 	})
+}
+
+func importReviewMetadata(source string, info fs.FileInfo, format string, download acquisition.DownloadStatus, parsed parsedBook, filenameParsed parsedBook, localMetadata localBookMetadata, reason string) map[string]any {
+	source = filepath.Clean(strings.TrimSpace(source))
+	metadata := map[string]any{
+		"downloadName":       download.Name,
+		"downloadClient":     download.Client,
+		"downloadCategory":   download.Category,
+		"downloadState":      download.State,
+		"downloadSavePath":   download.SavePath,
+		"tags":               download.Tags,
+		"manualReview":       true,
+		"manualReviewReason": strings.TrimSpace(reason),
+		"matchConfidence":    importReviewConfidence(parsed, filenameParsed, localMetadata),
+		"source": map[string]any{
+			"path":        source,
+			"fileName":    filepath.Base(source),
+			"extension":   strings.ToLower(filepath.Ext(source)),
+			"mediaFormat": firstNonEmpty(normalizeFormat(format), "unknown"),
+			"sizeBytes":   info.Size(),
+		},
+		"download": map[string]any{
+			"id":       download.ID,
+			"client":   download.Client,
+			"name":     download.Name,
+			"category": download.Category,
+			"state":    download.State,
+			"savePath": download.SavePath,
+			"tags":     download.Tags,
+		},
+		"parsed": map[string]any{
+			"title":      parsed.Title,
+			"authorName": parsed.AuthorName,
+		},
+		"filenameParsed": map[string]any{
+			"title":      filenameParsed.Title,
+			"authorName": filenameParsed.AuthorName,
+		},
+	}
+	applyLocalMetadataToMap(metadata, localMetadata)
+	if local, ok := metadata["localMetadata"].(map[string]any); ok {
+		metadata["localMetadataEvidence"] = local
+	}
+	metadata["reviewEvidence"] = importReviewEvidence(source, info, format, download, parsed, filenameParsed, localMetadata, reason)
+	return metadata
+}
+
+func importReviewEvidence(source string, info fs.FileInfo, format string, download acquisition.DownloadStatus, parsed parsedBook, filenameParsed parsedBook, localMetadata localBookMetadata, reason string) []map[string]any {
+	evidence := []map[string]any{{
+		"source": "file",
+		"label":  "Source file",
+		"value":  filepath.Base(source),
+		"weight": "medium",
+		"details": map[string]any{
+			"extension":   strings.ToLower(filepath.Ext(source)),
+			"mediaFormat": firstNonEmpty(normalizeFormat(format), "unknown"),
+			"sizeBytes":   info.Size(),
+		},
+	}}
+	if filenameParsed.Title != "" || filenameParsed.AuthorName != "" {
+		evidence = append(evidence, map[string]any{
+			"source": "filename",
+			"label":  "Filename parse",
+			"value":  importReviewTitleAuthorValue(filenameParsed),
+			"weight": map[bool]string{true: "medium", false: "low"}[filenameParsed.Title != "" && filenameParsed.AuthorName != ""],
+		})
+	}
+	if localMetadata.Source != "" || localMetadata.ExtractError != "" {
+		value := importReviewTitleAuthorValue(parsed)
+		if value == "" {
+			value = localMetadata.ExtractError
+		}
+		evidence = append(evidence, map[string]any{
+			"source": firstNonEmpty(localMetadata.Source, "local-metadata"),
+			"label":  "Embedded metadata",
+			"value":  value,
+			"weight": map[bool]string{true: "high", false: "low"}[localMetadata.Title != "" && (localMetadata.AuthorName != "" || len(localMetadata.Authors) > 0)],
+		})
+	}
+	if download.Name != "" || download.Category != "" {
+		evidence = append(evidence, map[string]any{
+			"source": "download",
+			"label":  "Download context",
+			"value":  firstNonEmpty(download.Name, download.Category, download.ID),
+			"weight": "low",
+			"details": map[string]any{
+				"client":   download.Client,
+				"category": download.Category,
+				"state":    download.State,
+			},
+		})
+	}
+	if strings.TrimSpace(reason) != "" {
+		evidence = append(evidence, map[string]any{
+			"source": "policy",
+			"label":  "Manual review reason",
+			"value":  strings.TrimSpace(reason),
+			"weight": "high",
+		})
+	}
+	return evidence
+}
+
+func importReviewConfidence(parsed parsedBook, filenameParsed parsedBook, localMetadata localBookMetadata) string {
+	if localMetadata.Title != "" && (localMetadata.AuthorName != "" || len(localMetadata.Authors) > 0) {
+		return "high"
+	}
+	if localMetadata.Title != "" || localMetadata.AuthorName != "" || (filenameParsed.Title != "" && filenameParsed.AuthorName != "") {
+		return "medium"
+	}
+	if parsed.Title != "" || filenameParsed.Title != "" {
+		return "low"
+	}
+	return "unknown"
+}
+
+func importReviewTitleAuthorValue(parsed parsedBook) string {
+	switch {
+	case strings.TrimSpace(parsed.Title) != "" && strings.TrimSpace(parsed.AuthorName) != "":
+		return strings.TrimSpace(parsed.Title) + " by " + strings.TrimSpace(parsed.AuthorName)
+	case strings.TrimSpace(parsed.Title) != "":
+		return strings.TrimSpace(parsed.Title)
+	default:
+		return strings.TrimSpace(parsed.AuthorName)
+	}
 }
 
 func fileRecordFromPath(path string, format string, info fs.FileInfo, status string) FileRecord {
