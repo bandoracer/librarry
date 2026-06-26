@@ -10,9 +10,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/calibre"
@@ -22,6 +24,7 @@ import (
 
 type WantedStore interface {
 	GetWanted(ctx context.Context, id string) (wanted.WantedItem, error)
+	ListWanted(ctx context.Context, status string) ([]wanted.WantedItem, error)
 	MarkWantedStatus(ctx context.Context, wantedID string, status string) error
 }
 
@@ -47,6 +50,17 @@ type importDestinationPlan struct {
 	Replaced        bool
 	Skipped         bool
 	Message         string
+}
+
+type importReviewWantedCandidate struct {
+	WantedID      string   `json:"wantedId"`
+	Title         string   `json:"title,omitempty"`
+	AuthorName    string   `json:"authorName,omitempty"`
+	Format        string   `json:"format,omitempty"`
+	Status        string   `json:"status,omitempty"`
+	Score         float64  `json:"score"`
+	MatchedFields []string `json:"matchedFields,omitempty"`
+	Reason        string   `json:"reason,omitempty"`
 }
 
 type Service struct {
@@ -1238,10 +1252,16 @@ func (s *Service) queueImportReview(ctx context.Context, download acquisition.Do
 		AuthorName: firstNonEmpty(localMetadata.AuthorName, filenameParsed.AuthorName),
 	}
 	metadata := importReviewMetadata(source, info, format, download, parsed, filenameParsed, localMetadata, reason)
+	reviewWantedID := wantedIDFromTags(download.Tags)
+	if strings.TrimSpace(reviewWantedID) == "" {
+		candidates, suggestedID := s.importReviewWantedCandidates(ctx, parsed, format)
+		addImportReviewWantedCandidateMetadata(metadata, candidates, suggestedID)
+		reviewWantedID = suggestedID
+	}
 	return s.store.CreateImportReview(ctx, ImportReview{
 		SourcePath:  source,
 		DownloadID:  download.ID,
-		WantedID:    wantedIDFromTags(download.Tags),
+		WantedID:    reviewWantedID,
 		MediaFormat: firstNonEmpty(normalizeFormat(format), "unknown"),
 		Title:       parsed.Title,
 		AuthorName:  parsed.AuthorName,
@@ -1295,6 +1315,226 @@ func importReviewMetadata(source string, info fs.FileInfo, format string, downlo
 	}
 	metadata["reviewEvidence"] = importReviewEvidence(source, info, format, download, parsed, filenameParsed, localMetadata, reason)
 	return metadata
+}
+
+func (s *Service) importReviewWantedCandidates(ctx context.Context, parsed parsedBook, format string) ([]importReviewWantedCandidate, string) {
+	if s == nil || s.wanted == nil || strings.TrimSpace(parsed.Title) == "" {
+		return nil, ""
+	}
+	items, err := s.wanted.ListWanted(ctx, "")
+	if err != nil {
+		return nil, ""
+	}
+	candidates := make([]importReviewWantedCandidate, 0, len(items))
+	for _, item := range items {
+		if !importReviewWantedStatusEligible(item.Status) {
+			continue
+		}
+		score, fields := importReviewWantedScore(parsed, format, item)
+		if score < 0.55 {
+			continue
+		}
+		candidates = append(candidates, importReviewWantedCandidate{
+			WantedID:      strings.TrimSpace(item.ID),
+			Title:         strings.TrimSpace(item.Title),
+			AuthorName:    strings.TrimSpace(item.AuthorName),
+			Format:        normalizeFormat(item.Format),
+			Status:        strings.TrimSpace(item.Status),
+			Score:         score,
+			MatchedFields: fields,
+			Reason:        strings.Join(fields, ", "),
+		})
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].Score != candidates[j].Score {
+			return candidates[i].Score > candidates[j].Score
+		}
+		if candidates[i].Title != candidates[j].Title {
+			return candidates[i].Title < candidates[j].Title
+		}
+		return candidates[i].WantedID < candidates[j].WantedID
+	})
+	if len(candidates) > 5 {
+		candidates = candidates[:5]
+	}
+	strong := make([]importReviewWantedCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.Score >= 0.9 {
+			strong = append(strong, candidate)
+		}
+	}
+	if len(strong) == 1 {
+		return candidates, strong[0].WantedID
+	}
+	return candidates, ""
+}
+
+func importReviewWantedStatusEligible(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "", "wanted", "grabbed", "missing":
+		return true
+	default:
+		return false
+	}
+}
+
+func importReviewWantedScore(parsed parsedBook, format string, item wanted.WantedItem) (float64, []string) {
+	titleMatch := importReviewTextMatchScore(parsed.Title, item.Title)
+	var score float64
+	switch {
+	case titleMatch >= 0.95:
+		score = 0.58
+	case titleMatch >= 0.75:
+		score = 0.42
+	case titleMatch >= 0.55:
+		score = 0.30
+	default:
+		return 0, nil
+	}
+	fields := []string{"title"}
+	if authorScore := importReviewTextMatchScore(parsed.AuthorName, item.AuthorName); authorScore >= 0.95 {
+		score += 0.30
+		fields = append(fields, "author")
+	} else if authorScore >= 0.75 {
+		score += 0.22
+		fields = append(fields, "author")
+	} else if authorScore >= 0.55 {
+		score += 0.16
+		fields = append(fields, "author")
+	}
+	requestedFormat := normalizeFormat(format)
+	itemFormat := normalizeFormat(item.Format)
+	if requestedFormat == "" || requestedFormat == "unknown" {
+		score += 0.04
+	} else if itemFormat == requestedFormat {
+		score += 0.12
+		fields = append(fields, "format")
+	} else if itemFormat != "" {
+		score -= 0.20
+	}
+	if score > 1 {
+		score = 1
+	}
+	if score < 0 {
+		return 0, nil
+	}
+	return score, fields
+}
+
+func importReviewTextMatchScore(left string, right string) float64 {
+	left = normalizeImportReviewMatchText(left)
+	right = normalizeImportReviewMatchText(right)
+	if left == "" || right == "" {
+		return 0
+	}
+	if left == right {
+		return 1
+	}
+	if len(left) >= 6 && len(right) >= 6 && (strings.Contains(left, right) || strings.Contains(right, left)) {
+		return 0.75
+	}
+	overlap := importReviewTokenOverlap(left, right)
+	switch {
+	case overlap >= 0.85:
+		return 0.68
+	case overlap >= 0.65:
+		return 0.55
+	default:
+		return 0
+	}
+}
+
+func normalizeImportReviewMatchText(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return r
+		}
+		return ' '
+	}, value)
+	fields := strings.Fields(value)
+	if len(fields) > 1 {
+		switch fields[0] {
+		case "a", "an", "the":
+			fields = fields[1:]
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func importReviewTokenOverlap(left string, right string) float64 {
+	leftTokens := strings.Fields(left)
+	rightTokens := strings.Fields(right)
+	if len(leftTokens) == 0 || len(rightTokens) == 0 {
+		return 0
+	}
+	rightSet := map[string]bool{}
+	for _, token := range rightTokens {
+		rightSet[token] = true
+	}
+	matches := 0
+	for _, token := range leftTokens {
+		if rightSet[token] {
+			matches++
+		}
+	}
+	shorter := len(leftTokens)
+	if len(rightTokens) < shorter {
+		shorter = len(rightTokens)
+	}
+	if shorter == 0 {
+		return 0
+	}
+	return float64(matches) / float64(shorter)
+}
+
+func addImportReviewWantedCandidateMetadata(metadata map[string]any, candidates []importReviewWantedCandidate, suggestedID string) {
+	if len(candidates) == 0 {
+		return
+	}
+	metadata["wantedCandidates"] = candidates
+	metadata["wantedCandidateCount"] = len(candidates)
+	if suggestedID != "" {
+		metadata["suggestedWantedId"] = suggestedID
+		metadata["autoLinkedWantedCandidate"] = true
+		metadata["wantedMatchStrategy"] = "unique high-confidence title, author, and format match"
+	}
+	best := candidates[0]
+	for _, candidate := range candidates {
+		if candidate.WantedID == suggestedID {
+			best = candidate
+			metadata["suggestedWantedTitle"] = importReviewCandidateValue(candidate)
+			break
+		}
+	}
+	evidence := map[string]any{
+		"source": "wanted",
+		"label":  "Wanted match",
+		"value":  importReviewCandidateValue(best),
+		"weight": map[bool]string{true: "high", false: "medium"}[suggestedID != ""],
+		"details": map[string]any{
+			"wantedId": best.WantedID,
+			"score":    best.Score,
+			"status":   best.Status,
+			"format":   best.Format,
+		},
+	}
+	if existing, ok := metadata["reviewEvidence"].([]map[string]any); ok {
+		metadata["reviewEvidence"] = append(existing, evidence)
+		return
+	}
+	metadata["reviewEvidence"] = []map[string]any{evidence}
+}
+
+func importReviewCandidateValue(candidate importReviewWantedCandidate) string {
+	value := importReviewTitleAuthorValue(parsedBook{Title: candidate.Title, AuthorName: candidate.AuthorName})
+	if value == "" {
+		value = candidate.WantedID
+	}
+	if candidate.Score > 0 {
+		value = fmt.Sprintf("%s (%.2f)", value, candidate.Score)
+	}
+	return value
 }
 
 func importReviewEvidence(source string, info fs.FileInfo, format string, download acquisition.DownloadStatus, parsed parsedBook, filenameParsed parsedBook, localMetadata localBookMetadata, reason string) []map[string]any {

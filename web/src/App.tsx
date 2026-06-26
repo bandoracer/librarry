@@ -1889,6 +1889,7 @@ export function App() {
               </div>
               {visibleImportReviews.map((review) => {
                 const evidenceChips = importReviewEvidenceChips(review);
+                const suggestedWanted = importReviewSuggestedWanted(review);
                 return (
                   <article className={selectedImportReviewSet.has(review.id) ? "import-review-row selected" : "import-review-row"} key={review.id}>
                     <label className="import-review-select" title="Select import review">
@@ -1900,6 +1901,7 @@ export function App() {
                         {review.authorName || "Unknown author"} · {review.mediaFormat} · {formatBytes(review.sizeBytes ?? 0)} · {review.reason}
                       </span>
                       <small>{review.sourcePath}</small>
+                      {suggestedWanted ? <small className="import-review-suggestion">Suggested: {suggestedWanted}</small> : null}
                       {evidenceChips.length ? (
                         <div className="import-review-evidence" aria-label="Import review evidence">
                           {evidenceChips.map((chip) => (
@@ -3140,6 +3142,10 @@ function importReviewEvidenceChips(review: ImportReview) {
   if (confidence) {
     chips.push(`Confidence ${confidence}`);
   }
+  const suggestedWanted = importReviewSuggestedWanted(review);
+  if (suggestedWanted) {
+    chips.push(`Suggested ${suggestedWanted}`);
+  }
   const evidence = review.metadata?.reviewEvidence;
   if (Array.isArray(evidence)) {
     evidence.slice(0, 3).forEach((item) => {
@@ -3155,6 +3161,23 @@ function importReviewEvidenceChips(review: ImportReview) {
     });
   }
   return Array.from(new Set(chips)).slice(0, 4);
+}
+
+function importReviewSuggestedWanted(review: ImportReview) {
+  const candidates = importReviewWantedCandidates(review);
+  const suggestedID = stringMetadataValue(review.metadata?.suggestedWantedId) || review.wantedId;
+  const candidate = candidates.find((item) => stringMetadataValue(item.wantedId) === suggestedID) ?? candidates[0];
+  if (!candidate) return "";
+  const title = stringMetadataValue(candidate.title);
+  const authorName = stringMetadataValue(candidate.authorName);
+  if (title && authorName) return `${title} by ${authorName}`;
+  return title || authorName || suggestedID;
+}
+
+function importReviewWantedCandidates(review: ImportReview) {
+  const candidates = review.metadata?.wantedCandidates;
+  if (!Array.isArray(candidates)) return [];
+  return candidates.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object");
 }
 
 function stringMetadataValue(value: unknown) {

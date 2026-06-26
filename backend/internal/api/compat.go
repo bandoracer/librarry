@@ -4707,6 +4707,12 @@ func compatManualImportReviewRecord(review library.ImportReview) map[string]any 
 	if evidence, ok := review.Metadata["reviewEvidence"]; ok && evidence != nil {
 		record["librarryReviewEvidence"] = evidence
 	}
+	if candidates, ok := review.Metadata["wantedCandidates"]; ok && candidates != nil {
+		record["librarryWantedCandidates"] = candidates
+	}
+	if suggestedID := payloadString(review.Metadata, "suggestedWantedId"); suggestedID != "" {
+		record["librarrySuggestedWantedId"] = suggestedID
+	}
 	if strings.TrimSpace(review.WantedID) != "" {
 		record["librarryWantedId"] = review.WantedID
 		record["bookId"] = stableInt(review.WantedID)

@@ -1641,6 +1641,9 @@ func TestCompatManualImportEndpoints(t *testing.T) {
 	if !strings.Contains(res.Body.String(), `"librarryMatchConfidence":"high"`) || !strings.Contains(res.Body.String(), `"librarryReviewEvidence"`) {
 		t.Fatalf("expected pending import review evidence, got %s", res.Body.String())
 	}
+	if !strings.Contains(res.Body.String(), `"librarrySuggestedWantedId":"wanted-1"`) || !strings.Contains(res.Body.String(), `"librarryWantedCandidates"`) {
+		t.Fatalf("expected pending import review wanted candidates, got %s", res.Body.String())
+	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/manualimport?folder=/downloads/books", nil)
 	res = httptest.NewRecorder()
@@ -2838,6 +2841,9 @@ func TestImportReviewsEndpoint(t *testing.T) {
 	if !strings.Contains(res.Body.String(), `"matchConfidence":"high"`) || !strings.Contains(res.Body.String(), `"reviewEvidence"`) {
 		t.Fatalf("expected review evidence in response, got %s", res.Body.String())
 	}
+	if !strings.Contains(res.Body.String(), `"suggestedWantedId":"wanted-1"`) || !strings.Contains(res.Body.String(), `"wantedCandidates"`) {
+		t.Fatalf("expected review wanted candidates in response, got %s", res.Body.String())
+	}
 }
 
 func TestResolveImportReviewEndpoint(t *testing.T) {
@@ -4012,7 +4018,17 @@ func (fakeLibrary) ListImportReviews(context.Context, library.ReviewListQuery) (
 		Reason:      "download is not linked to a wanted item",
 		Status:      "pending",
 		Metadata: map[string]any{
-			"matchConfidence": "high",
+			"matchConfidence":   "high",
+			"suggestedWantedId": "wanted-1",
+			"wantedCandidates": []map[string]any{{
+				"wantedId":      "wanted-1",
+				"title":         "Project Hail Mary",
+				"authorName":    "Andy Weir",
+				"format":        "ebook",
+				"status":        "grabbed",
+				"score":         1.0,
+				"matchedFields": []string{"title", "author", "format"},
+			}},
 			"reviewEvidence": []map[string]any{{
 				"source": "epub-opf",
 				"label":  "Embedded metadata",

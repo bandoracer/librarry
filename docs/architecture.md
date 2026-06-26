@@ -537,11 +537,14 @@ for completed torrents, locates the best supported ebook or audiobook file below
 the torrent save path, imports linked wanted downloads, and records
 imported/error/skipped state on the download row. Completed downloads without a
 wanted tag are persisted as pending import reviews instead of being guessed
-directly into the library. Review decisions can import, skip, or reject the
-pending file. Each review stores explainable evidence in JSON metadata:
-source-file facts, filename parsing, local OPF/embedded/audio metadata,
-download-client context, a confidence label, and the policy reason that forced
-manual review.
+directly into the library. The review builder compares local metadata against
+current wanted items and stores ranked wanted-item candidates; a single
+high-confidence title, author, and format match becomes the default review
+target, while ambiguous matches remain manual. Review decisions can import,
+skip, or reject the pending file. Each review stores explainable evidence in
+JSON metadata: source-file facts, filename parsing, local OPF/embedded/audio
+metadata, download-client context, wanted-item candidates, a confidence label,
+and the policy reason that forced manual review.
 
 Manual imports, completed-download imports, and individual or bulk import-review
 decisions share the same organization policy. `importMode` supports `copy`, `move`,

@@ -1422,6 +1422,11 @@ select {
   font-size: 12px;
 }
 
+.import-review-row .import-review-suggestion {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .import-review-evidence {
   display: flex;
   flex-wrap: wrap;

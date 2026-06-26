@@ -12,6 +12,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/calibre"
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
+	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
 func TestParseBookFilename(t *testing.T) {
@@ -151,6 +152,62 @@ func TestImportReviewMetadataBuildsEvidence(t *testing.T) {
 	}
 }
 
+func TestImportReviewWantedCandidatesSuggestsUniqueStrongMatch(t *testing.T) {
+	service := &Service{wanted: fakeImportWantedStore{items: []wanted.WantedItem{{
+		ID:         "wanted-1",
+		Title:      "Dungeon Crawler Carl",
+		AuthorName: "Matt Dinniman",
+		Format:     "ebook",
+		Status:     "grabbed",
+	}, {
+		ID:         "wanted-2",
+		Title:      "Carl's Doomsday Scenario",
+		AuthorName: "Matt Dinniman",
+		Format:     "ebook",
+		Status:     "wanted",
+	}}}}
+
+	candidates, suggestedID := service.importReviewWantedCandidates(context.Background(), parsedBook{
+		Title:      "Dungeon Crawler Carl",
+		AuthorName: "Matt Dinniman",
+	}, "ebook")
+
+	if suggestedID != "wanted-1" {
+		t.Fatalf("expected wanted-1 suggestion, got %q with candidates %#v", suggestedID, candidates)
+	}
+	if len(candidates) == 0 || candidates[0].WantedID != "wanted-1" || candidates[0].Score < 0.9 {
+		t.Fatalf("expected high-confidence first candidate, got %#v", candidates)
+	}
+}
+
+func TestImportReviewWantedCandidatesDoNotSuggestAmbiguousMatch(t *testing.T) {
+	service := &Service{wanted: fakeImportWantedStore{items: []wanted.WantedItem{{
+		ID:         "ebook",
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		Status:     "wanted",
+	}, {
+		ID:         "audio",
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "audiobook",
+		Status:     "wanted",
+	}}}}
+
+	candidates, suggestedID := service.importReviewWantedCandidates(context.Background(), parsedBook{
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+	}, "unknown")
+
+	if suggestedID != "" {
+		t.Fatalf("expected no suggestion for ambiguous format, got %q", suggestedID)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("expected both format candidates, got %#v", candidates)
+	}
+}
+
 func TestParsedBookForPathReadsID3AudioTags(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad-name.mp3")
@@ -179,6 +236,27 @@ func TestParsedBookForPathReadsID3AudioTags(t *testing.T) {
 	if !ok || local["album"] != "Middle-earth" || local["year"] != "1937" || local["track"] != "1" {
 		t.Fatalf("expected ID3 local metadata, got %#v", record.Metadata["localMetadata"])
 	}
+}
+
+type fakeImportWantedStore struct {
+	items []wanted.WantedItem
+}
+
+func (f fakeImportWantedStore) GetWanted(_ context.Context, id string) (wanted.WantedItem, error) {
+	for _, item := range f.items {
+		if item.ID == id {
+			return item, nil
+		}
+	}
+	return wanted.WantedItem{}, os.ErrNotExist
+}
+
+func (f fakeImportWantedStore) ListWanted(context.Context, string) ([]wanted.WantedItem, error) {
+	return f.items, nil
+}
+
+func (f fakeImportWantedStore) MarkWantedStatus(context.Context, string, string) error {
+	return nil
 }
 
 func TestParsedBookForPathReadsM4BMetadataAtoms(t *testing.T) {
