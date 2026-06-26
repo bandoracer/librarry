@@ -937,6 +937,10 @@ select {
   font-style: normal;
 }
 
+.acquisition-selected .secondary-action {
+  flex: 0 0 auto;
+}
+
 .acquisition-selected.ready {
   background: #f0fdf4;
 }
@@ -980,8 +984,17 @@ select {
   background: #f8fbff;
 }
 
-.acquisition-row span {
+.acquisition-row-main {
   min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+  text-align: left;
+}
+
+.acquisition-row-main:hover strong {
+  color: #1d4ed8;
 }
 
 .acquisition-row strong,
@@ -1004,8 +1017,8 @@ select {
   font-style: normal;
 }
 
-.acquisition-row em {
-  white-space: nowrap;
+.acquisition-row-action {
+  justify-self: end;
 }
 
 .acquisition-state-dot {
@@ -4487,13 +4500,18 @@ select {
     flex-direction: column;
   }
 
+  .acquisition-selected .secondary-action {
+    width: 100%;
+  }
+
   .acquisition-row {
     grid-template-columns: 10px minmax(0, 1fr);
   }
 
-  .acquisition-row em {
+  .acquisition-row-action {
     grid-column: 2;
-    white-space: normal;
+    justify-self: stretch;
+    width: 100%;
   }
 
   .wanted-scope,

@@ -98,6 +98,7 @@ import {
   type AuthorSkippedItem,
   type AuthorSubscription,
   type AcquisitionQueue,
+  type AcquisitionQueueItem,
   type DownloadAction,
   type CompletedImportOutcome,
   type DownloadDetails,
@@ -369,6 +370,7 @@ export function App() {
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
   const [isRefreshingAcquisitionQueue, setIsRefreshingAcquisitionQueue] = useState(false);
+  const [acquisitionActionID, setAcquisitionActionID] = useState("");
   const [isLoadingWantedReleases, setIsLoadingWantedReleases] = useState(false);
   const [isLoadingWantedMetadata, setIsLoadingWantedMetadata] = useState(false);
   const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
@@ -1220,6 +1222,61 @@ export function App() {
       if (!options.quiet) {
         setIsRefreshingAcquisitionQueue(false);
       }
+    }
+  }
+
+  async function runAcquisitionQueueAction(item: AcquisitionQueueItem) {
+    const actionID = acquisitionQueueActionID(item);
+    setAcquisitionActionID(actionID);
+    setAcquisitionError("");
+    setSelectedWantedID(item.wantedItem.id);
+    try {
+      switch (item.state) {
+        case "needs_search":
+          await runWantedReleaseSearch(item.wantedItem);
+          break;
+        case "ready_to_grab": {
+          const status = await grabWanted(item.wantedItem.id, item.bestRelease?.id, { paused: true });
+          setDownloadStatus(status);
+          await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
+          break;
+        }
+        case "import_ready": {
+          const downloadsToImport = queueDownloadsForImport(item);
+          if (!downloadsToImport.length) {
+            throw new Error("No completed download is ready to import for this wanted item");
+          }
+          await runCompletedImport(downloadsToImport);
+          break;
+        }
+        case "blocked": {
+          const failedDownloads = queueDownloadsForRecovery(item);
+          if (failedDownloads.length) {
+            await runFailedRecovery(failedDownloads, { autoGrab: true, force: true });
+          } else {
+            await loadWantedReleaseDecisions(item.wantedItem);
+          }
+          break;
+        }
+        case "queued":
+        case "downloading":
+          setIsRefreshingDownloads(true);
+          try {
+            setDownloads(await fetchDownloads({ tag: "librarry" }));
+          } finally {
+            setIsRefreshingDownloads(false);
+          }
+          setDownloadScope("librarry");
+          setDownloadTextFilter(item.wantedItem.title);
+          setActiveView("downloads");
+          break;
+        default:
+          openWantedItem(item.wantedItem);
+      }
+    } catch (error) {
+      setAcquisitionError(error instanceof Error ? error.message : "Queue action failed");
+    } finally {
+      setAcquisitionActionID("");
     }
   }
 
@@ -2678,29 +2735,54 @@ export function App() {
                 {isRefreshingAcquisitionQueue ? "Refreshing" : "Refresh queue"}
               </button>
             </div>
-            {selectedAcquisitionQueueItem ? (
-              <div className={`acquisition-selected ${acquisitionQueueStateTone(selectedAcquisitionQueueItem.state)}`}>
-                <div>
-                  <strong>{acquisitionQueueStateLabel(selectedAcquisitionQueueItem.state)}</strong>
-                  <span>{selectedAcquisitionQueueItem.nextAction}</span>
+            {selectedAcquisitionQueueItem ? (() => {
+              const ActionIcon = acquisitionQueueActionIcon(selectedAcquisitionQueueItem.state);
+              const selectedActionID = acquisitionQueueActionID(selectedAcquisitionQueueItem);
+              return (
+                <div className={`acquisition-selected ${acquisitionQueueStateTone(selectedAcquisitionQueueItem.state)}`}>
+                  <div>
+                    <strong>{acquisitionQueueStateLabel(selectedAcquisitionQueueItem.state)}</strong>
+                    <span>{selectedAcquisitionQueueItem.nextAction}</span>
+                  </div>
+                  <em>
+                    {selectedAcquisitionQueueItem.approvedCount} approved · {selectedAcquisitionQueueItem.rejectedCount} rejected · {selectedAcquisitionQueueItem.downloads?.length ?? 0} queued
+                  </em>
+                  <button
+                    className="secondary-action compact"
+                    disabled={acquisitionQueueActionDisabled(selectedAcquisitionQueueItem) || acquisitionActionID === selectedActionID}
+                    onClick={() => runAcquisitionQueueAction(selectedAcquisitionQueueItem)}
+                    type="button"
+                  >
+                    <ActionIcon size={15} />
+                    {acquisitionActionID === selectedActionID ? "Working" : acquisitionQueueActionLabel(selectedAcquisitionQueueItem)}
+                  </button>
                 </div>
-                <em>
-                  {selectedAcquisitionQueueItem.approvedCount} approved · {selectedAcquisitionQueueItem.rejectedCount} rejected · {selectedAcquisitionQueueItem.downloads?.length ?? 0} queued
-                </em>
-              </div>
-            ) : null}
+              );
+            })() : null}
             {highlightedAcquisitionItems.length ? (
               <div className="acquisition-row-list" aria-label="Book acquisition actions">
-                {highlightedAcquisitionItems.map((item) => (
-                  <button className="acquisition-row" key={item.wantedItem.id} onClick={() => openWantedItem(item.wantedItem)} type="button">
-                    <span className={`acquisition-state-dot ${acquisitionQueueStateTone(item.state)}`} />
-                    <span>
-                      <strong>{item.wantedItem.title}</strong>
-                      <small>{item.wantedItem.authorName || item.wantedItem.format}</small>
-                    </span>
-                    <em>{item.nextAction}</em>
-                  </button>
-                ))}
+                {highlightedAcquisitionItems.map((item) => {
+                  const ActionIcon = acquisitionQueueActionIcon(item.state);
+                  const actionID = acquisitionQueueActionID(item);
+                  return (
+                    <article className="acquisition-row" key={item.wantedItem.id}>
+                      <span className={`acquisition-state-dot ${acquisitionQueueStateTone(item.state)}`} />
+                      <button className="acquisition-row-main" onClick={() => openWantedItem(item.wantedItem)} type="button">
+                        <strong>{item.wantedItem.title}</strong>
+                        <small>{item.wantedItem.authorName || item.wantedItem.format}</small>
+                      </button>
+                      <button
+                        className="secondary-action compact acquisition-row-action"
+                        disabled={acquisitionQueueActionDisabled(item) || acquisitionActionID === actionID}
+                        onClick={() => runAcquisitionQueueAction(item)}
+                        type="button"
+                      >
+                        <ActionIcon size={15} />
+                        {acquisitionActionID === actionID ? "Working" : acquisitionQueueActionLabel(item)}
+                      </button>
+                    </article>
+                  );
+                })}
               </div>
             ) : null}
           </div>
@@ -4837,6 +4919,69 @@ function acquisitionQueueStateTone(state: string) {
     default:
       return "idle";
   }
+}
+
+function acquisitionQueueActionID(item: AcquisitionQueueItem) {
+  return `${item.wantedItem.id}:${item.state}`;
+}
+
+function acquisitionQueueActionLabel(item: AcquisitionQueueItem) {
+  switch (item.state) {
+    case "needs_search":
+      return "Search";
+    case "ready_to_grab":
+      return "Grab";
+    case "import_ready":
+      return "Import";
+    case "blocked":
+      return queueDownloadsForRecovery(item).length ? "Recover" : "Review";
+    case "queued":
+    case "downloading":
+      return "View queue";
+    case "imported":
+      return "Complete";
+    default:
+      return "Open";
+  }
+}
+
+function acquisitionQueueActionIcon(state: string) {
+  switch (state) {
+    case "needs_search":
+      return FileSearch;
+    case "ready_to_grab":
+      return HardDriveDownload;
+    case "import_ready":
+      return UploadCloud;
+    case "blocked":
+      return RefreshCw;
+    case "queued":
+    case "downloading":
+      return Download;
+    case "imported":
+      return CheckCircle2;
+    default:
+      return BookOpen;
+  }
+}
+
+function acquisitionQueueActionDisabled(item: AcquisitionQueueItem) {
+  if (item.state === "imported") return true;
+  if (item.state === "import_ready") return queueDownloadsForImport(item).length === 0;
+  return false;
+}
+
+function queueDownloadsForImport(item: AcquisitionQueueItem) {
+  return (item.downloads ?? []).filter((download) =>
+    download.importStatus !== "imported" &&
+    (download.importStatus === "ready" || (download.progress ?? 0) >= 1 || Boolean(download.completedAt))
+  );
+}
+
+function queueDownloadsForRecovery(item: AcquisitionQueueItem) {
+  return (item.downloads ?? []).filter((download) =>
+    Boolean(download.failureReason || download.importError || stateTone(download.state) === "error")
+  );
 }
 
 function uniqueDownloadCategories(downloads: DownloadStatus[], resources?: DownloadResources | null) {
