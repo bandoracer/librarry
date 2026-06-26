@@ -13,6 +13,7 @@ import (
 	"time"
 
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
+	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
@@ -26,6 +27,7 @@ type readarrImportRequest struct {
 	ImportBooks           *bool  `json:"importBooks,omitempty"`
 	ImportQualityProfiles *bool  `json:"importQualityProfiles,omitempty"`
 	ImportRootFolders     *bool  `json:"importRootFolders,omitempty"`
+	ImportBookFiles       *bool  `json:"importBookFiles,omitempty"`
 	ImportTags            *bool  `json:"importTags,omitempty"`
 	ImportLists           *bool  `json:"importLists,omitempty"`
 	ImportListExclusions  *bool  `json:"importListExclusions,omitempty"`
@@ -154,6 +156,29 @@ type readarrRemoteEdition struct {
 	Images           []readarrRemoteImage `json:"images"`
 }
 
+type readarrRemoteBookFile struct {
+	ID           int                   `json:"id"`
+	AuthorID     int                   `json:"authorId"`
+	BookID       int                   `json:"bookId"`
+	EditionID    int                   `json:"editionId"`
+	Path         string                `json:"path"`
+	RelativePath string                `json:"relativePath"`
+	Size         int64                 `json:"size"`
+	DateAdded    string                `json:"dateAdded"`
+	Modified     string                `json:"modified"`
+	Quality      map[string]any        `json:"quality"`
+	Languages    []map[string]any      `json:"languages"`
+	Language     map[string]any        `json:"language"`
+	MediaInfo    map[string]any        `json:"mediaInfo"`
+	Book         *readarrRemoteBook    `json:"book"`
+	Author       *readarrRemoteAuthor  `json:"author"`
+	Edition      *readarrRemoteEdition `json:"edition"`
+	ReleaseGroup string                `json:"releaseGroup"`
+	SceneName    string                `json:"sceneName"`
+	BookFileType string                `json:"bookFileType"`
+	CalibreID    int                   `json:"calibreId"`
+}
+
 type readarrRemoteImage struct {
 	CoverType string `json:"coverType"`
 	URL       string `json:"url"`
@@ -259,12 +284,29 @@ func (h *handler) runReadarrImport(ctx context.Context, request readarrImportReq
 		outcome.Sections = append(outcome.Sections, h.importReadarrAuthors(ctx, authors, qualityProfileMap, dryRun))
 	}
 
-	if readarrImportEnabled(request.ImportBooks) {
+	booksByID := map[int]readarrRemoteBook{}
+	needsBooks := readarrImportEnabled(request.ImportBooks) || readarrImportEnabled(request.ImportBookFiles)
+	if needsBooks {
 		var books []readarrRemoteBook
 		if err := client.get(ctx, "/api/v1/book", &books); err != nil {
 			return outcome, fmt.Errorf("readarr book fetch failed: %w", err)
 		}
-		outcome.Sections = append(outcome.Sections, h.importReadarrBooks(ctx, books, qualityProfileMap, dryRun))
+		for _, book := range books {
+			if book.ID > 0 {
+				booksByID[book.ID] = book
+			}
+		}
+		if readarrImportEnabled(request.ImportBooks) {
+			outcome.Sections = append(outcome.Sections, h.importReadarrBooks(ctx, books, qualityProfileMap, dryRun))
+		}
+	}
+
+	if readarrImportEnabled(request.ImportBookFiles) {
+		var bookFiles []readarrRemoteBookFile
+		if err := client.get(ctx, "/api/v1/bookfile", &bookFiles); err != nil {
+			return outcome, fmt.Errorf("readarr bookfile fetch failed: %w", err)
+		}
+		outcome.Sections = append(outcome.Sections, h.importReadarrBookFiles(ctx, bookFiles, booksByID, dryRun))
 	}
 
 	if readarrImportEnabled(request.ImportLists) {
@@ -576,6 +618,48 @@ func (h *handler) importReadarrBooks(ctx context.Context, books []readarrRemoteB
 	return trimReadarrImportSection(section)
 }
 
+func (h *handler) importReadarrBookFiles(ctx context.Context, files []readarrRemoteBookFile, booksByID map[int]readarrRemoteBook, dryRun bool) readarrImportSection {
+	section := readarrImportSection{Name: "bookFiles", Count: len(files)}
+	if h.deps.Library == nil && !dryRun {
+		section.Errors = append(section.Errors, "library service is unavailable")
+		section.Skipped = len(files)
+	}
+	for _, remoteFile := range files {
+		record := readarrBookFileRecord(remoteFile, booksByID)
+		item := readarrImportItem{
+			ID:         readarrIntID(remoteFile.ID),
+			Title:      record.Title,
+			AuthorName: record.AuthorName,
+			Path:       record.Path,
+			Status:     "preview",
+		}
+		if strings.TrimSpace(record.Path) == "" {
+			item.Status = "skipped"
+			item.Message = "missing file path"
+			section.Skipped++
+			section.Items = append(section.Items, item)
+			continue
+		}
+		if dryRun || h.deps.Library == nil {
+			section.Items = append(section.Items, item)
+			continue
+		}
+		saved, err := h.deps.Library.TrackFile(ctx, record)
+		if err != nil {
+			section.Errors = append(section.Errors, fmt.Sprintf("%s: %v", record.Path, err))
+			item.Status = "error"
+			item.Message = err.Error()
+			section.Skipped++
+		} else {
+			item.Status = "imported"
+			item.ID = firstNonEmptyString(saved.ID, item.ID)
+			section.Imported++
+		}
+		section.Items = append(section.Items, item)
+	}
+	return trimReadarrImportSection(section)
+}
+
 func readarrImportEnabled(value *bool) bool {
 	return value == nil || *value
 }
@@ -762,6 +846,125 @@ func readarrBookFormat(book readarrRemoteBook) metadata.MediaFormat {
 		}
 	}
 	return metadata.FormatEbook
+}
+
+func readarrBookFileRecord(remoteFile readarrRemoteBookFile, booksByID map[int]readarrRemoteBook) library.FileRecord {
+	book := readarrBookForFile(remoteFile, booksByID)
+	title := firstNonEmptyString(
+		nestedString(map[string]any{"book": remoteBookPayload(book)}, "book", "title"),
+		nestedString(map[string]any{"edition": remoteEditionPayload(remoteFile.Edition)}, "edition", "title"),
+		strings.TrimSuffix(filepath.Base(remoteFile.Path), filepath.Ext(remoteFile.Path)),
+	)
+	authorName := readarrBookAuthorName(book)
+	if remoteFile.Author != nil && strings.TrimSpace(remoteFile.Author.AuthorName) != "" {
+		authorName = strings.TrimSpace(remoteFile.Author.AuthorName)
+	}
+	extension := strings.TrimPrefix(strings.ToLower(filepath.Ext(remoteFile.Path)), ".")
+	qualityName := readarrBookFileQualityName(remoteFile)
+	mediaFormat := readarrBookFileFormat(remoteFile, book, extension, qualityName)
+	metadataValues := map[string]any{
+		"source":            "readarr-import",
+		"readarrBookFileId": remoteFile.ID,
+		"readarrBookId":     remoteFile.BookID,
+		"readarrAuthorId":   remoteFile.AuthorID,
+		"readarrEditionId":  remoteFile.EditionID,
+		"qualityName":       qualityName,
+		"languages":         readarrBookFileLanguages(remoteFile),
+		"mediaInfo":         remoteFile.MediaInfo,
+		"releaseGroup":      strings.TrimSpace(remoteFile.ReleaseGroup),
+		"sceneName":         strings.TrimSpace(remoteFile.SceneName),
+		"bookFileType":      strings.TrimSpace(remoteFile.BookFileType),
+		"dateAdded":         strings.TrimSpace(remoteFile.DateAdded),
+	}
+	if remoteFile.CalibreID > 0 {
+		metadataValues["calibreId"] = remoteFile.CalibreID
+	}
+	modifiedAt := readarrParseTime(firstNonEmptyString(remoteFile.Modified, remoteFile.DateAdded))
+	return library.FileRecord{
+		MediaFormat:  string(mediaFormat),
+		Path:         strings.TrimSpace(remoteFile.Path),
+		SourcePath:   strings.TrimSpace(remoteFile.Path),
+		Title:        title,
+		AuthorName:   authorName,
+		Extension:    extension,
+		SizeBytes:    remoteFile.Size,
+		ImportStatus: "imported",
+		Metadata:     metadataValues,
+		ModifiedAt:   modifiedAt,
+	}
+}
+
+func readarrBookForFile(remoteFile readarrRemoteBookFile, booksByID map[int]readarrRemoteBook) readarrRemoteBook {
+	if remoteFile.Book != nil {
+		return *remoteFile.Book
+	}
+	if book, ok := booksByID[remoteFile.BookID]; ok {
+		return book
+	}
+	return readarrRemoteBook{}
+}
+
+func remoteBookPayload(book readarrRemoteBook) map[string]any {
+	return map[string]any{"title": strings.TrimSpace(book.Title)}
+}
+
+func remoteEditionPayload(edition *readarrRemoteEdition) map[string]any {
+	if edition == nil {
+		return map[string]any{}
+	}
+	return map[string]any{"title": strings.TrimSpace(edition.Title)}
+}
+
+func readarrBookFileQualityName(remoteFile readarrRemoteBookFile) string {
+	return firstNonEmptyString(
+		nestedString(remoteFile.Quality, "quality", "name"),
+		payloadString(remoteFile.Quality, "name"),
+		payloadString(remoteFile.Quality, "qualityName"),
+	)
+}
+
+func readarrBookFileLanguages(remoteFile readarrRemoteBookFile) []string {
+	var languages []string
+	for _, language := range remoteFile.Languages {
+		if name := payloadString(language, "name"); name != "" {
+			languages = append(languages, name)
+		}
+	}
+	if name := payloadString(remoteFile.Language, "name"); name != "" {
+		languages = append(languages, name)
+	}
+	if len(languages) == 0 {
+		languages = append(languages, "English")
+	}
+	return firstUniqueStrings(languages)
+}
+
+func readarrBookFileFormat(remoteFile readarrRemoteBookFile, book readarrRemoteBook, extension string, qualityName string) metadata.MediaFormat {
+	value := strings.ToLower(strings.Join([]string{
+		remoteFile.BookFileType,
+		extension,
+		qualityName,
+		string(readarrBookFormat(book)),
+	}, " "))
+	if strings.Contains(value, "audio") || strings.Contains(value, "m4b") || strings.Contains(value, "mp3") {
+		return metadata.FormatAudiobook
+	}
+	return metadata.FormatEbook
+}
+
+func readarrParseTime(value string) *time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04:05", "2006-01-02"} {
+		parsed, err := time.Parse(layout, value)
+		if err == nil {
+			parsed = parsed.UTC()
+			return &parsed
+		}
+	}
+	return nil
 }
 
 func readarrCoverURL(images []readarrRemoteImage) string {

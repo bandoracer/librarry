@@ -96,12 +96,14 @@ func TestReadarrImportPreviewReadsRemoteState(t *testing.T) {
 	server := newFakeReadarrServer(t)
 	defer server.Close()
 	wantedCapture := &capturingReadarrImportWanted{}
+	libraryCapture := &capturingReadarrImportLibrary{}
 	compatResources := &fakeCompatResources{}
 	router := NewRouter(Dependencies{
-		Logger: slog.Default(),
-		Config: config.Config{WebOrigin: "*"},
-		Wanted: wantedCapture,
-		Compat: compatResources,
+		Logger:  slog.Default(),
+		Config:  config.Config{WebOrigin: "*"},
+		Wanted:  wantedCapture,
+		Library: libraryCapture,
+		Compat:  compatResources,
 	})
 	body := strings.NewReader(fmt.Sprintf(`{"baseUrl":%q,"apiKey":"readarr-key"}`, server.URL))
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/readarr/import/preview", body)
@@ -121,7 +123,7 @@ func TestReadarrImportPreviewReadsRemoteState(t *testing.T) {
 	}
 	sections := readarrSectionsByName(outcome.Sections)
 	for _, name := range []string{
-		"qualityProfiles", "tags", "rootFolders", "authors", "books", "importLists", "importListExclusions",
+		"qualityProfiles", "tags", "rootFolders", "authors", "books", "bookFiles", "importLists", "importListExclusions",
 		"delayProfiles", "languageProfiles", "metadataProfiles", "metadataConsumers", "customFormats",
 		"restrictions", "notifications", "remotePathMappings", "downloadClients", "indexers",
 	} {
@@ -129,8 +131,8 @@ func TestReadarrImportPreviewReadsRemoteState(t *testing.T) {
 			t.Fatalf("expected one %s item, got %+v", name, sections[name])
 		}
 	}
-	if len(wantedCapture.profiles) != 0 || len(wantedCapture.authors) != 0 || len(wantedCapture.creates) != 0 || len(compatResources.roots) != 0 || len(compatResources.resources) != 0 {
-		t.Fatalf("preview should not persist state: wanted=%+v compat roots=%+v resources=%+v", wantedCapture, compatResources.roots, compatResources.resources)
+	if len(wantedCapture.profiles) != 0 || len(wantedCapture.authors) != 0 || len(wantedCapture.creates) != 0 || len(libraryCapture.files) != 0 || len(compatResources.roots) != 0 || len(compatResources.resources) != 0 {
+		t.Fatalf("preview should not persist state: wanted=%+v files=%+v compat roots=%+v resources=%+v", wantedCapture, libraryCapture.files, compatResources.roots, compatResources.resources)
 	}
 }
 
@@ -138,12 +140,14 @@ func TestReadarrImportApplyPersistsNativeState(t *testing.T) {
 	server := newFakeReadarrServer(t)
 	defer server.Close()
 	wantedCapture := &capturingReadarrImportWanted{}
+	libraryCapture := &capturingReadarrImportLibrary{}
 	compatResources := &fakeCompatResources{}
 	router := NewRouter(Dependencies{
-		Logger: slog.Default(),
-		Config: config.Config{WebOrigin: "*"},
-		Wanted: wantedCapture,
-		Compat: compatResources,
+		Logger:  slog.Default(),
+		Config:  config.Config{WebOrigin: "*"},
+		Wanted:  wantedCapture,
+		Library: libraryCapture,
+		Compat:  compatResources,
 	})
 	body := strings.NewReader(fmt.Sprintf(`{"baseUrl":%q,"apiKey":"readarr-key"}`, server.URL))
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/readarr/import", body)
@@ -203,6 +207,19 @@ func TestReadarrImportApplyPersistsNativeState(t *testing.T) {
 	}
 	if got := wantedCapture.creates[0].Result.Edition.ISBNs; len(got) != 1 || got[0] != "9780593135204" {
 		t.Fatalf("expected edition ISBN to carry over, got %+v", wantedCapture.creates[0].Result.Edition)
+	}
+	if len(libraryCapture.files) != 1 {
+		t.Fatalf("expected one imported bookfile, got %+v", libraryCapture.files)
+	}
+	file := libraryCapture.files[0]
+	if file.Path != "/books/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" || file.Title != "Project Hail Mary" || file.AuthorName != "Andy Weir" {
+		t.Fatalf("unexpected imported file mapping: %+v", file)
+	}
+	if file.ImportStatus != "imported" || file.MediaFormat != "ebook" {
+		t.Fatalf("expected imported ebook file, got %+v", file)
+	}
+	if payloadIntDefault(file.Metadata, "readarrBookFileId", 0) != 25 || payloadIntDefault(file.Metadata, "readarrBookId", 0) != 9 {
+		t.Fatalf("expected Readarr bookfile metadata, got %+v", file.Metadata)
 	}
 }
 
@@ -273,6 +290,24 @@ func newFakeReadarrServer(t *testing.T) *httptest.Server {
 							"monitored": true
 						}
 					]
+				}
+			]`))
+		case "/api/v1/bookfile":
+			_, _ = w.Write([]byte(`[
+				{
+					"id": 25,
+					"authorId": 8,
+					"bookId": 9,
+					"editionId": 10,
+					"path": "/books/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
+					"relativePath": "Project Hail Mary.epub",
+					"size": 7340032,
+					"dateAdded": "2025-01-02T03:04:05Z",
+					"modified": "2025-01-03T03:04:05Z",
+					"quality": {"quality": {"name": "EPUB"}},
+					"languages": [{"id": 1, "name": "English"}],
+					"releaseGroup": "Retail",
+					"bookFileType": "ebook"
 				}
 			]`))
 		case "/api/v1/importlist":
@@ -4179,6 +4214,20 @@ func (f *capturingReadarrImportWanted) Create(_ context.Context, request wanted.
 	}, nil
 }
 
+type capturingReadarrImportLibrary struct {
+	fakeLibrary
+	files []library.FileRecord
+}
+
+func (f *capturingReadarrImportLibrary) TrackFile(_ context.Context, file library.FileRecord) (library.FileRecord, error) {
+	f.files = append(f.files, file)
+	file.ID = "file-" + strconv.Itoa(len(f.files))
+	now := time.Now().UTC()
+	file.CreatedAt = now
+	file.UpdatedAt = now
+	return file, nil
+}
+
 func (fakeWanted) Create(_ context.Context, request wanted.CreateRequest) (wanted.WantedItem, error) {
 	return wanted.WantedItem{
 		ID:             "wanted-1",
@@ -5012,6 +5061,13 @@ func (f *configurableFakeLibrary) Reconfigure(config library.Config) {
 
 func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.FileRecord, error) {
 	return []library.FileRecord{fakeLibraryFile()}, nil
+}
+
+func (fakeLibrary) TrackFile(_ context.Context, file library.FileRecord) (library.FileRecord, error) {
+	if file.ID == "" {
+		file.ID = "file-1"
+	}
+	return file, nil
 }
 
 type fakeMissingLibrary struct {

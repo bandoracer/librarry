@@ -287,6 +287,7 @@ function emptyReadarrImportSettings(): ReadarrImportSettings {
     importBooks: true,
     importQualityProfiles: true,
     importRootFolders: true,
+    importBookFiles: true,
     importTags: true,
     importLists: true,
     importListExclusions: true,
@@ -4327,6 +4328,10 @@ export function App() {
                   <span>Root folders</span>
                 </label>
                 <label>
+                  <input checked={readarrImportForm.importBookFiles} onChange={(event) => updateReadarrImportForm({ importBookFiles: event.target.checked })} type="checkbox" />
+                  <span>Book files</span>
+                </label>
+                <label>
                   <input checked={readarrImportForm.importTags} onChange={(event) => updateReadarrImportForm({ importTags: event.target.checked })} type="checkbox" />
                   <span>Tags</span>
                 </label>
@@ -5382,6 +5387,8 @@ function readarrImportSectionLabel(name: string) {
       return "Authors";
     case "books":
       return "Books";
+    case "bookFiles":
+      return "Book files";
     case "tags":
       return "Tags";
     case "importLists":

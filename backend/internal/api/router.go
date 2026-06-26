@@ -93,6 +93,7 @@ type metadataProvenanceService interface {
 
 type libraryService interface {
 	ListFiles(ctx context.Context, query library.FileListQuery) ([]library.FileRecord, error)
+	TrackFile(ctx context.Context, file library.FileRecord) (library.FileRecord, error)
 	UpdateFile(ctx context.Context, file library.FileRecord) (library.FileRecord, error)
 	DeleteFiles(ctx context.Context, request library.DeleteFilesRequest) (library.DeleteFilesOutcome, error)
 	PreviewRenameFiles(ctx context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error)
