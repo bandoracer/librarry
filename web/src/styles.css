@@ -1735,6 +1735,16 @@ select {
   flex-wrap: wrap;
 }
 
+.download-scope {
+  height: 38px;
+  box-shadow: none;
+}
+
+.download-scope button {
+  height: 30px;
+  white-space: nowrap;
+}
+
 .manual-grab-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

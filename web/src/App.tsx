@@ -144,6 +144,7 @@ const navItems = [
 ] as const;
 
 type ViewID = (typeof navItems)[number]["id"];
+type DownloadScope = "all" | "librarry";
 
 export function App() {
   const [activeView, setActiveView] = useState<ViewID>("downloads");
@@ -173,6 +174,7 @@ export function App() {
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
+  const [downloadScope, setDownloadScope] = useState<DownloadScope>("all");
   const [query, setQuery] = useState("Project Hail Mary");
   const [importPath, setImportPath] = useState("");
   const [format, setFormat] = useState("any");
@@ -227,7 +229,7 @@ export function App() {
       .catch(() => {
         setAPIState("offline");
       });
-    fetchDownloads()
+    fetchDownloads(downloadScopeTag(downloadScope))
       .then(setDownloads)
       .catch((error) => {
         setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
@@ -649,7 +651,25 @@ export function App() {
     setIsRefreshingDownloads(true);
     setDownloadError("");
     try {
-      const nextDownloads = await fetchDownloads();
+      const nextDownloads = await fetchDownloads(downloadScopeTag(downloadScope));
+      setDownloads(nextDownloads);
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
+    } finally {
+      setIsRefreshingDownloads(false);
+    }
+  }
+
+  async function changeDownloadScope(scope: DownloadScope) {
+    if (scope === downloadScope) return;
+    setDownloadScope(scope);
+    setSelectedDownloadKeys([]);
+    setDownloadDetails(null);
+    setIsRefreshingDownloads(true);
+    setDownloadError("");
+    try {
+      const nextDownloads = await fetchDownloads(downloadScopeTag(scope));
       setDownloads(nextDownloads);
       setAPIState("live");
     } catch (error) {
@@ -1489,11 +1509,21 @@ export function App() {
               <h2>Downloads</h2>
               <p>
                 {downloads.length
-                  ? `${downloads.length} download-client items tracked; ${selectedDownloads.length} selected for queue actions.`
-                  : "No Librarry-tagged downloads are currently visible."}
+                  ? `${downloads.length} ${downloadScope === "all" ? "download-client" : "Librarry-tagged"} items visible; ${selectedDownloads.length} selected for queue actions.`
+                  : downloadScope === "all"
+                    ? "No download-client items are currently visible."
+                    : "No Librarry-tagged downloads are currently visible."}
               </p>
             </div>
             <div className="download-toolbar">
+              <div className="segmented download-scope" aria-label="Download queue scope">
+                <button className={downloadScope === "all" ? "selected" : ""} onClick={() => changeDownloadScope("all")} type="button">
+                  All clients
+                </button>
+                <button className={downloadScope === "librarry" ? "selected" : ""} onClick={() => changeDownloadScope("librarry")} type="button">
+                  Librarry
+                </button>
+              </div>
               <button className="secondary-action compact" onClick={refreshDownloads} type="button">
                 <RefreshCw size={16} />
                 {isRefreshingDownloads ? "Refreshing" : "Refresh"}
@@ -2049,6 +2079,10 @@ function mergeDownloads(current: DownloadStatus[], next: DownloadStatus[]) {
 
 function downloadKey(download: DownloadStatus) {
   return `${download.client || "qBittorrent"}:${download.id}`;
+}
+
+function downloadScopeTag(scope: DownloadScope) {
+  return scope === "librarry" ? "librarry" : "";
 }
 
 function supportsDownloadAction(download: DownloadStatus, action: DownloadAction) {

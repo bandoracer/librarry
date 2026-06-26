@@ -168,8 +168,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   native Librarry routes and stateful Readarr-compatible `/api/v1/release`
   search/grab that maps returned Arr release IDs back to persisted Librarry
   release decisions.
-- qBittorrent integration for book categories, paused grabs, polling, simple
-  active-queue rebalancing, single and bulk start, stop, delete, recheck,
+- qBittorrent integration for book categories, paused grabs, all-client and
+  Librarry-tagged queue views, polling, simple active-queue rebalancing, single
+  and bulk start, stop, delete, recheck,
   import, recovery, priority actions, per-torrent speed limits, manual URL
   adds, peer inspection, and tracker editing.
 - Transmission integration for torrent add/list/start/stop/delete/recheck,

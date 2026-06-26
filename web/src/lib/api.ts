@@ -629,7 +629,7 @@ export async function grabManualDownload(request: {
   return (await response.json()) as DownloadStatus;
 }
 
-export async function fetchDownloads(tag = "librarry"): Promise<DownloadStatus[]> {
+export async function fetchDownloads(tag = ""): Promise<DownloadStatus[]> {
   const params = new URLSearchParams();
   if (tag) params.set("tag", tag);
   const response = await fetch(`${apiBase}/api/v1/downloads?${params.toString()}`);
