@@ -815,6 +815,21 @@ func TestMergeStoredDownloadStateIncludesFailureMetadata(t *testing.T) {
 	}
 }
 
+func TestDownloadsHideRemovedStoredItems(t *testing.T) {
+	service := NewService(IntegrationConfig{DownloadStore: fakeDownloadStore{downloads: []DownloadStatus{
+		{ID: "removed", Name: "Removed", State: "removed", Tags: []string{"librarry-smoke"}},
+		{ID: "active", Name: "Active", State: "stoppedDL", Tags: []string{"librarry-smoke"}},
+	}}})
+
+	downloads, err := service.Downloads(context.Background(), DownloadListQuery{Tag: "librarry-smoke"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(downloads) != 1 || downloads[0].ID != "active" {
+		t.Fatalf("expected only active stored download, got %+v", downloads)
+	}
+}
+
 type fakeDownloadStore struct {
 	downloads []DownloadStatus
 }

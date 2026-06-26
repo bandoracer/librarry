@@ -111,7 +111,7 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 		return nil, nil
 	}
 	args := []any{}
-	where := []string{"external_id is not null"}
+	where := []string{"external_id is not null", "state <> 'removed'"}
 	if client := strings.TrimSpace(query.Client); client != "" {
 		args = append(args, client)
 		where = append(where, "client = $"+strconv.Itoa(len(args)))

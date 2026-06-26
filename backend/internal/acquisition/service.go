@@ -196,8 +196,11 @@ func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]Dow
 
 	if s.store != nil {
 		stored, storeErr := s.store.ListDownloads(ctx, query)
-		if storeErr == nil && len(stored) > 0 {
-			return stored, nil
+		if storeErr == nil {
+			visible := filterRemovedDownloads(stored)
+			if len(visible) > 0 || len(stored) > 0 {
+				return visible, nil
+			}
 		}
 	}
 	if firstErr != nil {
@@ -654,6 +657,20 @@ func (s *Service) mergeStoredDownloadState(ctx context.Context, downloads []Down
 		}
 	}
 	return downloads
+}
+
+func filterRemovedDownloads(downloads []DownloadStatus) []DownloadStatus {
+	if len(downloads) == 0 {
+		return downloads
+	}
+	visible := downloads[:0]
+	for _, download := range downloads {
+		if strings.EqualFold(strings.TrimSpace(download.State), "removed") {
+			continue
+		}
+		visible = append(visible, download)
+	}
+	return visible
 }
 
 type downloadClient interface {
