@@ -302,11 +302,11 @@ configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, force-start, sequential-download
 toggle, first/last-piece priority toggle, rename, tag add/remove, category
 changes, and location changes, plus delete-with-data removal and per-torrent
-download and upload speed limits. qBittorrent global preferences are exposed
-through `/api/v1/downloads/preferences` for save paths, temp-path usage,
-paused-add behavior, global and alternate speed limits, scheduler toggles, and
-active-queue caps. qBittorrent category/tag namespaces and Transmission
-label-derived category/tag resources are exposed through
+download and upload speed limits. qBittorrent and Transmission global
+preferences are exposed through `/api/v1/downloads/preferences` for save paths,
+temp or incomplete path usage, paused-add behavior, global and alternate speed
+limits, scheduler toggles, and queue caps. qBittorrent category/tag namespaces
+and Transmission label-derived category/tag resources are exposed through
 `/api/v1/downloads/resources`,
 `/api/v1/downloads/categories/actions`, and
 `/api/v1/downloads/tags/actions`. The Downloads page filters by client, state,

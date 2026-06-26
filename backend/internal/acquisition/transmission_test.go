@@ -255,6 +255,115 @@ func TestTransmissionResourcesDeriveCategoriesAndTagsFromLabels(t *testing.T) {
 	}
 }
 
+func TestTransmissionPreferencesReadAndUpdate(t *testing.T) {
+	var sessionGets int
+	var setArgs map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		switch payload.Method {
+		case "session-get":
+			sessionGets++
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": "success",
+				"arguments": map[string]any{
+					"download-dir":             "/downloads/books",
+					"incomplete-dir-enabled":   true,
+					"incomplete-dir":           "/downloads/incomplete",
+					"start-added-torrents":     false,
+					"speed-limit-down":         1024,
+					"speed-limit-down-enabled": true,
+					"speed-limit-up":           512,
+					"speed-limit-up-enabled":   false,
+					"alt-speed-down":           256,
+					"alt-speed-up":             128,
+					"alt-speed-time-enabled":   true,
+					"download-queue-enabled":   true,
+					"download-queue-size":      3,
+					"seed-queue-enabled":       true,
+					"seed-queue-size":          2,
+				},
+			})
+		case "session-set":
+			setArgs = payload.Arguments
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+		default:
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+	}))
+	defer server.Close()
+
+	client := NewTransmissionClient(server.URL, "", "", server.Client())
+	preferences, err := client.Preferences(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preferences.Client != "Transmission" || preferences.SavePath != "/downloads/books" || !preferences.StartPaused || preferences.DownloadLimit != 1_048_576 || preferences.UploadLimit != 0 || preferences.MaxActiveTorrents != 5 {
+		t.Fatalf("unexpected preferences: %+v", preferences)
+	}
+
+	savePath := "/downloads/books/audio"
+	startPaused := false
+	downloadLimit := int64(2_097_152)
+	uploadLimit := int64(0)
+	queueing := true
+	maxDownloads := 4
+	maxUploads := 1
+	updated, err := client.UpdatePreferences(context.Background(), DownloadPreferencesUpdate{
+		SavePath:           &savePath,
+		StartPaused:        &startPaused,
+		DownloadLimit:      &downloadLimit,
+		UploadLimit:        &uploadLimit,
+		QueueingEnabled:    &queueing,
+		MaxActiveDownloads: &maxDownloads,
+		MaxActiveUploads:   &maxUploads,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sessionGets != 2 {
+		t.Fatalf("expected initial and refreshed session-get calls, got %d", sessionGets)
+	}
+	if setArgs["download-dir"] != savePath ||
+		setArgs["start-added-torrents"] != true ||
+		setArgs["speed-limit-down-enabled"] != true ||
+		int64(setArgs["speed-limit-down"].(float64)) != 2048 ||
+		setArgs["speed-limit-up-enabled"] != false ||
+		setArgs["download-queue-enabled"] != true ||
+		int(setArgs["download-queue-size"].(float64)) != maxDownloads ||
+		int(setArgs["seed-queue-size"].(float64)) != maxUploads {
+		t.Fatalf("unexpected session-set args: %+v", setArgs)
+	}
+	if updated.LibrarryPreferenceWriteScope != "transmission-session-preferences" {
+		t.Fatalf("expected Transmission preference write scope, got %+v", updated)
+	}
+}
+
+func TestTransmissionPreferencePatchQueueToggleWins(t *testing.T) {
+	queueing := false
+	maxDownloads := 4
+	maxUploads := 2
+	patch, err := transmissionPreferencePatch(DownloadPreferencesUpdate{
+		QueueingEnabled:    &queueing,
+		MaxActiveDownloads: &maxDownloads,
+		MaxActiveUploads:   &maxUploads,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if patch["download-queue-enabled"] != false || patch["seed-queue-enabled"] != false {
+		t.Fatalf("expected explicit queueing=false to win, got %+v", patch)
+	}
+	if patch["download-queue-size"] != maxDownloads || patch["seed-queue-size"] != maxUploads {
+		t.Fatalf("expected queue sizes to be preserved in patch, got %+v", patch)
+	}
+}
+
 func TestTransmissionCategoryActionRenamesLabelAcrossTorrents(t *testing.T) {
 	var methods []string
 	var setArgs map[string]any

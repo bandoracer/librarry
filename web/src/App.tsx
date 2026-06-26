@@ -374,6 +374,7 @@ export function App() {
   const downloadResourceClientOptions = useMemo(() => uniqueDownloadResourceClients(downloads, integrations), [downloads, integrations]);
   const resourceClientIsTransmission = downloadResourceClient.toLowerCase() === "transmission";
   const resourceClientIsQbittorrent = downloadResourceClient.toLowerCase() === "qbittorrent";
+  const resourceClientSupportsPreferences = resourceClientIsQbittorrent || resourceClientIsTransmission;
   const downloadCategoryOptions = useMemo(() => uniqueDownloadCategories(downloads, downloadResources), [downloads, downloadResources]);
   const selectableDownloadKeys = useMemo(() => filteredDownloads.map(downloadKey).filter(Boolean), [filteredDownloads]);
   const selectedDownloadKeySet = useMemo(() => new Set(selectedDownloadKeys), [selectedDownloadKeys]);
@@ -881,7 +882,7 @@ export function App() {
   }
 
   async function refreshDownloadPreferences(silent = false) {
-    if (!resourceClientIsQbittorrent) {
+    if (!resourceClientSupportsPreferences) {
       setDownloadPreferences(null);
       return;
     }
@@ -904,7 +905,7 @@ export function App() {
   }
 
   async function applyDownloadPreferences() {
-    if (!resourceClientIsQbittorrent) return;
+    if (!resourceClientSupportsPreferences) return;
     const downloadLimit = bandwidthInputToBytes(preferenceDownloadLimitKiB);
     const uploadLimit = bandwidthInputToBytes(preferenceUploadLimitKiB);
     const altDownloadLimit = bandwidthInputToBytes(preferenceAltDownloadLimitKiB);
@@ -933,7 +934,7 @@ export function App() {
         alternativeUploadLimit: altUploadLimit,
         maxActiveDownloads,
         maxActiveUploads,
-        maxActiveTorrents
+        maxActiveTorrents: resourceClientIsQbittorrent ? maxActiveTorrents : undefined
       });
       setDownloadPreferences(preferences);
       hydrateDownloadPreferenceForm(preferences);
@@ -2259,10 +2260,10 @@ export function App() {
               </div>
             </div>
           </div>
-          {resourceClientIsQbittorrent ? (
-            <div className="download-preference-panel" aria-label="qBittorrent preferences">
+          {resourceClientSupportsPreferences ? (
+            <div className="download-preference-panel" aria-label={`${downloadResourceClient} preferences`}>
               <div className="download-preference-header">
-                <strong>qBittorrent</strong>
+                <strong>{downloadResourceClient}</strong>
                 <span>
                   {downloadPreferences
                     ? `${formatLimitSpeed(downloadPreferences.downloadLimit)} down · ${formatLimitSpeed(downloadPreferences.uploadLimit)} up · ${downloadPreferences.maxActiveTorrents} active`
@@ -2306,7 +2307,7 @@ export function App() {
                 </label>
                 <label>
                   <span>Active total</span>
-                  <input inputMode="numeric" min="-1" value={preferenceMaxActiveTorrents} onChange={(event) => setPreferenceMaxActiveTorrents(event.target.value)} type="number" />
+                  <input disabled={!resourceClientIsQbittorrent} inputMode="numeric" min="-1" value={preferenceMaxActiveTorrents} onChange={(event) => setPreferenceMaxActiveTorrents(event.target.value)} type="number" />
                 </label>
               </div>
               <div className="download-preference-toggles">

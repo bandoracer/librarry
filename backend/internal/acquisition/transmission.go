@@ -230,6 +230,30 @@ func (c *TransmissionClient) Resources(ctx context.Context) (DownloadResources, 
 	}, nil
 }
 
+func (c *TransmissionClient) Preferences(ctx context.Context) (DownloadPreferences, error) {
+	if !c.Configured() {
+		return DownloadPreferences{}, ErrIntegrationNotConfigured
+	}
+	return c.preferences(ctx)
+}
+
+func (c *TransmissionClient) UpdatePreferences(ctx context.Context, request DownloadPreferencesUpdate) (DownloadPreferences, error) {
+	if !c.Configured() {
+		return DownloadPreferences{}, ErrIntegrationNotConfigured
+	}
+	values, err := transmissionPreferencePatch(request)
+	if err != nil {
+		return DownloadPreferences{}, err
+	}
+	if len(values) == 0 {
+		return c.Preferences(ctx)
+	}
+	if err := c.rpc(ctx, "session-set", values, nil); err != nil {
+		return DownloadPreferences{}, err
+	}
+	return c.preferences(ctx)
+}
+
 func (c *TransmissionClient) CategoryAction(ctx context.Context, request DownloadCategoryActionRequest) (DownloadResourceActionResult, error) {
 	if !c.Configured() {
 		return DownloadResourceActionResult{}, ErrIntegrationNotConfigured
@@ -588,6 +612,126 @@ func (c *TransmissionClient) rpcURL() string {
 		return c.baseURL
 	}
 	return c.baseURL + transmissionRPCPath
+}
+
+func (c *TransmissionClient) preferences(ctx context.Context) (DownloadPreferences, error) {
+	var raw struct {
+		DownloadDir           string `json:"download-dir"`
+		IncompleteDirEnabled  bool   `json:"incomplete-dir-enabled"`
+		IncompleteDir         string `json:"incomplete-dir"`
+		StartAddedTorrents    bool   `json:"start-added-torrents"`
+		SpeedLimitDown        int64  `json:"speed-limit-down"`
+		SpeedLimitDownEnabled bool   `json:"speed-limit-down-enabled"`
+		SpeedLimitUp          int64  `json:"speed-limit-up"`
+		SpeedLimitUpEnabled   bool   `json:"speed-limit-up-enabled"`
+		AltSpeedDown          int64  `json:"alt-speed-down"`
+		AltSpeedUp            int64  `json:"alt-speed-up"`
+		AltSpeedTimeEnabled   bool   `json:"alt-speed-time-enabled"`
+		DownloadQueueEnabled  bool   `json:"download-queue-enabled"`
+		DownloadQueueSize     int    `json:"download-queue-size"`
+		SeedQueueEnabled      bool   `json:"seed-queue-enabled"`
+		SeedQueueSize         int    `json:"seed-queue-size"`
+	}
+	if err := c.rpc(ctx, "session-get", map[string]any{}, &raw); err != nil {
+		return DownloadPreferences{}, err
+	}
+	maxActiveDownloads := -1
+	if raw.DownloadQueueEnabled {
+		maxActiveDownloads = raw.DownloadQueueSize
+	}
+	maxActiveUploads := -1
+	if raw.SeedQueueEnabled {
+		maxActiveUploads = raw.SeedQueueSize
+	}
+	maxActiveTorrents := -1
+	if maxActiveDownloads >= 0 || maxActiveUploads >= 0 {
+		maxActiveTorrents = maxInt(maxActiveDownloads, 0) + maxInt(maxActiveUploads, 0)
+	}
+	return DownloadPreferences{
+		Client:                       c.Name(),
+		SavePath:                     strings.TrimSpace(raw.DownloadDir),
+		TempPathEnabled:              raw.IncompleteDirEnabled,
+		TempPath:                     strings.TrimSpace(raw.IncompleteDir),
+		StartPaused:                  !raw.StartAddedTorrents,
+		DownloadLimit:                transmissionLimitBytes(raw.SpeedLimitDown, raw.SpeedLimitDownEnabled),
+		UploadLimit:                  transmissionLimitBytes(raw.SpeedLimitUp, raw.SpeedLimitUpEnabled),
+		AlternativeDownloadLimit:     raw.AltSpeedDown * 1024,
+		AlternativeUploadLimit:       raw.AltSpeedUp * 1024,
+		SpeedScheduleEnabled:         raw.AltSpeedTimeEnabled,
+		QueueingEnabled:              raw.DownloadQueueEnabled || raw.SeedQueueEnabled,
+		MaxActiveDownloads:           maxActiveDownloads,
+		MaxActiveUploads:             maxActiveUploads,
+		MaxActiveTorrents:            maxActiveTorrents,
+		LibrarryPreferenceWriteScope: "transmission-session-preferences",
+	}, nil
+}
+
+func transmissionPreferencePatch(request DownloadPreferencesUpdate) (map[string]any, error) {
+	values := map[string]any{}
+	if request.SavePath != nil {
+		values["download-dir"] = strings.TrimSpace(*request.SavePath)
+	}
+	if request.TempPathEnabled != nil {
+		values["incomplete-dir-enabled"] = *request.TempPathEnabled
+	}
+	if request.TempPath != nil {
+		values["incomplete-dir"] = strings.TrimSpace(*request.TempPath)
+	}
+	if request.StartPaused != nil {
+		values["start-added-torrents"] = !*request.StartPaused
+	}
+	if request.DownloadLimit != nil {
+		if *request.DownloadLimit < 0 {
+			return nil, errors.New("downloadLimit must be zero or greater")
+		}
+		values["speed-limit-down-enabled"] = *request.DownloadLimit > 0
+		values["speed-limit-down"] = bytesPerSecondToKiB(*request.DownloadLimit)
+	}
+	if request.UploadLimit != nil {
+		if *request.UploadLimit < 0 {
+			return nil, errors.New("uploadLimit must be zero or greater")
+		}
+		values["speed-limit-up-enabled"] = *request.UploadLimit > 0
+		values["speed-limit-up"] = bytesPerSecondToKiB(*request.UploadLimit)
+	}
+	if request.AlternativeDownloadLimit != nil {
+		if *request.AlternativeDownloadLimit < 0 {
+			return nil, errors.New("alternativeDownloadLimit must be zero or greater")
+		}
+		values["alt-speed-down"] = bytesPerSecondToKiB(*request.AlternativeDownloadLimit)
+	}
+	if request.AlternativeUploadLimit != nil {
+		if *request.AlternativeUploadLimit < 0 {
+			return nil, errors.New("alternativeUploadLimit must be zero or greater")
+		}
+		values["alt-speed-up"] = bytesPerSecondToKiB(*request.AlternativeUploadLimit)
+	}
+	if request.SpeedScheduleEnabled != nil {
+		values["alt-speed-time-enabled"] = *request.SpeedScheduleEnabled
+	}
+	if request.MaxActiveDownloads != nil {
+		if *request.MaxActiveDownloads < -1 {
+			return nil, errors.New("maxActiveDownloads must be -1 or greater")
+		}
+		values["download-queue-enabled"] = *request.MaxActiveDownloads >= 0
+		if *request.MaxActiveDownloads >= 0 {
+			values["download-queue-size"] = *request.MaxActiveDownloads
+		}
+	}
+	if request.MaxActiveUploads != nil {
+		if *request.MaxActiveUploads < -1 {
+			return nil, errors.New("maxActiveUploads must be -1 or greater")
+		}
+		values["seed-queue-enabled"] = *request.MaxActiveUploads >= 0
+		if *request.MaxActiveUploads >= 0 {
+			values["seed-queue-size"] = *request.MaxActiveUploads
+		}
+	}
+	if request.QueueingEnabled != nil {
+		values["download-queue-enabled"] = *request.QueueingEnabled
+		values["seed-queue-enabled"] = *request.QueueingEnabled
+	}
+	return values, nil
 }
 
 type transmissionTorrentAdded struct {
@@ -1354,6 +1498,13 @@ func firstPositiveInt64(values ...int64) int64 {
 		}
 	}
 	return 0
+}
+
+func maxInt(left int, right int) int {
+	if left > right {
+		return left
+	}
+	return right
 }
 
 func bytesPerSecondToKiB(value int64) int64 {

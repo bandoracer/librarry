@@ -360,6 +360,8 @@ func (s *Service) DownloadPreferences(ctx context.Context, client string) (Downl
 	switch {
 	case strings.EqualFold(resolvedClient, s.qbit.Name()):
 		return s.qbit.Preferences(ctx)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		return s.trans.Preferences(ctx)
 	default:
 		return DownloadPreferences{}, fmt.Errorf("download preferences are not supported for %s", resolvedClient)
 	}
@@ -373,6 +375,8 @@ func (s *Service) UpdateDownloadPreferences(ctx context.Context, request Downloa
 	switch {
 	case strings.EqualFold(resolvedClient, s.qbit.Name()):
 		return s.qbit.UpdatePreferences(ctx, request)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		return s.trans.UpdatePreferences(ctx, request)
 	default:
 		return DownloadPreferences{}, fmt.Errorf("download preferences are not supported for %s", resolvedClient)
 	}
