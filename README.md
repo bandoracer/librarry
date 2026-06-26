@@ -30,6 +30,48 @@ book data is incomplete or ambiguous.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
+## Project Status
+
+Librarry is **early alpha**. The current implementation is strong enough to test
+the metadata-first Readarr replacement workflow, but it is not yet a
+drop-in production replacement for an unattended Readarr instance.
+
+Current verified highlights:
+
+- Open Library metadata search, provider provenance, deduped/merged search
+  results, wanted items, manual metadata overrides, release decisions, and the
+  Library-first UI are implemented.
+- Prowlarr release search and qBittorrent book-acquisition handoff have been
+  tested against a live deployment.
+- The live TrueNAS/Cosmos deployment path has been exercised with Postgres,
+  local Docker images, and the `media-stack` mount.
+
+Current gaps:
+
+- Hardcover and Google Books need credentials in the live deployment.
+- A real Readarr migration dry run, real book-root scan, and full
+  wanted-to-import loop still need controlled validation before relying on
+  Librarry as the only book automation system.
+- Published versioned container images and release artifacts are not available
+  yet.
+
+See [docs/status.md](docs/status.md) for the current work status, verified
+deployment notes, and known gaps.
+
+## Documentation
+
+- [Current status](docs/status.md): what works, what is risky, and what needs
+  validation next.
+- [Local development](docs/local-dev.md): run commands, configuration, Docker
+  Compose, TrueNAS, integrations, and worker settings.
+- [Architecture](docs/architecture.md): backend/frontend/Postgres structure and
+  API surfaces.
+- [Metadata strategy](docs/metadata-strategy.md): provider order, matching
+  policy, and excluded data sources.
+- [Provider setup](docs/provider-setup.md): Hardcover, Open Library, Google
+  Books, and local metadata configuration.
+- [Agent guide](AGENTS.md): repo-specific instructions for future coding agents.
+
 ## Why Librarry?
 
 Book automation is harder than movie or TV automation because metadata is
