@@ -272,6 +272,10 @@ Important API surfaces:
   - `GET /api/v1/history/book`
   - `GET /api/v1/parse`
   - `GET /api/v1/rootfolder`
+  - `GET /api/v1/rootfolder/{id}`
+  - `POST /api/v1/rootfolder`
+  - `PUT /api/v1/rootfolder/{id}`
+  - `DELETE /api/v1/rootfolder/{id}`
   - `GET /api/v1/queue`
   - `GET /api/v1/queue/details`
   - `GET /api/v1/queue/status`

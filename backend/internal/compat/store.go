@@ -95,6 +95,42 @@ func (s *Store) CreateRootFolder(ctx context.Context, folder RootFolder) (RootFo
 	return scanRootFolder(row)
 }
 
+func (s *Store) UpdateRootFolder(ctx context.Context, id string, folder RootFolder) (RootFolder, bool, error) {
+	if !s.Configured() {
+		return RootFolder{}, false, errors.New("compat store is unavailable")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return RootFolder{}, false, nil
+	}
+	folder = normalizeRootFolder(folder)
+	if folder.Path == "" {
+		return RootFolder{}, false, errors.New("root folder path is required")
+	}
+	raw, err := json.Marshal(folder.Metadata)
+	if err != nil {
+		return RootFolder{}, false, err
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update compat_root_folders
+		set name = $2,
+			path = $3,
+			media_format = $4,
+			metadata = metadata || $5::jsonb,
+			updated_at = now()
+		where id::text = $1
+		returning id::text, name, path, media_format, metadata, created_at, updated_at
+	`, id, folder.Name, folder.Path, folder.MediaFormat, string(raw))
+	updated, err := scanRootFolder(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return RootFolder{}, false, nil
+	}
+	if err != nil {
+		return RootFolder{}, false, err
+	}
+	return updated, true, nil
+}
+
 func (s *Store) DeleteRootFolder(ctx context.Context, id string) (bool, error) {
 	if !s.Configured() {
 		return false, errors.New("compat store is unavailable")

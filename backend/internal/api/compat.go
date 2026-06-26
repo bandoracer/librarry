@@ -87,6 +87,10 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/history/book"},
 		{"method": "GET", "path": "/api/v1/parse"},
 		{"method": "GET", "path": "/api/v1/rootfolder"},
+		{"method": "GET", "path": "/api/v1/rootfolder/{id}"},
+		{"method": "POST", "path": "/api/v1/rootfolder"},
+		{"method": "PUT", "path": "/api/v1/rootfolder/{id}"},
+		{"method": "DELETE", "path": "/api/v1/rootfolder/{id}"},
 		{"method": "GET", "path": "/api/v1/queue"},
 		{"method": "GET", "path": "/api/v1/queue/details"},
 		{"method": "GET", "path": "/api/v1/queue/status"},
@@ -559,6 +563,82 @@ func (h *handler) compatCreateRootFolder(w http.ResponseWriter, r *http.Request)
 	root := compatRootFolderRecord(stableInt(path), name, path)
 	root["mediaFormat"] = mediaFormat
 	writeJSON(w, http.StatusCreated, root)
+}
+
+func (h *handler) compatUpdateRootFolder(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "root folder id is required"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "root folder")
+	if !ok {
+		return
+	}
+	name := firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "label"))
+	path := firstNonEmptyString(payloadString(payload, "path"), payloadString(payload, "rootFolderPath"))
+	mediaFormat := firstNonEmptyString(payloadString(payload, "mediaFormat"), payloadString(payload, "format"))
+	if h.deps.Compat != nil {
+		roots, err := h.deps.Compat.ListRootFolders(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		for _, root := range roots {
+			if !compatStoredRootFolderMatches(id, root) {
+				continue
+			}
+			updated, found, err := h.deps.Compat.UpdateRootFolder(r.Context(), root.ID, compatdata.RootFolder{
+				Name:        firstNonEmptyString(name, root.Name),
+				Path:        firstNonEmptyString(path, root.Path),
+				MediaFormat: firstNonEmptyString(mediaFormat, root.MediaFormat, "mixed"),
+				Metadata:    compatUpdatedRootFolderMetadata(root.Metadata),
+			})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+				return
+			}
+			if !found {
+				writeJSON(w, http.StatusNotFound, map[string]any{"error": "root folder not found"})
+				return
+			}
+			writeJSON(w, http.StatusOK, compatStoredRootFolderRecord(updated))
+			return
+		}
+		if path != "" {
+			updated, found, err := h.deps.Compat.UpdateRootFolder(r.Context(), id, compatdata.RootFolder{
+				Name:        name,
+				Path:        path,
+				MediaFormat: firstNonEmptyString(mediaFormat, "mixed"),
+				Metadata:    compatUpdatedRootFolderMetadata(nil),
+			})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+				return
+			}
+			if found {
+				writeJSON(w, http.StatusOK, compatStoredRootFolderRecord(updated))
+				return
+			}
+		}
+	}
+	for _, root := range h.defaultRootFolderRecords() {
+		if compatRootFolderRecordMatches(id, root) {
+			if name != "" {
+				root["name"] = name
+			}
+			if path != "" {
+				root["path"] = path
+			}
+			if mediaFormat != "" {
+				root["mediaFormat"] = mediaFormat
+			}
+			root["librarryPersisted"] = false
+			writeJSON(w, http.StatusOK, root)
+			return
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "root folder not found"})
 }
 
 func (h *handler) compatDeleteRootFolder(w http.ResponseWriter, r *http.Request) {
@@ -3455,6 +3535,15 @@ func compatRootFolderRecordMatches(pathValue string, root map[string]any) bool {
 
 func compatStoredRootFolderMatches(pathValue string, root compatdata.RootFolder) bool {
 	return compatIDMatches(pathValue, root.ID, root.Name, root.Path)
+}
+
+func compatUpdatedRootFolderMetadata(existing map[string]any) map[string]any {
+	metadata := map[string]any{"source": "readarr-compatible-api"}
+	for key, value := range existing {
+		metadata[key] = value
+	}
+	metadata["updatedBy"] = "readarr-compatible-api"
+	return metadata
 }
 
 func rootFolderPathKey(path string) string {

@@ -235,6 +235,19 @@ func TestCompatRootFolderPersistenceEndpoints(t *testing.T) {
 		t.Fatalf("expected root folder to be persisted, got %d roots", len(compatResources.roots))
 	}
 
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), strings.NewReader(`{"name":"Comics Updated","path":"/srv/books/comics-new","mediaFormat":"ebook"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"Comics Updated"`) || !strings.Contains(res.Body.String(), `"/srv/books/comics-new"`) {
+		t.Fatalf("expected updated persisted root folder, got %s", res.Body.String())
+	}
+	if compatResources.roots[0].Name != "Comics Updated" || compatResources.roots[0].Path != "/srv/books/comics-new" {
+		t.Fatalf("expected stored root folder update, got %#v", compatResources.roots[0])
+	}
+
 	req = httptest.NewRequest(http.MethodDelete, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
@@ -2808,6 +2821,32 @@ func (f *fakeCompatResources) CreateRootFolder(_ context.Context, root compatdat
 	}
 	f.roots = append(f.roots, root)
 	return root, nil
+}
+
+func (f *fakeCompatResources) UpdateRootFolder(_ context.Context, id string, root compatdata.RootFolder) (compatdata.RootFolder, bool, error) {
+	for index, existing := range f.roots {
+		if existing.ID != id {
+			continue
+		}
+		if root.ID == "" {
+			root.ID = existing.ID
+		}
+		if root.Name == "" {
+			root.Name = existing.Name
+		}
+		if root.Path == "" {
+			root.Path = existing.Path
+		}
+		if root.MediaFormat == "" {
+			root.MediaFormat = existing.MediaFormat
+		}
+		if root.Metadata == nil {
+			root.Metadata = existing.Metadata
+		}
+		f.roots[index] = root
+		return root, true, nil
+	}
+	return compatdata.RootFolder{}, false, nil
 }
 
 func (f *fakeCompatResources) DeleteRootFolder(_ context.Context, id string) (bool, error) {

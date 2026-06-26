@@ -81,6 +81,7 @@ type libraryService interface {
 type compatResourceService interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 	CreateRootFolder(ctx context.Context, folder compatdata.RootFolder) (compatdata.RootFolder, error)
+	UpdateRootFolder(ctx context.Context, id string, folder compatdata.RootFolder) (compatdata.RootFolder, bool, error)
 	DeleteRootFolder(ctx context.Context, id string) (bool, error)
 	ListResources(ctx context.Context, resourceType string) ([]compatdata.Resource, error)
 	GetResource(ctx context.Context, resourceType string, compatID int) (compatdata.Resource, bool, error)
@@ -137,6 +138,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/rootfolder", handler.compatRootFolders)
 	mux.HandleFunc("GET /api/v1/rootfolder/{id}", handler.compatRootFolder)
 	mux.HandleFunc("POST /api/v1/rootfolder", handler.compatCreateRootFolder)
+	mux.HandleFunc("PUT /api/v1/rootfolder/{id}", handler.compatUpdateRootFolder)
 	mux.HandleFunc("DELETE /api/v1/rootfolder/{id}", handler.compatDeleteRootFolder)
 	mux.HandleFunc("GET /api/v1/queue", handler.compatQueue)
 	mux.HandleFunc("GET /api/v1/queue/details", handler.compatQueueDetails)
