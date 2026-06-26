@@ -180,6 +180,9 @@ type DownloadActionRequest struct {
 	DeleteFiles   bool     `json:"deleteFiles,omitempty"`
 	Category      string   `json:"category,omitempty"`
 	SavePath      string   `json:"savePath,omitempty"`
+	Name          string   `json:"name,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	ForceStart    bool     `json:"forceStart,omitempty"`
 	DownloadLimit int64    `json:"downloadLimit,omitempty"`
 	UploadLimit   int64    `json:"uploadLimit,omitempty"`
 }
@@ -239,6 +242,12 @@ const (
 	DownloadActionSetLocation      = "setLocation"
 	DownloadActionSetDownloadLimit = "setDownloadLimit"
 	DownloadActionSetUploadLimit   = "setUploadLimit"
+	DownloadActionForceStart       = "forceStart"
+	DownloadActionToggleSequential = "toggleSequential"
+	DownloadActionToggleFirstLast  = "toggleFirstLastPiece"
+	DownloadActionRename           = "rename"
+	DownloadActionAddTags          = "addTags"
+	DownloadActionRemoveTags       = "removeTags"
 )
 
 const (

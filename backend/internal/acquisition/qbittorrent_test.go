@@ -138,6 +138,106 @@ func TestQBittorrentActionSetCategoryAndLocation(t *testing.T) {
 	}
 }
 
+func TestQBittorrentManagerActions(t *testing.T) {
+	tests := []struct {
+		name       string
+		request    DownloadActionRequest
+		endpoint   string
+		wantHashes string
+		wantHash   string
+		wantField  string
+		wantValue  string
+	}{
+		{
+			name:       "force start",
+			request:    DownloadActionRequest{Action: DownloadActionForceStart, IDs: []string{"abc", "def"}, ForceStart: true},
+			endpoint:   "/api/v2/torrents/setForceStart",
+			wantHashes: "abc|def",
+			wantField:  "value",
+			wantValue:  "true",
+		},
+		{
+			name:       "toggle sequential",
+			request:    DownloadActionRequest{Action: DownloadActionToggleSequential, IDs: []string{"abc"}},
+			endpoint:   "/api/v2/torrents/toggleSequentialDownload",
+			wantHashes: "abc",
+		},
+		{
+			name:       "toggle first last",
+			request:    DownloadActionRequest{Action: DownloadActionToggleFirstLast, IDs: []string{"abc"}},
+			endpoint:   "/api/v2/torrents/toggleFirstLastPiecePrio",
+			wantHashes: "abc",
+		},
+		{
+			name:      "rename",
+			request:   DownloadActionRequest{Action: DownloadActionRename, IDs: []string{"abc"}, Name: "Project Hail Mary"},
+			endpoint:  "/api/v2/torrents/rename",
+			wantHash:  "abc",
+			wantField: "name",
+			wantValue: "Project Hail Mary",
+		},
+		{
+			name:       "add tags",
+			request:    DownloadActionRequest{Action: DownloadActionAddTags, IDs: []string{"abc"}, Tags: []string{"librarry", "audiobook"}},
+			endpoint:   "/api/v2/torrents/addTags",
+			wantHashes: "abc",
+			wantField:  "tags",
+			wantValue:  "librarry,audiobook",
+		},
+		{
+			name:       "remove tags",
+			request:    DownloadActionRequest{Action: DownloadActionRemoveTags, IDs: []string{"abc"}, Tags: []string{"manual"}},
+			endpoint:   "/api/v2/torrents/removeTags",
+			wantHashes: "abc",
+			wantField:  "tags",
+			wantValue:  "manual",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var endpoint string
+			var hashes string
+			var hash string
+			var fieldValue string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				endpoint = r.URL.Path
+				if err := r.ParseForm(); err != nil {
+					t.Fatal(err)
+				}
+				hashes = r.Form.Get("hashes")
+				hash = r.Form.Get("hash")
+				if test.wantField != "" {
+					fieldValue = r.Form.Get(test.wantField)
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			client := NewQBittorrentClient(server.URL, "", "", server.Client())
+			result, err := client.Action(context.Background(), test.request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if endpoint != test.endpoint {
+				t.Fatalf("expected endpoint %s, got %s", test.endpoint, endpoint)
+			}
+			if hashes != test.wantHashes {
+				t.Fatalf("expected hashes %q, got %q", test.wantHashes, hashes)
+			}
+			if hash != test.wantHash {
+				t.Fatalf("expected hash %q, got %q", test.wantHash, hash)
+			}
+			if fieldValue != test.wantValue {
+				t.Fatalf("expected %s %q, got %q", test.wantField, test.wantValue, fieldValue)
+			}
+			if !result.Applied || result.Action != test.request.Action {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+		})
+	}
+}
+
 func TestQBittorrentListMapsDownloadStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/torrents/info" {

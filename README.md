@@ -11,11 +11,13 @@ book data is incomplete or ambiguous.
 > persisted wanted release decisions, download
 > polling, a first-class Downloads page, manual magnet/torrent/NZB add, torrent
 > details with peer lists and tracker editing, torrent file-priority actions,
-> filtered row/bulk torrent actions, editable category/save-path/speed controls,
-> delete-with-data handling, and configurable active-queue rebalancing. Transmission
-> torrent grabs, polling, and common queue actions are implemented. SABnzbd
-> NZB/Usenet grabs, queue/history polling, and start/stop/delete actions are
-> implemented.
+> filtered row/bulk torrent actions, force-start, sequential-download and
+> first/last-piece toggles, torrent rename, tag add/remove, editable
+> category/save-path/speed controls, delete-with-data handling, and configurable
+> active-queue rebalancing. It is a book-acquisition download manager, not a
+> standalone qBittorrent replacement. Transmission torrent grabs, polling, and
+> common queue actions are implemented. SABnzbd NZB/Usenet grabs, queue/history
+> polling, and start/stop/delete actions are implemented.
 > Wanted items, author subscriptions, and release evaluation are implemented,
 > with durable Readarr-compatible monitor/unmonitor/delete state, manual and
 > scheduled wanted and author monitoring, plus history. Feed-based indexer sync
@@ -81,11 +83,11 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Metadata source model | Historically depended on centralized metadata; the retirement announcement names metadata failure as the blocking issue. | Multi-provider abstraction with Hardcover, Open Library, Google Books fallback, and local metadata stubs. | Local canonical graph with provider provenance, explainable matches, and resilient fallback behavior. |
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
-| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars and embedded EPUB package metadata are extracted during scan/import, files are tracked in Postgres, completed qBittorrent imports feed the library, and unlinked completed downloads are queued for review. | Add audio-tag extraction, missing-book detection, and stronger import matching. |
+| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, completed qBittorrent imports feed the library, and unlinked completed downloads are queued for review. | Add missing-book detection and stronger import matching. |
 | Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, and bulk selected-download actions. | Add richer review flows, missing-book policy, and conflict handling. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, manual magnet/torrent/NZB URL add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
-| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL add, client/state/category/text filters, selected-row bulk actions, and configurable active-queue rebalancing. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, delete-with-data, category/save-path edits, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, and per-file skip/normal/high/max priority actions are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, set location, labels, and per-torrent speed limits. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
+| Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL add, client/state/category/text filters, selected-row bulk actions, and configurable active-queue rebalancing. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, force-start, sequential-download and first/last-piece toggles, delete-with-data, rename, tag add/remove, category/save-path edits, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, and per-file skip/normal/high/max priority actions are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, set location, labels, and per-torrent speed limits. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager or standalone qBittorrent replacement. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
 | API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers optional Readarr-style API-key auth, common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders with Calibre settings, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename preview and native-backed command handling for RSS sync, missing search, book search, author search, failed-download recovery, upgrade/cutoff-unmet search, and rename/rescan; manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, notifications, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, retagging, Calibre content-server operations, and broader native behavior behind compatibility resources. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Readarr-style Calibre root-folder settings are accepted, validated, persisted, and returned. Imports that land under a Calibre-enabled root are posted to the Calibre Content Server add-book endpoint, store the returned Calibre ID, push basic title, author, and identifier metadata through set-fields, start configured output-format conversions, and refresh conversion status through native API or command calls. Physical deletes for Calibre-backed files call the Content Server delete-books endpoint. Scheduled background conversion polling, richer edition metadata, embedded metadata writes, path refresh after Calibre renames, and failed-import rollback are not implemented yet. | Implement scheduled conversion polling, richer metadata sync, and stronger error recovery behind the same root-folder contract. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, queue unlinked files for review, and rename tracked files through native or Readarr-compatible APIs. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
@@ -129,8 +131,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Manual and scheduled feed sync for Prowlarr-compatible indexer RSS feeds,
   with release persistence, matching against wanted items, optional paused
   auto-grab, and history events.
-- Library scanning for ebook/audiobook roots, OPF sidecar and embedded EPUB
-  metadata extraction, and manual file import into organized book folders.
+- Library scanning for ebook/audiobook roots, OPF sidecar, embedded EPUB,
+  MP3 ID3, and M4B/MP4 metadata extraction, and manual file import into
+  organized book folders.
 - Completed-download import for Librarry-tagged qBittorrent items, with
   imported/error state persisted on download records.
 - Calibre Content Server add-book handoff for manual or completed-download
@@ -223,8 +226,8 @@ Provider priority:
 2. Open Library is the open-data backbone for works, authors, editions, ISBNs,
    and covers.
 3. Google Books is an API-keyed exact-match fallback, not a primary graph.
-4. Local OPF and EPUB package metadata are high-confidence import evidence;
-   audio tags are planned for audiobook imports.
+4. Local OPF, EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms
+   are high-confidence import evidence.
 5. Manual overrides always win.
 
 Goodreads, Amazon, and Audible scraping are intentionally not part of core.
@@ -655,7 +658,6 @@ will grow as the automation path stabilizes.
 
 ## Roadmap
 
-- Audio-tag extraction during library scans.
 - Author-level missing-book policy and review controls.
 - Conflict policies, bulk import review, and per-profile organization rules.
 - Scheduled Calibre conversion completion polling, richer edition metadata sync,

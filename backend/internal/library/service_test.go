@@ -3,6 +3,7 @@ package library
 import (
 	"archive/zip"
 	"context"
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"testing"
@@ -96,6 +97,57 @@ func TestParsedBookForPathUsesSidecarOPF(t *testing.T) {
 	metadata := localBookMetadataForPath(path)
 	if metadata.Source != "sidecar-opf" || metadata.Identifiers["isbn13"] != "9798986133815" {
 		t.Fatalf("expected sidecar identifiers, got %+v", metadata)
+	}
+}
+
+func TestParsedBookForPathReadsID3AudioTags(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad-name.mp3")
+	writeTestMP3WithID3(t, path, map[string]string{
+		"TIT2": "The Hobbit",
+		"TPE1": "J. R. R. Tolkien",
+		"TALB": "Middle-earth",
+		"TCON": "Audiobook",
+		"TDRC": "1937",
+		"TRCK": "1",
+	})
+
+	parsed := parsedBookForPath(path)
+	if parsed.Title != "The Hobbit" || parsed.AuthorName != "J. R. R. Tolkien" {
+		t.Fatalf("expected ID3 title/author, got %+v", parsed)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := fileRecordFromPath(path, "audiobook", info, "available")
+	if record.Title != "The Hobbit" || record.AuthorName != "J. R. R. Tolkien" || record.Metadata["metadataSource"] != "id3v2" {
+		t.Fatalf("expected ID3 metadata record, got %+v metadata=%#v", record, record.Metadata)
+	}
+	local, ok := record.Metadata["localMetadata"].(map[string]any)
+	if !ok || local["album"] != "Middle-earth" || local["year"] != "1937" || local["track"] != "1" {
+		t.Fatalf("expected ID3 local metadata, got %#v", record.Metadata["localMetadata"])
+	}
+}
+
+func TestParsedBookForPathReadsM4BMetadataAtoms(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad-name.m4b")
+	writeTestM4B(t, path, map[string]string{
+		"\xa9nam": "Project Hail Mary",
+		"\xa9ART": "Andy Weir",
+		"\xa9alb": "Project Hail Mary",
+		"\xa9day": "2021",
+		"\xa9gen": "Audiobook",
+	})
+
+	metadata := localBookMetadataForPath(path)
+	if metadata.Source != "mp4-tags" || metadata.Title != "Project Hail Mary" || metadata.AuthorName != "Andy Weir" {
+		t.Fatalf("expected M4B metadata, got %+v", metadata)
+	}
+	parsed := parsedBookForPath(path)
+	if parsed.Title != "Project Hail Mary" || parsed.AuthorName != "Andy Weir" {
+		t.Fatalf("expected M4B title/author, got %+v", parsed)
 	}
 }
 
@@ -503,6 +555,63 @@ func writeZipEntry(t *testing.T, writer *zip.Writer, name string, body string) {
 	if _, err := entry.Write([]byte(body)); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func writeTestMP3WithID3(t *testing.T, path string, frames map[string]string) {
+	t.Helper()
+	var payload []byte
+	for id, value := range frames {
+		framePayload := append([]byte{3}, []byte(value)...)
+		header := make([]byte, 10)
+		copy(header[:4], []byte(id))
+		binary.BigEndian.PutUint32(header[4:8], uint32(len(framePayload)))
+		payload = append(payload, header...)
+		payload = append(payload, framePayload...)
+	}
+	header := []byte{'I', 'D', '3', 3, 0, 0, 0, 0, 0, 0}
+	putSyncsafe(header[6:10], len(payload))
+	body := append(header, payload...)
+	body = append(body, []byte("audio")...)
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func putSyncsafe(target []byte, value int) {
+	target[0] = byte((value >> 21) & 0x7f)
+	target[1] = byte((value >> 14) & 0x7f)
+	target[2] = byte((value >> 7) & 0x7f)
+	target[3] = byte(value & 0x7f)
+}
+
+func writeTestM4B(t *testing.T, path string, items map[string]string) {
+	t.Helper()
+	var ilst []byte
+	for atomType, value := range items {
+		ilst = append(ilst, mp4Atom([]byte(atomType), mp4DataAtom(value))...)
+	}
+	metaPayload := append([]byte{0, 0, 0, 0}, mp4Atom([]byte("ilst"), ilst)...)
+	moov := mp4Atom([]byte("moov"), mp4Atom([]byte("udta"), mp4Atom([]byte("meta"), metaPayload)))
+	ftyp := mp4Atom([]byte("ftyp"), []byte("M4B \x00\x00\x00\x00M4B "))
+	if err := os.WriteFile(path, append(ftyp, moov...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mp4DataAtom(value string) []byte {
+	payload := append([]byte{0, 0, 0, 1, 0, 0, 0, 0}, []byte(value)...)
+	return mp4Atom([]byte("data"), payload)
+}
+
+func mp4Atom(atomType []byte, payload []byte) []byte {
+	if len(atomType) != 4 {
+		panic("mp4 atom type must be four bytes")
+	}
+	body := make([]byte, 8+len(payload))
+	binary.BigEndian.PutUint32(body[:4], uint32(len(body)))
+	copy(body[4:8], atomType)
+	copy(body[8:], payload)
+	return body
 }
 
 func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {

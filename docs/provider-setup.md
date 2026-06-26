@@ -20,6 +20,6 @@ and author identity are not strong enough for that workflow.
 
 Local OPF sidecars and embedded EPUB package metadata are extracted during
 library scan/import and used as high-confidence local evidence for title,
-author, identifiers, language, publisher, and series metadata. Audio tag parsing
-is still planned for audiobook imports. The provider is present as a
-health/diagnostic source and does not return remote search results.
+author, identifiers, language, publisher, and series metadata. MP3 ID3 tags and
+M4B/MP4 metadata atoms are also extracted for audiobook imports. The provider is
+present as a health/diagnostic source and does not return remote search results.

@@ -15,6 +15,7 @@ import {
   History as HistoryIcon,
   Library,
   Pause,
+  Pencil,
   Play,
   RadioTower,
   RefreshCw,
@@ -22,6 +23,7 @@ import {
   Settings,
   SlidersHorizontal,
   Square,
+  Tags,
   Trash2,
   TrendingUp,
   UploadCloud,
@@ -206,6 +208,8 @@ export function App() {
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
   const [trackerURL, setTrackerURL] = useState("");
+  const [downloadNameInput, setDownloadNameInput] = useState("");
+  const [downloadTagsInput, setDownloadTagsInput] = useState("");
   const [downloadCategoryInput, setDownloadCategoryInput] = useState("");
   const [downloadSavePathInput, setDownloadSavePathInput] = useState("");
   const [downloadRebalanceMax, setDownloadRebalanceMax] = useState("3");
@@ -311,6 +315,7 @@ export function App() {
   const allDownloadsSelected = selectableDownloadKeys.length > 0 && selectableDownloadKeys.every((key) => selectedDownloadKeySet.has(key));
   const selectedDownloadsSupportRecheck = selectedDownloads.every((download) => supportsDownloadAction(download, "recheck"));
   const selectedDownloadsSupportPriority = selectedDownloads.every((download) => supportsDownloadAction(download, "topPriority"));
+  const selectedDownloadsSupportQbitControls = selectedDownloads.length > 0 && selectedDownloads.every(downloadSupportsQbitManagerActions);
   const downloadQueueStats = useMemo(() => summarizeDownloads(filteredDownloads), [filteredDownloads]);
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
@@ -743,6 +748,8 @@ export function App() {
       setDownloadDetails(details);
       setDownloadLimitKiB(limitBytesToKiBInput(details.properties?.downloadLimit));
       setUploadLimitKiB(limitBytesToKiBInput(details.properties?.uploadLimit));
+      setDownloadNameInput(details.status.name || "");
+      setDownloadTagsInput((details.status.tags ?? []).join(", "));
       setDownloadCategoryInput(details.status.category || "");
       setDownloadSavePathInput(details.status.savePath || details.properties?.savePath || "");
       setAPIState("live");
@@ -876,18 +883,58 @@ export function App() {
     }
   }
 
+  async function applyDownloadRename() {
+    const downloadID = downloadDetails?.status.id;
+    const name = downloadNameInput.trim();
+    if (!downloadID || !name) return;
+    setDownloadActionID(`${downloadID}:rename`);
+    setDownloadError("");
+    try {
+      await runDownloadAction("rename", [downloadID], { name });
+      const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
+      setDownloadDetails(refreshed);
+      setDownloadNameInput(refreshed.status.name || name);
+      await refreshDownloads();
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download rename failed");
+    } finally {
+      setDownloadActionID("");
+    }
+  }
+
+  async function applyDownloadTags(action: "addTags" | "removeTags") {
+    const downloadID = downloadDetails?.status.id;
+    const tags = splitTagInput(downloadTagsInput);
+    if (!downloadID || tags.length === 0) return;
+    setDownloadActionID(`${downloadID}:${action}`);
+    setDownloadError("");
+    try {
+      await runDownloadAction(action, [downloadID], { tags });
+      const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
+      setDownloadDetails(refreshed);
+      setDownloadTagsInput((refreshed.status.tags ?? []).join(", "));
+      await refreshDownloads();
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download tag action failed");
+    } finally {
+      setDownloadActionID("");
+    }
+  }
+
   async function applyDownloadAction(action: DownloadAction, download: DownloadStatus, deleteFiles = false) {
     await applyDownloadActionToIDs(action, [download.id], deleteFiles);
   }
 
-  async function applyDownloadActionToIDs(action: DownloadAction, ids: string[], deleteFiles = false) {
+  async function applyDownloadActionToIDs(action: DownloadAction, ids: string[], deleteFiles = false, options: { forceStart?: boolean } = {}) {
     const actionIDs = ids.filter(Boolean);
     if (!actionIDs.length) return;
     const isBulk = actionIDs.length > 1;
     setDownloadActionID(isBulk ? `bulk:${action}` : `${actionIDs[0]}:${action}`);
     setDownloadError("");
     try {
-      const result = await runDownloadAction(action, actionIDs, { deleteFiles });
+      const result = await runDownloadAction(action, actionIDs, { deleteFiles, forceStart: options.forceStart });
       if (result.downloads?.length) {
         setDownloads((current) => mergeDownloads(current, result.downloads ?? []));
       } else if (action === "delete") {
@@ -897,6 +944,14 @@ export function App() {
         setDownloadDetails((current) => (current && deleted.has(current.status.id) ? null : current));
       } else {
         await refreshDownloads();
+      }
+      if (action !== "delete" && downloadDetails?.status.id && actionIDs.includes(downloadDetails.status.id) && downloadSupportsDetails(downloadDetails.status)) {
+        const refreshed = await fetchDownloadDetails(downloadDetails.status.id, downloadDetails.status.client);
+        setDownloadDetails(refreshed);
+        setDownloadNameInput(refreshed.status.name || "");
+        setDownloadTagsInput((refreshed.status.tags ?? []).join(", "));
+        setDownloadCategoryInput(refreshed.status.category || "");
+        setDownloadSavePathInput(refreshed.status.savePath || refreshed.properties?.savePath || "");
       }
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download action failed");
@@ -1729,9 +1784,25 @@ export function App() {
               <ChevronsUp size={16} />
               Top
             </button>
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || !selectedDownloadsSupportPriority || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("decreasePriority", selectedActionDownloadIDs)} type="button">
+              <ChevronsDown size={16} />
+              Lower
+            </button>
             <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || !selectedDownloadsSupportPriority || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("bottomPriority", selectedActionDownloadIDs)} type="button">
               <ChevronsDown size={16} />
               Bottom
+            </button>
+            <button className="secondary-action compact" disabled={!selectedDownloadsSupportQbitControls || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("forceStart", selectedActionDownloadIDs, false, { forceStart: true })} type="button">
+              <Play size={16} />
+              Force
+            </button>
+            <button className="secondary-action compact" disabled={!selectedDownloadsSupportQbitControls || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("toggleSequential", selectedActionDownloadIDs)} type="button">
+              <SlidersHorizontal size={16} />
+              Seq
+            </button>
+            <button className="secondary-action compact" disabled={!selectedDownloadsSupportQbitControls || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("toggleFirstLastPiece", selectedActionDownloadIDs)} type="button">
+              <FileCheck2 size={16} />
+              Edges
             </button>
             <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || isImportingCompleted} onClick={() => runCompletedImport(selectedDownloads)} type="button">
               <UploadCloud size={16} />
@@ -1744,6 +1815,10 @@ export function App() {
             <button className="secondary-action compact danger-outline" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("delete", selectedActionDownloadIDs, false)} type="button">
               <Trash2 size={16} />
               Remove
+            </button>
+            <button className="secondary-action compact danger-outline" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("delete", selectedActionDownloadIDs, true)} type="button">
+              <Trash2 size={16} />
+              Delete data
             </button>
           </div>
           {failedDownloadRun ? (
@@ -1811,12 +1886,66 @@ export function App() {
                       </div>
                     ))}
                   </div>
+                  <div className="download-action-tools">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID)} onClick={() => applyDownloadAction("start", downloadDetails.status)} type="button">
+                      <Play size={16} />
+                      Start
+                    </button>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID)} onClick={() => applyDownloadAction("stop", downloadDetails.status)} type="button">
+                      <Pause size={16} />
+                      Stop
+                    </button>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !supportsDownloadAction(downloadDetails.status, "recheck")} onClick={() => applyDownloadAction("recheck", downloadDetails.status)} type="button">
+                      <RefreshCw size={16} />
+                      Recheck
+                    </button>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !supportsDownloadAction(downloadDetails.status, "increasePriority")} onClick={() => applyDownloadAction("increasePriority", downloadDetails.status)} type="button">
+                      <ChevronsUp size={16} />
+                      Raise
+                    </button>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !supportsDownloadAction(downloadDetails.status, "decreasePriority")} onClick={() => applyDownloadAction("decreasePriority", downloadDetails.status)} type="button">
+                      <ChevronsDown size={16} />
+                      Lower
+                    </button>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !supportsDownloadAction(downloadDetails.status, "forceStart")} onClick={() => applyDownloadActionToIDs("forceStart", [downloadDetails.status.id], false, { forceStart: true })} type="button">
+                      <Play size={16} />
+                      Force
+                    </button>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !supportsDownloadAction(downloadDetails.status, "toggleSequential")} onClick={() => applyDownloadAction("toggleSequential", downloadDetails.status)} type="button">
+                      <SlidersHorizontal size={16} />
+                      Seq
+                    </button>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !supportsDownloadAction(downloadDetails.status, "toggleFirstLastPiece")} onClick={() => applyDownloadAction("toggleFirstLastPiece", downloadDetails.status)} type="button">
+                      <FileCheck2 size={16} />
+                      Edges
+                    </button>
+                  </div>
                   <div className="download-management-tools">
+                    <label>
+                      <span>Name</span>
+                      <input value={downloadNameInput} onChange={(event) => setDownloadNameInput(event.target.value)} placeholder="Torrent display name" />
+                    </label>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadNameInput.trim() || !supportsDownloadAction(downloadDetails.status, "rename")} onClick={applyDownloadRename} type="button">
+                      <Pencil size={16} />
+                      Rename
+                    </button>
+                    <label>
+                      <span>Tags</span>
+                      <input value={downloadTagsInput} onChange={(event) => setDownloadTagsInput(event.target.value)} placeholder="librarry, audiobook" />
+                    </label>
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || splitTagInput(downloadTagsInput).length === 0 || !supportsDownloadAction(downloadDetails.status, "addTags")} onClick={() => applyDownloadTags("addTags")} type="button">
+                      <Tags size={16} />
+                      Add tags
+                    </button>
+                    <button className="secondary-action compact danger-outline" disabled={Boolean(downloadActionID) || splitTagInput(downloadTagsInput).length === 0 || !supportsDownloadAction(downloadDetails.status, "removeTags")} onClick={() => applyDownloadTags("removeTags")} type="button">
+                      <Tags size={16} />
+                      Remove tags
+                    </button>
                     <label>
                       <span>Category</span>
                       <input value={downloadCategoryInput} onChange={(event) => setDownloadCategoryInput(event.target.value)} placeholder="books-ebook" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadCategoryInput.trim()} onClick={applyDownloadCategory} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadCategoryInput.trim() || !supportsDownloadAction(downloadDetails.status, "setCategory")} onClick={applyDownloadCategory} type="button">
                       Set category
                     </button>
                     <label>
@@ -1986,7 +2115,7 @@ export function App() {
                     <button className="icon-button" disabled={busy || !supportsDownloadAction(download, "increasePriority")} onClick={() => applyDownloadAction("increasePriority", download)} type="button" aria-label="Increase priority" title="Increase priority">
                       <span className="priority-glyph">+</span>
                     </button>
-                    <button className="icon-button" disabled={busy || (download.client || "qBittorrent").toLowerCase() === "sabnzbd"} onClick={() => openDownloadDetails(download)} type="button" aria-label="Download details" title="Details">
+                    <button className="icon-button" disabled={busy || !downloadSupportsDetails(download)} onClick={() => openDownloadDetails(download)} type="button" aria-label="Download details" title="Details">
                       <FileSearch size={16} />
                     </button>
                     <button className="icon-button" disabled={busy || isImportingCompleted} onClick={() => runCompletedImport(download)} type="button" aria-label="Import completed download" title="Import completed">
@@ -2265,10 +2394,50 @@ function boundedPositiveInt(value: string, fallback: number, max: number) {
 }
 
 function supportsDownloadAction(download: DownloadStatus, action: DownloadAction) {
-  if ((download.client || "qBittorrent").toLowerCase() !== "sabnzbd") {
-    return true;
+  const client = (download.client || "qBittorrent").toLowerCase();
+  if (client === "sabnzbd") {
+    return action === "start" || action === "stop" || action === "delete";
   }
-  return action === "start" || action === "stop" || action === "delete";
+  if (qbitOnlyDownloadAction(action)) {
+    return client === "qbittorrent";
+  }
+  return true;
+}
+
+function qbitOnlyDownloadAction(action: DownloadAction) {
+  return [
+    "increasePriority",
+    "decreasePriority",
+    "topPriority",
+    "bottomPriority",
+    "setCategory",
+    "forceStart",
+    "toggleSequential",
+    "toggleFirstLastPiece",
+    "rename",
+    "addTags",
+    "removeTags"
+  ].includes(action);
+}
+
+function downloadSupportsQbitManagerActions(download: DownloadStatus) {
+  return (download.client || "qBittorrent").toLowerCase() === "qbittorrent";
+}
+
+function downloadSupportsDetails(download: DownloadStatus) {
+  return downloadSupportsQbitManagerActions(download);
+}
+
+function splitTagInput(value: string) {
+  const seen = new Set<string>();
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter((tag) => {
+      if (!tag || seen.has(tag)) return false;
+      seen.add(tag);
+      return true;
+    });
 }
 
 function summarizeDownloads(downloads: DownloadStatus[]) {

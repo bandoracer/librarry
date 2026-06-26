@@ -2,6 +2,7 @@ package library
 
 import (
 	"archive/zip"
+	"encoding/binary"
 	"encoding/xml"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 )
 
 type localBookMetadata struct {
@@ -19,6 +21,9 @@ type localBookMetadata struct {
 	Publisher    string
 	Language     string
 	Description  string
+	Album        string
+	Year         string
+	Track        string
 	Series       string
 	SeriesIndex  string
 	Subjects     []string
@@ -51,7 +56,19 @@ func localBookMetadataForPath(path string) localBookMetadata {
 	if strings.EqualFold(filepath.Ext(path), ".epub") {
 		return parseEPUBMetadata(path)
 	}
+	if isAudioMetadataExtension(path) {
+		return parseAudioMetadata(path)
+	}
 	return localBookMetadata{}
+}
+
+func isAudioMetadataExtension(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".mp3", ".m4a", ".m4b", ".aac":
+		return true
+	default:
+		return false
+	}
 }
 
 func sidecarOPFCandidates(path string) []string {
@@ -188,6 +205,329 @@ func parseOPF(reader io.Reader) (localBookMetadata, error) {
 	return metadata, nil
 }
 
+func parseAudioMetadata(path string) localBookMetadata {
+	file, err := os.Open(path)
+	if err != nil {
+		return localBookMetadata{Source: "audio-tags", ExtractError: err.Error()}
+	}
+	defer file.Close()
+	header := make([]byte, 12)
+	n, err := io.ReadFull(file, header)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		return localBookMetadata{Source: "audio-tags", ExtractError: err.Error()}
+	}
+	if n >= 10 && string(header[:3]) == "ID3" {
+		if _, err := file.Seek(10, io.SeekStart); err != nil {
+			return localBookMetadata{Source: "id3v2", ExtractError: err.Error()}
+		}
+		metadata, err := parseID3v2(file, header[:10])
+		if err != nil {
+			return localBookMetadata{Source: "id3v2", ExtractError: err.Error()}
+		}
+		metadata.Source = "id3v2"
+		return metadata
+	}
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".m4a" || ext == ".m4b" || ext == ".aac" || (n >= 8 && string(header[4:8]) == "ftyp") {
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			return localBookMetadata{Source: "mp4-tags", ExtractError: err.Error()}
+		}
+		metadata, err := parseMP4Metadata(file)
+		if err != nil {
+			return localBookMetadata{Source: "mp4-tags", ExtractError: err.Error()}
+		}
+		metadata.Source = "mp4-tags"
+		return metadata
+	}
+	return localBookMetadata{}
+}
+
+func parseID3v2(reader io.Reader, header []byte) (localBookMetadata, error) {
+	if len(header) < 10 {
+		return localBookMetadata{}, errors.New("ID3 header is incomplete")
+	}
+	major := int(header[3])
+	tagSize := syncSafeInt(header[6:10])
+	if tagSize <= 0 {
+		return localBookMetadata{}, nil
+	}
+	if tagSize > 4<<20 {
+		tagSize = 4 << 20
+	}
+	payload := make([]byte, tagSize)
+	if _, err := io.ReadFull(reader, payload); err != nil && err != io.ErrUnexpectedEOF {
+		return localBookMetadata{}, err
+	}
+	metadata := localBookMetadata{Identifiers: map[string]string{}}
+	offset := 0
+	for offset < len(payload) {
+		var frameID string
+		var frameSize int
+		var headerSize int
+		if major == 2 {
+			if offset+6 > len(payload) {
+				break
+			}
+			frameID = string(payload[offset : offset+3])
+			frameSize = int(payload[offset+3])<<16 | int(payload[offset+4])<<8 | int(payload[offset+5])
+			headerSize = 6
+		} else {
+			if offset+10 > len(payload) {
+				break
+			}
+			frameID = string(payload[offset : offset+4])
+			if frameID == "\x00\x00\x00\x00" {
+				break
+			}
+			if major == 4 {
+				frameSize = syncSafeInt(payload[offset+4 : offset+8])
+			} else {
+				frameSize = int(binary.BigEndian.Uint32(payload[offset+4 : offset+8]))
+			}
+			headerSize = 10
+		}
+		if strings.Trim(frameID, "\x00") == "" || frameSize <= 0 || offset+headerSize+frameSize > len(payload) {
+			break
+		}
+		readID3Frame(frameID, payload[offset+headerSize:offset+headerSize+frameSize], &metadata)
+		offset += headerSize + frameSize
+	}
+	if len(metadata.Identifiers) == 0 {
+		metadata.Identifiers = nil
+	}
+	return metadata, nil
+}
+
+func readID3Frame(frameID string, payload []byte, metadata *localBookMetadata) {
+	text := id3Text(payload)
+	if text == "" {
+		return
+	}
+	switch frameID {
+	case "TIT2", "TT2":
+		metadata.Title = firstNonEmpty(metadata.Title, text)
+	case "TPE1", "TP1":
+		metadata.AuthorName = firstNonEmpty(metadata.AuthorName, text)
+		if metadata.AuthorName == text {
+			metadata.Authors = append(metadata.Authors, text)
+		}
+	case "TPE2", "TP2":
+		if metadata.AuthorName == "" {
+			metadata.AuthorName = text
+			metadata.Authors = append(metadata.Authors, text)
+		}
+	case "TALB", "TAL":
+		metadata.Album = firstNonEmpty(metadata.Album, text)
+		metadata.Series = firstNonEmpty(metadata.Series, text)
+	case "TCON", "TCO":
+		metadata.Subjects = append(metadata.Subjects, text)
+	case "TDRC", "TYER", "TYE":
+		metadata.Year = firstNonEmpty(metadata.Year, text)
+	case "TRCK", "TRK":
+		metadata.Track = firstNonEmpty(metadata.Track, text)
+	case "COMM", "COM":
+		metadata.Description = firstNonEmpty(metadata.Description, text)
+	case "TSRC":
+		addIdentifier(metadata.Identifiers, text, "isrc")
+	}
+}
+
+func id3Text(payload []byte) string {
+	if len(payload) == 0 {
+		return ""
+	}
+	encoding := payload[0]
+	data := payload[1:]
+	switch encoding {
+	case 1, 2:
+		return decodeUTF16Text(data)
+	case 3:
+		return cleanTagText(string(data))
+	default:
+		return cleanTagText(string(data))
+	}
+}
+
+func decodeUTF16Text(data []byte) string {
+	if len(data) < 2 {
+		return ""
+	}
+	var order binary.ByteOrder = binary.BigEndian
+	if data[0] == 0xff && data[1] == 0xfe {
+		order = binary.LittleEndian
+		data = data[2:]
+	} else if data[0] == 0xfe && data[1] == 0xff {
+		data = data[2:]
+	}
+	if len(data)%2 == 1 {
+		data = data[:len(data)-1]
+	}
+	values := make([]uint16, 0, len(data)/2)
+	for i := 0; i+1 < len(data); i += 2 {
+		value := order.Uint16(data[i : i+2])
+		if value == 0 {
+			continue
+		}
+		values = append(values, value)
+	}
+	return cleanTagText(string(utf16.Decode(values)))
+}
+
+func cleanTagText(value string) string {
+	value = strings.ReplaceAll(value, "\x00", " ")
+	value = strings.ReplaceAll(value, "\u0000", " ")
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func syncSafeInt(value []byte) int {
+	if len(value) < 4 {
+		return 0
+	}
+	return int(value[0]&0x7f)<<21 | int(value[1]&0x7f)<<14 | int(value[2]&0x7f)<<7 | int(value[3]&0x7f)
+}
+
+func parseMP4Metadata(file *os.File) (localBookMetadata, error) {
+	info, err := file.Stat()
+	if err != nil {
+		return localBookMetadata{}, err
+	}
+	metadata := localBookMetadata{Identifiers: map[string]string{}}
+	if err := walkMP4Atoms(file, 0, info.Size(), 0, &metadata); err != nil {
+		return metadata, err
+	}
+	if len(metadata.Identifiers) == 0 {
+		metadata.Identifiers = nil
+	}
+	return metadata, nil
+}
+
+func walkMP4Atoms(reader io.ReaderAt, start int64, end int64, depth int, metadata *localBookMetadata) error {
+	if depth > 8 || start < 0 || end <= start {
+		return nil
+	}
+	offset := start
+	header := make([]byte, 16)
+	for offset+8 <= end {
+		if _, err := reader.ReadAt(header[:8], offset); err != nil {
+			return err
+		}
+		size := int64(binary.BigEndian.Uint32(header[:4]))
+		atomType := string(header[4:8])
+		headerSize := int64(8)
+		if size == 1 {
+			if _, err := reader.ReadAt(header[:16], offset); err != nil {
+				return err
+			}
+			size = int64(binary.BigEndian.Uint64(header[8:16]))
+			headerSize = 16
+		} else if size == 0 {
+			size = end - offset
+		}
+		if size < headerSize || offset+size > end {
+			break
+		}
+		payloadStart := offset + headerSize
+		payloadEnd := offset + size
+		switch atomType {
+		case "moov", "udta", "ilst":
+			if err := walkMP4Atoms(reader, payloadStart, payloadEnd, depth+1, metadata); err != nil {
+				return err
+			}
+		case "meta":
+			if payloadStart+4 <= payloadEnd {
+				if err := walkMP4Atoms(reader, payloadStart+4, payloadEnd, depth+1, metadata); err != nil {
+					return err
+				}
+			}
+		case "\xa9nam", "\xa9ART", "aART", "\xa9alb", "\xa9gen", "\xa9day", "desc", "\xa9des", "trkn":
+			if err := readMP4MetadataItem(reader, atomType, payloadStart, payloadEnd, metadata); err != nil {
+				return err
+			}
+		}
+		offset += size
+	}
+	return nil
+}
+
+func readMP4MetadataItem(reader io.ReaderAt, atomType string, start int64, end int64, metadata *localBookMetadata) error {
+	offset := start
+	header := make([]byte, 16)
+	for offset+16 <= end {
+		if _, err := reader.ReadAt(header[:8], offset); err != nil {
+			return err
+		}
+		size := int64(binary.BigEndian.Uint32(header[:4]))
+		childType := string(header[4:8])
+		headerSize := int64(8)
+		if size == 1 {
+			if _, err := reader.ReadAt(header[:16], offset); err != nil {
+				return err
+			}
+			size = int64(binary.BigEndian.Uint64(header[8:16]))
+			headerSize = 16
+		}
+		if size < headerSize || offset+size > end {
+			break
+		}
+		if childType == "data" {
+			dataStart := offset + headerSize + 8
+			if dataStart > offset+size {
+				return nil
+			}
+			data := make([]byte, offset+size-dataStart)
+			if _, err := reader.ReadAt(data, dataStart); err != nil {
+				return err
+			}
+			applyMP4MetadataValue(atomType, data, metadata)
+			return nil
+		}
+		offset += size
+	}
+	return nil
+}
+
+func applyMP4MetadataValue(atomType string, data []byte, metadata *localBookMetadata) {
+	text := cleanTagText(string(data))
+	if atomType == "trkn" {
+		metadata.Track = firstNonEmpty(metadata.Track, mp4TrackNumber(data))
+		return
+	}
+	if text == "" {
+		return
+	}
+	switch atomType {
+	case "\xa9nam":
+		metadata.Title = firstNonEmpty(metadata.Title, text)
+	case "\xa9ART", "aART":
+		metadata.AuthorName = firstNonEmpty(metadata.AuthorName, text)
+		if metadata.AuthorName == text {
+			metadata.Authors = append(metadata.Authors, text)
+		}
+	case "\xa9alb":
+		metadata.Album = firstNonEmpty(metadata.Album, text)
+		metadata.Series = firstNonEmpty(metadata.Series, text)
+	case "\xa9gen":
+		metadata.Subjects = append(metadata.Subjects, text)
+	case "\xa9day":
+		metadata.Year = firstNonEmpty(metadata.Year, text)
+	case "desc", "\xa9des":
+		metadata.Description = firstNonEmpty(metadata.Description, text)
+	}
+}
+
+func mp4TrackNumber(data []byte) string {
+	if len(data) < 4 {
+		return ""
+	}
+	for i := 0; i+3 < len(data); i++ {
+		track := binary.BigEndian.Uint16(data[i+2 : i+4])
+		if track > 0 {
+			return strconv.Itoa(int(track))
+		}
+	}
+	return ""
+}
+
 func decodeElementText(decoder *xml.Decoder, start xml.StartElement) string {
 	var value string
 	if err := decoder.DecodeElement(&value, &start); err != nil {
@@ -289,6 +629,15 @@ func applyLocalMetadataToMap(target map[string]any, metadata localBookMetadata) 
 	}
 	if metadata.Description != "" {
 		local["description"] = metadata.Description
+	}
+	if metadata.Album != "" {
+		local["album"] = metadata.Album
+	}
+	if metadata.Year != "" {
+		local["year"] = metadata.Year
+	}
+	if metadata.Track != "" {
+		local["track"] = metadata.Track
 	}
 	if metadata.Series != "" {
 		local["series"] = metadata.Series

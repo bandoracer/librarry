@@ -1001,6 +1001,15 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
+.download-action-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
 .download-management-tools,
 .download-bandwidth-tools {
   display: grid;

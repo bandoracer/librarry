@@ -232,6 +232,9 @@ func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequ
 	}
 
 	action := normalizeAction(request.Action)
+	if qbitOnlyAction(action) && (len(transIDs) > 0 || len(sabIDs) > 0) {
+		return DownloadActionResult{}, fmt.Errorf("%s is only supported for qBittorrent downloads", action)
+	}
 	if len(sabIDs) > 0 && !sabSupportsAction(action) {
 		return DownloadActionResult{}, errors.New("SABnzbd supports only start, stop, and delete actions")
 	}
@@ -477,6 +480,25 @@ func downloadStateKey(client string, id string) string {
 func sabSupportsAction(action string) bool {
 	switch action {
 	case DownloadActionStart, DownloadActionStop, DownloadActionDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+func qbitOnlyAction(action string) bool {
+	switch action {
+	case DownloadActionIncreasePriority,
+		DownloadActionDecreasePriority,
+		DownloadActionTopPriority,
+		DownloadActionBottomPriority,
+		DownloadActionSetCategory,
+		DownloadActionForceStart,
+		DownloadActionToggleSequential,
+		DownloadActionToggleFirstLast,
+		DownloadActionRename,
+		DownloadActionAddTags,
+		DownloadActionRemoveTags:
 		return true
 	default:
 		return false

@@ -164,14 +164,16 @@ and only grabs or removes torrents when explicitly requested.
 
 The download queue UI uses `POST /api/v1/downloads/actions` for single and
 selected-row bulk actions. Supported queue actions include start, stop, delete,
-recheck, priority movement, category changes, and location changes for
-qBittorrent, plus per-torrent download and upload speed limits. Transmission
-supports start, stop, delete, recheck, set location, labels, and per-torrent
-speed limits. `GET
+recheck, priority movement, force-start, sequential-download toggle,
+first/last-piece priority toggle, rename, tag add/remove, category changes, and
+location changes for qBittorrent, plus per-torrent download and upload speed
+limits. Transmission supports start, stop, delete, recheck, set location,
+labels, and per-torrent speed limits. `GET
 /api/v1/downloads/{id}` returns qBittorrent properties, files, trackers, and
 peers; `/api/v1/downloads/{id}/files/actions` changes file priority, and
 `/api/v1/downloads/{id}/trackers/actions` adds, replaces, or removes trackers.
-SABnzbd queue actions currently support start, stop, and delete.
+SABnzbd queue actions currently support start, stop, and delete. This is still a
+book-acquisition manager, not a full qBittorrent UI replacement.
 
 ## Library Roots
 
@@ -193,9 +195,9 @@ qBittorrent downloads into the same organized roots when they are linked to a
 wanted item. Unlinked completed downloads are queued in
 `GET /api/v1/library/import-reviews` and resolved through
 `POST /api/v1/library/import-reviews/{id}/resolve`. OPF sidecars and embedded
-EPUB package metadata are extracted during scan/import and used for title,
-author, identifiers, language, publisher, and series evidence before falling
-back to filename parsing.
+EPUB package metadata plus MP3 ID3 and M4B/MP4 audio tags are extracted during
+scan/import and used for title, author, identifiers, language, publisher,
+series, album, year, and track evidence before falling back to filename parsing.
 
 If the destination path is inside a Readarr-compatible root folder with
 `isCalibreLibrary=true`, Librarry also posts the imported file to the configured

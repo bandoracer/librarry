@@ -407,6 +407,46 @@ func (c *QBittorrentClient) Action(ctx context.Context, request DownloadActionRe
 		if err := c.postTorrentAction(ctx, "setUploadLimit", values); err != nil {
 			return DownloadActionResult{}, err
 		}
+	case DownloadActionForceStart:
+		values.Set("value", boolString(request.ForceStart))
+		if err := c.postTorrentAction(ctx, "setForceStart", values); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionToggleSequential:
+		if err := c.postTorrentAction(ctx, "toggleSequentialDownload", values); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionToggleFirstLast:
+		if err := c.postTorrentAction(ctx, "toggleFirstLastPiecePrio", values); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionRename:
+		if len(ids) != 1 {
+			return DownloadActionResult{}, errors.New("rename requires exactly one download id")
+		}
+		name := strings.TrimSpace(request.Name)
+		if name == "" {
+			return DownloadActionResult{}, errors.New("name is required for rename")
+		}
+		renameValues := url.Values{}
+		renameValues.Set("hash", ids[0])
+		renameValues.Set("name", name)
+		if err := c.postTorrentAction(ctx, "rename", renameValues); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionAddTags, DownloadActionRemoveTags:
+		tags := compactStrings(request.Tags)
+		if len(tags) == 0 {
+			return DownloadActionResult{}, errors.New("at least one tag is required")
+		}
+		values.Set("tags", strings.Join(tags, ","))
+		endpoint := "addTags"
+		if action == DownloadActionRemoveTags {
+			endpoint = "removeTags"
+		}
+		if err := c.postTorrentAction(ctx, endpoint, values); err != nil {
+			return DownloadActionResult{}, err
+		}
 	default:
 		return DownloadActionResult{}, fmt.Errorf("unsupported download action %q", request.Action)
 	}
@@ -824,6 +864,18 @@ func normalizeAction(value string) string {
 		return DownloadActionSetDownloadLimit
 	case "setuploadlimit", "set_upload_limit", "uploadlimit", "upload_limit":
 		return DownloadActionSetUploadLimit
+	case "forcestart", "force_start", "setforcestart", "set_force_start":
+		return DownloadActionForceStart
+	case "togglesequential", "toggle_sequential", "togglesequentialdownload", "sequential":
+		return DownloadActionToggleSequential
+	case "togglefirstlastpiece", "toggle_first_last_piece", "togglefirstlastpieceprio", "firstlastpiece", "first_last_piece":
+		return DownloadActionToggleFirstLast
+	case "rename", "setname", "set_name":
+		return DownloadActionRename
+	case "addtags", "add_tags", "tag":
+		return DownloadActionAddTags
+	case "removetags", "remove_tags", "untag":
+		return DownloadActionRemoveTags
 	default:
 		return strings.TrimSpace(value)
 	}

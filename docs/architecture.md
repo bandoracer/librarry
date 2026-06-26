@@ -290,11 +290,13 @@ the same grab path, paused by default, with ebook/audiobook category selection.
 Download state is reconciled from qBittorrent, Transmission, and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is
 configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
-start, stop, delete, recheck, priority changes, category changes, and location
-changes, plus delete-with-data removal and per-torrent download and upload speed
-limits. The Downloads page filters by client, state, category, and text, and
-uses the same native actions for category, save-path, bandwidth, tracker, file,
-and bulk queue controls. qBittorrent details are exposed through
+start, stop, delete, recheck, priority changes, force-start, sequential-download
+toggle, first/last-piece priority toggle, rename, tag add/remove, category
+changes, and location changes, plus delete-with-data removal and per-torrent
+download and upload speed limits. The Downloads page filters by client, state,
+category, and text, and uses the same native actions for name, tags, category,
+save-path, bandwidth, tracker, file, and bulk queue controls. qBittorrent
+details are exposed through
 `/api/v1/downloads/{id}` with properties, peer state, tracker state, and torrent
 file lists. Per-file
 qBittorrent priority changes are exposed through
@@ -430,10 +432,11 @@ releases to the matching download client when
 
 Library scanning walks the configured ebook and audiobook roots, classifies
 supported file extensions, extracts OPF sidecar and embedded EPUB package
-metadata when present, stores file records in Postgres, and keeps a fingerprint
-in file metadata for later reconciliation. Manual import accepts a source file
-path, optionally ties it to a wanted item, and copies or moves the file into a
-sanitized path below the format root. The default naming policy is
+metadata plus MP3 ID3 and M4B/MP4 audio tags when present, stores file records
+in Postgres, and keeps a fingerprint in file metadata for later reconciliation.
+Manual import accepts a source file path, optionally ties it to a wanted item,
+and copies or moves the file into a sanitized path below the format root. The
+default naming policy is
 `Author/Title/Title.ext`; deployments can change the author folder, book folder,
 file name, and space replacement templates. Embedded metadata title/author
 evidence is preferred over filename parsing unless a wanted item supplies an
@@ -487,8 +490,8 @@ into the library. Review decisions can import, skip, or reject the pending file.
 
 The implemented import path is intentionally conservative: it avoids overwriting
 existing files and marks wanted items imported only after the destination file is
-persisted. Future work should add audiobook tag extraction, richer matching
-evidence, conflict policies, and bulk review flows.
+persisted. Future work should add richer matching evidence, conflict policies,
+and bulk review flows.
 
 - `books-ebook`
 - `books-audiobook`
