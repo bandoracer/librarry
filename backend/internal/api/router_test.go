@@ -1594,6 +1594,59 @@ func TestCompatAuthorAndBookEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatBookRecordIncludesBibliographicOverrides(t *testing.T) {
+	item := wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "work-1",
+		EditionID:      "edition-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		CoverURL:       "https://example.test/cover.jpg",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		ManualOverrides: []wanted.ManualOverride{
+			{FieldName: "language", Value: "German"},
+			{FieldName: "publisher", Value: "Random House Worlds"},
+			{FieldName: "published_date", Value: "2021-05-04"},
+			{FieldName: "series", Value: "Hail Mary"},
+			{FieldName: "series_position", Value: "1"},
+			{FieldName: "isbn", Value: "9780593135204, 9780593135211"},
+		},
+		CreatedAt: time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC),
+		UpdatedAt: time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC),
+	}
+
+	record := compatBookRecord(item)
+	if record["seriesTitle"] != "Hail Mary" || record["librarryPublishedDate"] != "2021-05-04" {
+		t.Fatalf("expected top-level bibliographic overrides, got %+v", record)
+	}
+	manualOverrides, ok := record["librarryManualOverrides"].(map[string]string)
+	if !ok || manualOverrides["publisher"] != "Random House Worlds" {
+		t.Fatalf("expected manual override map in compat book record, got %+v", record["librarryManualOverrides"])
+	}
+	editions, ok := record["editions"].([]map[string]any)
+	if !ok || len(editions) != 1 {
+		t.Fatalf("expected one edition record, got %+v", record["editions"])
+	}
+	edition := editions[0]
+	if edition["publisher"] != "Random House Worlds" || edition["publishedDate"] != "2021-05-04" || edition["seriesTitle"] != "Hail Mary" || edition["seriesPosition"] != "1" {
+		t.Fatalf("expected edition bibliographic overrides, got %+v", edition)
+	}
+	if edition["isbn13"] != "9780593135204" {
+		t.Fatalf("expected primary ISBN in edition, got %+v", edition)
+	}
+	isbns, ok := edition["isbns"].([]string)
+	if !ok || len(isbns) != 2 || isbns[1] != "9780593135211" {
+		t.Fatalf("expected ISBN list in edition, got %+v", edition["isbns"])
+	}
+	language, ok := edition["language"].(map[string]any)
+	if !ok || language["name"] != "German" {
+		t.Fatalf("expected corrected language in edition, got %+v", edition["language"])
+	}
+}
+
 func TestCompatAuthorAndBookUpdateDeleteEndpointsPersist(t *testing.T) {
 	wantedClient := &fakeMutableWanted{}
 	router := NewRouter(Dependencies{

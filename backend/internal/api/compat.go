@@ -6147,7 +6147,9 @@ func compatAuthorBookRecord(item wanted.WantedItem) map[string]any {
 }
 
 func compatBookRecord(item wanted.WantedItem) map[string]any {
-	return map[string]any{
+	overrides := compatWantedOverrideValues(item)
+	edition := compatWantedEditionRecord(item, overrides)
+	record := map[string]any{
 		"id":               stableInt(item.ID),
 		"librarryId":       item.ID,
 		"authorId":         stableInt(item.AuthorName),
@@ -6166,6 +6168,9 @@ func compatBookRecord(item wanted.WantedItem) map[string]any {
 		},
 		"images": compatImages(item.CoverURL),
 		"tags":   item.Tags,
+		"editions": []map[string]any{
+			edition,
+		},
 		"author": map[string]any{
 			"id":         stableInt(item.AuthorName),
 			"authorName": item.AuthorName,
@@ -6176,6 +6181,85 @@ func compatBookRecord(item wanted.WantedItem) map[string]any {
 		"librarryStatus": item.Status,
 		"librarryFormat": item.Format,
 	}
+	if publishedDate := overrides["published_date"]; publishedDate != "" {
+		record["librarryPublishedDate"] = publishedDate
+		if parsed := parseTimeQuery(publishedDate); !parsed.IsZero() {
+			record["releaseDate"] = parsed
+		}
+	}
+	if series := overrides["series"]; series != "" {
+		record["seriesTitle"] = series
+		record["librarrySeries"] = map[string]any{
+			"title":    series,
+			"position": overrides["series_position"],
+		}
+	}
+	if len(overrides) > 0 {
+		record["librarryManualOverrides"] = overrides
+	}
+	return record
+}
+
+func compatWantedEditionRecord(item wanted.WantedItem, overrides map[string]string) map[string]any {
+	isbns := compatWantedISBNs(overrides["isbn"])
+	editionIDSource := firstNonEmptyString(item.EditionID, item.SourceKey, item.ID, item.Title)
+	var languages []string
+	if language := strings.TrimSpace(overrides["language"]); language != "" {
+		languages = []string{language}
+	}
+	languageRecords := compatBookFileLanguageRecords(languages)
+	record := map[string]any{
+		"id":               stableInt(editionIDSource),
+		"foreignEditionId": firstNonEmptyString(item.EditionID, item.SourceKey, item.ID),
+		"title":            item.Title,
+		"format":           item.Format,
+		"monitored":        item.Monitored && !strings.EqualFold(item.Status, "removed"),
+		"manualAdd":        false,
+		"isbn":             firstString(isbns),
+		"isbn13":           firstString(isbns),
+		"language":         languageRecords[0],
+		"languages":        languageRecords,
+		"publisher":        overrides["publisher"],
+		"publishedDate":    overrides["published_date"],
+	}
+	if len(isbns) > 0 {
+		record["isbns"] = isbns
+	}
+	if series := overrides["series"]; series != "" {
+		record["seriesTitle"] = series
+		record["seriesPosition"] = overrides["series_position"]
+	}
+	return record
+}
+
+func compatWantedOverrideValues(item wanted.WantedItem) map[string]string {
+	values := map[string]string{}
+	for _, override := range item.ManualOverrides {
+		field := strings.TrimSpace(override.FieldName)
+		value := strings.TrimSpace(override.Value)
+		if field == "" || value == "" {
+			continue
+		}
+		values[field] = value
+	}
+	return values
+}
+
+func compatWantedISBNs(value string) []string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\t'
+	})
+	isbns := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		isbn := strings.TrimSpace(part)
+		if isbn == "" || seen[isbn] {
+			continue
+		}
+		seen[isbn] = true
+		isbns = append(isbns, isbn)
+	}
+	return isbns
 }
 
 func compatAuthorLookupRecord(result metadata.SearchResult) map[string]any {

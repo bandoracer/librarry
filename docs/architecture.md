@@ -449,7 +449,10 @@ Single-field corrections use `POST /api/v1/wanted/metadata/{id}/apply`; provider
 record promotion uses `POST /api/v1/wanted/metadata/{id}/apply-bulk` to protect
 all usable values from the selected provider record in one transaction. Provider
 refreshes preserve manually corrected fields during upsert. Wanted item payloads
-include the current manual override list, and
+include the current manual override list. Readarr-compatible book records project
+protected language, publisher, published date, series, series position, and ISBN
+values into their `editions` payloads so corrected bibliographic metadata is
+available to Arr clients, and
 `DELETE /api/v1/wanted/{id}/overrides/{field}` clears one override. Title,
 author, and cover URL resets immediately restore canonical work/author values
 when those rows are available; quality-profile reset returns to `standard`, and

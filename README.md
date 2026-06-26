@@ -107,7 +107,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   profile, language, publisher, published date, series, series position, ISBN,
   and monitoring state, with `manual_overrides` persistence so provider
   refreshes do not overwrite corrected metadata. Wanted payloads include visible
-  override state, and individual override fields can be reset.
+  override state, Readarr-compatible book payloads project corrected
+  bibliographic fields into their edition records, and individual override
+  fields can be reset.
 - Wanted metadata provenance API and UI show the stored provider records behind
   a selected wanted item, including provider, matched fields, confidence, and
   the active manual overrides that protect corrected fields. Field-level
