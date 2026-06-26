@@ -92,6 +92,16 @@ func (s *Service) SaveQualityProfile(ctx context.Context, profile QualityProfile
 	return s.store.UpsertQualityProfile(ctx, profile)
 }
 
+func (s *Service) DeleteQualityProfile(ctx context.Context, idOrName string) error {
+	if !s.Available() {
+		return errors.New("wanted service requires database persistence")
+	}
+	if strings.TrimSpace(idOrName) == "" {
+		return errors.New("quality profile id is required")
+	}
+	return s.store.DeleteQualityProfile(ctx, idOrName)
+}
+
 func (s *Service) SubscribeAuthor(ctx context.Context, request AuthorSubscribeRequest) (AuthorSubscription, error) {
 	if !s.Available() {
 		return AuthorSubscription{}, errors.New("wanted service requires database persistence")

@@ -185,6 +185,37 @@ func (s *Store) UpsertQualityProfile(ctx context.Context, profile QualityProfile
 	if strings.TrimSpace(profile.Name) == "" {
 		return QualityProfile{}, errors.New("quality profile name is required")
 	}
+	if strings.TrimSpace(profile.ID) != "" {
+		row := s.db.QueryRowContext(ctx, `
+			update quality_profiles set
+				name = $2,
+				media_format = $3,
+				min_score = $4,
+				cutoff_score = $5,
+				min_seeders = $6,
+				max_size_bytes = $7,
+				preferred_terms = $8,
+				required_terms = $9,
+				rejected_terms = $10,
+				preferred_score = $11,
+				upgrade_allowed = $12,
+				updated_at = now()
+			where id::text = $1
+			returning
+				id, name, media_format, min_score, cutoff_score, min_seeders,
+				max_size_bytes, preferred_terms, required_terms, rejected_terms,
+				preferred_score, upgrade_allowed, created_at, updated_at
+		`, profile.ID, profile.Name, profile.MediaFormat, profile.MinScore, profile.CutoffScore, profile.MinSeeders, profile.MaxSizeBytes,
+			strings.Join(cleanTerms(profile.PreferredTerms), ","), strings.Join(cleanTerms(profile.RequiredTerms), ","),
+			strings.Join(cleanTerms(profile.RejectedTerms), ","), profile.PreferredScore, profile.UpgradeAllowed)
+		saved, err := scanQualityProfile(row)
+		if err == nil {
+			return saved, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return QualityProfile{}, err
+		}
+	}
 	row := s.db.QueryRowContext(ctx, `
 		insert into quality_profiles (
 			name, media_format, min_score, cutoff_score, min_seeders, max_size_bytes,
@@ -212,6 +243,28 @@ func (s *Store) UpsertQualityProfile(ctx context.Context, profile QualityProfile
 		strings.Join(cleanTerms(profile.PreferredTerms), ","), strings.Join(cleanTerms(profile.RequiredTerms), ","),
 		strings.Join(cleanTerms(profile.RejectedTerms), ","), profile.PreferredScore, profile.UpgradeAllowed)
 	return scanQualityProfile(row)
+}
+
+func (s *Store) DeleteQualityProfile(ctx context.Context, idOrName string) error {
+	if !s.Configured() {
+		return errors.New("wanted store is unavailable")
+	}
+	idOrName = strings.TrimSpace(idOrName)
+	if idOrName == "" {
+		return errors.New("quality profile id is required")
+	}
+	result, err := s.db.ExecContext(ctx, `
+		delete from quality_profiles
+		where id::text = $1 or lower(name) = lower($1)
+	`, idOrName)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err == nil && rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription AuthorSubscription) (AuthorSubscription, error) {

@@ -98,6 +98,10 @@ Initial API surface:
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/wanted/cutoff`
   - `GET /api/v1/qualityprofile`
+  - `POST /api/v1/qualityprofile`
+  - `GET /api/v1/qualityprofile/{id}`
+  - `PUT /api/v1/qualityprofile/{id}`
+  - `DELETE /api/v1/qualityprofile/{id}`
   - `GET /api/v1/delayprofile`
   - `POST /api/v1/delayprofile`
   - `GET /api/v1/delayprofile/{id}`

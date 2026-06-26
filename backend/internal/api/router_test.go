@@ -490,6 +490,35 @@ func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 	if !strings.Contains(res.Body.String(), `"upgradeAllowed":true`) || !strings.Contains(res.Body.String(), `"librarry"`) {
 		t.Fatalf("expected quality profile payload, got %s", res.Body.String())
 	}
+
+	profileID := stableInt("standard")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/qualityprofile/"+strconv.Itoa(profileID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"id":`+strconv.Itoa(profileID)) {
+		t.Fatalf("expected single quality profile payload, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/qualityprofile", strings.NewReader(`{"name":"retail","mediaFormat":"ebook","minFormatScore":70,"cutoffFormatScore":92,"minSeeders":3,"preferredTerms":["retail"],"rejectedTerms":["summary"],"upgradeAllowed":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"name":"retail"`) || !strings.Contains(res.Body.String(), `"minScore":70`) {
+		t.Fatalf("expected created quality profile, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/qualityprofile/"+strconv.Itoa(profileID), strings.NewReader(`{"name":"standard","cutoffFormatScore":90,"librarry":{"mediaFormat":"ebook","preferredScore":9}}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"cutoffScore":90`) || !strings.Contains(res.Body.String(), `"preferredScore":9`) {
+		t.Fatalf("expected updated quality profile, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/qualityprofile/"+strconv.Itoa(profileID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected quality profile delete 204, got %d: %s", res.Code, res.Body.String())
+	}
 }
 
 func TestCompatCatalogResourceEndpoints(t *testing.T) {
@@ -2451,6 +2480,10 @@ func (fakeWanted) SaveQualityProfile(_ context.Context, profile wanted.QualityPr
 	profile.CreatedAt = time.Now().UTC()
 	profile.UpdatedAt = profile.CreatedAt
 	return profile, nil
+}
+
+func (fakeWanted) DeleteQualityProfile(context.Context, string) error {
+	return nil
 }
 
 func (fakeWanted) SubscribeAuthor(_ context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error) {

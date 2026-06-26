@@ -48,6 +48,7 @@ type wantedService interface {
 	List(ctx context.Context, status string) ([]wanted.WantedItem, error)
 	ListQualityProfiles(ctx context.Context) ([]wanted.QualityProfile, error)
 	SaveQualityProfile(ctx context.Context, profile wanted.QualityProfile) (wanted.QualityProfile, error)
+	DeleteQualityProfile(ctx context.Context, idOrName string) error
 	SubscribeAuthor(ctx context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error)
 	ListAuthorSubscriptions(ctx context.Context, status string) ([]wanted.AuthorSubscription, error)
 	MonitorAuthors(ctx context.Context, request wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error)
@@ -177,6 +178,10 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/wanted/missing", handler.compatWantedMissing)
 	mux.HandleFunc("GET /api/v1/wanted/cutoff", handler.compatWantedCutoff)
 	mux.HandleFunc("GET /api/v1/qualityprofile", handler.compatQualityProfiles)
+	mux.HandleFunc("POST /api/v1/qualityprofile", handler.compatCreateQualityProfile)
+	mux.HandleFunc("GET /api/v1/qualityprofile/{id}", handler.compatQualityProfile)
+	mux.HandleFunc("PUT /api/v1/qualityprofile/{id}", handler.compatUpdateQualityProfile)
+	mux.HandleFunc("DELETE /api/v1/qualityprofile/{id}", handler.compatDeleteQualityProfile)
 	mux.HandleFunc("GET /api/v1/delayprofile", handler.compatDelayProfiles)
 	mux.HandleFunc("POST /api/v1/delayprofile", handler.compatCreateDelayProfile)
 	mux.HandleFunc("GET /api/v1/delayprofile/{id}", handler.compatDelayProfile)

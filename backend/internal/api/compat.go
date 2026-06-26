@@ -117,6 +117,10 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
 		{"method": "GET", "path": "/api/v1/wanted/cutoff"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
+		{"method": "POST", "path": "/api/v1/qualityprofile"},
+		{"method": "GET", "path": "/api/v1/qualityprofile/{id}"},
+		{"method": "PUT", "path": "/api/v1/qualityprofile/{id}"},
+		{"method": "DELETE", "path": "/api/v1/qualityprofile/{id}"},
 		{"method": "GET", "path": "/api/v1/delayprofile"},
 		{"method": "GET", "path": "/api/v1/qualitydefinition"},
 		{"method": "GET", "path": "/api/v1/languageprofile"},
@@ -1469,10 +1473,103 @@ func (h *handler) compatQualityProfiles(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	records := make([]map[string]any, 0, len(profiles))
-	for i, profile := range profiles {
-		records = append(records, compatQualityProfileRecord(i+1, profile))
+	for _, profile := range profiles {
+		records = append(records, compatQualityProfileRecord(compatQualityProfileID(profile), profile))
 	}
 	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatQualityProfile(w http.ResponseWriter, r *http.Request) {
+	profile, ok := h.compatQualityProfileByID(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, compatQualityProfileRecord(compatQualityProfileID(profile), profile))
+}
+
+func (h *handler) compatCreateQualityProfile(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "quality profile")
+	if !ok {
+		return
+	}
+	profile := compatQualityProfileFromPayload(payload, wanted.QualityProfile{UpgradeAllowed: true})
+	if strings.TrimSpace(profile.Name) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "quality profile name is required"})
+		return
+	}
+	saved, err := h.deps.Wanted.SaveQualityProfile(r.Context(), profile)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, compatQualityProfileRecord(compatQualityProfileID(saved), saved))
+}
+
+func (h *handler) compatUpdateQualityProfile(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	existing, ok := h.compatQualityProfileByID(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "quality profile")
+	if !ok {
+		return
+	}
+	profile := compatQualityProfileFromPayload(payload, existing)
+	saved, err := h.deps.Wanted.SaveQualityProfile(r.Context(), profile)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, compatQualityProfileRecord(compatQualityProfileID(saved), saved))
+}
+
+func (h *handler) compatDeleteQualityProfile(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	profile, ok := h.compatQualityProfileByID(w, r, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	idOrName := firstNonEmptyString(profile.ID, profile.Name)
+	if err := h.deps.Wanted.DeleteQualityProfile(r.Context(), idOrName); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatQualityProfileByID(w http.ResponseWriter, r *http.Request, id string) (wanted.QualityProfile, bool) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "quality profile id is required"})
+		return wanted.QualityProfile{}, false
+	}
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return wanted.QualityProfile{}, false
+	}
+	profiles, err := h.deps.Wanted.ListQualityProfiles(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return wanted.QualityProfile{}, false
+	}
+	for index, profile := range profiles {
+		if compatQualityProfileMatchesID(id, index, profile) {
+			return profile, true
+		}
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "quality profile not found"})
+	return wanted.QualityProfile{}, false
 }
 
 func (h *handler) compatDelayProfiles(w http.ResponseWriter, r *http.Request) {
@@ -4256,6 +4353,21 @@ func compatQualityProfileKey(name string, format string) string {
 	return strings.ToLower(strings.TrimSpace(name)) + "\x00" + strings.ToLower(strings.TrimSpace(format))
 }
 
+func compatQualityProfileMatchesID(id string, index int, profile wanted.QualityProfile) bool {
+	return compatIDMatches(
+		id,
+		strconv.Itoa(index+1),
+		profile.ID,
+		profile.Name,
+		strconv.Itoa(compatQualityProfileID(profile)),
+		strconv.Itoa(stableInt(profile.Name+":"+profile.MediaFormat)),
+	)
+}
+
+func compatQualityProfileID(profile wanted.QualityProfile) int {
+	return stableInt(firstNonEmptyString(profile.Name, profile.ID, "quality-profile"))
+}
+
 func compatAuthorRecord(subscription wanted.AuthorSubscription, books []wanted.WantedItem) map[string]any {
 	id := stableInt(firstNonEmptyString(subscription.ID, subscription.ProviderKey, subscription.AuthorName))
 	bookRecords := make([]map[string]any, 0, len(books))
@@ -4420,7 +4532,53 @@ func compatQualityProfileRecord(id int, profile wanted.QualityProfile) map[strin
 		}},
 		"formatItems": []map[string]any{},
 		"librarry":    profile,
+		"librarryId":  profile.ID,
+		"librarryProfileId": stableInt(firstNonEmptyString(
+			profile.Name+":"+profile.MediaFormat,
+			profile.ID,
+		)),
 	}
+}
+
+func compatQualityProfileFromPayload(payload map[string]any, fallback wanted.QualityProfile) wanted.QualityProfile {
+	native := nestedPayload(payload, "librarry")
+	profile := fallback
+	profile.ID = firstNonEmptyString(payloadString(native, "id"), payloadString(payload, "librarryId"), profile.ID)
+	profile.Name = firstNonEmptyString(payloadString(payload, "name"), payloadString(native, "name"), profile.Name)
+	profile.MediaFormat = firstNonEmptyString(
+		payloadString(payload, "mediaFormat"),
+		payloadString(payload, "format"),
+		payloadString(native, "mediaFormat"),
+		compatQualityProfileFormatFromItems(payload),
+		profile.MediaFormat,
+	)
+	profile.MinScore = payloadFloatDefault(payload, "minFormatScore", payloadFloatDefault(payload, "minScore", payloadFloatDefault(native, "minScore", profile.MinScore)))
+	profile.CutoffScore = payloadFloatDefault(payload, "cutoffFormatScore", payloadFloatDefault(payload, "cutoffScore", payloadFloatDefault(native, "cutoffScore", profile.CutoffScore)))
+	profile.MinSeeders = payloadIntDefault(payload, "minSeeders", payloadIntDefault(native, "minSeeders", profile.MinSeeders))
+	profile.MaxSizeBytes = payloadInt64Default(payload, "maxSizeBytes", payloadInt64Default(native, "maxSizeBytes", profile.MaxSizeBytes))
+	profile.PreferredTerms = firstNonEmptyStringList(payloadStringList(payload, "preferredTerms"), payloadStringList(native, "preferredTerms"), profile.PreferredTerms)
+	profile.RequiredTerms = firstNonEmptyStringList(payloadStringList(payload, "requiredTerms"), payloadStringList(native, "requiredTerms"), profile.RequiredTerms)
+	profile.RejectedTerms = firstNonEmptyStringList(payloadStringList(payload, "rejectedTerms"), payloadStringList(native, "rejectedTerms"), profile.RejectedTerms)
+	profile.PreferredScore = payloadFloatDefault(payload, "preferredScore", payloadFloatDefault(native, "preferredScore", profile.PreferredScore))
+	profile.UpgradeAllowed = payloadBoolDefault(payload, "upgradeAllowed", payloadBoolDefault(native, "upgradeAllowed", profile.UpgradeAllowed))
+	return profile
+}
+
+func compatQualityProfileFormatFromItems(payload map[string]any) string {
+	for _, item := range compatPayloadArray(payload, "items") {
+		itemPayload, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		name := strings.ToLower(firstNonEmptyString(payloadString(itemPayload, "name"), payloadQualityName(itemPayload)))
+		switch {
+		case strings.Contains(name, "audio"):
+			return "audiobook"
+		case strings.Contains(name, "ebook"), strings.Contains(name, "book"):
+			return "ebook"
+		}
+	}
+	return ""
 }
 
 func compatDelayProfileRecord(payload map[string]any, id int) map[string]any {
@@ -5269,6 +5427,14 @@ func nestedString(payload map[string]any, objectKey string, key string) string {
 	return payloadString(object, key)
 }
 
+func nestedPayload(payload map[string]any, objectKey string) map[string]any {
+	object, ok := payload[objectKey].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return object
+}
+
 func firstNonEmptyString(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -5276,6 +5442,15 @@ func firstNonEmptyString(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func firstNonEmptyStringList(values ...[]string) []string {
+	for _, value := range values {
+		if len(value) > 0 {
+			return value
+		}
+	}
+	return nil
 }
 
 func firstString(values []string) string {
@@ -5338,6 +5513,30 @@ func payloadIntDefault(payload map[string]any, key string, fallback int) int {
 		return int(typed)
 	case string:
 		parsed, err := strconv.Atoi(strings.TrimSpace(typed))
+		if err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func payloadInt64Default(payload map[string]any, key string, fallback int64) int64 {
+	if payload == nil {
+		return fallback
+	}
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return fallback
+	}
+	switch typed := value.(type) {
+	case int:
+		return int64(typed)
+	case int64:
+		return typed
+	case float64:
+		return int64(typed)
+	case string:
+		parsed, err := strconv.ParseInt(strings.TrimSpace(typed), 10, 64)
 		if err == nil {
 			return parsed
 		}
