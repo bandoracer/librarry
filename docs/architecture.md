@@ -305,14 +305,16 @@ changes, and location changes, plus delete-with-data removal and per-torrent
 download and upload speed limits. qBittorrent and Transmission global
 preferences are exposed through `/api/v1/downloads/preferences` for save paths,
 temp or incomplete path usage, paused-add behavior, global and alternate speed
-limits, scheduler toggles, and queue caps. qBittorrent category/tag namespaces
-and Transmission label-derived category/tag resources are exposed through
+limits, scheduler toggles, and queue caps. qBittorrent category/tag namespaces,
+Transmission label-derived category/tag resources, and SABnzbd category
+resources are exposed through
 `/api/v1/downloads/resources`,
 `/api/v1/downloads/categories/actions`, and
-`/api/v1/downloads/tags/actions`. The Downloads page filters by client, state,
-category, and text, and uses the same native actions for name, tags, category,
-save-path, bandwidth, preferences, tracker, file, namespace, and bulk queue
-controls. qBittorrent and Transmission details are exposed through
+`/api/v1/downloads/tags/actions`, with tag actions limited to clients that have
+tag or label primitives. The Downloads page filters by client, state, category,
+and text, and uses the same native actions for name, tags, category, save-path,
+bandwidth, preferences, tracker, file, namespace, and bulk queue controls.
+qBittorrent and Transmission details are exposed through
 `/api/v1/downloads/{id}` with properties, peer state, tracker state, and torrent
 file lists. Per-file priority changes are exposed through
 `/api/v1/downloads/{id}/files/actions` for qBittorrent and Transmission
@@ -325,8 +327,9 @@ actions support start, stop, delete, recheck, queue movement, force-start, set
 location, label-backed category/tag changes, label resource listing and
 rename/delete, tracker add/edit/remove, per-torrent speed limits, detail
 inspection, and file-priority changes. SABnzbd supports
-queue/history detail lookup, queued-file inspection through `get_files`, and
-start, stop, delete, rename, category, and priority actions. The API accepts
+queue/history detail lookup, queued-file inspection through `get_files`,
+category namespace administration, and start, stop, delete, rename, category,
+and priority actions. The API accepts
 multiple download IDs for these actions, routes
 each ID back to its owning client when possible, and the web UI exposes
 selected-row bulk controls for the common queue operations. The current manager

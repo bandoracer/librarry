@@ -251,6 +251,155 @@ func TestSABnzbdJobManagementActions(t *testing.T) {
 	}
 }
 
+func TestSABnzbdResources(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Query().Get("mode") {
+		case "get_cats":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"categories": []string{CategoryBooksEbook, CategoryBooksAudiobook, CategoryBooksEbook, "*"},
+			})
+		case "get_config":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"categories": map[string]any{
+					"*":                       map[string]any{"dir": ""},
+					CategoryBooksAudiobook:    map[string]any{"dir": "/downloads/audiobooks"},
+					CategoryBooksEbook:        map[string]any{"dir": "/downloads/ebooks"},
+					"ignored-without-dir-key": map[string]any{"name": "ignored-without-dir-key"},
+				},
+			})
+		default:
+			t.Fatalf("unexpected mode %q", r.URL.Query().Get("mode"))
+		}
+	}))
+	defer server.Close()
+
+	client := NewSABnzbdClient(server.URL, "api-key", "", "", server.Client())
+	resources, err := client.Resources(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resources.Client != "SABnzbd" || len(resources.Categories) != 3 || len(resources.Tags) != 0 {
+		t.Fatalf("unexpected resources: %+v", resources)
+	}
+	if resources.Categories[0].Name != "*" || resources.Categories[1].Name != CategoryBooksAudiobook || resources.Categories[2].Name != CategoryBooksEbook {
+		t.Fatalf("unexpected category order: %+v", resources.Categories)
+	}
+	if resources.Categories[1].SavePath != "/downloads/audiobooks" || resources.Categories[2].SavePath != "/downloads/ebooks" {
+		t.Fatalf("expected category save paths, got %+v", resources.Categories)
+	}
+}
+
+func TestSABnzbdCategoryActions(t *testing.T) {
+	var commands []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		switch query.Get("mode") {
+		case "set_config":
+			commands = append(commands, "set_config:"+query.Get("name")+":"+query.Get("dir"))
+			_, _ = w.Write([]byte("true"))
+		case "del_config":
+			commands = append(commands, "del_config:"+query.Get("keyword"))
+			_, _ = w.Write([]byte("true"))
+		case "get_cats":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"categories": []string{"*", CategoryBooksAudiobook, CategoryBooksEbook},
+			})
+		case "get_config":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"categories": map[string]any{
+					CategoryBooksAudiobook: map[string]any{"dir": "/downloads/audiobooks"},
+					CategoryBooksEbook:     map[string]any{"dir": "/downloads/ebooks"},
+				},
+			})
+		default:
+			t.Fatalf("unexpected mode %q", query.Get("mode"))
+		}
+	}))
+	defer server.Close()
+
+	client := NewSABnzbdClient(server.URL, "api-key", "", "", server.Client())
+	result, err := client.CategoryAction(context.Background(), DownloadCategoryActionRequest{
+		Action:   "create",
+		Name:     CategoryBooksEbook,
+		SavePath: "/downloads/ebooks",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Applied || result.Client != "SABnzbd" || result.Resources == nil {
+		t.Fatalf("unexpected create result: %+v", result)
+	}
+	if _, err := client.CategoryAction(context.Background(), DownloadCategoryActionRequest{
+		Action:   "edit",
+		Name:     CategoryBooksEbook,
+		NewName:  CategoryBooksAudiobook,
+		SavePath: "/downloads/audiobooks",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CategoryAction(context.Background(), DownloadCategoryActionRequest{
+		Action: "delete",
+		Name:   "old-books",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Join([]string{
+		"set_config:" + CategoryBooksEbook + ":/downloads/ebooks",
+		"set_config:" + CategoryBooksAudiobook + ":/downloads/audiobooks",
+		"del_config:" + CategoryBooksEbook,
+		"del_config:old-books",
+	}, "|")
+	if strings.Join(commands, "|") != want {
+		t.Fatalf("unexpected category commands:\nwant %s\n got %s", want, strings.Join(commands, "|"))
+	}
+}
+
+func TestServiceRoutesSABnzbdResources(t *testing.T) {
+	var commands []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		switch query.Get("mode") {
+		case "get_cats":
+			_ = json.NewEncoder(w).Encode(map[string]any{"categories": []string{"*", CategoryBooksEbook}})
+		case "get_config":
+			_ = json.NewEncoder(w).Encode(map[string]any{"categories": map[string]any{CategoryBooksEbook: map[string]any{"dir": "/downloads/ebooks"}}})
+		case "set_config":
+			commands = append(commands, query.Get("section")+":"+query.Get("name")+":"+query.Get("dir"))
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": true})
+		default:
+			t.Fatalf("unexpected mode %q", query.Get("mode"))
+		}
+	}))
+	defer server.Close()
+
+	service := NewService(IntegrationConfig{
+		SABnzbdURL:    server.URL,
+		SABnzbdAPIKey: "api-key",
+	})
+	resources, err := service.DownloadResources(context.Background(), "SABnzbd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resources.Client != "SABnzbd" || len(resources.Categories) != 2 {
+		t.Fatalf("unexpected service resources: %+v", resources)
+	}
+	result, err := service.DownloadCategoryAction(context.Background(), DownloadCategoryActionRequest{
+		Client:   "SABnzbd",
+		Action:   "create",
+		Name:     CategoryBooksEbook,
+		SavePath: "/downloads/ebooks",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Applied || result.Resources == nil {
+		t.Fatalf("unexpected service action result: %+v", result)
+	}
+	if strings.Join(commands, "|") != "categories:"+CategoryBooksEbook+":/downloads/ebooks" {
+		t.Fatalf("unexpected service category commands: %v", commands)
+	}
+}
+
 func TestServiceRoutesUsenetGrabsToSABnzbd(t *testing.T) {
 	var mode string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

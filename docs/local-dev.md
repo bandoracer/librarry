@@ -188,10 +188,11 @@ limits. Transmission supports start, stop, delete, recheck, queue movement,
 force-start, set location, label-backed category/tag changes, tracker
 add/edit/remove, per-torrent speed limits, detail inspection, file-priority
 changes, and label-derived category/tag resources. `GET
-/api/v1/downloads/resources` reads qBittorrent categories/tags or Transmission
-labels depending on the selected `client`. `POST
+/api/v1/downloads/resources` reads qBittorrent categories/tags, Transmission
+labels, or SABnzbd categories depending on the selected `client`. `POST
 /api/v1/downloads/categories/actions` creates, updates, or deletes qBittorrent
-categories and can rename/delete Transmission category labels.
+categories, creates/updates/deletes SABnzbd categories, and can rename/delete
+Transmission category labels.
 `POST /api/v1/downloads/tags/actions` creates or deletes qBittorrent tags and
 can rename/delete Transmission labels.
 `GET` and `PUT /api/v1/downloads/preferences` read and write qBittorrent and
@@ -201,9 +202,10 @@ paused-add, and queue-cap preferences.
 files, trackers, and peers; `/api/v1/downloads/{id}/files/actions` changes file
 priority for qBittorrent and Transmission, and
 `/api/v1/downloads/{id}/trackers/actions` adds, replaces, or removes
-qBittorrent or Transmission trackers. SABnzbd supports queue/history detail lookup, queued-file
-inspection through `get_files`, and start, stop, delete, rename, category, and
-priority actions. This is still a book-acquisition manager, not a full
+qBittorrent or Transmission trackers. SABnzbd supports queue/history detail
+lookup, queued-file inspection through `get_files`, category namespace
+administration, and start, stop, delete, rename, category, and priority actions.
+This is still a book-acquisition manager, not a full
 qBittorrent UI replacement.
 
 ## Library Roots

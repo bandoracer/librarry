@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -156,6 +157,71 @@ func (c *SABnzbdClient) Details(ctx context.Context, id string) (DownloadDetails
 	return DownloadDetails{}, ErrDownloadNotFound
 }
 
+func (c *SABnzbdClient) Resources(ctx context.Context) (DownloadResources, error) {
+	if !c.Configured() {
+		return DownloadResources{}, ErrIntegrationNotConfigured
+	}
+	categories, err := c.categories(ctx)
+	if err != nil {
+		return DownloadResources{}, err
+	}
+	return DownloadResources{
+		Client:     c.Name(),
+		Categories: categories,
+		Tags:       []string{},
+	}, nil
+}
+
+func (c *SABnzbdClient) CategoryAction(ctx context.Context, request DownloadCategoryActionRequest) (DownloadResourceActionResult, error) {
+	if !c.Configured() {
+		return DownloadResourceActionResult{}, ErrIntegrationNotConfigured
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		return DownloadResourceActionResult{}, errors.New("category name is required")
+	}
+	action := normalizeResourceAction(request.Action)
+	switch action {
+	case "create", "upsert":
+		if err := c.upsertCategory(ctx, name, strings.TrimSpace(request.SavePath)); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	case "edit":
+		newName := strings.TrimSpace(request.NewName)
+		if newName != "" && !strings.EqualFold(newName, name) {
+			if name == "*" {
+				return DownloadResourceActionResult{}, errors.New("SABnzbd default category cannot be renamed")
+			}
+			if err := c.upsertCategory(ctx, newName, strings.TrimSpace(request.SavePath)); err != nil {
+				return DownloadResourceActionResult{}, err
+			}
+			if err := c.deleteCategory(ctx, name); err != nil {
+				return DownloadResourceActionResult{}, err
+			}
+		} else if err := c.upsertCategory(ctx, name, strings.TrimSpace(request.SavePath)); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	case "delete":
+		if name == "*" {
+			return DownloadResourceActionResult{}, errors.New("SABnzbd default category cannot be deleted")
+		}
+		if err := c.deleteCategory(ctx, name); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	default:
+		return DownloadResourceActionResult{}, fmt.Errorf("unsupported SABnzbd category action %q", request.Action)
+	}
+	result := DownloadResourceActionResult{
+		Action:  action,
+		Client:  c.Name(),
+		Applied: true,
+	}
+	if resources, err := c.Resources(ctx); err == nil {
+		result.Resources = &resources
+	}
+	return result, nil
+}
+
 func (c *SABnzbdClient) Action(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
 	if !c.Configured() {
 		return DownloadActionResult{}, ErrIntegrationNotConfigured
@@ -262,6 +328,78 @@ func (c *SABnzbdClient) files(ctx context.Context, id string) ([]DownloadFile, e
 		files = append(files, file.DownloadFile(i))
 	}
 	return files, nil
+}
+
+func (c *SABnzbdClient) categories(ctx context.Context) ([]DownloadCategory, error) {
+	var payload sabCategoriesResponse
+	if err := c.api(ctx, url.Values{"mode": {"get_cats"}}, &payload); err != nil {
+		return nil, err
+	}
+	savePaths := map[string]string{}
+	if paths, err := c.categorySavePaths(ctx); err == nil {
+		savePaths = paths
+	}
+	seen := map[string]bool{}
+	categories := make([]DownloadCategory, 0, len(payload.Categories))
+	for _, rawName := range payload.Categories {
+		name := strings.TrimSpace(rawName)
+		key := strings.ToLower(name)
+		if name == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		categories = append(categories, DownloadCategory{
+			Name:     name,
+			SavePath: strings.TrimSpace(savePaths[name]),
+		})
+	}
+	sort.Slice(categories, func(i, j int) bool {
+		return strings.ToLower(categories[i].Name) < strings.ToLower(categories[j].Name)
+	})
+	return categories, nil
+}
+
+func (c *SABnzbdClient) categorySavePaths(ctx context.Context) (map[string]string, error) {
+	var payload any
+	if err := c.api(ctx, url.Values{"mode": {"get_config"}, "section": {"categories"}}, &payload); err != nil {
+		return nil, err
+	}
+	return sabCategorySavePaths(payload), nil
+}
+
+func (c *SABnzbdClient) upsertCategory(ctx context.Context, name string, savePath string) error {
+	values := url.Values{
+		"mode":    {"set_config"},
+		"section": {"categories"},
+		"name":    {name},
+	}
+	if savePath != "" {
+		values.Set("dir", savePath)
+	}
+	var payload sabStatusResponse
+	if err := c.api(ctx, values, &payload); err != nil {
+		return err
+	}
+	if !payload.OK() {
+		return fmt.Errorf("SABnzbd category save failed: %s", payload.Error())
+	}
+	return nil
+}
+
+func (c *SABnzbdClient) deleteCategory(ctx context.Context, name string) error {
+	values := url.Values{
+		"mode":    {"del_config"},
+		"section": {"categories"},
+		"keyword": {name},
+	}
+	var payload sabStatusResponse
+	if err := c.api(ctx, values, &payload); err != nil {
+		return err
+	}
+	if !payload.OK() {
+		return fmt.Errorf("SABnzbd category delete failed: %s", payload.Error())
+	}
+	return nil
 }
 
 func (c *SABnzbdClient) changeJobValue(ctx context.Context, mode string, id string, value string) error {
@@ -400,6 +538,35 @@ type sabStatusResponse struct {
 	ErrorText string `json:"error"`
 }
 
+func (r *sabStatusResponse) UnmarshalJSON(data []byte) error {
+	var object struct {
+		Status    any    `json:"status"`
+		ErrorText string `json:"error"`
+	}
+	trimmed := strings.TrimSpace(string(data))
+	if err := json.Unmarshal(data, &object); err == nil && (strings.HasPrefix(trimmed, "{") || object.Status != nil || object.ErrorText != "") {
+		r.Status = object.Status
+		r.ErrorText = object.ErrorText
+		return nil
+	}
+	var boolValue bool
+	if err := json.Unmarshal(data, &boolValue); err == nil {
+		r.Status = boolValue
+		return nil
+	}
+	var stringValue string
+	if err := json.Unmarshal(data, &stringValue); err == nil {
+		r.Status = stringValue
+		return nil
+	}
+	var numberValue float64
+	if err := json.Unmarshal(data, &numberValue); err == nil {
+		r.Status = numberValue
+		return nil
+	}
+	return nil
+}
+
 func (r sabStatusResponse) OK() bool {
 	if r.Status == nil && r.ErrorText == "" {
 		return true
@@ -422,6 +589,10 @@ func (r sabStatusResponse) Error() string {
 		return strings.TrimSpace(r.ErrorText)
 	}
 	return "unexpected response"
+}
+
+type sabCategoriesResponse struct {
+	Categories []string `json:"categories"`
 }
 
 type sabQueueResponse struct {
@@ -605,6 +776,50 @@ func includeSABStatus(status DownloadStatus, query DownloadListQuery, ids map[st
 		return false
 	}
 	return true
+}
+
+func sabCategorySavePaths(payload any) map[string]string {
+	paths := map[string]string{}
+	collectSABCategorySavePaths(payload, "", paths)
+	return paths
+}
+
+func collectSABCategorySavePaths(value any, hintedName string, paths map[string]string) {
+	switch node := value.(type) {
+	case []any:
+		for _, item := range node {
+			collectSABCategorySavePaths(item, "", paths)
+		}
+	case map[string]any:
+		explicitName := strings.TrimSpace(sabConfigString(node["name"]))
+		name := firstNonEmpty(explicitName, strings.TrimSpace(hintedName))
+		if _, ok := node["dir"]; ok && name != "" {
+			paths[name] = strings.TrimSpace(sabConfigString(node["dir"]))
+		}
+		for key, child := range node {
+			switch key {
+			case "categories", "config":
+				collectSABCategorySavePaths(child, "", paths)
+			case "name", "dir":
+				continue
+			default:
+				collectSABCategorySavePaths(child, key, paths)
+			}
+		}
+	}
+}
+
+func sabConfigString(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(typed)
+	default:
+		return ""
+	}
 }
 
 func normalizeSABState(state string) string {

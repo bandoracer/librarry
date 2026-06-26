@@ -373,6 +373,7 @@ export function App() {
   const downloadClientOptions = useMemo(() => uniqueDownloadClients(downloads), [downloads]);
   const downloadResourceClientOptions = useMemo(() => uniqueDownloadResourceClients(downloads, integrations), [downloads, integrations]);
   const resourceClientIsTransmission = downloadResourceClient.toLowerCase() === "transmission";
+  const resourceClientIsSABnzbd = downloadResourceClient.toLowerCase() === "sabnzbd";
   const resourceClientIsQbittorrent = downloadResourceClient.toLowerCase() === "qbittorrent";
   const resourceClientSupportsPreferences = resourceClientIsQbittorrent || resourceClientIsTransmission;
   const downloadCategoryOptions = useMemo(() => uniqueDownloadCategories(downloads, downloadResources), [downloads, downloadResources]);
@@ -2188,35 +2189,37 @@ export function App() {
                 {isLoadingDownloadResources ? "Loading" : "Refresh map"}
               </button>
             </div>
-            <div className="download-resource-editor tag-editor">
-              <label>
-                <span>Tags</span>
-                <input value={resourceTagName} onChange={(event) => setResourceTagName(event.target.value)} placeholder="librarry, manual" />
-              </label>
-              {resourceClientIsTransmission ? (
+            {!resourceClientIsSABnzbd ? (
+              <div className="download-resource-editor tag-editor">
                 <label>
-                  <span>Rename to</span>
-                  <input value={resourceTagNewName} onChange={(event) => setResourceTagNewName(event.target.value)} placeholder="librarry-ui" />
+                  <span>Tags</span>
+                  <input value={resourceTagName} onChange={(event) => setResourceTagName(event.target.value)} placeholder="librarry, manual" />
                 </label>
-              ) : null}
-              <button
-                className="secondary-action compact"
-                disabled={
-                  splitTagInput(resourceTagName).length === 0 ||
-                  (resourceClientIsTransmission && (!resourceTagNewName.trim() || splitTagInput(resourceTagName).length !== 1)) ||
-                  Boolean(downloadResourceActionID)
-                }
-                onClick={createDownloadTagResource}
-                type="button"
-              >
-                <Tags size={16} />
-                {resourceClientIsTransmission ? "Rename tag" : "Create tag"}
-              </button>
-              <button className="secondary-action compact danger-outline" disabled={splitTagInput(resourceTagName).length === 0 || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadTagResource()} type="button">
-                <Trash2 size={16} />
-                Delete tag
-              </button>
-            </div>
+                {resourceClientIsTransmission ? (
+                  <label>
+                    <span>Rename to</span>
+                    <input value={resourceTagNewName} onChange={(event) => setResourceTagNewName(event.target.value)} placeholder="librarry-ui" />
+                  </label>
+                ) : null}
+                <button
+                  className="secondary-action compact"
+                  disabled={
+                    splitTagInput(resourceTagName).length === 0 ||
+                    (resourceClientIsTransmission && (!resourceTagNewName.trim() || splitTagInput(resourceTagName).length !== 1)) ||
+                    Boolean(downloadResourceActionID)
+                  }
+                  onClick={createDownloadTagResource}
+                  type="button"
+                >
+                  <Tags size={16} />
+                  {resourceClientIsTransmission ? "Rename tag" : "Create tag"}
+                </button>
+                <button className="secondary-action compact danger-outline" disabled={splitTagInput(resourceTagName).length === 0 || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadTagResource()} type="button">
+                  <Trash2 size={16} />
+                  Delete tag
+                </button>
+              </div>
+            ) : null}
             <div className="download-resource-lists">
               <div className="download-resource-list" aria-label="Managed categories">
                 {(downloadResources?.categories ?? []).slice(0, 8).map((category) => (
@@ -3001,16 +3004,17 @@ function uniqueDownloadClients(downloads: DownloadStatus[]) {
 }
 
 function uniqueDownloadResourceClients(downloads: DownloadStatus[], integrations: IntegrationHealth[]) {
-  const clients = new Set(["qBittorrent", "Transmission"]);
+  const supportedClients = new Set(["qBittorrent", "Transmission", "SABnzbd"]);
+  const clients = new Set(supportedClients);
   downloads.forEach((download) => {
     const client = download.client?.trim();
-    if (client === "qBittorrent" || client === "Transmission") {
+    if (client && supportedClients.has(client)) {
       clients.add(client);
     }
   });
   integrations.forEach((integration) => {
     const name = integration.name.trim();
-    if (name === "qBittorrent" || name === "Transmission") {
+    if (supportedClients.has(name)) {
       clients.add(name);
     }
   });
