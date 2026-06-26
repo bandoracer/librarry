@@ -2658,6 +2658,19 @@ select {
   white-space: nowrap;
 }
 
+.metadata-record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.metadata-record-actions .secondary-action.compact {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
 .metadata-provenance-empty {
   min-height: 54px;
   display: grid;

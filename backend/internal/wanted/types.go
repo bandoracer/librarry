@@ -240,6 +240,10 @@ type MetadataCorrectionRequest struct {
 	Value     string `json:"value"`
 }
 
+type MetadataCorrectionBatchRequest struct {
+	Corrections []MetadataCorrectionRequest `json:"corrections"`
+}
+
 type ProviderMetadataRecord struct {
 	ID          string               `json:"id"`
 	Provider    string               `json:"provider"`

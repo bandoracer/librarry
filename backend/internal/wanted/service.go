@@ -115,6 +115,13 @@ func (s *Service) ApplyMetadataCorrection(ctx context.Context, id string, reques
 	return s.store.ApplyWantedMetadataCorrection(ctx, id, request)
 }
 
+func (s *Service) ApplyMetadataCorrections(ctx context.Context, id string, request MetadataCorrectionBatchRequest) (MetadataProvenance, error) {
+	if !s.Available() {
+		return MetadataProvenance{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.ApplyWantedMetadataCorrections(ctx, id, request)
+}
+
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Available() {
 		return DefaultQualityProfiles(), nil

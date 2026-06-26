@@ -251,6 +251,10 @@ Initial API surface:
   - `PUT /api/v1/wanted/{id}`
   - `PATCH /api/v1/wanted/{id}`
   - `DELETE /api/v1/wanted/{id}`
+  - `GET /api/v1/wanted/metadata/review`
+  - `GET /api/v1/wanted/metadata/{id}`
+  - `POST /api/v1/wanted/metadata/{id}/apply`
+  - `POST /api/v1/wanted/metadata/{id}/apply-bulk`
   - `DELETE /api/v1/wanted/{id}/overrides/{field}`
   - `POST /api/v1/wanted/{id}/search`
   - `GET /api/v1/wanted/releases/{id}`
@@ -441,8 +445,11 @@ quality-profile edits create `manual_overrides` rows for the wanted item. The
 metadata correction API also supports protected bibliographic overrides for
 language, publisher, published date, series, series position, and ISBN, so
 provider evidence can be promoted without changing the provider record itself.
-Provider refreshes preserve manually corrected fields during upsert. Wanted
-item payloads include the current manual override list, and
+Single-field corrections use `POST /api/v1/wanted/metadata/{id}/apply`; provider
+record promotion uses `POST /api/v1/wanted/metadata/{id}/apply-bulk` to protect
+all usable values from the selected provider record in one transaction. Provider
+refreshes preserve manually corrected fields during upsert. Wanted item payloads
+include the current manual override list, and
 `DELETE /api/v1/wanted/{id}/overrides/{field}` clears one override. Title,
 author, and cover URL resets immediately restore canonical work/author values
 when those rows are available; quality-profile reset returns to `standard`, and

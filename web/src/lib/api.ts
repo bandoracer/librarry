@@ -450,6 +450,10 @@ export type MetadataCorrectionRequest = {
   value: string;
 };
 
+export type MetadataCorrectionBatchRequest = {
+  corrections: MetadataCorrectionRequest[];
+};
+
 export type MetadataFieldEvidence = {
   fieldName: string;
   label: string;
@@ -1573,6 +1577,18 @@ export async function applyWantedMetadataCorrection(wantedID: string, request: M
   });
   if (!response.ok) {
     throw new Error(await apiError(response, "Wanted metadata correction failed"));
+  }
+  return (await response.json()) as MetadataProvenance;
+}
+
+export async function applyWantedMetadataCorrections(wantedID: string, request: MetadataCorrectionBatchRequest): Promise<MetadataProvenance> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/${encodeURIComponent(wantedID)}/apply-bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Wanted metadata corrections failed"));
   }
   return (await response.json()) as MetadataProvenance;
 }

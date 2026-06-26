@@ -33,6 +33,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import {
   applyWantedMetadataCorrection,
+  applyWantedMetadataCorrections,
   clearWantedOverride,
   createWanted,
   deleteAuthorSubscription,
@@ -119,6 +120,7 @@ import {
   type LibraryScanOutcome,
   type LibrarySettings,
   type MetadataSearchType,
+  type MetadataCorrectionRequest,
   type MetadataFieldEvidence,
   type MetadataFieldCandidate,
   type MetadataProvenance,
@@ -376,6 +378,7 @@ export function App() {
   const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
   const [isRemovingWanted, setIsRemovingWanted] = useState(false);
   const [applyingMetadataCandidateID, setApplyingMetadataCandidateID] = useState("");
+  const [applyingMetadataRecordID, setApplyingMetadataRecordID] = useState("");
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isSubscribingAuthor, setIsSubscribingAuthor] = useState(false);
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
@@ -1073,6 +1076,28 @@ export function App() {
       setWantedError(error instanceof Error ? error.message : "Wanted metadata correction failed");
     } finally {
       setApplyingMetadataCandidateID("");
+    }
+  }
+
+  async function applySelectedMetadataRecord(record: ProviderMetadataRecord) {
+    const item = selectedWanted;
+    const corrections = metadataRecordCorrections(record, wantedMetadata);
+    if (!item || corrections.length === 0) return;
+    const actionID = metadataRecordActionID(record);
+    setApplyingMetadataRecordID(actionID);
+    setWantedError("");
+    try {
+      const provenance = await applyWantedMetadataCorrections(item.id, { corrections });
+      setWantedMetadata(provenance);
+      setWantedItems((current) => mergeWanted(current, [provenance.wantedItem]));
+      setSelectedWantedID(provenance.wantedItem.id);
+      await refreshWantedMetadataReview();
+      await refreshAcquisitionQueue({ quiet: true });
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted metadata corrections failed");
+    } finally {
+      setApplyingMetadataRecordID("");
     }
   }
 
@@ -2901,19 +2926,37 @@ export function App() {
                       <>
                         <div className="metadata-section-label">Provider records</div>
                         <div className="metadata-record-list">
-                          {wantedMetadata.records.map((record) => (
-                            <article className="metadata-record-row" key={record.id}>
-                              <div>
-                                <strong>{record.provider}</strong>
-                                <span>{record.entityType} · {record.providerKey}</span>
-                              </div>
-                              <div>
-                                <strong>{metadataRecordPrimaryLine(record)}</strong>
-                                <span>{metadataRecordSecondaryLine(record)}</span>
-                              </div>
-                              <em>{metadataConfidenceLabel(record.confidence)}</em>
-                            </article>
-                          ))}
+                          {wantedMetadata.records.map((record) => {
+                            const corrections = metadataRecordCorrections(record, wantedMetadata);
+                            const actionID = metadataRecordActionID(record);
+                            return (
+                              <article className="metadata-record-row" key={actionID}>
+                                <div>
+                                  <strong>{record.provider}</strong>
+                                  <span>{record.entityType} · {record.providerKey}</span>
+                                </div>
+                                <div>
+                                  <strong>{metadataRecordPrimaryLine(record)}</strong>
+                                  <span>{metadataRecordSecondaryLine(record)}</span>
+                                </div>
+                                <div className="metadata-record-actions">
+                                  {corrections.length ? (
+                                    <button
+                                      className="secondary-action compact"
+                                      disabled={Boolean(applyingMetadataRecordID || applyingMetadataCandidateID)}
+                                      onClick={() => applySelectedMetadataRecord(record)}
+                                      title={`Apply ${corrections.length} metadata field${corrections.length === 1 ? "" : "s"} from ${record.provider}`}
+                                      type="button"
+                                    >
+                                      <CheckCircle2 size={15} />
+                                      {applyingMetadataRecordID === actionID ? "Applying" : "Use record"}
+                                    </button>
+                                  ) : null}
+                                  <em>{metadataConfidenceLabel(record.confidence)}</em>
+                                </div>
+                              </article>
+                            );
+                          })}
                         </div>
                       </>
                     ) : (
@@ -5525,6 +5568,38 @@ function metadataFieldApplicableCandidates(field: MetadataFieldEvidence) {
     seen.add(value);
     return true;
   }).slice(0, 3);
+}
+
+function metadataRecordActionID(record: ProviderMetadataRecord) {
+  return record.id || `${record.provider}:${record.providerKey}:${record.entityType}`;
+}
+
+function metadataRecordCorrections(record: ProviderMetadataRecord, metadata: MetadataProvenance | null): MetadataCorrectionRequest[] {
+  const canonicalByField = new Map((metadata?.fields ?? []).map((field) => [field.fieldName, normalizeMetadataValue(field.canonicalValue)]));
+  const values: MetadataCorrectionRequest[] = [
+    { fieldName: "title", value: record.values.title ?? "" },
+    { fieldName: "author_name", value: record.values.authorName ?? "" },
+    { fieldName: "cover_url", value: record.values.coverUrl ?? "" },
+    { fieldName: "language", value: record.values.language ?? "" },
+    { fieldName: "publisher", value: record.values.publisher ?? "" },
+    { fieldName: "published_date", value: record.values.publishedDate ?? "" },
+    { fieldName: "series", value: record.values.series ?? "" },
+    { fieldName: "series_position", value: record.values.seriesPosition ?? "" },
+    { fieldName: "isbn", value: metadataRecordISBNValue(record) }
+  ];
+  const seen = new Set<string>();
+  return values.filter((correction) => {
+    const fieldName = correction.fieldName;
+    const value = (correction.value || "").trim();
+    const normalized = normalizeMetadataValue(value);
+    if (!value || !normalized || seen.has(fieldName)) return false;
+    seen.add(fieldName);
+    return canonicalByField.get(fieldName) !== normalized;
+  });
+}
+
+function metadataRecordISBNValue(record: ProviderMetadataRecord) {
+  return (record.values.isbns ?? []).map((isbn) => isbn.trim()).filter(Boolean).join(", ");
 }
 
 function normalizeMetadataValue(value?: string) {

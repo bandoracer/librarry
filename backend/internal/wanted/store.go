@@ -866,6 +866,10 @@ func (s *Store) WantedMetadataReviewQueue(ctx context.Context) (MetadataReviewQu
 }
 
 func (s *Store) ApplyWantedMetadataCorrection(ctx context.Context, wantedID string, request MetadataCorrectionRequest) (MetadataProvenance, error) {
+	return s.ApplyWantedMetadataCorrections(ctx, wantedID, MetadataCorrectionBatchRequest{Corrections: []MetadataCorrectionRequest{request}})
+}
+
+func (s *Store) ApplyWantedMetadataCorrections(ctx context.Context, wantedID string, request MetadataCorrectionBatchRequest) (MetadataProvenance, error) {
 	if !s.Configured() {
 		return MetadataProvenance{}, errors.New("wanted store is unavailable")
 	}
@@ -873,23 +877,53 @@ func (s *Store) ApplyWantedMetadataCorrection(ctx context.Context, wantedID stri
 	if wantedID == "" {
 		return MetadataProvenance{}, errors.New("wanted item id is required")
 	}
-	field, value, err := metadataCorrectionFieldValue(request)
+	values, err := metadataCorrectionValues(request.Corrections)
 	if err != nil {
 		return MetadataProvenance{}, err
 	}
-	switch field {
-	case "title", "author_name", "cover_url", "quality_profile":
-		update, err := metadataCorrectionUpdateRequest(MetadataCorrectionRequest{FieldName: field, Value: value})
-		if err != nil {
+	if value, ok := values["quality_profile"]; ok {
+		values["quality_profile"] = normalizeQualityProfile(value)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return MetadataProvenance{}, err
+	}
+	defer tx.Rollback()
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `select exists(select 1 from wanted_items where id::text = $1)`, wantedID).Scan(&exists); err != nil {
+		return MetadataProvenance{}, err
+	}
+	if !exists {
+		return MetadataProvenance{}, sql.ErrNoRows
+	}
+
+	if metadataCorrectionsIncludeWantedColumns(values) {
+		if _, err := tx.ExecContext(ctx, `
+			update wanted_items set
+				title = case when $2 = '' then title else $2 end,
+				author_name = case when $3 = '' then author_name else $3 end,
+				cover_url = case when $4 = '' then cover_url else $4 end,
+				quality_profile = case when $5 = '' then quality_profile else $5 end,
+				updated_at = now()
+			where id::text = $1
+		`, wantedID, values["title"], values["author_name"], values["cover_url"], values["quality_profile"]); err != nil {
 			return MetadataProvenance{}, err
 		}
-		if _, err := s.UpdateWanted(ctx, wantedID, update); err != nil {
+	}
+
+	for _, field := range allWantedOverrideFields() {
+		value := strings.TrimSpace(values[field])
+		if value == "" {
+			continue
+		}
+		if err := upsertWantedManualOverride(ctx, tx, wantedID, field, value); err != nil {
 			return MetadataProvenance{}, err
 		}
-	default:
-		if err := s.upsertWantedManualOverride(ctx, wantedID, field, value); err != nil {
-			return MetadataProvenance{}, err
-		}
+	}
+	if err := tx.Commit(); err != nil {
+		return MetadataProvenance{}, err
 	}
 	return s.WantedMetadataProvenance(ctx, wantedID)
 }
@@ -1196,6 +1230,33 @@ func metadataCorrectionFieldValue(request MetadataCorrectionRequest) (string, st
 		return "", "", errors.New("metadata correction value is required")
 	}
 	return field, value, nil
+}
+
+func metadataCorrectionValues(corrections []MetadataCorrectionRequest) (map[string]string, error) {
+	if len(corrections) == 0 {
+		return nil, errors.New("at least one metadata correction is required")
+	}
+	values := map[string]string{}
+	for _, correction := range corrections {
+		field, value, err := metadataCorrectionFieldValue(correction)
+		if err != nil {
+			return nil, err
+		}
+		values[field] = value
+	}
+	if len(values) == 0 {
+		return nil, errors.New("at least one metadata correction is required")
+	}
+	return values, nil
+}
+
+func metadataCorrectionsIncludeWantedColumns(values map[string]string) bool {
+	for _, field := range []string{"title", "author_name", "cover_url", "quality_profile"} {
+		if strings.TrimSpace(values[field]) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeWantedOverrideFields(fields []string) ([]string, error) {

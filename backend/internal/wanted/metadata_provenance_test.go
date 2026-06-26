@@ -216,6 +216,38 @@ func TestMetadataCorrectionFieldValueSupportsBibliographicFields(t *testing.T) {
 	}
 }
 
+func TestMetadataCorrectionValuesNormalizesAndDeduplicates(t *testing.T) {
+	values, err := metadataCorrectionValues([]MetadataCorrectionRequest{
+		{FieldName: "title", Value: "Project Hail Mary"},
+		{FieldName: "publisher", Value: "Ballantine"},
+		{FieldName: "publishedDate", Value: "2021-05-04"},
+		{FieldName: "publisher", Value: "Random House Worlds"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected correction values error: %v", err)
+	}
+	if values["title"] != "Project Hail Mary" || values["publisher"] != "Random House Worlds" || values["published_date"] != "2021-05-04" {
+		t.Fatalf("unexpected normalized correction values: %+v", values)
+	}
+	if !metadataCorrectionsIncludeWantedColumns(values) {
+		t.Fatalf("expected display column update for title in %+v", values)
+	}
+
+	onlyBibliographic, err := metadataCorrectionValues([]MetadataCorrectionRequest{{FieldName: "isbn", Value: "9780593135204"}})
+	if err != nil {
+		t.Fatalf("unexpected bibliographic correction error: %v", err)
+	}
+	if metadataCorrectionsIncludeWantedColumns(onlyBibliographic) {
+		t.Fatalf("did not expect wanted column update for bibliographic-only correction: %+v", onlyBibliographic)
+	}
+	if _, err := metadataCorrectionValues(nil); err == nil {
+		t.Fatal("expected empty correction list error")
+	}
+	if _, err := metadataCorrectionValues([]MetadataCorrectionRequest{{FieldName: "format", Value: "ebook"}}); err == nil {
+		t.Fatal("expected unsupported field error")
+	}
+}
+
 func findMetadataField(fields []MetadataFieldEvidence, fieldName string) (MetadataFieldEvidence, bool) {
 	for _, field := range fields {
 		if field.FieldName == fieldName {

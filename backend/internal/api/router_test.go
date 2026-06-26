@@ -2845,6 +2845,35 @@ func TestApplyWantedMetadataCorrectionEndpointReturnsUpdatedProvenance(t *testin
 	}
 }
 
+func TestApplyWantedMetadataCorrectionsEndpointReturnsUpdatedProvenance(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeMetadataWanted{},
+	})
+	body := `{"corrections":[{"fieldName":"title","value":"Project Hail Mary: A Novel"},{"fieldName":"publisher","value":"Random House Worlds"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/metadata/wanted-1/apply-bulk", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	for _, want := range []string{
+		`"fieldName":"title"`,
+		`"fieldName":"publisher"`,
+		`"canonicalValue":"Random House Worlds"`,
+		`"protected":true`,
+	} {
+		if !strings.Contains(res.Body.String(), want) {
+			t.Fatalf("expected %s in bulk correction response, got %s", want, res.Body.String())
+		}
+	}
+}
+
 func TestGrabWantedEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -4665,6 +4694,46 @@ func (fakeMetadataWanted) ApplyMetadataCorrection(_ context.Context, _ string, r
 			Conflict:        false,
 		}},
 		GeneratedAt: now,
+	}, nil
+}
+
+func (fakeMetadataWanted) ApplyMetadataCorrections(_ context.Context, _ string, request wanted.MetadataCorrectionBatchRequest) (wanted.MetadataProvenance, error) {
+	now := time.Now().UTC()
+	item := wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "work-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	fields := make([]wanted.MetadataFieldEvidence, 0, len(request.Corrections))
+	for _, correction := range request.Corrections {
+		item.ManualOverrides = append(item.ManualOverrides, wanted.ManualOverride{
+			FieldName: correction.FieldName,
+			Value:     correction.Value,
+			Reason:    "manual wanted metadata correction",
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+		fields = append(fields, wanted.MetadataFieldEvidence{
+			FieldName:       correction.FieldName,
+			Label:           correction.FieldName,
+			CanonicalValue:  correction.Value,
+			CanonicalSource: "manual_override",
+			Protected:       true,
+			Conflict:        false,
+		})
+	}
+	return wanted.MetadataProvenance{
+		WantedItem:      item,
+		ManualOverrides: item.ManualOverrides,
+		Fields:          fields,
+		GeneratedAt:     now,
 	}, nil
 }
 
