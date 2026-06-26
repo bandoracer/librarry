@@ -120,6 +120,13 @@ const navItems = [
     description: "Watch provider health, acquisition status, monitor runs, and recent activity."
   },
   {
+    id: "library",
+    label: "Library",
+    icon: Library,
+    title: "Library",
+    description: "Manage monitored authors, wanted books, missing items, and local files."
+  },
+  {
     id: "search",
     label: "Search",
     icon: Search,
@@ -135,10 +142,10 @@ const navItems = [
   },
   {
     id: "downloads",
-    label: "Downloads",
+    label: "Activity",
     icon: HardDriveDownload,
-    title: "Download manager",
-    description: "Control active qBittorrent, Transmission, and SABnzbd items from one queue."
+    title: "Acquisition activity",
+    description: "Watch book acquisition jobs and use scoped client actions when imports need attention."
   },
   {
     id: "imports",
@@ -166,6 +173,7 @@ const navItems = [
 type ViewID = (typeof navItems)[number]["id"];
 type DownloadScope = "all" | "librarry";
 type DownloadStateFilter = "all" | "active" | "paused" | "complete" | "failed";
+type LibraryFormatFilter = "all" | "ebook" | "audiobook";
 type WantedViewFilter = "missing" | "wanted" | "grabbed" | "all";
 type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 
@@ -206,7 +214,7 @@ function integrationSettingsForm(settings: IntegrationSettings): IntegrationSett
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState<ViewID>("wanted");
+  const [activeView, setActiveView] = useState<ViewID>("library");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
@@ -249,6 +257,8 @@ export function App() {
   const [downloadCategoryFilter, setDownloadCategoryFilter] = useState("");
   const [downloadStateFilter, setDownloadStateFilter] = useState<DownloadStateFilter>("all");
   const [downloadTextFilter, setDownloadTextFilter] = useState("");
+  const [libraryFormatFilter, setLibraryFormatFilter] = useState<LibraryFormatFilter>("all");
+  const [libraryTextFilter, setLibraryTextFilter] = useState("");
   const [query, setQuery] = useState("Project Hail Mary");
   const [importPath, setImportPath] = useState("");
   const [libraryImportMode, setLibraryImportMode] = useState<"copy" | "move" | "hardlink" | "hardlinkOrCopy">("copy");
@@ -436,6 +446,37 @@ export function App() {
   );
   const wantedPresence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
   const wantedSummary = useMemo(() => summarizeWantedItems(wantedItems, wantedPresence), [wantedItems, wantedPresence]);
+  const libraryAuthorRows = useMemo(
+    () => buildLibraryAuthorRows(authorSubscriptions, wantedItems, wantedPresence),
+    [authorSubscriptions, wantedItems, wantedPresence]
+  );
+  const librarySummary = useMemo(
+    () => ({
+      authors: libraryAuthorRows.length,
+      monitoredAuthors: authorSubscriptions.length,
+      monitoredBooks: wantedItems.filter((item) => item.monitored).length,
+      missing: wantedSummary.missing,
+      grabbed: wantedSummary.grabbed,
+      present: wantedSummary.present,
+      files: libraryFiles.length,
+      manualOverrides: wantedItems.reduce((count, item) => count + (item.manualOverrides?.length ?? 0), 0)
+    }),
+    [authorSubscriptions.length, libraryAuthorRows.length, libraryFiles.length, wantedItems, wantedSummary]
+  );
+  const visibleLibraryAuthorRows = useMemo(
+    () => libraryAuthorRows.filter((row) => libraryAuthorVisibleForFilter(row, libraryTextFilter, libraryFormatFilter)),
+    [libraryAuthorRows, libraryFormatFilter, libraryTextFilter]
+  );
+  const visibleLibraryBooks = useMemo(
+    () => wantedItems
+      .filter((item) => libraryBookVisibleForFilter(item, wantedPresence.get(item.id), libraryTextFilter, libraryFormatFilter))
+      .sort((a, b) => {
+        const stateDelta = libraryPresenceRank(wantedPresence.get(a.id)) - libraryPresenceRank(wantedPresence.get(b.id));
+        if (stateDelta !== 0) return stateDelta;
+        return `${a.authorName ?? ""} ${a.title}`.localeCompare(`${b.authorName ?? ""} ${b.title}`);
+      }),
+    [libraryFormatFilter, libraryTextFilter, wantedItems, wantedPresence]
+  );
   const visibleWantedItems = useMemo(
     () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, wantedPresence.get(item.id), wantedViewFilter)),
     [wantedItems, wantedPresence, wantedViewFilter]
@@ -667,6 +708,14 @@ export function App() {
     } finally {
       setIsSearchingWanted(false);
     }
+  }
+
+  function openWantedItem(item: WantedItem) {
+    setSelectedWantedID(item.id);
+    setWantedViewFilter("all");
+    setWantedReleaseFilter("all");
+    setWantedReleases([]);
+    setActiveView("wanted");
   }
 
   async function loadWantedReleaseDecisions(item = selectedWanted) {
@@ -1771,6 +1820,146 @@ export function App() {
           ))}
         </section>
 
+        <section className="library-panel library-overview" aria-label="Library management" hidden={activeView !== "library"}>
+          <div className="panel-heading library-heading">
+            <div>
+              <h2>Authors and books</h2>
+              <p>
+                {wantedItems.length
+                  ? `${librarySummary.authors} authors · ${librarySummary.monitoredBooks} monitored books · ${librarySummary.missing} missing.`
+                  : "Search metadata, monitor authors, and mark books wanted to build the library plan."}
+              </p>
+            </div>
+            <div className="library-toolbar">
+              <div className="library-search">
+                <Search size={16} />
+                <input
+                  value={libraryTextFilter}
+                  onChange={(event) => setLibraryTextFilter(event.target.value)}
+                  placeholder="Filter authors or books"
+                />
+              </div>
+              <div className="segmented compact" role="group" aria-label="Library format">
+                {(["all", "ebook", "audiobook"] as LibraryFormatFilter[]).map((option) => (
+                  <button
+                    className={libraryFormatFilter === option ? "selected" : ""}
+                    key={option}
+                    onClick={() => setLibraryFormatFilter(option)}
+                    type="button"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              <button className="secondary-action compact" disabled={isRunningAuthorMonitor} onClick={() => runAuthorSubscriptionMonitor({ force: false })} type="button">
+                <RadioTower size={16} />
+                Due authors
+              </button>
+              <button className="secondary-action compact" disabled={isRunningAuthorMonitor} onClick={() => runAuthorSubscriptionMonitor({ force: true })} type="button">
+                <RefreshCw size={16} />
+                Force authors
+              </button>
+            </div>
+          </div>
+          {wantedError ? <div className={isPersistenceRequiredError(wantedError) ? "inline-note" : "inline-error"}>{appErrorMessage(wantedError)}</div> : null}
+          {authorError ? <div className={isPersistenceRequiredError(authorError) ? "inline-note" : "inline-error"}>{appErrorMessage(authorError)}</div> : null}
+          {libraryError ? <div className={isPersistenceRequiredError(libraryError) ? "inline-note" : "inline-error"}>{appErrorMessage(libraryError)}</div> : null}
+          <div className="library-grid library-overview-metrics">
+            {[
+              ["Authors", librarySummary.authors],
+              ["Monitored authors", librarySummary.monitoredAuthors],
+              ["Monitored books", librarySummary.monitoredBooks],
+              ["Missing", librarySummary.missing],
+              ["Grabbed", librarySummary.grabbed],
+              ["Present", librarySummary.present],
+              ["Files", librarySummary.files],
+              ["Overrides", librarySummary.manualOverrides]
+            ].map(([label, value]) => (
+              <div className="library-metric" key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="library-management-grid">
+            <div className="library-author-browser">
+              <div className="library-section-heading">
+                <strong>Author monitoring</strong>
+                <span>{visibleLibraryAuthorRows.length} shown</span>
+              </div>
+              {visibleLibraryAuthorRows.length ? (
+                visibleLibraryAuthorRows.map((row) => (
+                  <article className="library-author-row" key={row.key}>
+                    <div>
+                      <strong>{row.authorName}</strong>
+                      <span>
+                        {row.formats.join(", ")} · {row.qualityProfiles.join(", ") || "standard"}
+                      </span>
+                    </div>
+                    <div className="library-author-counts">
+                      <span>{row.missing} missing</span>
+                      <span>{row.present} present</span>
+                      <span>{row.grabbed} grabbed</span>
+                    </div>
+                    <em>{row.lastSyncAt ? formatDateTime(row.lastSyncAt) : row.subscriptionCount ? "never synced" : "manual"}</em>
+                  </article>
+                ))
+              ) : (
+                <div className="wanted-empty">No authors match this library filter.</div>
+              )}
+            </div>
+            <div className="library-book-browser">
+              <div className="library-section-heading">
+                <strong>Monitored books</strong>
+                <span>{visibleLibraryBooks.length} shown</span>
+              </div>
+              {visibleLibraryBooks.length ? (
+                visibleLibraryBooks.slice(0, 80).map((item) => {
+                  const presence = wantedPresence.get(item.id) ?? "missing";
+                  return (
+                    <article className={`library-book-row ${presence}`} key={item.id}>
+                      <div className="library-book-cover">
+                        {item.coverUrl ? <img src={item.coverUrl} alt="" /> : <BookOpen size={18} />}
+                      </div>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <span>
+                          {item.authorName || "Unknown author"} · {item.format} · {item.qualityProfile}
+                        </span>
+                        <small>
+                          {item.sourceProvider || "manual"} · {item.monitored ? "monitored" : "unmonitored"}
+                          {item.manualOverrides?.length ? ` · ${item.manualOverrides.length} override${item.manualOverrides.length === 1 ? "" : "s"}` : ""}
+                        </small>
+                      </div>
+                      <em className={`wanted-badge ${presence}`}>{wantedBadgeLabel(item, presence)}</em>
+                      <div className="library-book-actions">
+                        <button className="secondary-action compact" onClick={() => openWantedItem(item)} type="button">
+                          <Pencil size={16} />
+                          Review
+                        </button>
+                        <button
+                          className="secondary-action compact"
+                          disabled={isSearchingWanted}
+                          onClick={async () => {
+                            openWantedItem(item);
+                            await runWantedReleaseSearch(item);
+                          }}
+                          type="button"
+                        >
+                          <FileSearch size={16} />
+                          {isSearchingWanted && selectedWantedID === item.id ? "Searching" : "Search"}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="wanted-empty">No monitored books match this library filter.</div>
+              )}
+            </div>
+          </div>
+        </section>
+
         <div className="content-grid" hidden={activeView !== "search"}>
           <section className="results-panel" aria-label="Search results">
             <div className="panel-heading">
@@ -1873,7 +2062,7 @@ export function App() {
                     {isSearchingReleases ? "Searching releases" : "Search releases"}
                   </button>
                 </div>
-                {authorError ? <div className="inline-error detail-error">{authorError}</div> : null}
+                {authorError ? <div className={isPersistenceRequiredError(authorError) ? "inline-note detail-error" : "inline-error detail-error"}>{appErrorMessage(authorError)}</div> : null}
               </>
             ) : (
               <div className="empty-detail">Select a result.</div>
@@ -2212,7 +2401,7 @@ export function App() {
               </button>
             </div>
           </div>
-          {libraryError ? <div className="inline-error">{libraryError}</div> : null}
+          {libraryError ? <div className={isPersistenceRequiredError(libraryError) ? "inline-note" : "inline-error"}>{appErrorMessage(libraryError)}</div> : null}
           <div className="library-import-row">
             <div className="library-import-input">
               <FileCheck2 size={17} />
@@ -2422,9 +2611,9 @@ export function App() {
               </button>
             </div>
           </div>
-          {monitorError ? <div className="inline-error">{monitorError}</div> : null}
-          {feedError ? <div className="inline-error">{feedError}</div> : null}
-          {upgradeError ? <div className="inline-error">{upgradeError}</div> : null}
+          {monitorError ? <div className={isPersistenceRequiredError(monitorError) ? "inline-note" : "inline-error"}>{appErrorMessage(monitorError)}</div> : null}
+          {feedError ? <div className={isPersistenceRequiredError(feedError) ? "inline-note" : "inline-error"}>{appErrorMessage(feedError)}</div> : null}
+          {upgradeError ? <div className={isPersistenceRequiredError(upgradeError) ? "inline-note" : "inline-error"}>{appErrorMessage(upgradeError)}</div> : null}
           <div className="monitor-grid">
             {[
               ["Wanted checked", monitorRun?.wantedChecked ?? 0],
@@ -3258,7 +3447,7 @@ export function App() {
             </button>
           </div>
           {settingsNotice ? <div className="inline-note">{settingsNotice}</div> : null}
-          {settingsError ? <div className="inline-error">{settingsError}</div> : null}
+          {settingsError ? <div className={isPersistenceRequiredError(settingsError) ? "inline-note" : "inline-error"}>{appErrorMessage(settingsError)}</div> : null}
           <div className="integration-settings-panel">
             <div className="integration-settings-header">
               <div>
@@ -3435,7 +3624,7 @@ export function App() {
               Refresh
             </button>
           </div>
-          {historyError ? <div className="inline-error">{historyError}</div> : null}
+          {historyError ? <div className={isPersistenceRequiredError(historyError) ? "inline-note" : "inline-error"}>{appErrorMessage(historyError)}</div> : null}
           <div className="history-list">
             {historyEvents.map((event) => (
               <article className={`history-row ${event.severity}`} key={event.id}>
@@ -3709,10 +3898,124 @@ function isPersistenceRequiredError(message: string) {
 
 function appErrorMessage(message: string) {
   if (!isPersistenceRequiredError(message)) return message;
-  return `${message}. Set LIBRARRY_DATABASE_URL to a Postgres database and restart the API to enable wanted queues, author monitoring, and release decisions.`;
+  return `${message}. Set LIBRARRY_DATABASE_URL to a Postgres database and restart the API to enable library files, import reviews, wanted queues, author monitoring, and release decisions.`;
 }
 
 type WantedPresence = "missing" | "grabbed" | "present";
+
+type LibraryAuthorRow = {
+  key: string;
+  authorName: string;
+  formats: string[];
+  qualityProfiles: string[];
+  subscriptionCount: number;
+  monitoredBooks: number;
+  unmonitoredBooks: number;
+  missing: number;
+  grabbed: number;
+  present: number;
+  lastSyncAt?: string;
+  monitorNewItems: boolean;
+  status: string;
+};
+
+function buildLibraryAuthorRows(subscriptions: AuthorSubscription[], items: WantedItem[], presence: Map<string, WantedPresence>) {
+  const rows = new Map<string, LibraryAuthorRow>();
+
+  function rowFor(authorName: string) {
+    const name = authorName.trim() || "Unknown author";
+    const key = normalizedWantedText(name) || "unknown-author";
+    const existing = rows.get(key);
+    if (existing) return existing;
+    const created: LibraryAuthorRow = {
+      key,
+      authorName: name,
+      formats: [],
+      qualityProfiles: [],
+      subscriptionCount: 0,
+      monitoredBooks: 0,
+      unmonitoredBooks: 0,
+      missing: 0,
+      grabbed: 0,
+      present: 0,
+      monitorNewItems: false,
+      status: "manual"
+    };
+    rows.set(key, created);
+    return created;
+  }
+
+  subscriptions.forEach((subscription) => {
+    const row = rowFor(subscription.authorName);
+    row.subscriptionCount += 1;
+    row.monitorNewItems = row.monitorNewItems || subscription.monitorNewItems;
+    row.status = subscription.status || row.status;
+    addUnique(row.formats, subscription.format);
+    addUnique(row.qualityProfiles, subscription.qualityProfile);
+    if (!row.lastSyncAt || (subscription.lastSyncAt && Date.parse(subscription.lastSyncAt) > Date.parse(row.lastSyncAt))) {
+      row.lastSyncAt = subscription.lastSyncAt;
+    }
+  });
+
+  items.forEach((item) => {
+    const row = rowFor(item.authorName || "Unknown author");
+    addUnique(row.formats, item.format);
+    addUnique(row.qualityProfiles, item.qualityProfile);
+    if (item.monitored) {
+      row.monitoredBooks += 1;
+    } else {
+      row.unmonitoredBooks += 1;
+    }
+    switch (presence.get(item.id) ?? "missing") {
+      case "present":
+        row.present += 1;
+        break;
+      case "grabbed":
+        row.grabbed += 1;
+        break;
+      default:
+        row.missing += 1;
+        break;
+    }
+  });
+
+  return Array.from(rows.values()).sort((a, b) => {
+    const missingDelta = b.missing - a.missing;
+    if (missingDelta !== 0) return missingDelta;
+    return a.authorName.localeCompare(b.authorName);
+  });
+}
+
+function libraryAuthorVisibleForFilter(row: LibraryAuthorRow, textFilter: string, formatFilter: LibraryFormatFilter) {
+  if (formatFilter !== "all" && !row.formats.includes(formatFilter)) return false;
+  const query = normalizedWantedText(textFilter);
+  if (!query) return true;
+  return normalizedWantedText(`${row.authorName} ${row.formats.join(" ")} ${row.qualityProfiles.join(" ")}`).includes(query);
+}
+
+function libraryBookVisibleForFilter(item: WantedItem, presence: WantedPresence | undefined, textFilter: string, formatFilter: LibraryFormatFilter) {
+  if (formatFilter !== "all" && item.format !== formatFilter) return false;
+  const query = normalizedWantedText(textFilter);
+  if (!query) return true;
+  return normalizedWantedText(`${item.title} ${item.authorName ?? ""} ${item.qualityProfile} ${item.sourceProvider ?? ""} ${presence ?? "missing"}`).includes(query);
+}
+
+function libraryPresenceRank(presence?: WantedPresence) {
+  switch (presence) {
+    case "missing":
+    case undefined:
+      return 0;
+    case "grabbed":
+      return 1;
+    case "present":
+      return 2;
+  }
+}
+
+function addUnique(values: string[], value?: string) {
+  const normalized = (value || "").trim();
+  if (normalized && !values.includes(normalized)) values.push(normalized);
+}
 
 function wantedPresenceMap(items: WantedItem[], files: LibraryFile[]) {
   const entries = new Map<string, WantedPresence>();

@@ -1323,7 +1323,7 @@ export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
   const params = new URLSearchParams({ limit: String(limit) });
   const response = await fetch(`${apiBase}/api/v1/librarry/history?${params.toString()}`);
   if (!response.ok) {
-    throw new Error(`History refresh failed: ${response.status}`);
+    throw new Error(await apiError(response, "History refresh failed"));
   }
   const payload = (await response.json()) as { events: HistoryEvent[] };
   return payload.events;
@@ -1334,7 +1334,7 @@ export async function fetchLibraryFiles(format = "any", limit = 100): Promise<Li
   if (format && format !== "any") params.set("format", format);
   const response = await fetch(`${apiBase}/api/v1/library/files?${params.toString()}`);
   if (!response.ok) {
-    throw new Error(`Library files refresh failed: ${response.status}`);
+    throw new Error(await apiError(response, "Library files refresh failed"));
   }
   const payload = (await response.json()) as { files: LibraryFile[] };
   return payload.files;
@@ -1344,7 +1344,7 @@ export async function fetchLibraryImportReviews(status = "pending", limit = 100)
   const params = new URLSearchParams({ status, limit: String(limit) });
   const response = await fetch(`${apiBase}/api/v1/library/import-reviews?${params.toString()}`);
   if (!response.ok) {
-    throw new Error(`Import review refresh failed: ${response.status}`);
+    throw new Error(await apiError(response, "Import review refresh failed"));
   }
   const payload = (await response.json()) as { reviews: ImportReview[] };
   return payload.reviews;
@@ -1357,7 +1357,7 @@ export async function scanLibrary(format = "any"): Promise<LibraryScanOutcome> {
     body: JSON.stringify({ format, limit: 1000 })
   });
   if (!response.ok) {
-    throw new Error(`Library scan failed: ${response.status}`);
+    throw new Error(await apiError(response, "Library scan failed"));
   }
   return (await response.json()) as LibraryScanOutcome;
 }
@@ -1377,7 +1377,7 @@ export async function importLibraryFile(options: {
     body: JSON.stringify(options)
   });
   if (!response.ok) {
-    throw new Error(`Library import failed: ${response.status}`);
+    throw new Error(await apiError(response, "Library import failed"));
   }
   return (await response.json()) as LibraryImportOutcome;
 }
@@ -1403,7 +1403,7 @@ export async function importCompletedDownloads(options: {
     })
   });
   if (!response.ok) {
-    throw new Error(`Completed import failed: ${response.status}`);
+    throw new Error(await apiError(response, "Completed import failed"));
   }
   return (await response.json()) as CompletedImportOutcome;
 }
@@ -1426,7 +1426,7 @@ export async function resolveLibraryImportReview(
     body: JSON.stringify(options)
   });
   if (!response.ok) {
-    throw new Error(`Import review update failed: ${response.status}`);
+    throw new Error(await apiError(response, "Import review update failed"));
   }
   return (await response.json()) as ReviewDecisionOutcome;
 }
@@ -1449,7 +1449,7 @@ export async function resolveLibraryImportReviewsBulk(options: {
     body: JSON.stringify(options)
   });
   if (!response.ok) {
-    throw new Error(`Bulk import review update failed: ${response.status}`);
+    throw new Error(await apiError(response, "Bulk import review update failed"));
   }
   return (await response.json()) as ReviewBulkDecisionOutcome;
 }
