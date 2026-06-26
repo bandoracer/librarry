@@ -29,6 +29,7 @@ type readarrImportRequest struct {
 	ImportTags            *bool  `json:"importTags,omitempty"`
 	ImportLists           *bool  `json:"importLists,omitempty"`
 	ImportListExclusions  *bool  `json:"importListExclusions,omitempty"`
+	ImportConfigResources *bool  `json:"importConfigResources,omitempty"`
 }
 
 type readarrImportOutcome struct {
@@ -63,6 +64,25 @@ type readarrAPIClient struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
+}
+
+type readarrCompatResourceSpec struct {
+	Endpoint     string
+	SectionName  string
+	ResourceType string
+}
+
+var readarrConfigResourceSpecs = []readarrCompatResourceSpec{
+	{Endpoint: "/api/v1/delayprofile", SectionName: "delayProfiles", ResourceType: "delay-profile"},
+	{Endpoint: "/api/v1/languageprofile", SectionName: "languageProfiles", ResourceType: "language-profile"},
+	{Endpoint: "/api/v1/metadataprofile", SectionName: "metadataProfiles", ResourceType: "metadata-profile"},
+	{Endpoint: "/api/v1/metadata", SectionName: "metadataConsumers", ResourceType: "metadata-consumer"},
+	{Endpoint: "/api/v1/customformat", SectionName: "customFormats", ResourceType: "custom-format"},
+	{Endpoint: "/api/v1/restriction", SectionName: "restrictions", ResourceType: "restriction"},
+	{Endpoint: "/api/v1/notification", SectionName: "notifications", ResourceType: "notification"},
+	{Endpoint: "/api/v1/remotepathmapping", SectionName: "remotePathMappings", ResourceType: "remote-path-mapping"},
+	{Endpoint: "/api/v1/downloadclient", SectionName: "downloadClients", ResourceType: "download-client"},
+	{Endpoint: "/api/v1/indexer", SectionName: "indexers", ResourceType: "indexer"},
 }
 
 type readarrRemoteQualityProfile struct {
@@ -218,11 +238,9 @@ func (h *handler) runReadarrImport(ctx context.Context, request readarrImportReq
 	}
 
 	if readarrImportEnabled(request.ImportTags) {
-		var tags []map[string]any
-		if err := client.get(ctx, "/api/v1/tag", &tags); err != nil {
-			return outcome, fmt.Errorf("readarr tag fetch failed: %w", err)
-		}
-		outcome.Sections = append(outcome.Sections, h.importReadarrCompatResources(ctx, "tags", "tag", tags, dryRun))
+		h.appendReadarrCompatResourceImport(ctx, &outcome, client, readarrCompatResourceSpec{
+			Endpoint: "/api/v1/tag", SectionName: "tags", ResourceType: "tag",
+		}, dryRun)
 	}
 
 	if readarrImportEnabled(request.ImportRootFolders) {
@@ -250,19 +268,21 @@ func (h *handler) runReadarrImport(ctx context.Context, request readarrImportReq
 	}
 
 	if readarrImportEnabled(request.ImportLists) {
-		var lists []map[string]any
-		if err := client.get(ctx, "/api/v1/importlist", &lists); err != nil {
-			return outcome, fmt.Errorf("readarr import list fetch failed: %w", err)
-		}
-		outcome.Sections = append(outcome.Sections, h.importReadarrCompatResources(ctx, "importLists", "import-list", lists, dryRun))
+		h.appendReadarrCompatResourceImport(ctx, &outcome, client, readarrCompatResourceSpec{
+			Endpoint: "/api/v1/importlist", SectionName: "importLists", ResourceType: "import-list",
+		}, dryRun)
 	}
 
 	if readarrImportEnabled(request.ImportListExclusions) {
-		var exclusions []map[string]any
-		if err := client.get(ctx, "/api/v1/importlistexclusion", &exclusions); err != nil {
-			return outcome, fmt.Errorf("readarr import list exclusion fetch failed: %w", err)
+		h.appendReadarrCompatResourceImport(ctx, &outcome, client, readarrCompatResourceSpec{
+			Endpoint: "/api/v1/importlistexclusion", SectionName: "importListExclusions", ResourceType: "import-list-exclusion",
+		}, dryRun)
+	}
+
+	if readarrImportEnabled(request.ImportConfigResources) {
+		for _, spec := range readarrConfigResourceSpecs {
+			h.appendReadarrCompatResourceImport(ctx, &outcome, client, spec, dryRun)
 		}
-		outcome.Sections = append(outcome.Sections, h.importReadarrCompatResources(ctx, "importListExclusions", "import-list-exclusion", exclusions, dryRun))
 	}
 
 	for _, section := range outcome.Sections {
@@ -346,6 +366,18 @@ func (h *handler) importReadarrQualityProfiles(ctx context.Context, profiles []r
 		section.Items = append(section.Items, item)
 	}
 	return trimReadarrImportSection(section)
+}
+
+func (h *handler) appendReadarrCompatResourceImport(ctx context.Context, outcome *readarrImportOutcome, client readarrAPIClient, spec readarrCompatResourceSpec, dryRun bool) {
+	var records []map[string]any
+	if err := client.get(ctx, spec.Endpoint, &records); err != nil {
+		outcome.Sections = append(outcome.Sections, readarrImportSection{
+			Name:   spec.SectionName,
+			Errors: []string{fmt.Sprintf("%s fetch failed: %v", spec.ResourceType, err)},
+		})
+		return
+	}
+	outcome.Sections = append(outcome.Sections, h.importReadarrCompatResources(ctx, spec.SectionName, spec.ResourceType, records, dryRun))
 }
 
 func (h *handler) importReadarrCompatResources(ctx context.Context, sectionName string, resourceType string, records []map[string]any, dryRun bool) readarrImportSection {

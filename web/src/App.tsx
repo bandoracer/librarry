@@ -289,7 +289,8 @@ function emptyReadarrImportSettings(): ReadarrImportSettings {
     importRootFolders: true,
     importTags: true,
     importLists: true,
-    importListExclusions: true
+    importListExclusions: true,
+    importConfigResources: true
   };
 }
 
@@ -4337,6 +4338,10 @@ export function App() {
                   <input checked={readarrImportForm.importListExclusions} onChange={(event) => updateReadarrImportForm({ importListExclusions: event.target.checked })} type="checkbox" />
                   <span>List exclusions</span>
                 </label>
+                <label>
+                  <input checked={readarrImportForm.importConfigResources} onChange={(event) => updateReadarrImportForm({ importConfigResources: event.target.checked })} type="checkbox" />
+                  <span>Config resources</span>
+                </label>
               </div>
             </div>
             {readarrImportOutcome ? (
@@ -5383,6 +5388,26 @@ function readarrImportSectionLabel(name: string) {
       return "Import lists";
     case "importListExclusions":
       return "List exclusions";
+    case "delayProfiles":
+      return "Delay profiles";
+    case "languageProfiles":
+      return "Language profiles";
+    case "metadataProfiles":
+      return "Metadata profiles";
+    case "metadataConsumers":
+      return "Metadata consumers";
+    case "customFormats":
+      return "Custom formats";
+    case "restrictions":
+      return "Restrictions";
+    case "notifications":
+      return "Notifications";
+    case "remotePathMappings":
+      return "Remote paths";
+    case "downloadClients":
+      return "Download clients";
+    case "indexers":
+      return "Indexers";
     default:
       return name;
   }

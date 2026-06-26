@@ -120,7 +120,11 @@ func TestReadarrImportPreviewReadsRemoteState(t *testing.T) {
 		t.Fatalf("unexpected preview outcome: %+v", outcome)
 	}
 	sections := readarrSectionsByName(outcome.Sections)
-	for _, name := range []string{"qualityProfiles", "tags", "rootFolders", "authors", "books", "importLists", "importListExclusions"} {
+	for _, name := range []string{
+		"qualityProfiles", "tags", "rootFolders", "authors", "books", "importLists", "importListExclusions",
+		"delayProfiles", "languageProfiles", "metadataProfiles", "metadataConsumers", "customFormats",
+		"restrictions", "notifications", "remotePathMappings", "downloadClients", "indexers",
+	} {
 		if sections[name].Count != 1 {
 			t.Fatalf("expected one %s item, got %+v", name, sections[name])
 		}
@@ -175,6 +179,15 @@ func TestReadarrImportApplyPersistsNativeState(t *testing.T) {
 	}
 	if len(resources["import-list-exclusion"]) != 1 || resources["import-list-exclusion"][0].CompatID != 14 {
 		t.Fatalf("expected imported import-list exclusion resource, got %+v", resources["import-list-exclusion"])
+	}
+	if len(resources["indexer"]) != 1 || resources["indexer"][0].CompatID != 24 {
+		t.Fatalf("expected imported indexer resource, got %+v", resources["indexer"])
+	}
+	if len(resources["download-client"]) != 1 || resources["download-client"][0].CompatID != 23 {
+		t.Fatalf("expected imported download-client resource, got %+v", resources["download-client"])
+	}
+	if len(resources["restriction"]) != 1 || resources["restriction"][0].CompatID != 19 {
+		t.Fatalf("expected imported restriction resource, got %+v", resources["restriction"])
 	}
 	if len(wantedCapture.authors) != 1 || wantedCapture.authors[0].AuthorName != "Andy Weir" || wantedCapture.authors[0].QualityProfile != "Ebook Standard" {
 		t.Fatalf("expected imported author subscription, got %+v", wantedCapture.authors)
@@ -269,6 +282,46 @@ func newFakeReadarrServer(t *testing.T) *httptest.Server {
 		case "/api/v1/importlistexclusion":
 			_, _ = w.Write([]byte(`[
 				{"id": 14, "foreignId": "ol:ignored", "bookTitle": "Ignored Book", "authorName": "Ignored Author"}
+			]`))
+		case "/api/v1/delayprofile":
+			_, _ = w.Write([]byte(`[
+				{"id": 15, "preferredProtocol": "torrent", "torrentDelay": 0, "usenetDelay": 0}
+			]`))
+		case "/api/v1/languageprofile":
+			_, _ = w.Write([]byte(`[
+				{"id": 16, "name": "English", "upgradeAllowed": true}
+			]`))
+		case "/api/v1/metadataprofile":
+			_, _ = w.Write([]byte(`[
+				{"id": 17, "name": "Standard", "skipMissingIsbn": false}
+			]`))
+		case "/api/v1/metadata":
+			_, _ = w.Write([]byte(`[
+				{"id": 18, "name": "Calibre", "implementation": "Calibre", "enable": true}
+			]`))
+		case "/api/v1/customformat":
+			_, _ = w.Write([]byte(`[
+				{"id": 21, "name": "Retail EPUB", "includeCustomFormatWhenRenaming": false}
+			]`))
+		case "/api/v1/restriction":
+			_, _ = w.Write([]byte(`[
+				{"id": 19, "required": "retail", "ignored": "sample", "preferred": "epub", "tags": [12]}
+			]`))
+		case "/api/v1/notification":
+			_, _ = w.Write([]byte(`[
+				{"id": 20, "name": "Webhook", "implementation": "Webhook", "enable": true, "url": "https://example.test/readarr"}
+			]`))
+		case "/api/v1/remotepathmapping":
+			_, _ = w.Write([]byte(`[
+				{"id": 22, "host": "seedbox", "remotePath": "/downloads/books", "localPath": "/mnt/books"}
+			]`))
+		case "/api/v1/downloadclient":
+			_, _ = w.Write([]byte(`[
+				{"id": 23, "name": "qBittorrent", "implementation": "qBittorrent", "protocol": "torrent", "fields": [{"name": "host", "value": "http://qbittorrent:8080"}]}
+			]`))
+		case "/api/v1/indexer":
+			_, _ = w.Write([]byte(`[
+				{"id": 24, "name": "Prowlarr", "implementation": "Torznab", "protocol": "torrent", "fields": [{"name": "baseUrl", "value": "http://prowlarr:9696/1/api"}]}
 			]`))
 		default:
 			http.NotFound(w, r)

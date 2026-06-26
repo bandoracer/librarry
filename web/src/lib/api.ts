@@ -124,6 +124,7 @@ export type ReadarrImportSettings = {
   importTags: boolean;
   importLists: boolean;
   importListExclusions: boolean;
+  importConfigResources: boolean;
 };
 
 export type ReadarrImportItem = {
