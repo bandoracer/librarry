@@ -682,6 +682,9 @@ func (s *Service) ResolveImportReview(ctx context.Context, id string, request Re
 	switch action {
 	case "import":
 		wantedID := firstNonEmpty(request.WantedID, review.WantedID)
+		if strings.TrimSpace(wantedID) == "" && importReviewRequiresWantedSelection(review) {
+			return ReviewDecisionOutcome{}, errors.New("wanted item selection is required for ambiguous import review")
+		}
 		format := firstNonEmpty(request.Format, review.MediaFormat)
 		if normalized := normalizeFormat(format); normalized != "ebook" && normalized != "audiobook" {
 			format = ""
@@ -1780,6 +1783,25 @@ func addImportReviewWantedCandidateMetadata(metadata map[string]any, candidates 
 		return
 	}
 	metadata["reviewEvidence"] = []map[string]any{evidence}
+}
+
+func importReviewRequiresWantedSelection(review ImportReview) bool {
+	if strings.TrimSpace(review.WantedID) != "" {
+		return false
+	}
+	if metadataInt(review.Metadata, "wantedCandidateCount", 0) > 0 {
+		return true
+	}
+	switch candidates := review.Metadata["wantedCandidates"].(type) {
+	case []any:
+		return len(candidates) > 0
+	case []map[string]any:
+		return len(candidates) > 0
+	case []importReviewWantedCandidate:
+		return len(candidates) > 0
+	default:
+		return false
+	}
 }
 
 func importReviewCandidateValue(candidate importReviewWantedCandidate) string {

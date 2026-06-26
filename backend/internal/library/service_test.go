@@ -407,6 +407,39 @@ func TestCompletedImportAutoMatchUsesSidecarISBN(t *testing.T) {
 	}
 }
 
+func TestImportReviewRequiresWantedSelectionForCandidateBearingReview(t *testing.T) {
+	review := ImportReview{
+		Metadata: map[string]any{
+			"wantedCandidates": []any{map[string]any{
+				"wantedId": "wanted-1",
+				"title":    "Project Hail Mary",
+			}},
+		},
+	}
+	if !importReviewRequiresWantedSelection(review) {
+		t.Fatal("expected candidate-bearing review without wanted id to require selection")
+	}
+	review.WantedID = "wanted-1"
+	if importReviewRequiresWantedSelection(review) {
+		t.Fatal("expected linked review to import without additional selection")
+	}
+}
+
+func TestImportReviewRequiresWantedSelectionUsesCandidateCount(t *testing.T) {
+	review := ImportReview{
+		Metadata: map[string]any{
+			"wantedCandidateCount": float64(2),
+		},
+	}
+	if !importReviewRequiresWantedSelection(review) {
+		t.Fatal("expected wantedCandidateCount metadata to require selection")
+	}
+	review.Metadata = nil
+	if importReviewRequiresWantedSelection(review) {
+		t.Fatal("expected review without candidates to allow unlinked manual import")
+	}
+}
+
 func candidateHasMatchedField(candidate importReviewWantedCandidate, field string) bool {
 	for _, matched := range candidate.MatchedFields {
 		if matched == field {

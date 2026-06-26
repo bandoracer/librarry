@@ -172,8 +172,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   handoff when deleting Calibre-backed files physically.
 - Pending import review queue for ambiguous completed downloads that are not
   safely linked to a wanted item, with import/skip resolution, wanted-item
-  suggestions, explicit per-review wanted-match selection, and explainable
-  evidence from the UI.
+  suggestions, enforced per-review wanted-match selection before import, and
+  explainable evidence from the UI.
 - Readarr-compatible missing-book endpoints calculate missing state from wanted
   items plus tracked library files, so grabbed-but-unimported books remain
   visible while present files suppress false missing results.
