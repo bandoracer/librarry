@@ -2974,6 +2974,34 @@ func TestWantedMetadataReviewEndpointReturnsConflicts(t *testing.T) {
 	}
 }
 
+func TestConfirmWantedMetadataReviewCanonicalEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeMetadataWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/metadata/review/confirm-canonical", strings.NewReader(`{"wantedIds":["wanted-1"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	for _, want := range []string{
+		`"status":"ok"`,
+		`"itemsReviewed":1`,
+		`"fieldsConfirmed":1`,
+		`"reason":"metadata review canonical accepted"`,
+	} {
+		if !strings.Contains(res.Body.String(), want) {
+			t.Fatalf("expected %s in canonical confirmation response, got %s", want, res.Body.String())
+		}
+	}
+}
+
 func TestApplyWantedMetadataCorrectionEndpointReturnsUpdatedProvenance(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -4890,6 +4918,53 @@ func (fakeMetadataWanted) ApplyMetadataCorrections(_ context.Context, _ string, 
 		ManualOverrides: item.ManualOverrides,
 		Fields:          fields,
 		GeneratedAt:     now,
+	}, nil
+}
+
+func (fakeMetadataWanted) ConfirmMetadataReviewCanonical(_ context.Context, request wanted.MetadataReviewConfirmRequest) (wanted.MetadataReviewConfirmOutcome, error) {
+	now := time.Now().UTC()
+	id := "wanted-1"
+	if len(request.WantedIDs) > 0 {
+		id = request.WantedIDs[0]
+	}
+	item := wanted.WantedItem{
+		ID:             id,
+		WorkID:         "work-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		ManualOverrides: []wanted.ManualOverride{{
+			FieldName: "title",
+			Value:     "Project Hail Mary",
+			Reason:    "metadata review canonical accepted",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	return wanted.MetadataReviewConfirmOutcome{
+		Status:          "ok",
+		ItemsReviewed:   1,
+		FieldsConfirmed: 1,
+		Items: []wanted.MetadataProvenance{{
+			WantedItem:      item,
+			ManualOverrides: item.ManualOverrides,
+			Fields: []wanted.MetadataFieldEvidence{{
+				FieldName:       "title",
+				Label:           "Title",
+				CanonicalValue:  "Project Hail Mary",
+				CanonicalSource: "manual_override",
+				Protected:       true,
+				ReviewResolved:  true,
+				Conflict:        false,
+			}},
+			GeneratedAt: now,
+		}},
+		GeneratedAt: now,
 	}, nil
 }
 

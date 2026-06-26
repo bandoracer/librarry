@@ -1362,6 +1362,39 @@ func metadataCorrectionReasons(corrections []MetadataCorrectionRequest) (map[str
 	return reasons, nil
 }
 
+func metadataReviewCanonicalCorrections(review MetadataReviewItem) []MetadataCorrectionRequest {
+	corrections := []MetadataCorrectionRequest{}
+	seen := map[string]bool{}
+	for _, field := range review.Fields {
+		if !field.Conflict {
+			continue
+		}
+		fieldName := normalizeWantedOverrideField(field.FieldName)
+		value := strings.TrimSpace(field.CanonicalValue)
+		if !validWantedOverrideField(fieldName) || value == "" || seen[fieldName] {
+			continue
+		}
+		seen[fieldName] = true
+		corrections = append(corrections, MetadataCorrectionRequest{
+			FieldName: fieldName,
+			Value:     value,
+			Reason:    manualOverrideReasonCanonicalAccepted,
+		})
+	}
+	return corrections
+}
+
+func normalizedMetadataReviewIDSet(ids []string) map[string]bool {
+	result := map[string]bool{}
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			result[id] = true
+		}
+	}
+	return result
+}
+
 func metadataCorrectionsIncludeWantedColumns(values map[string]string) bool {
 	for _, field := range []string{"title", "author_name", "cover_url", "quality_profile"} {
 		if strings.TrimSpace(values[field]) != "" {

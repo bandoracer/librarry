@@ -122,6 +122,51 @@ func (s *Service) ApplyMetadataCorrections(ctx context.Context, id string, reque
 	return s.store.ApplyWantedMetadataCorrections(ctx, id, request)
 }
 
+func (s *Service) ConfirmMetadataReviewCanonical(ctx context.Context, request MetadataReviewConfirmRequest) (MetadataReviewConfirmOutcome, error) {
+	if !s.Available() {
+		return MetadataReviewConfirmOutcome{}, errors.New("wanted service requires database persistence")
+	}
+	queue, err := s.store.WantedMetadataReviewQueue(ctx)
+	if err != nil {
+		return MetadataReviewConfirmOutcome{}, err
+	}
+	selected := normalizedMetadataReviewIDSet(request.WantedIDs)
+	if !request.All && len(selected) == 0 {
+		return MetadataReviewConfirmOutcome{}, errors.New("at least one wanted id is required")
+	}
+	outcome := MetadataReviewConfirmOutcome{
+		Status:      "ok",
+		Items:       []MetadataProvenance{},
+		GeneratedAt: time.Now().UTC(),
+	}
+	for _, item := range queue.Items {
+		wantedID := strings.TrimSpace(item.WantedItem.ID)
+		if wantedID == "" {
+			outcome.SkippedItems++
+			continue
+		}
+		if !request.All && !selected[wantedID] {
+			continue
+		}
+		corrections := metadataReviewCanonicalCorrections(item)
+		if len(corrections) == 0 {
+			outcome.SkippedItems++
+			continue
+		}
+		provenance, err := s.store.ApplyWantedMetadataCorrections(ctx, wantedID, MetadataCorrectionBatchRequest{Corrections: corrections})
+		if err != nil {
+			return MetadataReviewConfirmOutcome{}, err
+		}
+		outcome.ItemsReviewed++
+		outcome.FieldsConfirmed += len(corrections)
+		outcome.Items = append(outcome.Items, provenance)
+	}
+	if outcome.ItemsReviewed == 0 && outcome.SkippedItems == 0 {
+		outcome.Status = "empty"
+	}
+	return outcome, nil
+}
+
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Available() {
 		return DefaultQualityProfiles(), nil

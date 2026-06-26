@@ -2945,11 +2945,70 @@ select {
   box-shadow: none;
 }
 
+.metadata-review-bulkbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: #fffbeb;
+}
+
+.metadata-review-bulkbar div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+
+.metadata-review-bulkbar strong,
+.metadata-review-bulkbar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-review-bulkbar span,
+.metadata-review-bulkbar em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.secondary-action.compact.keep-current {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.wanted-item-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.wanted-item-shell.selectable {
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+
+.metadata-review-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--border);
+}
+
+.metadata-review-selector input {
+  width: 16px;
+  height: 16px;
+}
+
 .wanted-item {
   width: 100%;
   min-height: 62px;
   border: 0;
-  border-bottom: 1px solid var(--border);
   background: transparent;
   color: var(--text);
   display: grid;

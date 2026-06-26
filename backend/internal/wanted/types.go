@@ -245,6 +245,20 @@ type MetadataCorrectionBatchRequest struct {
 	Corrections []MetadataCorrectionRequest `json:"corrections"`
 }
 
+type MetadataReviewConfirmRequest struct {
+	WantedIDs []string `json:"wantedIds,omitempty"`
+	All       bool     `json:"all,omitempty"`
+}
+
+type MetadataReviewConfirmOutcome struct {
+	Status          string               `json:"status"`
+	ItemsReviewed   int                  `json:"itemsReviewed"`
+	FieldsConfirmed int                  `json:"fieldsConfirmed"`
+	SkippedItems    int                  `json:"skippedItems"`
+	Items           []MetadataProvenance `json:"items,omitempty"`
+	GeneratedAt     time.Time            `json:"generatedAt"`
+}
+
 type ProviderMetadataRecord struct {
 	ID          string               `json:"id"`
 	Provider    string               `json:"provider"`

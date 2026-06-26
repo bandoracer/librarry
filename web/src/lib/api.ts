@@ -511,6 +511,20 @@ export type MetadataReviewQueue = {
   generatedAt: string;
 };
 
+export type MetadataReviewConfirmRequest = {
+  wantedIds?: string[];
+  all?: boolean;
+};
+
+export type MetadataReviewConfirmOutcome = {
+  status: string;
+  itemsReviewed: number;
+  fieldsConfirmed: number;
+  skippedItems: number;
+  items?: MetadataProvenance[];
+  generatedAt: string;
+};
+
 export type ManualOverride = {
   fieldName: string;
   value?: string;
@@ -1601,6 +1615,18 @@ export async function fetchWantedMetadataReview(): Promise<MetadataReviewQueue> 
     throw new Error(await apiError(response, "Wanted metadata review failed"));
   }
   return (await response.json()) as MetadataReviewQueue;
+}
+
+export async function confirmWantedMetadataReviewCanonical(request: MetadataReviewConfirmRequest): Promise<MetadataReviewConfirmOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/review/confirm-canonical`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Wanted metadata review confirmation failed"));
+  }
+  return (await response.json()) as MetadataReviewConfirmOutcome;
 }
 
 export async function applyWantedMetadataCorrection(wantedID: string, request: MetadataCorrectionRequest): Promise<MetadataProvenance> {

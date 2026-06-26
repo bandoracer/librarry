@@ -91,6 +91,7 @@ type metadataProvenanceService interface {
 	MetadataReviewQueue(ctx context.Context) (wanted.MetadataReviewQueue, error)
 	ApplyMetadataCorrection(ctx context.Context, id string, request wanted.MetadataCorrectionRequest) (wanted.MetadataProvenance, error)
 	ApplyMetadataCorrections(ctx context.Context, id string, request wanted.MetadataCorrectionBatchRequest) (wanted.MetadataProvenance, error)
+	ConfirmMetadataReviewCanonical(ctx context.Context, request wanted.MetadataReviewConfirmRequest) (wanted.MetadataReviewConfirmOutcome, error)
 }
 
 type libraryService interface {
@@ -372,6 +373,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PATCH /api/v1/wanted/{id}", handler.updateWanted)
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}", handler.deleteWanted)
 	mux.HandleFunc("GET /api/v1/wanted/metadata/review", handler.wantedMetadataReview)
+	mux.HandleFunc("POST /api/v1/wanted/metadata/review/confirm-canonical", handler.confirmWantedMetadataReviewCanonical)
 	mux.HandleFunc("GET /api/v1/wanted/metadata/{id}", handler.wantedMetadata)
 	mux.HandleFunc("POST /api/v1/wanted/metadata/{id}/apply", handler.applyWantedMetadataCorrection)
 	mux.HandleFunc("POST /api/v1/wanted/metadata/{id}/apply-bulk", handler.applyWantedMetadataCorrections)
@@ -1913,6 +1915,34 @@ func (h *handler) wantedMetadataReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, queue)
+}
+
+func (h *handler) confirmWantedMetadataReviewCanonical(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	provenanceService, ok := h.deps.Wanted.(metadataProvenanceService)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted metadata review is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.MetadataReviewConfirmRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted metadata review confirmation payload"})
+		return
+	}
+	outcome, err := provenanceService.ConfirmMetadataReviewCanonical(r.Context(), request)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
 }
 
 func (h *handler) applyWantedMetadataCorrection(w http.ResponseWriter, r *http.Request) {

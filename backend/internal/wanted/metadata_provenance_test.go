@@ -239,6 +239,38 @@ func TestMetadataReviewItemTreatsAcceptedCanonicalAsResolved(t *testing.T) {
 	}
 }
 
+func TestMetadataReviewCanonicalCorrectionsBuildsAcceptedOverrides(t *testing.T) {
+	review := MetadataReviewItem{
+		Fields: []MetadataFieldEvidence{{
+			FieldName:      "title",
+			CanonicalValue: "Project Hail Mary",
+			Conflict:       true,
+		}, {
+			FieldName:      "publisher",
+			CanonicalValue: " ",
+			Conflict:       true,
+		}, {
+			FieldName:      "authorName",
+			CanonicalValue: "Andy Weir",
+			Conflict:       false,
+		}, {
+			FieldName:      "publishedDate",
+			CanonicalValue: "2021-05-04",
+			Conflict:       true,
+		}},
+	}
+	corrections := metadataReviewCanonicalCorrections(review)
+	if len(corrections) != 2 {
+		t.Fatalf("expected two canonical confirmations, got %+v", corrections)
+	}
+	if corrections[0].FieldName != "title" || corrections[0].Value != "Project Hail Mary" || corrections[0].Reason != manualOverrideReasonCanonicalAccepted {
+		t.Fatalf("unexpected title confirmation: %+v", corrections[0])
+	}
+	if corrections[1].FieldName != "published_date" || corrections[1].Value != "2021-05-04" || corrections[1].Reason != manualOverrideReasonCanonicalAccepted {
+		t.Fatalf("unexpected published date confirmation: %+v", corrections[1])
+	}
+}
+
 func TestMetadataCorrectionUpdateRequestMapsSupportedFields(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

@@ -157,8 +157,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   protected override fields stay visible on the selected wanted item. Supported
   provider candidates or all usable fields from one provider record can be
   applied as protected corrections without copying values by hand, and the
-  current canonical value can be confirmed to clear a reviewed conflict without
-  changing metadata.
+  current canonical value can be confirmed per field or in bulk across selected
+  review items to clear reviewed conflicts without changing metadata.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Scoped Downloads page for configured qBittorrent, Transmission, and SABnzbd

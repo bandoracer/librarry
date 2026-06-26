@@ -35,6 +35,7 @@ import {
   applyWantedMetadataCorrection,
   applyWantedMetadataCorrections,
   clearWantedOverride,
+  confirmWantedMetadataReviewCanonical,
   createWanted,
   deleteAuthorSubscription,
   deleteWanted,
@@ -125,6 +126,7 @@ import {
   type MetadataFieldEvidence,
   type MetadataFieldCandidate,
   type MetadataProvenance,
+  type MetadataReviewConfirmOutcome,
   type MetadataReviewItem,
   type MetadataReviewQueue,
   type MonitorRun,
@@ -633,6 +635,7 @@ export function App() {
   const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
   const [completedImport, setCompletedImport] = useState<CompletedImportOutcome | null>(null);
   const [bulkReviewOutcome, setBulkReviewOutcome] = useState<ReviewBulkDecisionOutcome | null>(null);
+  const [metadataReviewConfirmOutcome, setMetadataReviewConfirmOutcome] = useState<MetadataReviewConfirmOutcome | null>(null);
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
   const [authorMonitorRun, setAuthorMonitorRun] = useState<AuthorMonitorRun | null>(null);
   const [authorMetadataReviews, setAuthorMetadataReviews] = useState<AuthorMetadataReview[]>([]);
@@ -648,6 +651,7 @@ export function App() {
   const [pendingWantedReview, setPendingWantedReview] = useState<SearchResult | null>(null);
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
+  const [selectedMetadataReviewIDs, setSelectedMetadataReviewIDs] = useState<string[]>([]);
   const [selectedImportReviewIDs, setSelectedImportReviewIDs] = useState<string[]>([]);
   const [selectedImportReviewWantedIDs, setSelectedImportReviewWantedIDs] = useState<Record<string, string>>({});
   const [downloadScope, setDownloadScope] = useState<DownloadScope>("all");
@@ -685,6 +689,7 @@ export function App() {
   const [isLoadingWantedMetadata, setIsLoadingWantedMetadata] = useState(false);
   const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
   const [isRemovingWanted, setIsRemovingWanted] = useState(false);
+  const [isConfirmingMetadataReviews, setIsConfirmingMetadataReviews] = useState(false);
   const [applyingMetadataCandidateID, setApplyingMetadataCandidateID] = useState("");
   const [applyingMetadataRecordID, setApplyingMetadataRecordID] = useState("");
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
@@ -868,6 +873,11 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const availableIDs = new Set((wantedMetadataReview?.items ?? []).map((review) => review.wantedItem.id).filter(Boolean));
+    setSelectedMetadataReviewIDs((current) => current.filter((id) => availableIDs.has(id)));
+  }, [wantedMetadataReview]);
+
+  useEffect(() => {
     const availableIDs = new Set(importReviews.map((review) => review.id).filter(Boolean));
     setSelectedImportReviewIDs((current) => current.filter((id) => availableIDs.has(id)));
     setSelectedImportReviewWantedIDs((current) => {
@@ -962,6 +972,13 @@ export function App() {
     () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, wantedPresence.get(item.id), wantedViewFilter, wantedMetadataReviewByID.has(item.id))),
     [wantedItems, wantedMetadataReviewByID, wantedPresence, wantedViewFilter]
   );
+  const visibleMetadataReviewIDs = useMemo(
+    () => visibleWantedItems.map((item) => item.id).filter((id) => wantedMetadataReviewByID.has(id)),
+    [visibleWantedItems, wantedMetadataReviewByID]
+  );
+  const selectedMetadataReviewSet = useMemo(() => new Set(selectedMetadataReviewIDs), [selectedMetadataReviewIDs]);
+  const selectedMetadataReviewCount = visibleMetadataReviewIDs.filter((id) => selectedMetadataReviewSet.has(id)).length;
+  const allMetadataReviewsSelected = visibleMetadataReviewIDs.length > 0 && visibleMetadataReviewIDs.every((id) => selectedMetadataReviewSet.has(id));
   const selectedWanted = useMemo(
     () => visibleWantedItems.find((item) => item.id === selectedWantedID) ?? visibleWantedItems[0],
     [visibleWantedItems, selectedWantedID]
@@ -1516,6 +1533,55 @@ export function App() {
       setWantedError(error instanceof Error ? error.message : "Wanted metadata confirmation failed");
     } finally {
       setApplyingMetadataCandidateID("");
+    }
+  }
+
+  function toggleMetadataReviewSelection(item: WantedItem) {
+    if (!wantedMetadataReviewByID.has(item.id)) return;
+    setSelectedMetadataReviewIDs((current) => current.includes(item.id)
+      ? current.filter((id) => id !== item.id)
+      : [...current, item.id]
+    );
+  }
+
+  function toggleAllVisibleMetadataReviews() {
+    setSelectedMetadataReviewIDs((current) => {
+      const visible = new Set(visibleMetadataReviewIDs);
+      if (visible.size === 0) return current;
+      if (visibleMetadataReviewIDs.every((id) => current.includes(id))) {
+        return current.filter((id) => !visible.has(id));
+      }
+      const next = new Set(current);
+      visibleMetadataReviewIDs.forEach((id) => next.add(id));
+      return Array.from(next);
+    });
+  }
+
+  async function confirmSelectedMetadataReviews() {
+    const wantedIds = visibleMetadataReviewIDs.filter((id) => selectedMetadataReviewSet.has(id));
+    if (wantedIds.length === 0) return;
+    setIsConfirmingMetadataReviews(true);
+    setWantedError("");
+    try {
+      const outcome = await confirmWantedMetadataReviewCanonical({ wantedIds });
+      setMetadataReviewConfirmOutcome(outcome);
+      const provenances = outcome.items ?? [];
+      if (provenances.length) {
+        setWantedItems((current) => mergeWanted(current, provenances.map((item) => item.wantedItem)));
+        const selectedProvenance = provenances.find((item) => item.wantedItem.id === selectedWanted?.id);
+        if (selectedProvenance) {
+          setWantedMetadata(selectedProvenance);
+          setSelectedWantedID(selectedProvenance.wantedItem.id);
+        }
+      }
+      setSelectedMetadataReviewIDs((current) => current.filter((id) => !wantedIds.includes(id)));
+      await refreshWantedMetadataReview();
+      await refreshAcquisitionQueue({ quiet: true });
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Metadata review confirmation failed");
+    } finally {
+      setIsConfirmingMetadataReviews(false);
     }
   }
 
@@ -3599,6 +3665,25 @@ export function App() {
           </div>
           {wantedError ? <div className={isPersistenceRequiredError(wantedError) ? "inline-note" : "inline-error"}>{appErrorMessage(wantedError)}</div> : null}
           {acquisitionError ? <div className={isPersistenceRequiredError(acquisitionError) ? "inline-note" : "inline-error"}>{appErrorMessage(acquisitionError)}</div> : null}
+          {wantedViewFilter === "review" && visibleMetadataReviewIDs.length ? (
+            <div className="metadata-review-bulkbar" aria-label="Metadata review bulk actions">
+              <div>
+                <strong>{metadataReviewSummary.conflicts} unresolved metadata conflicts</strong>
+                <span>{selectedMetadataReviewCount} selected · {visibleMetadataReviewIDs.length} shown</span>
+              </div>
+              <button className="secondary-action compact" onClick={toggleAllVisibleMetadataReviews} type="button">
+                {allMetadataReviewsSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                {allMetadataReviewsSelected ? "Clear shown" : "Select shown"}
+              </button>
+              <button className="secondary-action compact keep-current" disabled={selectedMetadataReviewCount === 0 || isConfirmingMetadataReviews} onClick={confirmSelectedMetadataReviews} type="button">
+                <CheckCircle2 size={16} />
+                {isConfirmingMetadataReviews ? "Confirming" : "Keep current"}
+              </button>
+              {metadataReviewConfirmOutcome ? (
+                <em>{metadataReviewConfirmOutcome.fieldsConfirmed} field{metadataReviewConfirmOutcome.fieldsConfirmed === 1 ? "" : "s"} confirmed</em>
+              ) : null}
+            </div>
+          ) : null}
           <div className="acquisition-overview" aria-label="Readarr acquisition queue summary">
             <div className="acquisition-summary-strip">
               {[
@@ -3676,26 +3761,34 @@ export function App() {
                 visibleWantedItems.map((item) => {
                   const presence = wantedPresence.get(item.id);
                   const review = wantedMetadataReviewByID.get(item.id);
+                  const reviewSelectable = wantedViewFilter === "review" && Boolean(review);
+                  const reviewSelected = selectedMetadataReviewSet.has(item.id);
                   return (
-                    <button
-                      className={item.id === selectedWanted?.id ? "wanted-item selected" : "wanted-item"}
-                      key={item.id}
-                      onClick={() => {
-                        setSelectedWantedID(item.id);
-                        setWantedReleaseFilter("all");
-                        setWantedReleases([]);
-                      }}
-                      type="button"
-                    >
-                      <span>
-                        <strong>{item.title}</strong>
-                        <small>{wantedItemSubtitle(item, review)}</small>
-                      </span>
-                      <span className="wanted-badges">
-                        <em className={`wanted-badge ${presence ?? "missing"}`}>{wantedBadgeLabel(item, presence)}</em>
-                        {review ? <em className="wanted-badge review">{metadataReviewBadgeLabel(review)}</em> : null}
-                      </span>
-                    </button>
+                    <div className={reviewSelectable ? "wanted-item-shell selectable" : "wanted-item-shell"} key={item.id}>
+                      {reviewSelectable ? (
+                        <label className="metadata-review-selector" title="Select metadata review">
+                          <input checked={reviewSelected} onChange={() => toggleMetadataReviewSelection(item)} type="checkbox" aria-label={`Select metadata review for ${item.title}`} />
+                        </label>
+                      ) : null}
+                      <button
+                        className={item.id === selectedWanted?.id ? "wanted-item selected" : "wanted-item"}
+                        onClick={() => {
+                          setSelectedWantedID(item.id);
+                          setWantedReleaseFilter("all");
+                          setWantedReleases([]);
+                        }}
+                        type="button"
+                      >
+                        <span>
+                          <strong>{item.title}</strong>
+                          <small>{wantedItemSubtitle(item, review)}</small>
+                        </span>
+                        <span className="wanted-badges">
+                          <em className={`wanted-badge ${presence ?? "missing"}`}>{wantedBadgeLabel(item, presence)}</em>
+                          {review ? <em className="wanted-badge review">{metadataReviewBadgeLabel(review)}</em> : null}
+                        </span>
+                      </button>
+                    </div>
                   );
                 })
               ) : (
