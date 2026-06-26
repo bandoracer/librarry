@@ -100,7 +100,9 @@ Initial API surface:
   - `DELETE /api/v1/bookfile/bulk`
   - `GET /api/v1/rename`
   - `GET /api/v1/wanted/missing`
+  - `GET /api/v1/wanted/missing/{id}`
   - `GET /api/v1/wanted/cutoff`
+  - `GET /api/v1/wanted/cutoff/{id}`
   - `GET /api/v1/qualityprofile`
   - `POST /api/v1/qualityprofile`
   - `GET /api/v1/qualityprofile/{id}`
@@ -237,7 +239,7 @@ Initial API surface:
   - `GET /api/v1/wanted`
   - `POST /api/v1/wanted`
   - `POST /api/v1/wanted/{id}/search`
-  - `GET /api/v1/wanted/{id}/releases`
+  - `GET /api/v1/wanted/releases/{id}`
   - `POST /api/v1/wanted/{id}/grab`
   - `POST /api/v1/wanted/monitor`
   - `POST /api/v1/wanted/feed-sync`

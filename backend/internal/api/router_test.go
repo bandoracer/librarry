@@ -497,6 +497,14 @@ func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 		t.Fatalf("expected missing book payload, got %s", res.Body.String())
 	}
 
+	bookID := stableInt("wanted-1")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/missing/"+strconv.Itoa(bookID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"librarryId":"wanted-1"`) {
+		t.Fatalf("expected single missing book payload, got %d: %s", res.Code, res.Body.String())
+	}
+
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/cutoff?page=1&pageSize=10", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
@@ -508,6 +516,20 @@ func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 		!strings.Contains(res.Body.String(), `"cutoffScore":85`) ||
 		!strings.Contains(res.Body.String(), `"qualityCutoffNotMet":true`) {
 		t.Fatalf("expected cutoff unmet payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/cutoff/"+strconv.Itoa(bookID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"cutoffScore":85`) || !strings.Contains(res.Body.String(), `"qualityCutoffNotMet":true`) {
+		t.Fatalf("expected single cutoff unmet payload, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/missing/does-not-exist", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected missing wanted 404, got %d: %s", res.Code, res.Body.String())
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/qualityprofile", nil)

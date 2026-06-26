@@ -119,7 +119,9 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "DELETE", "path": "/api/v1/bookfile/bulk"},
 		{"method": "GET", "path": "/api/v1/rename"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
+		{"method": "GET", "path": "/api/v1/wanted/missing/{id}"},
 		{"method": "GET", "path": "/api/v1/wanted/cutoff"},
+		{"method": "GET", "path": "/api/v1/wanted/cutoff/{id}"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
 		{"method": "POST", "path": "/api/v1/qualityprofile"},
 		{"method": "GET", "path": "/api/v1/qualityprofile/{id}"},
@@ -1518,6 +1520,31 @@ func (h *handler) compatWantedMissing(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *handler) compatWantedMissingItem(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "wanted item id is required"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "wanted")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	for _, item := range items {
+		if !compatWantedItemVisible(item) || !item.Monitored || !wantedItemMatchesAnyID(item, []string{id}) {
+			continue
+		}
+		writeJSON(w, http.StatusOK, compatMissingRecord(item))
+		return
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "wanted missing item not found"})
+}
+
 func (h *handler) compatWantedCutoff(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
@@ -1562,6 +1589,44 @@ func (h *handler) compatWantedCutoff(w http.ResponseWriter, r *http.Request) {
 		"totalRecords":  len(records),
 		"records":       pageRecords(records, page, pageSize),
 	})
+}
+
+func (h *handler) compatWantedCutoffItem(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "wanted item id is required"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "wanted")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	profiles, err := h.deps.Wanted.ListQualityProfiles(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	profileByKey := compatQualityProfilesByKey(profiles)
+	for _, item := range items {
+		if !compatWantedItemVisible(item) || !item.Monitored || item.CurrentReleaseScore <= 0 || !wantedItemMatchesAnyID(item, []string{id}) {
+			continue
+		}
+		profile, ok := profileByKey[compatQualityProfileKey(item.QualityProfile, item.Format)]
+		if !ok {
+			profile, ok = profileByKey[compatQualityProfileKey(item.QualityProfile, "any")]
+		}
+		if !ok || !profile.UpgradeAllowed || item.CurrentReleaseScore >= profile.CutoffScore {
+			continue
+		}
+		writeJSON(w, http.StatusOK, compatCutoffRecord(item, profile))
+		return
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "wanted cutoff item not found"})
 }
 
 func (h *handler) compatQualityProfiles(w http.ResponseWriter, r *http.Request) {
