@@ -81,3 +81,60 @@ func TestAddBookRejectsZeroCalibreID(t *testing.T) {
 		t.Fatalf("expected rejected duplicate error, got %v", err)
 	}
 }
+
+func TestDeleteBooksPostsCalibreDeleteEndpoint(t *testing.T) {
+	var gotPath string
+	var gotMethod string
+	var gotAuthUser string
+	var gotAuthPass string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		gotMethod = r.Method
+		gotAuthUser, gotAuthPass, _ = r.BasicAuth()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	err := NewClient(server.Client()).DeleteBooks(context.Background(), DeleteBooksRequest{
+		IDs: []int{7, 0, 8, 7},
+		Settings: Settings{
+			Host:     strings.TrimPrefix(server.URL, "http://"),
+			URLBase:  "/calibre",
+			Username: "reader",
+			Password: "secret",
+			Library:  "Main Library",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost {
+		t.Fatalf("expected POST, got %s", gotMethod)
+	}
+	if gotPath != "/calibre/cdb/delete-books/7,8/Main%20Library" {
+		t.Fatalf("unexpected delete-books path: %s", gotPath)
+	}
+	if gotAuthUser != "reader" || gotAuthPass != "secret" {
+		t.Fatalf("expected basic auth, got %q/%q", gotAuthUser, gotAuthPass)
+	}
+}
+
+func TestDeleteBooksNoopsWithoutPositiveIDs(t *testing.T) {
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	err := NewClient(server.Client()).DeleteBooks(context.Background(), DeleteBooksRequest{
+		IDs:      []int{0, -1},
+		Settings: Settings{Host: strings.TrimPrefix(server.URL, "http://")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("expected no request without positive IDs")
+	}
+}

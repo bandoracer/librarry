@@ -39,7 +39,7 @@ type Service struct {
 	config      Config
 	wanted      WantedStore
 	downloads   DownloadStore
-	calibre     calibre.Importer
+	calibre     calibre.Manager
 	rootFolders RootFolderProvider
 }
 
@@ -47,11 +47,11 @@ func NewService(store *Store, config Config, wanted WantedStore, downloads Downl
 	return &Service{store: store, config: config, wanted: wanted, downloads: downloads}
 }
 
-func (s *Service) WithCalibre(importer calibre.Importer, rootFolders RootFolderProvider) *Service {
+func (s *Service) WithCalibre(manager calibre.Manager, rootFolders RootFolderProvider) *Service {
 	if s == nil {
 		return s
 	}
-	s.calibre = importer
+	s.calibre = manager
 	s.rootFolders = rootFolders
 	return s
 }
@@ -89,6 +89,11 @@ func (s *Service) DeleteFiles(ctx context.Context, request DeleteFilesRequest) (
 	deleteIDs := make([]string, 0, len(candidates))
 	for _, file := range candidates {
 		if request.DeleteFiles {
+			if err := s.applyCalibreDelete(ctx, file); err != nil {
+				outcome.Errored++
+				outcome.Results = append(outcome.Results, DeleteFileResult{File: file, Status: "error", Message: err.Error()})
+				continue
+			}
 			if err := removeLibraryFile(file.Path); err != nil {
 				outcome.Errored++
 				outcome.Results = append(outcome.Results, DeleteFileResult{File: file, Status: "error", Message: err.Error()})
@@ -640,6 +645,27 @@ func (s *Service) applyCalibreImport(ctx context.Context, destination string, re
 	record.Metadata["calibreOutputFormat"] = settings.OutputFormat
 	record.Metadata["calibreOutputProfile"] = settings.OutputProfile
 	return nil
+}
+
+func (s *Service) applyCalibreDelete(ctx context.Context, file FileRecord) error {
+	if s == nil || s.calibre == nil || s.rootFolders == nil {
+		return nil
+	}
+	calibreID := metadataInt(file.Metadata, "calibreId", 0)
+	if calibreID <= 0 {
+		return nil
+	}
+	settings, ok, err := s.calibreSettingsForDestination(ctx, file.Path)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	return s.calibre.DeleteBooks(ctx, calibre.DeleteBooksRequest{
+		Settings: settings,
+		IDs:      []int{calibreID},
+	})
 }
 
 func (s *Service) calibreSettingsForDestination(ctx context.Context, destination string) (calibre.Settings, bool, error) {

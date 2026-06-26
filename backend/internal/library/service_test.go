@@ -209,6 +209,52 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 	}
 }
 
+func TestApplyCalibreDeleteUsesStoredCalibreID(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "ebooks")
+	destination := filepath.Join(root, "Andy Weir", "Project Hail Mary.epub")
+	importer := &fakeCalibreImporter{}
+	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, fakeRootFolders{roots: []compatdata.RootFolder{{
+		Path: root,
+		Metadata: map[string]any{
+			"isCalibreLibrary": true,
+			"host":             "calibre.local",
+			"library":          "Main",
+		},
+	}}})
+
+	err := service.applyCalibreDelete(context.Background(), FileRecord{
+		Path:     destination,
+		Metadata: map[string]any{"calibreId": float64(88)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(importer.deleteRequests) != 1 || importer.deleteRequests[0].IDs[0] != 88 ||
+		importer.deleteRequests[0].Settings.Host != "calibre.local" ||
+		importer.deleteRequests[0].Settings.Library != "Main" {
+		t.Fatalf("unexpected Calibre delete request: %+v", importer.deleteRequests)
+	}
+}
+
+func TestApplyCalibreDeleteSkipsFilesWithoutCalibreID(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "ebooks")
+	importer := &fakeCalibreImporter{}
+	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, fakeRootFolders{roots: []compatdata.RootFolder{{
+		Path:     root,
+		Metadata: map[string]any{"isCalibreLibrary": true, "host": "calibre.local"},
+	}}})
+
+	if err := service.applyCalibreDelete(context.Background(), FileRecord{
+		Path:     filepath.Join(root, "Book.epub"),
+		Metadata: map[string]any{},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(importer.deleteRequests) != 0 {
+		t.Fatalf("expected no Calibre delete request, got %+v", importer.deleteRequests)
+	}
+}
+
 func TestIsCompletedDownload(t *testing.T) {
 	completedAt := time.Now().UTC()
 	if !isCompletedDownload(acquisition.DownloadStatus{Progress: 1}) {
@@ -234,8 +280,9 @@ func (f fakeRootFolders) ListRootFolders(context.Context) ([]compatdata.RootFold
 }
 
 type fakeCalibreImporter struct {
-	id      int
-	request calibre.AddBookRequest
+	id             int
+	request        calibre.AddBookRequest
+	deleteRequests []calibre.DeleteBooksRequest
 }
 
 func (f *fakeCalibreImporter) AddBook(_ context.Context, request calibre.AddBookRequest) (calibre.AddBookResult, error) {
@@ -245,6 +292,11 @@ func (f *fakeCalibreImporter) AddBook(_ context.Context, request calibre.AddBook
 		id = 1
 	}
 	return calibre.AddBookResult{ID: id}, nil
+}
+
+func (f *fakeCalibreImporter) DeleteBooks(_ context.Context, request calibre.DeleteBooksRequest) error {
+	f.deleteRequests = append(f.deleteRequests, request)
+	return nil
 }
 
 func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {

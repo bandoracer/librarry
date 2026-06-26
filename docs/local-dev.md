@@ -197,5 +197,7 @@ wanted item. Unlinked completed downloads are queued in
 If the destination path is inside a Readarr-compatible root folder with
 `isCalibreLibrary=true`, Librarry also posts the imported file to the configured
 Calibre Content Server add-book endpoint and stores the returned Calibre ID on
-the file metadata. Calibre conversion, delete, metadata sync, and failed-import
-rollback are not implemented yet.
+the file metadata. Physical deletion of a Calibre-backed file calls the
+Content Server delete-books endpoint before removing the local file record.
+Calibre conversion, metadata sync, and failed-import rollback are not
+implemented yet.

@@ -39,8 +39,18 @@ type AddBookResult struct {
 	ID int `json:"id"`
 }
 
+type DeleteBooksRequest struct {
+	Settings Settings
+	IDs      []int
+}
+
 type Importer interface {
 	AddBook(ctx context.Context, request AddBookRequest) (AddBookResult, error)
+}
+
+type Manager interface {
+	Importer
+	DeleteBooks(ctx context.Context, request DeleteBooksRequest) error
 }
 
 type Client struct {
@@ -108,6 +118,42 @@ func (c *Client) AddBook(ctx context.Context, request AddBookRequest) (AddBookRe
 	return result, nil
 }
 
+func (c *Client) DeleteBooks(ctx context.Context, request DeleteBooksRequest) error {
+	if c == nil {
+		return errors.New("calibre client is unavailable")
+	}
+	settings := normalizeSettings(request.Settings)
+	if settings.Host == "" {
+		return errors.New("calibre host is required")
+	}
+	ids := compactPositiveIDs(request.IDs)
+	if len(ids) == 0 {
+		return nil
+	}
+	endpoint, err := deleteBooksURL(settings, ids)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	if settings.Username != "" {
+		req.SetBasicAuth(settings.Username, settings.Password)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("calibre delete-books returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
+	}
+	return nil
+}
+
 func addBookURL(settings Settings, jobID int, ext string) (string, error) {
 	base, err := baseURL(settings)
 	if err != nil {
@@ -123,6 +169,27 @@ func addBookURL(settings Settings, jobID int, ext string) (string, error) {
 	segments := []string{
 		strings.Trim(base.Path, "/"),
 		"cdb", "add-book", strconv.Itoa(jobID), "1", filename,
+	}
+	if settings.Library != "" {
+		segments = append(segments, settings.Library)
+	}
+	base.Path = joinURLPath(segments...)
+	base.RawQuery = ""
+	return base.String(), nil
+}
+
+func deleteBooksURL(settings Settings, ids []int) (string, error) {
+	base, err := baseURL(settings)
+	if err != nil {
+		return "", err
+	}
+	var idStrings []string
+	for _, id := range compactPositiveIDs(ids) {
+		idStrings = append(idStrings, strconv.Itoa(id))
+	}
+	segments := []string{
+		strings.Trim(base.Path, "/"),
+		"cdb", "delete-books", strings.Join(idStrings, ","),
 	}
 	if settings.Library != "" {
 		segments = append(segments, settings.Library)
@@ -175,6 +242,19 @@ func normalizeSettings(settings Settings) Settings {
 		settings.Port = 8080
 	}
 	return settings
+}
+
+func compactPositiveIDs(ids []int) []int {
+	seen := map[int]bool{}
+	result := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 || seen[id] {
+			continue
+		}
+		seen[id] = true
+		result = append(result, id)
+	}
+	return result
 }
 
 func joinURLPath(parts ...string) string {
