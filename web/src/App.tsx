@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  clearWantedOverride,
   createWanted,
   deleteWanted,
   fetchAuthorSubscriptions,
@@ -276,6 +277,7 @@ export function App() {
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
   const [downloadResourceActionID, setDownloadResourceActionID] = useState("");
+  const [clearingWantedOverrideField, setClearingWantedOverrideField] = useState("");
   const [trackerURL, setTrackerURL] = useState("");
   const [downloadNameInput, setDownloadNameInput] = useState("");
   const [downloadTagsInput, setDownloadTagsInput] = useState("");
@@ -660,6 +662,24 @@ export function App() {
       setWantedError(error instanceof Error ? error.message : "Wanted remove failed");
     } finally {
       setIsRemovingWanted(false);
+    }
+  }
+
+  async function clearSelectedWantedOverride(fieldName: string) {
+    const item = selectedWanted;
+    if (!item || !fieldName) return;
+    setClearingWantedOverrideField(fieldName);
+    setWantedError("");
+    try {
+      const updated = await clearWantedOverride(item.id, fieldName);
+      setWantedItems((current) => mergeWanted(current, [updated]));
+      setSelectedWantedID(updated.id);
+      setWantedReleases([]);
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted override reset failed");
+    } finally {
+      setClearingWantedOverrideField("");
     }
   }
 
@@ -1868,6 +1888,23 @@ export function App() {
                       <span>Monitored</span>
                     </label>
                   </div>
+                  {selectedWanted.manualOverrides?.length ? (
+                    <div className="wanted-override-list" aria-label="Manual metadata overrides">
+                      {selectedWanted.manualOverrides.map((override) => (
+                        <button
+                          className="wanted-override-chip"
+                          disabled={clearingWantedOverrideField === override.fieldName}
+                          key={override.fieldName}
+                          onClick={() => clearSelectedWantedOverride(override.fieldName)}
+                          title={`Clear ${wantedOverrideLabel(override.fieldName)} override`}
+                          type="button"
+                        >
+                          <span>{wantedOverrideLabel(override.fieldName)}</span>
+                          <em>{clearingWantedOverrideField === override.fieldName ? "Clearing" : "Reset"}</em>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="wanted-edit-grid">
                     <label>
                       <span>Title</span>
@@ -3575,6 +3612,21 @@ function wantedBadgeLabel(item: WantedItem, presence: WantedPresence | undefined
   if (state === "present") return `Present · ${item.format}`;
   if (state === "grabbed") return `Grabbed · ${item.format}`;
   return `Missing · ${item.format}`;
+}
+
+function wantedOverrideLabel(fieldName: string) {
+  switch (fieldName) {
+    case "title":
+      return "Title";
+    case "author_name":
+      return "Author";
+    case "cover_url":
+      return "Cover";
+    case "quality_profile":
+      return "Quality";
+    default:
+      return fieldName.replace(/_/g, " ");
+  }
 }
 
 function wantedItemHasLibraryFile(item: WantedItem, files: LibraryFile[]) {

@@ -311,10 +311,19 @@ export type WantedItem = {
   tags?: number[];
   sourceProvider?: string;
   sourceKey?: string;
+  manualOverrides?: ManualOverride[];
   currentReleaseId?: string;
   currentReleaseScore?: number;
   lastSearchAt?: string;
   lastUpgradeSearchAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ManualOverride = {
+  fieldName: string;
+  value?: string;
+  reason?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -1153,6 +1162,16 @@ export async function deleteWanted(wantedID: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Wanted delete failed: ${response.status}`);
   }
+}
+
+export async function clearWantedOverride(wantedID: string, fieldName: string): Promise<WantedItem> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(wantedID)}/overrides/${encodeURIComponent(fieldName)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`Wanted override reset failed: ${response.status}`);
+  }
+  return (await response.json()) as WantedItem;
 }
 
 export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {

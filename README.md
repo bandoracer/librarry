@@ -50,7 +50,8 @@ book data is incomplete or ambiguous.
 > downloads includes explainable file, metadata, and download-context evidence.
 > Wanted-item metadata correction is available in the native UI and API; title,
 > author, cover, and quality-profile edits create durable manual override
-> records that provider refreshes will not overwrite.
+> records that provider refreshes will not overwrite, and override chips can be
+> reset field-by-field when provider metadata improves.
 > Configurable naming templates are implemented. Common Arr
 > resource catalog endpoints are present for tags, quality definitions, language
 > profiles, metadata profiles, custom formats, restrictions, notifications,
@@ -104,7 +105,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | --- | --- | --- | --- |
 | Project status | Retired and archived; existing installs may continue but upstream development has stopped. | Active early alpha. | Public, maintained replacement with a smaller but durable core. |
 | Metadata source model | Historically depended on centralized metadata; the retirement announcement names metadata failure as the blocking issue. | Multi-provider abstraction with Hardcover, Open Library, Google Books fallback, and local metadata stubs. | Local canonical graph with provider provenance, explainable matches, and resilient fallback behavior. |
-| Manual correction | Supports normal app-level editing workflows. | Native wanted-item editor can correct title, author, cover URL, quality profile, and monitoring state; corrected title/author/cover/profile values write `manual_overrides` rows and provider refreshes preserve those fields. | Expand correction to the full author/work/edition graph, embedded file metadata writes, and batch review workflows. |
+| Manual correction | Supports normal app-level editing workflows. | Native wanted-item editor can correct title, author, cover URL, quality profile, and monitoring state; corrected title/author/cover/profile values write `manual_overrides` rows, provider refreshes preserve those fields, and visible override chips can reset individual fields. | Expand correction to the full author/work/edition graph, embedded file metadata writes, and batch review workflows. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, manual/completed import supports copy, move, hardlink, hardlink-or-copy, keep-both, replace, skip, and fail conflict decisions, completed Librarry-tagged downloads feed the library, unlinked completed downloads are queued for individual or bulk review resolution with explainable file, local-metadata, filename, download-context evidence, and high-confidence wanted-item suggestions, and Readarr-compatible missing pages suppress wanted items already present in tracked files. | Add author-level missing-book policy and broader profile-aware automatic import matching. |
 | Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, Readarr-compatible release restrictions including tag-scoped rules for tagged wanted items, release evaluation, author/book tag persistence with bulk add/remove/replace editor modes, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, import-list sync into monitored wanted items, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, import conflict policies, bulk import-review resolution with evidence, and bulk selected-download actions. | Add missing-book policy and deeper conflict reporting. |
@@ -134,7 +135,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   running acquisition service and are loaded again on restart.
 - Native wanted metadata correction for title, author, cover URL, quality
   profile, and monitoring state, with `manual_overrides` persistence so provider
-  refreshes do not overwrite corrected display metadata.
+  refreshes do not overwrite corrected display metadata. Wanted payloads include
+  visible override state, and individual override fields can be reset.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Postgres-backed download reconciliation from qBittorrent, Transmission, and
@@ -541,6 +543,7 @@ Important API surfaces:
   - `PUT /api/v1/wanted/{id}`
   - `PATCH /api/v1/wanted/{id}`
   - `DELETE /api/v1/wanted/{id}`
+  - `DELETE /api/v1/wanted/{id}/overrides/{field}`
   - `POST /api/v1/wanted/{id}/search`
   - `GET /api/v1/wanted/releases/{id}`
   - `POST /api/v1/wanted/{id}/grab`

@@ -150,25 +150,34 @@ type GrabRequest struct {
 }
 
 type WantedItem struct {
-	ID                  string     `json:"id"`
-	WorkID              string     `json:"workId,omitempty"`
-	EditionID           string     `json:"editionId,omitempty"`
-	Title               string     `json:"title"`
-	AuthorName          string     `json:"authorName,omitempty"`
-	CoverURL            string     `json:"coverUrl,omitempty"`
-	Format              string     `json:"format"`
-	QualityProfile      string     `json:"qualityProfile"`
-	Status              string     `json:"status"`
-	Monitored           bool       `json:"monitored"`
-	Tags                []int      `json:"tags,omitempty"`
-	SourceProvider      string     `json:"sourceProvider,omitempty"`
-	SourceKey           string     `json:"sourceKey,omitempty"`
-	CurrentReleaseID    string     `json:"currentReleaseId,omitempty"`
-	CurrentReleaseScore float64    `json:"currentReleaseScore,omitempty"`
-	LastSearchAt        *time.Time `json:"lastSearchAt,omitempty"`
-	LastUpgradeSearchAt *time.Time `json:"lastUpgradeSearchAt,omitempty"`
-	CreatedAt           time.Time  `json:"createdAt"`
-	UpdatedAt           time.Time  `json:"updatedAt"`
+	ID                  string           `json:"id"`
+	WorkID              string           `json:"workId,omitempty"`
+	EditionID           string           `json:"editionId,omitempty"`
+	Title               string           `json:"title"`
+	AuthorName          string           `json:"authorName,omitempty"`
+	CoverURL            string           `json:"coverUrl,omitempty"`
+	Format              string           `json:"format"`
+	QualityProfile      string           `json:"qualityProfile"`
+	Status              string           `json:"status"`
+	Monitored           bool             `json:"monitored"`
+	Tags                []int            `json:"tags,omitempty"`
+	SourceProvider      string           `json:"sourceProvider,omitempty"`
+	SourceKey           string           `json:"sourceKey,omitempty"`
+	ManualOverrides     []ManualOverride `json:"manualOverrides,omitempty"`
+	CurrentReleaseID    string           `json:"currentReleaseId,omitempty"`
+	CurrentReleaseScore float64          `json:"currentReleaseScore,omitempty"`
+	LastSearchAt        *time.Time       `json:"lastSearchAt,omitempty"`
+	LastUpgradeSearchAt *time.Time       `json:"lastUpgradeSearchAt,omitempty"`
+	CreatedAt           time.Time        `json:"createdAt"`
+	UpdatedAt           time.Time        `json:"updatedAt"`
+}
+
+type ManualOverride struct {
+	FieldName string    `json:"fieldName"`
+	Value     string    `json:"value,omitempty"`
+	Reason    string    `json:"reason,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type WantedUpdateRequest struct {

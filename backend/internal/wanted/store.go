@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -160,7 +161,10 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return s.attachWantedManualOverrides(ctx, items)
 }
 
 func (s *Store) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
@@ -553,7 +557,18 @@ func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 		left join works w on w.id = wi.work_id
 		where wi.id = $1
 	`, id)
-	return scanWanted(row)
+	item, err := scanWanted(row)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	items, err := s.attachWantedManualOverrides(ctx, []WantedItem{item})
+	if err != nil {
+		return WantedItem{}, err
+	}
+	if len(items) == 0 {
+		return WantedItem{}, sql.ErrNoRows
+	}
+	return items[0], nil
 }
 
 func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdateRequest) (WantedItem, error) {
@@ -649,6 +664,203 @@ func upsertWantedManualOverride(ctx context.Context, tx *sql.Tx, wantedID string
 			updated_at = now()
 	`, strings.TrimSpace(wantedID), strings.TrimSpace(fieldName), strings.TrimSpace(value))
 	return err
+}
+
+func (s *Store) ListWantedManualOverrides(ctx context.Context, wantedID string) ([]ManualOverride, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	wantedID = strings.TrimSpace(wantedID)
+	if wantedID == "" {
+		return nil, errors.New("wanted item id is required")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select field_name, value, coalesce(reason, ''), created_at, updated_at
+		from manual_overrides
+		where entity_type = 'wanted_item'
+			and entity_id::text = $1
+		order by field_name
+	`, wantedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var overrides []ManualOverride
+	for rows.Next() {
+		var override ManualOverride
+		var rawValue []byte
+		if err := rows.Scan(&override.FieldName, &rawValue, &override.Reason, &override.CreatedAt, &override.UpdatedAt); err != nil {
+			return nil, err
+		}
+		override.Value = manualOverrideValueString(rawValue)
+		overrides = append(overrides, override)
+	}
+	return overrides, rows.Err()
+}
+
+func (s *Store) ClearWantedManualOverrides(ctx context.Context, wantedID string, fields []string) (WantedItem, error) {
+	if !s.Configured() {
+		return WantedItem{}, errors.New("wanted store is unavailable")
+	}
+	wantedID = strings.TrimSpace(wantedID)
+	if wantedID == "" {
+		return WantedItem{}, errors.New("wanted item id is required")
+	}
+	normalizedFields, err := normalizeWantedOverrideFields(fields)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	defer tx.Rollback()
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `select exists(select 1 from wanted_items where id::text = $1)`, wantedID).Scan(&exists); err != nil {
+		return WantedItem{}, err
+	}
+	if !exists {
+		return WantedItem{}, sql.ErrNoRows
+	}
+	for _, field := range normalizedFields {
+		if _, err := tx.ExecContext(ctx, `
+			delete from manual_overrides
+			where entity_type = 'wanted_item'
+				and entity_id::text = $1
+				and field_name = $2
+		`, wantedID, field); err != nil {
+			return WantedItem{}, err
+		}
+		if err := resetWantedFieldFromProvider(ctx, tx, wantedID, field); err != nil {
+			return WantedItem{}, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return WantedItem{}, err
+	}
+	return s.GetWanted(ctx, wantedID)
+}
+
+func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID string, field string) error {
+	switch field {
+	case "title":
+		_, err := tx.ExecContext(ctx, `
+			update wanted_items wi
+			set title = coalesce(nullif(w.title, ''), wi.title),
+				updated_at = now()
+			from works w
+			where wi.work_id = w.id and wi.id::text = $1
+		`, wantedID)
+		return err
+	case "author_name":
+		_, err := tx.ExecContext(ctx, `
+			update wanted_items wi
+			set author_name = coalesce(nullif((
+					select a.canonical_name
+					from work_authors wa
+					join authors a on a.id = wa.author_id
+					where wa.work_id = wi.work_id
+					order by case when wa.role = 'author' then 0 else 1 end, a.canonical_name
+					limit 1
+				), ''), wi.author_name),
+				updated_at = now()
+			where wi.id::text = $1
+		`, wantedID)
+		return err
+	case "cover_url":
+		_, err := tx.ExecContext(ctx, `
+			update wanted_items wi
+			set cover_url = coalesce(nullif(w.cover_url, ''), wi.cover_url),
+				updated_at = now()
+			from works w
+			where wi.work_id = w.id and wi.id::text = $1
+		`, wantedID)
+		return err
+	case "quality_profile":
+		_, err := tx.ExecContext(ctx, `
+			update wanted_items
+			set quality_profile = 'standard',
+				updated_at = now()
+			where id::text = $1
+		`, wantedID)
+		return err
+	default:
+		return fmt.Errorf("unsupported wanted override field %q", field)
+	}
+}
+
+func (s *Store) attachWantedManualOverrides(ctx context.Context, items []WantedItem) ([]WantedItem, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+	for index := range items {
+		overrides, err := s.ListWantedManualOverrides(ctx, items[index].ID)
+		if err != nil {
+			return nil, err
+		}
+		items[index].ManualOverrides = overrides
+	}
+	return items, nil
+}
+
+func normalizeWantedOverrideFields(fields []string) ([]string, error) {
+	if len(fields) == 0 {
+		return []string{"title", "author_name", "cover_url", "quality_profile"}, nil
+	}
+	seen := map[string]bool{}
+	var normalized []string
+	for _, field := range fields {
+		field = normalizeWantedOverrideField(field)
+		if field == "" {
+			return nil, errors.New("manual override field is required")
+		}
+		if !validWantedOverrideField(field) {
+			return nil, fmt.Errorf("unsupported wanted override field %q", field)
+		}
+		if seen[field] {
+			continue
+		}
+		seen[field] = true
+		normalized = append(normalized, field)
+	}
+	return normalized, nil
+}
+
+func normalizeWantedOverrideField(field string) string {
+	switch strings.ToLower(strings.TrimSpace(field)) {
+	case "title":
+		return "title"
+	case "author", "authorname", "author_name":
+		return "author_name"
+	case "cover", "coverurl", "cover_url":
+		return "cover_url"
+	case "quality", "qualityprofile", "quality_profile":
+		return "quality_profile"
+	default:
+		return strings.ToLower(strings.TrimSpace(field))
+	}
+}
+
+func validWantedOverrideField(field string) bool {
+	switch field {
+	case "title", "author_name", "cover_url", "quality_profile":
+		return true
+	default:
+		return false
+	}
+}
+
+func manualOverrideValueString(raw []byte) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err == nil {
+		return value
+	}
+	return strings.TrimSpace(string(raw))
 }
 
 func (s *Store) DeleteWanted(ctx context.Context, id string) error {

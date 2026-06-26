@@ -1701,6 +1701,40 @@ select {
   white-space: nowrap;
 }
 
+.wanted-override-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wanted-override-chip {
+  min-height: 30px;
+  border: 1px solid #d8e2ee;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: var(--muted-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px;
+  font-size: 12px;
+}
+
+.wanted-override-chip span {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.wanted-override-chip em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.wanted-override-chip:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
 .wanted-edit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(150px, 1fr));

@@ -73,6 +73,7 @@ type wantedService interface {
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
 	UpdateWanted(ctx context.Context, id string, request wanted.WantedUpdateRequest) (wanted.WantedItem, error)
 	DeleteWanted(ctx context.Context, id string) error
+	ClearWantedManualOverrides(ctx context.Context, id string, fields []string) (wanted.WantedItem, error)
 	UpdateAuthorSubscription(ctx context.Context, id string, request wanted.AuthorUpdateRequest) (wanted.AuthorSubscription, error)
 	DeleteAuthorSubscription(ctx context.Context, id string) error
 	Monitor(ctx context.Context, request wanted.MonitorRequest) (wanted.MonitorRun, error)
@@ -345,6 +346,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/wanted/{id}", handler.updateWanted)
 	mux.HandleFunc("PATCH /api/v1/wanted/{id}", handler.updateWanted)
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}", handler.deleteWanted)
+	mux.HandleFunc("DELETE /api/v1/wanted/{id}/overrides/{field}", handler.clearWantedOverride)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
 	mux.HandleFunc("POST /api/v1/wanted/feed-sync", handler.feedSyncWanted)
 	mux.HandleFunc("POST /api/v1/wanted/upgrades", handler.upgradeWanted)
@@ -1137,6 +1139,29 @@ func (h *handler) deleteWanted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) clearWantedOverride(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	field := strings.TrimSpace(r.PathValue("field"))
+	if id == "" || field == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "wanted item id and override field are required"})
+		return
+	}
+	item, err := h.deps.Wanted.ClearWantedManualOverrides(r.Context(), id, []string{field})
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
 }
 
 func decodeWantedUpdateRequest(body io.Reader) (wanted.WantedUpdateRequest, error) {

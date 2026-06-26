@@ -250,6 +250,7 @@ Initial API surface:
   - `PUT /api/v1/wanted/{id}`
   - `PATCH /api/v1/wanted/{id}`
   - `DELETE /api/v1/wanted/{id}`
+  - `DELETE /api/v1/wanted/{id}/overrides/{field}`
   - `POST /api/v1/wanted/{id}/search`
   - `GET /api/v1/wanted/releases/{id}`
   - `POST /api/v1/wanted/{id}/grab`
@@ -437,6 +438,10 @@ Wanted items are stored in Postgres from normalized metadata results. Native
 quality profile, monitoring state, and tags. Title, author, cover URL, and
 quality-profile edits create `manual_overrides` rows for the wanted item, and
 provider refreshes preserve those manually corrected fields during upsert.
+Wanted item payloads include the current manual override list, and
+`DELETE /api/v1/wanted/{id}/overrides/{field}` clears one override. Title,
+author, and cover URL resets immediately restore canonical work/author values
+when those rows are available; quality-profile reset returns to `standard`.
 `DELETE /api/v1/wanted/{id}` soft-removes the wanted item without deleting
 library files or download-client data. Monitoring state is stored separately
 from acquisition/import status so Readarr-compatible monitor/unmonitor calls do

@@ -86,6 +86,13 @@ func (s *Service) DeleteWanted(ctx context.Context, id string) error {
 	return s.store.DeleteWanted(ctx, id)
 }
 
+func (s *Service) ClearWantedManualOverrides(ctx context.Context, id string, fields []string) (WantedItem, error) {
+	if !s.Available() {
+		return WantedItem{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.ClearWantedManualOverrides(ctx, id, fields)
+}
+
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Available() {
 		return nil, errors.New("wanted service requires database persistence")

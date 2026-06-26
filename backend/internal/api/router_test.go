@@ -3064,6 +3064,33 @@ func TestDeleteWantedEndpointSoftDeletesWantedItem(t *testing.T) {
 	}
 }
 
+func TestClearWantedOverrideEndpointReturnsRefreshedWantedItem(t *testing.T) {
+	wantedClient := &fakeMutableWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   wantedClient,
+	})
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/wanted/wanted-1/overrides/title", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected clear override 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"title":"Project Hail Mary"`) {
+		t.Fatalf("expected refreshed wanted response, got %s", res.Body.String())
+	}
+	if len(wantedClient.overrideClears) != 1 ||
+		wantedClient.overrideClears[0].id != "wanted-1" ||
+		len(wantedClient.overrideClears[0].fields) != 1 ||
+		wantedClient.overrideClears[0].fields[0] != "title" {
+		t.Fatalf("expected override clear call, got %+v", wantedClient.overrideClears)
+	}
+}
+
 func TestUpdateIntegrationConfigPersistsAndReconfiguresAcquireService(t *testing.T) {
 	acquire := &configurableFakeAcquire{config: acquisition.IntegrationConfig{
 		ProwlarrAPIKey:    "existing-prowlarr-key",
@@ -3696,6 +3723,21 @@ func (fakeWanted) DeleteWanted(context.Context, string) error {
 	return nil
 }
 
+func (fakeWanted) ClearWantedManualOverrides(context.Context, string, []string) (wanted.WantedItem, error) {
+	return wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "openlibrary:OL1W",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}, nil
+}
+
 func (fakeWanted) UpdateAuthorSubscription(_ context.Context, _ string, request wanted.AuthorUpdateRequest) (wanted.AuthorSubscription, error) {
 	status := defaultString(request.Status, "monitored")
 	if request.Monitored != nil && !*request.Monitored {
@@ -3731,7 +3773,11 @@ type fakeMutableWanted struct {
 		id      string
 		request wanted.WantedUpdateRequest
 	}
-	wantedDeletes []string
+	wantedDeletes  []string
+	overrideClears []struct {
+		id     string
+		fields []string
+	}
 }
 
 func (f *fakeMutableWanted) UpdateAuthorSubscription(_ context.Context, id string, request wanted.AuthorUpdateRequest) (wanted.AuthorSubscription, error) {
@@ -3758,6 +3804,14 @@ func (f *fakeMutableWanted) UpdateWanted(_ context.Context, id string, request w
 func (f *fakeMutableWanted) DeleteWanted(_ context.Context, id string) error {
 	f.wantedDeletes = append(f.wantedDeletes, id)
 	return nil
+}
+
+func (f *fakeMutableWanted) ClearWantedManualOverrides(_ context.Context, id string, fields []string) (wanted.WantedItem, error) {
+	f.overrideClears = append(f.overrideClears, struct {
+		id     string
+		fields []string
+	}{id: id, fields: fields})
+	return fakeWanted{}.ClearWantedManualOverrides(context.Background(), id, fields)
 }
 
 type fakeReleaseWanted struct {
