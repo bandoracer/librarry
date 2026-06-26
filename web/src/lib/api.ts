@@ -114,6 +114,43 @@ export type ReadinessReport = {
   generatedAt: string;
 };
 
+export type ReadarrImportSettings = {
+  baseUrl: string;
+  apiKey: string;
+  importAuthors: boolean;
+  importBooks: boolean;
+  importQualityProfiles: boolean;
+  importRootFolders: boolean;
+};
+
+export type ReadarrImportItem = {
+  id?: string;
+  title?: string;
+  authorName?: string;
+  path?: string;
+  qualityProfile?: string;
+  status?: string;
+  message?: string;
+};
+
+export type ReadarrImportSection = {
+  name: string;
+  count: number;
+  imported: number;
+  skipped: number;
+  errors?: string[];
+  items?: ReadarrImportItem[];
+};
+
+export type ReadarrImportOutcome = {
+  status: "ok" | "partial";
+  dryRun: boolean;
+  source: string;
+  sections: ReadarrImportSection[];
+  errors?: string[];
+  generatedAt: string;
+};
+
 export type Release = {
   id: string;
   infoHash?: string;
@@ -927,6 +964,30 @@ export async function saveLibrarySettings(settings: LibrarySettings): Promise<Li
     throw new Error(await apiError(response, "Library settings update failed"));
   }
   return (await response.json()) as LibrarySettingsResponse;
+}
+
+export async function previewReadarrImport(settings: ReadarrImportSettings): Promise<ReadarrImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/readarr/import/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Readarr import preview failed"));
+  }
+  return (await response.json()) as ReadarrImportOutcome;
+}
+
+export async function runReadarrImport(settings: ReadarrImportSettings): Promise<ReadarrImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/readarr/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Readarr import failed"));
+  }
+  return (await response.json()) as ReadarrImportOutcome;
 }
 
 export async function searchReleases(query: string, format: string): Promise<Release[]> {

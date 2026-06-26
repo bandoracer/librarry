@@ -92,6 +92,168 @@ func TestReadinessEndpointReportsReadarrWorkflowSetup(t *testing.T) {
 	}
 }
 
+func TestReadarrImportPreviewReadsRemoteState(t *testing.T) {
+	server := newFakeReadarrServer(t)
+	defer server.Close()
+	wantedCapture := &capturingReadarrImportWanted{}
+	compatResources := &fakeCompatResources{}
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{WebOrigin: "*"},
+		Wanted: wantedCapture,
+		Compat: compatResources,
+	})
+	body := strings.NewReader(fmt.Sprintf(`{"baseUrl":%q,"apiKey":"readarr-key"}`, server.URL))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/readarr/import/preview", body)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var outcome readarrImportOutcome
+	if err := json.NewDecoder(res.Body).Decode(&outcome); err != nil {
+		t.Fatalf("decode outcome: %v", err)
+	}
+	if !outcome.DryRun || outcome.Status != "ok" {
+		t.Fatalf("unexpected preview outcome: %+v", outcome)
+	}
+	sections := readarrSectionsByName(outcome.Sections)
+	for _, name := range []string{"qualityProfiles", "rootFolders", "authors", "books"} {
+		if sections[name].Count != 1 {
+			t.Fatalf("expected one %s item, got %+v", name, sections[name])
+		}
+	}
+	if len(wantedCapture.profiles) != 0 || len(wantedCapture.authors) != 0 || len(wantedCapture.creates) != 0 || len(compatResources.roots) != 0 {
+		t.Fatalf("preview should not persist state: wanted=%+v compat=%+v", wantedCapture, compatResources.roots)
+	}
+}
+
+func TestReadarrImportApplyPersistsNativeState(t *testing.T) {
+	server := newFakeReadarrServer(t)
+	defer server.Close()
+	wantedCapture := &capturingReadarrImportWanted{}
+	compatResources := &fakeCompatResources{}
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{WebOrigin: "*"},
+		Wanted: wantedCapture,
+		Compat: compatResources,
+	})
+	body := strings.NewReader(fmt.Sprintf(`{"baseUrl":%q,"apiKey":"readarr-key"}`, server.URL))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/readarr/import", body)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var outcome readarrImportOutcome
+	if err := json.NewDecoder(res.Body).Decode(&outcome); err != nil {
+		t.Fatalf("decode outcome: %v", err)
+	}
+	if outcome.DryRun || outcome.Status != "ok" {
+		t.Fatalf("unexpected import outcome: %+v", outcome)
+	}
+	if len(wantedCapture.profiles) != 1 {
+		t.Fatalf("expected one imported profile, got %+v", wantedCapture.profiles)
+	}
+	if wantedCapture.profiles[0].Name != "Ebook Standard" || wantedCapture.profiles[0].MediaFormat != "ebook" {
+		t.Fatalf("unexpected profile mapping: %+v", wantedCapture.profiles[0])
+	}
+	if len(compatResources.roots) != 1 || compatResources.roots[0].Path != "/books/ebooks" {
+		t.Fatalf("expected imported root folder, got %+v", compatResources.roots)
+	}
+	if len(wantedCapture.authors) != 1 || wantedCapture.authors[0].AuthorName != "Andy Weir" || wantedCapture.authors[0].QualityProfile != "Ebook Standard" {
+		t.Fatalf("expected imported author subscription, got %+v", wantedCapture.authors)
+	}
+	if len(wantedCapture.creates) != 1 || wantedCapture.creates[0].Result.Work.Title != "Project Hail Mary" {
+		t.Fatalf("expected imported wanted book, got %+v", wantedCapture.creates)
+	}
+	if got := wantedCapture.creates[0].Result.Edition.ISBNs; len(got) != 1 || got[0] != "9780593135204" {
+		t.Fatalf("expected edition ISBN to carry over, got %+v", wantedCapture.creates[0].Result.Edition)
+	}
+}
+
+func newFakeReadarrServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Api-Key"); got != "readarr-key" {
+			t.Errorf("expected Readarr API key header, got %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/qualityprofile":
+			_, _ = w.Write([]byte(`[
+				{
+					"id": 1,
+					"name": "Ebook Standard",
+					"upgradeAllowed": true,
+					"minFormatScore": 10,
+					"cutoffFormatScore": 80,
+					"items": [
+						{"allowed": true, "quality": {"id": 1, "name": "EPUB"}},
+						{"allowed": false, "quality": {"id": 2, "name": "PDF"}}
+					]
+				}
+			]`))
+		case "/api/v1/rootfolder":
+			_, _ = w.Write([]byte(`[
+				{"id": 7, "name": "Books", "path": "/books/ebooks", "defaultQualityProfileId": 1}
+			]`))
+		case "/api/v1/author":
+			_, _ = w.Write([]byte(`[
+				{
+					"id": 8,
+					"authorName": "Andy Weir",
+					"foreignAuthorId": "ol:OL123A",
+					"path": "/books/ebooks/Andy Weir",
+					"monitored": true,
+					"qualityProfileId": 1
+				}
+			]`))
+		case "/api/v1/book":
+			_, _ = w.Write([]byte(`[
+				{
+					"id": 9,
+					"title": "Project Hail Mary",
+					"foreignBookId": "ol:OL1W",
+					"authorTitle": "Andy Weir",
+					"monitored": true,
+					"qualityProfileId": 1,
+					"author": {
+						"id": 8,
+						"authorName": "Andy Weir",
+						"foreignAuthorId": "ol:OL123A"
+					},
+					"editions": [
+						{
+							"id": 10,
+							"title": "Project Hail Mary",
+							"foreignEditionId": "isbn:9780593135204",
+							"isbn13": "9780593135204",
+							"format": "ebook",
+							"monitored": true
+						}
+					]
+				}
+			]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func readarrSectionsByName(sections []readarrImportSection) map[string]readarrImportSection {
+	byName := map[string]readarrImportSection{}
+	for _, section := range sections {
+		byName[section.Name] = section
+	}
+	return byName
+}
+
 func TestAPIKeyAuthIsOptionalWhenUnset(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3872,6 +4034,57 @@ func (f *capturingImportListWanted) Create(_ context.Context, request wanted.Cre
 		SourceKey:      firstNonEmptyString(request.Result.Edition.ID, request.Result.Work.ID, request.Result.RawSourceKey),
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),
+	}, nil
+}
+
+type capturingReadarrImportWanted struct {
+	fakeWanted
+	profiles []wanted.QualityProfile
+	authors  []wanted.AuthorSubscribeRequest
+	creates  []wanted.CreateRequest
+}
+
+func (f *capturingReadarrImportWanted) SaveQualityProfile(_ context.Context, profile wanted.QualityProfile) (wanted.QualityProfile, error) {
+	f.profiles = append(f.profiles, profile)
+	profile.ID = "profile-" + strconv.Itoa(len(f.profiles))
+	profile.CreatedAt = time.Now().UTC()
+	profile.UpdatedAt = profile.CreatedAt
+	return profile, nil
+}
+
+func (f *capturingReadarrImportWanted) SubscribeAuthor(_ context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error) {
+	f.authors = append(f.authors, request)
+	now := time.Now().UTC()
+	return wanted.AuthorSubscription{
+		ID:                "author-" + strconv.Itoa(len(f.authors)),
+		Provider:          request.Provider,
+		ProviderKey:       request.ProviderKey,
+		AuthorName:        request.AuthorName,
+		Format:            request.Format,
+		QualityProfile:    request.QualityProfile,
+		Status:            "monitored",
+		MonitorNewItems:   true,
+		MissingBookPolicy: request.MissingBookPolicy,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}, nil
+}
+
+func (f *capturingReadarrImportWanted) Create(_ context.Context, request wanted.CreateRequest) (wanted.WantedItem, error) {
+	f.creates = append(f.creates, request)
+	now := time.Now().UTC()
+	return wanted.WantedItem{
+		ID:             "wanted-" + strconv.Itoa(len(f.creates)),
+		WorkID:         request.Result.Work.ID,
+		EditionID:      request.Result.Edition.ID,
+		Title:          request.Result.Work.Title,
+		AuthorName:     firstAuthor(request.Result).Name,
+		Format:         request.Format,
+		QualityProfile: request.QualityProfile,
+		Status:         "wanted",
+		Monitored:      true,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}, nil
 }
 

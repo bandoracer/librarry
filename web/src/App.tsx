@@ -63,6 +63,7 @@ import {
   grabRelease,
   importCompletedDownloads,
   importLibraryFile,
+  previewReadarrImport,
   recoverFailedDownloads,
   rebalanceDownloads,
   resolveLibraryImportReview,
@@ -71,6 +72,7 @@ import {
   runAuthorMonitor,
   runUpgradeSearch,
   runWantedFeedSync,
+  runReadarrImport,
   runWantedMonitor,
   runDownloadAction,
   runDownloadCategoryAction,
@@ -123,6 +125,9 @@ import {
   type ProviderHealth,
   type ProviderMetadataRecord,
   type QualityProfile,
+  type ReadarrImportItem,
+  type ReadarrImportOutcome,
+  type ReadarrImportSettings,
   type ReadinessReport,
   type ReleaseDecision,
   type Release,
@@ -274,6 +279,17 @@ function emptyLibrarySettings(): LibrarySettings {
   };
 }
 
+function emptyReadarrImportSettings(): ReadarrImportSettings {
+  return {
+    baseUrl: "",
+    apiKey: "",
+    importAuthors: true,
+    importBooks: true,
+    importQualityProfiles: true,
+    importRootFolders: true
+  };
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<ViewID>("library");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
@@ -287,6 +303,8 @@ export function App() {
   const [librarySettings, setLibrarySettings] = useState<LibrarySettings>(() => emptyLibrarySettings());
   const [librarySettingsForm, setLibrarySettingsForm] = useState<LibrarySettings>(() => emptyLibrarySettings());
   const [librarySettingsPersisted, setLibrarySettingsPersisted] = useState(false);
+  const [readarrImportForm, setReadarrImportForm] = useState<ReadarrImportSettings>(() => emptyReadarrImportSettings());
+  const [readarrImportOutcome, setReadarrImportOutcome] = useState<ReadarrImportOutcome | null>(null);
   const [releases, setReleases] = useState<Release[]>([]);
   const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
@@ -370,6 +388,8 @@ export function App() {
   const [isSavingDownloadPreferences, setIsSavingDownloadPreferences] = useState(false);
   const [isSavingIntegrationSettings, setIsSavingIntegrationSettings] = useState(false);
   const [isSavingLibrarySettings, setIsSavingLibrarySettings] = useState(false);
+  const [isPreviewingReadarrImport, setIsPreviewingReadarrImport] = useState(false);
+  const [isRunningReadarrImport, setIsRunningReadarrImport] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
@@ -1932,6 +1952,48 @@ export function App() {
 
   function updateLibrarySettingsForm(changes: Partial<LibrarySettings>) {
     setLibrarySettingsForm((current) => ({ ...current, ...changes }));
+  }
+
+  function updateReadarrImportForm(changes: Partial<ReadarrImportSettings>) {
+    setReadarrImportForm((current) => ({ ...current, ...changes }));
+  }
+
+  async function previewExistingReadarrImport() {
+    setIsPreviewingReadarrImport(true);
+    setSettingsError("");
+    setSettingsNotice("");
+    try {
+      const outcome = await previewReadarrImport(readarrImportForm);
+      setReadarrImportOutcome(outcome);
+      setSettingsNotice(`Readarr preview found ${readarrImportCount(outcome)} importable records.`);
+      setAPIState("live");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "Readarr import preview failed");
+    } finally {
+      setIsPreviewingReadarrImport(false);
+    }
+  }
+
+  async function applyExistingReadarrImport() {
+    setIsRunningReadarrImport(true);
+    setSettingsError("");
+    setSettingsNotice("");
+    try {
+      const outcome = await runReadarrImport(readarrImportForm);
+      setReadarrImportOutcome(outcome);
+      await Promise.allSettled([
+        fetchQualityProfiles().then(setQualityProfiles),
+        fetchWanted().then(setWantedItems),
+        fetchAuthorSubscriptions().then(setAuthorSubscriptions),
+        fetchReadiness().then(setReadiness)
+      ]);
+      setSettingsNotice(`Readarr import ${outcome.status === "partial" ? "partially completed" : "completed"}: ${readarrImportImported(outcome)} records written.`);
+      setAPIState("live");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "Readarr import failed");
+    } finally {
+      setIsRunningReadarrImport(false);
+    }
   }
 
   async function persistIntegrationSettings() {
@@ -4203,6 +4265,90 @@ export function App() {
               </div>
             </div>
           </div>
+          <div className="integration-settings-panel readarr-import-panel">
+            <div className="integration-settings-header">
+              <div>
+                <strong>Readarr migration</strong>
+                <span>
+                  {readarrImportOutcome
+                    ? `${readarrImportCount(readarrImportOutcome)} records found · ${readarrImportImported(readarrImportOutcome)} written`
+                    : "Preview and import an existing Readarr instance"}
+                </span>
+              </div>
+              <div className="integration-settings-actions">
+                <button
+                  className="secondary-action compact"
+                  disabled={!readarrImportForm.baseUrl.trim() || isPreviewingReadarrImport || isRunningReadarrImport}
+                  onClick={previewExistingReadarrImport}
+                  type="button"
+                >
+                  <Search size={16} />
+                  {isPreviewingReadarrImport ? "Previewing" : "Preview"}
+                </button>
+                <button
+                  className="primary-action compact"
+                  disabled={!readarrImportForm.baseUrl.trim() || isPreviewingReadarrImport || isRunningReadarrImport}
+                  onClick={applyExistingReadarrImport}
+                  type="button"
+                >
+                  <UploadCloud size={16} />
+                  {isRunningReadarrImport ? "Importing" : "Import"}
+                </button>
+              </div>
+            </div>
+            <div className="integration-settings-grid readarr-import-grid">
+              <label className="wide">
+                <span>Readarr URL</span>
+                <input value={readarrImportForm.baseUrl} onChange={(event) => updateReadarrImportForm({ baseUrl: event.target.value })} placeholder="http://readarr:8787" />
+              </label>
+              <label>
+                <span>Readarr API key</span>
+                <input autoComplete="off" type="password" value={readarrImportForm.apiKey} onChange={(event) => updateReadarrImportForm({ apiKey: event.target.value })} placeholder="API key" />
+              </label>
+              <div className="readarr-import-options wide">
+                <label>
+                  <input checked={readarrImportForm.importAuthors} onChange={(event) => updateReadarrImportForm({ importAuthors: event.target.checked })} type="checkbox" />
+                  <span>Authors</span>
+                </label>
+                <label>
+                  <input checked={readarrImportForm.importBooks} onChange={(event) => updateReadarrImportForm({ importBooks: event.target.checked })} type="checkbox" />
+                  <span>Books</span>
+                </label>
+                <label>
+                  <input checked={readarrImportForm.importQualityProfiles} onChange={(event) => updateReadarrImportForm({ importQualityProfiles: event.target.checked })} type="checkbox" />
+                  <span>Quality profiles</span>
+                </label>
+                <label>
+                  <input checked={readarrImportForm.importRootFolders} onChange={(event) => updateReadarrImportForm({ importRootFolders: event.target.checked })} type="checkbox" />
+                  <span>Root folders</span>
+                </label>
+              </div>
+            </div>
+            {readarrImportOutcome ? (
+              <div className="readarr-import-results">
+                {readarrImportOutcome.sections.map((section) => (
+                  <div className="readarr-import-result" key={section.name}>
+                    <div className="readarr-import-result-heading">
+                      <strong>{readarrImportSectionLabel(section.name)}</strong>
+                      <span>
+                        {section.count} found · {section.imported} imported · {section.skipped} skipped
+                      </span>
+                    </div>
+                    {(section.items ?? []).length ? (
+                      <div className="readarr-import-items">
+                        {(section.items ?? []).slice(0, 6).map((item, index) => (
+                          <span key={`${section.name}-${item.id ?? index}`} title={readarrImportItemLabel(item)}>
+                            {readarrImportItemLabel(item)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {section.errors?.length ? <div className="inline-error detail-error">{section.errors.slice(0, 2).join("; ")}</div> : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <div className="integration-settings-panel">
             <div className="integration-settings-header">
               <div>
@@ -5196,6 +5342,35 @@ function mergeLibraryFiles(current: LibraryFile[], next: LibraryFile[]) {
 
 function profileKey(profile: QualityProfile) {
   return profile.id || `${profile.name}:${profile.mediaFormat}`;
+}
+
+function readarrImportCount(outcome: ReadarrImportOutcome) {
+  return outcome.sections.reduce((total, section) => total + section.count, 0);
+}
+
+function readarrImportImported(outcome: ReadarrImportOutcome) {
+  return outcome.sections.reduce((total, section) => total + section.imported, 0);
+}
+
+function readarrImportSectionLabel(name: string) {
+  switch (name) {
+    case "qualityProfiles":
+      return "Quality profiles";
+    case "rootFolders":
+      return "Root folders";
+    case "authors":
+      return "Authors";
+    case "books":
+      return "Books";
+    default:
+      return name;
+  }
+}
+
+function readarrImportItemLabel(item: ReadarrImportItem) {
+  const primary = item.title || item.authorName || item.path || item.id || "Imported record";
+  const secondary = [item.authorName && item.authorName !== primary ? item.authorName : "", item.qualityProfile, item.status].filter(Boolean).join(" · ");
+  return secondary ? `${primary} · ${secondary}` : primary;
 }
 
 function splitTerms(value: string) {

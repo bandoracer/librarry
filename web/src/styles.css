@@ -3699,6 +3699,88 @@ select {
   font-size: 13px;
 }
 
+.readarr-import-options {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.readarr-import-options label {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  padding: 0 10px;
+}
+
+.readarr-import-options input {
+  width: 15px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.readarr-import-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.readarr-import-result {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  padding: 10px;
+}
+
+.readarr-import-result-heading strong,
+.readarr-import-result-heading span {
+  display: block;
+  min-width: 0;
+}
+
+.readarr-import-result-heading strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.readarr-import-result-heading span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.readarr-import-items {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.readarr-import-items span {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted-strong);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 .quality-profile-row {
   min-height: 76px;
   display: grid;
@@ -3982,7 +4064,8 @@ select {
   .download-resource-lists,
   .download-resource-row,
   .download-preference-grid,
-  .integration-settings-grid {
+  .integration-settings-grid,
+  .readarr-import-results {
     grid-template-columns: 1fr;
   }
 
