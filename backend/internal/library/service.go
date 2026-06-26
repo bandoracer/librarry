@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -14,6 +15,8 @@ import (
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	"github.com/bandoracer/librarry/backend/internal/calibre"
+	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
@@ -27,15 +30,30 @@ type DownloadStore interface {
 	MarkDownloadImportError(ctx context.Context, id string, message string) error
 }
 
+type RootFolderProvider interface {
+	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
+}
+
 type Service struct {
-	store     *Store
-	config    Config
-	wanted    WantedStore
-	downloads DownloadStore
+	store       *Store
+	config      Config
+	wanted      WantedStore
+	downloads   DownloadStore
+	calibre     calibre.Importer
+	rootFolders RootFolderProvider
 }
 
 func NewService(store *Store, config Config, wanted WantedStore, downloads DownloadStore) *Service {
 	return &Service{store: store, config: config, wanted: wanted, downloads: downloads}
+}
+
+func (s *Service) WithCalibre(importer calibre.Importer, rootFolders RootFolderProvider) *Service {
+	if s == nil {
+		return s
+	}
+	s.calibre = importer
+	s.rootFolders = rootFolders
+	return s
 }
 
 func (s *Service) Available() bool {
@@ -281,6 +299,9 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	}
 	if strings.TrimSpace(request.DownloadID) != "" {
 		record.Metadata["downloadId"] = strings.TrimSpace(request.DownloadID)
+	}
+	if err := s.applyCalibreImport(ctx, destination, &record); err != nil {
+		return ImportOutcome{}, err
 	}
 	stored, err := s.store.UpsertFile(ctx, record)
 	if err != nil {
@@ -589,6 +610,151 @@ func (s *Service) lookupWanted(ctx context.Context, id string) (wanted.WantedIte
 		return wanted.WantedItem{}, errors.New("wanted store is unavailable")
 	}
 	return s.wanted.GetWanted(ctx, id)
+}
+
+func (s *Service) applyCalibreImport(ctx context.Context, destination string, record *FileRecord) error {
+	if s == nil || s.calibre == nil || s.rootFolders == nil || record == nil {
+		return nil
+	}
+	settings, ok, err := s.calibreSettingsForDestination(ctx, destination)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	result, err := s.calibre.AddBook(ctx, calibre.AddBookRequest{
+		Settings: settings,
+		Path:     destination,
+	})
+	if err != nil {
+		return err
+	}
+	if record.Metadata == nil {
+		record.Metadata = map[string]any{}
+	}
+	record.Metadata["calibreId"] = result.ID
+	record.Metadata["calibreImportedAt"] = time.Now().UTC().Format(time.RFC3339)
+	record.Metadata["calibreHost"] = settings.Host
+	record.Metadata["calibreLibrary"] = settings.Library
+	record.Metadata["calibreOutputFormat"] = settings.OutputFormat
+	record.Metadata["calibreOutputProfile"] = settings.OutputProfile
+	return nil
+}
+
+func (s *Service) calibreSettingsForDestination(ctx context.Context, destination string) (calibre.Settings, bool, error) {
+	if s == nil || s.rootFolders == nil {
+		return calibre.Settings{}, false, nil
+	}
+	roots, err := s.rootFolders.ListRootFolders(ctx)
+	if err != nil {
+		return calibre.Settings{}, false, err
+	}
+	destination = filepath.Clean(strings.TrimSpace(destination))
+	var best compatdata.RootFolder
+	bestLength := -1
+	for _, root := range roots {
+		if !metadataBool(root.Metadata, "isCalibreLibrary", false) || strings.TrimSpace(root.Path) == "" {
+			continue
+		}
+		if !pathWithinRoot(destination, root.Path) {
+			continue
+		}
+		length := len(filepath.Clean(root.Path))
+		if length > bestLength {
+			best = root
+			bestLength = length
+		}
+	}
+	if bestLength < 0 {
+		return calibre.Settings{}, false, nil
+	}
+	return calibreSettingsFromMetadata(best.Metadata), true, nil
+}
+
+func calibreSettingsFromMetadata(metadata map[string]any) calibre.Settings {
+	return calibre.Settings{
+		Host:          metadataString(metadata, "host"),
+		Port:          metadataInt(metadata, "port", 8080),
+		URLBase:       metadataString(metadata, "urlBase"),
+		Username:      metadataString(metadata, "username"),
+		Password:      metadataString(metadata, "password"),
+		Library:       metadataString(metadata, "library"),
+		OutputFormat:  metadataString(metadata, "outputFormat"),
+		OutputProfile: metadataString(metadata, "outputProfile"),
+		UseSSL:        metadataBool(metadata, "useSsl", false),
+	}
+}
+
+func pathWithinRoot(candidate string, root string) bool {
+	candidate = filepath.Clean(strings.TrimSpace(candidate))
+	root = filepath.Clean(strings.TrimSpace(root))
+	if candidate == "" || candidate == "." || root == "" || root == "." {
+		return false
+	}
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (!strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
+}
+
+func metadataString(metadata map[string]any, key string) string {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case float64:
+		if typed == float64(int64(typed)) {
+			return strconv.FormatInt(int64(typed), 10)
+		}
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case int:
+		return strconv.Itoa(typed)
+	case int64:
+		return strconv.FormatInt(typed, 10)
+	default:
+		return strings.TrimSpace(fmt.Sprint(typed))
+	}
+}
+
+func metadataInt(metadata map[string]any, key string, fallback int) int {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return fallback
+	}
+	switch typed := value.(type) {
+	case int:
+		return typed
+	case int64:
+		return int(typed)
+	case float64:
+		return int(typed)
+	case string:
+		if parsed, err := strconv.Atoi(strings.TrimSpace(typed)); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func metadataBool(metadata map[string]any, key string, fallback bool) bool {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return fallback
+	}
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		if parsed, err := strconv.ParseBool(strings.TrimSpace(typed)); err == nil {
+			return parsed
+		}
+	}
+	return fallback
 }
 
 func (s *Service) queueImportReview(ctx context.Context, download acquisition.DownloadStatus, sourcePath string, format string, reason string) (ImportReview, error) {

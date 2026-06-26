@@ -1,12 +1,15 @@
 package library
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	"github.com/bandoracer/librarry/backend/internal/calibre"
+	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 )
 
 func TestParseBookFilename(t *testing.T) {
@@ -135,6 +138,77 @@ func TestRemoveLibraryFile(t *testing.T) {
 	}
 }
 
+func TestCalibreSettingsForDestinationUsesBestMatchingRoot(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "books")
+	child := filepath.Join(parent, "ebooks")
+	service := NewService(nil, Config{}, nil, nil).WithCalibre(&fakeCalibreImporter{}, fakeRootFolders{roots: []compatdata.RootFolder{
+		{
+			Path: parent,
+			Metadata: map[string]any{
+				"isCalibreLibrary": true,
+				"host":             "parent-calibre",
+				"port":             8080,
+			},
+		},
+		{
+			Path: child,
+			Metadata: map[string]any{
+				"isCalibreLibrary": true,
+				"host":             "child-calibre",
+				"port":             float64(8081),
+				"urlBase":          "/calibre",
+				"username":         "reader",
+				"password":         "secret",
+				"library":          "Main",
+				"outputFormat":     "EPUB,AZW3",
+				"outputProfile":    "kindle",
+				"useSsl":           "true",
+			},
+		},
+	}})
+
+	settings, ok, err := service.calibreSettingsForDestination(context.Background(), filepath.Join(child, "Andy Weir", "Project Hail Mary.epub"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected matching Calibre root")
+	}
+	if settings.Host != "child-calibre" || settings.Port != 8081 || settings.URLBase != "/calibre" || settings.Username != "reader" ||
+		settings.Password != "secret" || settings.Library != "Main" || settings.OutputFormat != "EPUB,AZW3" ||
+		settings.OutputProfile != "kindle" || !settings.UseSSL {
+		t.Fatalf("unexpected settings: %+v", settings)
+	}
+}
+
+func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "ebooks")
+	destination := filepath.Join(root, "Andy Weir", "Project Hail Mary.epub")
+	importer := &fakeCalibreImporter{id: 77}
+	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, fakeRootFolders{roots: []compatdata.RootFolder{{
+		Path: root,
+		Metadata: map[string]any{
+			"isCalibreLibrary": true,
+			"host":             "calibre.local",
+			"library":          "Main",
+			"outputFormat":     "EPUB",
+			"outputProfile":    "kindle",
+		},
+	}}})
+	record := FileRecord{Path: destination, Metadata: map[string]any{}}
+
+	if err := service.applyCalibreImport(context.Background(), destination, &record); err != nil {
+		t.Fatal(err)
+	}
+	if importer.request.Path != destination || importer.request.Settings.Host != "calibre.local" {
+		t.Fatalf("unexpected importer request: %+v", importer.request)
+	}
+	if record.Metadata["calibreId"] != 77 || record.Metadata["calibreLibrary"] != "Main" ||
+		record.Metadata["calibreOutputFormat"] != "EPUB" || record.Metadata["calibreOutputProfile"] != "kindle" {
+		t.Fatalf("expected Calibre metadata, got %#v", record.Metadata)
+	}
+}
+
 func TestIsCompletedDownload(t *testing.T) {
 	completedAt := time.Now().UTC()
 	if !isCompletedDownload(acquisition.DownloadStatus{Progress: 1}) {
@@ -149,6 +223,28 @@ func TestIsCompletedDownload(t *testing.T) {
 	if isCompletedDownload(acquisition.DownloadStatus{State: "downloading", Progress: 0.5}) {
 		t.Fatal("expected partial download to be incomplete")
 	}
+}
+
+type fakeRootFolders struct {
+	roots []compatdata.RootFolder
+}
+
+func (f fakeRootFolders) ListRootFolders(context.Context) ([]compatdata.RootFolder, error) {
+	return append([]compatdata.RootFolder(nil), f.roots...), nil
+}
+
+type fakeCalibreImporter struct {
+	id      int
+	request calibre.AddBookRequest
+}
+
+func (f *fakeCalibreImporter) AddBook(_ context.Context, request calibre.AddBookRequest) (calibre.AddBookResult, error) {
+	f.request = request
+	id := f.id
+	if id <= 0 {
+		id = 1
+	}
+	return calibre.AddBookResult{ID: id}, nil
 }
 
 func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {

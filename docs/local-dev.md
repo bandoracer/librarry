@@ -193,3 +193,9 @@ qBittorrent downloads into the same organized roots when they are linked to a
 wanted item. Unlinked completed downloads are queued in
 `GET /api/v1/library/import-reviews` and resolved through
 `POST /api/v1/library/import-reviews/{id}/resolve`.
+
+If the destination path is inside a Readarr-compatible root folder with
+`isCalibreLibrary=true`, Librarry also posts the imported file to the configured
+Calibre Content Server add-book endpoint and stores the returned Calibre ID on
+the file metadata. Calibre conversion, delete, metadata sync, and failed-import
+rollback are not implemented yet.

@@ -327,8 +327,11 @@ stored UUIDs to stable integer IDs for Arr-style clients.
 Root folder records also preserve Readarr's Calibre Content Server fields
 (`isCalibreLibrary`, host, port, URL base, credentials, library, output format,
 output profile, SSL, default profiles, monitor options, and tags) as metadata so
-setup clients can round-trip Calibre configuration before native Calibre import
-and conversion support lands.
+setup clients can round-trip Calibre configuration. When a manual or
+completed-download import lands under a Calibre-enabled root, Librarry posts the
+file bytes to the Calibre Content Server add-book endpoint and records the
+returned Calibre book ID on the imported file. Conversion, metadata sync, delete
+calls, and rollback for failed Calibre imports are still future work.
 
 Readarr-compatible operational support endpoints expose filesystem browsing,
 languages, localization strings, logs, update records, and backup records. The

@@ -12,6 +12,7 @@ import (
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/api"
+	"github.com/bandoracer/librarry/backend/internal/calibre"
 	compatstore "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/database"
@@ -95,7 +96,7 @@ func main() {
 		NamingBookFolderTemplate:   cfg.NamingBookFolder,
 		NamingFileNameTemplate:     cfg.NamingFileName,
 		NamingSpaceReplacement:     cfg.NamingSpaceReplacement,
-	}, wantedStore, downloadStore)
+	}, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), compatStore)
 	var monitorWG sync.WaitGroup
 	if cfg.MonitorEnabled && wantedService.Available() {
 		monitorWG.Add(1)
