@@ -102,17 +102,25 @@ func (c *SABnzbdClient) List(ctx context.Context, query DownloadListQuery) ([]Do
 	if !c.Configured() {
 		return nil, ErrIntegrationNotConfigured
 	}
+	ids := make(map[string]bool)
+	compactIDs := compactStrings(query.IDs)
+	for _, id := range compactIDs {
+		ids[id] = true
+	}
+	queueValues := url.Values{"mode": {"queue"}}
+	historyValues := url.Values{"mode": {"history"}, "limit": {"100"}}
+	if len(compactIDs) > 0 {
+		idList := strings.Join(compactIDs, ",")
+		queueValues.Set("nzo_ids", idList)
+		historyValues.Set("nzo_ids", idList)
+	}
 	var queue sabQueueResponse
-	if err := c.api(ctx, url.Values{"mode": {"queue"}}, &queue); err != nil {
+	if err := c.api(ctx, queueValues, &queue); err != nil {
 		return nil, err
 	}
 	var history sabHistoryResponse
-	if err := c.api(ctx, url.Values{"mode": {"history"}, "limit": {"100"}}, &history); err != nil {
+	if err := c.api(ctx, historyValues, &history); err != nil {
 		return nil, err
-	}
-	ids := make(map[string]bool)
-	for _, id := range compactStrings(query.IDs) {
-		ids[id] = true
 	}
 	statuses := make([]DownloadStatus, 0, len(queue.Queue.Slots)+len(history.History.Slots))
 	now := time.Now().UTC()
@@ -129,6 +137,23 @@ func (c *SABnzbdClient) List(ctx context.Context, query DownloadListQuery) ([]Do
 		}
 	}
 	return statuses, nil
+}
+
+func (c *SABnzbdClient) Details(ctx context.Context, id string) (DownloadDetails, error) {
+	if !c.Configured() {
+		return DownloadDetails{}, ErrIntegrationNotConfigured
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DownloadDetails{}, errors.New("download id is required")
+	}
+	if details, ok, err := c.queueDetails(ctx, id); err != nil || ok {
+		return details, err
+	}
+	if details, ok, err := c.historyDetails(ctx, id); err != nil || ok {
+		return details, err
+	}
+	return DownloadDetails{}, ErrDownloadNotFound
 }
 
 func (c *SABnzbdClient) Action(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
@@ -157,11 +182,98 @@ func (c *SABnzbdClient) Action(ctx context.Context, request DownloadActionReques
 				return DownloadActionResult{}, err
 			}
 			_ = c.historyCommand(ctx, "delete", id, nil)
+		case DownloadActionSetCategory:
+			category := strings.TrimSpace(request.Category)
+			if category == "" {
+				return DownloadActionResult{}, errors.New("category is required for setCategory")
+			}
+			if err := c.changeJobValue(ctx, "change_cat", id, category); err != nil {
+				return DownloadActionResult{}, err
+			}
+		case DownloadActionRename:
+			name := strings.TrimSpace(request.Name)
+			if name == "" {
+				return DownloadActionResult{}, errors.New("name is required for rename")
+			}
+			extra := url.Values{"value2": {name}}
+			if err := c.queueCommand(ctx, "rename", id, extra); err != nil {
+				return DownloadActionResult{}, err
+			}
+		case DownloadActionIncreasePriority,
+			DownloadActionDecreasePriority,
+			DownloadActionTopPriority,
+			DownloadActionBottomPriority:
+			extra := url.Values{"value2": {sabPriorityForAction(action)}}
+			if err := c.queueCommand(ctx, "priority", id, extra); err != nil {
+				return DownloadActionResult{}, err
+			}
 		default:
 			return DownloadActionResult{}, fmt.Errorf("unsupported SABnzbd download action %q", request.Action)
 		}
 	}
 	return DownloadActionResult{Action: action, IDs: ids, Applied: true}, nil
+}
+
+func (c *SABnzbdClient) queueDetails(ctx context.Context, id string) (DownloadDetails, bool, error) {
+	var queue sabQueueResponse
+	values := url.Values{"mode": {"queue"}, "nzo_ids": {id}, "limit": {"1"}}
+	if err := c.api(ctx, values, &queue); err != nil {
+		return DownloadDetails{}, false, err
+	}
+	if len(queue.Queue.Slots) == 0 {
+		return DownloadDetails{}, false, nil
+	}
+	slot := queue.Queue.Slots[0]
+	now := time.Now().UTC()
+	files, err := c.files(ctx, id)
+	if err != nil {
+		files = nil
+	}
+	return DownloadDetails{
+		Status:     slot.DownloadStatus(now),
+		Properties: slot.DownloadProperties(),
+		Files:      files,
+	}, true, nil
+}
+
+func (c *SABnzbdClient) historyDetails(ctx context.Context, id string) (DownloadDetails, bool, error) {
+	var history sabHistoryResponse
+	values := url.Values{"mode": {"history"}, "nzo_ids": {id}, "limit": {"1"}}
+	if err := c.api(ctx, values, &history); err != nil {
+		return DownloadDetails{}, false, err
+	}
+	if len(history.History.Slots) == 0 {
+		return DownloadDetails{}, false, nil
+	}
+	slot := history.History.Slots[0]
+	return DownloadDetails{
+		Status:     slot.DownloadStatus(time.Now().UTC()),
+		Properties: slot.DownloadProperties(),
+	}, true, nil
+}
+
+func (c *SABnzbdClient) files(ctx context.Context, id string) ([]DownloadFile, error) {
+	var payload sabFilesResponse
+	if err := c.api(ctx, url.Values{"mode": {"get_files"}, "value": {id}}, &payload); err != nil {
+		return nil, err
+	}
+	files := make([]DownloadFile, 0, len(payload.Files))
+	for i, file := range payload.Files {
+		files = append(files, file.DownloadFile(i))
+	}
+	return files, nil
+}
+
+func (c *SABnzbdClient) changeJobValue(ctx context.Context, mode string, id string, value string) error {
+	values := url.Values{"mode": {mode}, "value": {id}, "value2": {value}}
+	var payload sabStatusResponse
+	if err := c.api(ctx, values, &payload); err != nil {
+		return err
+	}
+	if !payload.OK() {
+		return fmt.Errorf("SABnzbd %s failed: %s", mode, payload.Error())
+	}
+	return nil
 }
 
 func (c *SABnzbdClient) queueCommand(ctx context.Context, name string, value string, extra url.Values) error {
@@ -326,9 +438,15 @@ type sabQueueSlot struct {
 	Category   string `json:"cat"`
 	Percentage string `json:"percentage"`
 	Size       string `json:"size"`
+	SizeLeft   string `json:"sizeleft"`
 	MB         string `json:"mb"`
 	MBLeft     string `json:"mbleft"`
+	MBMissing  string `json:"mbmissing"`
 	TimeLeft   string `json:"timeleft"`
+	TimeAdded  int64  `json:"time_added"`
+	Priority   string `json:"priority"`
+	Script     string `json:"script"`
+	UnpackOpts string `json:"unpackopts"`
 }
 
 func (s sabQueueSlot) DownloadStatus(now time.Time) DownloadStatus {
@@ -357,6 +475,17 @@ func (s sabQueueSlot) DownloadStatus(now time.Time) DownloadStatus {
 	}
 }
 
+func (s sabQueueSlot) DownloadProperties() DownloadProperties {
+	status := s.DownloadStatus(time.Now().UTC())
+	return DownloadProperties{
+		AdditionDate:    unixTime(s.TimeAdded),
+		TotalSizeBytes:  status.SizeBytes,
+		TotalDownloaded: status.DownloadedBytes,
+		ETASeconds:      status.ETASeconds,
+		Comment:         strings.TrimSpace(firstNonEmpty(s.Priority, s.Script, s.UnpackOpts)),
+	}
+}
+
 type sabHistoryResponse struct {
 	History struct {
 		Slots []sabHistorySlot `json:"slots"`
@@ -364,13 +493,22 @@ type sabHistoryResponse struct {
 }
 
 type sabHistorySlot struct {
-	NZOID       string `json:"nzo_id"`
-	Name        string `json:"name"`
-	Status      string `json:"status"`
-	Category    string `json:"category"`
-	Size        string `json:"size"`
-	Completed   int64  `json:"completed"`
-	FailMessage string `json:"fail_message"`
+	NZOID        string `json:"nzo_id"`
+	Name         string `json:"name"`
+	Status       string `json:"status"`
+	Category     string `json:"category"`
+	Size         string `json:"size"`
+	Completed    int64  `json:"completed"`
+	TimeAdded    int64  `json:"time_added"`
+	FailMessage  string `json:"fail_message"`
+	Storage      string `json:"storage"`
+	Path         string `json:"path"`
+	Downloaded   int64  `json:"downloaded"`
+	Bytes        int64  `json:"bytes"`
+	DownloadTime int64  `json:"download_time"`
+	PostProcTime int64  `json:"postproc_time"`
+	Script       string `json:"script"`
+	URL          string `json:"url"`
 }
 
 func (s sabHistorySlot) DownloadStatus(now time.Time) DownloadStatus {
@@ -378,18 +516,23 @@ func (s sabHistorySlot) DownloadStatus(now time.Time) DownloadStatus {
 	if strings.Contains(strings.ToLower(s.Status), "fail") {
 		progress = 0
 	}
+	sizeBytes := firstPositiveInt64(s.Bytes, parseSABSize(s.Size))
+	downloaded := firstPositiveInt64(s.Downloaded, sizeBytes)
 	status := DownloadStatus{
-		Client:        "SABnzbd",
-		ID:            s.NZOID,
-		Name:          firstNonEmpty(s.Name, s.NZOID),
-		State:         normalizeSABState(s.Status),
-		Progress:      progress,
-		Category:      s.Category,
-		Tags:          []string{"librarry"},
-		SizeBytes:     parseSABSize(s.Size),
-		LastSeenAt:    &now,
-		CompletedAt:   unixTime(s.Completed),
-		FailureReason: strings.TrimSpace(s.FailMessage),
+		Client:          "SABnzbd",
+		ID:              s.NZOID,
+		Name:            firstNonEmpty(s.Name, s.NZOID),
+		State:           normalizeSABState(s.Status),
+		Progress:        progress,
+		SavePath:        firstNonEmpty(s.Storage, s.Path),
+		Category:        s.Category,
+		Tags:            []string{"librarry"},
+		SizeBytes:       sizeBytes,
+		DownloadedBytes: downloaded,
+		LastSeenAt:      &now,
+		AddedAt:         unixTime(s.TimeAdded),
+		CompletedAt:     unixTime(s.Completed),
+		FailureReason:   strings.TrimSpace(s.FailMessage),
 	}
 	if status.Progress >= 1 {
 		status.DownloadedBytes = status.SizeBytes
@@ -399,6 +542,53 @@ func (s sabHistorySlot) DownloadStatus(now time.Time) DownloadStatus {
 		status.FailedAt = &failedAt
 	}
 	return status
+}
+
+func (s sabHistorySlot) DownloadProperties() DownloadProperties {
+	sizeBytes := firstPositiveInt64(s.Bytes, parseSABSize(s.Size))
+	downloaded := firstPositiveInt64(s.Downloaded, sizeBytes)
+	return DownloadProperties{
+		SavePath:           firstNonEmpty(s.Storage, s.Path),
+		AdditionDate:       unixTime(s.TimeAdded),
+		CompletionDate:     unixTime(s.Completed),
+		TotalSizeBytes:     sizeBytes,
+		TotalDownloaded:    downloaded,
+		TimeElapsedSeconds: s.DownloadTime,
+		SeedingTimeSeconds: s.PostProcTime,
+		Comment:            strings.TrimSpace(firstNonEmpty(s.FailMessage, s.Script, s.URL)),
+	}
+}
+
+type sabFilesResponse struct {
+	Files []sabFile `json:"files"`
+}
+
+type sabFile struct {
+	NZFID    string `json:"nzf_id"`
+	Filename string `json:"filename"`
+	Status   string `json:"status"`
+	MB       string `json:"mb"`
+	MBLeft   string `json:"mbleft"`
+	Bytes    string `json:"bytes"`
+	Set      string `json:"set"`
+	Age      string `json:"age"`
+}
+
+func (f sabFile) DownloadFile(index int) DownloadFile {
+	sizeBytes := parseSABFileBytes(f.Bytes)
+	if sizeBytes == 0 {
+		sizeBytes = parseSABMegabytes(f.MB)
+	}
+	leftBytes := parseSABMegabytes(f.MBLeft)
+	progress := sabFileProgress(f.Status, sizeBytes, leftBytes)
+	return DownloadFile{
+		ID:         index,
+		ExternalID: strings.TrimSpace(f.NZFID),
+		Name:       strings.TrimSpace(firstNonEmpty(f.Filename, f.NZFID)),
+		SizeBytes:  sizeBytes,
+		Progress:   progress,
+		Priority:   sabFilePriority(f.Status),
+	}
 }
 
 func includeSABStatus(status DownloadStatus, query DownloadListQuery, ids map[string]bool) bool {
@@ -519,4 +709,60 @@ func parseSABDuration(value string) int64 {
 		seconds = seconds*60 + parsed
 	}
 	return seconds
+}
+
+func parseSABFileBytes(value string) int64 {
+	normalized := strings.TrimSpace(strings.ReplaceAll(value, ",", ""))
+	if normalized == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseFloat(normalized, 64)
+	if err != nil || parsed <= 0 {
+		return 0
+	}
+	return int64(parsed)
+}
+
+func sabFileProgress(status string, sizeBytes int64, leftBytes int64) float64 {
+	normalized := strings.ToLower(strings.TrimSpace(status))
+	if normalized == "finished" {
+		return 1
+	}
+	if sizeBytes <= 0 {
+		return 0
+	}
+	if leftBytes <= 0 {
+		if normalized == "active" {
+			return 1
+		}
+		return 0
+	}
+	if leftBytes > sizeBytes {
+		leftBytes = sizeBytes
+	}
+	return float64(sizeBytes-leftBytes) / float64(sizeBytes)
+}
+
+func sabFilePriority(status string) int {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "finished", "active":
+		return 1
+	case "queued":
+		return -1
+	default:
+		return 1
+	}
+}
+
+func sabPriorityForAction(action string) string {
+	switch action {
+	case DownloadActionTopPriority:
+		return "2"
+	case DownloadActionIncreasePriority:
+		return "1"
+	case DownloadActionDecreasePriority, DownloadActionBottomPriority:
+		return "-1"
+	default:
+		return "0"
+	}
 }

@@ -305,9 +305,10 @@ through `/api/v1/downloads/{id}/trackers/actions` for qBittorrent torrents.
 `/api/v1/downloads/rebalance` adds a simple active-download limiter that can
 preview or apply start/stop operations against a filtered queue. Transmission
 actions support start, stop, delete, recheck, set location, per-torrent speed
-limits, detail inspection, and file-priority changes. SABnzbd actions currently
-support start, stop, and delete. The API accepts multiple download IDs for these
-actions, routes
+limits, detail inspection, and file-priority changes. SABnzbd supports
+queue/history detail lookup, queued-file inspection through `get_files`, and
+start, stop, delete, rename, category, and priority actions. The API accepts
+multiple download IDs for these actions, routes
 each ID back to its owning client when possible, and the web UI exposes
 selected-row bulk controls for the common queue operations. The current manager
 is intended for Librarry acquisition operations, not as a full replacement for a

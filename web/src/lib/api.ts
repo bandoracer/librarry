@@ -122,6 +122,7 @@ export type DownloadProperties = {
 
 export type DownloadFile = {
   id: number;
+  externalId?: string;
   name: string;
   sizeBytes?: number;
   progress: number;
@@ -669,6 +670,7 @@ export async function runDownloadAction(
   action: DownloadAction,
   ids: string[],
   options: {
+    client?: string;
     deleteFiles?: boolean;
     category?: string;
     savePath?: string;
@@ -684,6 +686,7 @@ export async function runDownloadAction(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action,
+      client: options.client,
       ids,
       deleteFiles: options.deleteFiles ?? false,
       category: options.category,

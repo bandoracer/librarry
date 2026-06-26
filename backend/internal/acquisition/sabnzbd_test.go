@@ -119,6 +119,79 @@ func TestSABnzbdListQueueAndHistory(t *testing.T) {
 	}
 }
 
+func TestSABnzbdDetailsMapsQueueFiles(t *testing.T) {
+	var modes []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		modes = append(modes, query.Get("mode"))
+		switch query.Get("mode") {
+		case "queue":
+			if query.Get("nzo_ids") != "SABnzbd_nzo_downloading" {
+				t.Fatalf("expected filtered queue lookup, got %#v", query)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"queue": map[string]any{
+					"slots": []map[string]any{{
+						"nzo_id":     "SABnzbd_nzo_downloading",
+						"filename":   "Dungeon Crawler Carl.m4b",
+						"status":     "Downloading",
+						"cat":        CategoryBooksAudiobook,
+						"percentage": "25",
+						"size":       "1.0 GB",
+						"mbleft":     "768",
+						"timeleft":   "0:10:05",
+						"time_added": 1_700_000_000,
+						"priority":   "Normal",
+						"script":     "Default",
+					}},
+				},
+			})
+		case "get_files":
+			if query.Get("value") != "SABnzbd_nzo_downloading" {
+				t.Fatalf("expected get_files value, got %#v", query)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"files": []map[string]any{{
+					"status":   "finished",
+					"mbleft":   "0.00",
+					"mb":       "10.00",
+					"bytes":    "10485760",
+					"filename": "Dungeon Crawler Carl.m4b",
+					"nzf_id":   "SABnzbd_nzf_audio",
+				}, {
+					"status":   "queued",
+					"mbleft":   "3.13",
+					"mb":       "3.13",
+					"bytes":    "3282042",
+					"filename": "repair.par2",
+					"nzf_id":   "SABnzbd_nzf_par2",
+				}},
+			})
+		default:
+			t.Fatalf("unexpected mode %q", query.Get("mode"))
+		}
+	}))
+	defer server.Close()
+
+	client := NewSABnzbdClient(server.URL, "api-key", "", "", server.Client())
+	details, err := client.Details(context.Background(), "SABnzbd_nzo_downloading")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(modes, ",") != "queue,get_files" {
+		t.Fatalf("unexpected API modes: %v", modes)
+	}
+	if details.Status.Client != "SABnzbd" || details.Status.ID != "SABnzbd_nzo_downloading" || details.Status.State != "downloading" {
+		t.Fatalf("unexpected status: %+v", details.Status)
+	}
+	if details.Properties.TotalSizeBytes != 1_073_741_824 || details.Properties.TotalDownloaded != 268_435_456 || details.Properties.ETASeconds != 605 || details.Properties.AdditionDate == nil {
+		t.Fatalf("unexpected properties: %+v", details.Properties)
+	}
+	if len(details.Files) != 2 || details.Files[0].ExternalID != "SABnzbd_nzf_audio" || details.Files[0].Progress != 1 || details.Files[1].Priority != -1 {
+		t.Fatalf("unexpected files: %+v", details.Files)
+	}
+}
+
 func TestSABnzbdActions(t *testing.T) {
 	var commands []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -143,6 +216,38 @@ func TestSABnzbdActions(t *testing.T) {
 	want := "queue:resume:SABnzbd_nzo_abc123:|queue:pause:SABnzbd_nzo_abc123:|queue:delete:SABnzbd_nzo_abc123:true|history:delete:SABnzbd_nzo_abc123:"
 	if joined != want {
 		t.Fatalf("unexpected commands:\nwant %s\n got %s", want, joined)
+	}
+}
+
+func TestSABnzbdJobManagementActions(t *testing.T) {
+	var commands []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		commands = append(commands, query.Get("mode")+":"+query.Get("name")+":"+query.Get("value")+":"+query.Get("value2"))
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": true})
+	}))
+	defer server.Close()
+
+	client := NewSABnzbdClient(server.URL, "api-key", "", "", server.Client())
+	tests := []DownloadActionRequest{
+		{Action: DownloadActionSetCategory, IDs: []string{"SABnzbd_nzo_abc123"}, Category: CategoryBooksAudiobook},
+		{Action: DownloadActionRename, IDs: []string{"SABnzbd_nzo_abc123"}, Name: "Dungeon Crawler Carl"},
+		{Action: DownloadActionIncreasePriority, IDs: []string{"SABnzbd_nzo_abc123"}},
+		{Action: DownloadActionBottomPriority, IDs: []string{"SABnzbd_nzo_abc123"}},
+	}
+	for _, request := range tests {
+		if _, err := client.Action(context.Background(), request); err != nil {
+			t.Fatalf("%s failed: %v", request.Action, err)
+		}
+	}
+	want := strings.Join([]string{
+		"change_cat::SABnzbd_nzo_abc123:" + CategoryBooksAudiobook,
+		"queue:rename:SABnzbd_nzo_abc123:Dungeon Crawler Carl",
+		"queue:priority:SABnzbd_nzo_abc123:1",
+		"queue:priority:SABnzbd_nzo_abc123:-1",
+	}, "|")
+	if strings.Join(commands, "|") != want {
+		t.Fatalf("unexpected commands:\nwant %s\n got %s", want, strings.Join(commands, "|"))
 	}
 }
 
@@ -174,6 +279,69 @@ func TestServiceRoutesUsenetGrabsToSABnzbd(t *testing.T) {
 	}
 	if status.Client != "SABnzbd" || status.ID != "SABnzbd_nzo_routed" {
 		t.Fatalf("unexpected status: %+v", status)
+	}
+}
+
+func TestServiceRoutesExplicitSABnzbdDetailsAndAction(t *testing.T) {
+	var commands []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		commandValue := firstNonEmpty(query.Get("value"), query.Get("nzo_ids"))
+		commands = append(commands, query.Get("mode")+":"+query.Get("name")+":"+commandValue+":"+query.Get("value2"))
+		switch query.Get("mode") {
+		case "queue":
+			if query.Get("name") == "rename" {
+				_ = json.NewEncoder(w).Encode(map[string]any{"status": true})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"queue": map[string]any{
+					"slots": []map[string]any{{
+						"nzo_id":     "SABnzbd_nzo_downloading",
+						"filename":   "Project Hail Mary.epub",
+						"status":     "Downloading",
+						"cat":        CategoryBooksEbook,
+						"percentage": "50",
+						"size":       "100 MB",
+						"mbleft":     "50",
+					}},
+				},
+			})
+		case "get_files":
+			_ = json.NewEncoder(w).Encode(map[string]any{"files": []any{}})
+		case "history":
+			_ = json.NewEncoder(w).Encode(map[string]any{"history": map[string]any{"slots": []any{}}})
+		default:
+			t.Fatalf("unexpected mode %q", query.Get("mode"))
+		}
+	}))
+	defer server.Close()
+
+	service := NewService(IntegrationConfig{
+		SABnzbdURL:    server.URL,
+		SABnzbdAPIKey: "api-key",
+	})
+	details, err := service.DownloadDetails(context.Background(), "SABnzbd_nzo_downloading", "SABnzbd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if details.Status.Client != "SABnzbd" || details.Status.Progress != 0.5 {
+		t.Fatalf("unexpected details: %+v", details)
+	}
+	result, err := service.DownloadAction(context.Background(), DownloadActionRequest{
+		Client: "SABnzbd",
+		Action: DownloadActionRename,
+		IDs:    []string{"SABnzbd_nzo_downloading"},
+		Name:   "Project Hail Mary",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Applied || strings.Join(result.IDs, ",") != "SABnzbd_nzo_downloading" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if strings.Join(commands, "|") != "queue::SABnzbd_nzo_downloading:|get_files::SABnzbd_nzo_downloading:|queue:rename:SABnzbd_nzo_downloading:Project Hail Mary|queue::SABnzbd_nzo_downloading:|history::SABnzbd_nzo_downloading:" {
+		t.Fatalf("unexpected service commands: %v", commands)
 	}
 }
 

@@ -173,9 +173,10 @@ labels, per-torrent speed limits, detail inspection, and file-priority changes.
 files, trackers, and peers; `/api/v1/downloads/{id}/files/actions` changes file
 priority for qBittorrent and Transmission, and
 `/api/v1/downloads/{id}/trackers/actions` adds, replaces, or removes
-qBittorrent trackers.
-SABnzbd queue actions currently support start, stop, and delete. This is still a
-book-acquisition manager, not a full qBittorrent UI replacement.
+qBittorrent trackers. SABnzbd supports queue/history detail lookup, queued-file
+inspection through `get_files`, and start, stop, delete, rename, category, and
+priority actions. This is still a book-acquisition manager, not a full
+qBittorrent UI replacement.
 
 ## Library Roots
 

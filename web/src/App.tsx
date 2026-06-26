@@ -826,6 +826,7 @@ export function App() {
     setDownloadError("");
     try {
       await runDownloadAction(action, [downloadID], {
+        client: downloadDetails?.status.client,
         downloadLimit: kind === "download" ? limit : undefined,
         uploadLimit: kind === "upload" ? limit : undefined
       });
@@ -849,7 +850,7 @@ export function App() {
     setDownloadActionID(`${downloadID}:setCategory`);
     setDownloadError("");
     try {
-      await runDownloadAction("setCategory", [downloadID], { category });
+      await runDownloadAction("setCategory", [downloadID], { client: downloadDetails?.status.client, category });
       const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
       setDownloadDetails(refreshed);
       setDownloadCategoryInput(refreshed.status.category || category);
@@ -870,7 +871,7 @@ export function App() {
     setDownloadActionID(`${downloadID}:setLocation`);
     setDownloadError("");
     try {
-      await runDownloadAction("setLocation", [downloadID], { savePath });
+      await runDownloadAction("setLocation", [downloadID], { client: downloadDetails?.status.client, savePath });
       const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
       setDownloadDetails(refreshed);
       setDownloadSavePathInput(refreshed.status.savePath || refreshed.properties?.savePath || savePath);
@@ -890,7 +891,7 @@ export function App() {
     setDownloadActionID(`${downloadID}:rename`);
     setDownloadError("");
     try {
-      await runDownloadAction("rename", [downloadID], { name });
+      await runDownloadAction("rename", [downloadID], { client: downloadDetails?.status.client, name });
       const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
       setDownloadDetails(refreshed);
       setDownloadNameInput(refreshed.status.name || name);
@@ -910,7 +911,7 @@ export function App() {
     setDownloadActionID(`${downloadID}:${action}`);
     setDownloadError("");
     try {
-      await runDownloadAction(action, [downloadID], { tags });
+      await runDownloadAction(action, [downloadID], { client: downloadDetails?.status.client, tags });
       const refreshed = await fetchDownloadDetails(downloadID, downloadDetails?.status.client);
       setDownloadDetails(refreshed);
       setDownloadTagsInput((refreshed.status.tags ?? []).join(", "));
@@ -924,17 +925,17 @@ export function App() {
   }
 
   async function applyDownloadAction(action: DownloadAction, download: DownloadStatus, deleteFiles = false) {
-    await applyDownloadActionToIDs(action, [download.id], deleteFiles);
+    await applyDownloadActionToIDs(action, [download.id], deleteFiles, { client: download.client });
   }
 
-  async function applyDownloadActionToIDs(action: DownloadAction, ids: string[], deleteFiles = false, options: { forceStart?: boolean } = {}) {
+  async function applyDownloadActionToIDs(action: DownloadAction, ids: string[], deleteFiles = false, options: { client?: string; forceStart?: boolean } = {}) {
     const actionIDs = ids.filter(Boolean);
     if (!actionIDs.length) return;
     const isBulk = actionIDs.length > 1;
     setDownloadActionID(isBulk ? `bulk:${action}` : `${actionIDs[0]}:${action}`);
     setDownloadError("");
     try {
-      const result = await runDownloadAction(action, actionIDs, { deleteFiles, forceStart: options.forceStart });
+      const result = await runDownloadAction(action, actionIDs, { client: options.client, deleteFiles, forceStart: options.forceStart });
       if (result.downloads?.length) {
         setDownloads((current) => mergeDownloads(current, result.downloads ?? []));
       } else if (action === "delete") {
@@ -1952,7 +1953,7 @@ export function App() {
                       <span>Save path</span>
                       <input value={downloadSavePathInput} onChange={(event) => setDownloadSavePathInput(event.target.value)} placeholder="/data/torrents/books" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadSavePathInput.trim()} onClick={applyDownloadLocation} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadSavePathInput.trim() || !supportsDownloadAction(downloadDetails.status, "setLocation")} onClick={applyDownloadLocation} type="button">
                       Move
                     </button>
                     <button className="secondary-action compact danger-outline" disabled={Boolean(downloadActionID)} onClick={() => applyDownloadAction("delete", downloadDetails.status, true)} type="button">
@@ -1964,14 +1965,14 @@ export function App() {
                       <span>Download KiB/s</span>
                       <input inputMode="numeric" min="0" value={downloadLimitKiB} onChange={(event) => setDownloadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(downloadLimitKiB) < 0} onClick={() => applyDownloadBandwidthLimit("download")} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(downloadLimitKiB) < 0 || !supportsDownloadAction(downloadDetails.status, "setDownloadLimit")} onClick={() => applyDownloadBandwidthLimit("download")} type="button">
                       Set down
                     </button>
                     <label>
                       <span>Upload KiB/s</span>
                       <input inputMode="numeric" min="0" value={uploadLimitKiB} onChange={(event) => setUploadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(uploadLimitKiB) < 0} onClick={() => applyDownloadBandwidthLimit("upload")} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(uploadLimitKiB) < 0 || !supportsDownloadAction(downloadDetails.status, "setUploadLimit")} onClick={() => applyDownloadBandwidthLimit("upload")} type="button">
                       Set up
                     </button>
                   </div>
@@ -2046,16 +2047,16 @@ export function App() {
                               </div>
                             </div>
                             <div className="file-action-buttons">
-                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("skip", [file.id])} type="button">
+                              <button className="secondary-action compact" disabled={fileBusy || !downloadSupportsFileActions(downloadDetails.status)} onClick={() => applyDownloadFileAction("skip", [file.id])} type="button">
                                 Skip
                               </button>
-                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("normal", [file.id])} type="button">
+                              <button className="secondary-action compact" disabled={fileBusy || !downloadSupportsFileActions(downloadDetails.status)} onClick={() => applyDownloadFileAction("normal", [file.id])} type="button">
                                 Normal
                               </button>
-                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("high", [file.id])} type="button">
+                              <button className="secondary-action compact" disabled={fileBusy || !downloadSupportsFileActions(downloadDetails.status)} onClick={() => applyDownloadFileAction("high", [file.id])} type="button">
                                 High
                               </button>
-                              <button className="secondary-action compact" disabled={fileBusy} onClick={() => applyDownloadFileAction("max", [file.id])} type="button">
+                              <button className="secondary-action compact" disabled={fileBusy || !downloadSupportsFileActions(downloadDetails.status)} onClick={() => applyDownloadFileAction("max", [file.id])} type="button">
                                 Max
                               </button>
                             </div>
@@ -2398,7 +2399,17 @@ function boundedPositiveInt(value: string, fallback: number, max: number) {
 function supportsDownloadAction(download: DownloadStatus, action: DownloadAction) {
   const client = (download.client || "qBittorrent").toLowerCase();
   if (client === "sabnzbd") {
-    return action === "start" || action === "stop" || action === "delete";
+    return [
+      "start",
+      "stop",
+      "delete",
+      "increasePriority",
+      "decreasePriority",
+      "topPriority",
+      "bottomPriority",
+      "setCategory",
+      "rename"
+    ].includes(action);
   }
   if (qbitOnlyDownloadAction(action)) {
     return client === "qbittorrent";
@@ -2428,11 +2439,16 @@ function downloadSupportsQbitManagerActions(download: DownloadStatus) {
 
 function downloadSupportsDetails(download: DownloadStatus) {
   const client = (download.client || "qBittorrent").toLowerCase();
-  return client === "qbittorrent" || client === "transmission";
+  return client === "qbittorrent" || client === "transmission" || client === "sabnzbd";
 }
 
 function downloadSupportsTrackerActions(download: DownloadStatus) {
   return downloadSupportsQbitManagerActions(download);
+}
+
+function downloadSupportsFileActions(download: DownloadStatus) {
+  const client = (download.client || "qBittorrent").toLowerCase();
+  return client === "qbittorrent" || client === "transmission";
 }
 
 function splitTagInput(value: string) {

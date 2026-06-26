@@ -119,6 +119,7 @@ type DownloadProperties struct {
 
 type DownloadFile struct {
 	ID           int     `json:"id"`
+	ExternalID   string  `json:"externalId,omitempty"`
 	Name         string  `json:"name"`
 	SizeBytes    int64   `json:"sizeBytes,omitempty"`
 	Progress     float64 `json:"progress"`

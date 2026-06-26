@@ -11,7 +11,7 @@ import (
 
 var ErrIntegrationNotConfigured = errors.New("integration is not configured")
 var ErrDownloadNotFound = errors.New("download not found")
-var ErrDownloadDetailsUnsupported = errors.New("download details are only supported for qBittorrent and Transmission downloads")
+var ErrDownloadDetailsUnsupported = errors.New("download details are only supported for qBittorrent, Transmission, and SABnzbd downloads")
 
 type IntegrationConfig struct {
 	ProwlarrURL       string
@@ -195,6 +195,8 @@ func (s *Service) DownloadDetails(ctx context.Context, id string, client string)
 		return s.qbit.Details(ctx, id)
 	case strings.EqualFold(resolvedClient, s.trans.Name()):
 		return s.trans.Details(ctx, id)
+	case strings.EqualFold(resolvedClient, s.sab.Name()):
+		return s.sab.Details(ctx, id)
 	default:
 		return DownloadDetails{}, ErrDownloadDetailsUnsupported
 	}
@@ -233,11 +235,11 @@ func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequ
 	}
 
 	action := normalizeAction(request.Action)
-	if qbitOnlyAction(action) && (len(transIDs) > 0 || len(sabIDs) > 0) {
-		return DownloadActionResult{}, fmt.Errorf("%s is only supported for qBittorrent downloads", action)
+	if len(transIDs) > 0 && !transSupportsAction(action) {
+		return DownloadActionResult{}, fmt.Errorf("%s is not supported for Transmission downloads", action)
 	}
 	if len(sabIDs) > 0 && !sabSupportsAction(action) {
-		return DownloadActionResult{}, errors.New("SABnzbd supports only start, stop, and delete actions")
+		return DownloadActionResult{}, fmt.Errorf("%s is not supported for SABnzbd downloads", action)
 	}
 
 	var appliedIDs []string
@@ -441,7 +443,7 @@ func (s *Service) resolveTorrentDetailClient(ctx context.Context, id string, cli
 	id = strings.TrimSpace(id)
 	client = strings.TrimSpace(client)
 	if strings.EqualFold(client, s.sab.Name()) {
-		return "", ErrDownloadDetailsUnsupported
+		return client, nil
 	}
 	if strings.EqualFold(client, s.qbit.Name()) || strings.EqualFold(client, s.trans.Name()) {
 		return client, nil
@@ -459,10 +461,13 @@ func (s *Service) resolveTorrentDetailClient(ctx context.Context, id string, cli
 				case strings.EqualFold(status.Client, s.trans.Name()):
 					return s.trans.Name(), nil
 				case strings.EqualFold(status.Client, s.sab.Name()):
-					return "", ErrDownloadDetailsUnsupported
+					return s.sab.Name(), nil
 				}
 			}
 		}
+	}
+	if s.sab.Configured() && !s.qbit.Configured() && !s.trans.Configured() {
+		return s.sab.Name(), nil
 	}
 	if !s.qbit.Configured() && s.trans.Configured() {
 		return s.trans.Name(), nil
@@ -525,26 +530,30 @@ func downloadStateKey(client string, id string) string {
 
 func sabSupportsAction(action string) bool {
 	switch action {
-	case DownloadActionStart, DownloadActionStop, DownloadActionDelete:
+	case DownloadActionStart,
+		DownloadActionStop,
+		DownloadActionDelete,
+		DownloadActionIncreasePriority,
+		DownloadActionDecreasePriority,
+		DownloadActionTopPriority,
+		DownloadActionBottomPriority,
+		DownloadActionSetCategory,
+		DownloadActionRename:
 		return true
 	default:
 		return false
 	}
 }
 
-func qbitOnlyAction(action string) bool {
+func transSupportsAction(action string) bool {
 	switch action {
-	case DownloadActionIncreasePriority,
-		DownloadActionDecreasePriority,
-		DownloadActionTopPriority,
-		DownloadActionBottomPriority,
-		DownloadActionSetCategory,
-		DownloadActionForceStart,
-		DownloadActionToggleSequential,
-		DownloadActionToggleFirstLast,
-		DownloadActionRename,
-		DownloadActionAddTags,
-		DownloadActionRemoveTags:
+	case DownloadActionStart,
+		DownloadActionStop,
+		DownloadActionDelete,
+		DownloadActionRecheck,
+		DownloadActionSetLocation,
+		DownloadActionSetDownloadLimit,
+		DownloadActionSetUploadLimit:
 		return true
 	default:
 		return false
