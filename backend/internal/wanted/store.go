@@ -315,10 +315,10 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 	row := s.db.QueryRowContext(ctx, `
 		insert into author_subscriptions (
 			provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, tags
+			status, monitor_new_items, missing_book_policy, tags
 		) values (
 			$1, $2, $3, $4, $5,
-			$6, $7, $8
+			$6, $7, $8, $9
 		)
 		on conflict (provider, provider_key, wanted_format)
 			where provider <> '' and provider_key <> ''
@@ -327,13 +327,14 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 			quality_profile = excluded.quality_profile,
 			status = case when author_subscriptions.status = 'removed' then 'monitored' else author_subscriptions.status end,
 			monitor_new_items = excluded.monitor_new_items,
+			missing_book_policy = excluded.missing_book_policy,
 			tags = case when excluded.tags <> '' then excluded.tags else author_subscriptions.tags end,
 			updated_at = now()
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
+			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
 	`, subscription.Provider, subscription.ProviderKey, subscription.AuthorName, subscription.Format,
-		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, intTagsString(subscription.Tags))
+		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, subscription.MissingBookPolicy, intTagsString(subscription.Tags))
 	return scanAuthorSubscription(row)
 }
 
@@ -350,7 +351,7 @@ func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]A
 	rows, err := s.db.QueryContext(ctx, `
 		select
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
+			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
 		from author_subscriptions
 		`+where+`
 		order by author_name, wanted_format
@@ -397,6 +398,16 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 		monitorNewItems.Valid = true
 		monitorNewItems.Bool = *request.MonitorNewItems
 	}
+	missingBookPolicy := sql.NullString{}
+	if strings.TrimSpace(request.MissingBookPolicy) != "" {
+		missingBookPolicy.Valid = true
+		missingBookPolicy.String = normalizeAuthorMissingBookPolicy(request.MissingBookPolicy, true)
+		monitorNewItems.Valid = true
+		monitorNewItems.Bool = missingBookPolicy.String != "none"
+	} else if request.MonitorNewItems != nil {
+		missingBookPolicy.Valid = true
+		missingBookPolicy.String = normalizeAuthorMissingBookPolicy("", *request.MonitorNewItems)
+	}
 	tags := sql.NullString{}
 	if request.TagsSet {
 		tags.Valid = true
@@ -409,12 +420,13 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			status = case when $4 = '' then status else $4 end,
 			monitor_new_items = coalesce($5, monitor_new_items),
 			tags = coalesce($6, tags),
+			missing_book_policy = coalesce($7, missing_book_policy),
 			updated_at = now()
 		where id::text = $1
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
-	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags)
+			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
+	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags, missingBookPolicy)
 	return scanAuthorSubscription(row)
 }
 
@@ -430,6 +442,7 @@ func (s *Store) DeleteAuthorSubscription(ctx context.Context, id string) error {
 		update author_subscriptions
 		set status = 'removed',
 			monitor_new_items = false,
+			missing_book_policy = 'none',
 			updated_at = now()
 		where id::text = $1
 	`, id)
@@ -460,10 +473,11 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 	rows, err := s.db.QueryContext(ctx, `
 		select
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
+			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
 		from author_subscriptions
 		where status = 'monitored'
 			and monitor_new_items = true
+			and missing_book_policy <> 'none'
 			and ($1::boolean or last_sync_at is null or last_sync_at <= $2)
 		order by coalesce(last_sync_at, 'epoch'::timestamptz), author_name
 		limit $3
@@ -1931,12 +1945,13 @@ func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
 	if err := row.Scan(
 		&subscription.ID, &subscription.Provider, &subscription.ProviderKey,
 		&subscription.AuthorName, &subscription.Format, &subscription.QualityProfile,
-		&subscription.Status, &subscription.MonitorNewItems, &tags, &lastSyncAt,
+		&subscription.Status, &subscription.MonitorNewItems, &subscription.MissingBookPolicy, &tags, &lastSyncAt,
 		&subscription.CreatedAt, &subscription.UpdatedAt,
 	); err != nil {
 		return AuthorSubscription{}, err
 	}
 	subscription.Tags = splitIntTags(tags)
+	subscription.MissingBookPolicy = normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems)
 	if lastSyncAt.Valid {
 		value := lastSyncAt.Time.UTC()
 		subscription.LastSyncAt = &value
@@ -2125,10 +2140,28 @@ func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscrip
 	subscription.Format = normalizeFormat(subscription.Format)
 	subscription.QualityProfile = normalizeQualityProfile(subscription.QualityProfile)
 	subscription.Tags = compactRestrictionTags(subscription.Tags)
+	subscription.MissingBookPolicy = normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems)
+	subscription.MonitorNewItems = subscription.MissingBookPolicy != "none"
 	if strings.TrimSpace(subscription.Status) == "" {
 		subscription.Status = "monitored"
 	}
 	return subscription
+}
+
+func normalizeAuthorMissingBookPolicy(policy string, monitorNewItems bool) string {
+	switch strings.ToLower(strings.ReplaceAll(strings.TrimSpace(policy), "_", "")) {
+	case "all", "allbooks", "missing", "missingbooks", "existing", "existingbooks":
+		return "all"
+	case "future", "futurebooks", "new", "newbooks", "newitems":
+		return "future"
+	case "none", "no", "off", "unmonitored":
+		return "none"
+	default:
+		if monitorNewItems {
+			return "all"
+		}
+		return "none"
+	}
 }
 
 func normalizeProfileFormat(format string) string {

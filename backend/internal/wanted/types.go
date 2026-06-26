@@ -53,39 +53,42 @@ type ReleaseRestriction struct {
 }
 
 type AuthorSubscribeRequest struct {
-	Result          metadata.SearchResult `json:"result,omitempty"`
-	AuthorName      string                `json:"authorName,omitempty"`
-	Provider        string                `json:"provider,omitempty"`
-	ProviderKey     string                `json:"providerKey,omitempty"`
-	Format          string                `json:"format,omitempty"`
-	QualityProfile  string                `json:"qualityProfile,omitempty"`
-	MonitorNewItems *bool                 `json:"monitorNewItems,omitempty"`
-	Tags            []int                 `json:"tags,omitempty"`
+	Result            metadata.SearchResult `json:"result,omitempty"`
+	AuthorName        string                `json:"authorName,omitempty"`
+	Provider          string                `json:"provider,omitempty"`
+	ProviderKey       string                `json:"providerKey,omitempty"`
+	Format            string                `json:"format,omitempty"`
+	QualityProfile    string                `json:"qualityProfile,omitempty"`
+	MonitorNewItems   *bool                 `json:"monitorNewItems,omitempty"`
+	MissingBookPolicy string                `json:"missingBookPolicy,omitempty"`
+	Tags              []int                 `json:"tags,omitempty"`
 }
 
 type AuthorSubscription struct {
-	ID              string     `json:"id,omitempty"`
-	Provider        string     `json:"provider"`
-	ProviderKey     string     `json:"providerKey"`
-	AuthorName      string     `json:"authorName"`
-	Format          string     `json:"format"`
-	QualityProfile  string     `json:"qualityProfile"`
-	Status          string     `json:"status"`
-	MonitorNewItems bool       `json:"monitorNewItems"`
-	Tags            []int      `json:"tags,omitempty"`
-	LastSyncAt      *time.Time `json:"lastSyncAt,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	ID                string     `json:"id,omitempty"`
+	Provider          string     `json:"provider"`
+	ProviderKey       string     `json:"providerKey"`
+	AuthorName        string     `json:"authorName"`
+	Format            string     `json:"format"`
+	QualityProfile    string     `json:"qualityProfile"`
+	Status            string     `json:"status"`
+	MonitorNewItems   bool       `json:"monitorNewItems"`
+	MissingBookPolicy string     `json:"missingBookPolicy"`
+	Tags              []int      `json:"tags,omitempty"`
+	LastSyncAt        *time.Time `json:"lastSyncAt,omitempty"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
 type AuthorUpdateRequest struct {
-	AuthorName      string `json:"authorName,omitempty"`
-	QualityProfile  string `json:"qualityProfile,omitempty"`
-	Status          string `json:"status,omitempty"`
-	MonitorNewItems *bool  `json:"monitorNewItems,omitempty"`
-	Monitored       *bool  `json:"monitored,omitempty"`
-	Tags            []int  `json:"tags,omitempty"`
-	TagsSet         bool   `json:"-"`
+	AuthorName        string `json:"authorName,omitempty"`
+	QualityProfile    string `json:"qualityProfile,omitempty"`
+	Status            string `json:"status,omitempty"`
+	MonitorNewItems   *bool  `json:"monitorNewItems,omitempty"`
+	MissingBookPolicy string `json:"missingBookPolicy,omitempty"`
+	Monitored         *bool  `json:"monitored,omitempty"`
+	Tags              []int  `json:"tags,omitempty"`
+	TagsSet           bool   `json:"-"`
 }
 
 type SearchReleasesRequest struct {
@@ -393,6 +396,7 @@ type AuthorMonitorItemResult struct {
 	Subscription  AuthorSubscription `json:"subscription"`
 	ResultsFound  int                `json:"resultsFound"`
 	WantedCreated int                `json:"wantedCreated"`
+	SkippedCount  int                `json:"skippedCount"`
 	WantedItems   []WantedItem       `json:"wantedItems,omitempty"`
 	Error         string             `json:"error,omitempty"`
 }

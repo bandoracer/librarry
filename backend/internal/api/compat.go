@@ -989,12 +989,13 @@ func (h *handler) compatCreateAuthor(w http.ResponseWriter, r *http.Request) {
 	var payload map[string]any
 	_ = json.NewDecoder(r.Body).Decode(&payload)
 	request := wanted.AuthorSubscribeRequest{
-		AuthorName:     firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "title"), payloadString(payload, "name")),
-		Provider:       firstNonEmptyString(payloadString(payload, "provider"), "readarr-api"),
-		ProviderKey:    firstNonEmptyString(payloadString(payload, "foreignAuthorId"), payloadString(payload, "id")),
-		Format:         firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "wantedFormat"), "ebook"),
-		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
-		Tags:           compatPayloadIntArray(payload, "tags"),
+		AuthorName:        firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "title"), payloadString(payload, "name")),
+		Provider:          firstNonEmptyString(payloadString(payload, "provider"), "readarr-api"),
+		ProviderKey:       firstNonEmptyString(payloadString(payload, "foreignAuthorId"), payloadString(payload, "id")),
+		Format:            firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "wantedFormat"), "ebook"),
+		QualityProfile:    firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
+		MissingBookPolicy: compatAuthorMissingBookPolicy(payload),
+		Tags:              compatPayloadIntArray(payload, "tags"),
 	}
 	monitor := true
 	if monitored, ok := payload["monitored"].(bool); ok {
@@ -3651,11 +3652,45 @@ func compatAuthorUpdateRequest(payload map[string]any) wanted.AuthorUpdateReques
 	if monitorNewItems, ok := payloadBoolPointer(payload, "monitorNewItems"); ok {
 		request.MonitorNewItems = monitorNewItems
 	}
+	request.MissingBookPolicy = compatAuthorMissingBookPolicy(payload)
 	if payloadHasKey(payload, "tags") {
 		request.Tags = compatPayloadIntArray(payload, "tags")
 		request.TagsSet = true
 	}
 	return request
+}
+
+func compatAuthorMissingBookPolicy(payload map[string]any) string {
+	policy := firstNonEmptyString(
+		payloadString(payload, "missingBookPolicy"),
+		payloadString(payload, "librarryMissingBookPolicy"),
+		payloadString(payload, "monitor"),
+	)
+	if policy == "" {
+		policy = nestedString(payload, "addOptions", "monitor")
+	}
+	if policy == "" {
+		return ""
+	}
+	switch strings.ToLower(strings.ReplaceAll(strings.TrimSpace(policy), "_", "")) {
+	case "none", "false", "off", "no", "unmonitored":
+		return "none"
+	case "future", "futurebooks", "new", "newbooks":
+		return "future"
+	default:
+		return "all"
+	}
+}
+
+func compatAuthorMonitorOption(policy string) string {
+	switch policy {
+	case "none":
+		return "none"
+	case "future":
+		return "future"
+	default:
+		return "all"
+	}
 }
 
 func compatWantedUpdateRequest(payload map[string]any) wanted.WantedUpdateRequest {
@@ -6043,30 +6078,31 @@ func compatAuthorRecord(subscription wanted.AuthorSubscription, books []wanted.W
 		bookRecords = append(bookRecords, compatAuthorBookRecord(book))
 	}
 	return map[string]any{
-		"id":                  id,
-		"authorMetadataId":    id,
-		"authorName":          subscription.AuthorName,
-		"sortName":            strings.ToLower(subscription.AuthorName),
-		"cleanName":           slug(subscription.AuthorName),
-		"titleSlug":           slug(subscription.AuthorName),
-		"foreignAuthorId":     firstNonEmptyString(subscription.ProviderKey, subscription.ID),
-		"monitored":           strings.EqualFold(subscription.Status, "monitored"),
-		"rootFolderPath":      "",
-		"path":                "",
-		"qualityProfileId":    stableInt(subscription.QualityProfile),
-		"metadataProfileId":   stableInt(subscription.Format),
-		"tags":                subscription.Tags,
-		"genres":              []string{},
-		"ratings":             map[string]any{"votes": 0, "value": 0},
-		"statistics":          map[string]any{"bookCount": len(bookRecords), "bookFileCount": 0},
-		"lastInfoSync":        subscription.LastSyncAt,
-		"added":               subscription.CreatedAt,
-		"books":               bookRecords,
-		"addOptions":          map[string]any{"monitor": "all", "searchForMissingBooks": false},
-		"librarryProvider":    subscription.Provider,
-		"librarryFormat":      subscription.Format,
-		"librarryAuthorId":    subscription.ID,
-		"librarryQualityName": subscription.QualityProfile,
+		"id":                        id,
+		"authorMetadataId":          id,
+		"authorName":                subscription.AuthorName,
+		"sortName":                  strings.ToLower(subscription.AuthorName),
+		"cleanName":                 slug(subscription.AuthorName),
+		"titleSlug":                 slug(subscription.AuthorName),
+		"foreignAuthorId":           firstNonEmptyString(subscription.ProviderKey, subscription.ID),
+		"monitored":                 strings.EqualFold(subscription.Status, "monitored"),
+		"rootFolderPath":            "",
+		"path":                      "",
+		"qualityProfileId":          stableInt(subscription.QualityProfile),
+		"metadataProfileId":         stableInt(subscription.Format),
+		"tags":                      subscription.Tags,
+		"genres":                    []string{},
+		"ratings":                   map[string]any{"votes": 0, "value": 0},
+		"statistics":                map[string]any{"bookCount": len(bookRecords), "bookFileCount": 0},
+		"lastInfoSync":              subscription.LastSyncAt,
+		"added":                     subscription.CreatedAt,
+		"books":                     bookRecords,
+		"addOptions":                map[string]any{"monitor": compatAuthorMonitorOption(subscription.MissingBookPolicy), "searchForMissingBooks": subscription.MissingBookPolicy == "all"},
+		"librarryProvider":          subscription.Provider,
+		"librarryFormat":            subscription.Format,
+		"librarryAuthorId":          subscription.ID,
+		"librarryQualityName":       subscription.QualityProfile,
+		"librarryMissingBookPolicy": subscription.MissingBookPolicy,
 	}
 }
 

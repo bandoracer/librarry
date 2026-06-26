@@ -2597,7 +2597,7 @@ func TestSubscribeAuthorEndpoint(t *testing.T) {
 		Metadata: metadata.NewService(nil),
 		Wanted:   fakeWanted{},
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/authors", strings.NewReader(`{"authorName":"Andy Weir","provider":"Open Library","providerKey":"openlibrary:OL123A","format":"ebook","qualityProfile":"standard","monitorNewItems":true}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/authors", strings.NewReader(`{"authorName":"Andy Weir","provider":"Open Library","providerKey":"openlibrary:OL123A","format":"ebook","qualityProfile":"standard","monitorNewItems":true,"missingBookPolicy":"future"}`))
 	res := httptest.NewRecorder()
 
 	router.ServeHTTP(res, req)
@@ -2607,6 +2607,29 @@ func TestSubscribeAuthorEndpoint(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"status":"monitored"`) {
 		t.Fatalf("expected saved author subscription in response, got %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"missingBookPolicy":"future"`) {
+		t.Fatalf("expected saved author policy in response, got %s", res.Body.String())
+	}
+}
+
+func TestUpdateAuthorSubscriptionEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/authors/author-sub-1", strings.NewReader(`{"missingBookPolicy":"none"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"missingBookPolicy":"none"`) || !strings.Contains(res.Body.String(), `"monitorNewItems":false`) {
+		t.Fatalf("expected updated author policy in response, got %s", res.Body.String())
 	}
 }
 
@@ -3691,34 +3714,40 @@ func (fakeWanted) DeleteQualityProfile(context.Context, string) error {
 }
 
 func (fakeWanted) SubscribeAuthor(_ context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error) {
+	policy := request.MissingBookPolicy
+	if policy == "" {
+		policy = "all"
+	}
 	return wanted.AuthorSubscription{
-		ID:              "author-sub-1",
-		Provider:        request.Provider,
-		ProviderKey:     request.ProviderKey,
-		AuthorName:      request.AuthorName,
-		Format:          "ebook",
-		QualityProfile:  "standard",
-		Status:          "monitored",
-		MonitorNewItems: true,
-		Tags:            request.Tags,
-		CreatedAt:       time.Now().UTC(),
-		UpdatedAt:       time.Now().UTC(),
+		ID:                "author-sub-1",
+		Provider:          request.Provider,
+		ProviderKey:       request.ProviderKey,
+		AuthorName:        request.AuthorName,
+		Format:            "ebook",
+		QualityProfile:    "standard",
+		Status:            "monitored",
+		MonitorNewItems:   policy != "none",
+		MissingBookPolicy: policy,
+		Tags:              request.Tags,
+		CreatedAt:         time.Now().UTC(),
+		UpdatedAt:         time.Now().UTC(),
 	}, nil
 }
 
 func (fakeWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.AuthorSubscription, error) {
 	return []wanted.AuthorSubscription{{
-		ID:              "author-sub-1",
-		Provider:        "Open Library",
-		ProviderKey:     "openlibrary:OL123A",
-		AuthorName:      "Andy Weir",
-		Format:          "ebook",
-		QualityProfile:  "standard",
-		Status:          "monitored",
-		MonitorNewItems: true,
-		Tags:            []int{5},
-		CreatedAt:       time.Now().UTC(),
-		UpdatedAt:       time.Now().UTC(),
+		ID:                "author-sub-1",
+		Provider:          "Open Library",
+		ProviderKey:       "openlibrary:OL123A",
+		AuthorName:        "Andy Weir",
+		Format:            "ebook",
+		QualityProfile:    "standard",
+		Status:            "monitored",
+		MonitorNewItems:   true,
+		MissingBookPolicy: "all",
+		Tags:              []int{5},
+		CreatedAt:         time.Now().UTC(),
+		UpdatedAt:         time.Now().UTC(),
 	}}, nil
 }
 
@@ -3978,18 +4007,27 @@ func (fakeWanted) UpdateAuthorSubscription(_ context.Context, _ string, request 
 	if request.Monitored != nil && !*request.Monitored {
 		status = "unmonitored"
 	}
+	policy := request.MissingBookPolicy
+	if policy == "" {
+		if request.MonitorNewItems != nil && !*request.MonitorNewItems {
+			policy = "none"
+		} else {
+			policy = "all"
+		}
+	}
 	return wanted.AuthorSubscription{
-		ID:              "author-sub-1",
-		Provider:        "Open Library",
-		ProviderKey:     "openlibrary:OL123A",
-		AuthorName:      defaultString(request.AuthorName, "Andy Weir"),
-		Format:          "ebook",
-		QualityProfile:  defaultString(request.QualityProfile, "standard"),
-		Status:          status,
-		MonitorNewItems: request.MonitorNewItems == nil || *request.MonitorNewItems,
-		Tags:            request.Tags,
-		CreatedAt:       time.Now().UTC(),
-		UpdatedAt:       time.Now().UTC(),
+		ID:                "author-sub-1",
+		Provider:          "Open Library",
+		ProviderKey:       "openlibrary:OL123A",
+		AuthorName:        defaultString(request.AuthorName, "Andy Weir"),
+		Format:            "ebook",
+		QualityProfile:    defaultString(request.QualityProfile, "standard"),
+		Status:            status,
+		MonitorNewItems:   policy != "none",
+		MissingBookPolicy: policy,
+		Tags:              request.Tags,
+		CreatedAt:         time.Now().UTC(),
+		UpdatedAt:         time.Now().UTC(),
 	}, nil
 }
 

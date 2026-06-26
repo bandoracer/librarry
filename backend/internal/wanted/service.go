@@ -237,6 +237,10 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 				continue
 			}
 			result.ResultsFound++
+			if !authorResultAllowedByMissingPolicy(subscription, candidate, time.Now().UTC()) {
+				result.SkippedCount++
+				continue
+			}
 			item, err := s.store.CreateWanted(ctx, CreateRequest{
 				Result:         candidate,
 				Format:         subscription.Format,
@@ -266,7 +270,9 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			Data: map[string]any{
 				"authorName":    subscription.AuthorName,
 				"format":        subscription.Format,
+				"missingPolicy": subscription.MissingBookPolicy,
 				"resultsFound":  result.ResultsFound,
+				"skippedCount":  result.SkippedCount,
 				"wantedCreated": result.WantedCreated,
 				"runId":         run.ID,
 			},
@@ -1185,15 +1191,18 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 	if request.MonitorNewItems != nil {
 		monitorNewItems = *request.MonitorNewItems
 	}
+	missingBookPolicy := normalizeAuthorMissingBookPolicy(request.MissingBookPolicy, monitorNewItems)
+	monitorNewItems = missingBookPolicy != "none"
 	return AuthorSubscription{
-		Provider:        provider,
-		ProviderKey:     providerKey,
-		AuthorName:      authorName,
-		Format:          format,
-		QualityProfile:  qualityProfile,
-		Status:          "monitored",
-		MonitorNewItems: monitorNewItems,
-		Tags:            compactRestrictionTags(request.Tags),
+		Provider:          provider,
+		ProviderKey:       providerKey,
+		AuthorName:        authorName,
+		Format:            format,
+		QualityProfile:    qualityProfile,
+		Status:            "monitored",
+		MonitorNewItems:   monitorNewItems,
+		MissingBookPolicy: missingBookPolicy,
+		Tags:              compactRestrictionTags(request.Tags),
 	}
 }
 
@@ -1216,6 +1225,75 @@ func authorResultMatchesSubscription(subscription AuthorSubscription, result met
 		}
 	}
 	return false
+}
+
+func authorResultAllowedByMissingPolicy(subscription AuthorSubscription, result metadata.SearchResult, now time.Time) bool {
+	switch normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems) {
+	case "none":
+		return false
+	case "future":
+		published, ok := resultPublicationDate(result)
+		if !ok {
+			return false
+		}
+		cutoff := subscription.CreatedAt
+		if cutoff.IsZero() {
+			cutoff = now
+		}
+		switch published.Precision {
+		case "year":
+			return published.Time.Year() >= cutoff.Year()
+		case "month":
+			publishedMonth := time.Date(published.Time.Year(), published.Time.Month(), 1, 0, 0, 0, 0, time.UTC)
+			cutoffMonth := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
+			return !publishedMonth.Before(cutoffMonth)
+		default:
+			publishedDay := time.Date(published.Time.Year(), published.Time.Month(), published.Time.Day(), 0, 0, 0, 0, time.UTC)
+			cutoffDay := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), cutoff.UTC().Day(), 0, 0, 0, 0, time.UTC)
+			return !publishedDay.Before(cutoffDay)
+		}
+	default:
+		return true
+	}
+}
+
+type publicationDate struct {
+	Time      time.Time
+	Precision string
+}
+
+func resultPublicationDate(result metadata.SearchResult) (publicationDate, bool) {
+	if published, ok := parsePublicationDate(result.Edition.PublishedDate); ok {
+		return published, true
+	}
+	if result.Work.FirstPublishYear > 0 {
+		return publicationDate{
+			Time:      time.Date(result.Work.FirstPublishYear, 1, 1, 0, 0, 0, 0, time.UTC),
+			Precision: "year",
+		}, true
+	}
+	return publicationDate{}, false
+}
+
+func parsePublicationDate(value string) (publicationDate, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return publicationDate{}, false
+	}
+	for _, candidate := range []struct {
+		layout    string
+		precision string
+	}{
+		{"2006-01-02", "day"},
+		{"2006-01", "month"},
+		{"2006", "year"},
+	} {
+		parsed, err := time.Parse(candidate.layout, value)
+		if err == nil {
+			return publicationDate{Time: parsed.UTC(), Precision: candidate.precision}, true
+		}
+	}
+	return publicationDate{}, false
 }
 
 func monitorMessage(run MonitorRun) string {

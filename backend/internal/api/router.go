@@ -346,6 +346,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/quality-profiles", handler.saveQualityProfile)
 	mux.HandleFunc("GET /api/v1/authors", handler.authorSubscriptions)
 	mux.HandleFunc("POST /api/v1/authors", handler.subscribeAuthor)
+	mux.HandleFunc("PATCH /api/v1/authors/{id}", handler.updateAuthorSubscription)
+	mux.HandleFunc("PUT /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("POST /api/v1/authors/monitor", handler.monitorAuthors)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
@@ -1043,6 +1045,40 @@ func (h *handler) subscribeAuthor(w http.ResponseWriter, r *http.Request) {
 	subscription, err := h.deps.Wanted.SubscribeAuthor(r.Context(), request)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, subscription)
+}
+
+func (h *handler) updateAuthorSubscription(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author update payload"})
+		return
+	}
+	var request wanted.AuthorUpdateRequest
+	if err := json.Unmarshal(body, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author update payload"})
+		return
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(body, &raw); err == nil {
+		if _, ok := raw["tags"]; ok {
+			request.TagsSet = true
+		}
+	}
+	subscription, err := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), r.PathValue("id"), request)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, subscription)

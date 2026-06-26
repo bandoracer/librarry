@@ -80,8 +80,10 @@ import {
   searchWantedReleases,
   setStoredAPIKey,
   subscribeAuthor,
+  updateAuthorSubscription,
   updateWanted,
   type AuthorMonitorRun,
+  type AuthorMissingBookPolicy,
   type AuthorSubscription,
   type DownloadAction,
   type CompletedImportOutcome,
@@ -186,6 +188,8 @@ type LibraryFormatFilter = "all" | "ebook" | "audiobook";
 type WantedViewFilter = "missing" | "review" | "wanted" | "grabbed" | "all";
 type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 
+const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
+
 function emptyIntegrationSettings(): IntegrationSettings {
   return {
     prowlarrUrl: "",
@@ -263,6 +267,7 @@ export function App() {
   const [downloadScope, setDownloadScope] = useState<DownloadScope>("all");
   const [wantedViewFilter, setWantedViewFilter] = useState<WantedViewFilter>("missing");
   const [wantedReleaseFilter, setWantedReleaseFilter] = useState<ReleaseDecisionFilter>("all");
+  const [authorMissingPolicy, setAuthorMissingPolicy] = useState<AuthorMissingBookPolicy>("all");
   const [downloadClientFilter, setDownloadClientFilter] = useState("");
   const [downloadResourceClient, setDownloadResourceClient] = useState("qBittorrent");
   const [downloadCategoryFilter, setDownloadCategoryFilter] = useState("");
@@ -289,6 +294,7 @@ export function App() {
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [isSubscribingAuthor, setIsSubscribingAuthor] = useState(false);
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
+  const [updatingAuthorID, setUpdatingAuthorID] = useState("");
   const [isRunningFeedSync, setIsRunningFeedSync] = useState(false);
   const [isRunningUpgrade, setIsRunningUpgrade] = useState(false);
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
@@ -726,13 +732,28 @@ export function App() {
     setSelectedID(result.work.id);
     setActiveView("wanted");
     try {
-      const subscription = await subscribeAuthor(result, result.edition?.format ?? format);
+      const subscription = await subscribeAuthor(result, result.edition?.format ?? format, "standard", authorMissingPolicy);
       setAuthorSubscriptions((current) => mergeAuthorSubscriptions(current, [subscription]));
       setAPIState("live");
     } catch (error) {
       setAuthorError(error instanceof Error ? error.message : "Author subscription failed");
     } finally {
       setIsSubscribingAuthor(false);
+    }
+  }
+
+  async function updateAuthorMissingPolicy(subscription: AuthorSubscription, missingBookPolicy: AuthorMissingBookPolicy) {
+    if (!subscription.id || subscription.missingBookPolicy === missingBookPolicy) return;
+    setUpdatingAuthorID(subscription.id);
+    setAuthorError("");
+    try {
+      const updated = await updateAuthorSubscription(subscription.id, { missingBookPolicy });
+      setAuthorSubscriptions((current) => mergeAuthorSubscriptions(current, [updated]));
+      setAPIState("live");
+    } catch (error) {
+      setAuthorError(error instanceof Error ? error.message : "Author subscription update failed");
+    } finally {
+      setUpdatingAuthorID("");
     }
   }
 
@@ -2137,6 +2158,22 @@ export function App() {
                   </div>
                 </dl>
 
+                <div className="author-policy-control" aria-label="Author missing-book policy">
+                  <span>Author policy</span>
+                  <div className="segmented compact" role="group" aria-label="Author missing-book policy">
+                    {authorMissingPolicyOptions.map((policy) => (
+                      <button
+                        className={authorMissingPolicy === policy ? "selected" : ""}
+                        key={policy}
+                        onClick={() => setAuthorMissingPolicy(policy)}
+                        type="button"
+                      >
+                        {authorMissingPolicyLabel(policy)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="detail-actions">
                   <button className="secondary-action" onClick={() => markWantedResult(selected)} disabled={isMarkingWanted} type="button">
                     <HardDriveDownload size={17} />
@@ -2493,17 +2530,35 @@ export function App() {
           <div className="author-grid">
             <div className="author-list">
               {authorSubscriptions.length ? (
-                authorSubscriptions.map((subscription) => (
-                  <article className="author-row" key={subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`}>
-                    <div>
-                      <strong>{subscription.authorName}</strong>
-                      <span>
-                        {subscription.provider} · {subscription.format} · {subscription.qualityProfile}
-                      </span>
-                    </div>
-                    <em>{subscription.lastSyncAt ? formatDateTime(subscription.lastSyncAt) : "never synced"}</em>
-                  </article>
-                ))
+                authorSubscriptions.map((subscription) => {
+                  const policy = normalizedAuthorMissingPolicy(subscription.missingBookPolicy);
+                  const updating = updatingAuthorID === subscription.id;
+                  return (
+                    <article className="author-row" key={subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`}>
+                      <div>
+                        <strong>{subscription.authorName}</strong>
+                        <span>
+                          {subscription.provider} · {subscription.format} · {subscription.qualityProfile}
+                        </span>
+                      </div>
+                      <div className="author-row-controls">
+                        <select
+                          aria-label={`${subscription.authorName} missing-book policy`}
+                          disabled={updating}
+                          onChange={(event) => updateAuthorMissingPolicy(subscription, event.target.value as AuthorMissingBookPolicy)}
+                          value={policy}
+                        >
+                          {authorMissingPolicyOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {authorMissingPolicyLabel(option)}
+                            </option>
+                          ))}
+                        </select>
+                        <em>{subscription.lastSyncAt ? formatDateTime(subscription.lastSyncAt) : "never synced"}</em>
+                      </div>
+                    </article>
+                  );
+                })
               ) : (
                 <div className="wanted-empty">Select a search result and monitor its author.</div>
               )}
@@ -2522,7 +2577,7 @@ export function App() {
                       <div>
                         <strong>{item.subscription.authorName}</strong>
                         <span>
-                          {item.resultsFound} hits · {item.wantedCreated} wanted
+                          {item.resultsFound} hits · {item.wantedCreated} wanted · {item.skippedCount ?? 0} skipped
                           {item.error ? ` · ${item.error}` : ""}
                         </span>
                       </div>
@@ -4445,6 +4500,22 @@ function mergeAuthorSubscriptions(current: AuthorSubscription[], next: AuthorSub
 
 function authorSubscriptionKey(subscription: AuthorSubscription) {
   return subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`;
+}
+
+function normalizedAuthorMissingPolicy(policy?: string): AuthorMissingBookPolicy {
+  if (policy === "future" || policy === "none") return policy;
+  return "all";
+}
+
+function authorMissingPolicyLabel(policy: AuthorMissingBookPolicy) {
+  switch (policy) {
+    case "future":
+      return "Future";
+    case "none":
+      return "None";
+    default:
+      return "All";
+  }
 }
 
 function mergeLibraryFiles(current: LibraryFile[], next: LibraryFile[]) {

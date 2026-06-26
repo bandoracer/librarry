@@ -682,6 +682,27 @@ select {
   margin-top: 18px;
 }
 
+.author-policy-control {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.author-policy-control > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.author-policy-control .segmented {
+  justify-content: stretch;
+}
+
+.author-policy-control .segmented button {
+  flex: 1;
+}
+
 .detail-error {
   margin-top: 12px;
 }
@@ -2464,6 +2485,22 @@ select {
   font-size: 12px;
   font-style: normal;
   white-space: nowrap;
+}
+
+.author-row-controls {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.author-row-controls select {
+  width: 96px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 12px;
 }
 
 .author-monitor-results {

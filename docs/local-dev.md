@@ -122,9 +122,14 @@ LIBRARRY_AUTHOR_MONITOR_LIMIT=50
 ```
 
 Author subscriptions are available through `GET /api/v1/authors` and can be
-created with `POST /api/v1/authors` from a normalized metadata result. Manual
-author refreshes are available through `POST /api/v1/authors/monitor`. Author
-monitoring only creates or refreshes wanted items; it does not grab releases.
+created with `POST /api/v1/authors` from a normalized metadata result. Set
+`missingBookPolicy` to `all`, `future`, or `none` to control whether a monitored
+author backfills the visible bibliography, only creates wanted items for
+future-dated metadata, or only syncs author metadata. Existing subscriptions can
+be changed with `PATCH /api/v1/authors/{id}`. Manual author refreshes are
+available through `POST /api/v1/authors/monitor`; monitor results report
+metadata hits, wanted items created, and entries skipped by policy. Author
+monitoring does not grab releases.
 
 ## Feed Sync
 

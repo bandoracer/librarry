@@ -59,8 +59,8 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Metadata source model | Historically depended on centralized metadata; the retirement announcement names metadata failure as the blocking issue. | Multi-provider abstraction with Hardcover, Open Library, Google Books fallback, and local metadata stubs. | Local canonical graph with provider provenance, explainable matches, and resilient fallback behavior. |
 | Manual correction | Supports normal app-level editing workflows. | Native wanted-item editor can correct title, author, cover URL, quality profile, and monitoring state; corrected title/author/cover/profile values write `manual_overrides` rows, provider refreshes preserve those fields, and visible override chips can reset individual fields. | Expand correction to the full author/work/edition graph, embedded file metadata writes, and batch review workflows. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
-| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, manual/completed import supports copy, move, hardlink, hardlink-or-copy, keep-both, replace, skip, and fail conflict decisions, completed Librarry-tagged downloads feed the library, unlinked completed downloads are queued for individual or bulk review resolution with explainable file, local-metadata, filename, download-context evidence, and high-confidence wanted-item suggestions, and Readarr-compatible missing pages suppress wanted items already present in tracked files. | Add author-level missing-book policy and broader profile-aware automatic import matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, Readarr-compatible release restrictions including tag-scoped rules for tagged wanted items, release evaluation, author/book tag persistence with bulk add/remove/replace editor modes, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, import-list sync into monitored wanted items, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, import conflict policies, bulk import-review resolution with evidence, and bulk selected-download actions. | Add missing-book policy and deeper conflict reporting. |
+| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, manual/completed import supports copy, move, hardlink, hardlink-or-copy, keep-both, replace, skip, and fail conflict decisions, completed Librarry-tagged downloads feed the library, unlinked completed downloads are queued for individual or bulk review resolution with explainable file, local-metadata, filename, download-context evidence, and high-confidence wanted-item suggestions, and Readarr-compatible missing pages suppress wanted items already present in tracked files. | Add broader profile-aware automatic import matching. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions with all/future/none missing-book policies, metadata search, persisted quality profiles, Readarr-compatible release restrictions including tag-scoped rules for tagged wanted items, release evaluation, author/book tag persistence with bulk add/remove/replace editor modes, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, import-list sync into monitored wanted items, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, import conflict policies, bulk import-review resolution with evidence, and bulk selected-download actions. | Add deeper conflict reporting and broader review controls. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, native persisted Prowlarr/download-client settings, stored release-decision reload, approved/rejected review filters, explicit force-grab for manually selected rejected candidates, paused grab endpoint, manual magnet/torrent-file/torrent-URL/NZB add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and broader review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Integrates with qBittorrent, Transmission, and SABnzbd as book-acquisition targets. The native Activity page is scoped to Librarry-tagged jobs, failed acquisitions, completed imports, and operator recovery, not general torrent-client management. | Keep clients as replaceable integrations behind small interfaces while Readarr parity work focuses on metadata, monitoring, release decisions, imports, naming, and compatibility APIs. |
@@ -115,8 +115,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   apply to wanted items carrying matching tag IDs.
 - Manual and scheduled wanted monitoring with monitor-run summaries and history
   events.
-- Author subscriptions with manual and scheduled metadata refresh that creates
-  or refreshes wanted items from monitored authors.
+- Author subscriptions with all/future/none missing-book policies and manual or
+  scheduled metadata refresh that creates or refreshes wanted items from
+  monitored authors.
 - Readarr-compatible author/book update and delete endpoints that persist
   monitor/unmonitor state, quality profile changes, and soft removals in
   Postgres.
@@ -488,6 +489,8 @@ Important API surfaces:
   - `POST /api/v1/quality-profiles`
   - `GET /api/v1/authors`
   - `POST /api/v1/authors`
+  - `PATCH /api/v1/authors/{id}`
+  - `PUT /api/v1/authors/{id}`
   - `POST /api/v1/authors/monitor`
   - `GET /api/v1/wanted`
   - `POST /api/v1/wanted`
@@ -696,8 +699,7 @@ will grow as the automation path stabilizes.
 
 ## Roadmap
 
-- Author-level missing-book policy and review controls beyond the current
-  library-aware missing queue.
+- Author-level review controls beyond the current library-aware missing queue.
 - Per-profile organization rules.
 - Richer Calibre edition metadata sync, embedded metadata writes, path refresh
   after Calibre renames, and import rollback.

@@ -449,15 +449,28 @@ export type AuthorSubscription = {
   qualityProfile: string;
   status: string;
   monitorNewItems: boolean;
+  missingBookPolicy: AuthorMissingBookPolicy;
   lastSyncAt?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AuthorMissingBookPolicy = "all" | "future" | "none";
+
+export type AuthorUpdateRequest = {
+  authorName?: string;
+  qualityProfile?: string;
+  status?: string;
+  monitorNewItems?: boolean;
+  missingBookPolicy?: AuthorMissingBookPolicy;
+  tags?: number[];
 };
 
 export type AuthorMonitorItemResult = {
   subscription: AuthorSubscription;
   resultsFound: number;
   wantedCreated: number;
+  skippedCount?: number;
   wantedItems?: WantedItem[];
   error?: string;
 };
@@ -1196,7 +1209,7 @@ export async function fetchAuthorSubscriptions(status = "monitored"): Promise<Au
   return payload.authors;
 }
 
-export async function subscribeAuthor(result: SearchResult, format: string, qualityProfile = "standard"): Promise<AuthorSubscription> {
+export async function subscribeAuthor(result: SearchResult, format: string, qualityProfile = "standard", missingBookPolicy: AuthorMissingBookPolicy = "all"): Promise<AuthorSubscription> {
   const response = await fetch(`${apiBase}/api/v1/authors`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1204,11 +1217,24 @@ export async function subscribeAuthor(result: SearchResult, format: string, qual
       result,
       format: format === "audiobook" ? "audiobook" : "ebook",
       qualityProfile,
-      monitorNewItems: true
+      monitorNewItems: missingBookPolicy !== "none",
+      missingBookPolicy
     })
   });
   if (!response.ok) {
     throw new Error(await apiError(response, "Author subscription failed"));
+  }
+  return (await response.json()) as AuthorSubscription;
+}
+
+export async function updateAuthorSubscription(authorID: string, request: AuthorUpdateRequest): Promise<AuthorSubscription> {
+  const response = await fetch(`${apiBase}/api/v1/authors/${encodeURIComponent(authorID)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Author subscription update failed"));
   }
   return (await response.json()) as AuthorSubscription;
 }

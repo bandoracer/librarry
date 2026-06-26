@@ -2,6 +2,7 @@ package wanted
 
 import (
 	"testing"
+	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 )
@@ -64,6 +65,31 @@ func TestAuthorSubscriptionFromSearchResult(t *testing.T) {
 	if subscription.Format != "audiobook" || subscription.QualityProfile != "large" || !subscription.MonitorNewItems {
 		t.Fatalf("unexpected subscription policy: %+v", subscription)
 	}
+	if subscription.MissingBookPolicy != "all" {
+		t.Fatalf("expected default all-books missing policy, got %q", subscription.MissingBookPolicy)
+	}
+}
+
+func TestAuthorSubscriptionPolicyFromRequest(t *testing.T) {
+	subscription := authorSubscriptionFromRequest(AuthorSubscribeRequest{
+		AuthorName:        "Terry Pratchett",
+		Provider:          "Open Library",
+		ProviderKey:       "openlibrary:OL25712A",
+		MissingBookPolicy: "futureBooks",
+	})
+	if subscription.MissingBookPolicy != "future" || !subscription.MonitorNewItems {
+		t.Fatalf("expected future policy to monitor new books, got %+v", subscription)
+	}
+
+	monitor := true
+	subscription = authorSubscriptionFromRequest(AuthorSubscribeRequest{
+		AuthorName:        "Terry Pratchett",
+		MissingBookPolicy: "none",
+		MonitorNewItems:   &monitor,
+	})
+	if subscription.MissingBookPolicy != "none" || subscription.MonitorNewItems {
+		t.Fatalf("expected none policy to disable new-book monitoring, got %+v", subscription)
+	}
 }
 
 func TestAuthorResultMatchesSubscription(t *testing.T) {
@@ -82,5 +108,34 @@ func TestAuthorResultMatchesSubscription(t *testing.T) {
 	miss := metadata.SearchResult{Work: metadata.Work{Authors: []metadata.Author{{ID: "other", Name: "Terry Pratchett"}}}}
 	if authorResultMatchesSubscription(subscription, miss) {
 		t.Fatal("expected unrelated author to miss")
+	}
+}
+
+func TestAuthorMissingBookPolicyAllowsFutureOnly(t *testing.T) {
+	subscription := AuthorSubscription{
+		AuthorName:        "Andy Weir",
+		MonitorNewItems:   true,
+		MissingBookPolicy: "future",
+		CreatedAt:         time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC),
+	}
+	newBook := metadata.SearchResult{
+		Work:    metadata.Work{FirstPublishYear: 2027},
+		Edition: metadata.Edition{PublishedDate: "2027-03-01"},
+	}
+	if !authorResultAllowedByMissingPolicy(subscription, newBook, time.Now()) {
+		t.Fatal("expected future-dated result to be allowed")
+	}
+
+	oldBook := metadata.SearchResult{
+		Work:    metadata.Work{FirstPublishYear: 2021},
+		Edition: metadata.Edition{PublishedDate: "2021-05-04"},
+	}
+	if authorResultAllowedByMissingPolicy(subscription, oldBook, time.Now()) {
+		t.Fatal("expected existing bibliography result to be skipped")
+	}
+
+	undatedBook := metadata.SearchResult{Work: metadata.Work{Title: "Untitled"}}
+	if authorResultAllowedByMissingPolicy(subscription, undatedBook, time.Now()) {
+		t.Fatal("expected undated future-only result to require review instead of auto-wanted")
 	}
 }
