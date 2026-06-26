@@ -546,12 +546,17 @@ func (h *handler) compatCreateRootFolder(w http.ResponseWriter, r *http.Request)
 	}
 	name := firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "label"), "Books")
 	mediaFormat := firstNonEmptyString(payloadString(payload, "mediaFormat"), payloadString(payload, "format"), "mixed")
+	metadata := compatRootFolderMetadata(payload, nil)
+	if errorMessage := validateCompatRootFolderMetadata(metadata); errorMessage != "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": errorMessage})
+		return
+	}
 	if h.deps.Compat != nil {
 		root, err := h.deps.Compat.CreateRootFolder(r.Context(), compatdata.RootFolder{
 			Name:        name,
 			Path:        path,
 			MediaFormat: mediaFormat,
-			Metadata:    map[string]any{"source": "readarr-compatible-api"},
+			Metadata:    metadata,
 		})
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
@@ -562,6 +567,7 @@ func (h *handler) compatCreateRootFolder(w http.ResponseWriter, r *http.Request)
 	}
 	root := compatRootFolderRecord(stableInt(path), name, path)
 	root["mediaFormat"] = mediaFormat
+	applyCompatRootFolderMetadata(root, metadata)
 	writeJSON(w, http.StatusCreated, root)
 }
 
@@ -588,11 +594,16 @@ func (h *handler) compatUpdateRootFolder(w http.ResponseWriter, r *http.Request)
 			if !compatStoredRootFolderMatches(id, root) {
 				continue
 			}
+			metadata := compatRootFolderMetadata(payload, root.Metadata)
+			if errorMessage := validateCompatRootFolderMetadata(metadata); errorMessage != "" {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": errorMessage})
+				return
+			}
 			updated, found, err := h.deps.Compat.UpdateRootFolder(r.Context(), root.ID, compatdata.RootFolder{
 				Name:        firstNonEmptyString(name, root.Name),
 				Path:        firstNonEmptyString(path, root.Path),
 				MediaFormat: firstNonEmptyString(mediaFormat, root.MediaFormat, "mixed"),
-				Metadata:    compatUpdatedRootFolderMetadata(root.Metadata),
+				Metadata:    metadata,
 			})
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
@@ -606,11 +617,16 @@ func (h *handler) compatUpdateRootFolder(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if path != "" {
+			metadata := compatRootFolderMetadata(payload, nil)
+			if errorMessage := validateCompatRootFolderMetadata(metadata); errorMessage != "" {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": errorMessage})
+				return
+			}
 			updated, found, err := h.deps.Compat.UpdateRootFolder(r.Context(), id, compatdata.RootFolder{
 				Name:        name,
 				Path:        path,
 				MediaFormat: firstNonEmptyString(mediaFormat, "mixed"),
-				Metadata:    compatUpdatedRootFolderMetadata(nil),
+				Metadata:    metadata,
 			})
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
@@ -633,6 +649,12 @@ func (h *handler) compatUpdateRootFolder(w http.ResponseWriter, r *http.Request)
 			if mediaFormat != "" {
 				root["mediaFormat"] = mediaFormat
 			}
+			metadata := compatRootFolderMetadata(payload, compatRootFolderRecordMetadata(root))
+			if errorMessage := validateCompatRootFolderMetadata(metadata); errorMessage != "" {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": errorMessage})
+				return
+			}
+			applyCompatRootFolderMetadata(root, metadata)
 			root["librarryPersisted"] = false
 			writeJSON(w, http.StatusOK, root)
 			return
@@ -3500,7 +3522,7 @@ func (h *handler) compatSystemTaskRecords() []map[string]any {
 
 func compatRootFolderRecord(id int, name string, path string) map[string]any {
 	total, free, accessible := statPath(path)
-	return map[string]any{
+	record := map[string]any{
 		"id":              id,
 		"name":            name,
 		"path":            path,
@@ -3509,6 +3531,8 @@ func compatRootFolderRecord(id int, name string, path string) map[string]any {
 		"totalSpace":      total,
 		"unmappedFolders": []any{},
 	}
+	applyCompatRootFolderMetadata(record, nil)
+	return record
 }
 
 func compatStoredRootFolderRecord(root compatdata.RootFolder) map[string]any {
@@ -3517,6 +3541,7 @@ func compatStoredRootFolderRecord(root compatdata.RootFolder) map[string]any {
 	record["librarryId"] = root.ID
 	record["mediaFormat"] = defaultString(root.MediaFormat, "mixed")
 	record["metadata"] = root.Metadata
+	applyCompatRootFolderMetadata(record, root.Metadata)
 	return record
 }
 
@@ -3537,13 +3562,102 @@ func compatStoredRootFolderMatches(pathValue string, root compatdata.RootFolder)
 	return compatIDMatches(pathValue, root.ID, root.Name, root.Path)
 }
 
-func compatUpdatedRootFolderMetadata(existing map[string]any) map[string]any {
+func compatRootFolderMetadata(payload map[string]any, existing map[string]any) map[string]any {
 	metadata := map[string]any{"source": "readarr-compatible-api"}
 	for key, value := range existing {
 		metadata[key] = value
 	}
+	metadata = compatRootFolderMetadataFromObject(metadata, payload)
+	if settings, ok := payload["calibreSettings"].(map[string]any); ok {
+		metadata = compatRootFolderMetadataFromObject(metadata, settings)
+	}
+	if payloadBoolDefault(metadata, "isCalibreLibrary", false) && payloadIntDefault(metadata, "port", 0) <= 0 {
+		metadata["port"] = 8080
+	}
 	metadata["updatedBy"] = "readarr-compatible-api"
 	return metadata
+}
+
+func compatRootFolderMetadataFromObject(metadata map[string]any, payload map[string]any) map[string]any {
+	if payload == nil {
+		return metadata
+	}
+	for _, key := range []string{"defaultMetadataProfileId", "defaultQualityProfileId", "port"} {
+		if _, ok := payload[key]; ok {
+			metadata[key] = payloadIntDefault(payload, key, 0)
+		}
+	}
+	for _, key := range []string{"isCalibreLibrary", "useSsl"} {
+		if _, ok := payload[key]; ok {
+			metadata[key] = payloadBoolDefault(payload, key, false)
+		}
+	}
+	for _, key := range []string{"defaultMonitorOption", "defaultNewItemMonitorOption", "host", "urlBase", "username", "password", "library", "outputFormat", "outputProfile"} {
+		if _, ok := payload[key]; ok {
+			metadata[key] = payloadString(payload, key)
+		}
+	}
+	if _, ok := payload["defaultTags"]; ok {
+		metadata["defaultTags"] = compatPayloadIntArray(payload, "defaultTags")
+	}
+	return metadata
+}
+
+func applyCompatRootFolderMetadata(record map[string]any, metadata map[string]any) {
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	isCalibre := payloadBoolDefault(metadata, "isCalibreLibrary", false)
+	record["defaultMetadataProfileId"] = payloadIntDefault(metadata, "defaultMetadataProfileId", 1)
+	record["defaultQualityProfileId"] = payloadIntDefault(metadata, "defaultQualityProfileId", 1)
+	record["defaultMonitorOption"] = firstNonEmptyString(payloadString(metadata, "defaultMonitorOption"), "all")
+	record["defaultNewItemMonitorOption"] = firstNonEmptyString(payloadString(metadata, "defaultNewItemMonitorOption"), "all")
+	record["defaultTags"] = compatPayloadIntArray(metadata, "defaultTags")
+	record["isCalibreLibrary"] = isCalibre
+	record["host"] = payloadString(metadata, "host")
+	record["port"] = payloadIntDefault(metadata, "port", boolDefaultInt(isCalibre, 8080, 0))
+	record["urlBase"] = payloadString(metadata, "urlBase")
+	record["username"] = payloadString(metadata, "username")
+	record["password"] = payloadString(metadata, "password")
+	record["library"] = payloadString(metadata, "library")
+	record["outputFormat"] = payloadString(metadata, "outputFormat")
+	record["outputProfile"] = firstNonEmptyString(payloadString(metadata, "outputProfile"), "default")
+	record["useSsl"] = payloadBoolDefault(metadata, "useSsl", false)
+}
+
+func compatRootFolderRecordMetadata(record map[string]any) map[string]any {
+	metadata := map[string]any{}
+	for _, key := range []string{
+		"defaultMetadataProfileId", "defaultQualityProfileId", "defaultMonitorOption",
+		"defaultNewItemMonitorOption", "defaultTags", "isCalibreLibrary", "host", "port",
+		"urlBase", "username", "password", "library", "outputFormat", "outputProfile", "useSsl",
+	} {
+		if value, ok := record[key]; ok {
+			metadata[key] = value
+		}
+	}
+	return metadata
+}
+
+func validateCompatRootFolderMetadata(metadata map[string]any) string {
+	if !payloadBoolDefault(metadata, "isCalibreLibrary", false) {
+		return ""
+	}
+	if payloadString(metadata, "host") == "" {
+		return "host is required when isCalibreLibrary is true"
+	}
+	port := payloadIntDefault(metadata, "port", 8080)
+	if port < 1 || port > 65535 {
+		return "port must be between 1 and 65535"
+	}
+	return ""
+}
+
+func boolDefaultInt(condition bool, trueValue int, falseValue int) int {
+	if condition {
+		return trueValue
+	}
+	return falseValue
 }
 
 func rootFolderPathKey(path string) string {
@@ -5835,22 +5949,29 @@ func compatPayloadIntArray(payload map[string]any, key string) []int {
 	if payload == nil {
 		return []int{}
 	}
-	values, ok := payload[key].([]any)
-	if !ok {
-		return []int{}
-	}
-	ids := make([]int, 0, len(values))
-	for _, value := range values {
-		switch typed := value.(type) {
-		case float64:
-			ids = append(ids, int(typed))
-		case string:
-			if parsed, err := strconv.Atoi(strings.TrimSpace(typed)); err == nil {
-				ids = append(ids, parsed)
+	switch values := payload[key].(type) {
+	case []int:
+		return append([]int(nil), values...)
+	case []any:
+		ids := make([]int, 0, len(values))
+		for _, value := range values {
+			switch typed := value.(type) {
+			case int:
+				ids = append(ids, typed)
+			case int64:
+				ids = append(ids, int(typed))
+			case float64:
+				ids = append(ids, int(typed))
+			case string:
+				if parsed, err := strconv.Atoi(strings.TrimSpace(typed)); err == nil {
+					ids = append(ids, parsed)
+				}
 			}
 		}
+		return ids
+	default:
+		return []int{}
 	}
-	return ids
 }
 
 func manualImportPayloads(payload any) []map[string]any {

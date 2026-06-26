@@ -322,6 +322,11 @@ Readarr-compatible root folders are persisted in Postgres through
 `compat_root_folders`. The compatibility API keeps environment-configured ebook
 and audiobook roots as defaults, overlays persisted folders by path, and maps
 stored UUIDs to stable integer IDs for Arr-style clients.
+Root folder records also preserve Readarr's Calibre Content Server fields
+(`isCalibreLibrary`, host, port, URL base, credentials, library, output format,
+output profile, SSL, default profiles, monitor options, and tags) as metadata so
+setup clients can round-trip Calibre configuration before native Calibre import
+and conversion support lands.
 
 Readarr-compatible operational support endpoints expose filesystem browsing,
 languages, localization strings, logs, update records, and backup records. The

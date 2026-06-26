@@ -214,6 +214,9 @@ func TestCompatRootFolderPersistenceEndpoints(t *testing.T) {
 	if !strings.Contains(res.Body.String(), `"/srv/books/comics"`) || !strings.Contains(res.Body.String(), `"librarryId":"root-1"`) {
 		t.Fatalf("expected persisted root folder, got %s", res.Body.String())
 	}
+	if !strings.Contains(res.Body.String(), `"isCalibreLibrary":false`) || !strings.Contains(res.Body.String(), `"defaultQualityProfileId":1`) {
+		t.Fatalf("expected Readarr root folder defaults, got %s", res.Body.String())
+	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), nil)
 	res = httptest.NewRecorder()
@@ -235,17 +238,30 @@ func TestCompatRootFolderPersistenceEndpoints(t *testing.T) {
 		t.Fatalf("expected root folder to be persisted, got %d roots", len(compatResources.roots))
 	}
 
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), strings.NewReader(`{"name":"Comics Updated","path":"/srv/books/comics-new","mediaFormat":"ebook"}`))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/rootfolder", strings.NewReader(`{"name":"Broken Calibre","path":"/srv/books/broken","isCalibreLibrary":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "host is required") {
+		t.Fatalf("expected Calibre validation error, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), strings.NewReader(`{"name":"Comics Updated","path":"/srv/books/comics-new","mediaFormat":"ebook","isCalibreLibrary":true,"host":"calibre.local","port":8081,"urlBase":"/calibre","username":"reader","password":"secret","library":"Main","outputFormat":"EPUB,AZW3","outputProfile":"kindle","useSsl":true,"defaultMetadataProfileId":3,"defaultQualityProfileId":4,"defaultMonitorOption":"all","defaultNewItemMonitorOption":"new","defaultTags":[7,8]}`))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"Comics Updated"`) || !strings.Contains(res.Body.String(), `"/srv/books/comics-new"`) {
+	if !strings.Contains(res.Body.String(), `"Comics Updated"`) || !strings.Contains(res.Body.String(), `"/srv/books/comics-new"`) ||
+		!strings.Contains(res.Body.String(), `"isCalibreLibrary":true`) || !strings.Contains(res.Body.String(), `"host":"calibre.local"`) ||
+		!strings.Contains(res.Body.String(), `"port":8081`) || !strings.Contains(res.Body.String(), `"outputProfile":"kindle"`) ||
+		!strings.Contains(res.Body.String(), `"defaultTags":[7,8]`) {
 		t.Fatalf("expected updated persisted root folder, got %s", res.Body.String())
 	}
 	if compatResources.roots[0].Name != "Comics Updated" || compatResources.roots[0].Path != "/srv/books/comics-new" {
 		t.Fatalf("expected stored root folder update, got %#v", compatResources.roots[0])
+	}
+	if compatResources.roots[0].Metadata["host"] != "calibre.local" || compatResources.roots[0].Metadata["outputFormat"] != "EPUB,AZW3" {
+		t.Fatalf("expected stored Calibre metadata, got %#v", compatResources.roots[0].Metadata)
 	}
 
 	req = httptest.NewRequest(http.MethodDelete, "/api/v1/rootfolder/"+strconv.Itoa(stableInt("root-1")), nil)
