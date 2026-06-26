@@ -588,24 +588,26 @@ are derived from wanted items, tracked library files, Librarry history events,
 title parsing, and quality-profile cutoffs. The missing endpoints include
 wanted/grabbed monitored books that do not have a matching present file; a file
 can satisfy a wanted item through explicit `wantedId` metadata, exact ISBN
-evidence, or normalized title, author, and format matching. The web UI keeps
-using the native `/api/v1/librarry/history` event feed so external Arr clients
-can use the Readarr-shaped `/api/v1/history` response.
+evidence from provider records or protected overrides, or normalized title,
+author, and format matching. The web UI keeps using the native
+`/api/v1/librarry/history` event feed so external Arr clients can use the
+Readarr-shaped `/api/v1/history` response.
 
 Completed-download import refreshes Librarry-tagged download-client items, filters
 for completed torrents, locates the best supported ebook or audiobook file below
 the torrent save path, imports linked wanted downloads, and records
 imported/error/skipped state on the download row. Completed downloads without a
 wanted tag use the same local-metadata matcher before review creation. A single
-high-confidence ISBN or title/author/format match is auto-imported into that
-wanted item by default; clients can pass `autoMatch: false` to force manual
-review. Ambiguous or low-confidence matches are persisted as pending import
-reviews. The review builder compares local metadata against current wanted items
-and stores ranked wanted-item candidates with matched fields. Review decisions
-can import, skip, or reject the pending file. Each review stores explainable
-evidence in JSON metadata: source-file facts, filename parsing,
-local OPF/embedded/audio metadata, download-client context, wanted-item
-candidates, a confidence label, and the policy reason that forced manual review.
+high-confidence ISBN match from provider records or protected overrides, or a
+title/author/format match, is auto-imported into that wanted item by default;
+clients can pass `autoMatch: false` to force manual review. Ambiguous or
+low-confidence matches are persisted as pending import reviews. The review
+builder compares local metadata against current wanted items and stores ranked
+wanted-item candidates with matched fields. Review decisions can import, skip,
+or reject the pending file. Each review stores explainable evidence in JSON
+metadata: source-file facts, filename parsing, local OPF/embedded/audio
+metadata, download-client context, wanted-item candidates, a confidence label,
+and the policy reason that forced manual review.
 
 Manual imports, completed-download imports, and individual or bulk import-review
 decisions share the same organization policy. `importMode` supports `copy`, `move`,

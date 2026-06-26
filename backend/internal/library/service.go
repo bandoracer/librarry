@@ -29,6 +29,10 @@ type WantedStore interface {
 	MarkWantedStatus(ctx context.Context, wantedID string, status string) error
 }
 
+type wantedProviderISBNStore interface {
+	ProviderISBNsForWanted(ctx context.Context, wantedIDs []string) (map[string][]string, error)
+}
+
 type DownloadStore interface {
 	MarkDownloadImported(ctx context.Context, id string, fileID string) error
 	MarkDownloadImportError(ctx context.Context, id string, message string) error
@@ -1420,12 +1424,13 @@ func (s *Service) importReviewWantedCandidates(ctx context.Context, parsed parse
 	if err != nil {
 		return nil, ""
 	}
+	providerISBNs := s.providerISBNsForWanted(ctx, items)
 	candidates := make([]importReviewWantedCandidate, 0, len(items))
 	for _, item := range items {
 		if !importReviewWantedStatusEligible(item.Status) {
 			continue
 		}
-		score, fields := importReviewWantedScore(parsed, format, item)
+		score, fields := importReviewWantedScore(parsed, format, item, providerISBNs[strings.TrimSpace(item.ID)])
 		if score < 0.55 {
 			continue
 		}
@@ -1464,6 +1469,31 @@ func (s *Service) importReviewWantedCandidates(ctx context.Context, parsed parse
 	return candidates, ""
 }
 
+func (s *Service) providerISBNsForWanted(ctx context.Context, items []wanted.WantedItem) map[string][]string {
+	if s == nil || s.wanted == nil || len(items) == 0 {
+		return nil
+	}
+	provider, ok := s.wanted.(wantedProviderISBNStore)
+	if !ok {
+		return nil
+	}
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		id := strings.TrimSpace(item.ID)
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	result, err := provider.ProviderISBNsForWanted(ctx, ids)
+	if err != nil {
+		return nil
+	}
+	return result
+}
+
 func importReviewWantedStatusEligible(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "", "wanted", "grabbed", "missing":
@@ -1473,10 +1503,10 @@ func importReviewWantedStatusEligible(status string) bool {
 	}
 }
 
-func importReviewWantedScore(parsed parsedBook, format string, item wanted.WantedItem) (float64, []string) {
+func importReviewWantedScore(parsed parsedBook, format string, item wanted.WantedItem, providerISBNs []string) (float64, []string) {
 	var score float64
 	fields := []string{}
-	isbnMatched := importReviewISBNsOverlap(parsedBookISBNs(parsed), wantedItemISBNs(item))
+	isbnMatched := importReviewISBNsOverlap(parsedBookISBNs(parsed), wantedItemISBNs(item, providerISBNs...))
 	titleMatch := importReviewTextMatchScore(parsed.Title, item.Title)
 	if isbnMatched {
 		score = 0.82
@@ -1582,7 +1612,7 @@ func importReviewIdentifierISBNs(identifiers map[string]string) []string {
 	return isbns
 }
 
-func wantedItemISBNs(item wanted.WantedItem) []string {
+func wantedItemISBNs(item wanted.WantedItem, providerISBNs ...string) []string {
 	isbns := []string{}
 	seen := map[string]bool{}
 	for _, override := range item.ManualOverrides {
@@ -1598,6 +1628,14 @@ func wantedItemISBNs(item wanted.WantedItem) []string {
 			seen[normalized] = true
 			isbns = append(isbns, normalized)
 		}
+	}
+	for _, isbn := range providerISBNs {
+		normalized := normalizeISBN(isbn)
+		if normalized == "" || seen[normalized] {
+			continue
+		}
+		seen[normalized] = true
+		isbns = append(isbns, normalized)
 	}
 	sort.Strings(isbns)
 	return isbns

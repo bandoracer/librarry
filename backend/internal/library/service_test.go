@@ -259,6 +259,39 @@ func TestImportReviewWantedCandidatesSuggestsExactISBNMatch(t *testing.T) {
 	}
 }
 
+func TestImportReviewWantedCandidatesUsesProviderISBNs(t *testing.T) {
+	service := &Service{wanted: fakeImportWantedStore{
+		items: []wanted.WantedItem{{
+			ID:         "wanted-1",
+			Title:      "Project Hail Mary",
+			AuthorName: "Andy Weir",
+			Format:     "ebook",
+			Status:     "wanted",
+		}, {
+			ID:         "wanted-2",
+			Title:      "The Martian",
+			AuthorName: "Andy Weir",
+			Format:     "ebook",
+			Status:     "wanted",
+		}},
+		providerISBNs: map[string][]string{
+			"wanted-1": {"978-0-593-13520-4"},
+		},
+	}}
+
+	candidates, suggestedID := service.importReviewWantedCandidates(context.Background(), parsedBook{
+		Title:       "bad filename",
+		Identifiers: map[string]string{"isbn": "9780593135204"},
+	}, "ebook")
+
+	if suggestedID != "wanted-1" {
+		t.Fatalf("expected provider ISBN suggestion, got %q with candidates %#v", suggestedID, candidates)
+	}
+	if len(candidates) == 0 || candidates[0].WantedID != "wanted-1" || !candidateHasMatchedField(candidates[0], "isbn") {
+		t.Fatalf("expected provider ISBN candidate, got %#v", candidates)
+	}
+}
+
 func TestImportReviewWantedCandidatesDoesNotAutoSuggestAmbiguousISBNFormat(t *testing.T) {
 	service := &Service{wanted: fakeImportWantedStore{items: []wanted.WantedItem{{
 		ID:         "ebook",
@@ -414,7 +447,8 @@ func TestParsedBookForPathReadsID3AudioTags(t *testing.T) {
 }
 
 type fakeImportWantedStore struct {
-	items []wanted.WantedItem
+	items         []wanted.WantedItem
+	providerISBNs map[string][]string
 }
 
 func (f fakeImportWantedStore) GetWanted(_ context.Context, id string) (wanted.WantedItem, error) {
@@ -432,6 +466,16 @@ func (f fakeImportWantedStore) ListWanted(context.Context, string) ([]wanted.Wan
 
 func (f fakeImportWantedStore) MarkWantedStatus(context.Context, string, string) error {
 	return nil
+}
+
+func (f fakeImportWantedStore) ProviderISBNsForWanted(_ context.Context, wantedIDs []string) (map[string][]string, error) {
+	result := map[string][]string{}
+	for _, id := range wantedIDs {
+		if values := f.providerISBNs[id]; len(values) > 0 {
+			result[id] = append([]string(nil), values...)
+		}
+	}
+	return result, nil
 }
 
 func TestParsedBookForPathReadsM4BMetadataAtoms(t *testing.T) {

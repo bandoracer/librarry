@@ -836,6 +836,72 @@ func (s *Store) WantedMetadataProvenance(ctx context.Context, wantedID string) (
 	}, nil
 }
 
+func (s *Store) ProviderISBNsForWanted(ctx context.Context, wantedIDs []string) (map[string][]string, error) {
+	result := map[string][]string{}
+	if !s.Configured() {
+		return result, errors.New("wanted store is unavailable")
+	}
+	ids := compactStrings(wantedIDs)
+	if len(ids) == 0 {
+		return result, nil
+	}
+	placeholders := make([]string, 0, len(ids))
+	args := make([]any, 0, len(ids))
+	for index, id := range ids {
+		placeholders = append(placeholders, "$"+strconv.Itoa(index+1))
+		args = append(args, id)
+	}
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
+		with wanted as (
+			select id, work_id, edition_id
+			from wanted_items
+			where id::text in (%s)
+		),
+		target_entities as (
+			select id as wanted_id, work_id as entity_id
+			from wanted
+			where work_id is not null
+			union
+			select id as wanted_id, edition_id as entity_id
+			from wanted
+			where edition_id is not null
+		)
+		select te.wanted_id::text, pr.raw
+		from target_entities te
+		join provider_records pr on pr.entity_id = te.entity_id
+		order by te.wanted_id::text, pr.confidence desc, pr.fetched_at desc
+	`, strings.Join(placeholders, ",")), args...)
+	if err != nil {
+		return result, err
+	}
+	defer rows.Close()
+
+	seen := map[string]bool{}
+	for rows.Next() {
+		var wantedID string
+		var raw []byte
+		if err := rows.Scan(&wantedID, &raw); err != nil {
+			return result, err
+		}
+		for _, isbn := range metadataValuesFromProviderRaw(raw).ISBNs {
+			isbn = strings.TrimSpace(isbn)
+			if isbn == "" {
+				continue
+			}
+			key := strings.Join([]string{wantedID, normalizeText(isbn)}, "\x00")
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			result[wantedID] = append(result[wantedID], isbn)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
 func (s *Store) WantedMetadataReviewQueue(ctx context.Context) (MetadataReviewQueue, error) {
 	if !s.Configured() {
 		return MetadataReviewQueue{}, errors.New("wanted store is unavailable")
