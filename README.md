@@ -99,7 +99,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   sets easier to narrow before creating wanted items, and selected candidates
   show score, source identity, matched-field, and edition-evidence summaries.
   Medium, low-confidence, or weak-evidence candidates require explicit review
-  confirmation before they are marked wanted.
+  confirmation before they are marked wanted. Candidates already tracked as
+  wanted open the existing wanted item instead of creating duplicates.
 - Newly monitored authors are immediately eligible for a targeted bibliography
   refresh, which creates or reviews wanted books from metadata before release
   acquisition starts.

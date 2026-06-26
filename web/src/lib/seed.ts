@@ -1,4 +1,4 @@
-import type { ProviderHealth, SearchResult } from "./api";
+import type { ProviderHealth, SearchResult, WantedItem } from "./api";
 
 export const seedProviders: ProviderHealth[] = [
   {
@@ -79,5 +79,24 @@ export const seedResults: SearchResult[] = [
     score: 0.86,
     confidence: "medium",
     matchedOn: ["title"]
+  }
+];
+
+export const seedWantedItems: WantedItem[] = [
+  {
+    id: "demo-wanted-project-hail-mary",
+    workId: "openlibrary:OL21745884W",
+    editionId: "openlibrary:OL30036715M",
+    title: "Project Hail Mary",
+    authorName: "Andy Weir",
+    coverUrl: "https://covers.openlibrary.org/b/id/11200092-L.jpg",
+    format: "ebook",
+    qualityProfile: "standard",
+    status: "wanted",
+    monitored: true,
+    sourceProvider: "Open Library",
+    sourceKey: "openlibrary:OL30036715M",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];

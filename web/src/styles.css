@@ -1095,6 +1095,12 @@ select {
   color: #93370d;
 }
 
+.row-action-button.tracked {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .detail-panel {
   padding: 18px;
   position: sticky;
@@ -1202,6 +1208,32 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.wanted-existing-callout {
+  margin: -4px 0 16px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.wanted-existing-callout strong {
+  color: #14532d;
+  font-size: 13px;
+}
+
+.wanted-existing-callout span {
+  color: #166534;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.wanted-existing-callout .secondary-action.compact {
+  justify-self: start;
 }
 
 .secondary-action.ghost {

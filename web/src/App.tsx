@@ -142,7 +142,7 @@ import {
   type UpgradeRun,
   type WantedItem
 } from "./lib/api";
-import { seedProviders, seedResults } from "./lib/seed";
+import { seedProviders, seedResults, seedWantedItems } from "./lib/seed";
 
 const navItems = [
   {
@@ -230,6 +230,34 @@ function searchResultCanBeWanted(result: SearchResult) {
 
 function searchResultKey(result: SearchResult) {
   return `${result.provider}:${result.kind}:${result.work.id}:${result.edition?.id || result.rawSourceKey || ""}`;
+}
+
+function searchResultWantedSourceKey(result: SearchResult) {
+  return result.edition?.id || result.work.id || result.rawSourceKey || "";
+}
+
+function searchResultWantedFormat(result: SearchResult, currentFormat: string) {
+  if (result.edition?.format === "audiobook") return "audiobook";
+  return wantedFormat(currentFormat);
+}
+
+function searchResultExistingWanted(result: SearchResult, items: WantedItem[], currentFormat: string) {
+  if (!searchResultCanBeWanted(result)) return undefined;
+  const wantedFormatValue = searchResultWantedFormat(result, currentFormat);
+  const provider = result.provider.trim().toLowerCase();
+  const sourceKey = searchResultWantedSourceKey(result).trim().toLowerCase();
+  const title = normalizedWantedText(result.work.title);
+  const author = normalizedWantedText(firstAuthorName(result));
+  return items.find((item) => {
+    if (item.format !== wantedFormatValue) return false;
+    const itemProvider = (item.sourceProvider || "").trim().toLowerCase();
+    const itemSourceKey = (item.sourceKey || "").trim().toLowerCase();
+    if (provider && sourceKey && itemProvider === provider && itemSourceKey === sourceKey) return true;
+
+    const itemTitle = normalizedWantedText(item.title);
+    const itemAuthor = normalizedWantedText(item.authorName || "");
+    return Boolean(title && itemTitle === title && (!author || !itemAuthor || itemAuthor === author));
+  });
 }
 
 function searchResultScoreLabel(result: SearchResult) {
@@ -416,7 +444,7 @@ function searchResultProviderKey(result: SearchResult) {
 
 function searchResultSourceIdentity(result: SearchResult) {
   if (result.kind === "author") return searchResultProviderKey(result);
-  return result.rawSourceKey || result.edition?.id || result.work.providerIds?.[0] || result.work.id || "Unknown";
+  return searchResultWantedSourceKey(result) || result.work.providerIds?.[0] || "Unknown";
 }
 
 function searchResultEditionSummary(result: SearchResult, currentFormat: string) {
@@ -575,7 +603,7 @@ export function App() {
   const [readarrImportForm, setReadarrImportForm] = useState<ReadarrImportSettings>(() => emptyReadarrImportSettings());
   const [readarrImportOutcome, setReadarrImportOutcome] = useState<ReadarrImportOutcome | null>(null);
   const [releases, setReleases] = useState<Release[]>([]);
-  const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
+  const [wantedItems, setWantedItems] = useState<WantedItem[]>(seedWantedItems);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [wantedMetadata, setWantedMetadata] = useState<MetadataProvenance | null>(null);
   const [wantedMetadataReview, setWantedMetadataReview] = useState<MetadataReviewQueue | null>(null);
@@ -857,14 +885,24 @@ export function App() {
     searchConfidenceFilter !== "all" ? searchConfidenceFilter : "",
     searchEvidenceFilter !== "all" ? searchEvidenceFilter : ""
   ].filter(Boolean).length;
+  const wantedBySearchKey = useMemo(() => {
+    const entries = new Map<string, WantedItem>();
+    results.forEach((result) => {
+      const item = searchResultExistingWanted(result, wantedItems, format);
+      if (item) entries.set(searchResultKey(result), item);
+    });
+    return entries;
+  }, [format, results, wantedItems]);
   const selected = useMemo(
     () => visibleSearchResults.find((result) => searchResultKey(result) === selectedID || result.work.id === selectedID) ?? visibleSearchResults[0] ?? results[0],
     [results, selectedID, visibleSearchResults]
   );
   const selectedSearchKey = selected ? searchResultKey(selected) : "";
+  const selectedExistingWanted = selectedSearchKey ? wantedBySearchKey.get(selectedSearchKey) : undefined;
   const query = searchMode === "author" ? authorQuery : bookQuery;
-  const selectedCanBeWanted = Boolean(selected && searchResultCanBeWanted(selected));
-  const selectedCanSearchReleases = selectedCanBeWanted;
+  const selectedIsBookCandidate = Boolean(selected && searchResultCanBeWanted(selected));
+  const selectedCanBeWanted = selectedIsBookCandidate && !selectedExistingWanted;
+  const selectedCanSearchReleases = selectedIsBookCandidate;
   const selectedWantedReviewReasons = selected && selectedCanBeWanted ? searchResultWantedReviewReasons(selected) : [];
   const pendingWantedReviewKey = pendingWantedReview ? searchResultKey(pendingWantedReview) : "";
   const wantedPresence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
@@ -1164,6 +1202,13 @@ export function App() {
 
   async function markWantedResult(result = selected, options: { force?: boolean } = {}) {
     if (!result || !searchResultCanBeWanted(result)) return;
+    const existingWanted = searchResultExistingWanted(result, wantedItems, format);
+    if (existingWanted) {
+      setSelectedID(searchResultKey(result));
+      setPendingWantedReview(null);
+      openWantedItem(existingWanted);
+      return;
+    }
     if (!options.force && searchResultNeedsWantedReview(result)) {
       setWantedError("");
       setSelectedID(searchResultKey(result));
@@ -3159,50 +3204,61 @@ export function App() {
                 <span>Confidence</span>
                 <span>Action</span>
               </div>
-              {visibleSearchResults.map((result) => (
-                <div className={searchResultKey(result) === selectedSearchKey ? "table-row result-row selected" : "table-row result-row"} key={searchResultKey(result)} role="row">
-                  <button className="title-cell result-select" onClick={() => selectSearchResult(result)} type="button">
-                    {result.kind === "author" ? <UserPlus size={16} /> : <BookOpen size={16} />}
-                    <span>
-                      <strong>{searchResultTitle(result)}</strong>
-                      <small>{searchResultSubtitle(result)}</small>
-                      <span className="result-chip-row" aria-hidden="true">
-                        {searchResultMatchChips(result).map((chip) => (
-                          <em className={`result-chip ${chip.tone ?? "neutral"}`} key={chip.label}>{chip.label}</em>
-                        ))}
+              {visibleSearchResults.map((result) => {
+                const resultKey = searchResultKey(result);
+                const existingWanted = wantedBySearchKey.get(resultKey);
+                const resultNeedsReview = searchResultNeedsWantedReview(result);
+                return (
+                  <div className={resultKey === selectedSearchKey ? "table-row result-row selected" : "table-row result-row"} key={resultKey} role="row">
+                    <button className="title-cell result-select" onClick={() => selectSearchResult(result)} type="button">
+                      {result.kind === "author" ? <UserPlus size={16} /> : <BookOpen size={16} />}
+                      <span>
+                        <strong>{searchResultTitle(result)}</strong>
+                        <small>{searchResultSubtitle(result)}</small>
+                        <span className="result-chip-row" aria-hidden="true">
+                          {searchResultMatchChips(result).map((chip) => (
+                            <em className={`result-chip ${chip.tone ?? "neutral"}`} key={chip.label}>{chip.label}</em>
+                          ))}
+                        </span>
                       </span>
+                    </button>
+                    <span className="edition-cell">
+                      <strong>{searchResultEditionSummary(result, format)}</strong>
+                      <small>{searchResultEditionSubline(result)}</small>
                     </span>
-                  </button>
-                  <span className="edition-cell">
-                    <strong>{searchResultEditionSummary(result, format)}</strong>
-                    <small>{searchResultEditionSubline(result)}</small>
-                  </span>
-                  <span>{result.provider}</span>
-                  <span>
-                    <em className={`confidence ${result.confidence}`}>{result.confidence}</em>
-                  </span>
-                  <span className="row-action">
-                    {searchResultCanBeWanted(result) ? (
+                    <span>{result.provider}</span>
+                    <span>
+                      <em className={`confidence ${result.confidence}`}>{result.confidence}</em>
+                    </span>
+                    <span className="row-action">
+                      {searchResultCanBeWanted(result) ? (
+                        <button
+                          className={existingWanted ? "row-action-button tracked" : resultNeedsReview ? "row-action-button review" : "row-action-button"}
+                          disabled={isMarkingWanted}
+                          onClick={() => {
+                            if (existingWanted) {
+                              openWantedItem(existingWanted);
+                              return;
+                            }
+                            markWantedResult(result);
+                          }}
+                          type="button"
+                        >
+                          {existingWanted ? "Open" : isMarkingWanted && resultKey === selectedSearchKey ? "Marking" : resultNeedsReview ? "Review" : "Mark"}
+                        </button>
+                      ) : null}
                       <button
-                        className={searchResultNeedsWantedReview(result) ? "row-action-button review" : "row-action-button"}
-                        disabled={isMarkingWanted}
-                        onClick={() => markWantedResult(result)}
+                        className="row-action-button"
+                        disabled={isSubscribingAuthor || !result.work.authors?.length}
+                        onClick={() => subscribeAuthorResult(result)}
                         type="button"
                       >
-                        {isMarkingWanted && searchResultKey(result) === selectedSearchKey ? "Marking" : searchResultNeedsWantedReview(result) ? "Review" : "Mark"}
+                        {isSubscribingAuthor && resultKey === selectedSearchKey ? "Saving" : result.kind === "author" ? "Monitor" : "Author"}
                       </button>
-                    ) : null}
-                    <button
-                      className="row-action-button"
-                      disabled={isSubscribingAuthor || !result.work.authors?.length}
-                      onClick={() => subscribeAuthorResult(result)}
-                      type="button"
-                    >
-                      {isSubscribingAuthor && searchResultKey(result) === selectedSearchKey ? "Saving" : result.kind === "author" ? "Monitor" : "Author"}
-                    </button>
-                  </span>
-                </div>
-              ))}
+                    </span>
+                  </div>
+                );
+              })}
               {!visibleSearchResults.length ? (
                 <div className="search-empty" role="row">
                   <strong>No metadata candidates match the current filters.</strong>
@@ -3230,6 +3286,16 @@ export function App() {
                     </article>
                   ))}
                 </div>
+
+                {selectedExistingWanted ? (
+                  <div className="wanted-existing-callout" aria-label="Existing wanted item">
+                    <strong>Already tracked</strong>
+                    <span>{wantedBadgeLabel(selectedExistingWanted, wantedPresence.get(selectedExistingWanted.id))}</span>
+                    <button className="secondary-action compact" onClick={() => openWantedItem(selectedExistingWanted)} type="button">
+                      Open wanted
+                    </button>
+                  </div>
+                ) : null}
 
                 {selectedCanBeWanted && selectedWantedReviewReasons.length ? (
                   <div className={pendingWantedReviewKey === selectedSearchKey ? "wanted-review-gate active" : "wanted-review-gate"} aria-label="Wanted metadata review">
@@ -3331,7 +3397,12 @@ export function App() {
                 </div>
 
                 <div className="detail-actions">
-                  {selectedCanBeWanted ? (
+                  {selectedExistingWanted ? (
+                    <button className="secondary-action" onClick={() => openWantedItem(selectedExistingWanted)} type="button">
+                      <HardDriveDownload size={17} />
+                      <span>Open wanted</span>
+                    </button>
+                  ) : selectedCanBeWanted ? (
                     <button className="secondary-action" onClick={() => markWantedResult(selected)} disabled={isMarkingWanted} type="button">
                       <HardDriveDownload size={17} />
                       <span>{isMarkingWanted ? "Marking" : selectedWantedReviewReasons.length ? "Review wanted" : "Mark wanted"}</span>
