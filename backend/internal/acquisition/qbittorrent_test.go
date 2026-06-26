@@ -350,6 +350,156 @@ func TestQBittorrentListMapsDownloadStatus(t *testing.T) {
 	}
 }
 
+func TestQBittorrentResourcesListsCategoriesAndTags(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/torrents/categories":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"books-audiobook": map[string]any{"name": "books-audiobook", "savePath": "/downloads/audio"},
+				"books-ebook":     map[string]any{"name": "books-ebook", "savePath": "/downloads/ebooks"},
+			})
+		case "/api/v2/torrents/tags":
+			_ = json.NewEncoder(w).Encode([]string{"manual", "librarry"})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := NewQBittorrentClient(server.URL, "", "", server.Client())
+	resources, err := client.Resources(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resources.Client != "qBittorrent" || len(resources.Categories) != 2 || resources.Categories[0].Name != "books-audiobook" {
+		t.Fatalf("unexpected resources: %+v", resources)
+	}
+	if resources.Categories[1].SavePath != "/downloads/ebooks" {
+		t.Fatalf("expected category save path, got %+v", resources.Categories)
+	}
+	if strings.Join(resources.Tags, ",") != "librarry,manual" {
+		t.Fatalf("expected sorted tags, got %+v", resources.Tags)
+	}
+}
+
+func TestQBittorrentCategoryAndTagActions(t *testing.T) {
+	tests := []struct {
+		name       string
+		run        func(*QBittorrentClient) (DownloadResourceActionResult, error)
+		endpoint   string
+		wantForm   map[string]string
+		wantAction string
+	}{
+		{
+			name: "create category",
+			run: func(client *QBittorrentClient) (DownloadResourceActionResult, error) {
+				return client.CategoryAction(context.Background(), DownloadCategoryActionRequest{
+					Action:   "create",
+					Name:     "books-audiobook",
+					SavePath: "/downloads/audio",
+				})
+			},
+			endpoint:   "/api/v2/torrents/createCategory",
+			wantForm:   map[string]string{"category": "books-audiobook", "savePath": "/downloads/audio"},
+			wantAction: "create",
+		},
+		{
+			name: "edit category",
+			run: func(client *QBittorrentClient) (DownloadResourceActionResult, error) {
+				return client.CategoryAction(context.Background(), DownloadCategoryActionRequest{
+					Action:   "edit",
+					Name:     "books-ebook",
+					SavePath: "/downloads/ebooks",
+				})
+			},
+			endpoint:   "/api/v2/torrents/editCategory",
+			wantForm:   map[string]string{"category": "books-ebook", "savePath": "/downloads/ebooks"},
+			wantAction: "edit",
+		},
+		{
+			name: "delete category",
+			run: func(client *QBittorrentClient) (DownloadResourceActionResult, error) {
+				return client.CategoryAction(context.Background(), DownloadCategoryActionRequest{
+					Action: "delete",
+					Name:   "books-old",
+				})
+			},
+			endpoint:   "/api/v2/torrents/removeCategories",
+			wantForm:   map[string]string{"categories": "books-old"},
+			wantAction: "delete",
+		},
+		{
+			name: "create tag",
+			run: func(client *QBittorrentClient) (DownloadResourceActionResult, error) {
+				return client.TagAction(context.Background(), DownloadTagActionRequest{
+					Action: "create",
+					Names:  []string{"librarry", "manual"},
+				})
+			},
+			endpoint:   "/api/v2/torrents/createTags",
+			wantForm:   map[string]string{"tags": "librarry,manual"},
+			wantAction: "create",
+		},
+		{
+			name: "delete tag",
+			run: func(client *QBittorrentClient) (DownloadResourceActionResult, error) {
+				return client.TagAction(context.Background(), DownloadTagActionRequest{
+					Action: "delete",
+					Names:  []string{"manual"},
+				})
+			},
+			endpoint:   "/api/v2/torrents/deleteTags",
+			wantForm:   map[string]string{"tags": "manual"},
+			wantAction: "delete",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var endpoint string
+			form := map[string]string{}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v2/torrents/categories":
+					_ = json.NewEncoder(w).Encode(map[string]any{})
+				case "/api/v2/torrents/tags":
+					_ = json.NewEncoder(w).Encode([]string{})
+				default:
+					endpoint = r.URL.Path
+					if err := r.ParseForm(); err != nil {
+						t.Fatal(err)
+					}
+					for key := range test.wantForm {
+						form[key] = r.Form.Get(key)
+					}
+					w.WriteHeader(http.StatusOK)
+				}
+			}))
+			defer server.Close()
+
+			client := NewQBittorrentClient(server.URL, "", "", server.Client())
+			result, err := test.run(client)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if endpoint != test.endpoint {
+				t.Fatalf("expected endpoint %s, got %s", test.endpoint, endpoint)
+			}
+			for key, want := range test.wantForm {
+				if form[key] != want {
+					t.Fatalf("expected form %s=%q, got %q", key, want, form[key])
+				}
+			}
+			if !result.Applied || result.Action != test.wantAction || result.Client != "qBittorrent" {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+			if result.Resources == nil {
+				t.Fatalf("expected refreshed resources")
+			}
+		})
+	}
+}
+
 func TestQBittorrentDetailsMapsPropertiesFilesAndTrackers(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("hash") != "abc123" && r.URL.Query().Get("hashes") != "abc123" {

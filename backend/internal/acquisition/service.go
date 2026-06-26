@@ -337,6 +337,45 @@ func (s *Service) DownloadTrackerAction(ctx context.Context, id string, request 
 	return result, nil
 }
 
+func (s *Service) DownloadResources(ctx context.Context, client string) (DownloadResources, error) {
+	resolvedClient, err := s.resolveResourceClient(client)
+	if err != nil {
+		return DownloadResources{}, err
+	}
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		return s.qbit.Resources(ctx)
+	default:
+		return DownloadResources{}, fmt.Errorf("download resource administration is not supported for %s", resolvedClient)
+	}
+}
+
+func (s *Service) DownloadCategoryAction(ctx context.Context, request DownloadCategoryActionRequest) (DownloadResourceActionResult, error) {
+	resolvedClient, err := s.resolveResourceClient(request.Client)
+	if err != nil {
+		return DownloadResourceActionResult{}, err
+	}
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		return s.qbit.CategoryAction(ctx, request)
+	default:
+		return DownloadResourceActionResult{}, fmt.Errorf("download category administration is not supported for %s", resolvedClient)
+	}
+}
+
+func (s *Service) DownloadTagAction(ctx context.Context, request DownloadTagActionRequest) (DownloadResourceActionResult, error) {
+	resolvedClient, err := s.resolveResourceClient(request.Client)
+	if err != nil {
+		return DownloadResourceActionResult{}, err
+	}
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		return s.qbit.TagAction(ctx, request)
+	default:
+		return DownloadResourceActionResult{}, fmt.Errorf("download tag administration is not supported for %s", resolvedClient)
+	}
+}
+
 func (s *Service) MarkDownloadFailed(ctx context.Context, id string, reason string) error {
 	if s.store == nil {
 		return nil
@@ -489,6 +528,20 @@ func (s *Service) resolveTorrentDetailClient(ctx context.Context, id string, cli
 	}
 	if !s.qbit.Configured() && s.trans.Configured() {
 		return s.trans.Name(), nil
+	}
+	return s.qbit.Name(), nil
+}
+
+func (s *Service) resolveResourceClient(client string) (string, error) {
+	client = strings.TrimSpace(client)
+	if strings.EqualFold(client, s.qbit.Name()) {
+		return s.qbit.Name(), nil
+	}
+	if strings.EqualFold(client, s.trans.Name()) || strings.EqualFold(client, s.sab.Name()) {
+		return client, nil
+	}
+	if client != "" {
+		return "", ErrDownloadDetailsUnsupported
 	}
 	return s.qbit.Name(), nil
 }

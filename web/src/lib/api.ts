@@ -145,6 +145,17 @@ export type DownloadTracker = {
   downloads?: number;
 };
 
+export type DownloadCategory = {
+  name: string;
+  savePath?: string;
+};
+
+export type DownloadResources = {
+  client: string;
+  categories: DownloadCategory[];
+  tags: string[];
+};
+
 export type DownloadPeer = {
   id: string;
   ip: string;
@@ -212,6 +223,13 @@ export type DownloadTrackerActionResult = {
   applied: boolean;
   message?: string;
   download?: DownloadDetails;
+};
+
+export type DownloadResourceActionResult = {
+  action: string;
+  client: string;
+  applied: boolean;
+  resources?: DownloadResources;
 };
 
 export type DownloadRebalancePlan = {
@@ -710,6 +728,58 @@ export async function fetchDownloadDetails(id: string, client?: string): Promise
     throw new Error(`Download details failed: ${response.status}`);
   }
   return (await response.json()) as DownloadDetails;
+}
+
+export async function fetchDownloadResources(client = "qBittorrent"): Promise<DownloadResources> {
+  const params = new URLSearchParams();
+  if (client) params.set("client", client);
+  const response = await fetch(`${apiBase}/api/v1/downloads/resources?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Download resources failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadResources;
+}
+
+export async function runDownloadCategoryAction(options: {
+  action: "create" | "edit" | "delete";
+  name: string;
+  savePath?: string;
+  client?: string;
+}): Promise<DownloadResourceActionResult> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/categories/actions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client: options.client ?? "qBittorrent",
+      action: options.action,
+      name: options.name,
+      savePath: options.savePath
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Download category action failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadResourceActionResult;
+}
+
+export async function runDownloadTagAction(options: {
+  action: "create" | "delete";
+  names: string[];
+  client?: string;
+}): Promise<DownloadResourceActionResult> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/tags/actions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client: options.client ?? "qBittorrent",
+      action: options.action,
+      names: options.names
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Download tag action failed: ${response.status}`);
+  }
+  return (await response.json()) as DownloadResourceActionResult;
 }
 
 export async function runDownloadAction(

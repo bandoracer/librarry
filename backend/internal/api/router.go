@@ -44,6 +44,9 @@ type acquisitionService interface {
 	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
 	DownloadFileAction(ctx context.Context, id string, request acquisition.DownloadFileActionRequest) (acquisition.DownloadFileActionResult, error)
 	DownloadTrackerAction(ctx context.Context, id string, request acquisition.DownloadTrackerActionRequest) (acquisition.DownloadTrackerActionResult, error)
+	DownloadResources(ctx context.Context, client string) (acquisition.DownloadResources, error)
+	DownloadCategoryAction(ctx context.Context, request acquisition.DownloadCategoryActionRequest) (acquisition.DownloadResourceActionResult, error)
+	DownloadTagAction(ctx context.Context, request acquisition.DownloadTagActionRequest) (acquisition.DownloadResourceActionResult, error)
 }
 
 type wantedService interface {
@@ -307,6 +310,9 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("GET /api/v1/downloads/{id}", handler.downloadDetails)
+	mux.HandleFunc("GET /api/v1/downloads/resources", handler.downloadResources)
+	mux.HandleFunc("POST /api/v1/downloads/categories/actions", handler.downloadCategoryAction)
+	mux.HandleFunc("POST /api/v1/downloads/tags/actions", handler.downloadTagAction)
 	mux.HandleFunc("POST /api/v1/downloads/actions", handler.downloadAction)
 	mux.HandleFunc("POST /api/v1/downloads/{id}/files/actions", handler.downloadFileAction)
 	mux.HandleFunc("POST /api/v1/downloads/{id}/trackers/actions", handler.downloadTrackerAction)
@@ -604,6 +610,57 @@ func (h *handler) downloadDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, details)
+}
+
+func (h *handler) downloadResources(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	resources, err := h.deps.Acquire.DownloadResources(r.Context(), r.URL.Query().Get("client"))
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, resources)
+}
+
+func (h *handler) downloadCategoryAction(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request acquisition.DownloadCategoryActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid download category action payload"})
+		return
+	}
+	result, err := h.deps.Acquire.DownloadCategoryAction(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *handler) downloadTagAction(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request acquisition.DownloadTagActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid download tag action payload"})
+		return
+	}
+	result, err := h.deps.Acquire.DownloadTagAction(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (h *handler) downloadAction(w http.ResponseWriter, r *http.Request) {

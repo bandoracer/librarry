@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -289,6 +290,106 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 		})
 	}
 	return statuses, nil
+}
+
+func (c *QBittorrentClient) Resources(ctx context.Context) (DownloadResources, error) {
+	if !c.Configured() {
+		return DownloadResources{}, ErrIntegrationNotConfigured
+	}
+	if err := c.login(ctx); err != nil {
+		return DownloadResources{}, err
+	}
+	categories, err := c.categories(ctx)
+	if err != nil {
+		return DownloadResources{}, err
+	}
+	tags, err := c.tags(ctx)
+	if err != nil {
+		return DownloadResources{}, err
+	}
+	return DownloadResources{
+		Client:     c.Name(),
+		Categories: categories,
+		Tags:       tags,
+	}, nil
+}
+
+func (c *QBittorrentClient) CategoryAction(ctx context.Context, request DownloadCategoryActionRequest) (DownloadResourceActionResult, error) {
+	if !c.Configured() {
+		return DownloadResourceActionResult{}, ErrIntegrationNotConfigured
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		return DownloadResourceActionResult{}, errors.New("category name is required")
+	}
+	action := normalizeResourceAction(request.Action)
+	if err := c.login(ctx); err != nil {
+		return DownloadResourceActionResult{}, err
+	}
+	switch action {
+	case "create", "upsert":
+		if err := c.EnsureCategory(ctx, name, strings.TrimSpace(request.SavePath)); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	case "edit", "update":
+		if err := c.editCategory(ctx, name, strings.TrimSpace(request.SavePath)); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	case "delete", "remove":
+		values := url.Values{}
+		values.Set("categories", name)
+		if err := c.postTorrentAction(ctx, "removeCategories", values); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	default:
+		return DownloadResourceActionResult{}, fmt.Errorf("unsupported category action %q", request.Action)
+	}
+	result := DownloadResourceActionResult{
+		Action:  action,
+		Client:  c.Name(),
+		Applied: true,
+	}
+	if resources, err := c.Resources(ctx); err == nil {
+		result.Resources = &resources
+	}
+	return result, nil
+}
+
+func (c *QBittorrentClient) TagAction(ctx context.Context, request DownloadTagActionRequest) (DownloadResourceActionResult, error) {
+	if !c.Configured() {
+		return DownloadResourceActionResult{}, ErrIntegrationNotConfigured
+	}
+	names := compactStrings(request.Names)
+	if len(names) == 0 {
+		return DownloadResourceActionResult{}, errors.New("at least one tag is required")
+	}
+	action := normalizeResourceAction(request.Action)
+	if err := c.login(ctx); err != nil {
+		return DownloadResourceActionResult{}, err
+	}
+	values := url.Values{}
+	values.Set("tags", strings.Join(names, ","))
+	switch action {
+	case "create", "upsert":
+		if err := c.postTorrentAction(ctx, "createTags", values); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	case "delete", "remove":
+		if err := c.postTorrentAction(ctx, "deleteTags", values); err != nil {
+			return DownloadResourceActionResult{}, err
+		}
+	default:
+		return DownloadResourceActionResult{}, fmt.Errorf("unsupported tag action %q", request.Action)
+	}
+	result := DownloadResourceActionResult{
+		Action:  action,
+		Client:  c.Name(),
+		Applied: true,
+	}
+	if resources, err := c.Resources(ctx); err == nil {
+		result.Resources = &resources
+	}
+	return result, nil
 }
 
 func (c *QBittorrentClient) Details(ctx context.Context, id string) (DownloadDetails, error) {
@@ -780,6 +881,69 @@ func (c *QBittorrentClient) peers(ctx context.Context, id string) ([]DownloadPee
 	return peers, nil
 }
 
+func (c *QBittorrentClient) categories(ctx context.Context) ([]DownloadCategory, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/torrents/categories", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("qBittorrent categories returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var raw map[string]struct {
+		Name     string `json:"name"`
+		SavePath string `json:"savePath"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, err
+	}
+	categories := make([]DownloadCategory, 0, len(raw))
+	for key, item := range raw {
+		name := strings.TrimSpace(firstNonEmpty(item.Name, key))
+		if name == "" {
+			continue
+		}
+		categories = append(categories, DownloadCategory{
+			Name:     name,
+			SavePath: strings.TrimSpace(item.SavePath),
+		})
+	}
+	sort.Slice(categories, func(i, j int) bool {
+		return strings.ToLower(categories[i].Name) < strings.ToLower(categories[j].Name)
+	})
+	return categories, nil
+}
+
+func (c *QBittorrentClient) tags(ctx context.Context) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/torrents/tags", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("qBittorrent tags returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var raw []string
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, err
+	}
+	tags := compactStrings(raw)
+	sort.Slice(tags, func(i, j int) bool {
+		return strings.ToLower(tags[i]) < strings.ToLower(tags[j])
+	})
+	return tags, nil
+}
+
 func (c *QBittorrentClient) editCategory(ctx context.Context, category string, savePath string) error {
 	values := url.Values{}
 	values.Set("category", category)
@@ -888,6 +1052,21 @@ func normalizeAction(value string) string {
 		return DownloadActionAddTags
 	case "removetags", "remove_tags", "untag":
 		return DownloadActionRemoveTags
+	default:
+		return strings.TrimSpace(value)
+	}
+}
+
+func normalizeResourceAction(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "add", "create", "new":
+		return "create"
+	case "upsert", "ensure":
+		return "upsert"
+	case "edit", "update", "save":
+		return "edit"
+	case "delete", "remove":
+		return "delete"
 	default:
 		return strings.TrimSpace(value)
 	}

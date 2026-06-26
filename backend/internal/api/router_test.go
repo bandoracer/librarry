@@ -1858,6 +1858,63 @@ func TestDownloadDetailsEndpoint(t *testing.T) {
 	}
 }
 
+func TestDownloadResourcesEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  fakeAcquire{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads/resources?client=qBittorrent", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload acquisition.DownloadResources
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Client != "qBittorrent" || len(payload.Categories) != 1 || payload.Categories[0].Name != "books-ebook" {
+		t.Fatalf("unexpected resource payload: %+v", payload)
+	}
+	if len(payload.Tags) != 2 || payload.Tags[0] != "librarry" {
+		t.Fatalf("unexpected resource tags: %+v", payload.Tags)
+	}
+}
+
+func TestDownloadResourceActionEndpoints(t *testing.T) {
+	acquire := &fakeResourceAcquire{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  acquire,
+	})
+
+	categoryReq := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/categories/actions", strings.NewReader(`{"client":"qBittorrent","action":"create","name":"books-audiobook","savePath":"/downloads/audio"}`))
+	categoryRes := httptest.NewRecorder()
+	router.ServeHTTP(categoryRes, categoryReq)
+	if categoryRes.Code != http.StatusOK {
+		t.Fatalf("expected category action 200, got %d: %s", categoryRes.Code, categoryRes.Body.String())
+	}
+	if acquire.category.Name != "books-audiobook" || acquire.category.SavePath != "/downloads/audio" {
+		t.Fatalf("expected category request to decode, got %+v", acquire.category)
+	}
+
+	tagReq := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/tags/actions", strings.NewReader(`{"client":"qBittorrent","action":"delete","names":["manual"]}`))
+	tagRes := httptest.NewRecorder()
+	router.ServeHTTP(tagRes, tagReq)
+	if tagRes.Code != http.StatusOK {
+		t.Fatalf("expected tag action 200, got %d: %s", tagRes.Code, tagRes.Body.String())
+	}
+	if acquire.tag.Action != "delete" || len(acquire.tag.Names) != 1 || acquire.tag.Names[0] != "manual" {
+		t.Fatalf("expected tag request to decode, got %+v", acquire.tag)
+	}
+}
+
 func TestDownloadFileActionEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -2901,6 +2958,53 @@ func (fakeAcquire) DownloadTrackerAction(_ context.Context, id string, request a
 		Applied:    true,
 		Download:   &details,
 	}, nil
+}
+
+func (fakeAcquire) DownloadResources(context.Context, string) (acquisition.DownloadResources, error) {
+	return acquisition.DownloadResources{
+		Client: "qBittorrent",
+		Categories: []acquisition.DownloadCategory{{
+			Name:     "books-ebook",
+			SavePath: "/downloads/books/ebooks",
+		}},
+		Tags: []string{"librarry", "manual"},
+	}, nil
+}
+
+func (fakeAcquire) DownloadCategoryAction(_ context.Context, request acquisition.DownloadCategoryActionRequest) (acquisition.DownloadResourceActionResult, error) {
+	resources, _ := fakeAcquire{}.DownloadResources(context.Background(), request.Client)
+	return acquisition.DownloadResourceActionResult{
+		Action:    request.Action,
+		Client:    "qBittorrent",
+		Applied:   true,
+		Resources: &resources,
+	}, nil
+}
+
+func (fakeAcquire) DownloadTagAction(_ context.Context, request acquisition.DownloadTagActionRequest) (acquisition.DownloadResourceActionResult, error) {
+	resources, _ := fakeAcquire{}.DownloadResources(context.Background(), request.Client)
+	return acquisition.DownloadResourceActionResult{
+		Action:    request.Action,
+		Client:    "qBittorrent",
+		Applied:   true,
+		Resources: &resources,
+	}, nil
+}
+
+type fakeResourceAcquire struct {
+	fakeAcquire
+	category acquisition.DownloadCategoryActionRequest
+	tag      acquisition.DownloadTagActionRequest
+}
+
+func (f *fakeResourceAcquire) DownloadCategoryAction(_ context.Context, request acquisition.DownloadCategoryActionRequest) (acquisition.DownloadResourceActionResult, error) {
+	f.category = request
+	return fakeAcquire{}.DownloadCategoryAction(context.Background(), request)
+}
+
+func (f *fakeResourceAcquire) DownloadTagAction(_ context.Context, request acquisition.DownloadTagActionRequest) (acquisition.DownloadResourceActionResult, error) {
+	f.tag = request
+	return fakeAcquire{}.DownloadTagAction(context.Background(), request)
 }
 
 type fakeRebalanceAcquire struct {

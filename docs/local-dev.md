@@ -187,6 +187,10 @@ location changes for qBittorrent, plus per-torrent download and upload speed
 limits. Transmission supports start, stop, delete, recheck, queue movement,
 force-start, set location, label-backed category/tag changes, tracker
 add/edit/remove, per-torrent speed limits, detail inspection, and file-priority changes.
+`GET /api/v1/downloads/resources` reads qBittorrent categories and tags for
+the Downloads page. `POST /api/v1/downloads/categories/actions` creates,
+updates, or deletes qBittorrent categories, and
+`POST /api/v1/downloads/tags/actions` creates or deletes qBittorrent tags.
 `GET /api/v1/downloads/{id}` returns qBittorrent and Transmission properties,
 files, trackers, and peers; `/api/v1/downloads/{id}/files/actions` changes file
 priority for qBittorrent and Transmission, and

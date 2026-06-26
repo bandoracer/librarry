@@ -34,6 +34,7 @@ import {
   createWanted,
   fetchAuthorSubscriptions,
   fetchDownloadDetails,
+  fetchDownloadResources,
   fetchIntegrationHealth,
   fetchDownloads,
   fetchHistory,
@@ -57,7 +58,9 @@ import {
   runWantedFeedSync,
   runWantedMonitor,
   runDownloadAction,
+  runDownloadCategoryAction,
   runDownloadFileAction,
+  runDownloadTagAction,
   runDownloadTrackerAction,
   saveQualityProfile,
   scanLibrary,
@@ -73,6 +76,7 @@ import {
   type DownloadDetails,
   type DownloadFileAction,
   type DownloadRebalancePlan,
+  type DownloadResources,
   type DownloadStatus,
   type DownloadTrackerAction,
   type FailedDownloadRun,
@@ -177,6 +181,7 @@ export function App() {
   const [upgradeRun, setUpgradeRun] = useState<UpgradeRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [downloadDetails, setDownloadDetails] = useState<DownloadDetails | null>(null);
+  const [downloadResources, setDownloadResources] = useState<DownloadResources | null>(null);
   const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
@@ -210,14 +215,19 @@ export function App() {
   const [isRefreshingDownloads, setIsRefreshingDownloads] = useState(false);
   const [isLoadingDownloadDetails, setIsLoadingDownloadDetails] = useState(false);
   const [isAddingDownload, setIsAddingDownload] = useState(false);
+  const [isLoadingDownloadResources, setIsLoadingDownloadResources] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
+  const [downloadResourceActionID, setDownloadResourceActionID] = useState("");
   const [trackerURL, setTrackerURL] = useState("");
   const [downloadNameInput, setDownloadNameInput] = useState("");
   const [downloadTagsInput, setDownloadTagsInput] = useState("");
   const [downloadCategoryInput, setDownloadCategoryInput] = useState("");
   const [downloadSavePathInput, setDownloadSavePathInput] = useState("");
+  const [resourceCategoryName, setResourceCategoryName] = useState("");
+  const [resourceCategoryPath, setResourceCategoryPath] = useState("");
+  const [resourceTagName, setResourceTagName] = useState("");
   const [downloadRebalanceMax, setDownloadRebalanceMax] = useState("3");
   const [manualGrabURL, setManualGrabURL] = useState("");
   const [manualGrabFile, setManualGrabFile] = useState<File | null>(null);
@@ -261,6 +271,11 @@ export function App() {
       .then(setDownloads)
       .catch((error) => {
         setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
+      });
+    fetchDownloadResources()
+      .then(setDownloadResources)
+      .catch((error) => {
+        setDownloadError(error instanceof Error ? error.message : "Download resources refresh failed");
       });
     fetchWanted()
       .then((items) => {
@@ -320,7 +335,7 @@ export function App() {
     [downloads, downloadCategoryFilter, downloadClientFilter, downloadStateFilter, downloadTextFilter]
   );
   const downloadClientOptions = useMemo(() => uniqueDownloadClients(downloads), [downloads]);
-  const downloadCategoryOptions = useMemo(() => uniqueDownloadCategories(downloads), [downloads]);
+  const downloadCategoryOptions = useMemo(() => uniqueDownloadCategories(downloads, downloadResources), [downloads, downloadResources]);
   const selectableDownloadKeys = useMemo(() => filteredDownloads.map(downloadKey).filter(Boolean), [filteredDownloads]);
   const selectedDownloadKeySet = useMemo(() => new Set(selectedDownloadKeys), [selectedDownloadKeys]);
   const selectedDownloads = useMemo(() => filteredDownloads.filter((download) => selectedDownloadKeySet.has(downloadKey(download))), [filteredDownloads, selectedDownloadKeySet]);
@@ -784,11 +799,29 @@ export function App() {
     try {
       const nextDownloads = await fetchDownloads(downloadListOptions());
       setDownloads(nextDownloads);
+      await refreshDownloadResources(true);
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
     } finally {
       setIsRefreshingDownloads(false);
+    }
+  }
+
+  async function refreshDownloadResources(silent = false) {
+    setIsLoadingDownloadResources(true);
+    if (!silent) {
+      setDownloadError("");
+    }
+    try {
+      const resources = await fetchDownloadResources("qBittorrent");
+      setDownloadResources(resources);
+    } catch (error) {
+      if (!silent) {
+        setDownloadError(error instanceof Error ? error.message : "Download resources refresh failed");
+      }
+    } finally {
+      setIsLoadingDownloadResources(false);
     }
   }
 
@@ -835,6 +868,107 @@ export function App() {
       setDownloadError(error instanceof Error ? error.message : "Queue rebalance failed");
     } finally {
       setIsRebalancingDownloads(false);
+    }
+  }
+
+  async function saveDownloadCategoryResource() {
+    const name = resourceCategoryName.trim();
+    if (!name) return;
+    const existing = (downloadResources?.categories ?? []).some((category) => category.name.toLowerCase() === name.toLowerCase());
+    const action = existing ? "edit" : "create";
+    setDownloadResourceActionID(`category:${action}:${name}`);
+    setDownloadError("");
+    try {
+      const result = await runDownloadCategoryAction({
+        action,
+        name,
+        savePath: resourceCategoryPath.trim()
+      });
+      if (result.resources) {
+        setDownloadResources(result.resources);
+      } else {
+        await refreshDownloadResources(true);
+      }
+      setDownloadCategoryFilter(name);
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download category resource action failed");
+    } finally {
+      setDownloadResourceActionID("");
+    }
+  }
+
+  async function deleteDownloadCategoryResource(name = resourceCategoryName) {
+    const category = name.trim();
+    if (!category) return;
+    setDownloadResourceActionID(`category:delete:${category}`);
+    setDownloadError("");
+    try {
+      const result = await runDownloadCategoryAction({
+        action: "delete",
+        name: category
+      });
+      if (result.resources) {
+        setDownloadResources(result.resources);
+      } else {
+        await refreshDownloadResources(true);
+      }
+      if (resourceCategoryName.trim().toLowerCase() === category.toLowerCase()) {
+        setResourceCategoryName("");
+        setResourceCategoryPath("");
+      }
+      if (downloadCategoryFilter.trim().toLowerCase() === category.toLowerCase()) {
+        setDownloadCategoryFilter("");
+      }
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download category delete failed");
+    } finally {
+      setDownloadResourceActionID("");
+    }
+  }
+
+  async function createDownloadTagResource() {
+    const names = splitTagInput(resourceTagName);
+    if (names.length === 0) return;
+    setDownloadResourceActionID(`tag:create:${names.join(",")}`);
+    setDownloadError("");
+    try {
+      const result = await runDownloadTagAction({ action: "create", names });
+      if (result.resources) {
+        setDownloadResources(result.resources);
+      } else {
+        await refreshDownloadResources(true);
+      }
+      setResourceTagName("");
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download tag create failed");
+    } finally {
+      setDownloadResourceActionID("");
+    }
+  }
+
+  async function deleteDownloadTagResource(name = resourceTagName) {
+    const names = splitTagInput(name);
+    if (names.length === 0) return;
+    setDownloadResourceActionID(`tag:delete:${names.join(",")}`);
+    setDownloadError("");
+    try {
+      const result = await runDownloadTagAction({ action: "delete", names });
+      if (result.resources) {
+        setDownloadResources(result.resources);
+      } else {
+        await refreshDownloadResources(true);
+      }
+      if (splitTagInput(resourceTagName).some((tag) => names.includes(tag))) {
+        setResourceTagName("");
+      }
+      setAPIState("live");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Download tag delete failed");
+    } finally {
+      setDownloadResourceActionID("");
     }
   }
 
@@ -1874,6 +2008,86 @@ export function App() {
               ))}
             </datalist>
           </div>
+          <div className="download-resource-panel" aria-label="Download client categories and tags">
+            <div className="download-resource-editor">
+              <label>
+                <span>Category</span>
+                <input list="download-category-options" value={resourceCategoryName} onChange={(event) => setResourceCategoryName(event.target.value)} placeholder="books-ebook" />
+              </label>
+              <label>
+                <span>Save path</span>
+                <input value={resourceCategoryPath} onChange={(event) => setResourceCategoryPath(event.target.value)} placeholder="/data/torrents/books" />
+              </label>
+              <button className="secondary-action compact" disabled={!resourceCategoryName.trim() || Boolean(downloadResourceActionID)} onClick={saveDownloadCategoryResource} type="button">
+                <FolderSearch size={16} />
+                Save cat
+              </button>
+              <button className="secondary-action compact danger-outline" disabled={!resourceCategoryName.trim() || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadCategoryResource()} type="button">
+                <Trash2 size={16} />
+                Delete cat
+              </button>
+              <button className="secondary-action compact" disabled={isLoadingDownloadResources || Boolean(downloadResourceActionID)} onClick={() => refreshDownloadResources()} type="button">
+                <RefreshCw size={16} />
+                {isLoadingDownloadResources ? "Loading" : "Refresh map"}
+              </button>
+            </div>
+            <div className="download-resource-editor tag-editor">
+              <label>
+                <span>Tags</span>
+                <input value={resourceTagName} onChange={(event) => setResourceTagName(event.target.value)} placeholder="librarry, manual" />
+              </label>
+              <button className="secondary-action compact" disabled={splitTagInput(resourceTagName).length === 0 || Boolean(downloadResourceActionID)} onClick={createDownloadTagResource} type="button">
+                <Tags size={16} />
+                Create tag
+              </button>
+              <button className="secondary-action compact danger-outline" disabled={splitTagInput(resourceTagName).length === 0 || Boolean(downloadResourceActionID)} onClick={() => deleteDownloadTagResource()} type="button">
+                <Trash2 size={16} />
+                Delete tag
+              </button>
+            </div>
+            <div className="download-resource-lists">
+              <div className="download-resource-list" aria-label="Managed categories">
+                {(downloadResources?.categories ?? []).slice(0, 8).map((category) => (
+                  <article className="download-resource-row" key={category.name}>
+                    <div>
+                      <strong>{category.name}</strong>
+                      <span>{category.savePath || "No save path"}</span>
+                    </div>
+                    <button
+                      className="secondary-action compact"
+                      onClick={() => {
+                        setResourceCategoryName(category.name);
+                        setResourceCategoryPath(category.savePath || "");
+                        setDownloadCategoryFilter(category.name);
+                      }}
+                      type="button"
+                    >
+                      Use
+                    </button>
+                    <button className="icon-button danger" disabled={Boolean(downloadResourceActionID)} onClick={() => deleteDownloadCategoryResource(category.name)} type="button" aria-label={`Delete category ${category.name}`} title="Delete category">
+                      <Trash2 size={16} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+              <div className="download-tag-cloud" aria-label="Managed tags">
+                {(downloadResources?.tags ?? []).slice(0, 16).map((tag) => (
+                  <button
+                    className="download-tag-chip"
+                    disabled={Boolean(downloadResourceActionID)}
+                    key={tag}
+                    onClick={() => {
+                      setResourceTagName(tag);
+                      setDownloadTextFilter(tag);
+                    }}
+                    type="button"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           {downloadError ? <div className="inline-error">{downloadError}</div> : null}
           <div className="manual-grab-panel" aria-label="Manual download add">
             <div className="manual-grab-main">
@@ -2531,8 +2745,11 @@ function uniqueDownloadClients(downloads: DownloadStatus[]) {
   return Array.from(new Set(downloads.map((download) => download.client || "qBittorrent").filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
-function uniqueDownloadCategories(downloads: DownloadStatus[]) {
-  return Array.from(new Set(downloads.map((download) => download.category).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+function uniqueDownloadCategories(downloads: DownloadStatus[], resources?: DownloadResources | null) {
+  return Array.from(new Set([
+    ...downloads.map((download) => download.category).filter(Boolean),
+    ...(resources?.categories ?? []).map((category) => category.name).filter(Boolean)
+  ])).sort((a, b) => a.localeCompare(b));
 }
 
 function downloadMatchesFilters(

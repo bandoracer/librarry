@@ -144,6 +144,38 @@ type DownloadTracker struct {
 	Downloads  int    `json:"downloads,omitempty"`
 }
 
+type DownloadCategory struct {
+	Name     string `json:"name"`
+	SavePath string `json:"savePath,omitempty"`
+}
+
+type DownloadResources struct {
+	Client     string             `json:"client"`
+	Categories []DownloadCategory `json:"categories"`
+	Tags       []string           `json:"tags"`
+}
+
+type DownloadCategoryActionRequest struct {
+	Client   string `json:"client,omitempty"`
+	Action   string `json:"action"`
+	Name     string `json:"name"`
+	NewName  string `json:"newName,omitempty"`
+	SavePath string `json:"savePath,omitempty"`
+}
+
+type DownloadTagActionRequest struct {
+	Client string   `json:"client,omitempty"`
+	Action string   `json:"action"`
+	Names  []string `json:"names"`
+}
+
+type DownloadResourceActionResult struct {
+	Action    string             `json:"action"`
+	Client    string             `json:"client"`
+	Applied   bool               `json:"applied"`
+	Resources *DownloadResources `json:"resources,omitempty"`
+}
+
 type DownloadPeer struct {
 	ID               string  `json:"id"`
 	IP               string  `json:"ip"`
