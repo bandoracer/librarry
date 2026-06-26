@@ -10,6 +10,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -191,6 +192,10 @@ func (c *TransmissionClient) Action(ctx context.Context, request DownloadActionR
 		if err := c.rpc(ctx, "torrent-start", args, nil); err != nil {
 			return DownloadActionResult{}, err
 		}
+	case DownloadActionForceStart:
+		if err := c.rpc(ctx, "torrent-start-now", args, nil); err != nil {
+			return DownloadActionResult{}, err
+		}
 	case DownloadActionStop:
 		if err := c.rpc(ctx, "torrent-stop", args, nil); err != nil {
 			return DownloadActionResult{}, err
@@ -202,6 +207,32 @@ func (c *TransmissionClient) Action(ctx context.Context, request DownloadActionR
 		}
 	case DownloadActionRecheck:
 		if err := c.rpc(ctx, "torrent-verify", args, nil); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionIncreasePriority:
+		if err := c.rpc(ctx, "queue-move-up", args, nil); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionDecreasePriority:
+		if err := c.rpc(ctx, "queue-move-down", args, nil); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionTopPriority:
+		if err := c.rpc(ctx, "queue-move-top", args, nil); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionBottomPriority:
+		if err := c.rpc(ctx, "queue-move-bottom", args, nil); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionSetCategory:
+		category := strings.TrimSpace(request.Category)
+		if category == "" {
+			return DownloadActionResult{}, errors.New("category is required for setCategory")
+		}
+		if err := c.mutateLabels(ctx, ids, func(labels []string) ([]string, error) {
+			return setTransmissionCategory(labels, category), nil
+		}); err != nil {
 			return DownloadActionResult{}, err
 		}
 	case DownloadActionSetLocation:
@@ -230,6 +261,19 @@ func (c *TransmissionClient) Action(ctx context.Context, request DownloadActionR
 		args["uploadLimited"] = request.UploadLimit > 0
 		args["uploadLimit"] = bytesPerSecondToKiB(request.UploadLimit)
 		if err := c.rpc(ctx, "torrent-set", args, nil); err != nil {
+			return DownloadActionResult{}, err
+		}
+	case DownloadActionAddTags, DownloadActionRemoveTags:
+		tags := compactStrings(request.Tags)
+		if len(tags) == 0 {
+			return DownloadActionResult{}, errors.New("at least one tag is required")
+		}
+		if err := c.mutateLabels(ctx, ids, func(labels []string) ([]string, error) {
+			if action == DownloadActionAddTags {
+				return appendTransmissionLabels(labels, tags), nil
+			}
+			return removeTransmissionLabels(labels, tags), nil
+		}); err != nil {
 			return DownloadActionResult{}, err
 		}
 	default:
@@ -275,6 +319,67 @@ func (c *TransmissionClient) FileAction(ctx context.Context, request DownloadFil
 		DownloadID: id,
 		IDs:        fileIDs,
 		Priority:   priority,
+		Applied:    true,
+	}, nil
+}
+
+func (c *TransmissionClient) TrackerAction(ctx context.Context, id string, request DownloadTrackerActionRequest) (DownloadTrackerActionResult, error) {
+	if !c.Configured() {
+		return DownloadTrackerActionResult{}, ErrIntegrationNotConfigured
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DownloadTrackerActionResult{}, errors.New("download id is required")
+	}
+	action := normalizeTrackerAction(request.Action)
+	snapshot, err := c.trackerSnapshot(ctx, id)
+	if err != nil {
+		return DownloadTrackerActionResult{}, err
+	}
+	tiers := snapshot.TrackerTiers()
+	var urls []string
+	switch action {
+	case DownloadTrackerActionAdd:
+		urls = trackerURLs(request)
+		if len(urls) == 0 {
+			return DownloadTrackerActionResult{}, errors.New("at least one tracker url is required")
+		}
+		tiers = addTransmissionTrackers(tiers, urls)
+	case DownloadTrackerActionEdit:
+		originalURL := strings.TrimSpace(firstNonEmpty(request.OriginalURL, request.URL))
+		newURL := strings.TrimSpace(request.NewURL)
+		if originalURL == "" || newURL == "" {
+			return DownloadTrackerActionResult{}, errors.New("originalUrl and newUrl are required for edit")
+		}
+		var replaced bool
+		tiers, replaced = replaceTransmissionTracker(tiers, originalURL, newURL)
+		if !replaced {
+			return DownloadTrackerActionResult{}, fmt.Errorf("tracker url %q was not found", originalURL)
+		}
+		urls = []string{originalURL, newURL}
+	case DownloadTrackerActionRemove:
+		urls = trackerURLs(request)
+		if len(urls) == 0 {
+			return DownloadTrackerActionResult{}, errors.New("at least one tracker url is required")
+		}
+		var removed bool
+		tiers, removed = removeTransmissionTrackers(tiers, urls)
+		if !removed {
+			return DownloadTrackerActionResult{}, errors.New("no matching tracker urls were found")
+		}
+	default:
+		return DownloadTrackerActionResult{}, fmt.Errorf("unsupported tracker action %q", request.Action)
+	}
+	if err := c.rpc(ctx, "torrent-set", map[string]any{
+		"ids":         []string{id},
+		"trackerList": formatTransmissionTrackerList(tiers),
+	}, nil); err != nil {
+		return DownloadTrackerActionResult{}, err
+	}
+	return DownloadTrackerActionResult{
+		Action:     action,
+		DownloadID: id,
+		URLs:       urls,
 		Applied:    true,
 	}, nil
 }
@@ -398,8 +503,23 @@ type transmissionTorrentDetail struct {
 	Files              []transmissionFile        `json:"files"`
 	FileStats          []transmissionFileStat    `json:"fileStats"`
 	Trackers           []transmissionTracker     `json:"trackers"`
+	TrackerList        string                    `json:"trackerList"`
 	TrackerStats       []transmissionTrackerStat `json:"trackerStats"`
 	Peers              []transmissionPeer        `json:"peers"`
+}
+
+type transmissionLabelSnapshot struct {
+	ID         int      `json:"id"`
+	HashString string   `json:"hashString"`
+	Labels     []string `json:"labels"`
+}
+
+type transmissionTrackerSnapshot struct {
+	ID           int                       `json:"id"`
+	HashString   string                    `json:"hashString"`
+	TrackerList  string                    `json:"trackerList"`
+	Trackers     []transmissionTracker     `json:"trackers"`
+	TrackerStats []transmissionTrackerStat `json:"trackerStats"`
 }
 
 type transmissionFile struct {
@@ -616,6 +736,265 @@ func (t transmissionTorrentDetail) DownloadPeers() []DownloadPeer {
 		})
 	}
 	return peers
+}
+
+func (t transmissionTrackerSnapshot) TrackerTiers() [][]string {
+	if strings.TrimSpace(t.TrackerList) != "" {
+		return parseTransmissionTrackerList(t.TrackerList)
+	}
+	if len(t.TrackerStats) > 0 {
+		return transmissionTrackerStatsTiers(t.TrackerStats)
+	}
+	return transmissionTrackersTiers(t.Trackers)
+}
+
+func (c *TransmissionClient) mutateLabels(ctx context.Context, ids []string, mutate func([]string) ([]string, error)) error {
+	for _, id := range compactStrings(ids) {
+		labels, err := c.labels(ctx, id)
+		if err != nil {
+			return err
+		}
+		next, err := mutate(labels)
+		if err != nil {
+			return err
+		}
+		if err := c.rpc(ctx, "torrent-set", map[string]any{
+			"ids":    []string{id},
+			"labels": compactStrings(next),
+		}, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *TransmissionClient) labels(ctx context.Context, id string) ([]string, error) {
+	var payload struct {
+		Torrents []transmissionLabelSnapshot `json:"torrents"`
+	}
+	if err := c.rpc(ctx, "torrent-get", map[string]any{
+		"fields": []string{"id", "hashString", "labels"},
+		"ids":    []string{id},
+	}, &payload); err != nil {
+		return nil, err
+	}
+	if len(payload.Torrents) == 0 {
+		return nil, ErrDownloadNotFound
+	}
+	return compactStrings(payload.Torrents[0].Labels), nil
+}
+
+func (c *TransmissionClient) trackerSnapshot(ctx context.Context, id string) (transmissionTrackerSnapshot, error) {
+	var payload struct {
+		Torrents []transmissionTrackerSnapshot `json:"torrents"`
+	}
+	if err := c.rpc(ctx, "torrent-get", map[string]any{
+		"fields": []string{"id", "hashString", "trackerList", "trackers", "trackerStats"},
+		"ids":    []string{id},
+	}, &payload); err != nil {
+		return transmissionTrackerSnapshot{}, err
+	}
+	if len(payload.Torrents) == 0 {
+		return transmissionTrackerSnapshot{}, ErrDownloadNotFound
+	}
+	return payload.Torrents[0], nil
+}
+
+func setTransmissionCategory(labels []string, category string) []string {
+	var kept []string
+	for _, label := range compactStrings(labels) {
+		if strings.EqualFold(label, CategoryBooksEbook) || strings.EqualFold(label, CategoryBooksAudiobook) {
+			continue
+		}
+		kept = append(kept, label)
+	}
+	return appendTransmissionLabels(kept, []string{category})
+}
+
+func appendTransmissionLabels(labels []string, additions []string) []string {
+	return compactStrings(append(append([]string{}, labels...), additions...))
+}
+
+func removeTransmissionLabels(labels []string, removals []string) []string {
+	remove := map[string]bool{}
+	for _, label := range compactStrings(removals) {
+		remove[strings.ToLower(label)] = true
+	}
+	var kept []string
+	for _, label := range compactStrings(labels) {
+		if !remove[strings.ToLower(label)] {
+			kept = append(kept, label)
+		}
+	}
+	return kept
+}
+
+func parseTransmissionTrackerList(value string) [][]string {
+	var tiers [][]string
+	var current []string
+	for _, line := range strings.Split(value, "\n") {
+		url := strings.TrimSpace(line)
+		if url == "" {
+			if len(current) > 0 {
+				tiers = append(tiers, compactStrings(current))
+				current = nil
+			}
+			continue
+		}
+		current = append(current, url)
+	}
+	if len(current) > 0 {
+		tiers = append(tiers, compactStrings(current))
+	}
+	return compactTransmissionTrackerTiers(tiers)
+}
+
+func transmissionTrackersTiers(trackers []transmissionTracker) [][]string {
+	tiersByIndex := map[int][]string{}
+	var order []int
+	for _, tracker := range trackers {
+		url := strings.TrimSpace(firstNonEmpty(tracker.Announce, tracker.Scrape, tracker.SiteName))
+		if url == "" {
+			continue
+		}
+		if _, ok := tiersByIndex[tracker.Tier]; !ok {
+			order = append(order, tracker.Tier)
+		}
+		tiersByIndex[tracker.Tier] = append(tiersByIndex[tracker.Tier], url)
+	}
+	return orderedTransmissionTrackerTiers(order, tiersByIndex)
+}
+
+func transmissionTrackerStatsTiers(stats []transmissionTrackerStat) [][]string {
+	tiersByIndex := map[int][]string{}
+	var order []int
+	for _, stat := range stats {
+		url := strings.TrimSpace(firstNonEmpty(stat.Announce, stat.Scrape, stat.Host))
+		if url == "" {
+			continue
+		}
+		if _, ok := tiersByIndex[stat.Tier]; !ok {
+			order = append(order, stat.Tier)
+		}
+		tiersByIndex[stat.Tier] = append(tiersByIndex[stat.Tier], url)
+	}
+	return orderedTransmissionTrackerTiers(order, tiersByIndex)
+}
+
+func orderedTransmissionTrackerTiers(order []int, tiersByIndex map[int][]string) [][]string {
+	if len(order) == 0 {
+		return nil
+	}
+	sort.Ints(order)
+	tiers := make([][]string, 0, len(order))
+	for _, tier := range order {
+		tiers = append(tiers, compactStrings(tiersByIndex[tier]))
+	}
+	return compactTransmissionTrackerTiers(tiers)
+}
+
+func addTransmissionTrackers(tiers [][]string, urls []string) [][]string {
+	tiers = compactTransmissionTrackerTiers(tiers)
+	additions := compactStrings(urls)
+	if len(additions) == 0 {
+		return tiers
+	}
+	if len(tiers) == 0 {
+		return [][]string{additions}
+	}
+	existing := transmissionTrackerSet(tiers)
+	for _, url := range additions {
+		key := strings.ToLower(url)
+		if existing[key] {
+			continue
+		}
+		existing[key] = true
+		tiers[len(tiers)-1] = append(tiers[len(tiers)-1], url)
+	}
+	return compactTransmissionTrackerTiers(tiers)
+}
+
+func replaceTransmissionTracker(tiers [][]string, originalURL string, newURL string) ([][]string, bool) {
+	originalKey := strings.ToLower(strings.TrimSpace(originalURL))
+	newURL = strings.TrimSpace(newURL)
+	if originalKey == "" || newURL == "" {
+		return tiers, false
+	}
+	var replaced bool
+	for tierIndex := range tiers {
+		for urlIndex := range tiers[tierIndex] {
+			if strings.ToLower(strings.TrimSpace(tiers[tierIndex][urlIndex])) == originalKey {
+				tiers[tierIndex][urlIndex] = newURL
+				replaced = true
+			}
+		}
+	}
+	return compactTransmissionTrackerTiers(tiers), replaced
+}
+
+func removeTransmissionTrackers(tiers [][]string, urls []string) ([][]string, bool) {
+	remove := map[string]bool{}
+	for _, url := range compactStrings(urls) {
+		remove[strings.ToLower(url)] = true
+	}
+	var next [][]string
+	var removed bool
+	for _, tier := range tiers {
+		var kept []string
+		for _, url := range tier {
+			if remove[strings.ToLower(strings.TrimSpace(url))] {
+				removed = true
+				continue
+			}
+			kept = append(kept, url)
+		}
+		if len(kept) > 0 {
+			next = append(next, kept)
+		}
+	}
+	return compactTransmissionTrackerTiers(next), removed
+}
+
+func formatTransmissionTrackerList(tiers [][]string) string {
+	tiers = compactTransmissionTrackerTiers(tiers)
+	if len(tiers) == 0 {
+		return ""
+	}
+	blocks := make([]string, 0, len(tiers))
+	for _, tier := range tiers {
+		blocks = append(blocks, strings.Join(tier, "\n"))
+	}
+	return strings.Join(blocks, "\n\n")
+}
+
+func compactTransmissionTrackerTiers(tiers [][]string) [][]string {
+	var compact [][]string
+	seen := map[string]bool{}
+	for _, tier := range tiers {
+		var urls []string
+		for _, url := range compactStrings(tier) {
+			key := strings.ToLower(url)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			urls = append(urls, url)
+		}
+		if len(urls) > 0 {
+			compact = append(compact, urls)
+		}
+	}
+	return compact
+}
+
+func transmissionTrackerSet(tiers [][]string) map[string]bool {
+	set := map[string]bool{}
+	for _, tier := range tiers {
+		for _, url := range tier {
+			set[strings.ToLower(strings.TrimSpace(url))] = true
+		}
+	}
+	return set
 }
 
 func transmissionState(status int, progress float64) string {

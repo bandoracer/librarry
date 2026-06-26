@@ -750,12 +750,13 @@ export async function runDownloadFileAction(
 export async function runDownloadTrackerAction(
   id: string,
   action: DownloadTrackerAction,
-  options: { urls?: string[]; url?: string; originalUrl?: string; newUrl?: string } = {}
+  options: { client?: string; urls?: string[]; url?: string; originalUrl?: string; newUrl?: string } = {}
 ): Promise<DownloadTrackerActionResult> {
   const response = await fetch(`${apiBase}/api/v1/downloads/${encodeURIComponent(id)}/trackers/actions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      client: options.client,
       action,
       urls: options.urls,
       url: options.url,

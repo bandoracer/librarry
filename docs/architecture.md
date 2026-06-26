@@ -302,11 +302,13 @@ Transmission details are exposed through
 file lists. Per-file priority changes are exposed through
 `/api/v1/downloads/{id}/files/actions` for qBittorrent and Transmission
 skip/normal/high/max file selection. Tracker add/edit/remove actions are exposed
-through `/api/v1/downloads/{id}/trackers/actions` for qBittorrent torrents.
+through `/api/v1/downloads/{id}/trackers/actions` for qBittorrent and
+Transmission torrents.
 `/api/v1/downloads/rebalance` adds a simple active-download limiter that can
 preview or apply start/stop operations against a filtered queue. Transmission
-actions support start, stop, delete, recheck, set location, per-torrent speed
-limits, detail inspection, and file-priority changes. SABnzbd supports
+actions support start, stop, delete, recheck, queue movement, force-start, set
+location, label-backed category/tag changes, tracker add/edit/remove,
+per-torrent speed limits, detail inspection, and file-priority changes. SABnzbd supports
 queue/history detail lookup, queued-file inspection through `get_files`, and
 start, stop, delete, rename, category, and priority actions. The API accepts
 multiple download IDs for these actions, routes

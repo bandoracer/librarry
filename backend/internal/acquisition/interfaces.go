@@ -217,6 +217,7 @@ type DownloadFileActionResult struct {
 }
 
 type DownloadTrackerActionRequest struct {
+	Client      string   `json:"client,omitempty"`
 	Action      string   `json:"action"`
 	URLs        []string `json:"urls,omitempty"`
 	URL         string   `json:"url,omitempty"`

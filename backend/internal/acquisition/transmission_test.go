@@ -320,6 +320,11 @@ func TestTransmissionActions(t *testing.T) {
 			method:  "torrent-start",
 		},
 		{
+			name:    "force start",
+			request: DownloadActionRequest{Action: DownloadActionForceStart, IDs: []string{"abc123"}},
+			method:  "torrent-start-now",
+		},
+		{
 			name:    "stop",
 			request: DownloadActionRequest{Action: DownloadActionStop, IDs: []string{"abc123"}},
 			method:  "torrent-stop",
@@ -334,6 +339,26 @@ func TestTransmissionActions(t *testing.T) {
 			name:    "recheck",
 			request: DownloadActionRequest{Action: DownloadActionRecheck, IDs: []string{"abc123"}},
 			method:  "torrent-verify",
+		},
+		{
+			name:    "queue up",
+			request: DownloadActionRequest{Action: DownloadActionIncreasePriority, IDs: []string{"abc123"}},
+			method:  "queue-move-up",
+		},
+		{
+			name:    "queue down",
+			request: DownloadActionRequest{Action: DownloadActionDecreasePriority, IDs: []string{"abc123"}},
+			method:  "queue-move-down",
+		},
+		{
+			name:    "queue top",
+			request: DownloadActionRequest{Action: DownloadActionTopPriority, IDs: []string{"abc123"}},
+			method:  "queue-move-top",
+		},
+		{
+			name:    "queue bottom",
+			request: DownloadActionRequest{Action: DownloadActionBottomPriority, IDs: []string{"abc123"}},
+			method:  "queue-move-bottom",
 		},
 		{
 			name:     "location",
@@ -387,6 +412,174 @@ func TestTransmissionActions(t *testing.T) {
 				}
 			}
 			if !result.Applied || result.Action != normalizeAction(test.request.Action) {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+		})
+	}
+}
+
+func TestTransmissionLabelActionsMutateTorrentLabels(t *testing.T) {
+	tests := []struct {
+		name       string
+		initial    []string
+		request    DownloadActionRequest
+		wantLabels []string
+	}{
+		{
+			name:       "set category replaces book category label",
+			initial:    []string{CategoryBooksEbook, "librarry", "keep"},
+			request:    DownloadActionRequest{Action: DownloadActionSetCategory, IDs: []string{"abc123"}, Category: CategoryBooksAudiobook},
+			wantLabels: []string{"librarry", "keep", CategoryBooksAudiobook},
+		},
+		{
+			name:       "add tags appends unique labels",
+			initial:    []string{CategoryBooksEbook, "librarry"},
+			request:    DownloadActionRequest{Action: DownloadActionAddTags, IDs: []string{"abc123"}, Tags: []string{"wanted:1", "librarry"}},
+			wantLabels: []string{CategoryBooksEbook, "librarry", "wanted:1"},
+		},
+		{
+			name:       "remove tags removes matching labels",
+			initial:    []string{CategoryBooksEbook, "librarry", "wanted:1"},
+			request:    DownloadActionRequest{Action: DownloadActionRemoveTags, IDs: []string{"abc123"}, Tags: []string{"wanted:1"}},
+			wantLabels: []string{CategoryBooksEbook, "librarry"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var methods []string
+			var setArgs map[string]any
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var payload struct {
+					Method    string         `json:"method"`
+					Arguments map[string]any `json:"arguments"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					t.Fatal(err)
+				}
+				methods = append(methods, payload.Method)
+				switch payload.Method {
+				case "torrent-get":
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"result": "success",
+						"arguments": map[string]any{
+							"torrents": []map[string]any{{
+								"id":         42,
+								"hashString": "abc123",
+								"labels":     test.initial,
+							}},
+						},
+					})
+				case "torrent-set":
+					setArgs = payload.Arguments
+					_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+				default:
+					t.Fatalf("unexpected method %s", payload.Method)
+				}
+			}))
+			defer server.Close()
+
+			client := NewTransmissionClient(server.URL, "", "", server.Client())
+			result, err := client.Action(context.Background(), test.request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Join(methods, ",") != "torrent-get,torrent-set" {
+				t.Fatalf("unexpected methods: %v", methods)
+			}
+			if !jsonStringListMatches(setArgs["labels"], test.wantLabels) {
+				t.Fatalf("expected labels %#v, got %#v", test.wantLabels, setArgs["labels"])
+			}
+			if !result.Applied || result.Action != normalizeAction(test.request.Action) {
+				t.Fatalf("unexpected result: %+v", result)
+			}
+		})
+	}
+}
+
+func TestTransmissionTrackerActionMutatesTrackerList(t *testing.T) {
+	tests := []struct {
+		name      string
+		request   DownloadTrackerActionRequest
+		wantList  string
+		wantURLs  []string
+		wantError string
+	}{
+		{
+			name:     "add tracker to last tier",
+			request:  DownloadTrackerActionRequest{Action: DownloadTrackerActionAdd, URLs: []string{"https://tracker.three/announce"}},
+			wantList: "https://tracker.one/announce\n\nhttps://tracker.two/announce\nhttps://tracker.three/announce",
+			wantURLs: []string{"https://tracker.three/announce"},
+		},
+		{
+			name:     "edit tracker url",
+			request:  DownloadTrackerActionRequest{Action: DownloadTrackerActionEdit, OriginalURL: "https://tracker.two/announce", NewURL: "https://tracker.three/announce"},
+			wantList: "https://tracker.one/announce\n\nhttps://tracker.three/announce",
+			wantURLs: []string{"https://tracker.two/announce", "https://tracker.three/announce"},
+		},
+		{
+			name:     "remove tracker url",
+			request:  DownloadTrackerActionRequest{Action: DownloadTrackerActionRemove, URLs: []string{"https://tracker.two/announce"}},
+			wantList: "https://tracker.one/announce",
+			wantURLs: []string{"https://tracker.two/announce"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var methods []string
+			var setArgs map[string]any
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var payload struct {
+					Method    string         `json:"method"`
+					Arguments map[string]any `json:"arguments"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					t.Fatal(err)
+				}
+				methods = append(methods, payload.Method)
+				switch payload.Method {
+				case "torrent-get":
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"result": "success",
+						"arguments": map[string]any{
+							"torrents": []map[string]any{{
+								"id":          42,
+								"hashString":  "abc123",
+								"trackerList": "https://tracker.one/announce\n\nhttps://tracker.two/announce",
+							}},
+						},
+					})
+				case "torrent-set":
+					setArgs = payload.Arguments
+					_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+				default:
+					t.Fatalf("unexpected method %s", payload.Method)
+				}
+			}))
+			defer server.Close()
+
+			client := NewTransmissionClient(server.URL, "", "", server.Client())
+			result, err := client.TrackerAction(context.Background(), "abc123", test.request)
+			if test.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantError) {
+					t.Fatalf("expected error containing %q, got %v", test.wantError, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Join(methods, ",") != "torrent-get,torrent-set" {
+				t.Fatalf("unexpected methods: %v", methods)
+			}
+			if setArgs["trackerList"] != test.wantList {
+				t.Fatalf("expected trackerList %q, got %#v", test.wantList, setArgs["trackerList"])
+			}
+			if !stringSlicesEqual(result.URLs, test.wantURLs) {
+				t.Fatalf("expected urls %#v, got %#v", test.wantURLs, result.URLs)
+			}
+			if !result.Applied || result.DownloadID != "abc123" || result.Action != normalizeTrackerAction(test.request.Action) {
 				t.Fatalf("unexpected result: %+v", result)
 			}
 		})
@@ -581,6 +774,72 @@ func TestServiceRoutesExplicitTransmissionDetailsAndFileAction(t *testing.T) {
 	}
 }
 
+func TestServiceRoutesExplicitTransmissionTrackerAction(t *testing.T) {
+	var methods []string
+	var trackerSetArgs map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		methods = append(methods, payload.Method)
+		switch payload.Method {
+		case "torrent-get":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": "success",
+				"arguments": map[string]any{
+					"torrents": []map[string]any{{
+						"id":                 42,
+						"hashString":         "abc123",
+						"name":               "Book.epub",
+						"status":             4,
+						"percentDone":        0.5,
+						"downloadDir":        "/downloads/books",
+						"totalSize":          1000,
+						"sizeWhenDone":       1000,
+						"trackerList":        "https://tracker.one/announce",
+						"trackers":           []map[string]any{{"announce": "https://tracker.one/announce", "tier": 0}},
+						"trackerStats":       []map[string]any{{"announce": "https://tracker.one/announce", "tier": 0, "lastAnnounceSucceeded": true}},
+						"peersConnected":     1,
+						"peersGettingFromUs": 1,
+					}},
+				},
+			})
+		case "torrent-set":
+			trackerSetArgs = payload.Arguments
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+		default:
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+	}))
+	defer server.Close()
+
+	service := NewService(IntegrationConfig{
+		QBittorrentURL:  "http://qbittorrent.invalid",
+		TransmissionURL: server.URL,
+	})
+	result, err := service.DownloadTrackerAction(context.Background(), "abc123", DownloadTrackerActionRequest{
+		Client: "Transmission",
+		Action: DownloadTrackerActionAdd,
+		URLs:   []string{"https://tracker.two/announce"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(methods, ",") != "torrent-get,torrent-set,torrent-get" {
+		t.Fatalf("unexpected service routing methods: %v", methods)
+	}
+	if trackerSetArgs["trackerList"] != "https://tracker.one/announce\nhttps://tracker.two/announce" {
+		t.Fatalf("unexpected trackerList: %#v", trackerSetArgs["trackerList"])
+	}
+	if !result.Applied || result.Download == nil || result.Download.Status.Client != "Transmission" {
+		t.Fatalf("unexpected tracker action result: %+v", result)
+	}
+}
+
 func jsonFieldRequested(fields []any, field string) bool {
 	for _, value := range fields {
 		if text, ok := value.(string); ok && text == field {
@@ -597,6 +856,31 @@ func jsonNumberListMatches(value any, want []int) bool {
 	}
 	for i, item := range values {
 		if int(item.(float64)) != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func jsonStringListMatches(value any, want []string) bool {
+	values, ok := value.([]any)
+	if !ok || len(values) != len(want) {
+		return false
+	}
+	for i, item := range values {
+		if item != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func stringSlicesEqual(got []string, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
 			return false
 		}
 	}

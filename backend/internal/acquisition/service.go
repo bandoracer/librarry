@@ -314,11 +314,23 @@ func (s *Service) DownloadFileAction(ctx context.Context, id string, request Dow
 }
 
 func (s *Service) DownloadTrackerAction(ctx context.Context, id string, request DownloadTrackerActionRequest) (DownloadTrackerActionResult, error) {
-	result, err := s.qbit.TrackerAction(ctx, id, request)
+	resolvedClient, err := s.resolveTorrentDetailClient(ctx, id, request.Client)
 	if err != nil {
 		return DownloadTrackerActionResult{}, err
 	}
-	details, detailErr := s.qbit.Details(ctx, id)
+	var result DownloadTrackerActionResult
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		result, err = s.qbit.TrackerAction(ctx, id, request)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		result, err = s.trans.TrackerAction(ctx, id, request)
+	default:
+		return DownloadTrackerActionResult{}, ErrDownloadDetailsUnsupported
+	}
+	if err != nil {
+		return DownloadTrackerActionResult{}, err
+	}
+	details, detailErr := s.DownloadDetails(ctx, id, resolvedClient)
 	if detailErr == nil {
 		result.Download = &details
 	}
@@ -554,12 +566,20 @@ func sabSupportsAction(action string) bool {
 func transSupportsAction(action string) bool {
 	switch action {
 	case DownloadActionStart,
+		DownloadActionForceStart,
 		DownloadActionStop,
 		DownloadActionDelete,
+		DownloadActionIncreasePriority,
+		DownloadActionDecreasePriority,
+		DownloadActionTopPriority,
+		DownloadActionBottomPriority,
 		DownloadActionRecheck,
+		DownloadActionSetCategory,
 		DownloadActionSetLocation,
 		DownloadActionSetDownloadLimit,
-		DownloadActionSetUploadLimit:
+		DownloadActionSetUploadLimit,
+		DownloadActionAddTags,
+		DownloadActionRemoveTags:
 		return true
 	default:
 		return false

@@ -317,6 +317,7 @@ export function App() {
   const allDownloadsSelected = selectableDownloadKeys.length > 0 && selectableDownloadKeys.every((key) => selectedDownloadKeySet.has(key));
   const selectedDownloadsSupportRecheck = selectedDownloads.every((download) => supportsDownloadAction(download, "recheck"));
   const selectedDownloadsSupportPriority = selectedDownloads.every((download) => supportsDownloadAction(download, "topPriority"));
+  const selectedDownloadsSupportForceStart = selectedDownloads.length > 0 && selectedDownloads.every((download) => supportsDownloadAction(download, "forceStart"));
   const selectedDownloadsSupportQbitControls = selectedDownloads.length > 0 && selectedDownloads.every(downloadSupportsQbitManagerActions);
   const downloadQueueStats = useMemo(() => summarizeDownloads(filteredDownloads), [filteredDownloads]);
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
@@ -798,6 +799,7 @@ export function App() {
     setDownloadError("");
     try {
       const result = await runDownloadTrackerAction(downloadID, action, {
+        client: downloadDetails?.status.client,
         urls: action === "add" ? [nextURL] : undefined,
         url: action === "remove" ? currentURL : undefined,
         originalUrl: action === "edit" ? currentURL : undefined,
@@ -1813,7 +1815,7 @@ export function App() {
               <ChevronsDown size={16} />
               Bottom
             </button>
-            <button className="secondary-action compact" disabled={!selectedDownloadsSupportQbitControls || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("forceStart", selectedActionDownloadIDs, false, { forceStart: true })} type="button">
+            <button className="secondary-action compact" disabled={!selectedDownloadsSupportForceStart || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("forceStart", selectedActionDownloadIDs, false, { forceStart: true })} type="button">
               <Play size={16} />
               Force
             </button>
@@ -2439,17 +2441,9 @@ function supportsDownloadAction(download: DownloadStatus, action: DownloadAction
 
 function qbitOnlyDownloadAction(action: DownloadAction) {
   return [
-    "increasePriority",
-    "decreasePriority",
-    "topPriority",
-    "bottomPriority",
-    "setCategory",
-    "forceStart",
     "toggleSequential",
     "toggleFirstLastPiece",
-    "rename",
-    "addTags",
-    "removeTags"
+    "rename"
   ].includes(action);
 }
 
@@ -2463,7 +2457,8 @@ function downloadSupportsDetails(download: DownloadStatus) {
 }
 
 function downloadSupportsTrackerActions(download: DownloadStatus) {
-  return downloadSupportsQbitManagerActions(download);
+  const client = (download.client || "qBittorrent").toLowerCase();
+  return client === "qbittorrent" || client === "transmission";
 }
 
 function downloadSupportsFileActions(download: DownloadStatus) {
