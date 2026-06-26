@@ -2446,13 +2446,17 @@ select {
 }
 
 .author-row {
-  min-height: 64px;
+  min-height: 86px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 11px 14px;
   border-bottom: 1px solid var(--border);
+}
+
+.author-row-main {
+  min-width: 0;
 }
 
 .author-row strong,
@@ -2476,6 +2480,35 @@ select {
   font-size: 12px;
 }
 
+.author-row-stats {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.author-row-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.author-row-counts span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-top: 0;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: var(--muted-strong);
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+}
+
 .author-row em,
 .author-monitor-row em {
   border-radius: 999px;
@@ -2489,7 +2522,7 @@ select {
 
 .author-row-controls {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   justify-items: end;
 }
 
@@ -2498,6 +2531,11 @@ select {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
+}
+
+.author-row-actions .icon-button {
+  width: 32px;
+  height: 32px;
 }
 
 .author-row-controls select {
@@ -3678,6 +3716,10 @@ select {
   .file-action-buttons .secondary-action.compact {
     width: auto;
     flex: 1 1 70px;
+  }
+
+  .author-row-controls {
+    justify-items: start;
   }
 
   .monitor-grid,

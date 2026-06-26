@@ -125,7 +125,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   scheduled metadata refresh that creates or refreshes wanted items from
   monitored authors; skipped metadata candidates are persisted in an author
   metadata review queue with provider/title/date evidence and can be marked
-  wanted or ignored from the monitor review UI.
+  wanted or ignored from the monitor review UI. The Wanted page summarizes each
+  monitored author's tracked, missing, grabbed, present, and metadata-review
+  counts with a direct jump into that author's wanted books.
 - Readarr-compatible author/book update and delete endpoints that persist
   monitor/unmonitor state, quality profile changes, and soft removals in
   Postgres.

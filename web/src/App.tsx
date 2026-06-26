@@ -518,6 +518,10 @@ export function App() {
   const wantedMetadataReviewByID = useMemo(() => metadataReviewMap(wantedMetadataReview), [wantedMetadataReview]);
   const metadataReviewSummary = useMemo(() => summarizeMetadataReview(wantedMetadataReview), [wantedMetadataReview]);
   const wantedSummary = useMemo(() => summarizeWantedItems(wantedItems, wantedPresence), [wantedItems, wantedPresence]);
+  const authorSubscriptionStatsByKey = useMemo(
+    () => buildAuthorSubscriptionStatsMap(authorSubscriptions, wantedItems, wantedPresence, wantedMetadataReviewByID),
+    [authorSubscriptions, wantedItems, wantedMetadataReviewByID, wantedPresence]
+  );
   const libraryAuthorRows = useMemo(
     () => buildLibraryAuthorRows(authorSubscriptions, wantedItems, wantedPresence),
     [authorSubscriptions, wantedItems, wantedPresence]
@@ -873,6 +877,12 @@ export function App() {
     setWantedReleases([]);
     setWantedMetadata(null);
     setActiveView("wanted");
+  }
+
+  function openAuthorSubscriptionBooks(subscription: AuthorSubscription) {
+    const stats = authorSubscriptionStatsByKey.get(authorSubscriptionKey(subscription));
+    if (!stats?.firstWantedItem) return;
+    openWantedItem(stats.firstWantedItem);
   }
 
   async function loadWantedReleaseDecisions(item = selectedWanted) {
@@ -2712,13 +2722,20 @@ export function App() {
                   const monitorKey = authorSubscriptionKey(subscription);
                   const refreshingAuthor = authorMonitorTargetKey === monitorKey;
                   const removingAuthor = removingAuthorID === subscription.id;
+                  const stats = authorSubscriptionStatsByKey.get(monitorKey) ?? emptyAuthorSubscriptionStats();
                   return (
                     <article className="author-row" key={subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`}>
-                      <div>
+                      <div className="author-row-main">
                         <strong>{subscription.authorName}</strong>
                         <span>
                           {subscription.provider} · {subscription.format} · {subscription.qualityProfile}
                         </span>
+                        <small className="author-row-stats">{authorSubscriptionStatsSummary(stats)}</small>
+                        <div className="author-row-counts" aria-label={`${subscription.authorName} wanted book status`}>
+                          {authorSubscriptionStatsBadges(stats).map(([label, value]) => (
+                            <span key={label}>{value} {label}</span>
+                          ))}
+                        </div>
                       </div>
                       <div className="author-row-controls">
                         <select
@@ -2735,23 +2752,34 @@ export function App() {
                         </select>
                         <div className="author-row-actions">
                           <button
-                            className="secondary-action compact"
+                            aria-label={`Open ${subscription.authorName} wanted books`}
+                            className="icon-button"
+                            disabled={!stats.firstWantedItem}
+                            onClick={() => openAuthorSubscriptionBooks(subscription)}
+                            title="Open wanted books"
+                            type="button"
+                          >
+                            <BookOpen size={15} />
+                          </button>
+                          <button
+                            aria-label={`Refresh ${subscription.authorName}`}
+                            className="icon-button"
                             disabled={isRunningAuthorMonitor}
                             onClick={() => runAuthorSubscriptionMonitor(authorSubscriptionMonitorOptions(subscription))}
+                            title={refreshingAuthor ? "Refreshing author" : "Refresh author"}
                             type="button"
                           >
                             <RefreshCw size={15} />
-                            {refreshingAuthor ? "Refreshing" : "Refresh"}
                           </button>
                           <button
                             aria-label={`Remove ${subscription.authorName}`}
-                            className="secondary-action compact danger-outline"
+                            className="icon-button danger"
                             disabled={!subscription.id || Boolean(removingAuthorID)}
                             onClick={() => removeAuthorSubscription(subscription)}
+                            title={removingAuthor ? "Removing author" : "Remove author"}
                             type="button"
                           >
                             <Trash2 size={15} />
-                            {removingAuthor ? "Removing" : "Remove"}
                           </button>
                         </div>
                         <em>{subscription.lastSyncAt ? formatDateTime(subscription.lastSyncAt) : "never synced"}</em>
@@ -4398,6 +4426,15 @@ type LibraryAuthorRow = {
   status: string;
 };
 
+type AuthorSubscriptionStats = {
+  total: number;
+  missing: number;
+  grabbed: number;
+  present: number;
+  review: number;
+  firstWantedItem?: WantedItem;
+};
+
 function buildLibraryAuthorRows(subscriptions: AuthorSubscription[], items: WantedItem[], presence: Map<string, WantedPresence>) {
   const rows = new Map<string, LibraryAuthorRow>();
 
@@ -4463,6 +4500,73 @@ function buildLibraryAuthorRows(subscriptions: AuthorSubscription[], items: Want
     if (missingDelta !== 0) return missingDelta;
     return a.authorName.localeCompare(b.authorName);
   });
+}
+
+function buildAuthorSubscriptionStatsMap(
+  subscriptions: AuthorSubscription[],
+  items: WantedItem[],
+  presence: Map<string, WantedPresence>,
+  reviews: Map<string, MetadataReviewItem>
+) {
+  const statsByKey = new Map<string, AuthorSubscriptionStats>();
+
+  subscriptions.forEach((subscription) => {
+    const authorName = normalizedWantedText(subscription.authorName);
+    const stats = emptyAuthorSubscriptionStats();
+    items.forEach((item) => {
+      if (item.format !== subscription.format) return;
+      if (normalizedWantedText(item.authorName) !== authorName) return;
+      stats.total += 1;
+      stats.firstWantedItem ??= item;
+      if (reviews.has(item.id)) stats.review += 1;
+      switch (presence.get(item.id) ?? "missing") {
+        case "present":
+          stats.present += 1;
+          break;
+        case "grabbed":
+          stats.grabbed += 1;
+          break;
+        default:
+          stats.missing += 1;
+          break;
+      }
+    });
+    statsByKey.set(authorSubscriptionKey(subscription), stats);
+  });
+
+  return statsByKey;
+}
+
+function emptyAuthorSubscriptionStats(): AuthorSubscriptionStats {
+  return {
+    total: 0,
+    missing: 0,
+    grabbed: 0,
+    present: 0,
+    review: 0
+  };
+}
+
+function authorSubscriptionStatsSummary(stats: AuthorSubscriptionStats) {
+  if (stats.total === 0) {
+    return "No wanted books yet. Refresh author metadata to create tracked books.";
+  }
+  const parts = [`${stats.total} tracked`, `${stats.missing} missing`];
+  if (stats.grabbed > 0) parts.push(`${stats.grabbed} grabbed`);
+  if (stats.present > 0) parts.push(`${stats.present} present`);
+  if (stats.review > 0) parts.push(`${stats.review} review`);
+  return parts.join(" · ");
+}
+
+function authorSubscriptionStatsBadges(stats: AuthorSubscriptionStats): Array<[string, number]> {
+  if (stats.total === 0) return [["tracked", 0]];
+  const badges: Array<[string, number]> = [
+    ["missing", stats.missing],
+    ["grabbed", stats.grabbed],
+    ["present", stats.present],
+    ["review", stats.review]
+  ];
+  return badges.filter(([, value]) => value > 0);
 }
 
 function libraryAuthorVisibleForFilter(row: LibraryAuthorRow, textFilter: string, formatFilter: LibraryFormatFilter) {
