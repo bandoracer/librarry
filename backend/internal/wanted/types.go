@@ -181,6 +181,21 @@ type MetadataProvenance struct {
 	GeneratedAt     time.Time                `json:"generatedAt"`
 }
 
+type MetadataReviewQueue struct {
+	Items       []MetadataReviewItem `json:"items"`
+	GeneratedAt time.Time            `json:"generatedAt"`
+}
+
+type MetadataReviewItem struct {
+	WantedItem     WantedItem              `json:"wantedItem"`
+	Fields         []MetadataFieldEvidence `json:"fields"`
+	ConflictCount  int                     `json:"conflictCount"`
+	ProtectedCount int                     `json:"protectedCount"`
+	RecordCount    int                     `json:"recordCount"`
+	CandidateCount int                     `json:"candidateCount"`
+	LastFetchedAt  *time.Time              `json:"lastFetchedAt,omitempty"`
+}
+
 type ProviderMetadataRecord struct {
 	ID          string               `json:"id"`
 	Provider    string               `json:"provider"`

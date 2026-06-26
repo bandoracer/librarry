@@ -49,6 +49,7 @@ import {
   fetchSystemStatus,
   fetchWanted,
   fetchWantedMetadata,
+  fetchWantedMetadataReview,
   fetchWantedReleases,
   getStoredAPIKey,
   grabManualDownload,
@@ -101,6 +102,8 @@ import {
   type LibraryScanOutcome,
   type MetadataFieldEvidence,
   type MetadataProvenance,
+  type MetadataReviewItem,
+  type MetadataReviewQueue,
   type MonitorRun,
   type ProviderHealth,
   type ProviderMetadataRecord,
@@ -178,7 +181,7 @@ type ViewID = (typeof navItems)[number]["id"];
 type DownloadScope = "all" | "librarry";
 type DownloadStateFilter = "all" | "active" | "paused" | "complete" | "failed";
 type LibraryFormatFilter = "all" | "ebook" | "audiobook";
-type WantedViewFilter = "missing" | "wanted" | "grabbed" | "all";
+type WantedViewFilter = "missing" | "review" | "wanted" | "grabbed" | "all";
 type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 
 function emptyIntegrationSettings(): IntegrationSettings {
@@ -230,6 +233,7 @@ export function App() {
   const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [wantedMetadata, setWantedMetadata] = useState<MetadataProvenance | null>(null);
+  const [wantedMetadataReview, setWantedMetadataReview] = useState<MetadataReviewQueue | null>(null);
   const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
@@ -408,6 +412,11 @@ export function App() {
       .catch((error) => {
         setWantedError(error instanceof Error ? error.message : "Wanted refresh failed");
       });
+    fetchWantedMetadataReview()
+      .then(setWantedMetadataReview)
+      .catch(() => {
+        setWantedMetadataReview(null);
+      });
     fetchQualityProfiles()
       .then(setQualityProfiles)
       .catch((error) => {
@@ -451,6 +460,8 @@ export function App() {
     [results, selectedID]
   );
   const wantedPresence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
+  const wantedMetadataReviewByID = useMemo(() => metadataReviewMap(wantedMetadataReview), [wantedMetadataReview]);
+  const metadataReviewSummary = useMemo(() => summarizeMetadataReview(wantedMetadataReview), [wantedMetadataReview]);
   const wantedSummary = useMemo(() => summarizeWantedItems(wantedItems, wantedPresence), [wantedItems, wantedPresence]);
   const libraryAuthorRows = useMemo(
     () => buildLibraryAuthorRows(authorSubscriptions, wantedItems, wantedPresence),
@@ -484,8 +495,8 @@ export function App() {
     [libraryFormatFilter, libraryTextFilter, wantedItems, wantedPresence]
   );
   const visibleWantedItems = useMemo(
-    () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, wantedPresence.get(item.id), wantedViewFilter)),
-    [wantedItems, wantedPresence, wantedViewFilter]
+    () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, wantedPresence.get(item.id), wantedViewFilter, wantedMetadataReviewByID.has(item.id))),
+    [wantedItems, wantedMetadataReviewByID, wantedPresence, wantedViewFilter]
   );
   const selectedWanted = useMemo(
     () => visibleWantedItems.find((item) => item.id === selectedWantedID) ?? visibleWantedItems[0],
@@ -784,6 +795,7 @@ export function App() {
       );
       setSelectedWantedID(updated.id);
       setWantedReleases([]);
+      await refreshWantedMetadataReview();
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted update failed");
@@ -824,6 +836,7 @@ export function App() {
       );
       setSelectedWantedID(updated.id);
       setWantedReleases([]);
+      await refreshWantedMetadataReview();
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted override reset failed");
@@ -933,14 +946,27 @@ export function App() {
     setHistoryError("");
     setWantedError("");
     try {
-      const [nextWanted, nextHistory] = await Promise.all([fetchWanted(), fetchHistory()]);
+      const [nextWanted, nextHistory, nextReview] = await Promise.all([
+        fetchWanted(),
+        fetchHistory(),
+        fetchWantedMetadataReview().catch(() => null)
+      ]);
       setWantedItems(nextWanted);
       setHistoryEvents(nextHistory);
+      setWantedMetadataReview(nextReview);
       setSelectedWantedID((current) => current || nextWanted[0]?.id || "");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Refresh failed";
       setHistoryError(message);
       setWantedError(message);
+    }
+  }
+
+  async function refreshWantedMetadataReview() {
+    try {
+      setWantedMetadataReview(await fetchWantedMetadataReview());
+    } catch {
+      setWantedMetadataReview(null);
     }
   }
 
@@ -2143,13 +2169,13 @@ export function App() {
               <h2>Wanted queue</h2>
               <p>
                 {wantedItems.length
-                  ? `${wantedSummary.missing} missing · ${wantedSummary.grabbed} grabbed · ${wantedSummary.present} present · ${visibleWantedItems.length} shown.`
+                  ? `${wantedSummary.missing} missing · ${metadataReviewSummary.items} review · ${wantedSummary.grabbed} grabbed · ${wantedSummary.present} present · ${visibleWantedItems.length} shown.`
                   : "Mark a metadata result wanted to start Readarr-style acquisition planning."}
               </p>
             </div>
             <div className="monitor-actions">
               <div className="segmented wanted-scope" aria-label="Wanted queue filter">
-                {(["missing", "wanted", "grabbed", "all"] as WantedViewFilter[]).map((scope) => (
+                {(["missing", "review", "wanted", "grabbed", "all"] as WantedViewFilter[]).map((scope) => (
                   <button
                     className={wantedViewFilter === scope ? "selected" : ""}
                     key={scope}
@@ -2172,6 +2198,7 @@ export function App() {
               {visibleWantedItems.length ? (
                 visibleWantedItems.map((item) => {
                   const presence = wantedPresence.get(item.id);
+                  const review = wantedMetadataReviewByID.get(item.id);
                   return (
                     <button
                       className={item.id === selectedWanted?.id ? "wanted-item selected" : "wanted-item"}
@@ -2185,9 +2212,12 @@ export function App() {
                     >
                       <span>
                         <strong>{item.title}</strong>
-                        <small>{item.authorName || "Unknown author"}</small>
+                        <small>{wantedItemSubtitle(item, review)}</small>
                       </span>
-                      <em className={`wanted-badge ${presence ?? "missing"}`}>{wantedBadgeLabel(item, presence)}</em>
+                      <span className="wanted-badges">
+                        <em className={`wanted-badge ${presence ?? "missing"}`}>{wantedBadgeLabel(item, presence)}</em>
+                        {review ? <em className="wanted-badge review">{metadataReviewBadgeLabel(review)}</em> : null}
+                      </span>
                     </button>
                   );
                 })
@@ -4136,6 +4166,22 @@ function summarizeWantedItems(items: WantedItem[], presence: Map<string, WantedP
   );
 }
 
+function metadataReviewMap(queue: MetadataReviewQueue | null) {
+  return new Map((queue?.items ?? []).map((item) => [item.wantedItem.id, item]));
+}
+
+function summarizeMetadataReview(queue: MetadataReviewQueue | null) {
+  return (queue?.items ?? []).reduce(
+    (summary, item) => {
+      summary.items += 1;
+      summary.conflicts += item.conflictCount;
+      summary.protected += item.protectedCount;
+      return summary;
+    },
+    { items: 0, conflicts: 0, protected: 0 }
+  );
+}
+
 function summarizeReleaseDecisions(releases: ReleaseDecision[]) {
   return releases.reduce(
     (summary, release) => {
@@ -4160,11 +4206,13 @@ function releaseActionID(release: ReleaseDecision, force: boolean) {
   return `${release.id || release.sourceId || release.title}:${force ? "force" : "grab"}`;
 }
 
-function wantedItemVisibleForFilter(item: WantedItem, presence: WantedPresence | undefined, filter: WantedViewFilter) {
+function wantedItemVisibleForFilter(item: WantedItem, presence: WantedPresence | undefined, filter: WantedViewFilter, hasMetadataReview: boolean) {
   const status = (item.status || "").toLowerCase();
   switch (filter) {
     case "missing":
       return (presence ?? "missing") !== "present";
+    case "review":
+      return hasMetadataReview;
     case "wanted":
       return status === "wanted";
     case "grabbed":
@@ -4174,11 +4222,26 @@ function wantedItemVisibleForFilter(item: WantedItem, presence: WantedPresence |
   }
 }
 
+function wantedItemSubtitle(item: WantedItem, review?: MetadataReviewItem) {
+  const parts = [item.authorName || "Unknown author"];
+  if (review?.conflictCount) {
+    parts.push(`${review.conflictCount} metadata conflict${review.conflictCount === 1 ? "" : "s"}`);
+  } else if (review?.protectedCount) {
+    parts.push(`${review.protectedCount} protected field${review.protectedCount === 1 ? "" : "s"}`);
+  }
+  return parts.join(" · ");
+}
+
 function wantedBadgeLabel(item: WantedItem, presence: WantedPresence | undefined) {
   const state = presence ?? "missing";
   if (state === "present") return `Present · ${item.format}`;
   if (state === "grabbed") return `Grabbed · ${item.format}`;
   return `Missing · ${item.format}`;
+}
+
+function metadataReviewBadgeLabel(review: MetadataReviewItem) {
+  if (review.conflictCount > 0) return `Review · ${review.conflictCount}`;
+  return `Protected · ${review.protectedCount}`;
 }
 
 function wantedOverrideLabel(fieldName: string) {

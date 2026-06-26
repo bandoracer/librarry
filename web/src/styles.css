@@ -1895,9 +1895,9 @@ select {
   border-bottom: 1px solid var(--border);
   background: transparent;
   color: var(--text);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
   text-align: left;
@@ -1931,6 +1931,14 @@ select {
   font-size: 12px;
 }
 
+.wanted-badges {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .wanted-item em {
   border-radius: 999px;
   background: #eef2f6;
@@ -1955,6 +1963,11 @@ select {
 .wanted-item .wanted-badge.present {
   background: #e7f7ed;
   color: #0f6b2e;
+}
+
+.wanted-item .wanted-badge.review {
+  background: #fff1bf;
+  color: #6f4b00;
 }
 
 .wanted-release-list {

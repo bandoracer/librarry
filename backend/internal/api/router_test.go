@@ -2454,6 +2454,34 @@ func TestWantedMetadataEndpointReturnsProviderProvenance(t *testing.T) {
 	}
 }
 
+func TestWantedMetadataReviewEndpointReturnsConflicts(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeMetadataWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wanted/metadata/review", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	for _, want := range []string{
+		`"items":[`,
+		`"conflictCount":1`,
+		`"protectedCount":1`,
+		`"recordCount":2`,
+		`"title":"Project Hail Mary"`,
+	} {
+		if !strings.Contains(res.Body.String(), want) {
+			t.Fatalf("expected %s in metadata review response, got %s", want, res.Body.String())
+		}
+	}
+}
+
 func TestGrabWantedEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3818,6 +3846,26 @@ func (fakeMetadataWanted) MetadataProvenance(context.Context, string) (wanted.Me
 				SourceKey:  "hardcover:123",
 				MatchedOn:  []string{"title", "author"},
 			},
+		}},
+		GeneratedAt: now,
+	}, nil
+}
+
+func (fakeMetadataWanted) MetadataReviewQueue(context.Context) (wanted.MetadataReviewQueue, error) {
+	now := time.Now().UTC()
+	provenance, err := fakeMetadataWanted{}.MetadataProvenance(context.Background(), "wanted-1")
+	if err != nil {
+		return wanted.MetadataReviewQueue{}, err
+	}
+	return wanted.MetadataReviewQueue{
+		Items: []wanted.MetadataReviewItem{{
+			WantedItem:     provenance.WantedItem,
+			Fields:         provenance.Fields,
+			ConflictCount:  1,
+			ProtectedCount: 1,
+			RecordCount:    2,
+			CandidateCount: 2,
+			LastFetchedAt:  &now,
 		}},
 		GeneratedAt: now,
 	}, nil

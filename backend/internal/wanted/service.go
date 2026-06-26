@@ -100,6 +100,13 @@ func (s *Service) MetadataProvenance(ctx context.Context, id string) (MetadataPr
 	return s.store.WantedMetadataProvenance(ctx, id)
 }
 
+func (s *Service) MetadataReviewQueue(ctx context.Context) (MetadataReviewQueue, error) {
+	if !s.Available() {
+		return MetadataReviewQueue{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.WantedMetadataReviewQueue(ctx)
+}
+
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Available() {
 		return nil, errors.New("wanted service requires database persistence")

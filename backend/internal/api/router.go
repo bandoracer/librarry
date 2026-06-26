@@ -85,6 +85,7 @@ type wantedService interface {
 
 type metadataProvenanceService interface {
 	MetadataProvenance(ctx context.Context, id string) (wanted.MetadataProvenance, error)
+	MetadataReviewQueue(ctx context.Context) (wanted.MetadataReviewQueue, error)
 }
 
 type libraryService interface {
@@ -350,6 +351,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/wanted/{id}", handler.updateWanted)
 	mux.HandleFunc("PATCH /api/v1/wanted/{id}", handler.updateWanted)
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}", handler.deleteWanted)
+	mux.HandleFunc("GET /api/v1/wanted/metadata/review", handler.wantedMetadataReview)
 	mux.HandleFunc("GET /api/v1/wanted/metadata/{id}", handler.wantedMetadata)
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}/overrides/{field}", handler.clearWantedOverride)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
@@ -1194,6 +1196,24 @@ func (h *handler) wantedMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, provenance)
+}
+
+func (h *handler) wantedMetadataReview(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	provenanceService, ok := h.deps.Wanted.(metadataProvenanceService)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted metadata review is unavailable"})
+		return
+	}
+	queue, err := provenanceService.MetadataReviewQueue(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, queue)
 }
 
 func decodeWantedUpdateRequest(body io.Reader) (wanted.WantedUpdateRequest, error) {

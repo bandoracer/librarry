@@ -93,7 +93,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   a selected wanted item, including provider, matched fields, confidence, and
   the active manual overrides that protect corrected fields. Field-level
   evidence also marks canonical values, provider candidates, and conflicts that
-  need manual review.
+  need manual review. A metadata review queue surfaces wanted items with
+  conflicts or protected fields before they become hidden library debt.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Scoped acquisition activity for configured qBittorrent, Transmission, and
@@ -491,6 +492,7 @@ Important API surfaces:
   - `PUT /api/v1/wanted/{id}`
   - `PATCH /api/v1/wanted/{id}`
   - `DELETE /api/v1/wanted/{id}`
+  - `GET /api/v1/wanted/metadata/review`
   - `GET /api/v1/wanted/metadata/{id}`
   - `DELETE /api/v1/wanted/{id}/overrides/{field}`
   - `POST /api/v1/wanted/{id}/search`

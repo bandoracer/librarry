@@ -815,6 +815,35 @@ func (s *Store) WantedMetadataProvenance(ctx context.Context, wantedID string) (
 	}, nil
 }
 
+func (s *Store) WantedMetadataReviewQueue(ctx context.Context) (MetadataReviewQueue, error) {
+	if !s.Configured() {
+		return MetadataReviewQueue{}, errors.New("wanted store is unavailable")
+	}
+	items, err := s.ListWanted(ctx, "")
+	if err != nil {
+		return MetadataReviewQueue{}, err
+	}
+	reviewItems := []MetadataReviewItem{}
+	for _, item := range items {
+		if wantedItemReviewSkipped(item) {
+			continue
+		}
+		provenance, err := s.WantedMetadataProvenance(ctx, item.ID)
+		if err != nil {
+			return MetadataReviewQueue{}, err
+		}
+		review := metadataReviewItem(provenance)
+		if review.ConflictCount == 0 && review.ProtectedCount == 0 {
+			continue
+		}
+		reviewItems = append(reviewItems, review)
+	}
+	return MetadataReviewQueue{
+		Items:       reviewItems,
+		GeneratedAt: time.Now().UTC(),
+	}, nil
+}
+
 func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID string, field string) error {
 	switch field {
 	case "title":
@@ -1018,6 +1047,55 @@ func oneValue(value string) []string {
 		return nil
 	}
 	return []string{value}
+}
+
+func metadataReviewItem(provenance MetadataProvenance) MetadataReviewItem {
+	fields := []MetadataFieldEvidence{}
+	conflictCount := 0
+	protectedCount := 0
+	candidateCount := 0
+	for _, field := range provenance.Fields {
+		if field.Conflict {
+			conflictCount++
+		}
+		if field.Protected {
+			protectedCount++
+		}
+		candidateCount += len(field.Candidates)
+		if field.Conflict || field.Protected {
+			fields = append(fields, field)
+		}
+	}
+	return MetadataReviewItem{
+		WantedItem:     provenance.WantedItem,
+		Fields:         fields,
+		ConflictCount:  conflictCount,
+		ProtectedCount: protectedCount,
+		RecordCount:    len(provenance.Records),
+		CandidateCount: candidateCount,
+		LastFetchedAt:  latestProviderRecordFetchedAt(provenance.Records),
+	}
+}
+
+func wantedItemReviewSkipped(item WantedItem) bool {
+	switch strings.ToLower(strings.TrimSpace(item.Status)) {
+	case "removed", "ignored", "imported":
+		return true
+	default:
+		return false
+	}
+}
+
+func latestProviderRecordFetchedAt(records []ProviderMetadataRecord) *time.Time {
+	var latest *time.Time
+	for _, record := range records {
+		fetchedAt := record.FetchedAt.UTC()
+		if latest == nil || fetchedAt.After(*latest) {
+			value := fetchedAt
+			latest = &value
+		}
+	}
+	return latest
 }
 
 func normalizeWantedOverrideFields(fields []string) ([]string, error) {

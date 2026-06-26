@@ -385,6 +385,21 @@ export type MetadataProvenance = {
   generatedAt: string;
 };
 
+export type MetadataReviewItem = {
+  wantedItem: WantedItem;
+  fields: MetadataFieldEvidence[];
+  conflictCount: number;
+  protectedCount: number;
+  recordCount: number;
+  candidateCount: number;
+  lastFetchedAt?: string;
+};
+
+export type MetadataReviewQueue = {
+  items: MetadataReviewItem[];
+  generatedAt: string;
+};
+
 export type ManualOverride = {
   fieldName: string;
   value?: string;
@@ -1268,6 +1283,14 @@ export async function fetchWantedMetadata(wantedID: string): Promise<MetadataPro
     throw new Error(await apiError(response, "Wanted metadata provenance failed"));
   }
   return (await response.json()) as MetadataProvenance;
+}
+
+export async function fetchWantedMetadataReview(): Promise<MetadataReviewQueue> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/review`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Wanted metadata review failed"));
+  }
+  return (await response.json()) as MetadataReviewQueue;
 }
 
 export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {
