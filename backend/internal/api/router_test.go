@@ -2104,7 +2104,7 @@ func TestCompatManualImportEndpoints(t *testing.T) {
 		t.Fatalf("expected scanned import candidate, got %s", res.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"path":"/downloads/Project Hail Mary.epub","wantedId":"wanted-1","downloadId":"abc123","importMode":"copy","mediaFormat":"ebook"}]`))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"path":"/downloads/Manual Book.epub","wantedId":"wanted-1","downloadId":"manual-1","importMode":"copy","mediaFormat":"ebook"}]`))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusOK {
@@ -2112,6 +2112,68 @@ func TestCompatManualImportEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"imported":true`) || !strings.Contains(res.Body.String(), `"destinationPath":"`) {
 		t.Fatalf("expected imported manual import payload, got %s", res.Body.String())
+	}
+}
+
+func TestCompatManualImportResolvesExplicitReview(t *testing.T) {
+	fake := &capturingBulkReviewLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  fake,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"librarryReviewId":"review-1","wantedId":"wanted-1","importMode":"hardlinkOrCopy","existingFileAction":"replace","mediaFormat":"ebook"}]`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(fake.ids) != 1 || fake.ids[0] != "review-1" {
+		t.Fatalf("expected explicit review resolution, got ids %#v", fake.ids)
+	}
+	if len(fake.requests) != 1 || fake.requests[0].WantedID != "wanted-1" || fake.requests[0].ImportMode != "hardlinkOrCopy" || fake.requests[0].ConflictAction != "replace" {
+		t.Fatalf("expected wanted and import policy on review decision, got %#v", fake.requests)
+	}
+	if !strings.Contains(res.Body.String(), `"librarryReviewId":"review-1"`) || !strings.Contains(res.Body.String(), `"imported":true`) {
+		t.Fatalf("expected resolved manual import review response, got %s", res.Body.String())
+	}
+}
+
+func TestCompatManualImportResolvesPendingReviewByPath(t *testing.T) {
+	fake := &capturingBulkReviewLibrary{reviews: []library.ImportReview{{
+		ID:          "review-path",
+		SourcePath:  "/downloads/Project Hail Mary.epub",
+		DownloadID:  "abc123",
+		MediaFormat: "ebook",
+		Title:       "Project Hail Mary",
+		Status:      "pending",
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
+	}}}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  fake,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"path":"/downloads/Project Hail Mary.epub","wantedId":"wanted-1","downloadId":"abc123","mediaFormat":"ebook"}]`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(fake.ids) != 1 || fake.ids[0] != "review-path" {
+		t.Fatalf("expected path-matched review resolution, got ids %#v", fake.ids)
+	}
+	if len(fake.requests) != 1 || fake.requests[0].WantedID != "wanted-1" {
+		t.Fatalf("expected wanted id on path-matched review decision, got %#v", fake.requests)
 	}
 }
 
@@ -2124,7 +2186,7 @@ func TestCompatManualImportPersistsModeAndConflictPolicy(t *testing.T) {
 		Wanted:   fakeWanted{},
 		Library:  capture,
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"path":"/downloads/Project Hail Mary.epub","wantedId":"wanted-1","downloadId":"abc123","importMode":"hardlinkOrCopy","existingFileAction":"replace","mediaFormat":"ebook"}]`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/manualimport", strings.NewReader(`[{"path":"/downloads/Manual Book.epub","wantedId":"wanted-1","downloadId":"manual-1","importMode":"hardlinkOrCopy","existingFileAction":"replace","mediaFormat":"ebook"}]`))
 	res := httptest.NewRecorder()
 
 	router.ServeHTTP(res, req)

@@ -178,7 +178,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   items plus tracked library files, so grabbed-but-unimported books remain
   visible while present files suppress false missing results.
 - Readarr-compatible manual import endpoints for pending reviews, folder scans,
-  and selected-file imports.
+  selected-file imports, and review-row resolution through `librarryReviewId`
+  or a matching pending source path.
 - Readarr-compatible bookfile endpoints for imported library files:
   list/filter/get are mapped from native files, delete removes native file
   records with optional physical file removal, and update persists

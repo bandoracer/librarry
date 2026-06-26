@@ -544,10 +544,12 @@ explicit title or author.
 The Readarr-compatible `/api/v1/manualimport` surface maps to the same import
 engine. `GET /api/v1/manualimport` lists pending import reviews, can scan a
 provided folder for supported ebook/audiobook candidates, and `POST
-/api/v1/manualimport` imports selected files through the regular library import
-path. The naming and media-management compatibility config endpoints reflect
-the active Librarry roots and naming templates and persist compatible overrides
-through `compat_resources`; root folder writes are persisted in
+`/api/v1/manualimport` imports selected files through the regular library import
+path or resolves a pending review when the payload includes `librarryReviewId`
+or matches one pending source path. The naming and media-management
+compatibility config endpoints reflect the active Librarry roots and naming
+templates and persist compatible overrides through `compat_resources`; root
+folder writes are persisted in
 `compat_root_folders`.
 
 The Readarr-compatible `/api/v1/bookfile` surface maps native Librarry file

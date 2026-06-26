@@ -2547,19 +2547,51 @@ func (h *handler) compatCreateManualImport(w http.ResponseWriter, r *http.Reques
 	records := make([]map[string]any, 0, len(items))
 	for _, item := range items {
 		sourcePath := firstNonEmptyString(payloadString(item, "path"), payloadString(item, "sourcePath"))
-		if sourcePath == "" {
+		reviewID, err := h.compatManualImportReviewID(r.Context(), item, sourcePath)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+		if sourcePath == "" && reviewID == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "path is required"})
 			return
 		}
+		wantedID := h.compatWantedIDForManualImport(r, item)
+		format := firstNonEmptyString(payloadString(item, "mediaFormat"), payloadString(item, "format"), nestedString(item, "quality", "name"), nestedString(item, "book", "librarryFormat"))
+		move := manualImportMove(item)
+		importMode := manualImportMode(item)
+		conflictAction := manualImportConflictAction(item)
+		overwrite := manualImportOverwrite(item)
+		if reviewID != "" {
+			request := library.ReviewDecisionRequest{
+				Action:         firstNonEmptyString(payloadString(item, "action"), "import"),
+				WantedID:       wantedID,
+				Format:         format,
+				Move:           move,
+				ImportMode:     importMode,
+				ConflictAction: conflictAction,
+				Overwrite:      overwrite,
+			}
+			outcome, err := h.deps.Library.ResolveImportReview(r.Context(), reviewID, request)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "reviewId": reviewID, "path": sourcePath})
+				return
+			}
+			if outcome.Import != nil && outcome.Import.Imported {
+				h.notifyReviewImport(r.Context(), "compat-manual-import-review", outcome)
+			}
+			records = append(records, compatManualImportReviewOutcomeRecord(outcome, request))
+			continue
+		}
 		request := library.ImportRequest{
 			SourcePath:     sourcePath,
-			WantedID:       h.compatWantedIDForManualImport(r, item),
+			WantedID:       wantedID,
 			DownloadID:     firstNonEmptyString(payloadString(item, "downloadId"), payloadString(item, "downloadID")),
-			Format:         firstNonEmptyString(payloadString(item, "mediaFormat"), payloadString(item, "format"), nestedString(item, "quality", "name"), nestedString(item, "book", "librarryFormat")),
-			Move:           manualImportMove(item),
-			ImportMode:     manualImportMode(item),
-			ConflictAction: manualImportConflictAction(item),
-			Overwrite:      manualImportOverwrite(item),
+			Format:         format,
+			Move:           move,
+			ImportMode:     importMode,
+			ConflictAction: conflictAction,
+			Overwrite:      overwrite,
 		}
 		outcome, err := h.deps.Library.Import(r.Context(), request)
 		if err != nil {
@@ -4850,6 +4882,28 @@ func compatManualImportReviewRecord(review library.ImportReview) map[string]any 
 	if strings.TrimSpace(review.Reason) != "" {
 		record["rejections"] = []map[string]any{{"reason": review.Reason, "type": "warning"}}
 	}
+	return record
+}
+
+func compatManualImportReviewOutcomeRecord(outcome library.ReviewDecisionOutcome, request library.ReviewDecisionRequest) map[string]any {
+	if outcome.Import != nil {
+		record := compatManualImportOutcomeRecord(*outcome.Import, library.ImportRequest{
+			SourcePath:     outcome.Review.SourcePath,
+			WantedID:       firstNonEmptyString(request.WantedID, outcome.Review.WantedID),
+			DownloadID:     outcome.Review.DownloadID,
+			Format:         firstNonEmptyString(request.Format, outcome.Review.MediaFormat),
+			Move:           request.Move,
+			ImportMode:     request.ImportMode,
+			ConflictAction: request.ConflictAction,
+			Overwrite:      request.Overwrite,
+		})
+		record["librarryReviewId"] = outcome.Review.ID
+		record["librarryStatus"] = outcome.Review.Status
+		record["librarryDecision"] = outcome.Review.Decision
+		return record
+	}
+	record := compatManualImportReviewRecord(outcome.Review)
+	record["librarryDecision"] = outcome.Review.Decision
 	return record
 }
 
@@ -7548,6 +7602,41 @@ func manualImportConflictAction(payload map[string]any) string {
 
 func manualImportOverwrite(payload map[string]any) bool {
 	return payloadBoolDefault(payload, "overwrite", payloadBoolDefault(payload, "replaceExisting", false))
+}
+
+func (h *handler) compatManualImportReviewID(ctx context.Context, payload map[string]any, sourcePath string) (string, error) {
+	reviewID := firstNonEmptyString(
+		payloadString(payload, "librarryReviewId"),
+		payloadString(payload, "reviewId"),
+		payloadString(payload, "importReviewId"),
+		payloadString(payload, "manualImportReviewId"),
+	)
+	if reviewID != "" {
+		return reviewID, nil
+	}
+	sourcePath = filepath.Clean(strings.TrimSpace(sourcePath))
+	if sourcePath == "" || sourcePath == "." || h.deps.Library == nil {
+		return "", nil
+	}
+	reviews, err := h.deps.Library.ListImportReviews(ctx, library.ReviewListQuery{Status: "pending", Limit: 500})
+	if err != nil {
+		return "", err
+	}
+	downloadID := firstNonEmptyString(payloadString(payload, "downloadId"), payloadString(payload, "downloadID"))
+	var matches []library.ImportReview
+	for _, review := range reviews {
+		if filepath.Clean(strings.TrimSpace(review.SourcePath)) != sourcePath {
+			continue
+		}
+		if downloadID != "" && strings.TrimSpace(review.DownloadID) != downloadID {
+			continue
+		}
+		matches = append(matches, review)
+	}
+	if len(matches) != 1 {
+		return "", nil
+	}
+	return strings.TrimSpace(matches[0].ID), nil
 }
 
 func renderCompatNamingExample(record map[string]any, author string, title string, format string, ext string) string {
