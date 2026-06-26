@@ -96,7 +96,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   acquisition: format, language, publisher/date, ISBN/ASIN identifiers, series
   position, provider confidence, and matched fields are visible before marking a
   book wanted. Provider, confidence, and evidence filters make ambiguous result
-  sets easier to narrow before creating wanted items.
+  sets easier to narrow before creating wanted items, and selected candidates
+  show score, source identity, matched-field, and edition-evidence summaries.
 - Newly monitored authors are immediately eligible for a targeted bibliography
   refresh, which creates or reviews wanted books from metadata before release
   acquisition starts.

@@ -976,6 +976,49 @@ select {
   font-size: 12px;
 }
 
+.result-chip-row {
+  margin-top: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.result-chip {
+  max-width: 100%;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #eef2f6;
+  color: #526173;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.result-chip.high {
+  background: #e7f7ed;
+  color: #0f6b2e;
+}
+
+.result-chip.medium {
+  background: #fff5d6;
+  color: #7a4b00;
+}
+
+.result-chip.review {
+  background: #eef2f6;
+  color: #526173;
+}
+
+.result-chip.neutral {
+  background: #f3f4f6;
+  color: var(--muted-strong);
+}
+
 .edition-cell {
   display: grid;
   gap: 3px;
@@ -1076,6 +1119,44 @@ select {
   margin: 6px 0 18px;
   color: var(--muted);
   font-size: 14px;
+}
+
+.search-evidence-summary {
+  margin: -4px 0 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.search-evidence-item {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.search-evidence-item span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.search-evidence-item strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.search-evidence-item small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .detail-list {
@@ -4872,6 +4953,10 @@ select {
   .wanted-scope,
   .wanted-release-review-actions {
     width: 100%;
+  }
+
+  .search-evidence-summary {
+    grid-template-columns: 1fr;
   }
 
   .search-strip {

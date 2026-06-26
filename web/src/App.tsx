@@ -212,6 +212,9 @@ type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 type SearchMode = Extract<MetadataSearchType, "book" | "author">;
 type SearchConfidenceFilter = "all" | SearchResult["confidence"];
 type SearchEvidenceFilter = "all" | "identifiers" | "published" | "series";
+type SearchEvidenceTone = "high" | "medium" | "review" | "neutral";
+type SearchEvidenceChip = { label: string; tone?: SearchEvidenceTone };
+type SearchEvidenceItem = { label: string; value: string; detail: string };
 
 const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
 const searchModeOptions: SearchMode[] = ["book", "author"];
@@ -223,6 +226,116 @@ function firstAuthorName(result: SearchResult) {
 
 function searchResultCanBeWanted(result: SearchResult) {
   return result.kind !== "author";
+}
+
+function searchResultScoreLabel(result: SearchResult) {
+  if (!Number.isFinite(result.score) || result.score <= 0) return "unscored";
+  return result.score <= 1 ? `${Math.round(result.score * 100)}%` : result.score.toFixed(1);
+}
+
+function searchResultMatchChips(result: SearchResult) {
+  const chips: SearchEvidenceChip[] = [
+    { label: `score ${searchResultScoreLabel(result)}`, tone: result.confidence }
+  ];
+  result.matchedOn.forEach((field) => chips.push({ label: searchMatchFieldLabel(field), tone: "neutral" }));
+  if (result.kind !== "author" && searchResultIdentifierSummary(result, 1)) chips.push({ label: "identifier", tone: "high" });
+  if (result.kind !== "author" && searchResultPublishedLabel(result)) chips.push({ label: "published", tone: "neutral" });
+  if (result.kind !== "author" && searchResultSeriesLabel(result)) chips.push({ label: "series", tone: "neutral" });
+  if (result.kind === "author" && searchResultProviderKey(result)) chips.push({ label: "author id", tone: "neutral" });
+  return uniqueEvidenceChips(chips).slice(0, 5);
+}
+
+function searchResultEvidenceSummary(result: SearchResult, currentFormat: string): SearchEvidenceItem[] {
+  const sourceKey = searchResultSourceIdentity(result);
+  const matchedFields = searchResultMatchedFieldsLabel(result);
+  if (result.kind === "author") {
+    return [
+      {
+        label: "Match",
+        value: `${result.confidence} · ${searchResultScoreLabel(result)}`,
+        detail: searchResultConfidenceDescription(result)
+      },
+      {
+        label: "Author identity",
+        value: sourceKey,
+        detail: "Provider-backed author ID used for monitored-author refreshes."
+      },
+      {
+        label: "Target",
+        value: wantedFormat(currentFormat),
+        detail: "New wanted items from this author will use this format policy."
+      },
+      {
+        label: "Matched fields",
+        value: matchedFields || "Provider rank",
+        detail: "Fields that contributed to the normalized match score."
+      }
+    ];
+  }
+  return [
+    {
+      label: "Match",
+      value: `${result.confidence} · ${searchResultScoreLabel(result)}`,
+      detail: searchResultConfidenceDescription(result)
+    },
+    {
+      label: "Edition evidence",
+      value: searchResultEditionSummary(result, currentFormat) || "Any format",
+      detail: searchResultEditionSubline(result)
+    },
+    {
+      label: "Matched fields",
+      value: matchedFields || "Provider rank",
+      detail: "Fields that contributed to the normalized match score."
+    },
+    {
+      label: "Source identity",
+      value: sourceKey,
+      detail: "Stored with provider records so future corrections can be traced."
+    }
+  ];
+}
+
+function searchResultConfidenceDescription(result: SearchResult) {
+  switch (result.confidence) {
+    case "high":
+      return "Strong enough to create a wanted item without review in normal cases.";
+    case "medium":
+      return "Likely match; check edition evidence before marking wanted.";
+    case "review":
+      return "Low-confidence match that should be reviewed before acquisition.";
+  }
+}
+
+function searchResultMatchedFieldsLabel(result: SearchResult) {
+  return Array.from(new Set(result.matchedOn.map(searchMatchFieldLabel).filter(Boolean))).join(", ");
+}
+
+function searchMatchFieldLabel(field: string) {
+  switch (field.toLowerCase()) {
+    case "isbn":
+      return "ISBN";
+    case "asin":
+      return "ASIN";
+    case "title":
+      return "title";
+    case "author":
+      return "author";
+    case "series":
+      return "series";
+    default:
+      return field;
+  }
+}
+
+function uniqueEvidenceChips(chips: SearchEvidenceChip[]) {
+  const seen = new Set<string>();
+  return chips.filter((chip) => {
+    const key = chip.label.toLowerCase();
+    if (!chip.label || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function uniqueSearchProviders(results: SearchResult[]) {
@@ -269,6 +382,11 @@ function searchResultSubtitle(result: SearchResult) {
 
 function searchResultProviderKey(result: SearchResult) {
   return result.work.authors?.[0]?.id || result.rawSourceKey || result.work.providerIds?.[0] || result.work.id || "Unknown";
+}
+
+function searchResultSourceIdentity(result: SearchResult) {
+  if (result.kind === "author") return searchResultProviderKey(result);
+  return result.rawSourceKey || result.edition?.id || result.work.providerIds?.[0] || result.work.id || "Unknown";
 }
 
 function searchResultEditionSummary(result: SearchResult, currentFormat: string) {
@@ -2992,6 +3110,11 @@ export function App() {
                     <span>
                       <strong>{searchResultTitle(result)}</strong>
                       <small>{searchResultSubtitle(result)}</small>
+                      <span className="result-chip-row" aria-hidden="true">
+                        {searchResultMatchChips(result).map((chip) => (
+                          <em className={`result-chip ${chip.tone ?? "neutral"}`} key={chip.label}>{chip.label}</em>
+                        ))}
+                      </span>
                     </span>
                   </button>
                   <span className="edition-cell">
@@ -3036,6 +3159,16 @@ export function App() {
                 </div>
                 <h2>{searchResultTitle(selected)}</h2>
                 <p className="detail-author">{searchResultSubtitle(selected)}</p>
+
+                <div className="search-evidence-summary" aria-label="Selected metadata evidence">
+                  {searchResultEvidenceSummary(selected, format).map((item) => (
+                    <article className="search-evidence-item" key={item.label}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                      <small>{item.detail}</small>
+                    </article>
+                  ))}
+                </div>
 
                 <dl className="detail-list">
                   <div>
