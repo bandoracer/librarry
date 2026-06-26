@@ -249,7 +249,7 @@ select {
 
 .search-strip {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto;
+  grid-template-columns: auto minmax(240px, 1fr) auto auto;
   gap: 10px;
   align-items: center;
 }

@@ -8,15 +8,17 @@ export type ProviderHealth = {
 
 export type SearchResult = {
   provider: string;
-  kind: "book" | "author" | "series";
+  kind: "book" | "author" | "author_works" | "series";
   work: {
     id: string;
     title: string;
     authors?: Array<{ id: string; name: string }>;
     firstPublishYear?: number;
+    description?: string;
     series?: string;
     seriesPosition?: string;
     coverUrl?: string;
+    providerIds?: string[];
   };
   edition?: {
     id: string;
@@ -30,7 +32,10 @@ export type SearchResult = {
   score: number;
   confidence: "high" | "medium" | "review";
   matchedOn: string[];
+  rawSourceKey?: string;
 };
+
+export type MetadataSearchType = "book" | "author" | "series";
 
 export type IntegrationHealth = {
   name: string;
@@ -814,10 +819,10 @@ export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
   return payload.providers;
 }
 
-export async function searchMetadata(query: string, format: string): Promise<SearchResult[]> {
+export async function searchMetadata(query: string, format: string, type: MetadataSearchType = "book"): Promise<SearchResult[]> {
   const params = new URLSearchParams({
     query,
-    type: "book",
+    type,
     format
   });
   const response = await fetch(`${apiBase}/api/v1/search?${params.toString()}`);

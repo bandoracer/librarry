@@ -107,6 +107,7 @@ import {
   type LibraryFile,
   type LibraryImportOutcome,
   type LibraryScanOutcome,
+  type MetadataSearchType,
   type MetadataFieldEvidence,
   type MetadataFieldCandidate,
   type MetadataProvenance,
@@ -191,8 +192,33 @@ type DownloadStateFilter = "all" | "active" | "paused" | "complete" | "failed";
 type LibraryFormatFilter = "all" | "ebook" | "audiobook";
 type WantedViewFilter = "missing" | "review" | "wanted" | "grabbed" | "all";
 type ReleaseDecisionFilter = "all" | "approved" | "rejected";
+type SearchMode = Extract<MetadataSearchType, "book" | "author">;
 
 const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
+const searchModeOptions: SearchMode[] = ["book", "author"];
+
+function firstAuthorName(result: SearchResult) {
+  return result.work.authors?.[0]?.name || "Unknown author";
+}
+
+function searchResultCanBeWanted(result: SearchResult) {
+  return result.kind !== "author";
+}
+
+function searchResultTitle(result: SearchResult) {
+  return result.kind === "author" ? firstAuthorName(result) : result.work.title;
+}
+
+function searchResultSubtitle(result: SearchResult) {
+  if (result.kind === "author") {
+    return result.work.description || result.rawSourceKey || result.provider;
+  }
+  return firstAuthorName(result);
+}
+
+function searchResultProviderKey(result: SearchResult) {
+  return result.work.authors?.[0]?.id || result.rawSourceKey || result.work.providerIds?.[0] || result.work.id || "Unknown";
+}
 
 function emptyIntegrationSettings(): IntegrationSettings {
   return {
@@ -280,7 +306,9 @@ export function App() {
   const [downloadTextFilter, setDownloadTextFilter] = useState("");
   const [libraryFormatFilter, setLibraryFormatFilter] = useState<LibraryFormatFilter>("all");
   const [libraryTextFilter, setLibraryTextFilter] = useState("");
-  const [query, setQuery] = useState("Project Hail Mary");
+  const [searchMode, setSearchMode] = useState<SearchMode>("book");
+  const [bookQuery, setBookQuery] = useState("Project Hail Mary");
+  const [authorQuery, setAuthorQuery] = useState("Andy Weir");
   const [importPath, setImportPath] = useState("");
   const [libraryImportMode, setLibraryImportMode] = useState<"copy" | "move" | "hardlink" | "hardlinkOrCopy">("copy");
   const [libraryConflictAction, setLibraryConflictAction] = useState<"rename" | "replace" | "skip" | "fail">("rename");
@@ -480,6 +508,9 @@ export function App() {
     () => results.find((result) => result.work.id === selectedID) ?? results[0],
     [results, selectedID]
   );
+  const query = searchMode === "author" ? authorQuery : bookQuery;
+  const selectedCanBeWanted = Boolean(selected && searchResultCanBeWanted(selected));
+  const selectedCanSearchReleases = selectedCanBeWanted;
   const wantedPresence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
   const wantedMetadataReviewByID = useMemo(() => metadataReviewMap(wantedMetadataReview), [wantedMetadataReview]);
   const metadataReviewSummary = useMemo(() => summarizeMetadataReview(wantedMetadataReview), [wantedMetadataReview]);
@@ -650,9 +681,10 @@ export function App() {
     if (!query.trim()) return;
     setIsSearching(true);
     try {
-      const nextResults = await searchMetadata(query, format);
+      const nextResults = await searchMetadata(query, searchMode === "author" ? "any" : format, searchMode);
       setResults(nextResults);
       setSelectedID(nextResults[0]?.work.id ?? "");
+      setReleases([]);
       setAPIState("live");
     } catch {
       setAPIState("offline");
@@ -662,6 +694,7 @@ export function App() {
   }
 
   async function runReleaseSearch() {
+    if (!selected || !searchResultCanBeWanted(selected)) return;
     const releaseQuery = selected?.work.title ?? query;
     if (!releaseQuery.trim()) return;
     setIsSearchingReleases(true);
@@ -716,7 +749,7 @@ export function App() {
   }
 
   async function markWantedResult(result = selected) {
-    if (!result) return;
+    if (!result || !searchResultCanBeWanted(result)) return;
     setIsMarkingWanted(true);
     setWantedError("");
     setSelectedID(result.work.id);
@@ -1938,18 +1971,41 @@ export function App() {
         ) : null}
 
         <section className="search-strip" aria-label="Metadata search controls" hidden={activeView !== "search"}>
+          <div className="segmented" role="group" aria-label="Search type">
+            {searchModeOptions.map((option) => (
+              <button
+                className={searchMode === option ? "selected" : ""}
+                key={option}
+                onClick={() => {
+                  setSearchMode(option);
+                  setResults([]);
+                  setSelectedID("");
+                  setReleases([]);
+                }}
+                type="button"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
           <div className="search-input">
             <Search size={18} />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                if (searchMode === "author") {
+                  setAuthorQuery(event.target.value);
+                  return;
+                }
+                setBookQuery(event.target.value);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") runSearch();
               }}
-              placeholder="Search title, author, series, or ISBN"
+              placeholder={searchMode === "author" ? "Search author name" : "Search title, author, series, or ISBN"}
             />
           </div>
-          <div className="segmented" role="group" aria-label="Format">
+          <div className="segmented" role="group" aria-label={searchMode === "author" ? "Target format" : "Format"}>
             {["any", "ebook", "audiobook"].map((option) => (
               <button
                 className={format === option ? "selected" : ""}
@@ -1963,7 +2019,7 @@ export function App() {
           </div>
           <button className="primary-action" onClick={runSearch} type="button">
             <FileSearch size={17} />
-            <span>{isSearching ? "Searching" : "Search"}</span>
+            <span>{isSearching ? "Searching" : searchMode === "author" ? "Find author" : "Search"}</span>
           </button>
         </section>
 
@@ -2142,8 +2198,12 @@ export function App() {
           <section className="results-panel" aria-label="Search results">
             <div className="panel-heading">
               <div>
-                <h2>Candidate matches</h2>
-                <p>{results.length} normalized results sorted by confidence and provider rank.</p>
+                <h2>{searchMode === "author" ? "Author identities" : "Candidate matches"}</h2>
+                <p>
+                  {searchMode === "author"
+                    ? `${results.length} author records sorted by confidence and provider rank.`
+                    : `${results.length} normalized results sorted by confidence and provider rank.`}
+                </p>
               </div>
               <button className="icon-button" type="button" aria-label="Filter results">
                 <SlidersHorizontal size={18} />
@@ -2152,37 +2212,39 @@ export function App() {
 
             <div className="result-table" role="table">
               <div className="table-row table-head" role="row">
-                <span>Title</span>
-                <span>Format</span>
+                <span>{searchMode === "author" ? "Author" : "Title"}</span>
+                <span>{searchMode === "author" ? "Target" : "Format"}</span>
                 <span>Source</span>
                 <span>Confidence</span>
                 <span>Action</span>
               </div>
               {results.map((result) => (
-                <div className={result.work.id === selected?.work.id ? "table-row result-row selected" : "table-row result-row"} key={`${result.provider}-${result.work.id}`} role="row">
+                <div className={result.work.id === selected?.work.id ? "table-row result-row selected" : "table-row result-row"} key={`${result.provider}-${result.kind}-${result.work.id}`} role="row">
                   <button className="title-cell result-select" onClick={() => setSelectedID(result.work.id)} type="button">
-                    <BookOpen size={16} />
+                    {result.kind === "author" ? <UserPlus size={16} /> : <BookOpen size={16} />}
                     <span>
-                      <strong>{result.work.title}</strong>
-                      <small>{result.work.authors?.[0]?.name ?? "Unknown author"}</small>
+                      <strong>{searchResultTitle(result)}</strong>
+                      <small>{searchResultSubtitle(result)}</small>
                     </span>
                   </button>
-                  <span>{result.edition?.format ?? "any"}</span>
+                  <span>{result.kind === "author" ? wantedFormat(format) : result.edition?.format ?? "any"}</span>
                   <span>{result.provider}</span>
                   <span>
                     <em className={`confidence ${result.confidence}`}>{result.confidence}</em>
                   </span>
                   <span className="row-action">
-                    <button className="row-action-button" disabled={isMarkingWanted} onClick={() => markWantedResult(result)} type="button">
-                      {isMarkingWanted && result.work.id === selected?.work.id ? "Marking" : "Mark"}
-                    </button>
+                    {searchResultCanBeWanted(result) ? (
+                      <button className="row-action-button" disabled={isMarkingWanted} onClick={() => markWantedResult(result)} type="button">
+                        {isMarkingWanted && result.work.id === selected?.work.id ? "Marking" : "Mark"}
+                      </button>
+                    ) : null}
                     <button
                       className="row-action-button"
                       disabled={isSubscribingAuthor || !result.work.authors?.length}
                       onClick={() => subscribeAuthorResult(result)}
                       type="button"
                     >
-                      {isSubscribingAuthor && result.work.id === selected?.work.id ? "Saving" : "Author"}
+                      {isSubscribingAuthor && result.work.id === selected?.work.id ? "Saving" : result.kind === "author" ? "Monitor" : "Author"}
                     </button>
                   </span>
                 </div>
@@ -2194,36 +2256,52 @@ export function App() {
             {selected ? (
               <>
                 <div className="cover-frame">
-                  {selected.work.coverUrl ? <img src={selected.work.coverUrl} alt="" /> : <BookOpen size={42} />}
+                  {selected.work.coverUrl ? <img src={selected.work.coverUrl} alt="" /> : selected.kind === "author" ? <UserPlus size={42} /> : <BookOpen size={42} />}
                 </div>
-                <h2>{selected.work.title}</h2>
-                <p className="detail-author">{selected.work.authors?.[0]?.name ?? "Unknown author"}</p>
+                <h2>{searchResultTitle(selected)}</h2>
+                <p className="detail-author">{searchResultSubtitle(selected)}</p>
 
                 <dl className="detail-list">
                   <div>
                     <dt>Provider</dt>
                     <dd>{selected.provider}</dd>
                   </div>
+                  {selected.kind === "author" ? (
+                    <div>
+                      <dt>Provider ID</dt>
+                      <dd>{searchResultProviderKey(selected)}</dd>
+                    </div>
+                  ) : (
+                    <div>
+                      <dt>First published</dt>
+                      <dd>{selected.work.firstPublishYear ?? "Unknown"}</dd>
+                    </div>
+                  )}
                   <div>
-                    <dt>First published</dt>
-                    <dd>{selected.work.firstPublishYear ?? "Unknown"}</dd>
+                    <dt>{selected.kind === "author" ? "Target format" : "Format"}</dt>
+                    <dd>{selected.kind === "author" ? wantedFormat(format) : selected.edition?.format ?? "Any"}</dd>
                   </div>
-                  <div>
-                    <dt>Format</dt>
-                    <dd>{selected.edition?.format ?? "Any"}</dd>
-                  </div>
-                  <div>
-                    <dt>Identifiers</dt>
-                    <dd>{selected.edition?.isbns?.slice(0, 2).join(", ") || "None"}</dd>
-                  </div>
+                  {selected.kind === "author" ? (
+                    <div>
+                      <dt>Top work</dt>
+                      <dd>{selected.work.description || "Unknown"}</dd>
+                    </div>
+                  ) : (
+                    <div>
+                      <dt>Identifiers</dt>
+                      <dd>{selected.edition?.isbns?.slice(0, 2).join(", ") || "None"}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt>Matched on</dt>
                     <dd>{selected.matchedOn.join(", ")}</dd>
                   </div>
-                  <div>
-                    <dt>Manual override</dt>
-                    <dd>None</dd>
-                  </div>
+                  {selected.kind === "author" ? null : (
+                    <div>
+                      <dt>Manual override</dt>
+                      <dd>None</dd>
+                    </div>
+                  )}
                 </dl>
 
                 <div className="author-policy-control" aria-label="Author missing-book policy">
@@ -2243,18 +2321,22 @@ export function App() {
                 </div>
 
                 <div className="detail-actions">
-                  <button className="secondary-action" onClick={() => markWantedResult(selected)} disabled={isMarkingWanted} type="button">
-                    <HardDriveDownload size={17} />
-                    <span>{isMarkingWanted ? "Marking" : "Mark wanted"}</span>
-                  </button>
+                  {selectedCanBeWanted ? (
+                    <button className="secondary-action" onClick={() => markWantedResult(selected)} disabled={isMarkingWanted} type="button">
+                      <HardDriveDownload size={17} />
+                      <span>{isMarkingWanted ? "Marking" : "Mark wanted"}</span>
+                    </button>
+                  ) : null}
                   <button className="secondary-action" onClick={subscribeSelectedAuthor} disabled={isSubscribingAuthor || !selected.work.authors?.length} type="button">
                     <UserPlus size={17} />
                     <span>{isSubscribingAuthor ? "Saving" : selectedAuthorSubscription ? "Refresh author" : "Monitor author"}</span>
                   </button>
-                  <button className="secondary-action" onClick={runReleaseSearch} type="button">
-                    <Download size={17} />
-                    {isSearchingReleases ? "Searching releases" : "Search releases"}
-                  </button>
+                  {selectedCanSearchReleases ? (
+                    <button className="secondary-action" onClick={runReleaseSearch} type="button">
+                      <Download size={17} />
+                      {isSearchingReleases ? "Searching releases" : "Search releases"}
+                    </button>
+                  ) : null}
                 </div>
                 {authorError ? <div className={isPersistenceRequiredError(authorError) ? "inline-note detail-error" : "inline-error detail-error"}>{appErrorMessage(authorError)}</div> : null}
               </>
@@ -2264,7 +2346,7 @@ export function App() {
           </aside>
         </div>
 
-        <section className="release-panel" aria-label="Release search results" hidden={activeView !== "search"}>
+        <section className="release-panel" aria-label="Release search results" hidden={activeView !== "search" || searchMode === "author"}>
           <div className="panel-heading">
             <div>
               <h2>Release search</h2>
@@ -4652,10 +4734,6 @@ function authorSkippedItemKey(subscription: AuthorSubscription, skipped: AuthorS
     skipped.result.work.id || skipped.result.edition?.id || skipped.result.work.title,
     skipped.result.edition?.publishedDate || skipped.result.work.firstPublishYear || "undated"
   ].join(":");
-}
-
-function firstAuthorName(result: SearchResult) {
-  return result.work.authors?.[0]?.name || "Unknown author";
 }
 
 function authorSkippedDateLabel(result: SearchResult) {
