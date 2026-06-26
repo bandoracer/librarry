@@ -455,6 +455,10 @@ author, and cover URL resets immediately restore canonical work/author values
 when those rows are available; quality-profile reset returns to `standard`, and
 bibliographic override resets remove the protected value so provider evidence is
 shown normally again.
+`GET /api/v1/wanted/metadata/review` is conflict-driven: it lists wanted items
+with unresolved provider disagreements, not every item with a protected override.
+Protected-only corrections remain visible in item provenance and override chips
+without keeping the item in the operator's review queue.
 `DELETE /api/v1/wanted/{id}` soft-removes the wanted item without deleting
 library files or download-client data. Monitoring state is stored separately
 from acquisition/import status so Readarr-compatible monitor/unmonitor calls do

@@ -135,6 +135,54 @@ func TestMetadataReviewItemSummarizesReviewFields(t *testing.T) {
 	}
 }
 
+func TestMetadataReviewItemDoesNotTreatProtectedOnlyFieldsAsReviewWork(t *testing.T) {
+	now := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
+	item := WantedItem{
+		ID:             "wanted-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		ManualOverrides: []ManualOverride{{
+			FieldName: "publisher",
+			Value:     "Random House Worlds",
+		}},
+	}
+	fields := metadataFieldEvidence(item, []ProviderMetadataRecord{{
+		Provider:    "Open Library",
+		ProviderKey: "openlibrary:OL1W",
+		EntityType:  "edition",
+		Confidence:  0.84,
+		FetchedAt:   now,
+		Values: MetadataRecordValues{
+			Publisher: "Random House Worlds",
+		},
+	}})
+	review := metadataReviewItem(MetadataProvenance{
+		WantedItem: item,
+		Fields:     fields,
+		Records: []ProviderMetadataRecord{{
+			Provider:  "Open Library",
+			FetchedAt: now,
+		}},
+	})
+
+	if review.ConflictCount != 0 || review.ProtectedCount != 1 || review.RecordCount != 1 || review.CandidateCount != 1 {
+		t.Fatalf("unexpected protected-only review summary: %+v", review)
+	}
+	if len(review.Fields) != 0 {
+		t.Fatalf("expected protected-only fields to be hidden from review work, got %+v", review.Fields)
+	}
+	if metadataReviewRequiresOperator(review) {
+		t.Fatalf("did not expect protected-only review to require operator action: %+v", review)
+	}
+	conflictReview := review
+	conflictReview.ConflictCount = 1
+	if !metadataReviewRequiresOperator(conflictReview) {
+		t.Fatalf("expected conflict review to require operator action: %+v", conflictReview)
+	}
+}
+
 func TestMetadataCorrectionUpdateRequestMapsSupportedFields(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

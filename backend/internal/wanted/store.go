@@ -854,7 +854,7 @@ func (s *Store) WantedMetadataReviewQueue(ctx context.Context) (MetadataReviewQu
 			return MetadataReviewQueue{}, err
 		}
 		review := metadataReviewItem(provenance)
-		if review.ConflictCount == 0 && review.ProtectedCount == 0 {
+		if !metadataReviewRequiresOperator(review) {
 			continue
 		}
 		reviewItems = append(reviewItems, review)
@@ -1165,7 +1165,7 @@ func metadataReviewItem(provenance MetadataProvenance) MetadataReviewItem {
 			protectedCount++
 		}
 		candidateCount += len(field.Candidates)
-		if field.Conflict || field.Protected {
+		if field.Conflict {
 			fields = append(fields, field)
 		}
 	}
@@ -1178,6 +1178,10 @@ func metadataReviewItem(provenance MetadataProvenance) MetadataReviewItem {
 		CandidateCount: candidateCount,
 		LastFetchedAt:  latestProviderRecordFetchedAt(provenance.Records),
 	}
+}
+
+func metadataReviewRequiresOperator(review MetadataReviewItem) bool {
+	return review.ConflictCount > 0
 }
 
 func wantedItemReviewSkipped(item WantedItem) bool {

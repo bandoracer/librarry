@@ -113,9 +113,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   the active manual overrides that protect corrected fields. Field-level
   evidence also marks canonical values, provider candidates, and conflicts that
   need manual review. A metadata review queue surfaces wanted items with
-  conflicts or protected fields before they become hidden library debt, and
-  supported provider candidates or all usable fields from one provider record
-  can be applied as protected corrections without copying values by hand.
+  unresolved provider conflicts before they become hidden library debt, while
+  protected override fields stay visible on the selected wanted item. Supported
+  provider candidates or all usable fields from one provider record can be
+  applied as protected corrections without copying values by hand.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Scoped Downloads page for configured qBittorrent, Transmission, and SABnzbd

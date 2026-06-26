@@ -2715,7 +2715,7 @@ export function App() {
               <h2>Wanted queue</h2>
               <p>
                 {wantedItems.length
-                  ? `${wantedSummary.missing} missing · ${metadataReviewSummary.items} review · ${wantedSummary.grabbed} grabbed · ${wantedSummary.present} present · ${visibleWantedItems.length} shown.`
+                  ? `${wantedSummary.missing} missing · ${metadataReviewSummary.items} metadata review · ${wantedSummary.grabbed} grabbed · ${wantedSummary.present} present · ${visibleWantedItems.length} shown.`
                   : "Mark a metadata result wanted to start Readarr-style acquisition planning."}
               </p>
             </div>
