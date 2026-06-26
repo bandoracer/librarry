@@ -128,6 +128,111 @@ func (s *Service) RenameFiles(ctx context.Context, request RenameFilesRequest) (
 	return s.renameFiles(ctx, request, true)
 }
 
+func (s *Service) RefreshCalibreConversions(ctx context.Context, request CalibreConversionRefreshRequest) (CalibreConversionRefreshOutcome, error) {
+	if !s.Available() {
+		return CalibreConversionRefreshOutcome{}, errors.New("library service requires database persistence")
+	}
+	if s.calibre == nil || s.rootFolders == nil {
+		return CalibreConversionRefreshOutcome{}, errors.New("calibre integration is unavailable")
+	}
+	ids := compactStrings(request.IDs)
+	paths := compactStrings(request.Paths)
+	limit := request.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	var files []FileRecord
+	var err error
+	if len(ids) > 0 || len(paths) > 0 {
+		files, err = s.store.FindFiles(ctx, ids, paths)
+	} else {
+		files, err = s.store.ListFiles(ctx, FileListQuery{Limit: limit})
+	}
+	if err != nil {
+		return CalibreConversionRefreshOutcome{}, err
+	}
+	outcome := CalibreConversionRefreshOutcome{}
+	for _, file := range files {
+		if outcome.Checked >= limit {
+			break
+		}
+		outcome.Checked++
+		result := CalibreConversionRefreshResult{File: file}
+		jobs := calibreConversionJobsFromMetadata(file.Metadata)
+		if len(jobs) == 0 {
+			result.Status = "skipped"
+			result.Message = "file has no Calibre conversion jobs"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		currentStatuses := calibreConversionStatusesFromMetadata(file.Metadata)
+		if !request.Force && !calibreConversionNeedsRefresh(jobs, currentStatuses) {
+			result.Status = "skipped"
+			result.Message = "Calibre conversion jobs already terminal"
+			result.Statuses = calibreConversionStatusMetadata(currentStatuses)
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		settings, ok, err := s.calibreSettingsForDestination(ctx, file.Path)
+		if err != nil {
+			result.Status = "error"
+			result.Message = err.Error()
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		if !ok {
+			result.Status = "skipped"
+			result.Message = "file is not under a Calibre-enabled root"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		statuses, err := s.calibre.PollConversions(ctx, calibre.PollConversionsRequest{
+			Settings:    settings,
+			Jobs:        jobs,
+			MaxAttempts: request.MaxAttempts,
+			Interval:    time.Duration(request.IntervalMillis) * time.Millisecond,
+		})
+		if err != nil {
+			result.Status = "error"
+			result.Message = err.Error()
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		if file.Metadata == nil {
+			file.Metadata = map[string]any{}
+		}
+		statusRecords := calibreConversionStatusMetadata(statuses)
+		file.Metadata["calibreConversionStatuses"] = statusRecords
+		file.Metadata["calibreConversionPolledAt"] = time.Now().UTC().Format(time.RFC3339)
+		if len(statuses) > 0 && !calibreConversionNeedsRefresh(jobs, statuses) {
+			if calibreConversionAnyFailed(statuses) {
+				file.Metadata["calibreConversionFailedAt"] = time.Now().UTC().Format(time.RFC3339)
+			} else {
+				file.Metadata["calibreConversionCompletedAt"] = time.Now().UTC().Format(time.RFC3339)
+			}
+		}
+		updated, err := s.store.UpdateFile(ctx, file)
+		if err != nil {
+			result.Status = "error"
+			result.Message = err.Error()
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		result.File = updated
+		result.Status = "refreshed"
+		result.Statuses = statusRecords
+		outcome.Refreshed++
+		outcome.Results = append(outcome.Results, result)
+	}
+	return outcome, nil
+}
+
 func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, apply bool) (RenameFilesOutcome, error) {
 	if !s.Available() {
 		return RenameFilesOutcome{}, errors.New("library service requires database persistence")
@@ -821,6 +926,150 @@ func calibreConversionStatusMetadata(statuses []calibre.ConversionStatus) []map[
 		result = append(result, record)
 	}
 	return result
+}
+
+func calibreConversionJobsFromMetadata(metadata map[string]any) []calibre.ConvertJob {
+	raw, ok := metadata["calibreConversionJobs"]
+	if !ok || raw == nil {
+		return nil
+	}
+	var result []calibre.ConvertJob
+	appendJob := func(record map[string]any) {
+		jobID := metadataMapInt64(record, "jobId")
+		if jobID <= 0 {
+			return
+		}
+		result = append(result, calibre.ConvertJob{
+			OutputFormat: metadataMapString(record, "outputFormat"),
+			JobID:        jobID,
+		})
+	}
+	switch typed := raw.(type) {
+	case []map[string]any:
+		for _, record := range typed {
+			appendJob(record)
+		}
+	case []any:
+		for _, item := range typed {
+			if record, ok := item.(map[string]any); ok {
+				appendJob(record)
+			}
+		}
+	}
+	return result
+}
+
+func calibreConversionStatusesFromMetadata(metadata map[string]any) []calibre.ConversionStatus {
+	raw, ok := metadata["calibreConversionStatuses"]
+	if !ok || raw == nil {
+		return nil
+	}
+	var result []calibre.ConversionStatus
+	appendStatus := func(record map[string]any) {
+		jobID := metadataMapInt64(record, "jobId")
+		if jobID <= 0 {
+			return
+		}
+		result = append(result, calibre.ConversionStatus{
+			OutputFormat: metadataMapString(record, "outputFormat"),
+			JobID:        jobID,
+			Running:      metadataMapBool(record, "running", false),
+			OK:           metadataMapBool(record, "ok", false),
+			WasAborted:   metadataMapBool(record, "wasAborted", false),
+			Traceback:    metadataMapString(record, "traceback"),
+			Log:          metadataMapString(record, "log"),
+		})
+	}
+	switch typed := raw.(type) {
+	case []map[string]any:
+		for _, record := range typed {
+			appendStatus(record)
+		}
+	case []any:
+		for _, item := range typed {
+			if record, ok := item.(map[string]any); ok {
+				appendStatus(record)
+			}
+		}
+	}
+	return result
+}
+
+func calibreConversionNeedsRefresh(jobs []calibre.ConvertJob, statuses []calibre.ConversionStatus) bool {
+	if len(jobs) == 0 {
+		return false
+	}
+	statusByJob := map[int64]calibre.ConversionStatus{}
+	for _, status := range statuses {
+		statusByJob[status.JobID] = status
+	}
+	for _, job := range jobs {
+		status, ok := statusByJob[job.JobID]
+		if !ok || status.Running {
+			return true
+		}
+	}
+	return false
+}
+
+func calibreConversionAnyFailed(statuses []calibre.ConversionStatus) bool {
+	for _, status := range statuses {
+		if status.WasAborted || (!status.Running && !status.OK) {
+			return true
+		}
+	}
+	return false
+}
+
+func metadataMapString(metadata map[string]any, key string) string {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	default:
+		return strings.TrimSpace(fmt.Sprint(typed))
+	}
+}
+
+func metadataMapInt64(metadata map[string]any, key string) int64 {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return 0
+	}
+	switch typed := value.(type) {
+	case int:
+		return int64(typed)
+	case int64:
+		return typed
+	case float64:
+		return int64(typed)
+	case string:
+		parsed, err := strconv.ParseInt(strings.TrimSpace(typed), 10, 64)
+		if err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func metadataMapBool(metadata map[string]any, key string, fallback bool) bool {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return fallback
+	}
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(typed))
+		if err == nil {
+			return parsed
+		}
+	}
+	return fallback
 }
 
 func pathWithinRoot(candidate string, root string) bool {

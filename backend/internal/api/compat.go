@@ -2399,6 +2399,22 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 			}
 			command["body"] = run
 		}
+	case "refreshcalibreconversions", "calibreconversioncheck":
+		if h.deps.Library != nil {
+			run, err := h.deps.Library.RefreshCalibreConversions(r.Context(), library.CalibreConversionRefreshRequest{
+				IDs:            payloadStringList(payload, "ids", "fileIds", "bookFileIds"),
+				Paths:          payloadStringList(payload, "paths", "files"),
+				Limit:          payloadIntDefault(payload, "limit", 0),
+				MaxAttempts:    payloadIntDefault(payload, "maxAttempts", 0),
+				IntervalMillis: payloadIntDefault(payload, "intervalMillis", 0),
+				Force:          payloadBoolDefault(payload, "force", false),
+			})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+				return
+			}
+			command["body"] = run
+		}
 	}
 	writeJSON(w, http.StatusCreated, command)
 }
@@ -2531,6 +2547,7 @@ func compatCommandNames() []string {
 		"RenameBookFiles",
 		"RenameBooks",
 		"RescanFolders",
+		"RefreshCalibreConversions",
 	}
 }
 

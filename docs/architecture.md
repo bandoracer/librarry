@@ -250,6 +250,7 @@ Initial API surface:
   - `POST /api/v1/library/files/delete`
   - `POST /api/v1/library/files/rename/preview`
   - `POST /api/v1/library/files/rename`
+  - `POST /api/v1/library/calibre/conversions/refresh`
   - `GET /api/v1/library/import-reviews`
   - `POST /api/v1/library/scan`
   - `POST /api/v1/library/import`
@@ -335,11 +336,13 @@ Content Server set-fields endpoint with the imported title, author, and common
 identifiers available on the file record. If the root folder has output formats
 configured, Librarry fetches Calibre conversion book data and starts conversion
 jobs for target formats that are not already present, then captures an immediate
-status snapshot from Calibre's conversion status endpoint. When a Calibre-backed
-file is physically deleted, Librarry calls the Content Server delete-books
-endpoint before removing the local file record. Background conversion completion
-polling, richer edition metadata, embedded metadata writes, path refresh after
-Calibre renames, and rollback for failed Calibre imports are still future work.
+status snapshot from Calibre's conversion status endpoint. Stored conversion
+jobs can be refreshed later through the native refresh endpoint or
+`RefreshCalibreConversions` command. When a Calibre-backed file is physically
+deleted, Librarry calls the Content Server delete-books endpoint before removing
+the local file record. Scheduled background conversion completion polling,
+richer edition metadata, embedded metadata writes, path refresh after Calibre
+renames, and rollback for failed Calibre imports are still future work.
 
 Readarr-compatible operational support endpoints expose filesystem browsing,
 languages, localization strings, logs, update records, and backup records. The
@@ -461,7 +464,7 @@ records, `POST /api/v1/command` returns a pollable command ID, and
 that follow the normal Arr command polling and cancel flow. `RssSync`,
 `MissingBookSearch`, `BookSearch`, `RefreshAuthor`, `AuthorSearch`,
 `FailedDownloadCheck`, `UpgradeSearch`, `CutoffUnmetBookSearch`, `RenameFiles`,
-and `RescanFolders` map to native Librarry work.
+`RefreshCalibreConversions`, and `RescanFolders` map to native Librarry work.
 
 Readarr-compatible calendar, history, parse, missing, and cutoff-unmet endpoints
 are derived from wanted items, Librarry history events, title parsing, and

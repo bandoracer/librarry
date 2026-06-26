@@ -71,6 +71,7 @@ type libraryService interface {
 	DeleteFiles(ctx context.Context, request library.DeleteFilesRequest) (library.DeleteFilesOutcome, error)
 	PreviewRenameFiles(ctx context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error)
 	RenameFiles(ctx context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error)
+	RefreshCalibreConversions(ctx context.Context, request library.CalibreConversionRefreshRequest) (library.CalibreConversionRefreshOutcome, error)
 	ListImportReviews(ctx context.Context, query library.ReviewListQuery) ([]library.ImportReview, error)
 	Scan(ctx context.Context, request library.ScanRequest) (library.ScanOutcome, error)
 	Import(ctx context.Context, request library.ImportRequest) (library.ImportOutcome, error)
@@ -327,6 +328,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/library/files/delete", handler.deleteLibraryFiles)
 	mux.HandleFunc("POST /api/v1/library/files/rename/preview", handler.previewRenameLibraryFiles)
 	mux.HandleFunc("POST /api/v1/library/files/rename", handler.renameLibraryFiles)
+	mux.HandleFunc("POST /api/v1/library/calibre/conversions/refresh", handler.refreshCalibreConversions)
 	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
@@ -1017,6 +1019,25 @@ func (h *handler) renameLibraryFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	outcome, err := h.deps.Library.RenameFiles(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) refreshCalibreConversions(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.CalibreConversionRefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid Calibre conversion refresh payload"})
+		return
+	}
+	outcome, err := h.deps.Library.RefreshCalibreConversions(r.Context(), request)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
 		return

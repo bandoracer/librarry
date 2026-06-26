@@ -200,8 +200,10 @@ Calibre Content Server add-book endpoint and stores the returned Calibre ID on
 the file metadata. It then pushes basic title, author, and identifier metadata
 through the Content Server set-fields endpoint. If `outputFormat` is configured
 on the root folder, Librarry starts Calibre conversion jobs for missing target
-formats and captures an immediate status snapshot. Physical deletion of a
+formats and captures an immediate status snapshot. Stored conversion jobs can be
+refreshed with `POST /api/v1/library/calibre/conversions/refresh` or the
+Readarr-compatible `RefreshCalibreConversions` command. Physical deletion of a
 Calibre-backed file calls the Content Server delete-books endpoint before
-removing the local file record. Background Calibre conversion completion
+removing the local file record. Scheduled Calibre conversion completion
 polling, richer edition metadata, embedded metadata writes, path refresh after
 Calibre renames, and failed-import rollback are not implemented yet.

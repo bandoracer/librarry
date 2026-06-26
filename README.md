@@ -24,9 +24,9 @@ book data is incomplete or ambiguous.
 > root folders are handed to the Calibre Content Server add-book API and store
 > the returned Calibre ID, then sync basic title, author, and identifier
 > metadata. Configured Calibre output formats start Content Server conversion
-> jobs and capture an immediate status snapshot. Readarr-compatible manual
-> import can list pending review items, scan a folder for candidates, and
-> import selected files.
+> jobs, capture an immediate status snapshot, and can be refreshed through API
+> or command calls. Readarr-compatible manual import can list pending review
+> items, scan a folder for candidates, and import selected files.
 > Readarr-compatible bookfile endpoints map imported Librarry files back
 > to books, delete bookfile records with optional physical file removal, and
 > preview/apply file renames through the configured Librarry naming templates.
@@ -86,7 +86,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL add and selected-row bulk actions. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, per-file skip/normal/high/max priority actions, and simple active-queue rebalancing are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, set location, labels, and per-torrent speed limits. SABnzbd can add NZB/Usenet releases, list queue/history state, and start, stop, or delete jobs. This is still not a full multi-client torrent manager. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
 | API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers optional Readarr-style API-key auth, common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders with Calibre settings, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename preview and native-backed command handling for RSS sync, missing search, book search, author search, failed-download recovery, upgrade/cutoff-unmet search, and rename/rescan; manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, notifications, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, retagging, Calibre content-server operations, and broader native behavior behind compatibility resources. |
-| Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Readarr-style Calibre root-folder settings are accepted, validated, persisted, and returned. Imports that land under a Calibre-enabled root are posted to the Calibre Content Server add-book endpoint, store the returned Calibre ID, push basic title, author, and identifier metadata through set-fields, start configured output-format conversions, and capture immediate conversion status. Physical deletes for Calibre-backed files call the Content Server delete-books endpoint. Background conversion completion polling, richer edition metadata, embedded metadata writes, path refresh after Calibre renames, and failed-import rollback are not implemented yet. | Implement background conversion polling, richer metadata sync, and stronger error recovery behind the same root-folder contract. |
+| Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Readarr-style Calibre root-folder settings are accepted, validated, persisted, and returned. Imports that land under a Calibre-enabled root are posted to the Calibre Content Server add-book endpoint, store the returned Calibre ID, push basic title, author, and identifier metadata through set-fields, start configured output-format conversions, and refresh conversion status through native API or command calls. Physical deletes for Calibre-backed files call the Content Server delete-books endpoint. Scheduled background conversion polling, richer edition metadata, embedded metadata writes, path refresh after Calibre renames, and failed-import rollback are not implemented yet. | Implement scheduled conversion polling, richer metadata sync, and stronger error recovery behind the same root-folder contract. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged qBittorrent downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, queue unlinked files for review, and rename tracked files through native or Readarr-compatible APIs. | Add conflict policies, embedded metadata matching, bulk review, and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
 | License | GPL-3.0. | AGPL-3.0. | Keep network-service modifications available to users. |
@@ -135,7 +135,7 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Calibre Content Server add-book handoff for manual or completed-download
   imports that target a Calibre-enabled Readarr-compatible root folder, plus
   basic set-fields metadata sync, configured output-format conversion starts
-  with immediate status snapshots, and delete-books handoff when deleting
+  with refreshable status snapshots, and delete-books handoff when deleting
   Calibre-backed files physically.
 - Pending import review queue for completed downloads that are not linked to a
   wanted item, with import/skip resolution from the UI.
@@ -475,6 +475,7 @@ Important API surfaces:
   - `POST /api/v1/library/files/delete`
   - `POST /api/v1/library/files/rename/preview`
   - `POST /api/v1/library/files/rename`
+  - `POST /api/v1/library/calibre/conversions/refresh`
   - `GET /api/v1/library/import-reviews`
   - `POST /api/v1/library/scan`
   - `POST /api/v1/library/import`
@@ -654,8 +655,8 @@ will grow as the automation path stabilizes.
 - OPF, EPUB, and audio-tag extraction during library scans.
 - Author-level missing-book policy and review controls.
 - Conflict policies, bulk import review, and per-profile organization rules.
-- Background Calibre conversion completion polling, richer edition metadata
-  sync, embedded metadata writes, path refresh after Calibre renames, and import
+- Scheduled Calibre conversion completion polling, richer edition metadata sync,
+  embedded metadata writes, path refresh after Calibre renames, and import
   rollback.
 - Better edition selection for narrator, language, format, and ISBN.
 - Hardcover and Google Books fixture coverage.

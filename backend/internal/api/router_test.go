@@ -2191,6 +2191,56 @@ func TestRenameLibraryFileEndpoints(t *testing.T) {
 	}
 }
 
+func TestRefreshCalibreConversionsEndpoint(t *testing.T) {
+	refreshLibrary := &fakeCalibreRefreshLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  refreshLibrary,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/calibre/conversions/refresh", strings.NewReader(`{"ids":["file-1"],"force":true,"maxAttempts":2}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"refreshed":1`) || !strings.Contains(res.Body.String(), `"outputFormat":"AZW3"`) {
+		t.Fatalf("expected Calibre refresh outcome, got %s", res.Body.String())
+	}
+	if len(refreshLibrary.requests) != 1 || refreshLibrary.requests[0].IDs[0] != "file-1" ||
+		!refreshLibrary.requests[0].Force || refreshLibrary.requests[0].MaxAttempts != 2 {
+		t.Fatalf("expected refresh request, got %+v", refreshLibrary.requests)
+	}
+}
+
+func TestCompatRefreshCalibreConversionsCommand(t *testing.T) {
+	refreshLibrary := &fakeCalibreRefreshLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  refreshLibrary,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"RefreshCalibreConversions","ids":["file-1"],"force":true}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"commandName":"RefreshCalibreConversions"`) || !strings.Contains(res.Body.String(), `"refreshed":1`) {
+		t.Fatalf("expected Calibre refresh command outcome, got %s", res.Body.String())
+	}
+	if len(refreshLibrary.requests) != 1 || refreshLibrary.requests[0].IDs[0] != "file-1" || !refreshLibrary.requests[0].Force {
+		t.Fatalf("expected command refresh request, got %+v", refreshLibrary.requests)
+	}
+}
+
 func TestScanLibraryEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3012,6 +3062,10 @@ func (fakeLibrary) RenameFiles(_ context.Context, request library.RenameFilesReq
 	return fakeRenameOutcome(request, true), nil
 }
 
+func (fakeLibrary) RefreshCalibreConversions(_ context.Context, request library.CalibreConversionRefreshRequest) (library.CalibreConversionRefreshOutcome, error) {
+	return fakeCalibreRefreshOutcome(request), nil
+}
+
 type fakeDeleteLibrary struct {
 	fakeLibrary
 	requests []library.DeleteFilesRequest
@@ -3036,6 +3090,16 @@ func (f *fakeRenameLibrary) PreviewRenameFiles(_ context.Context, request librar
 func (f *fakeRenameLibrary) RenameFiles(_ context.Context, request library.RenameFilesRequest) (library.RenameFilesOutcome, error) {
 	f.renameRequests = append(f.renameRequests, request)
 	return fakeRenameOutcome(request, true), nil
+}
+
+type fakeCalibreRefreshLibrary struct {
+	fakeLibrary
+	requests []library.CalibreConversionRefreshRequest
+}
+
+func (f *fakeCalibreRefreshLibrary) RefreshCalibreConversions(_ context.Context, request library.CalibreConversionRefreshRequest) (library.CalibreConversionRefreshOutcome, error) {
+	f.requests = append(f.requests, request)
+	return fakeCalibreRefreshOutcome(request), nil
 }
 
 func fakeLibraryFile() library.FileRecord {
@@ -3080,6 +3144,26 @@ func fakeRenameOutcome(request library.RenameFilesRequest, apply bool) library.R
 	outcome.Renamed = 1
 	outcome.Results = []library.RenameFileResult{{Preview: preview, File: &renamed, Status: "renamed"}}
 	return outcome
+}
+
+func fakeCalibreRefreshOutcome(request library.CalibreConversionRefreshRequest) library.CalibreConversionRefreshOutcome {
+	file := fakeLibraryFile()
+	statuses := []map[string]any{{
+		"jobId":        int64(901),
+		"outputFormat": "AZW3",
+		"running":      false,
+		"ok":           true,
+		"wasAborted":   false,
+	}}
+	return library.CalibreConversionRefreshOutcome{
+		Checked:   1,
+		Refreshed: 1,
+		Results: []library.CalibreConversionRefreshResult{{
+			File:     file,
+			Status:   "refreshed",
+			Statuses: statuses,
+		}},
+	}
 }
 
 func (fakeLibrary) ListImportReviews(context.Context, library.ReviewListQuery) ([]library.ImportReview, error) {

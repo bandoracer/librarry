@@ -302,6 +302,49 @@ func TestApplyCalibreDeleteSkipsFilesWithoutCalibreID(t *testing.T) {
 	}
 }
 
+func TestCalibreConversionMetadataParsesJSONShapes(t *testing.T) {
+	metadata := map[string]any{
+		"calibreConversionJobs": []any{
+			map[string]any{"outputFormat": "AZW3", "jobId": float64(901)},
+			map[string]any{"outputFormat": "MOBI", "jobId": "902"},
+			map[string]any{"outputFormat": "ignored", "jobId": float64(0)},
+		},
+		"calibreConversionStatuses": []any{
+			map[string]any{"outputFormat": "AZW3", "jobId": float64(901), "running": true, "ok": false, "wasAborted": false, "log": "working"},
+			map[string]any{"outputFormat": "MOBI", "jobId": "902", "running": "false", "ok": "true", "wasAborted": "false"},
+		},
+	}
+	jobs := calibreConversionJobsFromMetadata(metadata)
+	if len(jobs) != 2 || jobs[0].OutputFormat != "AZW3" || jobs[0].JobID != 901 ||
+		jobs[1].OutputFormat != "MOBI" || jobs[1].JobID != 902 {
+		t.Fatalf("unexpected jobs: %+v", jobs)
+	}
+	statuses := calibreConversionStatusesFromMetadata(metadata)
+	if len(statuses) != 2 || !statuses[0].Running || statuses[0].Log != "working" ||
+		statuses[1].Running || !statuses[1].OK {
+		t.Fatalf("unexpected statuses: %+v", statuses)
+	}
+}
+
+func TestCalibreConversionNeedsRefreshUntilAllJobsTerminal(t *testing.T) {
+	jobs := []calibre.ConvertJob{{OutputFormat: "AZW3", JobID: 901}, {OutputFormat: "MOBI", JobID: 902}}
+	if !calibreConversionNeedsRefresh(jobs, nil) {
+		t.Fatal("expected refresh when statuses are missing")
+	}
+	if !calibreConversionNeedsRefresh(jobs, []calibre.ConversionStatus{{JobID: 901, Running: false, OK: true}}) {
+		t.Fatal("expected refresh when a job is missing a status")
+	}
+	if !calibreConversionNeedsRefresh(jobs, []calibre.ConversionStatus{{JobID: 901, Running: true}, {JobID: 902, Running: false, OK: true}}) {
+		t.Fatal("expected refresh while any job is running")
+	}
+	if calibreConversionNeedsRefresh(jobs, []calibre.ConversionStatus{{JobID: 901, Running: false, OK: true}, {JobID: 902, Running: false, OK: false}}) {
+		t.Fatal("expected terminal success/failure statuses to stop refresh")
+	}
+	if !calibreConversionAnyFailed([]calibre.ConversionStatus{{JobID: 902, Running: false, OK: false}}) {
+		t.Fatal("expected failed terminal status to be detected")
+	}
+}
+
 func TestIsCompletedDownload(t *testing.T) {
 	completedAt := time.Now().UTC()
 	if !isCompletedDownload(acquisition.DownloadStatus{Progress: 1}) {

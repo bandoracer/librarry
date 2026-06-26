@@ -135,6 +135,30 @@ type RenameFileResult struct {
 	Message string            `json:"message,omitempty"`
 }
 
+type CalibreConversionRefreshRequest struct {
+	IDs            []string `json:"ids,omitempty"`
+	Paths          []string `json:"paths,omitempty"`
+	Limit          int      `json:"limit,omitempty"`
+	MaxAttempts    int      `json:"maxAttempts,omitempty"`
+	IntervalMillis int      `json:"intervalMillis,omitempty"`
+	Force          bool     `json:"force,omitempty"`
+}
+
+type CalibreConversionRefreshOutcome struct {
+	Checked   int                              `json:"checked"`
+	Refreshed int                              `json:"refreshed"`
+	Skipped   int                              `json:"skipped"`
+	Errored   int                              `json:"errored"`
+	Results   []CalibreConversionRefreshResult `json:"results"`
+}
+
+type CalibreConversionRefreshResult struct {
+	File     FileRecord       `json:"file"`
+	Status   string           `json:"status"`
+	Message  string           `json:"message,omitempty"`
+	Statuses []map[string]any `json:"statuses,omitempty"`
+}
+
 type DownloadImportResult struct {
 	Download   acquisition.DownloadStatus `json:"download"`
 	Status     string                     `json:"status"`
