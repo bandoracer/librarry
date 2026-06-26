@@ -2159,6 +2159,33 @@ select {
   font-weight: 600;
 }
 
+.import-review-candidate {
+  display: grid;
+  grid-template-columns: minmax(112px, max-content) minmax(180px, 420px);
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.import-review-candidate span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.import-review-candidate select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+}
+
 .import-review-evidence {
   display: flex;
   flex-wrap: wrap;
@@ -4408,6 +4435,10 @@ select {
 
   .import-review-row {
     grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .import-review-candidate {
+    grid-template-columns: 1fr;
   }
 
   .import-review-actions {

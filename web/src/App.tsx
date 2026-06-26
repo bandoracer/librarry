@@ -346,6 +346,7 @@ export function App() {
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
   const [selectedImportReviewIDs, setSelectedImportReviewIDs] = useState<string[]>([]);
+  const [selectedImportReviewWantedIDs, setSelectedImportReviewWantedIDs] = useState<Record<string, string>>({});
   const [downloadScope, setDownloadScope] = useState<DownloadScope>("all");
   const [wantedViewFilter, setWantedViewFilter] = useState<WantedViewFilter>("missing");
   const [wantedReleaseFilter, setWantedReleaseFilter] = useState<ReleaseDecisionFilter>("all");
@@ -563,6 +564,13 @@ export function App() {
   useEffect(() => {
     const availableIDs = new Set(importReviews.map((review) => review.id).filter(Boolean));
     setSelectedImportReviewIDs((current) => current.filter((id) => availableIDs.has(id)));
+    setSelectedImportReviewWantedIDs((current) => {
+      const next: Record<string, string> = {};
+      Object.entries(current).forEach(([id, wantedID]) => {
+        if (availableIDs.has(id)) next[id] = wantedID;
+      });
+      return next;
+    });
   }, [importReviews]);
 
   useEffect(() => {
@@ -681,6 +689,8 @@ export function App() {
     [selectedImportReviewSet, visibleImportReviews]
   );
   const allImportReviewsSelected = selectableImportReviewIDs.length > 0 && selectableImportReviewIDs.every((id) => selectedImportReviewSet.has(id));
+  const selectedImportReviewsCanImport =
+    selectedImportReviews.length > 0 && selectedImportReviews.every((review) => Boolean(importReviewResolvedWantedID(review, selectedImportReviewWantedIDs)));
   const libraryNamingPreview = useMemo(() => libraryNamingPreviewPath(librarySettingsForm), [librarySettingsForm]);
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
@@ -1420,16 +1430,16 @@ export function App() {
     }
   }
 
-  async function runResolveImportReview(review: ImportReview, action: "import" | "skip" | "reject") {
+  async function runResolveImportReview(review: ImportReview, action: "import" | "skip" | "reject", wantedID = importReviewResolvedWantedID(review, selectedImportReviewWantedIDs)) {
     const actionID = `${review.id}:${action}`;
     setReviewActionID(actionID);
     setLibraryError("");
     setBulkReviewOutcome(null);
     try {
-      const nextFormat = review.mediaFormat === "unknown" ? (selectedWanted?.format ?? (format === "any" ? "ebook" : format)) : review.mediaFormat;
+      const nextFormat = review.mediaFormat === "unknown" ? importReviewResolvedFormat(review, wantedID, format) : review.mediaFormat;
       const outcome = await resolveLibraryImportReview(review.id, {
         action,
-        wantedId: action === "import" ? (review.wantedId || selectedWanted?.id) : review.wantedId,
+        wantedId: action === "import" ? wantedID : review.wantedId,
         format: nextFormat,
         move: libraryImportMode === "move",
         importMode: libraryImportMode,
@@ -1442,6 +1452,11 @@ export function App() {
       }
       setImportReviews((current) => current.filter((item) => item.id !== review.id));
       setSelectedImportReviewIDs((current) => current.filter((id) => id !== review.id));
+      setSelectedImportReviewWantedIDs((current) => {
+        const next = { ...current };
+        delete next[review.id];
+        return next;
+      });
       await Promise.all([refreshDownloads(), refreshWantedAndHistory()]);
       setAPIState("live");
     } catch (error) {
@@ -1455,9 +1470,10 @@ export function App() {
     const reviewIDs = selectedImportReviews.map((review) => review.id).filter(Boolean);
     if (!reviewIDs.length) return;
     const singleReview = selectedImportReviews.length === 1 ? selectedImportReviews[0] : undefined;
+    const singleReviewWantedID = singleReview ? importReviewResolvedWantedID(singleReview, selectedImportReviewWantedIDs) : "";
     const singleReviewFormat = singleReview
       ? singleReview.mediaFormat === "unknown"
-        ? (selectedWanted?.format ?? (format === "any" ? "ebook" : format))
+        ? importReviewResolvedFormat(singleReview, singleReviewWantedID, format)
         : singleReview.mediaFormat
       : undefined;
     setReviewActionID(`bulk:${action}`);
@@ -1467,7 +1483,7 @@ export function App() {
       const outcome = await resolveLibraryImportReviewsBulk({
         ids: reviewIDs,
         action,
-        wantedId: action === "import" && singleReview ? (singleReview.wantedId || selectedWanted?.id) : undefined,
+        wantedId: action === "import" && singleReview ? singleReviewWantedID : undefined,
         format: action === "import" ? singleReviewFormat : undefined,
         move: libraryImportMode === "move",
         importMode: libraryImportMode,
@@ -3411,7 +3427,13 @@ export function App() {
                   {allImportReviewsSelected ? "Clear all" : "Select all"}
                 </button>
                 <span>{selectedImportReviews.length} selected</span>
-                <button className="secondary-action compact" disabled={selectedImportReviews.length === 0 || Boolean(reviewActionID)} onClick={() => runResolveImportReviewsBulk("import")} type="button">
+                <button
+                  className="secondary-action compact"
+                  disabled={selectedImportReviews.length === 0 || !selectedImportReviewsCanImport || Boolean(reviewActionID)}
+                  onClick={() => runResolveImportReviewsBulk("import")}
+                  title={selectedImportReviewsCanImport ? "Import selected reviews" : "Select a wanted item for each review before bulk import"}
+                  type="button"
+                >
                   <CheckCircle2 size={16} />
                   {reviewActionID === "bulk:import" ? "Importing" : "Import"}
                 </button>
@@ -3427,6 +3449,9 @@ export function App() {
               {visibleImportReviews.map((review) => {
                 const evidenceChips = importReviewEvidenceChips(review);
                 const suggestedWanted = importReviewSuggestedWanted(review);
+                const wantedCandidates = importReviewWantedCandidates(review);
+                const resolvedWantedID = importReviewResolvedWantedID(review, selectedImportReviewWantedIDs);
+                const requiresWantedChoice = !resolvedWantedID && wantedCandidates.length > 0;
                 return (
                   <article className={selectedImportReviewSet.has(review.id) ? "import-review-row selected" : "import-review-row"} key={review.id}>
                     <label className="import-review-select" title="Select import review">
@@ -3439,6 +3464,26 @@ export function App() {
                       </span>
                       <small>{review.sourcePath}</small>
                       {suggestedWanted ? <small className="import-review-suggestion">Suggested: {suggestedWanted}</small> : null}
+                      {wantedCandidates.length ? (
+                        <label className="import-review-candidate">
+                          <span>{requiresWantedChoice ? "Choose wanted match" : "Wanted match"}</span>
+                          <select
+                            value={resolvedWantedID}
+                            onChange={(event) => setSelectedImportReviewWantedIDs((current) => ({ ...current, [review.id]: event.target.value }))}
+                            disabled={Boolean(review.wantedId)}
+                          >
+                            <option value="">{requiresWantedChoice ? "Select a wanted item" : "No wanted item"}</option>
+                            {wantedCandidates.map((candidate) => {
+                              const wantedID = stringMetadataValue(candidate.wantedId);
+                              return (
+                                <option value={wantedID} key={wantedID || importReviewCandidateLabel(candidate)}>
+                                  {importReviewCandidateOptionLabel(candidate)}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </label>
+                      ) : null}
                       {evidenceChips.length ? (
                         <div className="import-review-evidence" aria-label="Import review evidence">
                           {evidenceChips.map((chip) => (
@@ -3450,8 +3495,9 @@ export function App() {
                     <div className="import-review-actions">
                       <button
                         className="secondary-action compact"
-                        disabled={Boolean(reviewActionID)}
-                        onClick={() => runResolveImportReview(review, "import")}
+                        disabled={Boolean(reviewActionID) || !resolvedWantedID}
+                        onClick={() => runResolveImportReview(review, "import", resolvedWantedID)}
+                        title={resolvedWantedID ? "Import review into selected wanted item" : "Select a wanted item before importing"}
                         type="button"
                       >
                         <CheckCircle2 size={16} />
@@ -5165,20 +5211,51 @@ function importReviewEvidenceChips(review: ImportReview) {
 }
 
 function importReviewSuggestedWanted(review: ImportReview) {
-  const candidates = importReviewWantedCandidates(review);
-  const suggestedID = stringMetadataValue(review.metadata?.suggestedWantedId) || review.wantedId;
-  const candidate = candidates.find((item) => stringMetadataValue(item.wantedId) === suggestedID) ?? candidates[0];
+  const candidate = importReviewSuggestedCandidate(review);
   if (!candidate) return "";
-  const title = stringMetadataValue(candidate.title);
-  const authorName = stringMetadataValue(candidate.authorName);
-  if (title && authorName) return `${title} by ${authorName}`;
-  return title || authorName || suggestedID;
+  return importReviewCandidateLabel(candidate);
 }
 
 function importReviewSuggestedWantedMatchedFields(review: ImportReview) {
+  const candidate = importReviewSuggestedCandidate(review);
+  return candidate ? importReviewCandidateMatchedFields(candidate) : [];
+}
+
+function importReviewSuggestedCandidate(review: ImportReview) {
   const candidates = importReviewWantedCandidates(review);
   const suggestedID = stringMetadataValue(review.metadata?.suggestedWantedId) || review.wantedId;
-  const candidate = candidates.find((item) => stringMetadataValue(item.wantedId) === suggestedID) ?? candidates[0];
+  if (!suggestedID) return undefined;
+  return candidates.find((item) => stringMetadataValue(item.wantedId) === suggestedID);
+}
+
+function importReviewResolvedWantedID(review: ImportReview, selections: Record<string, string>) {
+  return review.wantedId || selections[review.id] || stringMetadataValue(review.metadata?.suggestedWantedId);
+}
+
+function importReviewResolvedFormat(review: ImportReview, wantedID: string, fallbackFormat: string) {
+  const candidate = importReviewWantedCandidates(review).find((item) => stringMetadataValue(item.wantedId) === wantedID);
+  const candidateFormat = stringMetadataValue(candidate?.format);
+  return candidateFormat || (fallbackFormat === "any" ? "ebook" : fallbackFormat);
+}
+
+function importReviewCandidateOptionLabel(candidate: Record<string, unknown>) {
+  const label = importReviewCandidateLabel(candidate);
+  const matched = importReviewCandidateMatchedFields(candidate);
+  const score = Number(stringMetadataValue(candidate.score));
+  const scoreLabel = Number.isFinite(score) && score > 0 ? score.toFixed(2) : "";
+  const suffix = [matched.length ? matched.join("/") : "", scoreLabel].filter(Boolean).join(" · ");
+  return suffix ? `${label} (${suffix})` : label;
+}
+
+function importReviewCandidateLabel(candidate: Record<string, unknown>) {
+  const wantedID = stringMetadataValue(candidate.wantedId);
+  const title = stringMetadataValue(candidate.title);
+  const authorName = stringMetadataValue(candidate.authorName);
+  if (title && authorName) return `${title} by ${authorName}`;
+  return title || authorName || wantedID || "Wanted item";
+}
+
+function importReviewCandidateMatchedFields(candidate: Record<string, unknown>) {
   const fields = candidate?.matchedFields;
   if (!Array.isArray(fields)) return [];
   return Array.from(
