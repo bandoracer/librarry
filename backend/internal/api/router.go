@@ -169,6 +169,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("DELETE /api/v1/bookfile/{id}", handler.compatDeleteBookFile)
 	mux.HandleFunc("GET /api/v1/rename", handler.compatRenamePreview)
 	mux.HandleFunc("GET /api/v1/wanted/missing", handler.compatWantedMissing)
+	mux.HandleFunc("GET /api/v1/wanted/cutoff", handler.compatWantedCutoff)
 	mux.HandleFunc("GET /api/v1/qualityprofile", handler.compatQualityProfiles)
 	mux.HandleFunc("GET /api/v1/delayprofile", handler.compatDelayProfiles)
 	mux.HandleFunc("POST /api/v1/delayprofile", handler.compatCreateDelayProfile)

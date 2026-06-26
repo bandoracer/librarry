@@ -106,6 +106,7 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "DELETE", "path": "/api/v1/bookfile/bulk"},
 		{"method": "GET", "path": "/api/v1/rename"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
+		{"method": "GET", "path": "/api/v1/wanted/cutoff"},
 		{"method": "GET", "path": "/api/v1/qualityprofile"},
 		{"method": "GET", "path": "/api/v1/delayprofile"},
 		{"method": "GET", "path": "/api/v1/qualitydefinition"},
@@ -1192,6 +1193,52 @@ func (h *handler) compatWantedMissing(w http.ResponseWriter, r *http.Request) {
 		}
 		records = append(records, compatMissingRecord(item))
 	}
+	page, pageSize := pageParams(r, len(records))
+	writeJSON(w, http.StatusOK, map[string]any{
+		"page":          page,
+		"pageSize":      pageSize,
+		"sortKey":       defaultString(r.URL.Query().Get("sortKey"), "title"),
+		"sortDirection": defaultString(r.URL.Query().Get("sortDirection"), "ascending"),
+		"totalRecords":  len(records),
+		"records":       pageRecords(records, page, pageSize),
+	})
+}
+
+func (h *handler) compatWantedCutoff(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "wanted")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	profiles, err := h.deps.Wanted.ListQualityProfiles(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	profileByKey := compatQualityProfilesByKey(profiles)
+	records := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		if !compatWantedItemVisible(item) || !item.Monitored || item.CurrentReleaseScore <= 0 {
+			continue
+		}
+		profile, ok := profileByKey[compatQualityProfileKey(item.QualityProfile, item.Format)]
+		if !ok {
+			profile, ok = profileByKey[compatQualityProfileKey(item.QualityProfile, "any")]
+		}
+		if !ok || !profile.UpgradeAllowed || item.CurrentReleaseScore >= profile.CutoffScore {
+			continue
+		}
+		records = append(records, compatCutoffRecord(item, profile))
+	}
+	sort.SliceStable(records, func(i, j int) bool {
+		left := strings.ToLower(payloadString(records[i], "title"))
+		right := strings.ToLower(payloadString(records[j], "title"))
+		return left < right
+	})
 	page, pageSize := pageParams(r, len(records))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"page":          page,
@@ -3793,6 +3840,33 @@ func compatMissingRecord(item wanted.WantedItem) map[string]any {
 			"path":       "",
 		},
 	}
+}
+
+func compatCutoffRecord(item wanted.WantedItem, profile wanted.QualityProfile) map[string]any {
+	record := compatMissingRecord(item)
+	record["qualityProfileId"] = stableInt(item.QualityProfile)
+	record["qualityProfile"] = compatQualityProfileRecord(stableInt(item.QualityProfile), profile)
+	record["statistics"] = map[string]any{"bookFileCount": 1}
+	record["book"] = compatBookRecord(item)
+	record["currentReleaseScore"] = item.CurrentReleaseScore
+	record["cutoffScore"] = profile.CutoffScore
+	record["qualityCutoffNotMet"] = true
+	record["librarryCurrentReleaseScore"] = item.CurrentReleaseScore
+	record["librarryCutoffScore"] = profile.CutoffScore
+	record["librarryUpgradeAllowed"] = profile.UpgradeAllowed
+	return record
+}
+
+func compatQualityProfilesByKey(profiles []wanted.QualityProfile) map[string]wanted.QualityProfile {
+	byKey := make(map[string]wanted.QualityProfile, len(profiles))
+	for _, profile := range profiles {
+		byKey[compatQualityProfileKey(profile.Name, profile.MediaFormat)] = profile
+	}
+	return byKey
+}
+
+func compatQualityProfileKey(name string, format string) string {
+	return strings.ToLower(strings.TrimSpace(name)) + "\x00" + strings.ToLower(strings.TrimSpace(format))
 }
 
 func compatAuthorRecord(subscription wanted.AuthorSubscription, books []wanted.WantedItem) map[string]any {

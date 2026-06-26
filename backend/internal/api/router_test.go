@@ -444,6 +444,19 @@ func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 		t.Fatalf("expected missing book payload, got %s", res.Body.String())
 	}
 
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/cutoff?page=1&pageSize=10", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"totalRecords":1`) ||
+		!strings.Contains(res.Body.String(), `"currentReleaseScore":70`) ||
+		!strings.Contains(res.Body.String(), `"cutoffScore":85`) ||
+		!strings.Contains(res.Body.String(), `"qualityCutoffNotMet":true`) {
+		t.Fatalf("expected cutoff unmet payload, got %s", res.Body.String())
+	}
+
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/qualityprofile", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
@@ -2279,16 +2292,18 @@ func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedIt
 
 func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
 	return []wanted.WantedItem{{
-		ID:             "wanted-1",
-		WorkID:         "openlibrary:OL1W",
-		Title:          "Project Hail Mary",
-		AuthorName:     "Andy Weir",
-		Format:         "ebook",
-		QualityProfile: "standard",
-		Status:         "wanted",
-		Monitored:      true,
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
+		ID:                  "wanted-1",
+		WorkID:              "openlibrary:OL1W",
+		Title:               "Project Hail Mary",
+		AuthorName:          "Andy Weir",
+		Format:              "ebook",
+		QualityProfile:      "standard",
+		Status:              "wanted",
+		Monitored:           true,
+		CurrentReleaseID:    "release-1",
+		CurrentReleaseScore: 70,
+		CreatedAt:           time.Now().UTC(),
+		UpdatedAt:           time.Now().UTC(),
 	}}, nil
 }
 

@@ -90,6 +90,7 @@ Initial API surface:
   - `DELETE /api/v1/bookfile/bulk`
   - `GET /api/v1/rename`
   - `GET /api/v1/wanted/missing`
+  - `GET /api/v1/wanted/cutoff`
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/delayprofile`
   - `POST /api/v1/delayprofile`
@@ -416,10 +417,11 @@ endpoint maps tracked files into Arr-style rename previews, and `RenameFiles`,
 `RenameBookFiles`, or `RenameBooks` commands apply the same native rename path
 after translating Readarr-style numeric IDs back to Librarry file IDs.
 
-Readarr-compatible calendar, history, and parse endpoints are derived from
-wanted items, Librarry history events, and title parsing. The web UI keeps using
-the native `/api/v1/librarry/history` event feed so external Arr clients can use
-the Readarr-shaped `/api/v1/history` response.
+Readarr-compatible calendar, history, parse, missing, and cutoff-unmet endpoints
+are derived from wanted items, Librarry history events, title parsing, and
+quality-profile cutoffs. The web UI keeps using the native
+`/api/v1/librarry/history` event feed so external Arr clients can use the
+Readarr-shaped `/api/v1/history` response.
 
 Completed-download import refreshes Librarry-tagged qBittorrent items, filters
 for completed torrents, locates the best supported ebook or audiobook file below

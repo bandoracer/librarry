@@ -186,7 +186,7 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/book`,
   `/api/v1/book/lookup`, `/api/v1/bookfile`, `/api/v1/calendar`, `/api/v1/history`,
   `/api/v1/rename`, `/api/v1/parse`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
-  `/api/v1/qualityprofile`, `/api/v1/qualitydefinition`,
+  `/api/v1/wanted/cutoff`, `/api/v1/qualityprofile`, `/api/v1/qualitydefinition`,
   `/api/v1/delayprofile`, `/api/v1/languageprofile`, `/api/v1/metadataprofile`,
   `/api/v1/metadata`, `/api/v1/customformat`, `/api/v1/tag`, `/api/v1/restriction`,
   `/api/v1/notification`, `/api/v1/importlist`, `/api/v1/importlistexclusion`,
@@ -303,6 +303,7 @@ Important API surfaces:
   - `DELETE /api/v1/bookfile/bulk`
   - `GET /api/v1/rename`
   - `GET /api/v1/wanted/missing`
+  - `GET /api/v1/wanted/cutoff`
   - `GET /api/v1/qualityprofile`
   - `GET /api/v1/delayprofile`
   - `POST /api/v1/delayprofile`
