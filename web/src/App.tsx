@@ -210,9 +210,12 @@ type LibraryFormatFilter = "all" | "ebook" | "audiobook";
 type WantedViewFilter = "missing" | "review" | "wanted" | "grabbed" | "all";
 type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 type SearchMode = Extract<MetadataSearchType, "book" | "author">;
+type SearchConfidenceFilter = "all" | SearchResult["confidence"];
+type SearchEvidenceFilter = "all" | "identifiers" | "published" | "series";
 
 const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
 const searchModeOptions: SearchMode[] = ["book", "author"];
+const searchConfidenceOptions: SearchResult["confidence"][] = ["high", "medium", "review"];
 
 function firstAuthorName(result: SearchResult) {
   return result.work.authors?.[0]?.name || "Unknown author";
@@ -220,6 +223,32 @@ function firstAuthorName(result: SearchResult) {
 
 function searchResultCanBeWanted(result: SearchResult) {
   return result.kind !== "author";
+}
+
+function uniqueSearchProviders(results: SearchResult[]) {
+  return Array.from(new Set(results.map((result) => result.provider).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function searchResultVisibleForFilters(
+  result: SearchResult,
+  filters: { provider: string; confidence: SearchConfidenceFilter; evidence: SearchEvidenceFilter }
+) {
+  if (filters.provider && result.provider !== filters.provider) return false;
+  if (filters.confidence !== "all" && result.confidence !== filters.confidence) return false;
+  return searchResultHasEvidence(result, filters.evidence);
+}
+
+function searchResultHasEvidence(result: SearchResult, evidence: SearchEvidenceFilter) {
+  if (evidence === "all") return true;
+  if (result.kind === "author") return false;
+  switch (evidence) {
+    case "identifiers":
+      return Boolean(result.edition?.asin || result.edition?.isbns?.length);
+    case "published":
+      return Boolean(result.edition?.publisher || result.edition?.publishedDate || result.work.firstPublishYear);
+    case "series":
+      return Boolean(result.work.series || result.work.seriesPosition);
+  }
 }
 
 function searchResultTitle(result: SearchResult) {
@@ -443,6 +472,10 @@ export function App() {
   const [searchMode, setSearchMode] = useState<SearchMode>("book");
   const [bookQuery, setBookQuery] = useState("Project Hail Mary");
   const [authorQuery, setAuthorQuery] = useState("Andy Weir");
+  const [searchFiltersOpen, setSearchFiltersOpen] = useState(false);
+  const [searchProviderFilter, setSearchProviderFilter] = useState("");
+  const [searchConfidenceFilter, setSearchConfidenceFilter] = useState<SearchConfidenceFilter>("all");
+  const [searchEvidenceFilter, setSearchEvidenceFilter] = useState<SearchEvidenceFilter>("all");
   const [importPath, setImportPath] = useState("");
   const [libraryScanRoot, setLibraryScanRoot] = useState("");
   const [libraryImportMode, setLibraryImportMode] = useState<"copy" | "move" | "hardlink" | "hardlinkOrCopy">("copy");
@@ -661,9 +694,23 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [downloadResourceClient, integrations]);
 
+  const searchProviderOptions = useMemo(() => uniqueSearchProviders(results), [results]);
+  const visibleSearchResults = useMemo(
+    () => results.filter((result) => searchResultVisibleForFilters(result, {
+      provider: searchProviderFilter,
+      confidence: searchConfidenceFilter,
+      evidence: searchEvidenceFilter
+    })),
+    [results, searchConfidenceFilter, searchEvidenceFilter, searchProviderFilter]
+  );
+  const activeSearchFilterCount = [
+    searchProviderFilter,
+    searchConfidenceFilter !== "all" ? searchConfidenceFilter : "",
+    searchEvidenceFilter !== "all" ? searchEvidenceFilter : ""
+  ].filter(Boolean).length;
   const selected = useMemo(
-    () => results.find((result) => result.work.id === selectedID) ?? results[0],
-    [results, selectedID]
+    () => visibleSearchResults.find((result) => result.work.id === selectedID) ?? visibleSearchResults[0] ?? results[0],
+    [results, selectedID, visibleSearchResults]
   );
   const query = searchMode === "author" ? authorQuery : bookQuery;
   const selectedCanBeWanted = Boolean(selected && searchResultCanBeWanted(selected));
@@ -799,6 +846,18 @@ export function App() {
       return Boolean((authorID && providerKey === authorID) || (authorName && subscriptionName === authorName));
     });
   }, [authorSubscriptions, selected, selectedAuthorFormat]);
+
+  function clearSearchFilters() {
+    setSearchProviderFilter("");
+    setSearchConfidenceFilter("all");
+    setSearchEvidenceFilter("all");
+  }
+
+  useEffect(() => {
+    if (searchProviderFilter && !searchProviderOptions.includes(searchProviderFilter)) {
+      setSearchProviderFilter("");
+    }
+  }, [searchProviderFilter, searchProviderOptions]);
 
   useEffect(() => {
     if (!visibleWantedItems.length) {
@@ -2438,6 +2497,7 @@ export function App() {
                   setResults([]);
                   setSelectedID("");
                   setReleases([]);
+                  clearSearchFilters();
                 }}
                 type="button"
               >
@@ -2867,12 +2927,53 @@ export function App() {
                 <h2>{searchMode === "author" ? "Author identities" : "Candidate matches"}</h2>
                 <p>
                   {searchMode === "author"
-                    ? `${results.length} author records sorted by confidence and provider rank.`
-                    : `${results.length} normalized results sorted by confidence and provider rank.`}
+                    ? `${visibleSearchResults.length} of ${results.length} author records shown.`
+                    : `${visibleSearchResults.length} of ${results.length} normalized results shown.`}
                 </p>
               </div>
-              <button className="icon-button" type="button" aria-label="Filter results">
+              <button
+                className={searchFiltersOpen ? "icon-button active" : "icon-button"}
+                type="button"
+                aria-label="Filter results"
+                aria-expanded={searchFiltersOpen}
+                onClick={() => setSearchFiltersOpen((open) => !open)}
+              >
                 <SlidersHorizontal size={18} />
+                {activeSearchFilterCount ? <span className="filter-count">{activeSearchFilterCount}</span> : null}
+              </button>
+            </div>
+
+            <div className="search-filter-panel" hidden={!searchFiltersOpen}>
+              <label>
+                <span>Provider</span>
+                <select value={searchProviderFilter} onChange={(event) => setSearchProviderFilter(event.target.value)}>
+                  <option value="">All providers</option>
+                  {searchProviderOptions.map((provider) => (
+                    <option key={provider} value={provider}>{provider}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Confidence</span>
+                <select value={searchConfidenceFilter} onChange={(event) => setSearchConfidenceFilter(event.target.value as SearchConfidenceFilter)}>
+                  <option value="all">All confidence</option>
+                  {searchConfidenceOptions.map((confidence) => (
+                    <option key={confidence} value={confidence}>{confidence}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Evidence</span>
+                <select value={searchEvidenceFilter} onChange={(event) => setSearchEvidenceFilter(event.target.value as SearchEvidenceFilter)}>
+                  <option value="all">All evidence</option>
+                  <option value="identifiers">ISBN or ASIN</option>
+                  <option value="published">Publisher or date</option>
+                  <option value="series">Series position</option>
+                </select>
+              </label>
+              <button className="secondary-action compact" disabled={!activeSearchFilterCount} onClick={clearSearchFilters} type="button">
+                <FilterX size={16} />
+                Clear
               </button>
             </div>
 
@@ -2884,7 +2985,7 @@ export function App() {
                 <span>Confidence</span>
                 <span>Action</span>
               </div>
-              {results.map((result) => (
+              {visibleSearchResults.map((result) => (
                 <div className={result.work.id === selected?.work.id ? "table-row result-row selected" : "table-row result-row"} key={`${result.provider}-${result.kind}-${result.work.id}`} role="row">
                   <button className="title-cell result-select" onClick={() => setSelectedID(result.work.id)} type="button">
                     {result.kind === "author" ? <UserPlus size={16} /> : <BookOpen size={16} />}
@@ -2918,6 +3019,12 @@ export function App() {
                   </span>
                 </div>
               ))}
+              {!visibleSearchResults.length ? (
+                <div className="search-empty" role="row">
+                  <strong>No metadata candidates match the current filters.</strong>
+                  <span>Clear filters or run a broader provider search.</span>
+                </div>
+              ) : null}
             </div>
           </section>
 
