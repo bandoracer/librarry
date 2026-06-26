@@ -970,7 +970,9 @@ func (h *handler) compatUpdateAuthor(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	updated, err := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, h.compatAuthorUpdateRequest(r.Context(), payload))
+	update := h.compatAuthorUpdateRequest(r.Context(), payload)
+	updateAuthorTagsFromPayload(&update, subscription.Tags, payload)
+	updated, err := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, update)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
@@ -1004,7 +1006,9 @@ func (h *handler) compatAuthorEditor(w http.ResponseWriter, r *http.Request) {
 		if strings.EqualFold(strings.TrimSpace(subscription.Status), "removed") || !authorSubscriptionMatchesAnyID(subscription, ids) {
 			continue
 		}
-		updated, updateErr := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, update)
+		recordUpdate := update
+		updateAuthorTagsFromPayload(&recordUpdate, subscription.Tags, payload)
+		updated, updateErr := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, recordUpdate)
 		if updateErr != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": updateErr.Error()})
 			return
@@ -1170,7 +1174,9 @@ func (h *handler) compatUpdateBook(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	updated, err := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, h.compatWantedUpdateRequest(r.Context(), payload))
+	update := h.compatWantedUpdateRequest(r.Context(), payload)
+	updateWantedTagsFromPayload(&update, item.Tags, payload)
+	updated, err := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, update)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
@@ -1241,7 +1247,9 @@ func (h *handler) compatBookEditor(w http.ResponseWriter, r *http.Request) {
 		if !compatWantedItemVisible(item) || !wantedItemMatchesAnyID(item, ids) {
 			continue
 		}
-		updated, updateErr := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, update)
+		recordUpdate := update
+		updateWantedTagsFromPayload(&recordUpdate, item.Tags, payload)
+		updated, updateErr := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, recordUpdate)
 		if updateErr != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": updateErr.Error()})
 			return
@@ -2836,6 +2844,63 @@ func compatWantedUpdateRequest(payload map[string]any) wanted.WantedUpdateReques
 		request.TagsSet = true
 	}
 	return request
+}
+
+func updateAuthorTagsFromPayload(request *wanted.AuthorUpdateRequest, current []int, payload map[string]any) {
+	if request == nil || !payloadHasKey(payload, "tags") {
+		return
+	}
+	request.Tags = applyCompatTagMode(current, request.Tags, payloadString(payload, "applyTags"))
+	request.TagsSet = true
+}
+
+func updateWantedTagsFromPayload(request *wanted.WantedUpdateRequest, current []int, payload map[string]any) {
+	if request == nil || !payloadHasKey(payload, "tags") {
+		return
+	}
+	request.Tags = applyCompatTagMode(current, request.Tags, payloadString(payload, "applyTags"))
+	request.TagsSet = true
+}
+
+func applyCompatTagMode(current []int, requested []int, mode string) []int {
+	current = compactCompatTags(current)
+	requested = compactCompatTags(requested)
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "add":
+		return compactCompatTags(append(append([]int{}, current...), requested...))
+	case "remove":
+		remove := make(map[int]bool, len(requested))
+		for _, tag := range requested {
+			remove[tag] = true
+		}
+		tags := make([]int, 0, len(current))
+		for _, tag := range current {
+			if !remove[tag] {
+				tags = append(tags, tag)
+			}
+		}
+		return tags
+	case "none", "noop":
+		return current
+	default:
+		return requested
+	}
+}
+
+func compactCompatTags(tags []int) []int {
+	if len(tags) == 0 {
+		return nil
+	}
+	compact := make([]int, 0, len(tags))
+	seen := map[int]bool{}
+	for _, tag := range tags {
+		if tag <= 0 || seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		compact = append(compact, tag)
+	}
+	return compact
 }
 
 func payloadHasKey(payload map[string]any, key string) bool {

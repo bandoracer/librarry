@@ -368,7 +368,9 @@ Readarr-compatible restriction resources are interpreted by the wanted release
 evaluator as additional required, ignored, and preferred terms. Untagged
 restrictions apply globally; tagged restrictions apply when the wanted item has
 at least one matching tag ID. Author-monitor-created wanted items inherit their
-author subscription tags.
+author subscription tags. Readarr-compatible author and book editor payloads
+honor `applyTags` modes for adding, removing, replacing, or leaving tags
+unchanged.
 Download-client, indexer, notification, and import-list resources also expose
 Readarr-style schema, test, test-all, action, and bulk mutation endpoints so
 Arr clients that validate resource implementations before saving can complete

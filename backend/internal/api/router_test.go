@@ -737,6 +737,21 @@ func TestCompatRestrictionRecordRoundTripsAliases(t *testing.T) {
 	}
 }
 
+func TestCompatTagApplyModes(t *testing.T) {
+	if got := applyCompatTagMode([]int{1, 2}, []int{2, 3}, "add"); len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 3 {
+		t.Fatalf("unexpected add tags: %#v", got)
+	}
+	if got := applyCompatTagMode([]int{1, 2, 3}, []int{2}, "remove"); len(got) != 2 || got[0] != 1 || got[1] != 3 {
+		t.Fatalf("unexpected remove tags: %#v", got)
+	}
+	if got := applyCompatTagMode([]int{1, 2}, []int{4}, "replace"); len(got) != 1 || got[0] != 4 {
+		t.Fatalf("unexpected replace tags: %#v", got)
+	}
+	if got := applyCompatTagMode([]int{1, 2}, []int{4}, "none"); len(got) != 2 || got[0] != 1 || got[1] != 2 {
+		t.Fatalf("unexpected none tags: %#v", got)
+	}
+}
+
 func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger: slog.Default(),
@@ -1166,7 +1181,7 @@ func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
 	})
 
 	authorID := stableInt("author-sub-1")
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/author/editor", strings.NewReader(fmt.Sprintf(`{"authorIds":[%d],"monitored":false,"qualityProfile":"retail","monitorNewItems":false,"tags":[5,7]}`, authorID)))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/author/editor", strings.NewReader(fmt.Sprintf(`{"authorIds":[%d],"monitored":false,"qualityProfile":"retail","monitorNewItems":false,"tags":[7],"applyTags":"add"}`, authorID)))
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusAccepted {
@@ -1200,13 +1215,13 @@ func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
 	}
 
 	bookID := stableInt("wanted-1")
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/book/editor", strings.NewReader(fmt.Sprintf(`{"bookIds":[%d],"monitored":false,"qualityProfileId":%d,"tags":[9]}`, bookID, stableInt("standard"))))
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/book/editor", strings.NewReader(fmt.Sprintf(`{"bookIds":[%d],"monitored":false,"qualityProfileId":%d,"tags":[9],"applyTags":"remove"}`, bookID, stableInt("standard"))))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusAccepted {
 		t.Fatalf("expected book editor 202, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"qualityProfile":"standard"`) || !strings.Contains(res.Body.String(), `"tags":[9]`) {
+	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"qualityProfile":"standard"`) || !strings.Contains(res.Body.String(), `"tags":[]`) {
 		t.Fatalf("expected book editor response, got %s", res.Body.String())
 	}
 	if len(wantedClient.wantedUpdates) != 1 ||
@@ -1215,8 +1230,7 @@ func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
 		*wantedClient.wantedUpdates[0].request.Monitored ||
 		wantedClient.wantedUpdates[0].request.QualityProfile != "standard" ||
 		!wantedClient.wantedUpdates[0].request.TagsSet ||
-		len(wantedClient.wantedUpdates[0].request.Tags) != 1 ||
-		wantedClient.wantedUpdates[0].request.Tags[0] != 9 {
+		len(wantedClient.wantedUpdates[0].request.Tags) != 0 {
 		t.Fatalf("expected persisted book editor update, got %+v", wantedClient.wantedUpdates)
 	}
 
