@@ -450,6 +450,7 @@ export type AuthorSubscription = {
   status: string;
   monitorNewItems: boolean;
   missingBookPolicy: AuthorMissingBookPolicy;
+  tags?: number[];
   lastSyncAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -471,8 +472,15 @@ export type AuthorMonitorItemResult = {
   resultsFound: number;
   wantedCreated: number;
   skippedCount?: number;
+  skippedItems?: AuthorSkippedItem[];
   wantedItems?: WantedItem[];
   error?: string;
+};
+
+export type AuthorSkippedItem = {
+  result: SearchResult;
+  policy: AuthorMissingBookPolicy;
+  reason: string;
 };
 
 export type AuthorMonitorRun = {
@@ -1260,7 +1268,7 @@ export async function runAuthorMonitor(options: {
   return (await response.json()) as AuthorMonitorRun;
 }
 
-export async function createWanted(result: SearchResult, format: string): Promise<WantedItem> {
+export async function createWanted(result: SearchResult, format: string, qualityProfile = "standard", tags: number[] = []): Promise<WantedItem> {
   const wantedFormat = format === "audiobook" ? "audiobook" : "ebook";
   const response = await fetch(`${apiBase}/api/v1/wanted`, {
     method: "POST",
@@ -1268,7 +1276,8 @@ export async function createWanted(result: SearchResult, format: string): Promis
     body: JSON.stringify({
       result,
       format: wantedFormat,
-      qualityProfile: "standard"
+      qualityProfile,
+      tags
     })
   });
   if (!response.ok) {

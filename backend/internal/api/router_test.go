@@ -2651,6 +2651,9 @@ func TestMonitorAuthorsEndpoint(t *testing.T) {
 	if !strings.Contains(res.Body.String(), `"authorsChecked":1`) {
 		t.Fatalf("expected author monitor run in response, got %s", res.Body.String())
 	}
+	if !strings.Contains(res.Body.String(), `"skippedItems"`) || !strings.Contains(res.Body.String(), `"future policy requires a publication date"`) {
+		t.Fatalf("expected skipped author candidates in response, got %s", res.Body.String())
+	}
 }
 
 func TestFeedSyncWantedEndpoint(t *testing.T) {
@@ -3760,6 +3763,32 @@ func (fakeWanted) MonitorAuthors(context.Context, wanted.AuthorMonitorRequest) (
 		ItemsFound:     2,
 		WantedCreated:  2,
 		StartedAt:      time.Now().UTC(),
+		Items: []wanted.AuthorMonitorItemResult{{
+			Subscription: wanted.AuthorSubscription{
+				ID:                "author-sub-1",
+				AuthorName:        "Andy Weir",
+				Format:            "ebook",
+				QualityProfile:    "standard",
+				MissingBookPolicy: "future",
+			},
+			ResultsFound:  3,
+			WantedCreated: 2,
+			SkippedCount:  1,
+			SkippedItems: []wanted.AuthorSkippedItem{{
+				Policy: "future",
+				Reason: "future policy requires a publication date",
+				Result: metadata.SearchResult{
+					Provider: "Open Library",
+					Kind:     metadata.SearchTypeAuthor,
+					Work: metadata.Work{
+						ID:      "openlibrary:OL1W",
+						Title:   "Untitled Andy Weir",
+						Authors: []metadata.Author{{ID: "openlibrary:OL123A", Name: "Andy Weir"}},
+					},
+					Edition: metadata.Edition{ID: "openlibrary:OL1M", Format: metadata.FormatEbook},
+				},
+			}},
+		}},
 	}, nil
 }
 

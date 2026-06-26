@@ -393,12 +393,19 @@ type AuthorMonitorRun struct {
 }
 
 type AuthorMonitorItemResult struct {
-	Subscription  AuthorSubscription `json:"subscription"`
-	ResultsFound  int                `json:"resultsFound"`
-	WantedCreated int                `json:"wantedCreated"`
-	SkippedCount  int                `json:"skippedCount"`
-	WantedItems   []WantedItem       `json:"wantedItems,omitempty"`
-	Error         string             `json:"error,omitempty"`
+	Subscription  AuthorSubscription  `json:"subscription"`
+	ResultsFound  int                 `json:"resultsFound"`
+	WantedCreated int                 `json:"wantedCreated"`
+	SkippedCount  int                 `json:"skippedCount"`
+	SkippedItems  []AuthorSkippedItem `json:"skippedItems,omitempty"`
+	WantedItems   []WantedItem        `json:"wantedItems,omitempty"`
+	Error         string              `json:"error,omitempty"`
+}
+
+type AuthorSkippedItem struct {
+	Result metadata.SearchResult `json:"result"`
+	Policy string                `json:"policy"`
+	Reason string                `json:"reason"`
 }
 
 type UpgradeItemResult struct {

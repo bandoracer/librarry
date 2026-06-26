@@ -2572,6 +2572,44 @@ select {
   font-size: 12px;
 }
 
+.author-skipped-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.author-skipped-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+}
+
+.author-skipped-row strong,
+.author-skipped-row span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author-skipped-row strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.author-skipped-row span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .download-list {
   display: grid;
 }
@@ -3573,6 +3611,7 @@ select {
   .library-book-row,
   .author-row,
   .author-monitor-row,
+  .author-skipped-row,
   .feed-sync-row,
   .library-file-row,
   .import-review-row,

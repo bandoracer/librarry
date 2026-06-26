@@ -128,8 +128,10 @@ author backfills the visible bibliography, only creates wanted items for
 future-dated metadata, or only syncs author metadata. Existing subscriptions can
 be changed with `PATCH /api/v1/authors/{id}`. Manual author refreshes are
 available through `POST /api/v1/authors/monitor`; monitor results report
-metadata hits, wanted items created, and entries skipped by policy. Author
-monitoring does not grab releases.
+metadata hits, wanted items created, and entries skipped by policy. Skipped
+entries include the normalized metadata result and skip reason so the web UI can
+review them and mark individual books wanted without changing the author policy.
+Author monitoring does not grab releases.
 
 ## Feed Sync
 

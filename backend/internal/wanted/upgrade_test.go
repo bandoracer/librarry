@@ -122,7 +122,7 @@ func TestAuthorMissingBookPolicyAllowsFutureOnly(t *testing.T) {
 		Work:    metadata.Work{FirstPublishYear: 2027},
 		Edition: metadata.Edition{PublishedDate: "2027-03-01"},
 	}
-	if !authorResultAllowedByMissingPolicy(subscription, newBook, time.Now()) {
+	if allowed, reason := authorResultAllowedByMissingPolicy(subscription, newBook, time.Now()); !allowed || reason != "" {
 		t.Fatal("expected future-dated result to be allowed")
 	}
 
@@ -130,12 +130,34 @@ func TestAuthorMissingBookPolicyAllowsFutureOnly(t *testing.T) {
 		Work:    metadata.Work{FirstPublishYear: 2021},
 		Edition: metadata.Edition{PublishedDate: "2021-05-04"},
 	}
-	if authorResultAllowedByMissingPolicy(subscription, oldBook, time.Now()) {
+	if allowed, reason := authorResultAllowedByMissingPolicy(subscription, oldBook, time.Now()); allowed || reason == "" {
 		t.Fatal("expected existing bibliography result to be skipped")
 	}
 
 	undatedBook := metadata.SearchResult{Work: metadata.Work{Title: "Untitled"}}
-	if authorResultAllowedByMissingPolicy(subscription, undatedBook, time.Now()) {
+	if allowed, reason := authorResultAllowedByMissingPolicy(subscription, undatedBook, time.Now()); allowed || reason == "" {
 		t.Fatal("expected undated future-only result to require review instead of auto-wanted")
+	}
+}
+
+func TestAuthorSkippedItemCarriesMetadataResult(t *testing.T) {
+	result := metadata.SearchResult{
+		Provider: "Open Library",
+		Kind:     metadata.SearchTypeAuthor,
+		Work: metadata.Work{
+			ID:               "openlibrary:OL1W",
+			Title:            "Project Hail Mary",
+			FirstPublishYear: 2021,
+			Authors:          []metadata.Author{{ID: "openlibrary:OL123A", Name: "Andy Weir"}},
+		},
+		Edition: metadata.Edition{ID: "openlibrary:OL1M", Format: metadata.FormatEbook, PublishedDate: "2021-05-04"},
+		Score:   94,
+	}
+	item := AuthorSkippedItem{Result: result, Policy: "future", Reason: "published before the author subscription cutoff"}
+	if item.Result.Work.Title != "Project Hail Mary" || item.Result.Edition.PublishedDate != "2021-05-04" {
+		t.Fatalf("expected skipped item to preserve metadata result, got %+v", item)
+	}
+	if item.Policy != "future" || item.Reason == "" {
+		t.Fatalf("expected skipped item policy and reason, got %+v", item)
 	}
 }

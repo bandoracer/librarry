@@ -84,6 +84,7 @@ import {
   updateWanted,
   type AuthorMonitorRun,
   type AuthorMissingBookPolicy,
+  type AuthorSkippedItem,
   type AuthorSubscription,
   type DownloadAction,
   type CompletedImportOutcome,
@@ -295,6 +296,7 @@ export function App() {
   const [isSubscribingAuthor, setIsSubscribingAuthor] = useState(false);
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
   const [updatingAuthorID, setUpdatingAuthorID] = useState("");
+  const [markingAuthorSkippedKey, setMarkingAuthorSkippedKey] = useState("");
   const [isRunningFeedSync, setIsRunningFeedSync] = useState(false);
   const [isRunningUpgrade, setIsRunningUpgrade] = useState(false);
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
@@ -754,6 +756,23 @@ export function App() {
       setAuthorError(error instanceof Error ? error.message : "Author subscription update failed");
     } finally {
       setUpdatingAuthorID("");
+    }
+  }
+
+  async function markSkippedAuthorCandidateWanted(subscription: AuthorSubscription, skipped: AuthorSkippedItem) {
+    const key = authorSkippedItemKey(subscription, skipped);
+    setMarkingAuthorSkippedKey(key);
+    setAuthorError("");
+    try {
+      const wantedFormat = skipped.result.edition?.format === "audiobook" ? "audiobook" : subscription.format;
+      const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? []);
+      setWantedItems((current) => mergeWanted(current, [item]));
+      setSelectedWantedID(item.id);
+      setAPIState("live");
+    } catch (error) {
+      setAuthorError(error instanceof Error ? error.message : "Mark skipped book wanted failed");
+    } finally {
+      setMarkingAuthorSkippedKey("");
     }
   }
 
@@ -2582,6 +2601,27 @@ export function App() {
                         </span>
                       </div>
                       <em>{item.subscription.format}</em>
+                      {item.skippedItems?.length ? (
+                        <div className="author-skipped-list">
+                          {item.skippedItems.slice(0, 4).map((skipped) => {
+                            const skippedKey = authorSkippedItemKey(item.subscription, skipped);
+                            const busy = markingAuthorSkippedKey === skippedKey;
+                            return (
+                              <div className="author-skipped-row" key={skippedKey}>
+                                <div>
+                                  <strong>{skipped.result.work.title || skipped.result.edition?.title || "Untitled"}</strong>
+                                  <span>
+                                    {firstAuthorName(skipped.result)} · {authorSkippedDateLabel(skipped.result)} · {skipped.reason}
+                                  </span>
+                                </div>
+                                <button className="secondary-action compact" disabled={Boolean(markingAuthorSkippedKey)} onClick={() => markSkippedAuthorCandidateWanted(item.subscription, skipped)} type="button">
+                                  {busy ? "Marking" : "Mark wanted"}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </article>
                   ))}
                 </>
@@ -4516,6 +4556,23 @@ function authorMissingPolicyLabel(policy: AuthorMissingBookPolicy) {
     default:
       return "All";
   }
+}
+
+function authorSkippedItemKey(subscription: AuthorSubscription, skipped: AuthorSkippedItem) {
+  return [
+    subscription.id || subscription.providerKey || subscription.authorName,
+    skipped.result.provider,
+    skipped.result.work.id || skipped.result.edition?.id || skipped.result.work.title,
+    skipped.result.edition?.publishedDate || skipped.result.work.firstPublishYear || "undated"
+  ].join(":");
+}
+
+function firstAuthorName(result: SearchResult) {
+  return result.work.authors?.[0]?.name || "Unknown author";
+}
+
+function authorSkippedDateLabel(result: SearchResult) {
+  return result.edition?.publishedDate || (result.work.firstPublishYear ? String(result.work.firstPublishYear) : "undated");
 }
 
 function mergeLibraryFiles(current: LibraryFile[], next: LibraryFile[]) {

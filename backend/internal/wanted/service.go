@@ -16,6 +16,7 @@ import (
 const (
 	defaultWantedMonitorLimit       = 50
 	defaultWantedMonitorSearchLimit = 20
+	defaultAuthorSkippedItemsLimit  = 12
 	defaultWantedSearchInterval     = 6 * time.Hour
 	defaultAuthorSyncInterval       = 24 * time.Hour
 	defaultFailedDownloadLimit      = 50
@@ -237,8 +238,15 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 				continue
 			}
 			result.ResultsFound++
-			if !authorResultAllowedByMissingPolicy(subscription, candidate, time.Now().UTC()) {
+			if allowed, reason := authorResultAllowedByMissingPolicy(subscription, candidate, time.Now().UTC()); !allowed {
 				result.SkippedCount++
+				if len(result.SkippedItems) < defaultAuthorSkippedItemsLimit {
+					result.SkippedItems = append(result.SkippedItems, AuthorSkippedItem{
+						Result: candidate,
+						Policy: normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems),
+						Reason: reason,
+					})
+				}
 				continue
 			}
 			item, err := s.store.CreateWanted(ctx, CreateRequest{
@@ -1227,14 +1235,14 @@ func authorResultMatchesSubscription(subscription AuthorSubscription, result met
 	return false
 }
 
-func authorResultAllowedByMissingPolicy(subscription AuthorSubscription, result metadata.SearchResult, now time.Time) bool {
+func authorResultAllowedByMissingPolicy(subscription AuthorSubscription, result metadata.SearchResult, now time.Time) (bool, string) {
 	switch normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems) {
 	case "none":
-		return false
+		return false, "author policy is set to none"
 	case "future":
 		published, ok := resultPublicationDate(result)
 		if !ok {
-			return false
+			return false, "future policy requires a publication date"
 		}
 		cutoff := subscription.CreatedAt
 		if cutoff.IsZero() {
@@ -1242,18 +1250,25 @@ func authorResultAllowedByMissingPolicy(subscription AuthorSubscription, result 
 		}
 		switch published.Precision {
 		case "year":
-			return published.Time.Year() >= cutoff.Year()
+			if published.Time.Year() >= cutoff.Year() {
+				return true, ""
+			}
 		case "month":
 			publishedMonth := time.Date(published.Time.Year(), published.Time.Month(), 1, 0, 0, 0, 0, time.UTC)
 			cutoffMonth := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
-			return !publishedMonth.Before(cutoffMonth)
+			if !publishedMonth.Before(cutoffMonth) {
+				return true, ""
+			}
 		default:
 			publishedDay := time.Date(published.Time.Year(), published.Time.Month(), published.Time.Day(), 0, 0, 0, 0, time.UTC)
 			cutoffDay := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), cutoff.UTC().Day(), 0, 0, 0, 0, time.UTC)
-			return !publishedDay.Before(cutoffDay)
+			if !publishedDay.Before(cutoffDay) {
+				return true, ""
+			}
 		}
+		return false, "published before the author subscription cutoff"
 	default:
-		return true
+		return true, ""
 	}
 }
 
