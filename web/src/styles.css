@@ -437,7 +437,7 @@ select {
 .table-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 64px 96px 106px 92px;
+  grid-template-columns: minmax(210px, 1fr) 64px 96px 106px 168px;
   align-items: center;
   gap: 10px;
   padding: 0 18px;
@@ -544,11 +544,12 @@ select {
 
 .row-action {
   display: flex;
+  gap: 7px;
   justify-content: flex-end;
 }
 
 .row-action-button {
-  width: 74px;
+  width: 78px;
   height: 32px;
   border: 1px solid #bfdbfe;
   border-radius: 6px;
@@ -2879,7 +2880,7 @@ select {
   }
 
   .table-row {
-    grid-template-columns: minmax(180px, 1fr) 82px 88px;
+    grid-template-columns: minmax(180px, 1fr) 82px 164px;
   }
 
   .table-row span:nth-child(3),
@@ -3128,12 +3129,29 @@ select {
   }
 
   .table-row {
-    grid-template-columns: minmax(150px, 1fr) 76px 78px;
+    grid-template-columns: 1fr;
     padding: 0 12px;
+    gap: 8px;
+    align-content: center;
   }
 
+  .table-head {
+    display: none;
+  }
+
+  .result-row > span:not(.row-action),
   .table-row span:nth-child(4),
   .table-head span:nth-child(4) {
     display: none;
+  }
+
+  .table-row .row-action {
+    display: flex;
+    justify-content: stretch;
+  }
+
+  .row-action-button {
+    flex: 1;
+    width: auto;
   }
 }

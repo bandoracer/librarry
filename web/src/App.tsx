@@ -628,11 +628,17 @@ export function App() {
   }
 
   async function subscribeSelectedAuthor() {
-    if (!selected?.work.authors?.[0]) return;
+    await subscribeAuthorResult(selected);
+  }
+
+  async function subscribeAuthorResult(result = selected) {
+    if (!result?.work.authors?.[0]) return;
     setIsSubscribingAuthor(true);
     setAuthorError("");
+    setSelectedID(result.work.id);
+    setActiveView("wanted");
     try {
-      const subscription = await subscribeAuthor(selected, selected.edition?.format ?? format);
+      const subscription = await subscribeAuthor(result, result.edition?.format ?? format);
       setAuthorSubscriptions((current) => mergeAuthorSubscriptions(current, [subscription]));
       setAPIState("live");
     } catch (error) {
@@ -1773,6 +1779,14 @@ export function App() {
                   <span className="row-action">
                     <button className="row-action-button" disabled={isMarkingWanted} onClick={() => markWantedResult(result)} type="button">
                       {isMarkingWanted && result.work.id === selected?.work.id ? "Marking" : "Mark"}
+                    </button>
+                    <button
+                      className="row-action-button"
+                      disabled={isSubscribingAuthor || !result.work.authors?.length}
+                      onClick={() => subscribeAuthorResult(result)}
+                      type="button"
+                    >
+                      {isSubscribingAuthor && result.work.id === selected?.work.id ? "Saving" : "Author"}
                     </button>
                   </span>
                 </div>
