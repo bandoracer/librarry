@@ -197,6 +197,184 @@ func TestTransmissionListMapsDownloadStatus(t *testing.T) {
 	}
 }
 
+func TestTransmissionResourcesDeriveCategoriesAndTagsFromLabels(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Method != "torrent-get" {
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+		if _, hasIDs := payload.Arguments["ids"]; hasIDs {
+			t.Fatalf("resource lookup should not request specific ids: %#v", payload.Arguments)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"result": "success",
+			"arguments": map[string]any{
+				"torrents": []map[string]any{{
+					"id":          42,
+					"hashString":  "abc123",
+					"downloadDir": "/downloads/books",
+					"labels":      []string{CategoryBooksEbook, "librarry"},
+				}, {
+					"id":          43,
+					"hashString":  "def456",
+					"downloadDir": "/downloads/audio",
+					"labels":      []string{CategoryBooksAudiobook, "manual", "librarry"},
+				}, {
+					"id":          44,
+					"hashString":  "ghi789",
+					"downloadDir": "/downloads/other",
+					"labels":      []string{"other"},
+				}},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewTransmissionClient(server.URL, "", "", server.Client())
+	resources, err := client.Resources(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resources.Client != "Transmission" {
+		t.Fatalf("unexpected resources client: %+v", resources)
+	}
+	if len(resources.Categories) != 3 ||
+		resources.Categories[0].Name != CategoryBooksAudiobook ||
+		resources.Categories[1].Name != CategoryBooksEbook ||
+		resources.Categories[1].SavePath != "/downloads/books" {
+		t.Fatalf("unexpected categories: %+v", resources.Categories)
+	}
+	if strings.Join(resources.Tags, ",") != "books-audiobook,books-ebook,librarry,manual,other" {
+		t.Fatalf("unexpected tags: %#v", resources.Tags)
+	}
+}
+
+func TestTransmissionCategoryActionRenamesLabelAcrossTorrents(t *testing.T) {
+	var methods []string
+	var setArgs map[string]any
+	getCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		methods = append(methods, payload.Method)
+		switch payload.Method {
+		case "torrent-get":
+			getCount++
+			labels := []string{CategoryBooksEbook, "librarry"}
+			if getCount > 1 {
+				labels = []string{"books-archive", "librarry"}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": "success",
+				"arguments": map[string]any{
+					"torrents": []map[string]any{{
+						"id":          42,
+						"hashString":  "abc123",
+						"downloadDir": "/downloads/books",
+						"labels":      labels,
+					}, {
+						"id":          43,
+						"hashString":  "def456",
+						"downloadDir": "/downloads/audio",
+						"labels":      []string{CategoryBooksAudiobook, "librarry"},
+					}},
+				},
+			})
+		case "torrent-set":
+			setArgs = payload.Arguments
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+		default:
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+	}))
+	defer server.Close()
+
+	client := NewTransmissionClient(server.URL, "", "", server.Client())
+	result, err := client.CategoryAction(context.Background(), DownloadCategoryActionRequest{
+		Action:  "rename",
+		Name:    CategoryBooksEbook,
+		NewName: "books-archive",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(methods, ",") != "torrent-get,torrent-set,torrent-get" {
+		t.Fatalf("unexpected methods: %v", methods)
+	}
+	if !jsonStringListMatches(setArgs["ids"], []string{"abc123"}) || !jsonStringListMatches(setArgs["labels"], []string{"books-archive", "librarry"}) {
+		t.Fatalf("unexpected set args: %#v", setArgs)
+	}
+	if !result.Applied || result.Resources == nil || result.Message != "updated 1 Transmission torrent" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+func TestTransmissionTagActionDeletesLabelsAcrossTorrents(t *testing.T) {
+	var setArgs []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		switch payload.Method {
+		case "torrent-get":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": "success",
+				"arguments": map[string]any{
+					"torrents": []map[string]any{{
+						"id":         42,
+						"hashString": "abc123",
+						"labels":     []string{CategoryBooksEbook, "manual", "librarry"},
+					}, {
+						"id":         43,
+						"hashString": "def456",
+						"labels":     []string{CategoryBooksAudiobook, "manual"},
+					}},
+				},
+			})
+		case "torrent-set":
+			setArgs = append(setArgs, payload.Arguments)
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+		default:
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+	}))
+	defer server.Close()
+
+	client := NewTransmissionClient(server.URL, "", "", server.Client())
+	result, err := client.TagAction(context.Background(), DownloadTagActionRequest{
+		Action: "delete",
+		Names:  []string{"manual"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(setArgs) != 2 {
+		t.Fatalf("expected two label updates, got %#v", setArgs)
+	}
+	if !jsonStringListMatches(setArgs[0]["labels"], []string{CategoryBooksEbook, "librarry"}) ||
+		!jsonStringListMatches(setArgs[1]["labels"], []string{CategoryBooksAudiobook}) {
+		t.Fatalf("unexpected label updates: %#v", setArgs)
+	}
+	if !result.Applied || result.Message != "updated 2 Transmission torrents" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
 func TestTransmissionDetailsMapsFilesTrackersAndPeers(t *testing.T) {
 	var requestedFields []any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

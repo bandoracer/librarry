@@ -298,8 +298,9 @@ configured. Torrent actions are exposed through `/api/v1/downloads/actions` for
 start, stop, delete, recheck, priority changes, force-start, sequential-download
 toggle, first/last-piece priority toggle, rename, tag add/remove, category
 changes, and location changes, plus delete-with-data removal and per-torrent
-download and upload speed limits. qBittorrent category and tag namespaces are
-exposed through `/api/v1/downloads/resources`,
+download and upload speed limits. qBittorrent category/tag namespaces and
+Transmission label-derived category/tag resources are exposed through
+`/api/v1/downloads/resources`,
 `/api/v1/downloads/categories/actions`, and
 `/api/v1/downloads/tags/actions`. The Downloads page filters by client, state,
 category, and text, and uses the same native actions for name, tags, category,
@@ -314,8 +315,9 @@ Transmission torrents.
 `/api/v1/downloads/rebalance` adds a simple active-download limiter that can
 preview or apply start/stop operations against a filtered queue. Transmission
 actions support start, stop, delete, recheck, queue movement, force-start, set
-location, label-backed category/tag changes, tracker add/edit/remove,
-per-torrent speed limits, detail inspection, and file-priority changes. SABnzbd supports
+location, label-backed category/tag changes, label resource listing and
+rename/delete, tracker add/edit/remove, per-torrent speed limits, detail
+inspection, and file-priority changes. SABnzbd supports
 queue/history detail lookup, queued-file inspection through `get_files`, and
 start, stop, delete, rename, category, and priority actions. The API accepts
 multiple download IDs for these actions, routes

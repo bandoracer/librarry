@@ -1063,7 +1063,7 @@ func normalizeResourceAction(value string) string {
 		return "create"
 	case "upsert", "ensure":
 		return "upsert"
-	case "edit", "update", "save":
+	case "edit", "update", "save", "rename":
 		return "edit"
 	case "delete", "remove":
 		return "delete"

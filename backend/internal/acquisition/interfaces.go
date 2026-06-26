@@ -164,15 +164,17 @@ type DownloadCategoryActionRequest struct {
 }
 
 type DownloadTagActionRequest struct {
-	Client string   `json:"client,omitempty"`
-	Action string   `json:"action"`
-	Names  []string `json:"names"`
+	Client  string   `json:"client,omitempty"`
+	Action  string   `json:"action"`
+	Names   []string `json:"names"`
+	NewName string   `json:"newName,omitempty"`
 }
 
 type DownloadResourceActionResult struct {
 	Action    string             `json:"action"`
 	Client    string             `json:"client"`
 	Applied   bool               `json:"applied"`
+	Message   string             `json:"message,omitempty"`
 	Resources *DownloadResources `json:"resources,omitempty"`
 }
 

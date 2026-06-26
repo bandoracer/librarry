@@ -177,6 +177,142 @@ func (c *TransmissionClient) Details(ctx context.Context, id string) (DownloadDe
 	return payload.Torrents[0].DownloadDetails(time.Now().UTC()), nil
 }
 
+func (c *TransmissionClient) Resources(ctx context.Context) (DownloadResources, error) {
+	if !c.Configured() {
+		return DownloadResources{}, ErrIntegrationNotConfigured
+	}
+	snapshots, err := c.labelSnapshots(ctx)
+	if err != nil {
+		return DownloadResources{}, err
+	}
+	tagSet := map[string]bool{}
+	categoryStats := map[string]*transmissionResourceStats{}
+	for _, snapshot := range snapshots {
+		labels := compactStrings(snapshot.Labels)
+		for _, label := range labels {
+			tagSet[label] = true
+		}
+		category := transmissionCategory(labels)
+		if category == "" {
+			continue
+		}
+		stat := categoryStats[strings.ToLower(category)]
+		if stat == nil {
+			stat = &transmissionResourceStats{Name: category, SavePaths: map[string]int{}}
+			categoryStats[strings.ToLower(category)] = stat
+		}
+		savePath := strings.TrimSpace(snapshot.DownloadDir)
+		if savePath != "" {
+			stat.SavePaths[savePath]++
+		}
+	}
+	tags := make([]string, 0, len(tagSet))
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+	sort.Slice(tags, func(i, j int) bool {
+		return strings.ToLower(tags[i]) < strings.ToLower(tags[j])
+	})
+	categories := make([]DownloadCategory, 0, len(categoryStats))
+	for _, stat := range categoryStats {
+		categories = append(categories, DownloadCategory{
+			Name:     stat.Name,
+			SavePath: stat.BestSavePath(),
+		})
+	}
+	sort.Slice(categories, func(i, j int) bool {
+		return strings.ToLower(categories[i].Name) < strings.ToLower(categories[j].Name)
+	})
+	return DownloadResources{
+		Client:     c.Name(),
+		Categories: categories,
+		Tags:       tags,
+	}, nil
+}
+
+func (c *TransmissionClient) CategoryAction(ctx context.Context, request DownloadCategoryActionRequest) (DownloadResourceActionResult, error) {
+	if !c.Configured() {
+		return DownloadResourceActionResult{}, ErrIntegrationNotConfigured
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		return DownloadResourceActionResult{}, errors.New("category name is required")
+	}
+	action := normalizeResourceAction(request.Action)
+	var changed int
+	var err error
+	switch action {
+	case "create", "upsert":
+		return DownloadResourceActionResult{}, errors.New("Transmission categories are labels; assign a category to a download with setCategory")
+	case "edit":
+		newName := strings.TrimSpace(request.NewName)
+		if newName == "" {
+			return DownloadResourceActionResult{}, errors.New("newName is required when renaming a Transmission category label")
+		}
+		changed, err = c.renameLabelEverywhere(ctx, name, newName)
+	case "delete":
+		changed, err = c.removeLabelsEverywhere(ctx, []string{name})
+	default:
+		return DownloadResourceActionResult{}, fmt.Errorf("unsupported category action %q", request.Action)
+	}
+	if err != nil {
+		return DownloadResourceActionResult{}, err
+	}
+	result := DownloadResourceActionResult{
+		Action:  action,
+		Client:  c.Name(),
+		Applied: changed > 0,
+		Message: transmissionResourceActionMessage(changed),
+	}
+	if resources, err := c.Resources(ctx); err == nil {
+		result.Resources = &resources
+	}
+	return result, nil
+}
+
+func (c *TransmissionClient) TagAction(ctx context.Context, request DownloadTagActionRequest) (DownloadResourceActionResult, error) {
+	if !c.Configured() {
+		return DownloadResourceActionResult{}, ErrIntegrationNotConfigured
+	}
+	names := compactStrings(request.Names)
+	if len(names) == 0 {
+		return DownloadResourceActionResult{}, errors.New("at least one tag is required")
+	}
+	action := normalizeResourceAction(request.Action)
+	var changed int
+	var err error
+	switch action {
+	case "create", "upsert":
+		return DownloadResourceActionResult{}, errors.New("Transmission tags are labels; assign tags to downloads with addTags")
+	case "edit":
+		if len(names) != 1 {
+			return DownloadResourceActionResult{}, errors.New("renaming Transmission tags requires exactly one source tag")
+		}
+		newName := strings.TrimSpace(request.NewName)
+		if newName == "" {
+			return DownloadResourceActionResult{}, errors.New("newName is required when renaming a Transmission tag label")
+		}
+		changed, err = c.renameLabelEverywhere(ctx, names[0], newName)
+	case "delete":
+		changed, err = c.removeLabelsEverywhere(ctx, names)
+	default:
+		return DownloadResourceActionResult{}, fmt.Errorf("unsupported tag action %q", request.Action)
+	}
+	if err != nil {
+		return DownloadResourceActionResult{}, err
+	}
+	result := DownloadResourceActionResult{
+		Action:  action,
+		Client:  c.Name(),
+		Applied: changed > 0,
+		Message: transmissionResourceActionMessage(changed),
+	}
+	if resources, err := c.Resources(ctx); err == nil {
+		result.Resources = &resources
+	}
+	return result, nil
+}
+
 func (c *TransmissionClient) Action(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
 	if !c.Configured() {
 		return DownloadActionResult{}, ErrIntegrationNotConfigured
@@ -509,9 +645,36 @@ type transmissionTorrentDetail struct {
 }
 
 type transmissionLabelSnapshot struct {
-	ID         int      `json:"id"`
-	HashString string   `json:"hashString"`
-	Labels     []string `json:"labels"`
+	ID          int      `json:"id"`
+	HashString  string   `json:"hashString"`
+	DownloadDir string   `json:"downloadDir"`
+	Labels      []string `json:"labels"`
+}
+
+type transmissionResourceStats struct {
+	Name      string
+	SavePaths map[string]int
+}
+
+func (s transmissionResourceStats) BestSavePath() string {
+	if len(s.SavePaths) == 0 {
+		return ""
+	}
+	type candidate struct {
+		Path  string
+		Count int
+	}
+	candidates := make([]candidate, 0, len(s.SavePaths))
+	for path, count := range s.SavePaths {
+		candidates = append(candidates, candidate{Path: path, Count: count})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].Count != candidates[j].Count {
+			return candidates[i].Count > candidates[j].Count
+		}
+		return strings.ToLower(candidates[i].Path) < strings.ToLower(candidates[j].Path)
+	})
+	return candidates[0].Path
 }
 
 type transmissionTrackerSnapshot struct {
@@ -768,6 +931,18 @@ func (c *TransmissionClient) mutateLabels(ctx context.Context, ids []string, mut
 	return nil
 }
 
+func (c *TransmissionClient) labelSnapshots(ctx context.Context) ([]transmissionLabelSnapshot, error) {
+	var payload struct {
+		Torrents []transmissionLabelSnapshot `json:"torrents"`
+	}
+	if err := c.rpc(ctx, "torrent-get", map[string]any{
+		"fields": []string{"id", "hashString", "downloadDir", "labels"},
+	}, &payload); err != nil {
+		return nil, err
+	}
+	return payload.Torrents, nil
+}
+
 func (c *TransmissionClient) labels(ctx context.Context, id string) ([]string, error) {
 	var payload struct {
 		Torrents []transmissionLabelSnapshot `json:"torrents"`
@@ -782,6 +957,78 @@ func (c *TransmissionClient) labels(ctx context.Context, id string) ([]string, e
 		return nil, ErrDownloadNotFound
 	}
 	return compactStrings(payload.Torrents[0].Labels), nil
+}
+
+func (c *TransmissionClient) renameLabelEverywhere(ctx context.Context, name string, newName string) (int, error) {
+	name = strings.TrimSpace(name)
+	newName = strings.TrimSpace(newName)
+	if name == "" || newName == "" {
+		return 0, errors.New("source and target label names are required")
+	}
+	return c.mutateLabelsEverywhere(ctx, func(labels []string) ([]string, bool, error) {
+		var changed bool
+		next := make([]string, 0, len(labels))
+		for _, label := range compactStrings(labels) {
+			if strings.EqualFold(label, name) {
+				next = append(next, newName)
+				changed = true
+				continue
+			}
+			next = append(next, label)
+		}
+		return compactStrings(next), changed, nil
+	})
+}
+
+func (c *TransmissionClient) removeLabelsEverywhere(ctx context.Context, names []string) (int, error) {
+	remove := map[string]bool{}
+	for _, name := range compactStrings(names) {
+		remove[strings.ToLower(name)] = true
+	}
+	if len(remove) == 0 {
+		return 0, errors.New("at least one label is required")
+	}
+	return c.mutateLabelsEverywhere(ctx, func(labels []string) ([]string, bool, error) {
+		var next []string
+		var changed bool
+		for _, label := range compactStrings(labels) {
+			if remove[strings.ToLower(label)] {
+				changed = true
+				continue
+			}
+			next = append(next, label)
+		}
+		return compactStrings(next), changed, nil
+	})
+}
+
+func (c *TransmissionClient) mutateLabelsEverywhere(ctx context.Context, mutate func([]string) ([]string, bool, error)) (int, error) {
+	snapshots, err := c.labelSnapshots(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var changed int
+	for _, snapshot := range snapshots {
+		id := firstNonEmpty(snapshot.HashString, strconv.Itoa(snapshot.ID))
+		if id == "" {
+			continue
+		}
+		next, ok, err := mutate(compactStrings(snapshot.Labels))
+		if err != nil {
+			return changed, err
+		}
+		if !ok {
+			continue
+		}
+		if err := c.rpc(ctx, "torrent-set", map[string]any{
+			"ids":    []string{id},
+			"labels": compactStrings(next),
+		}, nil); err != nil {
+			return changed, err
+		}
+		changed++
+	}
+	return changed, nil
 }
 
 func (c *TransmissionClient) trackerSnapshot(ctx context.Context, id string) (transmissionTrackerSnapshot, error) {
@@ -827,6 +1074,13 @@ func removeTransmissionLabels(labels []string, removals []string) []string {
 		}
 	}
 	return kept
+}
+
+func transmissionResourceActionMessage(changed int) string {
+	if changed == 1 {
+		return "updated 1 Transmission torrent"
+	}
+	return fmt.Sprintf("updated %d Transmission torrents", changed)
 }
 
 func parseTransmissionTrackerList(value string) [][]string {

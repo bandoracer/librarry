@@ -345,6 +345,8 @@ func (s *Service) DownloadResources(ctx context.Context, client string) (Downloa
 	switch {
 	case strings.EqualFold(resolvedClient, s.qbit.Name()):
 		return s.qbit.Resources(ctx)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		return s.trans.Resources(ctx)
 	default:
 		return DownloadResources{}, fmt.Errorf("download resource administration is not supported for %s", resolvedClient)
 	}
@@ -358,6 +360,8 @@ func (s *Service) DownloadCategoryAction(ctx context.Context, request DownloadCa
 	switch {
 	case strings.EqualFold(resolvedClient, s.qbit.Name()):
 		return s.qbit.CategoryAction(ctx, request)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		return s.trans.CategoryAction(ctx, request)
 	default:
 		return DownloadResourceActionResult{}, fmt.Errorf("download category administration is not supported for %s", resolvedClient)
 	}
@@ -371,6 +375,8 @@ func (s *Service) DownloadTagAction(ctx context.Context, request DownloadTagActi
 	switch {
 	case strings.EqualFold(resolvedClient, s.qbit.Name()):
 		return s.qbit.TagAction(ctx, request)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		return s.trans.TagAction(ctx, request)
 	default:
 		return DownloadResourceActionResult{}, fmt.Errorf("download tag administration is not supported for %s", resolvedClient)
 	}

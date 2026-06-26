@@ -229,6 +229,7 @@ export type DownloadResourceActionResult = {
   action: string;
   client: string;
   applied: boolean;
+  message?: string;
   resources?: DownloadResources;
 };
 
@@ -743,6 +744,7 @@ export async function fetchDownloadResources(client = "qBittorrent"): Promise<Do
 export async function runDownloadCategoryAction(options: {
   action: "create" | "edit" | "delete";
   name: string;
+  newName?: string;
   savePath?: string;
   client?: string;
 }): Promise<DownloadResourceActionResult> {
@@ -753,6 +755,7 @@ export async function runDownloadCategoryAction(options: {
       client: options.client ?? "qBittorrent",
       action: options.action,
       name: options.name,
+      newName: options.newName,
       savePath: options.savePath
     })
   });
@@ -763,8 +766,9 @@ export async function runDownloadCategoryAction(options: {
 }
 
 export async function runDownloadTagAction(options: {
-  action: "create" | "delete";
+  action: "create" | "edit" | "delete";
   names: string[];
+  newName?: string;
   client?: string;
 }): Promise<DownloadResourceActionResult> {
   const response = await fetch(`${apiBase}/api/v1/downloads/tags/actions`, {
@@ -773,7 +777,8 @@ export async function runDownloadTagAction(options: {
     body: JSON.stringify({
       client: options.client ?? "qBittorrent",
       action: options.action,
-      names: options.names
+      names: options.names,
+      newName: options.newName
     })
   });
   if (!response.ok) {
