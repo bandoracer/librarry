@@ -334,6 +334,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/providers/diagnostics", handler.providerDiagnostics)
 	mux.HandleFunc("GET /api/v1/readiness", handler.readiness)
 	mux.HandleFunc("GET /api/v1/search", handler.search)
+	mux.HandleFunc("GET /api/v1/readarr/compatibility", handler.readarrCompatibility)
 	mux.HandleFunc("POST /api/v1/readarr/import/preview", handler.previewReadarrImport)
 	mux.HandleFunc("POST /api/v1/readarr/import", handler.applyReadarrImport)
 	mux.HandleFunc("POST /api/v1/settings/validate", handler.validateSettings)

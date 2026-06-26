@@ -494,6 +494,47 @@ func TestCompatSystemStatusAndPingEndpoints(t *testing.T) {
 	}
 }
 
+func TestReadarrCompatibilityReportDescribesDropInSurface(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger: slog.Default(),
+		Config: config.Config{
+			WebOrigin:   "*",
+			APIKey:      "secret",
+			DatabaseURL: "postgres://librarry:librarry@localhost/librarry",
+		},
+		Metadata: metadata.NewService(nil),
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/readarr/compatibility", nil)
+	req.Header.Set("X-Api-Key", "secret")
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var report readarrCompatibilityReport
+	if err := json.NewDecoder(res.Body).Decode(&report); err != nil {
+		t.Fatalf("decode compatibility report: %v", err)
+	}
+	if report.AuthMode != "api_key" || report.CompatibleRoutes == 0 {
+		t.Fatalf("expected api-key protected route coverage, got %+v", report)
+	}
+	if report.ReadyAreas < 5 || report.PartialAreas == 0 || report.DelegatedAreas == 0 {
+		t.Fatalf("expected ready, partial, and delegated areas, got %+v", report)
+	}
+	categories := map[string]readarrCompatibilityCategory{}
+	for _, category := range report.Categories {
+		categories[category.ID] = category
+	}
+	if categories["metadata"].Status != "ready" || !strings.Contains(categories["metadata"].Message, "provider-backed metadata search") {
+		t.Fatalf("expected metadata coverage, got %+v", categories["metadata"])
+	}
+	if categories["download-clients"].Status != "delegated" || !strings.Contains(categories["download-clients"].Message, "native applications") {
+		t.Fatalf("expected delegated download-client coverage, got %+v", categories["download-clients"])
+	}
+}
+
 func TestCompatRootFolderAndDiskspaceEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger: slog.Default(),

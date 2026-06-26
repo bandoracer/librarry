@@ -25,6 +25,27 @@ import (
 
 var errCompatServiceUnavailable = errors.New("library service is unavailable")
 
+type readarrCompatibilityReport struct {
+	Status           string                         `json:"status"`
+	Summary          string                         `json:"summary"`
+	AuthMode         string                         `json:"authMode"`
+	CompatibleRoutes int                            `json:"compatibleRoutes"`
+	ReadyAreas       int                            `json:"readyAreas"`
+	PartialAreas     int                            `json:"partialAreas"`
+	DelegatedAreas   int                            `json:"delegatedAreas"`
+	Categories       []readarrCompatibilityCategory `json:"categories"`
+	GeneratedAt      time.Time                      `json:"generatedAt"`
+}
+
+type readarrCompatibilityCategory struct {
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	Status        string   `json:"status"`
+	EndpointCount int      `json:"endpointCount"`
+	Message       string   `json:"message"`
+	Examples      []string `json:"examples"`
+}
+
 func (h *handler) compatPing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	if r.Method == http.MethodHead {
@@ -32,6 +53,32 @@ func (h *handler) compatPing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = w.Write([]byte("pong"))
+}
+
+func (h *handler) readarrCompatibility(w http.ResponseWriter, r *http.Request) {
+	categories := readarrCompatibilityCategories()
+	report := readarrCompatibilityReport{
+		Status:           "early_alpha",
+		Summary:          "Readarr-style probes, migration, library, wanted, release, queue, import, and common config APIs are available. Remaining work is concentrated in deeper Calibre/embedded metadata behavior and native side effects for some compatibility resources.",
+		AuthMode:         "open",
+		CompatibleRoutes: len(compatRouteRecords()),
+		Categories:       categories,
+		GeneratedAt:      time.Now().UTC(),
+	}
+	if strings.TrimSpace(h.deps.Config.APIKey) != "" {
+		report.AuthMode = "api_key"
+	}
+	for _, category := range categories {
+		switch category.Status {
+		case "ready":
+			report.ReadyAreas++
+		case "partial":
+			report.PartialAreas++
+		case "delegated":
+			report.DelegatedAreas++
+		}
+	}
+	writeJSON(w, http.StatusOK, report)
 }
 
 func (h *handler) compatSystemStatus(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +113,11 @@ func (h *handler) compatSystemStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{
+	writeJSON(w, http.StatusOK, compatRouteRecords())
+}
+
+func compatRouteRecords() []map[string]any {
+	return []map[string]any{
 		{"method": "GET", "path": "/ping"},
 		{"method": "GET", "path": "/api/v1/system/status"},
 		{"method": "GET", "path": "/api/v1/health"},
@@ -157,7 +208,76 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/command/{id}"},
 		{"method": "DELETE", "path": "/api/v1/command/{id}"},
 		{"method": "GET", "path": "/api/v1/system/task"},
-	})
+	}
+}
+
+func readarrCompatibilityCategories() []readarrCompatibilityCategory {
+	return []readarrCompatibilityCategory{
+		{
+			ID:            "system",
+			Title:         "Client probes and system state",
+			Status:        "ready",
+			EndpointCount: 19,
+			Message:       "Common Arr probes return Readarr-style payloads for status checks, health checks, route discovery, disk space, filesystem browsing, localization, logs, update, and backup calls.",
+			Examples:      []string{"/ping", "/api/v1/system/status", "/api/v1/system/routes", "/api/v1/diskspace"},
+		},
+		{
+			ID:            "library",
+			Title:         "Authors, books, wanted, and files",
+			Status:        "ready",
+			EndpointCount: 31,
+			Message:       "Author, book, wanted, missing, cutoff, bookfile, calendar, history, parse, rename, and retag surfaces map onto native monitored authors, wanted books, files, and history.",
+			Examples:      []string{"/api/v1/author", "/api/v1/book", "/api/v1/wanted/missing", "/api/v1/bookfile"},
+		},
+		{
+			ID:            "metadata",
+			Title:         "Metadata lookup and correction",
+			Status:        "ready",
+			EndpointCount: 6,
+			Message:       "Readarr lookup routes use Librarry's provider-backed metadata search, while native metadata provenance and manual overrides preserve corrected book facts.",
+			Examples:      []string{"/api/v1/author/lookup", "/api/v1/book/lookup", "/api/v1/search", "/api/v1/wanted/metadata/review"},
+		},
+		{
+			ID:            "acquisition",
+			Title:         "Release search, queue, and history",
+			Status:        "ready",
+			EndpointCount: 17,
+			Message:       "Release search/grab, queue, blocklist, command, history, failed-download recovery, feed sync, and upgrade-search calls target book acquisition workflows.",
+			Examples:      []string{"/api/v1/release", "/api/v1/queue", "/api/v1/command", "/api/v1/blocklist"},
+		},
+		{
+			ID:            "resources",
+			Title:         "Config and Arr resources",
+			Status:        "ready",
+			EndpointCount: 54,
+			Message:       "Quality profiles, quality definitions, tags, restrictions, import lists, notifications, root folders, remote path mappings, indexers, and download clients persist as compatibility records when native behavior is not needed.",
+			Examples:      []string{"/api/v1/qualityprofile", "/api/v1/rootfolder", "/api/v1/importlist", "/api/v1/notification"},
+		},
+		{
+			ID:            "migration",
+			Title:         "Readarr migration",
+			Status:        "ready",
+			EndpointCount: 2,
+			Message:       "Preview/apply import routes move existing Readarr profiles, roots, authors, books, files, tags, lists, exclusions, indexers, download clients, notifications, and restrictions into Librarry state.",
+			Examples:      []string{"/api/v1/readarr/import/preview", "/api/v1/readarr/import"},
+		},
+		{
+			ID:            "calibre-import",
+			Title:         "Calibre and post-import organization",
+			Status:        "partial",
+			EndpointCount: 9,
+			Message:       "Manual import, completed-download import, rename previews, Calibre add-book, basic set-fields, conversion starts, and conversion refresh exist; richer embedded metadata writes and Calibre-side rollback remain work in progress.",
+			Examples:      []string{"/api/v1/manualimport", "/api/v1/library/import", "/api/v1/rename", "/api/v1/library/calibre/conversions/refresh"},
+		},
+		{
+			ID:            "download-clients",
+			Title:         "Torrent and Usenet clients",
+			Status:        "delegated",
+			EndpointCount: 16,
+			Message:       "Librarry sends book releases to qBittorrent, Transmission, and SABnzbd and exposes scoped book-job controls. Full torrent or Usenet client administration stays in those native applications.",
+			Examples:      []string{"/api/v1/downloadclient", "/api/v1/downloads", "/api/v1/downloads/actions", "/api/v1/grabs"},
+		},
+	}
 }
 
 func (h *handler) compatSystemDuplicateRoutes(w http.ResponseWriter, r *http.Request) {

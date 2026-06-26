@@ -281,6 +281,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   download-client config. Download-client, indexer, notification, and import-list
   compatibility resources include schema, test, action, and bulk mutation routes
   expected by common Arr clients.
+- Native Readarr compatibility report at `/api/v1/readarr/compatibility` and in
+  the UI, separating ready, partial, and delegated areas so operators can see
+  what behaves like Readarr and what remains owned by external download clients.
 - Docker Compose and TrueNAS custom-app deployment templates.
 
 ## Metadata Strategy
@@ -525,6 +528,7 @@ Important API surfaces:
   - `GET /api/v1/providers/diagnostics`
   - `GET /api/v1/readiness`
   - `GET /api/v1/search?query=Project%20Hail%20Mary`
+  - `GET /api/v1/readarr/compatibility`
   - `POST /api/v1/readarr/import/preview`
   - `POST /api/v1/readarr/import`
   - `GET /api/v1/integrations/health`

@@ -115,6 +115,27 @@ export type ReadinessReport = {
   generatedAt: string;
 };
 
+export type ReadarrCompatibilityCategory = {
+  id: string;
+  title: string;
+  status: "ready" | "partial" | "delegated";
+  endpointCount: number;
+  message: string;
+  examples: string[];
+};
+
+export type ReadarrCompatibilityReport = {
+  status: string;
+  summary: string;
+  authMode: "open" | "api_key";
+  compatibleRoutes: number;
+  readyAreas: number;
+  partialAreas: number;
+  delegatedAreas: number;
+  categories: ReadarrCompatibilityCategory[];
+  generatedAt: string;
+};
+
 export type ReadarrImportSettings = {
   baseUrl: string;
   apiKey: string;
@@ -965,6 +986,14 @@ export async function fetchReadiness(): Promise<ReadinessReport> {
     throw new Error(await apiError(response, "Readiness failed"));
   }
   return (await response.json()) as ReadinessReport;
+}
+
+export async function fetchReadarrCompatibility(): Promise<ReadarrCompatibilityReport> {
+  const response = await fetch(`${apiBase}/api/v1/readarr/compatibility`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Readarr compatibility failed"));
+  }
+  return (await response.json()) as ReadarrCompatibilityReport;
 }
 
 export async function fetchIntegrationSettings(): Promise<IntegrationSettingsResponse> {

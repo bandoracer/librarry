@@ -54,6 +54,7 @@ import {
   fetchProviderHealth,
   fetchQualityProfiles,
   fetchReadiness,
+  fetchReadarrCompatibility,
   fetchSystemStatus,
   fetchWanted,
   fetchWantedMetadata,
@@ -130,6 +131,7 @@ import {
   type ProviderHealth,
   type ProviderMetadataRecord,
   type QualityProfile,
+  type ReadarrCompatibilityReport,
   type ReadarrImportItem,
   type ReadarrImportOutcome,
   type ReadarrImportSettings,
@@ -142,7 +144,7 @@ import {
   type UpgradeRun,
   type WantedItem
 } from "./lib/api";
-import { seedProviders, seedResults, seedWantedItems } from "./lib/seed";
+import { seedProviders, seedReadarrCompatibility, seedResults, seedWantedItems } from "./lib/seed";
 
 const navItems = [
   {
@@ -592,6 +594,7 @@ export function App() {
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
+  const [readarrCompatibility, setReadarrCompatibility] = useState<ReadarrCompatibilityReport>(seedReadarrCompatibility);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
@@ -762,12 +765,13 @@ export function App() {
   }
 
   useEffect(() => {
-    Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus(), fetchReadiness()])
-      .then(([nextProviders, nextIntegrations, nextStatus, nextReadiness]) => {
+    Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus(), fetchReadiness(), fetchReadarrCompatibility()])
+      .then(([nextProviders, nextIntegrations, nextStatus, nextReadiness, nextCompatibility]) => {
         setProviders(nextProviders);
         setIntegrations(nextIntegrations);
         setSystemStatus(nextStatus);
         setReadiness(nextReadiness);
+        setReadarrCompatibility(nextCompatibility);
         setAPIState("live");
       })
       .catch(() => {
@@ -2591,11 +2595,12 @@ export function App() {
     setSettingsError("");
     setSettingsNotice(apiKeyInput.trim() ? "API key saved for this browser." : "API key cleared for this browser.");
     try {
-      const [nextProviders, nextIntegrations, nextStatus, nextReadiness] = await Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus(), fetchReadiness()]);
+      const [nextProviders, nextIntegrations, nextStatus, nextReadiness, nextCompatibility] = await Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus(), fetchReadiness(), fetchReadarrCompatibility()]);
       setProviders(nextProviders);
       setIntegrations(nextIntegrations);
       setSystemStatus(nextStatus);
       setReadiness(nextReadiness);
+      setReadarrCompatibility(nextCompatibility);
       setAPIState("live");
     } catch (error) {
       setAPIState("offline");
@@ -2697,6 +2702,53 @@ export function App() {
                         {step.actionLabel}
                       </button>
                     ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {(activeView === "dashboard" || activeView === "providers" || activeView === "settings") ? (
+          <section className="readarr-compatibility-panel" aria-label="Readarr compatibility status">
+            <div className="readarr-compatibility-header">
+              <div>
+                <h2>Readarr compatibility</h2>
+                <p>{readarrCompatibility.summary}</p>
+              </div>
+              <div className="readarr-compatibility-metrics" aria-label="Compatibility summary">
+                <article>
+                  <span>Routes</span>
+                  <strong>{readarrCompatibility.compatibleRoutes}</strong>
+                </article>
+                <article>
+                  <span>Ready</span>
+                  <strong>{readarrCompatibility.readyAreas}</strong>
+                </article>
+                <article>
+                  <span>Partial</span>
+                  <strong>{readarrCompatibility.partialAreas}</strong>
+                </article>
+                <article>
+                  <span>Auth</span>
+                  <strong>{readarrCompatibilityAuthLabel(readarrCompatibility.authMode)}</strong>
+                </article>
+              </div>
+            </div>
+            <div className="readarr-compatibility-grid">
+              {readarrCompatibility.categories.map((category) => (
+                <article className={`readarr-compatibility-card ${category.status}`} key={category.id}>
+                  <div className="readarr-compatibility-card-heading">
+                    <span className={`status-dot ${category.status === "ready" ? "ready" : "warn"}`} />
+                    <strong>{category.title}</strong>
+                    <em>{readarrCompatibilityStatusLabel(category.status)}</em>
+                  </div>
+                  <p>{category.message}</p>
+                  <div className="readarr-compatibility-examples">
+                    <span>{category.endpointCount} endpoints</span>
+                    {category.examples.slice(0, 3).map((example) => (
+                      <code key={example}>{example}</code>
+                    ))}
                   </div>
                 </article>
               ))}
@@ -5678,6 +5730,23 @@ function uniqueDownloadResourceClients(downloads: DownloadStatus[], integrations
 
 function readinessTargetView(value: string): ViewID {
   return navItems.some((item) => item.id === value) ? (value as ViewID) : "settings";
+}
+
+function readarrCompatibilityStatusLabel(status: string) {
+  switch (status) {
+    case "ready":
+      return "Ready";
+    case "partial":
+      return "Partial";
+    case "delegated":
+      return "Delegated";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}
+
+function readarrCompatibilityAuthLabel(mode: string) {
+  return mode === "api_key" ? "API key" : "Open";
 }
 
 function downloadClientHealthRows(integrations: IntegrationHealth[]) {
