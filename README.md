@@ -90,6 +90,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Metadata search supports both book candidates and direct author identities, so
   an author can be monitored from a provider-backed author record without first
   selecting one of their books.
+- Metadata search result rows and details expose edition-level evidence before
+  acquisition: format, language, publisher/date, ISBN/ASIN identifiers, series
+  position, provider confidence, and matched fields are visible before marking a
+  book wanted.
 - Newly monitored authors are immediately eligible for a targeted bibliography
   refresh, which creates or reviews wanted books from metadata before release
   acquisition starts.

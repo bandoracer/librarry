@@ -230,11 +230,93 @@ function searchResultSubtitle(result: SearchResult) {
   if (result.kind === "author") {
     return result.work.description || result.rawSourceKey || result.provider;
   }
-  return firstAuthorName(result);
+  const parts = compactStringList([
+    firstAuthorName(result),
+    searchResultSeriesLabel(result),
+    result.work.firstPublishYear ? String(result.work.firstPublishYear) : ""
+  ]);
+  return parts.join(" · ");
 }
 
 function searchResultProviderKey(result: SearchResult) {
   return result.work.authors?.[0]?.id || result.rawSourceKey || result.work.providerIds?.[0] || result.work.id || "Unknown";
+}
+
+function searchResultEditionSummary(result: SearchResult, currentFormat: string) {
+  if (result.kind === "author") {
+    return wantedFormat(currentFormat);
+  }
+  return compactStringList([
+    result.edition?.format || "any",
+    languageLabel(result.edition?.language)
+  ]).join(" · ");
+}
+
+function searchResultEditionSubline(result: SearchResult) {
+  if (result.kind === "author") {
+    return searchResultProviderKey(result);
+  }
+  return compactStringList([
+    searchResultPublishedLabel(result),
+    searchResultIdentifierSummary(result, 1),
+    searchResultSeriesLabel(result)
+  ]).join(" · ") || "No edition evidence";
+}
+
+function searchResultPublishedLabel(result: SearchResult) {
+  return compactStringList([
+    result.edition?.publishedDate || (result.work.firstPublishYear ? String(result.work.firstPublishYear) : ""),
+    result.edition?.publisher
+  ]).join(" · ");
+}
+
+function searchResultIdentifierLabel(result: SearchResult, limit = 2) {
+  return searchResultIdentifierSummary(result, limit) || "None";
+}
+
+function searchResultIdentifierSummary(result: SearchResult, limit = 2) {
+  const identifiers = compactStringList([
+    ...(result.edition?.isbns ?? []).slice(0, limit),
+    result.edition?.asin ? `ASIN ${result.edition.asin}` : ""
+  ]);
+  const remaining = Math.max(0, (result.edition?.isbns?.length ?? 0) - limit);
+  if (!identifiers.length) return "";
+  return remaining > 0 ? `${identifiers.join(", ")} +${remaining} more` : identifiers.join(", ");
+}
+
+function searchResultSeriesLabel(result: SearchResult) {
+  if (!result.work.series) return "";
+  return compactStringList([
+    result.work.series,
+    result.work.seriesPosition ? `#${result.work.seriesPosition}` : ""
+  ]).join(" ");
+}
+
+function languageLabel(value?: string) {
+  const normalized = (value || "").trim().toLowerCase();
+  const labels: Record<string, string> = {
+    en: "English",
+    eng: "English",
+    es: "Spanish",
+    spa: "Spanish",
+    fr: "French",
+    fre: "French",
+    fra: "French",
+    de: "German",
+    ger: "German",
+    deu: "German",
+    it: "Italian",
+    ita: "Italian",
+    ja: "Japanese",
+    jpn: "Japanese",
+    pt: "Portuguese",
+    por: "Portuguese"
+  };
+  return labels[normalized] || value || "";
+}
+
+function compactStringList(values: Array<string | number | null | undefined>) {
+  return values.map((value) => String(value ?? "").trim()).filter(Boolean);
 }
 
 function emptyIntegrationSettings(): IntegrationSettings {
@@ -2797,7 +2879,7 @@ export function App() {
             <div className="result-table" role="table">
               <div className="table-row table-head" role="row">
                 <span>{searchMode === "author" ? "Author" : "Title"}</span>
-                <span>{searchMode === "author" ? "Target" : "Format"}</span>
+                <span>{searchMode === "author" ? "Target" : "Edition"}</span>
                 <span>Source</span>
                 <span>Confidence</span>
                 <span>Action</span>
@@ -2811,7 +2893,10 @@ export function App() {
                       <small>{searchResultSubtitle(result)}</small>
                     </span>
                   </button>
-                  <span>{result.kind === "author" ? wantedFormat(format) : result.edition?.format ?? "any"}</span>
+                  <span className="edition-cell">
+                    <strong>{searchResultEditionSummary(result, format)}</strong>
+                    <small>{searchResultEditionSubline(result)}</small>
+                  </span>
                   <span>{result.provider}</span>
                   <span>
                     <em className={`confidence ${result.confidence}`}>{result.confidence}</em>
@@ -2865,6 +2950,24 @@ export function App() {
                     <dt>{selected.kind === "author" ? "Target format" : "Format"}</dt>
                     <dd>{selected.kind === "author" ? wantedFormat(format) : selected.edition?.format ?? "Any"}</dd>
                   </div>
+                  {selected.kind === "author" ? null : (
+                    <div>
+                      <dt>Edition</dt>
+                      <dd>{selected.edition?.title || selected.work.title}</dd>
+                    </div>
+                  )}
+                  {selected.kind === "author" ? null : (
+                    <div>
+                      <dt>Language</dt>
+                      <dd>{languageLabel(selected.edition?.language) || "Unknown"}</dd>
+                    </div>
+                  )}
+                  {selected.kind === "author" ? null : (
+                    <div>
+                      <dt>Published</dt>
+                      <dd>{compactStringList([selected.edition?.publishedDate, selected.edition?.publisher]).join(" · ") || selected.work.firstPublishYear || "Unknown"}</dd>
+                    </div>
+                  )}
                   {selected.kind === "author" ? (
                     <div>
                       <dt>Top work</dt>
@@ -2873,19 +2976,19 @@ export function App() {
                   ) : (
                     <div>
                       <dt>Identifiers</dt>
-                      <dd>{selected.edition?.isbns?.slice(0, 2).join(", ") || "None"}</dd>
+                      <dd>{searchResultIdentifierLabel(selected, 4)}</dd>
+                    </div>
+                  )}
+                  {selected.kind === "author" ? null : (
+                    <div>
+                      <dt>Series</dt>
+                      <dd>{searchResultSeriesLabel(selected) || "None"}</dd>
                     </div>
                   )}
                   <div>
                     <dt>Matched on</dt>
                     <dd>{selected.matchedOn.join(", ")}</dd>
                   </div>
-                  {selected.kind === "author" ? null : (
-                    <div>
-                      <dt>Manual override</dt>
-                      <dd>None</dd>
-                    </div>
-                  )}
                 </dl>
 
                 <div className="author-policy-control" aria-label="Author missing-book policy">

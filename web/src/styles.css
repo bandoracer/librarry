@@ -816,7 +816,7 @@ select {
 .table-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 64px 96px 106px 168px;
+  grid-template-columns: minmax(210px, 1fr) minmax(170px, 0.78fr) 104px 106px 168px;
   align-items: center;
   gap: 10px;
   padding: 0 18px;
@@ -894,6 +894,31 @@ select {
 
 .title-cell small {
   margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.edition-cell {
+  display: grid;
+  gap: 3px;
+}
+
+.edition-cell strong,
+.edition-cell small {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edition-cell strong {
+  color: var(--text);
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.edition-cell small {
   color: var(--muted);
   font-size: 12px;
 }
@@ -4401,7 +4426,7 @@ select {
   }
 
   .table-row {
-    grid-template-columns: minmax(180px, 1fr) 82px 164px;
+    grid-template-columns: minmax(180px, 1fr) minmax(145px, 0.7fr) 164px;
   }
 
   .table-row span:nth-child(3),

@@ -26,6 +26,7 @@ export type SearchResult = {
     format: "any" | "ebook" | "audiobook";
     language?: string;
     isbns?: string[];
+    asin?: string;
     publisher?: string;
     publishedDate?: string;
   };

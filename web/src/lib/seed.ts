@@ -47,7 +47,9 @@ export const seedResults: SearchResult[] = [
       title: "Project Hail Mary",
       format: "ebook",
       language: "eng",
-      isbns: ["9780593135204", "9780593135211"]
+      isbns: ["9780593135204", "9780593135211"],
+      publisher: "Ballantine Books",
+      publishedDate: "2021-05-04"
     },
     score: 0.93,
     confidence: "high",
@@ -61,6 +63,8 @@ export const seedResults: SearchResult[] = [
       title: "Dungeon Crawler Carl",
       authors: [{ id: "openlibrary:OL3101279A", name: "Matt Dinniman" }],
       firstPublishYear: 2020,
+      series: "Dungeon Crawler Carl",
+      seriesPosition: "1",
       coverUrl: "https://covers.openlibrary.org/b/id/15143022-L.jpg"
     },
     edition: {
@@ -68,11 +72,12 @@ export const seedResults: SearchResult[] = [
       title: "Dungeon Crawler Carl",
       format: "audiobook",
       language: "eng",
-      isbns: ["9798217287161"]
+      isbns: ["9798217287161"],
+      publisher: "Audible Studios",
+      publishedDate: "2021-02-01"
     },
     score: 0.86,
     confidence: "medium",
     matchedOn: ["title"]
   }
 ];
-
