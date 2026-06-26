@@ -76,6 +76,10 @@ export type IntegrationSettingsResponse = {
 export type LibrarySettings = {
   ebookLibraryRoot: string;
   audiobookLibraryRoot: string;
+  namingAuthorFolder: string;
+  namingBookFolder: string;
+  namingFileName: string;
+  namingSpaceReplacement: string;
 };
 
 export type LibrarySettingsResponse = {

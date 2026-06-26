@@ -263,7 +263,11 @@ function integrationSettingsForm(settings: IntegrationSettings): IntegrationSett
 function emptyLibrarySettings(): LibrarySettings {
   return {
     ebookLibraryRoot: "/data/media/books/ebooks",
-    audiobookLibraryRoot: "/data/media/books/audiobooks"
+    audiobookLibraryRoot: "/data/media/books/audiobooks",
+    namingAuthorFolder: "{Author}",
+    namingBookFolder: "{Title}",
+    namingFileName: "{Title}{Ext}",
+    namingSpaceReplacement: ""
   };
 }
 
@@ -628,6 +632,7 @@ export function App() {
     [selectedImportReviewSet, visibleImportReviews]
   );
   const allImportReviewsSelected = selectableImportReviewIDs.length > 0 && selectableImportReviewIDs.every((id) => selectedImportReviewSet.has(id));
+  const libraryNamingPreview = useMemo(() => libraryNamingPreviewPath(librarySettingsForm), [librarySettingsForm]);
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
     const author = selected?.work.authors?.[0];
@@ -1959,7 +1964,7 @@ export function App() {
       setLibrarySettings(response.settings);
       setLibrarySettingsForm(response.settings);
       setLibrarySettingsPersisted(response.persisted);
-      setSettingsNotice(response.persisted ? "Library roots saved and applied." : "Library roots applied for this process. Add Postgres to persist them.");
+      setSettingsNotice(response.persisted ? "Library settings saved and applied." : "Library settings applied for this process. Add Postgres to persist them.");
       setAPIState("live");
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "Library settings save failed");
@@ -4034,7 +4039,7 @@ export function App() {
           <div className="integration-settings-panel library-settings-panel">
             <div className="integration-settings-header">
               <div>
-                <strong>Library roots</strong>
+                <strong>Library roots and naming</strong>
                 <span>
                   {librarySettingsPersisted ? "Postgres" : "runtime"} · ebooks {librarySettings.ebookLibraryRoot || "unset"} · audio{" "}
                   {librarySettings.audiobookLibraryRoot || "unset"}
@@ -4060,12 +4065,19 @@ export function App() {
                 </button>
                 <button
                   className="primary-action compact"
-                  disabled={isSavingLibrarySettings || !librarySettingsForm.ebookLibraryRoot.trim() || !librarySettingsForm.audiobookLibraryRoot.trim()}
+                  disabled={
+                    isSavingLibrarySettings ||
+                    !librarySettingsForm.ebookLibraryRoot.trim() ||
+                    !librarySettingsForm.audiobookLibraryRoot.trim() ||
+                    !librarySettingsForm.namingAuthorFolder.trim() ||
+                    !librarySettingsForm.namingBookFolder.trim() ||
+                    !librarySettingsForm.namingFileName.trim()
+                  }
                   onClick={persistLibrarySettings}
                   type="button"
                 >
                   <CheckCircle2 size={16} />
-                  {isSavingLibrarySettings ? "Saving" : "Save roots"}
+                  {isSavingLibrarySettings ? "Saving" : "Save library"}
                 </button>
               </div>
             </div>
@@ -4078,6 +4090,26 @@ export function App() {
                 <span>Audiobook library root</span>
                 <input value={librarySettingsForm.audiobookLibraryRoot} onChange={(event) => updateLibrarySettingsForm({ audiobookLibraryRoot: event.target.value })} placeholder="/data/media/books/audiobooks" />
               </label>
+              <label>
+                <span>Author folder</span>
+                <input value={librarySettingsForm.namingAuthorFolder} onChange={(event) => updateLibrarySettingsForm({ namingAuthorFolder: event.target.value })} placeholder="{Author}" />
+              </label>
+              <label>
+                <span>Book folder</span>
+                <input value={librarySettingsForm.namingBookFolder} onChange={(event) => updateLibrarySettingsForm({ namingBookFolder: event.target.value })} placeholder="{Title}" />
+              </label>
+              <label>
+                <span>File name</span>
+                <input value={librarySettingsForm.namingFileName} onChange={(event) => updateLibrarySettingsForm({ namingFileName: event.target.value })} placeholder="{Title}{Ext}" />
+              </label>
+              <label>
+                <span>Space replacement</span>
+                <input value={librarySettingsForm.namingSpaceReplacement} onChange={(event) => updateLibrarySettingsForm({ namingSpaceReplacement: event.target.value })} placeholder="Optional" />
+              </label>
+              <div className="library-naming-preview">
+                <span>Preview</span>
+                <strong title={libraryNamingPreview}>{libraryNamingPreview}</strong>
+              </div>
             </div>
           </div>
           <div className="integration-settings-panel">
@@ -5059,6 +5091,40 @@ function bytesToGiB(bytes: number) {
 function giBToBytes(value: number) {
   if (!value || value < 0) return 0;
   return Math.round(value * 1024 * 1024 * 1024);
+}
+
+function libraryNamingPreviewPath(settings: LibrarySettings) {
+  const values = {
+    Author: "Andy Weir",
+    Title: "Project Hail Mary",
+    Format: "ebook",
+    Ext: ".epub"
+  };
+  const replacement = settings.namingSpaceReplacement.trim();
+  const root = settings.ebookLibraryRoot.trim() || "/data/media/books/ebooks";
+  const authorSegments = libraryTemplateSegments(settings.namingAuthorFolder || "{Author}", values, replacement);
+  const bookSegments = libraryTemplateSegments(settings.namingBookFolder || "{Title}", values, replacement);
+  let fileName = renderLibraryTemplate(settings.namingFileName || "{Title}{Ext}", values, replacement);
+  if (!fileName.toLowerCase().endsWith(values.Ext)) fileName += values.Ext;
+  return [root, ...authorSegments, ...bookSegments, fileName].join("/");
+}
+
+function libraryTemplateSegments(template: string, values: Record<string, string>, replacement: string) {
+  const segments = template
+    .split(/[\\/]/)
+    .map((segment) => renderLibraryTemplate(segment, values, replacement))
+    .filter((segment) => segment && segment !== "." && segment !== "..");
+  return segments.length ? segments : ["Unknown"];
+}
+
+function renderLibraryTemplate(template: string, values: Record<string, string>, replacement: string) {
+  let rendered = template.trim() || "{Title}";
+  for (const [key, value] of Object.entries(values)) {
+    rendered = rendered.split(`{${key}}`).join(value).split(`{${key.toLowerCase()}}`).join(value);
+  }
+  rendered = rendered.replace(/[<>:"|?*\x00-\x1f]/g, "-").replace(/\s+/g, " ").trim();
+  if (replacement) rendered = rendered.split(" ").join(replacement);
+  return rendered || "Unknown";
 }
 
 function limitBytesToKiBInput(value?: number) {

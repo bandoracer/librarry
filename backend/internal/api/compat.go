@@ -4429,11 +4429,15 @@ func mergeCompatPayload(base map[string]any, updates map[string]any) map[string]
 }
 
 func (h *handler) compatNamingConfigRecord(overrides map[string]any) map[string]any {
-	authorFolder := firstNonEmptyString(payloadString(overrides, "authorFolderFormat"), payloadString(overrides, "authorFolderTemplate"), h.deps.Config.NamingAuthorFolder)
-	bookFolder := firstNonEmptyString(payloadString(overrides, "bookFolderFormat"), payloadString(overrides, "bookFolderTemplate"), h.deps.Config.NamingBookFolder)
-	fileName := firstNonEmptyString(payloadString(overrides, "standardBookFormat"), payloadString(overrides, "fileNameFormat"), h.deps.Config.NamingFileName)
-	spaceReplacement := firstNonEmptyString(payloadString(overrides, "replaceSpacesWith"), h.deps.Config.NamingSpaceReplacement)
+	defaults := h.defaultLibraryNamingConfig()
+	authorFolder := firstNonEmptyString(payloadString(overrides, "librarryAuthorFolderTemplate"), payloadString(overrides, "authorFolderFormat"), payloadString(overrides, "authorFolderTemplate"), defaults.NamingAuthorFolderTemplate)
+	bookFolder := firstNonEmptyString(payloadString(overrides, "librarryBookFolderTemplate"), payloadString(overrides, "bookFolderFormat"), payloadString(overrides, "bookFolderTemplate"), defaults.NamingBookFolderTemplate)
+	fileName := firstNonEmptyString(payloadString(overrides, "librarryFileNameTemplate"), payloadString(overrides, "standardBookFormat"), payloadString(overrides, "fileNameFormat"), defaults.NamingFileNameTemplate)
+	spaceReplacement := firstNonEmptyString(payloadString(overrides, "replaceSpacesWith"), defaults.NamingSpaceReplacement)
 	replaceSpaces := payloadBoolDefault(overrides, "replaceSpaces", spaceReplacement != "")
+	if !replaceSpaces {
+		spaceReplacement = ""
+	}
 	return map[string]any{
 		"id":                           1,
 		"renameBooks":                  payloadBoolDefault(overrides, "renameBooks", true),
@@ -4452,6 +4456,18 @@ func (h *handler) compatNamingConfigRecord(overrides map[string]any) map[string]
 		"librarryBookFolderTemplate":   defaultString(bookFolder, "{Title}"),
 		"librarryFileNameTemplate":     defaultString(fileName, "{Title}{Ext}"),
 	}
+}
+
+func (h *handler) defaultLibraryNamingConfig() library.Config {
+	if configurable, ok := h.deps.Library.(configurableLibraryService); ok {
+		return library.NormalizeConfig(configurable.Config())
+	}
+	return library.NormalizeConfig(library.Config{
+		NamingAuthorFolderTemplate: h.deps.Config.NamingAuthorFolder,
+		NamingBookFolderTemplate:   h.deps.Config.NamingBookFolder,
+		NamingFileNameTemplate:     h.deps.Config.NamingFileName,
+		NamingSpaceReplacement:     h.deps.Config.NamingSpaceReplacement,
+	})
 }
 
 func (h *handler) compatMediaManagementConfigRecord(overrides map[string]any) map[string]any {

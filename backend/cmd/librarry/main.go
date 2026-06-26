@@ -114,6 +114,11 @@ func main() {
 		} else {
 			libraryConfig = library.ConfigWithRootFolders(libraryConfig, roots)
 		}
+		if resource, ok, err := compatStore.GetResource(ctx, "config-naming", 1); err != nil {
+			logger.Warn("persisted library naming unavailable", "error", err)
+		} else if ok {
+			libraryConfig = library.ConfigWithNamingRecord(libraryConfig, resource.Payload)
+		}
 	}
 	var rootFolders library.RootFolderProvider
 	if compatStore != nil {

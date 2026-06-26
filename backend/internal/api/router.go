@@ -529,8 +529,12 @@ func (h *handler) effectiveIntegrationConfig(ctx context.Context) (acquisition.I
 }
 
 type libraryConfigSettings struct {
-	EbookLibraryRoot     string `json:"ebookLibraryRoot"`
-	AudiobookLibraryRoot string `json:"audiobookLibraryRoot"`
+	EbookLibraryRoot       string `json:"ebookLibraryRoot"`
+	AudiobookLibraryRoot   string `json:"audiobookLibraryRoot"`
+	NamingAuthorFolder     string `json:"namingAuthorFolder"`
+	NamingBookFolder       string `json:"namingBookFolder"`
+	NamingFileName         string `json:"namingFileName"`
+	NamingSpaceReplacement string `json:"namingSpaceReplacement"`
 }
 
 func (h *handler) libraryConfig(w http.ResponseWriter, r *http.Request) {
@@ -567,6 +571,10 @@ func (h *handler) updateLibraryConfig(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 			return
 		}
+		if err := h.saveLibraryNamingConfig(r.Context(), next); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
 	}
 	if configurable, ok := h.deps.Library.(configurableLibraryService); ok {
 		configurable.Reconfigure(next)
@@ -596,14 +604,26 @@ func (h *handler) effectiveLibraryConfig(ctx context.Context) (library.Config, e
 	if err != nil {
 		return library.Config{}, err
 	}
-	return library.ConfigWithRootFolders(base, roots), nil
+	config := library.ConfigWithRootFolders(base, roots)
+	resource, ok, err := h.deps.Compat.GetResource(ctx, "config-naming", 1)
+	if err != nil {
+		return library.Config{}, err
+	}
+	if ok {
+		config = library.ConfigWithNamingRecord(config, resource.Payload)
+	}
+	return config, nil
 }
 
 func libraryConfigSettingsFromConfig(config library.Config) libraryConfigSettings {
 	config = library.NormalizeConfig(config)
 	return libraryConfigSettings{
-		EbookLibraryRoot:     config.EbookRoot,
-		AudiobookLibraryRoot: config.AudiobookRoot,
+		EbookLibraryRoot:       config.EbookRoot,
+		AudiobookLibraryRoot:   config.AudiobookRoot,
+		NamingAuthorFolder:     config.NamingAuthorFolderTemplate,
+		NamingBookFolder:       config.NamingBookFolderTemplate,
+		NamingFileName:         config.NamingFileNameTemplate,
+		NamingSpaceReplacement: config.NamingSpaceReplacement,
 	}
 }
 
@@ -617,8 +637,24 @@ func applyLibraryConfigSettings(current library.Config, settings libraryConfigSe
 	if audiobookRoot == "" {
 		return library.Config{}, errors.New("audiobook library root is required")
 	}
+	authorFolder := strings.TrimSpace(settings.NamingAuthorFolder)
+	bookFolder := strings.TrimSpace(settings.NamingBookFolder)
+	fileName := strings.TrimSpace(settings.NamingFileName)
+	if authorFolder == "" {
+		return library.Config{}, errors.New("author folder naming template is required")
+	}
+	if bookFolder == "" {
+		return library.Config{}, errors.New("book folder naming template is required")
+	}
+	if fileName == "" {
+		return library.Config{}, errors.New("file naming template is required")
+	}
 	next.EbookRoot = ebookRoot
 	next.AudiobookRoot = audiobookRoot
+	next.NamingAuthorFolderTemplate = authorFolder
+	next.NamingBookFolderTemplate = bookFolder
+	next.NamingFileNameTemplate = fileName
+	next.NamingSpaceReplacement = strings.TrimSpace(settings.NamingSpaceReplacement)
 	return next, nil
 }
 
@@ -664,6 +700,42 @@ func (h *handler) saveLibraryRootFolders(ctx context.Context, config library.Con
 		saved = append(saved, created)
 	}
 	return saved, nil
+}
+
+func (h *handler) saveLibraryNamingConfig(ctx context.Context, config library.Config) error {
+	if h.deps.Compat == nil {
+		return nil
+	}
+	config = library.NormalizeConfig(config)
+	_, err := h.deps.Compat.UpsertResource(ctx, compatdata.Resource{
+		ResourceType: "config-naming",
+		CompatID:     1,
+		Name:         "naming config",
+		Payload:      h.libraryNamingPayload(config),
+	})
+	return err
+}
+
+func (h *handler) libraryNamingPayload(config library.Config) map[string]any {
+	config = library.NormalizeConfig(config)
+	return map[string]any{
+		"id":                           1,
+		"renameBooks":                  true,
+		"replaceIllegalCharacters":     true,
+		"colonReplacementFormat":       "delete",
+		"standardBookFormat":           config.NamingFileNameTemplate,
+		"authorFolderFormat":           config.NamingAuthorFolderTemplate,
+		"bookFolderFormat":             config.NamingBookFolderTemplate,
+		"includeAuthorName":            strings.Contains(config.NamingFileNameTemplate, "{Author}"),
+		"includeBookTitle":             strings.Contains(config.NamingFileNameTemplate, "{Title}"),
+		"includeQuality":               false,
+		"replaceSpaces":                config.NamingSpaceReplacement != "",
+		"replaceSpacesWith":            config.NamingSpaceReplacement,
+		"multiAuthorStyle":             "standard",
+		"librarryAuthorFolderTemplate": config.NamingAuthorFolderTemplate,
+		"librarryBookFolderTemplate":   config.NamingBookFolderTemplate,
+		"librarryFileNameTemplate":     config.NamingFileNameTemplate,
+	}
 }
 
 func libraryRootFolderForFormat(roots []compatdata.RootFolder, format string) (compatdata.RootFolder, bool) {

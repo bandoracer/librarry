@@ -92,10 +92,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.
-- Native library-root settings API and UI for persisted ebook and audiobook
-  import roots. Saved roots reconfigure scans/import destinations immediately,
-  are written as Readarr-compatible root-folder records, and are loaded again on
-  restart.
+- Native library settings API and UI for persisted ebook/audiobook import roots
+  and naming templates. Saved settings reconfigure scans, imports, and rename
+  previews immediately, are written as Readarr-compatible root-folder and naming
+  config records, and are loaded again on restart.
 - Native wanted metadata correction for title, author, cover URL, quality
   profile, and monitoring state, with `manual_overrides` persistence so provider
   refreshes do not overwrite corrected display metadata. Wanted payloads include
@@ -170,7 +170,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Readarr-compatible calendar, history, and parse endpoints mapped from wanted
   items and Librarry history events.
 - Configurable library naming templates for author folder, book folder, file
-  name, and optional space replacement.
+  name, and optional space replacement through both Settings and
+  `/api/v1/library/config`.
 - Failed-download recovery for qBittorrent error/missing-file states and stale
   no-seed stalled downloads, with replacement search/grab and optional removal
   of failed torrents.

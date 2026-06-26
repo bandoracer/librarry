@@ -3390,7 +3390,11 @@ func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) 
 	})
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/library/config", strings.NewReader(`{
 		"ebookLibraryRoot":"/srv/media/books/ebooks",
-		"audiobookLibraryRoot":"/srv/media/books/audiobooks"
+		"audiobookLibraryRoot":"/srv/media/books/audiobooks",
+		"namingAuthorFolder":"{Author}/{Format}",
+		"namingBookFolder":"{Title} ({Format})",
+		"namingFileName":"{Author} - {Title}{Ext}",
+		"namingSpaceReplacement":"_"
 	}`))
 	res := httptest.NewRecorder()
 
@@ -3404,6 +3408,9 @@ func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) 
 	}
 	if libraryService.config.EbookRoot != "/srv/media/books/ebooks" || libraryService.config.AudiobookRoot != "/srv/media/books/audiobooks" {
 		t.Fatalf("expected library roots to apply, got %+v", libraryService.config)
+	}
+	if libraryService.config.NamingAuthorFolderTemplate != "{Author}/{Format}" || libraryService.config.NamingBookFolderTemplate != "{Title} ({Format})" || libraryService.config.NamingFileNameTemplate != "{Author} - {Title}{Ext}" || libraryService.config.NamingSpaceReplacement != "_" {
+		t.Fatalf("expected library naming to apply, got %+v", libraryService.config)
 	}
 	if len(compatResources.roots) != 2 {
 		t.Fatalf("expected persisted ebook and audiobook roots, got %#v", compatResources.roots)
@@ -3430,6 +3437,24 @@ func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) 
 	}
 	if !strings.Contains(res.Body.String(), `"/srv/media/books/ebooks"`) || strings.Contains(res.Body.String(), `"/data/media/books/ebooks"`) {
 		t.Fatalf("expected Readarr root folders to reflect effective library roots, got %s", res.Body.String())
+	}
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/config/naming", nil)
+	res = httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected naming config 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"authorFolderFormat":"{Author}/{Format}"`) || !strings.Contains(res.Body.String(), `"standardBookFormat":"{Author} - {Title}{Ext}"`) || !strings.Contains(res.Body.String(), `"replaceSpacesWith":"_"`) {
+		t.Fatalf("expected Readarr naming config to reflect native library naming, got %s", res.Body.String())
+	}
+	naming, ok, err := compatResources.GetResource(context.Background(), "config-naming", 1)
+	if err != nil || !ok {
+		t.Fatalf("expected persisted naming resource, ok=%v err=%v", ok, err)
+	}
+	if payloadString(naming.Payload, "standardBookFormat") != "{Author} - {Title}{Ext}" {
+		t.Fatalf("unexpected naming payload: %#v", naming.Payload)
 	}
 }
 
