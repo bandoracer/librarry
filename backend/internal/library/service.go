@@ -64,6 +64,11 @@ type importReviewWantedCandidate struct {
 	Reason        string   `json:"reason,omitempty"`
 }
 
+type completedImportAutoMatch struct {
+	WantedID string
+	Message  string
+}
+
 type Service struct {
 	store       *Store
 	config      Config
@@ -572,6 +577,26 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 		result.SourcePath = sourcePath
 		format = firstNonEmpty(formatFromDownload(download), format)
 		if strings.TrimSpace(result.WantedID) == "" {
+			if completedImportAutoMatchEnabled(request) {
+				match, err := s.completedImportAutoMatch(ctx, sourcePath, format)
+				if err != nil {
+					result.Status = "error"
+					result.Message = err.Error()
+					outcome.Errored++
+					if s.downloads != nil {
+						_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+					}
+					outcome.Results = append(outcome.Results, result)
+					continue
+				}
+				if match.WantedID != "" {
+					result.WantedID = match.WantedID
+					result.AutoMatched = true
+					result.Message = match.Message
+				}
+			}
+		}
+		if strings.TrimSpace(result.WantedID) == "" {
 			review, err := s.queueImportReview(ctx, download, sourcePath, format, "download is not linked to a wanted item")
 			if err != nil {
 				result.Status = "error"
@@ -619,8 +644,14 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			continue
 		}
 		result.Status = "imported"
+		if result.AutoMatched && result.Message == "" {
+			result.Message = "auto-matched unique high-confidence wanted item"
+		}
 		result.Import = &imported
 		outcome.Imported++
+		if result.AutoMatched {
+			outcome.AutoMatched++
+		}
 		if s.downloads != nil {
 			_ = s.downloads.MarkDownloadImported(ctx, download.ID, imported.File.ID)
 		}
@@ -1292,6 +1323,45 @@ func (s *Service) queueImportReview(ctx context.Context, download acquisition.Do
 		Status:      "pending",
 		Metadata:    metadata,
 	})
+}
+
+func completedImportAutoMatchEnabled(request CompletedImportRequest) bool {
+	if request.AutoMatch == nil {
+		return true
+	}
+	return *request.AutoMatch
+}
+
+func (s *Service) completedImportAutoMatch(ctx context.Context, sourcePath string, format string) (completedImportAutoMatch, error) {
+	source := filepath.Clean(strings.TrimSpace(sourcePath))
+	if source == "." || source == "" {
+		return completedImportAutoMatch{}, errors.New("import source path is required")
+	}
+	if _, err := os.Stat(source); err != nil {
+		return completedImportAutoMatch{}, err
+	}
+	filenameParsed := parseBookFilename(source)
+	localMetadata := localBookMetadataForPath(source)
+	parsed := parsedBook{
+		Title:      firstNonEmpty(localMetadata.Title, filenameParsed.Title),
+		AuthorName: firstNonEmpty(localMetadata.AuthorName, filenameParsed.AuthorName),
+	}
+	if strings.TrimSpace(parsed.Title) == "" {
+		return completedImportAutoMatch{}, nil
+	}
+	candidates, suggestedID := s.importReviewWantedCandidates(ctx, parsed, format)
+	if strings.TrimSpace(suggestedID) == "" {
+		return completedImportAutoMatch{}, nil
+	}
+	for _, candidate := range candidates {
+		if candidate.WantedID == suggestedID {
+			return completedImportAutoMatch{
+				WantedID: suggestedID,
+				Message:  "auto-matched " + importReviewCandidateValue(candidate),
+			}, nil
+		}
+	}
+	return completedImportAutoMatch{WantedID: suggestedID, Message: "auto-matched unique high-confidence wanted item"}, nil
 }
 
 func importReviewMetadata(source string, info fs.FileInfo, format string, download acquisition.DownloadStatus, parsed parsedBook, filenameParsed parsedBook, localMetadata localBookMetadata, reason string) map[string]any {

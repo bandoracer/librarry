@@ -85,12 +85,14 @@ type CompletedImportRequest struct {
 	ImportMode     string   `json:"importMode,omitempty"`
 	ConflictAction string   `json:"conflictAction,omitempty"`
 	Overwrite      bool     `json:"overwrite,omitempty"`
+	AutoMatch      *bool    `json:"autoMatch,omitempty"`
 	Limit          int      `json:"limit,omitempty"`
 }
 
 type CompletedImportOutcome struct {
 	Checked      int                    `json:"checked"`
 	Imported     int                    `json:"imported"`
+	AutoMatched  int                    `json:"autoMatched"`
 	ReviewQueued int                    `json:"reviewQueued"`
 	Skipped      int                    `json:"skipped"`
 	Errored      int                    `json:"errored"`
@@ -174,13 +176,14 @@ type CalibreConversionRefreshResult struct {
 }
 
 type DownloadImportResult struct {
-	Download   acquisition.DownloadStatus `json:"download"`
-	Status     string                     `json:"status"`
-	Message    string                     `json:"message,omitempty"`
-	SourcePath string                     `json:"sourcePath,omitempty"`
-	WantedID   string                     `json:"wantedId,omitempty"`
-	Import     *ImportOutcome             `json:"import,omitempty"`
-	Review     *ImportReview              `json:"review,omitempty"`
+	Download    acquisition.DownloadStatus `json:"download"`
+	Status      string                     `json:"status"`
+	Message     string                     `json:"message,omitempty"`
+	SourcePath  string                     `json:"sourcePath,omitempty"`
+	WantedID    string                     `json:"wantedId,omitempty"`
+	AutoMatched bool                       `json:"autoMatched,omitempty"`
+	Import      *ImportOutcome             `json:"import,omitempty"`
+	Review      *ImportReview              `json:"review,omitempty"`
 }
 
 type ReviewListQuery struct {

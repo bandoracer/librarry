@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -220,6 +221,49 @@ func TestImportReviewWantedCandidatesDoNotSuggestAmbiguousMatch(t *testing.T) {
 	}
 	if len(candidates) != 2 {
 		t.Fatalf("expected both format candidates, got %#v", candidates)
+	}
+}
+
+func TestCompletedImportAutoMatchDefaultsOnAndCanBeDisabled(t *testing.T) {
+	if !completedImportAutoMatchEnabled(CompletedImportRequest{}) {
+		t.Fatal("expected completed import auto-match to default on")
+	}
+	disabled := false
+	if completedImportAutoMatchEnabled(CompletedImportRequest{AutoMatch: &disabled}) {
+		t.Fatal("expected explicit autoMatch false to disable automatic matching")
+	}
+	enabled := true
+	if !completedImportAutoMatchEnabled(CompletedImportRequest{AutoMatch: &enabled}) {
+		t.Fatal("expected explicit autoMatch true to enable automatic matching")
+	}
+}
+
+func TestCompletedImportAutoMatchFindsUniqueHighConfidenceWantedItem(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Matt Dinniman - Dungeon Crawler Carl.epub")
+	if err := os.WriteFile(path, []byte("book"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	service := &Service{wanted: fakeImportWantedStore{items: []wanted.WantedItem{{
+		ID:         "wanted-1",
+		Title:      "Dungeon Crawler Carl",
+		AuthorName: "Matt Dinniman",
+		Format:     "ebook",
+		Status:     "wanted",
+	}, {
+		ID:         "wanted-2",
+		Title:      "Carl's Doomsday Scenario",
+		AuthorName: "Matt Dinniman",
+		Format:     "ebook",
+		Status:     "wanted",
+	}}}}
+
+	match, err := service.completedImportAutoMatch(context.Background(), path, "ebook")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if match.WantedID != "wanted-1" || !strings.Contains(match.Message, "Dungeon Crawler Carl") {
+		t.Fatalf("expected unique high-confidence auto-match, got %+v", match)
 	}
 }
 

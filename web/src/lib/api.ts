@@ -839,6 +839,7 @@ export type DownloadImportResult = {
   message?: string;
   sourcePath?: string;
   wantedId?: string;
+  autoMatched?: boolean;
   import?: LibraryImportOutcome;
   review?: ImportReview;
 };
@@ -846,6 +847,7 @@ export type DownloadImportResult = {
 export type CompletedImportOutcome = {
   checked: number;
   imported: number;
+  autoMatched: number;
   reviewQueued: number;
   skipped: number;
   errored: number;
@@ -1780,6 +1782,7 @@ export async function importCompletedDownloads(options: {
   importMode?: "copy" | "move" | "hardlink" | "hardlinkOrCopy";
   conflictAction?: "rename" | "replace" | "skip" | "fail";
   overwrite?: boolean;
+  autoMatch?: boolean;
   limit?: number;
 } = {}): Promise<CompletedImportOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import-completed`, {
@@ -1791,6 +1794,7 @@ export async function importCompletedDownloads(options: {
       importMode: options.importMode,
       conflictAction: options.conflictAction,
       overwrite: options.overwrite ?? false,
+      autoMatch: options.autoMatch ?? true,
       limit: options.limit ?? 50
     })
   });

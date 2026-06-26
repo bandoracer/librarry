@@ -3372,7 +3372,7 @@ export function App() {
           {completedImport ? (
             <div className="library-import-result">
               <strong>
-                Completed import: {completedImport.imported} imported, {completedImport.reviewQueued} review, {completedImport.skipped} skipped,{" "}
+                Completed import: {completedImport.imported} imported, {completedImport.autoMatched} auto, {completedImport.reviewQueued} review, {completedImport.skipped} skipped,{" "}
                 {completedImport.errored} errors
               </strong>
               <span>{completedImport.checked} downloads checked from the Librarry queue.</span>
