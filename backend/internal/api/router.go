@@ -140,6 +140,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/queue", handler.compatQueue)
 	mux.HandleFunc("GET /api/v1/queue/details", handler.compatQueueDetails)
 	mux.HandleFunc("GET /api/v1/queue/status", handler.compatQueueStatus)
+	mux.HandleFunc("POST /api/v1/queue/grab/bulk", handler.compatGrabQueueBulk)
+	mux.HandleFunc("POST /api/v1/queue/grab/{id}", handler.compatGrabQueue)
 	mux.HandleFunc("DELETE /api/v1/queue/{id}", handler.compatDeleteQueue)
 	mux.HandleFunc("DELETE /api/v1/queue/bulk", handler.compatDeleteQueueBulk)
 	mux.HandleFunc("GET /api/v1/blocklist", handler.compatBlocklist)

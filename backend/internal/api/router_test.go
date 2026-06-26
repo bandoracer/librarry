@@ -247,11 +247,12 @@ func TestCompatRootFolderPersistenceEndpoints(t *testing.T) {
 }
 
 func TestCompatQueueEndpoints(t *testing.T) {
+	actionAcquire := &fakeActionAcquire{}
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
 		Config:   config.Config{WebOrigin: "*"},
 		Metadata: metadata.NewService(nil),
-		Acquire:  fakeAcquire{},
+		Acquire:  actionAcquire,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/queue?page=1&pageSize=1", nil)
@@ -272,6 +273,29 @@ func TestCompatQueueEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(res.Body.String(), `"totalCount":1`) {
 		t.Fatalf("expected queue status payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/queue/grab/abc123", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"action":"start"`) || !strings.Contains(res.Body.String(), `"abc123"`) {
+		t.Fatalf("expected queue grab result, got %s", res.Body.String())
+	}
+	if len(actionAcquire.requests) != 1 || actionAcquire.requests[0].Action != acquisition.DownloadActionStart || actionAcquire.requests[0].IDs[0] != "abc123" {
+		t.Fatalf("expected queue grab to start abc123, got %+v", actionAcquire.requests)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/queue/grab/bulk", strings.NewReader(`{"ids":["abc123","def456"],"client":"qBittorrent"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(actionAcquire.requests) != 2 || actionAcquire.requests[1].Action != acquisition.DownloadActionStart || strings.Join(actionAcquire.requests[1].IDs, ",") != "abc123,def456" {
+		t.Fatalf("expected bulk queue grab to start both ids, got %+v", actionAcquire.requests)
 	}
 }
 

@@ -61,6 +61,8 @@ Initial API surface:
   - `GET /api/v1/queue`
   - `GET /api/v1/queue/details`
   - `GET /api/v1/queue/status`
+  - `POST /api/v1/queue/grab/{id}`
+  - `POST /api/v1/queue/grab/bulk`
   - `DELETE /api/v1/queue/{id}`
   - `DELETE /api/v1/queue/bulk`
   - `GET /api/v1/blocklist`

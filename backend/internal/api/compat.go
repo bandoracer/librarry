@@ -88,7 +88,12 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "GET", "path": "/api/v1/parse"},
 		{"method": "GET", "path": "/api/v1/rootfolder"},
 		{"method": "GET", "path": "/api/v1/queue"},
+		{"method": "GET", "path": "/api/v1/queue/details"},
 		{"method": "GET", "path": "/api/v1/queue/status"},
+		{"method": "POST", "path": "/api/v1/queue/grab/{id}"},
+		{"method": "POST", "path": "/api/v1/queue/grab/bulk"},
+		{"method": "DELETE", "path": "/api/v1/queue/{id}"},
+		{"method": "DELETE", "path": "/api/v1/queue/bulk"},
 		{"method": "GET", "path": "/api/v1/blocklist"},
 		{"method": "DELETE", "path": "/api/v1/blocklist/{id}"},
 		{"method": "DELETE", "path": "/api/v1/blocklist/bulk"},
@@ -649,6 +654,70 @@ func (h *handler) compatQueueStatus(w http.ResponseWriter, r *http.Request) {
 		"unknownCount": unknownCount,
 		"errors":       errors,
 		"warnings":     warnings,
+	})
+}
+
+func (h *handler) compatGrabQueue(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "queue id is required"})
+		return
+	}
+	result, err := h.deps.Acquire.DownloadAction(r.Context(), acquisition.DownloadActionRequest{
+		Action: acquisition.DownloadActionStart,
+		Client: r.URL.Query().Get("client"),
+		IDs:    []string{id},
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	h.writeCompatQueueActionResult(w, result, true)
+}
+
+func (h *handler) compatGrabQueueBulk(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Acquire == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "acquisition service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	payload := map[string]any{}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid queue grab bulk payload"})
+		return
+	}
+	ids := payloadStringList(payload, "ids", "queueIds", "queueIDs")
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "ids is required"})
+		return
+	}
+	result, err := h.deps.Acquire.DownloadAction(r.Context(), acquisition.DownloadActionRequest{
+		Action: acquisition.DownloadActionStart,
+		Client: firstNonEmptyString(payloadString(payload, "client"), payloadString(payload, "downloadClient"), r.URL.Query().Get("client")),
+		IDs:    ids,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	h.writeCompatQueueActionResult(w, result, false)
+}
+
+func (h *handler) writeCompatQueueActionResult(w http.ResponseWriter, result acquisition.DownloadActionResult, single bool) {
+	records := compatQueueRecords(result.Downloads)
+	if single && len(records) == 1 {
+		writeJSON(w, http.StatusOK, records[0])
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"action":  result.Action,
+		"ids":     result.IDs,
+		"applied": result.Applied,
+		"records": records,
 	})
 }
 
