@@ -168,10 +168,12 @@ recheck, priority movement, force-start, sequential-download toggle,
 first/last-piece priority toggle, rename, tag add/remove, category changes, and
 location changes for qBittorrent, plus per-torrent download and upload speed
 limits. Transmission supports start, stop, delete, recheck, set location,
-labels, and per-torrent speed limits. `GET
-/api/v1/downloads/{id}` returns qBittorrent properties, files, trackers, and
-peers; `/api/v1/downloads/{id}/files/actions` changes file priority, and
-`/api/v1/downloads/{id}/trackers/actions` adds, replaces, or removes trackers.
+labels, per-torrent speed limits, detail inspection, and file-priority changes.
+`GET /api/v1/downloads/{id}` returns qBittorrent and Transmission properties,
+files, trackers, and peers; `/api/v1/downloads/{id}/files/actions` changes file
+priority for qBittorrent and Transmission, and
+`/api/v1/downloads/{id}/trackers/actions` adds, replaces, or removes
+qBittorrent trackers.
 SABnzbd queue actions currently support start, stop, and delete. This is still a
 book-acquisition manager, not a full qBittorrent UI replacement.
 

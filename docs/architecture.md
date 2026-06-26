@@ -295,19 +295,19 @@ toggle, first/last-piece priority toggle, rename, tag add/remove, category
 changes, and location changes, plus delete-with-data removal and per-torrent
 download and upload speed limits. The Downloads page filters by client, state,
 category, and text, and uses the same native actions for name, tags, category,
-save-path, bandwidth, tracker, file, and bulk queue controls. qBittorrent
-details are exposed through
+save-path, bandwidth, tracker, file, and bulk queue controls. qBittorrent and
+Transmission details are exposed through
 `/api/v1/downloads/{id}` with properties, peer state, tracker state, and torrent
-file lists. Per-file
-qBittorrent priority changes are exposed through
-`/api/v1/downloads/{id}/files/actions` for skip/normal/high/max file selection.
-Tracker add/edit/remove actions are exposed through
-`/api/v1/downloads/{id}/trackers/actions`. `/api/v1/downloads/rebalance` adds a
-simple active-download limiter that can preview or apply start/stop operations
-against a filtered queue. Transmission actions support start, stop,
-delete, recheck, set location, and per-torrent speed limits. SABnzbd actions
-currently support start, stop, and delete. The API accepts multiple download IDs
-for these actions, routes
+file lists. Per-file priority changes are exposed through
+`/api/v1/downloads/{id}/files/actions` for qBittorrent and Transmission
+skip/normal/high/max file selection. Tracker add/edit/remove actions are exposed
+through `/api/v1/downloads/{id}/trackers/actions` for qBittorrent torrents.
+`/api/v1/downloads/rebalance` adds a simple active-download limiter that can
+preview or apply start/stop operations against a filtered queue. Transmission
+actions support start, stop, delete, recheck, set location, per-torrent speed
+limits, detail inspection, and file-priority changes. SABnzbd actions currently
+support start, stop, and delete. The API accepts multiple download IDs for these
+actions, routes
 each ID back to its owning client when possible, and the web UI exposes
 selected-row bulk controls for the common queue operations. The current manager
 is intended for Librarry acquisition operations, not as a full replacement for a

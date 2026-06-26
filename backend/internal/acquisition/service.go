@@ -11,7 +11,7 @@ import (
 
 var ErrIntegrationNotConfigured = errors.New("integration is not configured")
 var ErrDownloadNotFound = errors.New("download not found")
-var ErrDownloadDetailsUnsupported = errors.New("download details are only supported for qBittorrent downloads")
+var ErrDownloadDetailsUnsupported = errors.New("download details are only supported for qBittorrent and Transmission downloads")
 
 type IntegrationConfig struct {
 	ProwlarrURL       string
@@ -186,17 +186,18 @@ func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]Dow
 }
 
 func (s *Service) DownloadDetails(ctx context.Context, id string, client string) (DownloadDetails, error) {
-	client = strings.TrimSpace(client)
-	if client != "" && strings.EqualFold(client, s.sab.Name()) {
+	resolvedClient, err := s.resolveTorrentDetailClient(ctx, id, client)
+	if err != nil {
+		return DownloadDetails{}, err
+	}
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		return s.qbit.Details(ctx, id)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		return s.trans.Details(ctx, id)
+	default:
 		return DownloadDetails{}, ErrDownloadDetailsUnsupported
 	}
-	if client != "" && strings.EqualFold(client, s.trans.Name()) {
-		return DownloadDetails{}, ErrDownloadDetailsUnsupported
-	}
-	if client != "" && !strings.EqualFold(client, s.qbit.Name()) {
-		return DownloadDetails{}, ErrDownloadDetailsUnsupported
-	}
-	return s.qbit.Details(ctx, id)
 }
 
 func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
@@ -284,11 +285,23 @@ func (s *Service) DownloadAction(ctx context.Context, request DownloadActionRequ
 
 func (s *Service) DownloadFileAction(ctx context.Context, id string, request DownloadFileActionRequest) (DownloadFileActionResult, error) {
 	request.DownloadID = strings.TrimSpace(id)
-	result, err := s.qbit.FileAction(ctx, request)
+	resolvedClient, err := s.resolveTorrentDetailClient(ctx, id, request.Client)
 	if err != nil {
 		return DownloadFileActionResult{}, err
 	}
-	details, detailErr := s.qbit.Details(ctx, id)
+	var result DownloadFileActionResult
+	switch {
+	case strings.EqualFold(resolvedClient, s.qbit.Name()):
+		result, err = s.qbit.FileAction(ctx, request)
+	case strings.EqualFold(resolvedClient, s.trans.Name()):
+		result, err = s.trans.FileAction(ctx, request)
+	default:
+		return DownloadFileActionResult{}, ErrDownloadDetailsUnsupported
+	}
+	if err != nil {
+		return DownloadFileActionResult{}, err
+	}
+	details, detailErr := s.DownloadDetails(ctx, id, resolvedClient)
 	if detailErr == nil {
 		result.Download = &details
 	}
@@ -422,6 +435,39 @@ func (s *Service) partitionDownloadIDs(ctx context.Context, ids []string) ([]str
 		}
 	}
 	return qbitIDs, transIDs, sabIDs
+}
+
+func (s *Service) resolveTorrentDetailClient(ctx context.Context, id string, client string) (string, error) {
+	id = strings.TrimSpace(id)
+	client = strings.TrimSpace(client)
+	if strings.EqualFold(client, s.sab.Name()) {
+		return "", ErrDownloadDetailsUnsupported
+	}
+	if strings.EqualFold(client, s.qbit.Name()) || strings.EqualFold(client, s.trans.Name()) {
+		return client, nil
+	}
+	if client != "" {
+		return "", ErrDownloadDetailsUnsupported
+	}
+	if id != "" {
+		statuses, err := s.Downloads(ctx, DownloadListQuery{IDs: []string{id}})
+		if err == nil {
+			for _, status := range statuses {
+				switch {
+				case strings.EqualFold(status.Client, s.qbit.Name()):
+					return s.qbit.Name(), nil
+				case strings.EqualFold(status.Client, s.trans.Name()):
+					return s.trans.Name(), nil
+				case strings.EqualFold(status.Client, s.sab.Name()):
+					return "", ErrDownloadDetailsUnsupported
+				}
+			}
+		}
+	}
+	if !s.qbit.Configured() && s.trans.Configured() {
+		return s.trans.Name(), nil
+	}
+	return s.qbit.Name(), nil
 }
 
 func (s *Service) storeDownloads(ctx context.Context, downloads []DownloadStatus) error {

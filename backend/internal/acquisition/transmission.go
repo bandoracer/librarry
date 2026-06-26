@@ -106,13 +106,7 @@ func (c *TransmissionClient) List(ctx context.Context, query DownloadListQuery) 
 		return nil, ErrIntegrationNotConfigured
 	}
 	args := map[string]any{
-		"fields": []string{
-			"id", "hashString", "name", "status", "percentDone", "downloadDir",
-			"totalSize", "downloadedEver", "uploadedEver", "rateDownload",
-			"rateUpload", "eta", "uploadRatio", "peersConnected",
-			"peersGettingFromUs", "peersSendingToUs", "addedDate", "doneDate",
-			"activityDate", "error", "errorString", "labels",
-		},
+		"fields": transmissionStatusFields(),
 	}
 	if len(compactStrings(query.IDs)) > 0 {
 		args["ids"] = compactStrings(query.IDs)
@@ -132,6 +126,49 @@ func (c *TransmissionClient) List(ctx context.Context, query DownloadListQuery) 
 		}
 	}
 	return statuses, nil
+}
+
+func (c *TransmissionClient) Details(ctx context.Context, id string) (DownloadDetails, error) {
+	if !c.Configured() {
+		return DownloadDetails{}, ErrIntegrationNotConfigured
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return DownloadDetails{}, errors.New("download id is required")
+	}
+	args := map[string]any{
+		"fields": append(transmissionStatusFields(),
+			"dateCreated",
+			"creator",
+			"comment",
+			"secondsDownloading",
+			"secondsSeeding",
+			"downloadLimit",
+			"downloadLimited",
+			"uploadLimit",
+			"uploadLimited",
+			"pieceCount",
+			"pieceSize",
+			"sizeWhenDone",
+			"haveValid",
+			"files",
+			"fileStats",
+			"trackers",
+			"trackerStats",
+			"peers",
+		),
+		"ids": []string{id},
+	}
+	var payload struct {
+		Torrents []transmissionTorrentDetail `json:"torrents"`
+	}
+	if err := c.rpc(ctx, "torrent-get", args, &payload); err != nil {
+		return DownloadDetails{}, err
+	}
+	if len(payload.Torrents) == 0 {
+		return DownloadDetails{}, ErrDownloadNotFound
+	}
+	return payload.Torrents[0].DownloadDetails(time.Now().UTC()), nil
 }
 
 func (c *TransmissionClient) Action(ctx context.Context, request DownloadActionRequest) (DownloadActionResult, error) {
@@ -194,6 +231,47 @@ func (c *TransmissionClient) Action(ctx context.Context, request DownloadActionR
 		return DownloadActionResult{}, fmt.Errorf("unsupported Transmission download action %q", request.Action)
 	}
 	return DownloadActionResult{Action: action, IDs: ids, Applied: true}, nil
+}
+
+func (c *TransmissionClient) FileAction(ctx context.Context, request DownloadFileActionRequest) (DownloadFileActionResult, error) {
+	if !c.Configured() {
+		return DownloadFileActionResult{}, ErrIntegrationNotConfigured
+	}
+	id := strings.TrimSpace(request.DownloadID)
+	if id == "" {
+		return DownloadFileActionResult{}, errors.New("download id is required")
+	}
+	fileIDs := compactInts(request.IDs)
+	if len(fileIDs) == 0 {
+		return DownloadFileActionResult{}, errors.New("at least one file id is required")
+	}
+	action, priority, err := normalizeFilePriorityAction(request.Action, request.Priority)
+	if err != nil {
+		return DownloadFileActionResult{}, err
+	}
+	args := map[string]any{"ids": []string{id}}
+	switch priority {
+	case 0:
+		args["files-unwanted"] = fileIDs
+	case 1:
+		args["files-wanted"] = fileIDs
+		args["priority-normal"] = fileIDs
+	case 6, 7:
+		args["files-wanted"] = fileIDs
+		args["priority-high"] = fileIDs
+	default:
+		return DownloadFileActionResult{}, fmt.Errorf("unsupported Transmission file priority %d", priority)
+	}
+	if err := c.rpc(ctx, "torrent-set", args, nil); err != nil {
+		return DownloadFileActionResult{}, err
+	}
+	return DownloadFileActionResult{
+		Action:     action,
+		DownloadID: id,
+		IDs:        fileIDs,
+		Priority:   priority,
+		Applied:    true,
+	}, nil
 }
 
 func (c *TransmissionClient) rpc(ctx context.Context, method string, arguments map[string]any, target any) error {
@@ -297,6 +375,85 @@ type transmissionTorrent struct {
 	Labels             []string `json:"labels"`
 }
 
+type transmissionTorrentDetail struct {
+	transmissionTorrent
+	DateCreated        int64                     `json:"dateCreated"`
+	Creator            string                    `json:"creator"`
+	Comment            string                    `json:"comment"`
+	SecondsDownloading int64                     `json:"secondsDownloading"`
+	SecondsSeeding     int64                     `json:"secondsSeeding"`
+	DownloadLimit      int64                     `json:"downloadLimit"`
+	DownloadLimited    bool                      `json:"downloadLimited"`
+	UploadLimit        int64                     `json:"uploadLimit"`
+	UploadLimited      bool                      `json:"uploadLimited"`
+	PieceCount         int                       `json:"pieceCount"`
+	PieceSize          int64                     `json:"pieceSize"`
+	SizeWhenDone       int64                     `json:"sizeWhenDone"`
+	HaveValid          int64                     `json:"haveValid"`
+	Files              []transmissionFile        `json:"files"`
+	FileStats          []transmissionFileStat    `json:"fileStats"`
+	Trackers           []transmissionTracker     `json:"trackers"`
+	TrackerStats       []transmissionTrackerStat `json:"trackerStats"`
+	Peers              []transmissionPeer        `json:"peers"`
+}
+
+type transmissionFile struct {
+	Name           string `json:"name"`
+	Length         int64  `json:"length"`
+	BytesCompleted int64  `json:"bytesCompleted"`
+}
+
+type transmissionFileStat struct {
+	BytesCompleted int64 `json:"bytesCompleted"`
+	Wanted         bool  `json:"wanted"`
+	Priority       int   `json:"priority"`
+}
+
+type transmissionTracker struct {
+	ID       int    `json:"id"`
+	Announce string `json:"announce"`
+	Scrape   string `json:"scrape"`
+	Tier     int    `json:"tier"`
+	SiteName string `json:"sitename"`
+}
+
+type transmissionTrackerStat struct {
+	ID                    int    `json:"id"`
+	Announce              string `json:"announce"`
+	AnnounceState         int    `json:"announceState"`
+	DownloadCount         int    `json:"downloadCount"`
+	Host                  string `json:"host"`
+	LastAnnouncePeerCount int    `json:"lastAnnouncePeerCount"`
+	LastAnnounceResult    string `json:"lastAnnounceResult"`
+	LastAnnounceSucceeded bool   `json:"lastAnnounceSucceeded"`
+	LastAnnounceTimedOut  bool   `json:"lastAnnounceTimedOut"`
+	LastScrapeResult      string `json:"lastScrapeResult"`
+	LeecherCount          int    `json:"leecherCount"`
+	Scrape                string `json:"scrape"`
+	ScrapeState           int    `json:"scrapeState"`
+	SeederCount           int    `json:"seederCount"`
+	Tier                  int    `json:"tier"`
+}
+
+type transmissionPeer struct {
+	Address            string  `json:"address"`
+	ClientName         string  `json:"clientName"`
+	ClientIsChoked     bool    `json:"clientIsChoked"`
+	ClientIsInterested bool    `json:"clientIsInterested"`
+	FlagStr            string  `json:"flagStr"`
+	IsDownloadingFrom  bool    `json:"isDownloadingFrom"`
+	IsEncrypted        bool    `json:"isEncrypted"`
+	IsIncoming         bool    `json:"isIncoming"`
+	IsUploadingTo      bool    `json:"isUploadingTo"`
+	IsUTP              bool    `json:"isUTP"`
+	PeerIsChoked       bool    `json:"peerIsChoked"`
+	PeerIsInterested   bool    `json:"peerIsInterested"`
+	Port               int     `json:"port"`
+	Progress           float64 `json:"progress"`
+	RateToClient       int64   `json:"rateToClient"`
+	RateToPeer         int64   `json:"rateToPeer"`
+}
+
 func (t transmissionTorrent) DownloadStatus(now time.Time) DownloadStatus {
 	progress := t.PercentDone
 	if progress < 0 {
@@ -345,6 +502,115 @@ func (t transmissionTorrent) DownloadStatus(now time.Time) DownloadStatus {
 		FailureReason:   strings.TrimSpace(t.ErrorString),
 		FailedAt:        failedAt,
 	}
+}
+
+func (t transmissionTorrentDetail) DownloadDetails(now time.Time) DownloadDetails {
+	status := t.transmissionTorrent.DownloadStatus(now)
+	totalSize := firstPositiveInt64(t.SizeWhenDone, t.TotalSize, status.SizeBytes)
+	pieceCount := t.PieceCount
+	if pieceCount <= 0 && t.PieceSize > 0 && totalSize > 0 {
+		pieceCount = int(math.Ceil(float64(totalSize) / float64(t.PieceSize)))
+	}
+	piecesHave := 0
+	if pieceCount > 0 {
+		piecesHave = int(math.Round(float64(pieceCount) * status.Progress))
+	}
+	properties := DownloadProperties{
+		SavePath:           status.SavePath,
+		CreationDate:       unixPtr(t.DateCreated),
+		AdditionDate:       status.AddedAt,
+		CompletionDate:     status.CompletedAt,
+		TotalSizeBytes:     totalSize,
+		TotalDownloaded:    t.DownloadedEver,
+		TotalUploaded:      t.UploadedEver,
+		DownloadLimit:      transmissionLimitBytes(t.DownloadLimit, t.DownloadLimited),
+		UploadLimit:        transmissionLimitBytes(t.UploadLimit, t.UploadLimited),
+		DownloadSpeed:      t.RateDownload,
+		UploadSpeed:        t.RateUpload,
+		ETASeconds:         positiveInt64(t.ETA),
+		Ratio:              t.UploadRatio,
+		Connections:        t.PeersConnected,
+		TimeElapsedSeconds: t.SecondsDownloading,
+		SeedingTimeSeconds: t.SecondsSeeding,
+		PieceSizeBytes:     t.PieceSize,
+		PiecesHave:         piecesHave,
+		PiecesTotal:        pieceCount,
+		CreatedBy:          strings.TrimSpace(t.Creator),
+		Comment:            strings.TrimSpace(t.Comment),
+	}
+	return DownloadDetails{
+		Status:     status,
+		Properties: properties,
+		Files:      t.DownloadFiles(),
+		Trackers:   t.DownloadTrackers(),
+		Peers:      t.DownloadPeers(),
+	}
+}
+
+func (t transmissionTorrentDetail) DownloadFiles() []DownloadFile {
+	files := make([]DownloadFile, 0, len(t.Files))
+	for i, file := range t.Files {
+		stat := transmissionFileStat{Wanted: true}
+		if i < len(t.FileStats) {
+			stat = t.FileStats[i]
+		}
+		files = append(files, DownloadFile{
+			ID:        i,
+			Name:      file.Name,
+			SizeBytes: file.Length,
+			Progress:  transmissionFileProgress(file, stat),
+			Priority:  transmissionFilePriority(stat),
+		})
+	}
+	return files
+}
+
+func (t transmissionTorrentDetail) DownloadTrackers() []DownloadTracker {
+	if len(t.TrackerStats) > 0 {
+		trackers := make([]DownloadTracker, 0, len(t.TrackerStats))
+		for _, item := range t.TrackerStats {
+			trackers = append(trackers, DownloadTracker{
+				URL:        firstNonEmpty(item.Announce, item.Host, item.Scrape),
+				StatusCode: item.AnnounceState,
+				Status:     transmissionTrackerStatus(item),
+				Tier:       item.Tier,
+				Message:    transmissionTrackerMessage(item),
+				Peers:      item.LastAnnouncePeerCount,
+				Seeds:      item.SeederCount,
+				Leeches:    item.LeecherCount,
+				Downloads:  item.DownloadCount,
+			})
+		}
+		return trackers
+	}
+	trackers := make([]DownloadTracker, 0, len(t.Trackers))
+	for _, item := range t.Trackers {
+		trackers = append(trackers, DownloadTracker{
+			URL:        firstNonEmpty(item.Announce, item.Scrape, item.SiteName),
+			StatusCode: 0,
+			Status:     "unknown",
+			Tier:       item.Tier,
+		})
+	}
+	return trackers
+}
+
+func (t transmissionTorrentDetail) DownloadPeers() []DownloadPeer {
+	peers := make([]DownloadPeer, 0, len(t.Peers))
+	for _, item := range t.Peers {
+		peers = append(peers, DownloadPeer{
+			ID:           transmissionPeerID(item),
+			IP:           item.Address,
+			Port:         item.Port,
+			Client:       strings.TrimSpace(item.ClientName),
+			Connection:   transmissionPeerConnection(item),
+			Flags:        strings.TrimSpace(item.FlagStr),
+			Progress:     item.Progress,
+			DownloadRate: item.RateToClient,
+			UploadRate:   item.RateToPeer,
+		})
+	}
+	return peers
 }
 
 func transmissionState(status int, progress float64) string {
@@ -418,6 +684,16 @@ func transmissionLabels(request DownloadRequest) []string {
 	return labels
 }
 
+func transmissionStatusFields() []string {
+	return []string{
+		"id", "hashString", "name", "status", "percentDone", "downloadDir",
+		"totalSize", "downloadedEver", "uploadedEver", "rateDownload",
+		"rateUpload", "eta", "uploadRatio", "peersConnected",
+		"peersGettingFromUs", "peersSendingToUs", "addedDate", "doneDate",
+		"activityDate", "error", "errorString", "labels",
+	}
+}
+
 func unixPtr(value int64) *time.Time {
 	if value <= 0 {
 		return nil
@@ -433,9 +709,111 @@ func positiveInt64(value int64) int64 {
 	return value
 }
 
+func firstPositiveInt64(values ...int64) int64 {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
+}
+
 func bytesPerSecondToKiB(value int64) int64 {
 	if value <= 0 {
 		return 0
 	}
 	return int64(math.Ceil(float64(value) / 1024))
+}
+
+func transmissionLimitBytes(value int64, limited bool) int64 {
+	if !limited || value <= 0 {
+		return 0
+	}
+	return value * 1024
+}
+
+func transmissionFileProgress(file transmissionFile, stat transmissionFileStat) float64 {
+	total := file.Length
+	if total <= 0 {
+		return 0
+	}
+	completed := stat.BytesCompleted
+	if completed <= 0 {
+		completed = file.BytesCompleted
+	}
+	progress := float64(completed) / float64(total)
+	if progress < 0 {
+		return 0
+	}
+	if progress > 1 {
+		return 1
+	}
+	return progress
+}
+
+func transmissionFilePriority(stat transmissionFileStat) int {
+	if !stat.Wanted {
+		return 0
+	}
+	if stat.Priority > 0 {
+		return 6
+	}
+	if stat.Priority < 0 {
+		return -1
+	}
+	return 1
+}
+
+func transmissionTrackerStatus(stat transmissionTrackerStat) string {
+	switch {
+	case stat.LastAnnounceSucceeded:
+		return "working"
+	case stat.LastAnnounceTimedOut || strings.TrimSpace(stat.LastAnnounceResult) != "" || strings.TrimSpace(stat.LastScrapeResult) != "":
+		return "not_working"
+	case stat.AnnounceState == 1 || stat.ScrapeState == 1:
+		return "not_contacted"
+	case stat.AnnounceState == 2 || stat.ScrapeState == 2:
+		return "updating"
+	default:
+		return "unknown"
+	}
+}
+
+func transmissionTrackerMessage(stat transmissionTrackerStat) string {
+	return firstNonEmpty(stat.LastAnnounceResult, stat.LastScrapeResult, stat.Host)
+}
+
+func transmissionPeerID(peer transmissionPeer) string {
+	if peer.Address == "" {
+		return ""
+	}
+	if peer.Port <= 0 {
+		return peer.Address
+	}
+	return fmt.Sprintf("%s:%d", peer.Address, peer.Port)
+}
+
+func transmissionPeerConnection(peer transmissionPeer) string {
+	var parts []string
+	if peer.IsEncrypted {
+		parts = append(parts, "encrypted")
+	}
+	if peer.IsIncoming {
+		parts = append(parts, "incoming")
+	} else {
+		parts = append(parts, "outgoing")
+	}
+	if peer.IsUTP {
+		parts = append(parts, "utp")
+	}
+	if peer.IsDownloadingFrom {
+		parts = append(parts, "downloading")
+	}
+	if peer.IsUploadingTo {
+		parts = append(parts, "uploading")
+	}
+	if peer.ClientIsChoked || peer.PeerIsChoked {
+		parts = append(parts, "choked")
+	}
+	return strings.Join(parts, ", ")
 }

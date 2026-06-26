@@ -766,7 +766,7 @@ export function App() {
     setDownloadActionID(`${downloadID}:file:${action}`);
     setDownloadError("");
     try {
-      const result = await runDownloadFileAction(downloadID, action, ids);
+      const result = await runDownloadFileAction(downloadID, action, ids, { client: downloadDetails?.status.client });
       if (result.download) {
         setDownloadDetails(result.download);
       } else {
@@ -1859,7 +1859,7 @@ export function App() {
                   <span>
                     {downloadDetails
                       ? `${downloadDetails.status.client || "qBittorrent"} · ${downloadDetails.status.category || "uncategorized"} · ${formatBytes(downloadDetails.status.sizeBytes ?? downloadDetails.properties?.totalSizeBytes ?? 0)}`
-                      : "Fetching qBittorrent state"}
+                      : "Fetching download state"}
                   </span>
                 </div>
                 {downloadDetails ? (
@@ -1977,7 +1977,7 @@ export function App() {
                   </div>
                   <div className="download-tracker-tools">
                     <input value={trackerURL} onChange={(event) => setTrackerURL(event.target.value)} placeholder="https://tracker.example/announce" />
-                    <button className="secondary-action compact" disabled={!trackerURL.trim() || Boolean(downloadActionID)} onClick={() => applyDownloadTrackerAction("add")} type="button">
+                    <button className="secondary-action compact" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || !trackerURL.trim() || Boolean(downloadActionID)} onClick={() => applyDownloadTrackerAction("add")} type="button">
                       Add tracker
                     </button>
                   </div>
@@ -1998,10 +1998,10 @@ export function App() {
                               {tracker.seeds ?? 0} seeds · {tracker.leeches ?? 0} leeches
                             </em>
                             <div className="tracker-action-buttons">
-                              <button className="secondary-action compact" disabled={trackerBusy || !trackerURL.trim()} onClick={() => applyDownloadTrackerAction("edit", tracker.url)} type="button">
+                              <button className="secondary-action compact" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || trackerBusy || !trackerURL.trim()} onClick={() => applyDownloadTrackerAction("edit", tracker.url)} type="button">
                                 Replace
                               </button>
-                              <button className="secondary-action compact danger-outline" disabled={trackerBusy} onClick={() => applyDownloadTrackerAction("remove", tracker.url)} type="button">
+                              <button className="secondary-action compact danger-outline" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || trackerBusy} onClick={() => applyDownloadTrackerAction("remove", tracker.url)} type="button">
                                 Remove
                               </button>
                             </div>
@@ -2313,6 +2313,8 @@ function formatDuration(seconds?: number) {
 
 function filePriorityLabel(priority: number) {
   switch (priority) {
+    case -1:
+      return "low";
     case 0:
       return "skipped";
     case 1:
@@ -2425,6 +2427,11 @@ function downloadSupportsQbitManagerActions(download: DownloadStatus) {
 }
 
 function downloadSupportsDetails(download: DownloadStatus) {
+  const client = (download.client || "qBittorrent").toLowerCase();
+  return client === "qbittorrent" || client === "transmission";
+}
+
+function downloadSupportsTrackerActions(download: DownloadStatus) {
   return downloadSupportsQbitManagerActions(download);
 }
 

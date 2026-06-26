@@ -197,6 +197,7 @@ type DownloadActionResult struct {
 
 type DownloadFileActionRequest struct {
 	DownloadID string `json:"downloadId,omitempty"`
+	Client     string `json:"client,omitempty"`
 	Action     string `json:"action"`
 	IDs        []int  `json:"ids"`
 	Priority   int    `json:"priority,omitempty"`

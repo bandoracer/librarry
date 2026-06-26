@@ -148,6 +148,116 @@ func TestTransmissionListMapsDownloadStatus(t *testing.T) {
 	}
 }
 
+func TestTransmissionDetailsMapsFilesTrackersAndPeers(t *testing.T) {
+	var requestedFields []any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Method != "torrent-get" {
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+		requestedFields, _ = payload.Arguments["fields"].([]any)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"result": "success",
+			"arguments": map[string]any{
+				"torrents": []map[string]any{{
+					"id":                 42,
+					"hashString":         "abc123",
+					"name":               "Book.epub",
+					"status":             4,
+					"percentDone":        0.5,
+					"downloadDir":        "/downloads/books",
+					"totalSize":          1000,
+					"sizeWhenDone":       1000,
+					"downloadedEver":     500,
+					"uploadedEver":       25,
+					"rateDownload":       12,
+					"rateUpload":         3,
+					"eta":                42,
+					"uploadRatio":        0.25,
+					"peersConnected":     4,
+					"peersGettingFromUs": 2,
+					"peersSendingToUs":   1,
+					"addedDate":          1_700_000_000,
+					"dateCreated":        1_690_000_000,
+					"activityDate":       1_700_000_120,
+					"labels":             []string{CategoryBooksEbook, "librarry"},
+					"creator":            "mktorrent",
+					"comment":            "metadata",
+					"secondsDownloading": 60,
+					"downloadLimit":      2048,
+					"downloadLimited":    true,
+					"uploadLimit":        512,
+					"uploadLimited":      true,
+					"pieceSize":          250,
+					"pieceCount":         4,
+					"files": []map[string]any{
+						{"name": "Book.epub", "length": 800, "bytesCompleted": 400},
+						{"name": "sample.txt", "length": 200, "bytesCompleted": 0},
+					},
+					"fileStats": []map[string]any{
+						{"bytesCompleted": 400, "wanted": true, "priority": 1},
+						{"bytesCompleted": 0, "wanted": false, "priority": 0},
+					},
+					"trackerStats": []map[string]any{{
+						"announce":              "https://tracker.example/announce",
+						"announceState":         2,
+						"lastAnnounceSucceeded": true,
+						"lastAnnouncePeerCount": 12,
+						"seederCount":           10,
+						"leecherCount":          2,
+						"downloadCount":         5,
+						"tier":                  0,
+						"host":                  "tracker.example",
+					}},
+					"peers": []map[string]any{{
+						"address":           "1.2.3.4",
+						"port":              51413,
+						"clientName":        "transmission-peer",
+						"flagStr":           "D",
+						"progress":          0.75,
+						"rateToClient":      100,
+						"rateToPeer":        40,
+						"isEncrypted":       true,
+						"isUTP":             true,
+						"isDownloadingFrom": true,
+					}},
+				}},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewTransmissionClient(server.URL, "", "", server.Client())
+	details, err := client.Details(context.Background(), "abc123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !jsonFieldRequested(requestedFields, "files") || !jsonFieldRequested(requestedFields, "trackerStats") || !jsonFieldRequested(requestedFields, "peers") {
+		t.Fatalf("expected detail fields, got %#v", requestedFields)
+	}
+	if details.Status.Client != "Transmission" || details.Status.ID != "abc123" || details.Status.State != "downloading" {
+		t.Fatalf("unexpected status: %+v", details.Status)
+	}
+	if details.Properties.DownloadLimit != 2_097_152 || details.Properties.UploadLimit != 524_288 || details.Properties.PiecesHave != 2 || details.Properties.PiecesTotal != 4 {
+		t.Fatalf("unexpected properties: %+v", details.Properties)
+	}
+	if len(details.Files) != 2 || details.Files[0].Priority != 6 || details.Files[0].Progress != 0.5 || details.Files[1].Priority != 0 {
+		t.Fatalf("unexpected files: %+v", details.Files)
+	}
+	if len(details.Trackers) != 1 || details.Trackers[0].Status != "working" || details.Trackers[0].Seeds != 10 {
+		t.Fatalf("unexpected trackers: %+v", details.Trackers)
+	}
+	if len(details.Peers) != 1 || details.Peers[0].ID != "1.2.3.4:51413" || details.Peers[0].DownloadRate != 100 || !strings.Contains(details.Peers[0].Connection, "encrypted") {
+		t.Fatalf("unexpected peers: %+v", details.Peers)
+	}
+}
+
 func TestTransmissionActions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -234,6 +344,43 @@ func TestTransmissionActions(t *testing.T) {
 	}
 }
 
+func TestTransmissionFileActionSetsWantedAndPriority(t *testing.T) {
+	var method string
+	var args map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		method = payload.Method
+		args = payload.Arguments
+		_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+	}))
+	defer server.Close()
+
+	client := NewTransmissionClient(server.URL, "", "", server.Client())
+	result, err := client.FileAction(context.Background(), DownloadFileActionRequest{
+		DownloadID: "abc123",
+		Action:     DownloadFileActionHigh,
+		IDs:        []int{0, 2, 2},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if method != "torrent-set" {
+		t.Fatalf("expected torrent-set, got %s", method)
+	}
+	if !jsonNumberListMatches(args["files-wanted"], []int{0, 2}) || !jsonNumberListMatches(args["priority-high"], []int{0, 2}) {
+		t.Fatalf("unexpected file priority args: %#v", args)
+	}
+	if !result.Applied || result.Action != DownloadFileActionHigh || result.Priority != 6 {
+		t.Fatalf("unexpected file action result: %+v", result)
+	}
+}
+
 func TestServiceRoutesTorrentGrabsToTransmissionWhenQBittorrentMissing(t *testing.T) {
 	var methods []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -313,4 +460,96 @@ func TestServiceRoutesExplicitTransmissionAction(t *testing.T) {
 	if !result.Applied || strings.Join(result.IDs, ",") != "abc123" {
 		t.Fatalf("unexpected result: %+v", result)
 	}
+}
+
+func TestServiceRoutesExplicitTransmissionDetailsAndFileAction(t *testing.T) {
+	var methods []string
+	var fileActionArgs map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		methods = append(methods, payload.Method)
+		switch payload.Method {
+		case "torrent-get":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"result": "success",
+				"arguments": map[string]any{
+					"torrents": []map[string]any{{
+						"id":           42,
+						"hashString":   "abc123",
+						"name":         "Book.epub",
+						"status":       4,
+						"percentDone":  0.5,
+						"downloadDir":  "/downloads/books",
+						"totalSize":    1000,
+						"sizeWhenDone": 1000,
+						"files":        []map[string]any{{"name": "Book.epub", "length": 1000, "bytesCompleted": 500}},
+						"fileStats":    []map[string]any{{"bytesCompleted": 500, "wanted": true, "priority": 0}},
+					}},
+				},
+			})
+		case "torrent-set":
+			fileActionArgs = payload.Arguments
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": "success", "arguments": map[string]any{}})
+		default:
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+	}))
+	defer server.Close()
+
+	service := NewService(IntegrationConfig{
+		QBittorrentURL:  "http://qbittorrent.invalid",
+		TransmissionURL: server.URL,
+	})
+	details, err := service.DownloadDetails(context.Background(), "abc123", "Transmission")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if details.Status.Client != "Transmission" || len(details.Files) != 1 {
+		t.Fatalf("unexpected details: %+v", details)
+	}
+	result, err := service.DownloadFileAction(context.Background(), "abc123", DownloadFileActionRequest{
+		Client: "Transmission",
+		Action: DownloadFileActionSkip,
+		IDs:    []int{0},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(methods, ",") != "torrent-get,torrent-set,torrent-get" {
+		t.Fatalf("unexpected service routing methods: %v", methods)
+	}
+	if !jsonNumberListMatches(fileActionArgs["files-unwanted"], []int{0}) {
+		t.Fatalf("expected files-unwanted action, got %#v", fileActionArgs)
+	}
+	if !result.Applied || result.Download == nil || result.Download.Status.Client != "Transmission" {
+		t.Fatalf("unexpected file action result: %+v", result)
+	}
+}
+
+func jsonFieldRequested(fields []any, field string) bool {
+	for _, value := range fields {
+		if text, ok := value.(string); ok && text == field {
+			return true
+		}
+	}
+	return false
+}
+
+func jsonNumberListMatches(value any, want []int) bool {
+	values, ok := value.([]any)
+	if !ok || len(values) != len(want) {
+		return false
+	}
+	for i, item := range values {
+		if int(item.(float64)) != want[i] {
+			return false
+		}
+	}
+	return true
 }

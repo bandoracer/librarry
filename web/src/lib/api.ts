@@ -705,12 +705,13 @@ export async function runDownloadFileAction(
   id: string,
   action: DownloadFileAction,
   ids: number[],
-  options: { priority?: number } = {}
+  options: { priority?: number; client?: string } = {}
 ): Promise<DownloadFileActionResult> {
   const response = await fetch(`${apiBase}/api/v1/downloads/${encodeURIComponent(id)}/files/actions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      client: options.client,
       action,
       ids,
       priority: options.priority
