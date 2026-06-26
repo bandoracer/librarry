@@ -93,6 +93,13 @@ func (s *Service) ClearWantedManualOverrides(ctx context.Context, id string, fie
 	return s.store.ClearWantedManualOverrides(ctx, id, fields)
 }
 
+func (s *Service) MetadataProvenance(ctx context.Context, id string) (MetadataProvenance, error) {
+	if !s.Available() {
+		return MetadataProvenance{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.WantedMetadataProvenance(ctx, id)
+}
+
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Available() {
 		return nil, errors.New("wanted service requires database persistence")

@@ -2425,6 +2425,33 @@ func TestListWantedEndpoint(t *testing.T) {
 	}
 }
 
+func TestWantedMetadataEndpointReturnsProviderProvenance(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeMetadataWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wanted/metadata/wanted-1", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	for _, want := range []string{
+		`"provider":"Hardcover"`,
+		`"entityType":"work"`,
+		`"title":"Project Hail Mary"`,
+		`"fieldName":"title"`,
+	} {
+		if !strings.Contains(res.Body.String(), want) {
+			t.Fatalf("expected %s in provenance response, got %s", want, res.Body.String())
+		}
+	}
+}
+
 func TestGrabWantedEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3718,6 +3745,55 @@ func (fakeWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.Histor
 		Message:    "Searched wanted releases",
 		CreatedAt:  time.Now().UTC(),
 	}}, nil
+}
+
+type fakeMetadataWanted struct {
+	fakeWanted
+}
+
+func (fakeMetadataWanted) MetadataProvenance(context.Context, string) (wanted.MetadataProvenance, error) {
+	now := time.Now().UTC()
+	item := wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         "work-1",
+		EditionID:      "edition-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		ManualOverrides: []wanted.ManualOverride{{
+			FieldName: "title",
+			Value:     "Project Hail Mary",
+			Reason:    "manual wanted metadata correction",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	return wanted.MetadataProvenance{
+		WantedItem:      item,
+		ManualOverrides: item.ManualOverrides,
+		Records: []wanted.ProviderMetadataRecord{{
+			ID:          "provider-record-1",
+			Provider:    "Hardcover",
+			ProviderKey: "hardcover:123",
+			EntityType:  "work",
+			EntityID:    "work-1",
+			Confidence:  0.98,
+			FetchedAt:   now,
+			Values: wanted.MetadataRecordValues{
+				Title:      "Project Hail Mary",
+				AuthorName: "Andy Weir",
+				Format:     "ebook",
+				SourceKey:  "hardcover:123",
+				MatchedOn:  []string{"title", "author"},
+			},
+		}},
+		GeneratedAt: now,
+	}, nil
 }
 
 func (fakeWanted) UpdateWanted(_ context.Context, _ string, request wanted.WantedUpdateRequest) (wanted.WantedItem, error) {

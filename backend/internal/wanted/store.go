@@ -743,6 +743,77 @@ func (s *Store) ClearWantedManualOverrides(ctx context.Context, wantedID string,
 	return s.GetWanted(ctx, wantedID)
 }
 
+func (s *Store) WantedMetadataProvenance(ctx context.Context, wantedID string) (MetadataProvenance, error) {
+	if !s.Configured() {
+		return MetadataProvenance{}, errors.New("wanted store is unavailable")
+	}
+	wantedID = strings.TrimSpace(wantedID)
+	if wantedID == "" {
+		return MetadataProvenance{}, errors.New("wanted item id is required")
+	}
+	item, err := s.GetWanted(ctx, wantedID)
+	if err != nil {
+		return MetadataProvenance{}, err
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		with target_entities as (
+			select wi.work_id as entity_id
+			from wanted_items wi
+			where wi.id::text = $1 and wi.work_id is not null
+			union
+			select wi.edition_id as entity_id
+			from wanted_items wi
+			where wi.id::text = $1 and wi.edition_id is not null
+			union
+			select wa.author_id as entity_id
+			from wanted_items wi
+			join work_authors wa on wa.work_id = wi.work_id
+			where wi.id::text = $1
+		)
+		select
+			pr.id::text, pr.provider, pr.provider_key, pr.entity_type,
+			coalesce(pr.entity_id::text, ''), pr.confidence, pr.fetched_at, pr.raw
+		from provider_records pr
+		join target_entities te on te.entity_id = pr.entity_id
+		order by
+			case pr.entity_type
+				when 'work' then 0
+				when 'edition' then 1
+				when 'author' then 2
+				else 3
+			end,
+			pr.confidence desc,
+			pr.fetched_at desc
+	`, wantedID)
+	if err != nil {
+		return MetadataProvenance{}, err
+	}
+	defer rows.Close()
+
+	records := []ProviderMetadataRecord{}
+	for rows.Next() {
+		var record ProviderMetadataRecord
+		var raw []byte
+		if err := rows.Scan(
+			&record.ID, &record.Provider, &record.ProviderKey, &record.EntityType,
+			&record.EntityID, &record.Confidence, &record.FetchedAt, &raw,
+		); err != nil {
+			return MetadataProvenance{}, err
+		}
+		record.Values = metadataValuesFromProviderRaw(raw)
+		records = append(records, record)
+	}
+	if err := rows.Err(); err != nil {
+		return MetadataProvenance{}, err
+	}
+	return MetadataProvenance{
+		WantedItem:      item,
+		Records:         records,
+		ManualOverrides: item.ManualOverrides,
+		GeneratedAt:     time.Now().UTC(),
+	}, nil
+}
+
 func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID string, field string) error {
 	switch field {
 	case "title":
@@ -803,6 +874,31 @@ func (s *Store) attachWantedManualOverrides(ctx context.Context, items []WantedI
 		items[index].ManualOverrides = overrides
 	}
 	return items, nil
+}
+
+func metadataValuesFromProviderRaw(raw []byte) MetadataRecordValues {
+	var result metadata.SearchResult
+	if len(raw) == 0 || json.Unmarshal(raw, &result) != nil {
+		return MetadataRecordValues{}
+	}
+	values := MetadataRecordValues{
+		Title:            firstNonEmpty(result.Edition.Title, result.Work.Title),
+		CoverURL:         result.Work.CoverURL,
+		Format:           string(result.Edition.Format),
+		Language:         result.Edition.Language,
+		Publisher:        result.Edition.Publisher,
+		PublishedDate:    result.Edition.PublishedDate,
+		FirstPublishYear: result.Work.FirstPublishYear,
+		ISBNs:            append([]string(nil), result.Edition.ISBNs...),
+		Series:           result.Work.Series,
+		SeriesPosition:   result.Work.SeriesPosition,
+		MatchedOn:        append([]string(nil), result.MatchedOn...),
+		SourceKey:        firstNonEmpty(result.Edition.ID, result.Work.ID, result.RawSourceKey),
+	}
+	if len(result.Work.Authors) > 0 {
+		values.AuthorName = result.Work.Authors[0].Name
+	}
+	return values
 }
 
 func normalizeWantedOverrideFields(fields []string) ([]string, error) {

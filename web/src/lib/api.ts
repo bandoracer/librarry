@@ -330,6 +330,40 @@ export type WantedItem = {
   updatedAt: string;
 };
 
+export type MetadataRecordValues = {
+  title?: string;
+  authorName?: string;
+  coverUrl?: string;
+  format?: string;
+  language?: string;
+  publisher?: string;
+  publishedDate?: string;
+  firstPublishYear?: number;
+  isbns?: string[];
+  series?: string;
+  seriesPosition?: string;
+  matchedOn?: string[];
+  sourceKey?: string;
+};
+
+export type ProviderMetadataRecord = {
+  id: string;
+  provider: string;
+  providerKey: string;
+  entityType: string;
+  entityId?: string;
+  confidence: number;
+  fetchedAt: string;
+  values: MetadataRecordValues;
+};
+
+export type MetadataProvenance = {
+  wantedItem: WantedItem;
+  records: ProviderMetadataRecord[];
+  manualOverrides?: ManualOverride[];
+  generatedAt: string;
+};
+
 export type ManualOverride = {
   fieldName: string;
   value?: string;
@@ -1202,9 +1236,17 @@ export async function clearWantedOverride(wantedID: string, fieldName: string): 
     method: "DELETE"
   });
   if (!response.ok) {
-    throw new Error(`Wanted override reset failed: ${response.status}`);
+    throw new Error(await apiError(response, "Wanted override reset failed"));
   }
   return (await response.json()) as WantedItem;
+}
+
+export async function fetchWantedMetadata(wantedID: string): Promise<MetadataProvenance> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/${encodeURIComponent(wantedID)}`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Wanted metadata provenance failed"));
+  }
+  return (await response.json()) as MetadataProvenance;
 }
 
 export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {

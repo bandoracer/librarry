@@ -48,6 +48,7 @@ import {
   fetchQualityProfiles,
   fetchSystemStatus,
   fetchWanted,
+  fetchWantedMetadata,
   fetchWantedReleases,
   getStoredAPIKey,
   grabManualDownload,
@@ -98,8 +99,10 @@ import {
   type LibraryFile,
   type LibraryImportOutcome,
   type LibraryScanOutcome,
+  type MetadataProvenance,
   type MonitorRun,
   type ProviderHealth,
+  type ProviderMetadataRecord,
   type QualityProfile,
   type ReleaseDecision,
   type Release,
@@ -225,6 +228,7 @@ export function App() {
   const [releases, setReleases] = useState<Release[]>([]);
   const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
+  const [wantedMetadata, setWantedMetadata] = useState<MetadataProvenance | null>(null);
   const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
@@ -271,6 +275,7 @@ export function App() {
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
   const [isLoadingWantedReleases, setIsLoadingWantedReleases] = useState(false);
+  const [isLoadingWantedMetadata, setIsLoadingWantedMetadata] = useState(false);
   const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
   const [isRemovingWanted, setIsRemovingWanted] = useState(false);
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
@@ -560,7 +565,30 @@ export function App() {
     setWantedEditCoverURL(selectedWanted?.coverUrl ?? "");
     setWantedEditQualityProfile(selectedWanted?.qualityProfile ?? "standard");
     setWantedEditMonitored(selectedWanted?.monitored ?? true);
+    setWantedMetadata(null);
   }, [selectedWanted?.id, selectedWanted?.title, selectedWanted?.authorName, selectedWanted?.coverUrl, selectedWanted?.qualityProfile, selectedWanted?.monitored]);
+
+  useEffect(() => {
+    if (activeView !== "wanted" || !selectedWanted?.id) return;
+    let canceled = false;
+    setIsLoadingWantedMetadata(true);
+    fetchWantedMetadata(selectedWanted.id)
+      .then((provenance) => {
+        if (canceled) return;
+        setWantedMetadata(provenance);
+        setWantedItems((current) => mergeWanted(current, [provenance.wantedItem]));
+        setAPIState("live");
+      })
+      .catch((error) => {
+        if (!canceled) setWantedError(error instanceof Error ? error.message : "Wanted metadata provenance failed");
+      })
+      .finally(() => {
+        if (!canceled) setIsLoadingWantedMetadata(false);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [activeView, selectedWanted?.id]);
 
   useEffect(() => {
     if (activeView !== "wanted" || !selectedWanted?.id) return;
@@ -715,6 +743,7 @@ export function App() {
     setWantedViewFilter("all");
     setWantedReleaseFilter("all");
     setWantedReleases([]);
+    setWantedMetadata(null);
     setActiveView("wanted");
   }
 
@@ -749,6 +778,9 @@ export function App() {
         monitored: wantedEditMonitored
       });
       setWantedItems((current) => mergeWanted(current, [updated]));
+      setWantedMetadata((current) =>
+        current ? { ...current, wantedItem: updated, manualOverrides: updated.manualOverrides ?? [] } : current
+      );
       setSelectedWantedID(updated.id);
       setWantedReleases([]);
       setAPIState("live");
@@ -768,6 +800,7 @@ export function App() {
       await deleteWanted(item.id);
       setWantedItems((current) => current.filter((candidate) => candidate.id !== item.id));
       setWantedReleases([]);
+      setWantedMetadata(null);
       setSelectedWantedID("");
       setAPIState("live");
     } catch (error) {
@@ -785,6 +818,9 @@ export function App() {
     try {
       const updated = await clearWantedOverride(item.id, fieldName);
       setWantedItems((current) => mergeWanted(current, [updated]));
+      setWantedMetadata((current) =>
+        current ? { ...current, wantedItem: updated, manualOverrides: updated.manualOverrides ?? [] } : current
+      );
       setSelectedWantedID(updated.id);
       setWantedReleases([]);
       setAPIState("live");
@@ -2190,6 +2226,44 @@ export function App() {
                       ))}
                     </div>
                   ) : null}
+                  <div className="metadata-provenance-panel" aria-label="Metadata provenance">
+                    <div className="metadata-provenance-heading">
+                      <div>
+                        <strong>Provider provenance</strong>
+                        <span>
+                          {isLoadingWantedMetadata
+                            ? "Loading stored provider records."
+                            : wantedMetadata?.records.length
+                              ? `${wantedMetadata.records.length} stored provider records`
+                              : "No stored provider records for this wanted item."}
+                        </span>
+                      </div>
+                      {wantedMetadata?.manualOverrides?.length ? (
+                        <em>{wantedMetadata.manualOverrides.length} override{wantedMetadata.manualOverrides.length === 1 ? "" : "s"} protected</em>
+                      ) : null}
+                    </div>
+                    {wantedMetadata?.records.length ? (
+                      <div className="metadata-record-list">
+                        {wantedMetadata.records.map((record) => (
+                          <article className="metadata-record-row" key={record.id}>
+                            <div>
+                              <strong>{record.provider}</strong>
+                              <span>{record.entityType} · {record.providerKey}</span>
+                            </div>
+                            <div>
+                              <strong>{metadataRecordPrimaryLine(record)}</strong>
+                              <span>{metadataRecordSecondaryLine(record)}</span>
+                            </div>
+                            <em>{metadataConfidenceLabel(record.confidence)}</em>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="metadata-provenance-empty">
+                        {isLoadingWantedMetadata ? "Loading provenance." : "Create or refresh this item from metadata search to attach provider records."}
+                      </div>
+                    )}
+                  </div>
                   <div className="wanted-edit-grid">
                     <label>
                       <span>Title</span>
@@ -4103,6 +4177,30 @@ function wantedOverrideLabel(fieldName: string) {
     default:
       return fieldName.replace(/_/g, " ");
   }
+}
+
+function metadataRecordPrimaryLine(record: ProviderMetadataRecord) {
+  const title = record.values.title || "Untitled";
+  const author = record.values.authorName;
+  return author ? `${title} by ${author}` : title;
+}
+
+function metadataRecordSecondaryLine(record: ProviderMetadataRecord) {
+  const parts = [
+    record.values.format,
+    record.values.language,
+    record.values.publisher,
+    record.values.publishedDate,
+    record.values.isbns?.slice(0, 2).join(", "),
+    record.values.matchedOn?.length ? `matched ${record.values.matchedOn.join(", ")}` : ""
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "No normalized values extracted.";
+}
+
+function metadataConfidenceLabel(confidence: number) {
+  if (!Number.isFinite(confidence) || confidence <= 0) return "unscored";
+  if (confidence <= 1) return `${Math.round(confidence * 100)}%`;
+  return confidence.toFixed(1);
 }
 
 function wantedItemHasLibraryFile(item: WantedItem, files: LibraryFile[]) {

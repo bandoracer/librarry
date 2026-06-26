@@ -173,6 +173,40 @@ type WantedItem struct {
 	UpdatedAt           time.Time        `json:"updatedAt"`
 }
 
+type MetadataProvenance struct {
+	WantedItem      WantedItem               `json:"wantedItem"`
+	Records         []ProviderMetadataRecord `json:"records"`
+	ManualOverrides []ManualOverride         `json:"manualOverrides,omitempty"`
+	GeneratedAt     time.Time                `json:"generatedAt"`
+}
+
+type ProviderMetadataRecord struct {
+	ID          string               `json:"id"`
+	Provider    string               `json:"provider"`
+	ProviderKey string               `json:"providerKey"`
+	EntityType  string               `json:"entityType"`
+	EntityID    string               `json:"entityId,omitempty"`
+	Confidence  float64              `json:"confidence"`
+	FetchedAt   time.Time            `json:"fetchedAt"`
+	Values      MetadataRecordValues `json:"values"`
+}
+
+type MetadataRecordValues struct {
+	Title            string   `json:"title,omitempty"`
+	AuthorName       string   `json:"authorName,omitempty"`
+	CoverURL         string   `json:"coverUrl,omitempty"`
+	Format           string   `json:"format,omitempty"`
+	Language         string   `json:"language,omitempty"`
+	Publisher        string   `json:"publisher,omitempty"`
+	PublishedDate    string   `json:"publishedDate,omitempty"`
+	FirstPublishYear int      `json:"firstPublishYear,omitempty"`
+	ISBNs            []string `json:"isbns,omitempty"`
+	Series           string   `json:"series,omitempty"`
+	SeriesPosition   string   `json:"seriesPosition,omitempty"`
+	MatchedOn        []string `json:"matchedOn,omitempty"`
+	SourceKey        string   `json:"sourceKey,omitempty"`
+}
+
 type ManualOverride struct {
 	FieldName string    `json:"fieldName"`
 	Value     string    `json:"value,omitempty"`

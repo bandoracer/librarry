@@ -2045,6 +2045,113 @@ select {
   opacity: 0.72;
 }
 
+.metadata-provenance-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.metadata-provenance-heading {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #f7fafc;
+}
+
+.metadata-provenance-heading > div {
+  min-width: 0;
+}
+
+.metadata-provenance-heading strong,
+.metadata-provenance-heading span {
+  display: block;
+  min-width: 0;
+}
+
+.metadata-provenance-heading strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.metadata-provenance-heading span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-provenance-heading em,
+.metadata-record-row em {
+  border: 1px solid #d9e4ef;
+  border-radius: 999px;
+  background: #f1f6fb;
+  color: var(--muted-strong);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 750;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.metadata-record-list {
+  display: grid;
+}
+
+.metadata-record-row {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(118px, 0.36fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.metadata-record-row:last-child {
+  border-bottom: 0;
+}
+
+.metadata-record-row > div,
+.metadata-record-row strong,
+.metadata-record-row span {
+  display: block;
+  min-width: 0;
+}
+
+.metadata-record-row strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-record-row span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-provenance-empty {
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
 .wanted-edit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(150px, 1fr));
@@ -3211,6 +3318,19 @@ select {
   .wanted-edit-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .metadata-provenance-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .metadata-record-row {
+    grid-template-columns: 1fr;
+  }
+
+  .metadata-record-row em {
+    justify-self: flex-start;
   }
 
   .wanted-edit-grid {

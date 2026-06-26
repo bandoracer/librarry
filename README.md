@@ -89,6 +89,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   profile, and monitoring state, with `manual_overrides` persistence so provider
   refreshes do not overwrite corrected display metadata. Wanted payloads include
   visible override state, and individual override fields can be reset.
+- Wanted metadata provenance API and UI show the stored provider records behind
+  a selected wanted item, including provider, matched fields, confidence, and
+  the active manual overrides that protect corrected fields.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Scoped acquisition activity for configured qBittorrent, Transmission, and
@@ -486,6 +489,7 @@ Important API surfaces:
   - `PUT /api/v1/wanted/{id}`
   - `PATCH /api/v1/wanted/{id}`
   - `DELETE /api/v1/wanted/{id}`
+  - `GET /api/v1/wanted/metadata/{id}`
   - `DELETE /api/v1/wanted/{id}/overrides/{field}`
   - `POST /api/v1/wanted/{id}/search`
   - `GET /api/v1/wanted/releases/{id}`
