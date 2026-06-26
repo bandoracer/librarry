@@ -18,7 +18,8 @@ and author identity are not strong enough for that workflow.
 
 ## Local Metadata
 
-Local OPF, EPUB, and audio tag parsing is planned for import workflows. The v1
-provider is present as a health/diagnostic source and does not return remote
-search results.
-
+Local OPF sidecars and embedded EPUB package metadata are extracted during
+library scan/import and used as high-confidence local evidence for title,
+author, identifiers, language, publisher, and series metadata. Audio tag parsing
+is still planned for audiobook imports. The provider is present as a
+health/diagnostic source and does not return remote search results.

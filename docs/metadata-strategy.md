@@ -11,7 +11,8 @@ normalizing multiple providers into a local canonical model with provenance.
    and covers.
 3. Google Books is an exact fallback for ISBN and title lookups. It should not be
    used for author bibliography crawling.
-4. Local OPF, EPUB, and audio tags are high-confidence import evidence.
+4. Local OPF sidecars and embedded EPUB package metadata are high-confidence
+   import evidence. Audio tags are planned for audiobook imports.
 5. Manual overrides always win.
 
 ## Matching Policy
@@ -29,4 +30,3 @@ Exact identifiers beat fuzzy matching:
 Goodreads, Amazon, and Audible scraping are intentionally excluded from core.
 They can be future optional plugins only if the legal and operational risk is
 made explicit.
-

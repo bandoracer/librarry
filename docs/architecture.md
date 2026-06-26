@@ -429,12 +429,15 @@ releases to the matching download client when
 ## Library Import
 
 Library scanning walks the configured ebook and audiobook roots, classifies
-supported file extensions, stores file records in Postgres, and keeps a
-fingerprint in file metadata for later reconciliation. Manual import accepts a
-source file path, optionally ties it to a wanted item, and copies or moves the
-file into a sanitized path below the format root. The default naming policy is
+supported file extensions, extracts OPF sidecar and embedded EPUB package
+metadata when present, stores file records in Postgres, and keeps a fingerprint
+in file metadata for later reconciliation. Manual import accepts a source file
+path, optionally ties it to a wanted item, and copies or moves the file into a
+sanitized path below the format root. The default naming policy is
 `Author/Title/Title.ext`; deployments can change the author folder, book folder,
-file name, and space replacement templates.
+file name, and space replacement templates. Embedded metadata title/author
+evidence is preferred over filename parsing unless a wanted item supplies an
+explicit title or author.
 
 The Readarr-compatible `/api/v1/manualimport` surface maps to the same import
 engine. `GET /api/v1/manualimport` lists pending import reviews, can scan a
@@ -484,8 +487,8 @@ into the library. Review decisions can import, skip, or reject the pending file.
 
 The implemented import path is intentionally conservative: it avoids overwriting
 existing files and marks wanted items imported only after the destination file is
-persisted. Future work should add OPF, EPUB, audio-tag extraction, richer
-matching evidence, conflict policies, and bulk review flows.
+persisted. Future work should add audiobook tag extraction, richer matching
+evidence, conflict policies, and bulk review flows.
 
 - `books-ebook`
 - `books-audiobook`

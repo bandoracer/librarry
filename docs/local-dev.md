@@ -192,7 +192,10 @@ copies or moves a single source file into the organized format root.
 qBittorrent downloads into the same organized roots when they are linked to a
 wanted item. Unlinked completed downloads are queued in
 `GET /api/v1/library/import-reviews` and resolved through
-`POST /api/v1/library/import-reviews/{id}/resolve`.
+`POST /api/v1/library/import-reviews/{id}/resolve`. OPF sidecars and embedded
+EPUB package metadata are extracted during scan/import and used for title,
+author, identifiers, language, publisher, and series evidence before falling
+back to filename parsing.
 
 If the destination path is inside a Readarr-compatible root folder with
 `isCalibreLibrary=true`, Librarry also posts the imported file to the configured

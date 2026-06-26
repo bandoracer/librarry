@@ -81,7 +81,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Metadata source model | Historically depended on centralized metadata; the retirement announcement names metadata failure as the blocking issue. | Multi-provider abstraction with Hardcover, Open Library, Google Books fallback, and local metadata stubs. | Local canonical graph with provider provenance, explainable matches, and resilient fallback behavior. |
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
-| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, tracked in Postgres, manually imported, fed by completed qBittorrent imports, and reviewed when completed downloads are not linked to wanted items. | Add OPF, EPUB, audio-tag extraction, missing-book detection, and stronger import matching. |
+| Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars and embedded EPUB package metadata are extracted during scan/import, files are tracked in Postgres, completed qBittorrent imports feed the library, and unlinked completed downloads are queued for review. | Add audio-tag extraction, missing-book detection, and stronger import matching. |
 | Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, and bulk selected-download actions. | Add richer review flows, missing-book policy, and conflict handling. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, manual magnet/torrent/NZB URL add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
@@ -129,8 +129,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Manual and scheduled feed sync for Prowlarr-compatible indexer RSS feeds,
   with release persistence, matching against wanted items, optional paused
   auto-grab, and history events.
-- Library scanning for ebook/audiobook roots and manual file import into
-  organized book folders.
+- Library scanning for ebook/audiobook roots, OPF sidecar and embedded EPUB
+  metadata extraction, and manual file import into organized book folders.
 - Completed-download import for Librarry-tagged qBittorrent items, with
   imported/error state persisted on download records.
 - Calibre Content Server add-book handoff for manual or completed-download
@@ -174,7 +174,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Score-based upgrade search for grabbed/imported wanted items, with profile
   cutoffs, minimum score deltas, optional paused auto-grab, and history events.
 - Metadata provider abstraction with initial adapters for Hardcover, Open
-  Library, Google Books, and local OPF/embedded metadata.
+  Library, Google Books, and local OPF/embedded metadata; library import uses
+  OPF and EPUB package metadata as high-confidence local evidence.
 - Prowlarr-compatible release search for book indexers, exposed through both
   native Librarry routes and stateful Readarr-compatible `/api/v1/release`
   search/grab that maps returned Arr release IDs back to persisted Librarry
@@ -222,7 +223,8 @@ Provider priority:
 2. Open Library is the open-data backbone for works, authors, editions, ISBNs,
    and covers.
 3. Google Books is an API-keyed exact-match fallback, not a primary graph.
-4. Local OPF, EPUB, and audio tags are high-confidence import evidence.
+4. Local OPF and EPUB package metadata are high-confidence import evidence;
+   audio tags are planned for audiobook imports.
 5. Manual overrides always win.
 
 Goodreads, Amazon, and Audible scraping are intentionally not part of core.
@@ -653,7 +655,7 @@ will grow as the automation path stabilizes.
 
 ## Roadmap
 
-- OPF, EPUB, and audio-tag extraction during library scans.
+- Audio-tag extraction during library scans.
 - Author-level missing-book policy and review controls.
 - Conflict policies, bulk import review, and per-profile organization rules.
 - Scheduled Calibre conversion completion polling, richer edition metadata sync,

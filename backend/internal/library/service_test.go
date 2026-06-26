@@ -1,6 +1,7 @@
 package library
 
 import (
+	"archive/zip"
 	"context"
 	"os"
 	"path/filepath"
@@ -31,6 +32,70 @@ func TestParseBookFilename(t *testing.T) {
 				t.Fatalf("expected %q/%q, got %q/%q", tt.title, tt.author, got.Title, got.AuthorName)
 			}
 		})
+	}
+}
+
+func TestParsedBookForPathPrefersEPUBMetadata(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Bad_File_Name.epub")
+	writeTestEPUB(t, path, `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+  <metadata>
+    <dc:title>Project Hail Mary</dc:title>
+    <dc:creator>Andy Weir</dc:creator>
+    <dc:identifier opf:scheme="ISBN">978-0-593-13520-4</dc:identifier>
+    <dc:language>en</dc:language>
+    <dc:publisher>Ballantine Books</dc:publisher>
+    <meta name="calibre:series" content="Hail Mary" />
+    <meta name="calibre:series_index" content="1" />
+  </metadata>
+</package>`)
+
+	parsed := parsedBookForPath(path)
+	if parsed.Title != "Project Hail Mary" || parsed.AuthorName != "Andy Weir" {
+		t.Fatalf("expected EPUB metadata title/author, got %+v", parsed)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := fileRecordFromPath(path, "ebook", info, "available")
+	if record.Title != "Project Hail Mary" || record.AuthorName != "Andy Weir" {
+		t.Fatalf("expected file record to use EPUB metadata, got %+v", record)
+	}
+	if record.Metadata["isbn13"] != "9780593135204" || record.Metadata["metadataSource"] != "epub-opf" {
+		t.Fatalf("expected EPUB identifiers in metadata, got %#v", record.Metadata)
+	}
+	local, ok := record.Metadata["localMetadata"].(map[string]any)
+	if !ok || local["series"] != "Hail Mary" || local["language"] != "en" || local["publisher"] != "Ballantine Books" {
+		t.Fatalf("expected local metadata payload, got %#v", record.Metadata["localMetadata"])
+	}
+}
+
+func TestParsedBookForPathUsesSidecarOPF(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "filename-only.epub")
+	if err := os.WriteFile(path, []byte("not a zip but sidecar exists"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "filename-only.opf"), []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata>
+    <dc:title>Dungeon Crawler Carl</dc:title>
+    <dc:creator>Matt Dinniman</dc:creator>
+    <dc:identifier>9798986133815</dc:identifier>
+  </metadata>
+</package>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed := parsedBookForPath(path)
+	if parsed.Title != "Dungeon Crawler Carl" || parsed.AuthorName != "Matt Dinniman" {
+		t.Fatalf("expected sidecar OPF title/author, got %+v", parsed)
+	}
+	metadata := localBookMetadataForPath(path)
+	if metadata.Source != "sidecar-opf" || metadata.Identifiers["isbn13"] != "9798986133815" {
+		t.Fatalf("expected sidecar identifiers, got %+v", metadata)
 	}
 }
 
@@ -407,6 +472,37 @@ func (f *fakeCalibreImporter) Convert(_ context.Context, request calibre.Convert
 func (f *fakeCalibreImporter) PollConversions(_ context.Context, request calibre.PollConversionsRequest) ([]calibre.ConversionStatus, error) {
 	f.pollRequests = append(f.pollRequests, request)
 	return f.conversionStatuses, nil
+}
+
+func writeTestEPUB(t *testing.T, path string, opf string) {
+	t.Helper()
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	writer := zip.NewWriter(file)
+	writeZipEntry(t, writer, "META-INF/container.xml", `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`)
+	writeZipEntry(t, writer, "OEBPS/content.opf", opf)
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeZipEntry(t *testing.T, writer *zip.Writer, name string, body string) {
+	t.Helper()
+	entry, err := writer.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := entry.Write([]byte(body)); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {

@@ -368,7 +368,7 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 		format = normalizeFormat(request.Format)
 	}
 
-	parsed := parseBookFilename(source)
+	parsed := parsedBookForPath(source)
 	if strings.TrimSpace(request.WantedID) != "" {
 		item, err := s.lookupWanted(ctx, request.WantedID)
 		if err != nil {
@@ -1152,7 +1152,7 @@ func (s *Service) queueImportReview(ctx context.Context, download acquisition.Do
 	if err != nil {
 		return ImportReview{}, err
 	}
-	parsed := parseBookFilename(source)
+	parsed := parsedBookForPath(source)
 	metadata := map[string]any{
 		"downloadName":     download.Name,
 		"downloadCategory": download.Category,
@@ -1174,13 +1174,14 @@ func (s *Service) queueImportReview(ctx context.Context, download acquisition.Do
 }
 
 func fileRecordFromPath(path string, format string, info fs.FileInfo, status string) FileRecord {
-	parsed := parseBookFilename(path)
+	parsed := parsedBookForPath(path)
 	modified := info.ModTime().UTC()
 	metadata := map[string]any{
 		"fingerprint": fingerprint(path, info),
 		"modifiedAt":  modified.Format(time.RFC3339),
 		"scannedAt":   time.Now().UTC().Format(time.RFC3339),
 	}
+	applyLocalMetadataToMap(metadata, localBookMetadataForPath(path))
 	return FileRecord{
 		MediaFormat:  normalizeFormat(format),
 		Path:         filepath.Clean(path),
