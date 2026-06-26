@@ -68,6 +68,16 @@ export type IntegrationSettingsResponse = {
   integrations?: IntegrationHealth[];
 };
 
+export type SystemStatus = {
+  appName: string;
+  instanceName?: string;
+  version: string;
+  databaseType: string;
+  authentication?: string;
+  runtimeName?: string;
+  runtimeVersion?: string;
+};
+
 export type Release = {
   id: string;
   infoHash?: string;
@@ -702,6 +712,14 @@ export async function fetchIntegrationHealth(): Promise<IntegrationHealth[]> {
   }
   const payload = (await response.json()) as { integrations: IntegrationHealth[] };
   return payload.integrations;
+}
+
+export async function fetchSystemStatus(): Promise<SystemStatus> {
+  const response = await fetch(`${apiBase}/api/v1/system/status`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "System status failed"));
+  }
+  return (await response.json()) as SystemStatus;
 }
 
 export async function fetchIntegrationSettings(): Promise<IntegrationSettingsResponse> {

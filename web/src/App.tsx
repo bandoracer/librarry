@@ -46,6 +46,7 @@ import {
   fetchLibraryImportReviews,
   fetchProviderHealth,
   fetchQualityProfiles,
+  fetchSystemStatus,
   fetchWanted,
   fetchWantedReleases,
   getStoredAPIKey,
@@ -104,6 +105,7 @@ import {
   type Release,
   type ReviewBulkDecisionOutcome,
   type SearchResult,
+  type SystemStatus,
   type UpgradeRun,
   type WantedItem
 } from "./lib/api";
@@ -206,6 +208,7 @@ function integrationSettingsForm(settings: IntegrationSettings): IntegrationSett
 export function App() {
   const [activeView, setActiveView] = useState<ViewID>("wanted");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
@@ -341,10 +344,11 @@ export function App() {
   }
 
   useEffect(() => {
-    Promise.all([fetchProviderHealth(), fetchIntegrationHealth()])
-      .then(([nextProviders, nextIntegrations]) => {
+    Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus()])
+      .then(([nextProviders, nextIntegrations, nextStatus]) => {
         setProviders(nextProviders);
         setIntegrations(nextIntegrations);
+        setSystemStatus(nextStatus);
         setAPIState("live");
       })
       .catch(() => {
@@ -1627,9 +1631,10 @@ export function App() {
     setSettingsError("");
     setSettingsNotice(apiKeyInput.trim() ? "API key saved for this browser." : "API key cleared for this browser.");
     try {
-      const [nextProviders, nextIntegrations] = await Promise.all([fetchProviderHealth(), fetchIntegrationHealth()]);
+      const [nextProviders, nextIntegrations, nextStatus] = await Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus()]);
       setProviders(nextProviders);
       setIntegrations(nextIntegrations);
+      setSystemStatus(nextStatus);
       setAPIState("live");
     } catch (error) {
       setAPIState("offline");
@@ -1639,6 +1644,8 @@ export function App() {
 
   const readyCount = providers.filter((provider) => provider.status === "ready").length;
   const integrationReadyCount = integrations.filter((integration) => integration.status === "ready").length;
+  const databaseReady = systemStatus?.databaseType ? systemStatus.databaseType !== "none" : false;
+  const databaseLabel = systemStatus ? (databaseReady ? `${systemStatus.databaseType} persistence` : "No database") : "Database unknown";
   const activeNav = navItems.find((item) => item.id === activeView) ?? navItems[0];
 
   return (
@@ -1675,11 +1682,33 @@ export function App() {
             <h1>{activeNav.title}</h1>
             <p>{activeNav.description}</p>
           </div>
-          <div className="topbar-status">
-            <CheckCircle2 size={18} />
-            <span>{readyCount}/{providers.length} providers ready</span>
+          <div className="topbar-status-group">
+            <div className="topbar-status ready">
+              <CheckCircle2 size={18} />
+              <span>{readyCount}/{providers.length} providers ready</span>
+            </div>
+            <div className={databaseReady ? "topbar-status ready" : "topbar-status warn"}>
+              <Database size={18} />
+              <span>{databaseLabel}</span>
+            </div>
           </div>
         </header>
+
+        {systemStatus && !databaseReady ? (
+          <section className="readiness-callout" aria-label="Persistence setup">
+            <div>
+              <strong>Database persistence is required for the Readarr workflow.</strong>
+              <p>
+                Wanted queues, author monitoring, release decisions, import reviews, history, and persisted integration settings need Postgres.
+                Set <code>LIBRARRY_DATABASE_URL</code> and restart the API.
+              </p>
+            </div>
+            <button className="secondary-action compact" onClick={() => setActiveView("settings")} type="button">
+              <Settings size={16} />
+              Settings
+            </button>
+          </section>
+        ) : null}
 
         <section className="search-strip" aria-label="Metadata search controls" hidden={activeView !== "search"}>
           <div className="search-input">
