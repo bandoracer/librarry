@@ -2633,6 +2633,27 @@ func TestUpdateAuthorSubscriptionEndpoint(t *testing.T) {
 	}
 }
 
+func TestDeleteAuthorSubscriptionEndpoint(t *testing.T) {
+	wantedClient := &fakeMutableWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   wantedClient,
+	})
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/authors/author-sub-1", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.authorDeletes) != 1 || wantedClient.authorDeletes[0] != "author-sub-1" {
+		t.Fatalf("expected deleted author subscription id, got %+v", wantedClient.authorDeletes)
+	}
+}
+
 func TestMonitorAuthorsEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),

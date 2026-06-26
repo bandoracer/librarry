@@ -131,7 +131,8 @@ ID/provider key to `POST /api/v1/authors/monitor`. Set
 `missingBookPolicy` to `all`, `future`, or `none` to control whether a monitored
 author backfills the visible bibliography, only creates wanted items for
 future-dated metadata, or only syncs author metadata. Existing subscriptions can
-be changed with `PATCH /api/v1/authors/{id}`. Manual author refreshes are
+be changed with `PATCH /api/v1/authors/{id}` and soft-removed with
+`DELETE /api/v1/authors/{id}`. Manual author refreshes are
 available through `POST /api/v1/authors/monitor`; monitor results report
 metadata hits, wanted items created, and entries skipped by policy. For Open
 Library-backed subscriptions, the monitor uses the stored author ID against the

@@ -1279,6 +1279,15 @@ export async function updateAuthorSubscription(authorID: string, request: Author
   return (await response.json()) as AuthorSubscription;
 }
 
+export async function deleteAuthorSubscription(authorID: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/authors/${encodeURIComponent(authorID)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Author subscription remove failed"));
+  }
+}
+
 export async function fetchAuthorMetadataReviews(status = "pending", limit = 100): Promise<AuthorMetadataReview[]> {
   const params = new URLSearchParams({ status, limit: String(limit) });
   const response = await fetch(`${apiBase}/api/v1/authors/metadata/review?${params.toString()}`);

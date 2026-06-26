@@ -34,6 +34,7 @@ import {
   applyWantedMetadataCorrection,
   clearWantedOverride,
   createWanted,
+  deleteAuthorSubscription,
   deleteWanted,
   fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
@@ -329,6 +330,7 @@ export function App() {
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
   const [authorMonitorTargetKey, setAuthorMonitorTargetKey] = useState("");
   const [updatingAuthorID, setUpdatingAuthorID] = useState("");
+  const [removingAuthorID, setRemovingAuthorID] = useState("");
   const [markingAuthorSkippedKey, setMarkingAuthorSkippedKey] = useState("");
   const [authorReviewActionID, setAuthorReviewActionID] = useState("");
   const [isRunningFeedSync, setIsRunningFeedSync] = useState(false);
@@ -801,6 +803,22 @@ export function App() {
       setAuthorError(error instanceof Error ? error.message : "Author subscription update failed");
     } finally {
       setUpdatingAuthorID("");
+    }
+  }
+
+  async function removeAuthorSubscription(subscription: AuthorSubscription) {
+    if (!subscription.id) return;
+    setRemovingAuthorID(subscription.id);
+    setAuthorError("");
+    try {
+      await deleteAuthorSubscription(subscription.id);
+      setAuthorSubscriptions((current) => current.filter((item) => authorSubscriptionKey(item) !== authorSubscriptionKey(subscription)));
+      setAuthorMetadataReviews((current) => current.filter((review) => review.authorSubscriptionId !== subscription.id));
+      setAPIState("live");
+    } catch (error) {
+      setAuthorError(error instanceof Error ? error.message : "Author subscription remove failed");
+    } finally {
+      setRemovingAuthorID("");
     }
   }
 
@@ -2693,6 +2711,7 @@ export function App() {
                   const updating = updatingAuthorID === subscription.id;
                   const monitorKey = authorSubscriptionKey(subscription);
                   const refreshingAuthor = authorMonitorTargetKey === monitorKey;
+                  const removingAuthor = removingAuthorID === subscription.id;
                   return (
                     <article className="author-row" key={subscription.id || `${subscription.provider}:${subscription.providerKey}:${subscription.format}`}>
                       <div>
@@ -2714,15 +2733,27 @@ export function App() {
                             </option>
                           ))}
                         </select>
-                        <button
-                          className="secondary-action compact"
-                          disabled={isRunningAuthorMonitor}
-                          onClick={() => runAuthorSubscriptionMonitor(authorSubscriptionMonitorOptions(subscription))}
-                          type="button"
-                        >
-                          <RefreshCw size={15} />
-                          {refreshingAuthor ? "Refreshing" : "Refresh"}
-                        </button>
+                        <div className="author-row-actions">
+                          <button
+                            className="secondary-action compact"
+                            disabled={isRunningAuthorMonitor}
+                            onClick={() => runAuthorSubscriptionMonitor(authorSubscriptionMonitorOptions(subscription))}
+                            type="button"
+                          >
+                            <RefreshCw size={15} />
+                            {refreshingAuthor ? "Refreshing" : "Refresh"}
+                          </button>
+                          <button
+                            aria-label={`Remove ${subscription.authorName}`}
+                            className="secondary-action compact danger-outline"
+                            disabled={!subscription.id || Boolean(removingAuthorID)}
+                            onClick={() => removeAuthorSubscription(subscription)}
+                            type="button"
+                          >
+                            <Trash2 size={15} />
+                            {removingAuthor ? "Removing" : "Remove"}
+                          </button>
+                        </div>
                         <em>{subscription.lastSyncAt ? formatDateTime(subscription.lastSyncAt) : "never synced"}</em>
                       </div>
                     </article>

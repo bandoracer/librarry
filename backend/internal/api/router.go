@@ -350,6 +350,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/authors", handler.subscribeAuthor)
 	mux.HandleFunc("PATCH /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("PUT /api/v1/authors/{id}", handler.updateAuthorSubscription)
+	mux.HandleFunc("DELETE /api/v1/authors/{id}", handler.deleteAuthorSubscription)
 	mux.HandleFunc("POST /api/v1/authors/monitor", handler.monitorAuthors)
 	mux.HandleFunc("GET /api/v1/authors/metadata/review", handler.authorMetadataReviews)
 	mux.HandleFunc("POST /api/v1/authors/metadata/review/{id}/resolve", handler.resolveAuthorMetadataReview)
@@ -1087,6 +1088,27 @@ func (h *handler) updateAuthorSubscription(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, http.StatusOK, subscription)
+}
+
+func (h *handler) deleteAuthorSubscription(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "author subscription id is required"})
+		return
+	}
+	if err := h.deps.Wanted.DeleteAuthorSubscription(r.Context(), id); err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) monitorAuthors(w http.ResponseWriter, r *http.Request) {

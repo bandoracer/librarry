@@ -2493,6 +2493,13 @@ select {
   justify-items: end;
 }
 
+.author-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .author-row-controls select {
   width: 96px;
   height: 30px;

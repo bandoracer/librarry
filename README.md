@@ -502,6 +502,7 @@ Important API surfaces:
   - `POST /api/v1/authors`
   - `PATCH /api/v1/authors/{id}`
   - `PUT /api/v1/authors/{id}`
+  - `DELETE /api/v1/authors/{id}`
   - `POST /api/v1/authors/monitor`
   - `GET /api/v1/authors/metadata/review`
   - `POST /api/v1/authors/metadata/review/{id}/resolve`
