@@ -126,6 +126,23 @@ Manual feed runs are available through `POST /api/v1/wanted/feed-sync`.
 `LIBRARRY_FEED_SYNC_AUTO_GRAB=false` keeps scheduled feed runs search-only while
 still recording feed releases, matched release decisions, and history.
 
+## Import Lists
+
+Readarr-compatible import lists are available through `/api/v1/importlist`.
+Persisted, enabled `ReadarrImportList` resources can be synced with:
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/v1/command \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"ImportListSync"}'
+```
+
+Librarry supports inline list entries in `books`, `items`, `entries`, `titles`,
+`queries`, `isbns`, or `fields[].value`. Entries are resolved through metadata
+search when providers are configured; otherwise deterministic title/author
+records are created so reruns remain idempotent. Import-list exclusions from
+`/api/v1/importlistexclusion` are respected before wanted items are created.
+
 ## Upgrades
 
 Upgrade search can run on an interval:

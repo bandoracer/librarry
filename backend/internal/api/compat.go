@@ -2362,6 +2362,13 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 			}
 			command["body"] = run
 		}
+	case "importlistsync", "refreshimportlist":
+		run, err := h.compatRunImportListSyncCommand(r.Context(), payload)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+			return
+		}
+		command["body"] = run
 	case "faileddownloadcheck":
 		if h.deps.Wanted != nil {
 			run, err := h.deps.Wanted.RecoverFailedDownloads(r.Context(), wanted.FailedDownloadRequest{
@@ -2557,6 +2564,414 @@ func (h *handler) compatCommandWantedIDs(ctx context.Context, payload map[string
 	return wantedIDs, unmatched, nil
 }
 
+type compatImportListEntry struct {
+	Title          string
+	AuthorName     string
+	Query          string
+	ForeignID      string
+	ISBN           string
+	Format         string
+	QualityProfile string
+	Provider       string
+	CoverURL       string
+	Tags           []int
+}
+
+func (h *handler) compatRunImportListSyncCommand(ctx context.Context, payload map[string]any) (map[string]any, error) {
+	run := map[string]any{
+		"status":        "completed",
+		"listsChecked":  0,
+		"enabledLists":  0,
+		"entriesFound":  0,
+		"wantedCreated": 0,
+		"skipped":       0,
+		"errorCount":    0,
+		"errors":        []string{},
+		"items":         []map[string]any{},
+	}
+	if h.deps.Wanted == nil {
+		run["status"] = "failed"
+		run["errorCount"] = 1
+		run["errors"] = []string{"wanted service is unavailable"}
+		return run, nil
+	}
+
+	requestedIDs := payloadStringList(payload, "importListIds", "importListIDs", "importListId", "importListID", "ids", "id")
+	lists, err := h.compatImportListSyncRecords(ctx, payload, len(requestedIDs) == 0)
+	if err != nil {
+		return run, err
+	}
+	exclusions, err := h.compatImportListSyncExclusions(ctx)
+	if err != nil {
+		return run, err
+	}
+
+	items := []map[string]any{}
+	errorsOut := []string{}
+	for _, list := range lists {
+		if len(requestedIDs) > 0 && !compatImportListMatchesAnyID(list, requestedIDs) {
+			continue
+		}
+		run["listsChecked"] = run["listsChecked"].(int) + 1
+		if !payloadBoolDefault(list, "enable", payloadBoolDefault(list, "enabled", false)) {
+			run["skipped"] = run["skipped"].(int) + 1
+			continue
+		}
+		run["enabledLists"] = run["enabledLists"].(int) + 1
+		entries := compatImportListEntries(list)
+		run["entriesFound"] = run["entriesFound"].(int) + len(entries)
+		for _, entry := range entries {
+			itemRecord := map[string]any{
+				"listId":   payloadIntDefault(list, "id", 0),
+				"listName": payloadString(list, "name"),
+				"title":    firstNonEmptyString(entry.Title, entry.Query, entry.ISBN),
+				"author":   entry.AuthorName,
+				"status":   "pending",
+			}
+			if compatImportListEntryExcluded(entry, exclusions) {
+				itemRecord["status"] = "skipped"
+				itemRecord["reason"] = "import list exclusion"
+				run["skipped"] = run["skipped"].(int) + 1
+				items = append(items, itemRecord)
+				continue
+			}
+			result := h.compatImportListResolveEntry(ctx, entry, list)
+			created, createErr := h.deps.Wanted.Create(ctx, wanted.CreateRequest{
+				Result:         result,
+				Format:         firstNonEmptyString(entry.Format, payloadString(list, "format"), "ebook"),
+				QualityProfile: h.compatImportListQualityProfile(ctx, list, entry),
+				Tags:           mergeCompatIntTags(compatPayloadIntArray(list, "tags"), entry.Tags),
+			})
+			if createErr != nil {
+				itemRecord["status"] = "error"
+				itemRecord["error"] = createErr.Error()
+				run["errorCount"] = run["errorCount"].(int) + 1
+				errorsOut = append(errorsOut, createErr.Error())
+				items = append(items, itemRecord)
+				continue
+			}
+			itemRecord["status"] = "wanted"
+			itemRecord["wantedId"] = created.ID
+			itemRecord["bookId"] = stableInt(firstNonEmptyString(created.ID, created.WorkID, created.Title))
+			itemRecord["title"] = created.Title
+			itemRecord["author"] = created.AuthorName
+			run["wantedCreated"] = run["wantedCreated"].(int) + 1
+			items = append(items, itemRecord)
+		}
+	}
+	if run["errorCount"].(int) > 0 {
+		run["status"] = "completedWithErrors"
+	}
+	run["errors"] = errorsOut
+	run["items"] = items
+	return run, nil
+}
+
+func (h *handler) compatImportListSyncRecords(ctx context.Context, payload map[string]any, includeInline bool) ([]map[string]any, error) {
+	var records []map[string]any
+	if h.deps.Compat != nil {
+		resources, err := h.deps.Compat.ListResources(ctx, "import-list")
+		if err != nil {
+			return nil, err
+		}
+		for _, resource := range resources {
+			record := compatImportListRecord(resource.Payload, resource.CompatID)
+			record = mergeCompatPayload(record, resource.Payload)
+			record["id"] = resource.CompatID
+			record["name"] = firstNonEmptyString(payloadString(record, "name"), resource.Name)
+			record["librarryPersisted"] = true
+			delete(record, "librarryEphemeral")
+			records = append(records, record)
+		}
+	}
+	if includeInline && len(compatImportListEntries(payload)) > 0 {
+		inline := compatImportListRecord(payload, stableInt("inline-import-list"))
+		inline = mergeCompatPayload(inline, payload)
+		inline["enable"] = payloadBoolDefault(inline, "enable", true)
+		inline["name"] = firstNonEmptyString(payloadString(inline, "name"), "Inline import list")
+		records = append(records, inline)
+	}
+	return records, nil
+}
+
+func (h *handler) compatImportListSyncExclusions(ctx context.Context) ([]map[string]any, error) {
+	if h.deps.Compat == nil {
+		return nil, nil
+	}
+	resources, err := h.deps.Compat.ListResources(ctx, "import-list-exclusion")
+	if err != nil {
+		return nil, err
+	}
+	exclusions := make([]map[string]any, 0, len(resources))
+	for _, resource := range resources {
+		record := compatImportListExclusionRecord(resource.Payload, resource.CompatID)
+		record = mergeCompatPayload(record, resource.Payload)
+		record["id"] = resource.CompatID
+		exclusions = append(exclusions, record)
+	}
+	return exclusions, nil
+}
+
+func compatImportListMatchesAnyID(list map[string]any, ids []string) bool {
+	candidates := []string{
+		strconv.Itoa(payloadIntDefault(list, "id", 0)),
+		payloadString(list, "name"),
+		payloadString(list, "implementation"),
+		payloadString(list, "implementationName"),
+	}
+	return anyCompatIDMatches(ids, candidates...)
+}
+
+func compatImportListEntries(list map[string]any) []compatImportListEntry {
+	var entries []compatImportListEntry
+	for _, key := range []string{"books", "items", "entries", "listItems", "wanted"} {
+		entries = append(entries, compatImportListEntriesFromValue(key, list[key])...)
+	}
+	for _, key := range []string{"titles", "queries", "isbns"} {
+		entries = append(entries, compatImportListEntriesFromValue(key, list[key])...)
+	}
+	for _, field := range compatPayloadArray(list, "fields") {
+		fieldPayload, ok := field.(map[string]any)
+		if !ok {
+			continue
+		}
+		name := strings.ToLower(firstNonEmptyString(payloadString(fieldPayload, "name"), payloadString(fieldPayload, "label")))
+		entries = append(entries, compatImportListEntriesFromValue(name, fieldPayload["value"])...)
+	}
+	if entry := compatImportListEntryFromPayload(list); compatImportListEntryKey(entry) != "" {
+		entries = append(entries, entry)
+	}
+	return compactCompatImportListEntries(entries)
+}
+
+func compatImportListEntriesFromValue(name string, raw any) []compatImportListEntry {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if raw == nil {
+		return nil
+	}
+	switch typed := raw.(type) {
+	case []any:
+		entries := make([]compatImportListEntry, 0, len(typed))
+		for _, item := range typed {
+			entries = append(entries, compatImportListEntriesFromValue(name, item)...)
+		}
+		return entries
+	case []string:
+		entries := make([]compatImportListEntry, 0, len(typed))
+		for _, item := range typed {
+			entries = append(entries, compatImportListEntriesFromValue(name, item)...)
+		}
+		return entries
+	case map[string]any:
+		if len(typed) == 0 {
+			return nil
+		}
+		if entry := compatImportListEntryFromPayload(typed); compatImportListEntryKey(entry) != "" {
+			return []compatImportListEntry{entry}
+		}
+		return nil
+	case string:
+		if decoded := compatImportListEntriesFromJSONString(name, typed); len(decoded) > 0 {
+			return decoded
+		}
+		var entries []compatImportListEntry
+		for _, line := range splitCompatImportListText(typed) {
+			if entry := compatImportListEntryFromText(name, line); compatImportListEntryKey(entry) != "" {
+				entries = append(entries, entry)
+			}
+		}
+		return entries
+	default:
+		if text := stringValue(typed); text != "" {
+			return compatImportListEntriesFromValue(name, text)
+		}
+		return nil
+	}
+}
+
+func compatImportListEntriesFromJSONString(name string, value string) []compatImportListEntry {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "[") && !strings.HasPrefix(value, "{") {
+		return nil
+	}
+	var decoded any
+	if err := json.Unmarshal([]byte(value), &decoded); err != nil {
+		return nil
+	}
+	return compatImportListEntriesFromValue(name, decoded)
+}
+
+func compatImportListEntryFromPayload(payload map[string]any) compatImportListEntry {
+	title := firstNonEmptyString(payloadString(payload, "title"), payloadString(payload, "bookTitle"), nestedString(payload, "book", "title"))
+	authorName := firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "authorTitle"), nestedString(payload, "author", "authorName"))
+	query := firstNonEmptyString(payloadString(payload, "query"), payloadString(payload, "term"), payloadString(payload, "searchTerm"))
+	isbn := firstNonEmptyString(payloadString(payload, "isbn"), payloadString(payload, "isbn13"), payloadString(payload, "isbn10"))
+	foreignID := firstNonEmptyString(payloadString(payload, "foreignId"), payloadString(payload, "foreignBookId"))
+	if foreignID == "" && firstNonEmptyString(title, query, isbn) != "" {
+		foreignID = payloadString(payload, "id")
+	}
+	return compatImportListEntry{
+		Title:          title,
+		AuthorName:     authorName,
+		Query:          firstNonEmptyString(query, compatImportListQuery(title, authorName, isbn)),
+		ForeignID:      foreignID,
+		ISBN:           isbn,
+		Format:         firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "mediaFormat"), nestedString(payload, "book", "librarryFormat")),
+		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), payloadString(payload, "qualityProfileName"), nestedString(payload, "qualityProfile", "name")),
+		Provider:       payloadString(payload, "provider"),
+		CoverURL:       firstNonEmptyString(payloadString(payload, "coverUrl"), payloadString(payload, "remoteCover")),
+		Tags:           compatPayloadIntArray(payload, "tags"),
+	}
+}
+
+func compatImportListEntryFromText(name string, value string) compatImportListEntry {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return compatImportListEntry{}
+	}
+	if strings.Contains(name, "isbn") {
+		return compatImportListEntry{ISBN: value, Query: value}
+	}
+	title, authorName := parseCompatReleaseTitle(value)
+	return compatImportListEntry{
+		Title:      title,
+		AuthorName: authorName,
+		Query:      value,
+	}
+}
+
+func splitCompatImportListText(value string) []string {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	parts := strings.Split(value, "\n")
+	if len(parts) == 1 {
+		parts = strings.Split(value, ";")
+	}
+	var lines []string
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			lines = append(lines, trimmed)
+		}
+	}
+	return lines
+}
+
+func compactCompatImportListEntries(entries []compatImportListEntry) []compatImportListEntry {
+	compact := make([]compatImportListEntry, 0, len(entries))
+	seen := map[string]bool{}
+	for _, entry := range entries {
+		key := compatImportListEntryKey(entry)
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		compact = append(compact, entry)
+	}
+	return compact
+}
+
+func compatImportListEntryKey(entry compatImportListEntry) string {
+	titleAuthor := ""
+	if strings.TrimSpace(entry.Title) != "" || strings.TrimSpace(entry.AuthorName) != "" {
+		titleAuthor = entry.Title + "|" + entry.AuthorName
+	}
+	return strings.ToLower(firstNonEmptyString(entry.ForeignID, entry.ISBN, titleAuthor, entry.Query))
+}
+
+func compatImportListEntryExcluded(entry compatImportListEntry, exclusions []map[string]any) bool {
+	for _, exclusion := range exclusions {
+		foreignID := firstNonEmptyString(payloadString(exclusion, "foreignId"), payloadString(exclusion, "foreignBookId"))
+		bookTitle := firstNonEmptyString(payloadString(exclusion, "bookTitle"), payloadString(exclusion, "title"))
+		authorName := firstNonEmptyString(payloadString(exclusion, "authorName"), payloadString(exclusion, "authorTitle"))
+		switch {
+		case foreignID != "" && strings.EqualFold(foreignID, entry.ForeignID):
+			return true
+		case bookTitle != "" && strings.EqualFold(bookTitle, entry.Title) && (authorName == "" || strings.EqualFold(authorName, entry.AuthorName)):
+			return true
+		}
+	}
+	return false
+}
+
+func (h *handler) compatImportListResolveEntry(ctx context.Context, entry compatImportListEntry, list map[string]any) metadata.SearchResult {
+	format := metadata.MediaFormat(firstNonEmptyString(entry.Format, payloadString(list, "format"), "ebook"))
+	query := firstNonEmptyString(entry.Query, compatImportListQuery(entry.Title, entry.AuthorName, entry.ISBN))
+	if h.deps.Metadata != nil && query != "" {
+		outcome := h.deps.Metadata.SearchDetailed(ctx, metadata.Query{
+			Query:  query,
+			Type:   metadata.SearchTypeBook,
+			Format: format,
+			Limit:  5,
+		})
+		if len(outcome.Results) > 0 {
+			return outcome.Results[0]
+		}
+	}
+	title := firstNonEmptyString(entry.Title, entry.Query, entry.ISBN, "Imported book")
+	authorName := entry.AuthorName
+	workID := firstNonEmptyString(entry.ForeignID, entry.ISBN, "import-list:book:"+slug(title))
+	editionID := firstNonEmptyString(entry.ISBN, entry.ForeignID, "import-list:edition:"+slug(title)+":"+string(format))
+	return metadata.SearchResult{
+		Provider:     firstNonEmptyString(entry.Provider, payloadString(list, "implementation"), "Import List"),
+		Kind:         metadata.SearchTypeBook,
+		Score:        1,
+		Confidence:   "manual",
+		MatchedOn:    []string{"import_list"},
+		RawSourceKey: firstNonEmptyString(entry.ForeignID, entry.ISBN, workID),
+		Work: metadata.Work{
+			ID:       workID,
+			Title:    title,
+			CoverURL: entry.CoverURL,
+			Authors:  []metadata.Author{{ID: "import-list:author:" + slug(authorName), Name: authorName}},
+		},
+		Edition: metadata.Edition{
+			ID:     editionID,
+			Title:  title,
+			Format: format,
+			ISBNs:  compactISBNs(entry.ISBN),
+		},
+	}
+}
+
+func (h *handler) compatImportListQualityProfile(ctx context.Context, list map[string]any, entry compatImportListEntry) string {
+	if profile := firstNonEmptyString(entry.QualityProfile, payloadString(list, "qualityProfile"), payloadString(list, "qualityProfileName")); profile != "" {
+		return profile
+	}
+	profileID := payloadIntDefault(list, "qualityProfileId", 0)
+	if profileID > 0 && h.deps.Wanted != nil {
+		profiles, err := h.deps.Wanted.ListQualityProfiles(ctx)
+		if err == nil {
+			for _, profile := range profiles {
+				if compatIDMatches(strconv.Itoa(profileID), profile.ID, profile.Name) {
+					return profile.Name
+				}
+			}
+		}
+	}
+	return "standard"
+}
+
+func compatImportListQuery(title string, authorName string, isbn string) string {
+	if strings.TrimSpace(isbn) != "" {
+		return strings.TrimSpace(isbn)
+	}
+	return strings.TrimSpace(strings.Join([]string{strings.TrimSpace(authorName), strings.TrimSpace(title)}, " "))
+}
+
+func mergeCompatIntTags(left []int, right []int) []int {
+	return compactCompatTags(append(append([]int{}, left...), right...))
+}
+
+func compactISBNs(values ...string) []string {
+	var isbn []string
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			isbn = append(isbn, trimmed)
+		}
+	}
+	return isbn
+}
+
 func firstApprovedReleaseDecision(releases []wanted.ReleaseDecision) (wanted.ReleaseDecision, bool) {
 	for _, release := range releases {
 		if release.Approved {
@@ -2573,6 +2988,7 @@ func compatCommandNames() []string {
 		"BookSearch",
 		"RefreshAuthor",
 		"AuthorSearch",
+		"ImportListSync",
 		"FailedDownloadCheck",
 		"UpgradeSearch",
 		"CutoffUnmetBookSearch",
@@ -3705,6 +4121,7 @@ func (h *handler) compatSystemTaskRecords() []map[string]any {
 		compatSystemTaskRecord(3, "RefreshAuthor", "Author metadata monitor", h.deps.Config.AuthorMonitorInterval, h.deps.Config.AuthorMonitorEnabled, now),
 		compatSystemTaskRecord(4, "FailedDownloadCheck", "Failed download recovery", h.deps.Config.FailedDownloadInterval, h.deps.Config.FailedDownloadEnabled, now),
 		compatSystemTaskRecord(5, "UpgradeSearch", "Wanted upgrade search", h.deps.Config.UpgradeSearchInterval, h.deps.Config.UpgradeSearchEnabled, now),
+		compatSystemTaskRecord(6, "ImportListSync", "Import list sync", h.deps.Config.FeedSyncInterval, h.deps.Config.FeedSyncEnabled, now),
 	}
 }
 
@@ -5309,12 +5726,20 @@ func compatImportListRecord(payload map[string]any, id int) map[string]any {
 		"implementation":     implementation,
 		"implementationName": firstNonEmptyString(payloadString(payload, "implementationName"), implementation),
 		"configContract":     firstNonEmptyString(payloadString(payload, "configContract"), implementation+"Settings"),
-		"enable":             payloadBoolDefault(payload, "enable", false),
+		"enable":             payloadBoolDefault(payload, "enable", payloadBoolDefault(payload, "enabled", false)),
 		"rootFolderPath":     payloadString(payload, "rootFolderPath"),
 		"qualityProfileId":   payloadIntDefault(payload, "qualityProfileId", 1),
+		"qualityProfile":     payloadString(payload, "qualityProfile"),
+		"format":             firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "mediaFormat")),
 		"metadataProfileId":  payloadIntDefault(payload, "metadataProfileId", 1),
 		"tags":               compatPayloadIntArray(payload, "tags"),
 		"fields":             compatPayloadArray(payload, "fields"),
+		"books":              compatPayloadArray(payload, "books"),
+		"items":              compatPayloadArray(payload, "items"),
+		"entries":            compatPayloadArray(payload, "entries"),
+		"titles":             payloadStringList(payload, "titles"),
+		"queries":            payloadStringList(payload, "queries"),
+		"isbns":              payloadStringList(payload, "isbns"),
 		"librarryEphemeral":  true,
 	}
 }
@@ -5563,6 +5988,7 @@ func compatImportListSchemaRecord(implementation string) map[string]any {
 			map[string]any{"name": "rootFolderPath", "label": "Root Folder", "type": "path", "value": ""},
 			map[string]any{"name": "qualityProfileId", "label": "Quality Profile", "type": "select", "value": 1},
 			map[string]any{"name": "metadataProfileId", "label": "Metadata Profile", "type": "select", "value": 1},
+			map[string]any{"name": "entries", "label": "Books", "type": "textarea", "value": ""},
 		},
 	}, stableInt("import-list-schema:"+implementation))
 }

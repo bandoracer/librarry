@@ -370,7 +370,12 @@ Librarry can preserve fields it does not natively interpret yet.
 Readarr-compatible restriction resources are interpreted by the wanted release
 evaluator as additional required, ignored, and preferred terms. Untagged
 restrictions apply globally; tagged restrictions apply when the wanted item has
-at least one matching tag ID. Author-monitor-created wanted items inherit their
+at least one matching tag ID. Readarr-compatible import-list resources are
+interpreted by `ImportListSync`: enabled lists can carry inline `books`,
+`items`, `entries`, `titles`, `queries`, `isbns`, or `fields[].value` entries
+that resolve through metadata search or deterministic fallback records before
+creating monitored wanted items. Import-list exclusion resources are checked
+before creation. Author-monitor-created wanted items inherit their
 author subscription tags. Readarr-compatible author and book editor payloads
 honor `applyTags` modes for adding, removing, replacing, or leaving tags
 unchanged.
@@ -489,8 +494,9 @@ records, `POST /api/v1/command` returns a pollable command ID, and
 `GET /api/v1/command/{id}` plus `DELETE /api/v1/command/{id}` support clients
 that follow the normal Arr command polling and cancel flow. `RssSync`,
 `MissingBookSearch`, `BookSearch`, `RefreshAuthor`, `AuthorSearch`,
-`FailedDownloadCheck`, `UpgradeSearch`, `CutoffUnmetBookSearch`, `RenameFiles`,
-`RefreshCalibreConversions`, and `RescanFolders` map to native Librarry work.
+`ImportListSync`, `FailedDownloadCheck`, `UpgradeSearch`,
+`CutoffUnmetBookSearch`, `RenameFiles`, `RefreshCalibreConversions`, and
+`RescanFolders` map to native Librarry work.
 
 Readarr-compatible calendar, history, parse, missing, and cutoff-unmet endpoints
 are derived from wanted items, Librarry history events, title parsing, and

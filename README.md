@@ -47,6 +47,9 @@ book data is incomplete or ambiguous.
 > import, upgrade, failed-download, and test events. Naming, media-management,
 > host, UI, indexer, and download-client compatibility config writes persist in
 > Postgres when database-backed compatibility storage is configured.
+> Enabled Readarr-compatible import lists can be synced with `ImportListSync`
+> to create monitored wanted items from list entries, with import-list
+> exclusions respected.
 > Delay-profile and system-task compatibility endpoints are implemented.
 > Persisted quality profiles now drive release scoring, preferred and rejected
 > terms, size limits, seeder minimums, and upgrade cutoffs.
@@ -92,7 +95,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, manual/completed import supports copy, move, hardlink, hardlink-or-copy, keep-both, replace, skip, and fail conflict decisions, completed Librarry-tagged downloads feed the library, and unlinked completed downloads are queued for individual or bulk review resolution. | Add missing-book detection and stronger import matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, Readarr-compatible release restrictions including tag-scoped rules for tagged wanted items, release evaluation, author/book tag persistence with bulk add/remove/replace editor modes, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, import conflict policies, bulk import-review resolution, and bulk selected-download actions. | Add richer review evidence, missing-book policy, and deeper conflict reporting. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, Readarr-compatible release restrictions including tag-scoped rules for tagged wanted items, release evaluation, author/book tag persistence with bulk add/remove/replace editor modes, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, import-list sync into monitored wanted items, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, import conflict policies, bulk import-review resolution, and bulk selected-download actions. | Add richer review evidence, missing-book policy, and deeper conflict reporting. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, manual magnet/torrent-file/torrent-URL/NZB add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL/file add, client/state/category/text filters, selected-row bulk actions, and configurable active-queue rebalancing. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, force-start, sequential-download and first/last-piece toggles, delete-with-data, rename, tag add/remove, category/save-path edits, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, and per-file skip/normal/high/max priority actions are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, `.torrent` upload through RPC metainfo, queue movement, force-start, set location, label-backed category/tag edits, tracker add/edit/remove, per-torrent speed limits, details, file/tracker/peer inspection, and skip/normal/high/max file-priority actions. SABnzbd can add NZB/Usenet releases, list queue/history state, show details and queue files, start/stop/delete jobs, rename jobs, change category, and change priority. This is still not a full multi-client torrent manager or standalone qBittorrent replacement. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
@@ -183,6 +186,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   formats, restrictions, notifications, import lists, import-list exclusions,
   and remote path mappings, with create/update/list and delete persisted in
   Postgres.
+- Readarr-compatible `ImportListSync` command for enabled import lists with
+  inline book entries, metadata lookup, deterministic fallback records, merged
+  tags, and import-list exclusion checks.
 - Readarr-compatible Webhook notification delivery for grab, import, upgrade,
   failed-download, and test events using persisted notification resources.
 - Readarr-compatible naming, media-management, host, UI, download-client, and
@@ -676,7 +682,7 @@ will grow as the automation path stabilizes.
 ## Roadmap
 
 - Author-level missing-book policy and review controls.
-- Bulk import review and per-profile organization rules.
+- Per-profile organization rules.
 - Scheduled Calibre conversion completion polling, richer edition metadata sync,
   embedded metadata writes, path refresh after Calibre renames, and import
   rollback.

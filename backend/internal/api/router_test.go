@@ -859,6 +859,78 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatImportListSyncCommandCreatesWantedItems(t *testing.T) {
+	compatResources := &fakeCompatResources{resources: []compatdata.Resource{
+		{
+			ResourceType: "import-list",
+			CompatID:     77,
+			Name:         "Wishlist",
+			Payload: map[string]any{
+				"name":             "Wishlist",
+				"enable":           true,
+				"qualityProfileId": stableInt("standard"),
+				"format":           "ebook",
+				"tags":             []any{7},
+				"items": []any{
+					map[string]any{"title": "Project Hail Mary", "authorName": "Andy Weir", "foreignId": "phm", "tags": []any{11}},
+					map[string]any{"title": "Skip Me", "authorName": "Blocked Author", "foreignId": "skip-me"},
+				},
+			},
+		},
+		{
+			ResourceType: "import-list-exclusion",
+			CompatID:     3,
+			Name:         "Skip Me",
+			Payload: map[string]any{
+				"bookTitle":  "Skip Me",
+				"authorName": "Blocked Author",
+			},
+		},
+	}}
+	wantedCapture := &capturingImportListWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService([]metadata.Provider{fakeMetadataProvider{}}),
+		Wanted:   wantedCapture,
+		Compat:   compatResources,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"ImportListSync"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", res.Code, res.Body.String())
+	}
+	body := res.Body.String()
+	for _, want := range []string{`"commandName":"ImportListSync"`, `"listsChecked":1`, `"entriesFound":2`, `"wantedCreated":1`, `"skipped":1`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected %s in import-list sync response, got %s", want, body)
+		}
+	}
+	if len(wantedCapture.requests) != 1 {
+		t.Fatalf("expected one wanted create request, got %d", len(wantedCapture.requests))
+	}
+	created := wantedCapture.requests[0]
+	if created.QualityProfile != "standard" || created.Format != "ebook" {
+		t.Fatalf("expected list quality/format to propagate, got %+v", created)
+	}
+	if len(created.Tags) != 2 || created.Tags[0] != 7 || created.Tags[1] != 11 {
+		t.Fatalf("expected merged list and entry tags, got %+v", created.Tags)
+	}
+	if created.Result.Work.Title != "Project Hail Mary" || firstAuthor(created.Result).Name != "Andy Weir" {
+		t.Fatalf("expected metadata result to create wanted item, got %+v", created.Result)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/task", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"taskName":"ImportListSync"`) {
+		t.Fatalf("expected ImportListSync system task, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestCompatArrResourceUtilityEndpointsPersist(t *testing.T) {
 	compatResources := &fakeCompatResources{}
 	webhook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2871,6 +2943,33 @@ func (fakeBlocklistAcquire) Downloads(context.Context, acquisition.DownloadListQ
 }
 
 type fakeWanted struct{}
+
+type capturingImportListWanted struct {
+	fakeWanted
+	requests []wanted.CreateRequest
+}
+
+func (f *capturingImportListWanted) Create(_ context.Context, request wanted.CreateRequest) (wanted.WantedItem, error) {
+	f.requests = append(f.requests, request)
+	authorName := firstAuthor(request.Result).Name
+	return wanted.WantedItem{
+		ID:             "wanted-" + strconv.Itoa(len(f.requests)),
+		WorkID:         request.Result.Work.ID,
+		EditionID:      request.Result.Edition.ID,
+		Title:          request.Result.Work.Title,
+		AuthorName:     authorName,
+		CoverURL:       request.Result.Work.CoverURL,
+		Format:         request.Format,
+		QualityProfile: request.QualityProfile,
+		Status:         "wanted",
+		Monitored:      true,
+		Tags:           request.Tags,
+		SourceProvider: request.Result.Provider,
+		SourceKey:      firstNonEmptyString(request.Result.Edition.ID, request.Result.Work.ID, request.Result.RawSourceKey),
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}, nil
+}
 
 func (fakeWanted) Create(_ context.Context, request wanted.CreateRequest) (wanted.WantedItem, error) {
 	return wanted.WantedItem{
