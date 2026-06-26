@@ -484,9 +484,10 @@ records back into Arr-style bookfile records with stable numeric IDs, nested
 book/author records, quality, size, path, and date metadata. `GET
 /api/v1/bookfile` supports book and author ID filtering, while `GET
 /api/v1/bookfile/{id}` returns a single mapped file. `DELETE` removes the native
-file record and honors `deleteFiles=true` for physical file removal. `PUT` is
-accepted for client compatibility, but file retagging is still a native-library
-service work item.
+file record and honors `deleteFiles=true` for physical file removal. `PUT`
+persists Readarr-style quality, language, scene/release-group, and Arr ID
+metadata on the tracked file record without moving or rewriting the physical
+file.
 
 The native library rename endpoints preview or apply moves for selected tracked
 files using the active naming templates. The Readarr-compatible `/api/v1/rename`

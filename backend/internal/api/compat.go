@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"hash/fnv"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1333,15 +1335,74 @@ func (h *handler) compatUpdateBookFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var payload map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&payload)
-	record := compatBookFileRecord(file, item)
-	if payload != nil {
-		if qualityName := payloadQualityName(payload); qualityName != "" {
-			record["quality"] = compatReleaseQuality(qualityName)
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid bookfile update payload"})
+		return
+	}
+	updated := applyCompatBookFileUpdate(file, payload)
+	saved, err := h.deps.Library.UpdateFile(r.Context(), updated)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, compatBookFileRecord(saved, item))
+}
+
+func applyCompatBookFileUpdate(file library.FileRecord, payload map[string]any) library.FileRecord {
+	updated := file
+	updated.Metadata = cloneMetadata(file.Metadata)
+	if payload == nil {
+		updated.Metadata["readarrBookFileUpdatedAt"] = time.Now().UTC().Format(time.RFC3339)
+		return updated
+	}
+	if title := firstNonEmptyString(payloadString(payload, "title"), nestedString(payload, "book", "title")); title != "" {
+		updated.Title = title
+	}
+	if authorName := firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "authorTitle"), nestedString(payload, "author", "authorName")); authorName != "" {
+		updated.AuthorName = authorName
+	}
+	if qualityName := payloadQualityName(payload); qualityName != "" {
+		updated.Metadata["quality"] = qualityName
+		updated.Metadata["qualityName"] = qualityName
+		updated.Metadata["readarrQuality"] = compatReleaseQuality(qualityName)
+	}
+	if languages := compatPayloadLanguageNames(payload); len(languages) > 0 {
+		updated.Metadata["languages"] = languages
+		updated.Metadata["language"] = languages[0]
+	}
+	for _, key := range []string{"bookId", "bookID", "authorId", "authorID", "editionId", "editionID", "qualityProfileId", "qualityProfileID"} {
+		if value := payloadString(payload, key); value != "" {
+			updated.Metadata["readarr"+strings.ToUpper(key[:1])+key[1:]] = value
 		}
 	}
-	record["librarryCompatibilityNote"] = "bookfile update is accepted for Readarr API compatibility; Librarry does not mutate library files through this endpoint yet"
-	writeJSON(w, http.StatusOK, record)
+	if value := nestedString(payload, "book", "id"); value != "" {
+		updated.Metadata["readarrBookId"] = value
+	}
+	if value := nestedString(payload, "author", "id"); value != "" {
+		updated.Metadata["readarrAuthorId"] = value
+	}
+	if value := nestedString(payload, "edition", "id"); value != "" {
+		updated.Metadata["readarrEditionId"] = value
+	}
+	if value := payloadString(payload, "sceneName"); value != "" {
+		updated.Metadata["sceneName"] = value
+	}
+	if value := payloadString(payload, "releaseGroup"); value != "" {
+		updated.Metadata["releaseGroup"] = value
+	}
+	if mediaInfo := nestedPayload(payload, "mediaInfo"); len(mediaInfo) > 0 {
+		updated.Metadata["mediaInfo"] = mediaInfo
+	}
+	updated.Metadata["readarrBookFileUpdatedAt"] = time.Now().UTC().Format(time.RFC3339)
+	return updated
+}
+
+func cloneMetadata(metadata map[string]any) map[string]any {
+	clone := make(map[string]any, len(metadata)+4)
+	for key, value := range metadata {
+		clone[key] = value
+	}
+	return clone
 }
 
 func (h *handler) compatDeleteBookFile(w http.ResponseWriter, r *http.Request) {
@@ -4454,6 +4515,8 @@ func compatBookFileRecord(file library.FileRecord, item *wanted.WantedItem) map[
 		authorName = defaultString(item.AuthorName, authorName)
 	}
 	format := blocklistFormat(file.MediaFormat, file.Extension, file.Path, item)
+	qualityName := firstNonEmptyString(fileMetadataString(file, "qualityName"), fileMetadataString(file, "quality"), format)
+	languageRecords := compatBookFileLanguageRecords(compatBookFileLanguageNames(file))
 	bookID := stableInt(title)
 	authorID := stableInt(authorName)
 	if item != nil {
@@ -4473,12 +4536,12 @@ func compatBookFileRecord(file library.FileRecord, item *wanted.WantedItem) map[
 		"size":                file.SizeBytes,
 		"dateAdded":           file.CreatedAt,
 		"modified":            file.ModifiedAt,
-		"quality":             compatReleaseQuality(format),
+		"quality":             compatReleaseQuality(qualityName),
 		"qualityCutoffNotMet": false,
 		"qualityWeight":       1,
-		"language":            map[string]any{"id": 1, "name": "English"},
-		"languages":           []map[string]any{{"id": 1, "name": "English"}},
-		"mediaInfo":           map[string]any{},
+		"language":            languageRecords[0],
+		"languages":           languageRecords,
+		"mediaInfo":           fileMetadataMap(file, "mediaInfo"),
 		"book":                compatBookFileBookRecord(title, authorName, format, item),
 		"author":              compatBookFileAuthorRecord(authorName, item),
 		"edition": map[string]any{
@@ -4490,8 +4553,8 @@ func compatBookFileRecord(file library.FileRecord, item *wanted.WantedItem) map[
 		"bookFileType":          format,
 		"calibreId":             payloadIntDefault(file.Metadata, "calibreId", 0),
 		"partCount":             1,
-		"sceneName":             "",
-		"releaseGroup":          "",
+		"sceneName":             fileMetadataString(file, "sceneName"),
+		"releaseGroup":          fileMetadataString(file, "releaseGroup"),
 		"librarryMediaFormat":   file.MediaFormat,
 		"librarryImportStatus":  file.ImportStatus,
 		"librarrySourcePath":    file.SourcePath,
@@ -4825,6 +4888,97 @@ func payloadStringList(payload map[string]any, keys ...string) []string {
 	return firstUniqueStrings(values)
 }
 
+func compatPayloadLanguageNames(payload map[string]any) []string {
+	if payload == nil {
+		return nil
+	}
+	var names []string
+	for _, key := range []string{"languages", "language"} {
+		raw, ok := payload[key]
+		if !ok || raw == nil {
+			continue
+		}
+		names = append(names, languageNamesFromValue(raw)...)
+	}
+	return firstUniqueStrings(names)
+}
+
+func compatBookFileLanguageNames(file library.FileRecord) []string {
+	var names []string
+	if file.Metadata != nil {
+		if raw, ok := file.Metadata["languages"]; ok {
+			names = append(names, languageNamesFromValue(raw)...)
+		}
+		if raw, ok := file.Metadata["language"]; ok {
+			names = append(names, languageNamesFromValue(raw)...)
+		}
+	}
+	if len(names) == 0 {
+		names = []string{"English"}
+	}
+	return firstUniqueStrings(names)
+}
+
+func languageNamesFromValue(value any) []string {
+	switch typed := value.(type) {
+	case []any:
+		var names []string
+		for _, item := range typed {
+			names = append(names, languageNamesFromValue(item)...)
+		}
+		return names
+	case []string:
+		return typed
+	case []map[string]any:
+		var names []string
+		for _, item := range typed {
+			names = append(names, languageNamesFromValue(item)...)
+		}
+		return names
+	case map[string]any:
+		if name := firstNonEmptyString(payloadString(typed, "name"), payloadString(typed, "label"), payloadString(typed, "language")); name != "" {
+			return []string{name}
+		}
+		if id := payloadString(typed, "id"); id != "" {
+			return []string{id}
+		}
+		return nil
+	case string:
+		return strings.Split(typed, ",")
+	default:
+		if text := stringValue(typed); text != "" {
+			return []string{text}
+		}
+		return nil
+	}
+}
+
+func compatBookFileLanguageRecords(names []string) []map[string]any {
+	if len(names) == 0 {
+		names = []string{"English"}
+	}
+	known := compatLanguageRecords()
+	records := make([]map[string]any, 0, len(names))
+	for _, name := range firstUniqueStrings(names) {
+		matched := false
+		for _, record := range known {
+			if strings.EqualFold(payloadString(record, "name"), name) || payloadString(record, "id") == name {
+				records = append(records, record)
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			records = append(records, map[string]any{
+				"id":        stableInt("language:" + name),
+				"name":      name,
+				"nameLower": strings.ToLower(name),
+			})
+		}
+	}
+	return records
+}
+
 func stringValue(value any) string {
 	switch typed := value.(type) {
 	case string:
@@ -4865,6 +5019,20 @@ func fileMetadataString(file library.FileRecord, key string) string {
 		return strings.TrimSpace(text)
 	}
 	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(jsonString(value)), `"`), `"`))
+}
+
+func fileMetadataMap(file library.FileRecord, key string) map[string]any {
+	if file.Metadata == nil {
+		return map[string]any{}
+	}
+	value, ok := file.Metadata[key]
+	if !ok || value == nil {
+		return map[string]any{}
+	}
+	if typed, ok := value.(map[string]any); ok {
+		return typed
+	}
+	return map[string]any{}
 }
 
 func compatReleaseDecisionRecord(decision wanted.ReleaseDecision, item *wanted.WantedItem) map[string]any {

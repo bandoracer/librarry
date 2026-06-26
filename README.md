@@ -165,8 +165,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   and selected-file imports.
 - Readarr-compatible bookfile endpoints for imported library files:
   list/filter/get are mapped from native files, delete removes native file
-  records with optional physical file removal, and update currently echoes for
-  client compatibility.
+  records with optional physical file removal, and update persists
+  quality/language metadata plus Readarr IDs on the tracked file record.
 - Native and Readarr-compatible file rename preview/apply flows using the active
   library naming templates, including `/api/v1/rename` and `RenameFiles`
   command compatibility.

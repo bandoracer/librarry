@@ -82,6 +82,13 @@ func (s *Service) ListFiles(ctx context.Context, query FileListQuery) ([]FileRec
 	return s.store.ListFiles(ctx, query)
 }
 
+func (s *Service) UpdateFile(ctx context.Context, file FileRecord) (FileRecord, error) {
+	if !s.Available() {
+		return FileRecord{}, errors.New("library service requires database persistence")
+	}
+	return s.store.UpdateFile(ctx, file)
+}
+
 func (s *Service) DeleteFiles(ctx context.Context, request DeleteFilesRequest) (DeleteFilesOutcome, error) {
 	if !s.Available() {
 		return DeleteFilesOutcome{}, errors.New("library service requires database persistence")

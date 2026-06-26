@@ -1371,14 +1371,24 @@ func TestCompatBookFileEndpoints(t *testing.T) {
 		t.Fatalf("expected single bookfile payload, got %s", res.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/bookfile/"+strconv.Itoa(fileID), strings.NewReader(`{"quality":{"quality":{"name":"Audiobook"}}}`))
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/bookfile/"+strconv.Itoa(fileID), strings.NewReader(`{"quality":{"quality":{"name":"Audiobook"}},"languages":[{"id":3,"name":"German"}],"editionId":123,"releaseGroup":"Group"}`))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"librarryCompatibilityNote"`) {
-		t.Fatalf("expected update compatibility echo, got %s", res.Body.String())
+	if strings.Contains(res.Body.String(), `"librarryCompatibilityNote"`) {
+		t.Fatalf("expected native update without compatibility note, got %s", res.Body.String())
+	}
+	if len(deleteLibrary.updates) != 1 {
+		t.Fatalf("expected one file update, got %+v", deleteLibrary.updates)
+	}
+	updateMetadata := deleteLibrary.updates[0].Metadata
+	if updateMetadata["qualityName"] != "Audiobook" || updateMetadata["language"] != "German" || updateMetadata["readarrEditionId"] != "123" || updateMetadata["releaseGroup"] != "Group" {
+		t.Fatalf("expected bookfile update metadata, got %+v", updateMetadata)
+	}
+	if !strings.Contains(res.Body.String(), `"name":"Audiobook"`) || !strings.Contains(res.Body.String(), `"name":"German"`) || !strings.Contains(res.Body.String(), `"releaseGroup":"Group"`) {
+		t.Fatalf("expected updated quality, language, and release group in response, got %s", res.Body.String())
 	}
 
 	req = httptest.NewRequest(http.MethodDelete, "/api/v1/bookfile/"+strconv.Itoa(fileID), nil)
@@ -3598,6 +3608,10 @@ func (fakeLibrary) ListFiles(context.Context, library.FileListQuery) ([]library.
 	return []library.FileRecord{fakeLibraryFile()}, nil
 }
 
+func (fakeLibrary) UpdateFile(_ context.Context, file library.FileRecord) (library.FileRecord, error) {
+	return file, nil
+}
+
 func (fakeLibrary) DeleteFiles(context.Context, library.DeleteFilesRequest) (library.DeleteFilesOutcome, error) {
 	file := fakeLibraryFile()
 	return library.DeleteFilesOutcome{
@@ -3623,6 +3637,12 @@ func (fakeLibrary) RefreshCalibreConversions(_ context.Context, request library.
 type fakeDeleteLibrary struct {
 	fakeLibrary
 	requests []library.DeleteFilesRequest
+	updates  []library.FileRecord
+}
+
+func (f *fakeDeleteLibrary) UpdateFile(_ context.Context, file library.FileRecord) (library.FileRecord, error) {
+	f.updates = append(f.updates, file)
+	return file, nil
 }
 
 func (f *fakeDeleteLibrary) DeleteFiles(_ context.Context, request library.DeleteFilesRequest) (library.DeleteFilesOutcome, error) {
