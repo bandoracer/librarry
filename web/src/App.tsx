@@ -228,6 +228,10 @@ function searchResultCanBeWanted(result: SearchResult) {
   return result.kind !== "author";
 }
 
+function searchResultKey(result: SearchResult) {
+  return `${result.provider}:${result.kind}:${result.work.id}:${result.edition?.id || result.rawSourceKey || ""}`;
+}
+
 function searchResultScoreLabel(result: SearchResult) {
   if (!Number.isFinite(result.score) || result.score <= 0) return "unscored";
   return result.score <= 1 ? `${Math.round(result.score * 100)}%` : result.score.toFixed(1);
@@ -336,6 +340,32 @@ function uniqueEvidenceChips(chips: SearchEvidenceChip[]) {
     seen.add(key);
     return true;
   });
+}
+
+function searchResultWantedReviewReasons(result: SearchResult) {
+  if (!searchResultCanBeWanted(result)) return [];
+  const reasons: string[] = [];
+  const matched = new Set(result.matchedOn.map((field) => field.toLowerCase()));
+  const hasIdentifier = Boolean(result.edition?.asin || result.edition?.isbns?.length);
+  const matchedIdentifier = matched.has("isbn") || matched.has("asin") || matched.has("identifier");
+  const matchedTitleAndAuthor = matched.has("title") && matched.has("author");
+
+  if (result.confidence === "review") {
+    reasons.push("Provider match is low confidence.");
+  } else if (result.confidence === "medium") {
+    reasons.push("Provider match is medium confidence.");
+  }
+  if (!hasIdentifier && !matchedIdentifier) {
+    reasons.push("No ISBN or ASIN evidence is attached to this edition.");
+  }
+  if (!matchedIdentifier && !matchedTitleAndAuthor) {
+    reasons.push("The match did not include both title and author evidence.");
+  }
+  return Array.from(new Set(reasons));
+}
+
+function searchResultNeedsWantedReview(result: SearchResult) {
+  return searchResultWantedReviewReasons(result).length > 0;
 }
 
 function uniqueSearchProviders(results: SearchResult[]) {
@@ -571,7 +601,8 @@ export function App() {
   const [downloadDetails, setDownloadDetails] = useState<DownloadDetails | null>(null);
   const [downloadResources, setDownloadResources] = useState<DownloadResources | null>(null);
   const [downloadPreferences, setDownloadPreferences] = useState<DownloadPreferences | null>(null);
-  const [selectedID, setSelectedID] = useState(seedResults[0]?.work.id ?? "");
+  const [selectedID, setSelectedID] = useState(seedResults[0] ? searchResultKey(seedResults[0]) : "");
+  const [pendingWantedReview, setPendingWantedReview] = useState<SearchResult | null>(null);
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
   const [selectedImportReviewIDs, setSelectedImportReviewIDs] = useState<string[]>([]);
@@ -827,12 +858,15 @@ export function App() {
     searchEvidenceFilter !== "all" ? searchEvidenceFilter : ""
   ].filter(Boolean).length;
   const selected = useMemo(
-    () => visibleSearchResults.find((result) => result.work.id === selectedID) ?? visibleSearchResults[0] ?? results[0],
+    () => visibleSearchResults.find((result) => searchResultKey(result) === selectedID || result.work.id === selectedID) ?? visibleSearchResults[0] ?? results[0],
     [results, selectedID, visibleSearchResults]
   );
+  const selectedSearchKey = selected ? searchResultKey(selected) : "";
   const query = searchMode === "author" ? authorQuery : bookQuery;
   const selectedCanBeWanted = Boolean(selected && searchResultCanBeWanted(selected));
   const selectedCanSearchReleases = selectedCanBeWanted;
+  const selectedWantedReviewReasons = selected && selectedCanBeWanted ? searchResultWantedReviewReasons(selected) : [];
+  const pendingWantedReviewKey = pendingWantedReview ? searchResultKey(pendingWantedReview) : "";
   const wantedPresence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
   const wantedMetadataReviewByID = useMemo(() => metadataReviewMap(wantedMetadataReview), [wantedMetadataReview]);
   const metadataReviewSummary = useMemo(() => summarizeMetadataReview(wantedMetadataReview), [wantedMetadataReview]);
@@ -971,11 +1005,24 @@ export function App() {
     setSearchEvidenceFilter("all");
   }
 
+  function selectSearchResult(result: SearchResult) {
+    setSelectedID(searchResultKey(result));
+    if (pendingWantedReview && searchResultKey(pendingWantedReview) !== searchResultKey(result)) {
+      setPendingWantedReview(null);
+    }
+  }
+
   useEffect(() => {
     if (searchProviderFilter && !searchProviderOptions.includes(searchProviderFilter)) {
       setSearchProviderFilter("");
     }
   }, [searchProviderFilter, searchProviderOptions]);
+
+  useEffect(() => {
+    if (pendingWantedReview && !results.some((result) => searchResultKey(result) === searchResultKey(pendingWantedReview))) {
+      setPendingWantedReview(null);
+    }
+  }, [pendingWantedReview, results]);
 
   useEffect(() => {
     if (!visibleWantedItems.length) {
@@ -1049,7 +1096,8 @@ export function App() {
     try {
       const nextResults = await searchMetadata(query, searchMode === "author" ? "any" : format, searchMode);
       setResults(nextResults);
-      setSelectedID(nextResults[0]?.work.id ?? "");
+      setSelectedID(nextResults[0] ? searchResultKey(nextResults[0]) : "");
+      setPendingWantedReview(null);
       setReleases([]);
       setAPIState("live");
     } catch {
@@ -1114,11 +1162,18 @@ export function App() {
     }
   }
 
-  async function markWantedResult(result = selected) {
+  async function markWantedResult(result = selected, options: { force?: boolean } = {}) {
     if (!result || !searchResultCanBeWanted(result)) return;
+    if (!options.force && searchResultNeedsWantedReview(result)) {
+      setWantedError("");
+      setSelectedID(searchResultKey(result));
+      setPendingWantedReview(result);
+      return;
+    }
     setIsMarkingWanted(true);
     setWantedError("");
-    setSelectedID(result.work.id);
+    setPendingWantedReview(null);
+    setSelectedID(searchResultKey(result));
     setActiveView("wanted");
     try {
       const item = await createWanted(result, result.edition?.format ?? format);
@@ -2614,6 +2669,7 @@ export function App() {
                   setSearchMode(option);
                   setResults([]);
                   setSelectedID("");
+                  setPendingWantedReview(null);
                   setReleases([]);
                   clearSearchFilters();
                 }}
@@ -3104,8 +3160,8 @@ export function App() {
                 <span>Action</span>
               </div>
               {visibleSearchResults.map((result) => (
-                <div className={result.work.id === selected?.work.id ? "table-row result-row selected" : "table-row result-row"} key={`${result.provider}-${result.kind}-${result.work.id}`} role="row">
-                  <button className="title-cell result-select" onClick={() => setSelectedID(result.work.id)} type="button">
+                <div className={searchResultKey(result) === selectedSearchKey ? "table-row result-row selected" : "table-row result-row"} key={searchResultKey(result)} role="row">
+                  <button className="title-cell result-select" onClick={() => selectSearchResult(result)} type="button">
                     {result.kind === "author" ? <UserPlus size={16} /> : <BookOpen size={16} />}
                     <span>
                       <strong>{searchResultTitle(result)}</strong>
@@ -3127,8 +3183,13 @@ export function App() {
                   </span>
                   <span className="row-action">
                     {searchResultCanBeWanted(result) ? (
-                      <button className="row-action-button" disabled={isMarkingWanted} onClick={() => markWantedResult(result)} type="button">
-                        {isMarkingWanted && result.work.id === selected?.work.id ? "Marking" : "Mark"}
+                      <button
+                        className={searchResultNeedsWantedReview(result) ? "row-action-button review" : "row-action-button"}
+                        disabled={isMarkingWanted}
+                        onClick={() => markWantedResult(result)}
+                        type="button"
+                      >
+                        {isMarkingWanted && searchResultKey(result) === selectedSearchKey ? "Marking" : searchResultNeedsWantedReview(result) ? "Review" : "Mark"}
                       </button>
                     ) : null}
                     <button
@@ -3137,7 +3198,7 @@ export function App() {
                       onClick={() => subscribeAuthorResult(result)}
                       type="button"
                     >
-                      {isSubscribingAuthor && result.work.id === selected?.work.id ? "Saving" : result.kind === "author" ? "Monitor" : "Author"}
+                      {isSubscribingAuthor && searchResultKey(result) === selectedSearchKey ? "Saving" : result.kind === "author" ? "Monitor" : "Author"}
                     </button>
                   </span>
                 </div>
@@ -3169,6 +3230,28 @@ export function App() {
                     </article>
                   ))}
                 </div>
+
+                {selectedCanBeWanted && selectedWantedReviewReasons.length ? (
+                  <div className={pendingWantedReviewKey === selectedSearchKey ? "wanted-review-gate active" : "wanted-review-gate"} aria-label="Wanted metadata review">
+                    <strong>{pendingWantedReviewKey === selectedSearchKey ? "Confirm metadata choice" : "Review before marking wanted"}</strong>
+                    <span>This candidate can become wanted, but the match evidence is not strong enough for a blind add.</span>
+                    <ul>
+                      {selectedWantedReviewReasons.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                    <div className="wanted-review-gate-actions">
+                      <button className="secondary-action compact" disabled={isMarkingWanted} onClick={() => markWantedResult(selected, { force: true })} type="button">
+                        {isMarkingWanted ? "Marking" : "Confirm mark"}
+                      </button>
+                      {pendingWantedReviewKey === selectedSearchKey ? (
+                        <button className="secondary-action compact ghost" disabled={isMarkingWanted} onClick={() => setPendingWantedReview(null)} type="button">
+                          Cancel
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 <dl className="detail-list">
                   <div>
@@ -3251,7 +3334,7 @@ export function App() {
                   {selectedCanBeWanted ? (
                     <button className="secondary-action" onClick={() => markWantedResult(selected)} disabled={isMarkingWanted} type="button">
                       <HardDriveDownload size={17} />
-                      <span>{isMarkingWanted ? "Marking" : "Mark wanted"}</span>
+                      <span>{isMarkingWanted ? "Marking" : selectedWantedReviewReasons.length ? "Review wanted" : "Mark wanted"}</span>
                     </button>
                   ) : null}
                   <button className="secondary-action" onClick={subscribeSelectedAuthor} disabled={isSubscribingAuthor || !selected.work.authors?.length} type="button">

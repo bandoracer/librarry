@@ -1089,6 +1089,12 @@ select {
   opacity: 0.64;
 }
 
+.row-action-button.review {
+  border-color: #fedf89;
+  background: #fffbeb;
+  color: #93370d;
+}
+
 .detail-panel {
   padding: 18px;
   position: sticky;
@@ -1157,6 +1163,49 @@ select {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.35;
+}
+
+.wanted-review-gate {
+  margin: -4px 0 16px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #fedf89;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #93370d;
+}
+
+.wanted-review-gate.active {
+  border-color: #fdb022;
+  box-shadow: 0 0 0 3px rgba(253, 176, 34, 0.14);
+}
+
+.wanted-review-gate strong {
+  color: #7a2e0e;
+  font-size: 13px;
+}
+
+.wanted-review-gate span,
+.wanted-review-gate li {
+  color: #93370d;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.wanted-review-gate ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.wanted-review-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondary-action.ghost {
+  background: transparent;
 }
 
 .detail-list {
