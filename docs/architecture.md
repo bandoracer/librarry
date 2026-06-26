@@ -75,6 +75,8 @@ Initial API surface:
   - `GET /api/v1/author/{id}`
   - `PUT /api/v1/author/{id}`
   - `DELETE /api/v1/author/{id}`
+  - `PUT /api/v1/author/editor`
+  - `DELETE /api/v1/author/editor`
   - `GET /api/v1/book`
   - `POST /api/v1/book`
   - `GET /api/v1/book/lookup`
@@ -83,6 +85,8 @@ Initial API surface:
   - `PUT /api/v1/book/{id}`
   - `PUT /api/v1/book/monitor`
   - `DELETE /api/v1/book/{id}`
+  - `PUT /api/v1/book/editor`
+  - `DELETE /api/v1/book/editor`
   - `GET /api/v1/bookfile`
   - `GET /api/v1/bookfile/{id}`
   - `PUT /api/v1/bookfile/{id}`
@@ -342,6 +346,8 @@ can search releases through Prowlarr, persist scored release decisions, and
 record explicit rejection reasons before a candidate is sent to the matching
 download client. Readarr-compatible book updates persist monitored state,
 quality profile changes, title/author display overrides, and soft removal.
+The book editor endpoints apply the same durable mutations in bulk for common
+Arr mass-editor clients.
 
 Quality profiles are stored in Postgres and applied anywhere a release is
 evaluated: manual wanted search, scheduled monitoring, feed sync, failed
@@ -361,7 +367,8 @@ Author subscriptions are stored separately from wanted items. A subscription
 captures provider provenance, author identity, target format, and quality
 profile. Readarr-compatible author updates persist monitored/unmonitored state,
 quality profile changes, monitor-new-items settings, and soft removal. The
-author monitor can be triggered manually through
+author editor endpoints apply the same durable mutations in bulk. The author
+monitor can be triggered manually through
 `POST /api/v1/authors/monitor` and can also run on an interval in the API
 process. It searches metadata providers for due authors, creates or refreshes
 wanted items for matching books, records sync history, and does not grab

@@ -97,8 +97,12 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "DELETE", "path": "/api/v1/blacklist/bulk"},
 		{"method": "GET", "path": "/api/v1/author"},
 		{"method": "GET", "path": "/api/v1/author/lookup"},
+		{"method": "PUT", "path": "/api/v1/author/editor"},
+		{"method": "DELETE", "path": "/api/v1/author/editor"},
 		{"method": "GET", "path": "/api/v1/book"},
 		{"method": "GET", "path": "/api/v1/book/lookup"},
+		{"method": "PUT", "path": "/api/v1/book/editor"},
+		{"method": "DELETE", "path": "/api/v1/book/editor"},
 		{"method": "GET", "path": "/api/v1/bookfile"},
 		{"method": "GET", "path": "/api/v1/bookfile/{id}"},
 		{"method": "PUT", "path": "/api/v1/bookfile/{id}"},
@@ -786,12 +790,48 @@ func (h *handler) compatUpdateAuthor(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	updated, err := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, compatAuthorUpdateRequest(payload))
+	updated, err := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, h.compatAuthorUpdateRequest(r.Context(), payload))
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, compatAuthorRecord(updated, booksForAuthor(books, updated.AuthorName)))
+}
+
+func (h *handler) compatAuthorEditor(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "author editor")
+	if !ok {
+		return
+	}
+	ids := authorEditorIDs(payload)
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "authorIds is required"})
+		return
+	}
+	subscriptions, err := h.deps.Wanted.ListAuthorSubscriptions(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	books := h.compatWantedItems(r)
+	update := h.compatAuthorUpdateRequest(r.Context(), payload)
+	records := make([]map[string]any, 0, len(ids))
+	for _, subscription := range subscriptions {
+		if strings.EqualFold(strings.TrimSpace(subscription.Status), "removed") || !authorSubscriptionMatchesAnyID(subscription, ids) {
+			continue
+		}
+		updated, updateErr := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), subscription.ID, update)
+		if updateErr != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": updateErr.Error()})
+			return
+		}
+		records = append(records, compatAuthorRecord(updated, booksForAuthor(books, updated.AuthorName)))
+	}
+	writeJSON(w, http.StatusAccepted, records)
 }
 
 func (h *handler) compatDeleteAuthor(w http.ResponseWriter, r *http.Request) {
@@ -802,6 +842,37 @@ func (h *handler) compatDeleteAuthor(w http.ResponseWriter, r *http.Request) {
 	if err := h.deps.Wanted.DeleteAuthorSubscription(r.Context(), subscription.ID); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatDeleteAuthorEditor(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "author editor delete")
+	if !ok {
+		return
+	}
+	ids := authorEditorIDs(payload)
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "authorIds is required"})
+		return
+	}
+	subscriptions, err := h.deps.Wanted.ListAuthorSubscriptions(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	for _, subscription := range subscriptions {
+		if strings.EqualFold(strings.TrimSpace(subscription.Status), "removed") || !authorSubscriptionMatchesAnyID(subscription, ids) {
+			continue
+		}
+		if deleteErr := h.deps.Wanted.DeleteAuthorSubscription(r.Context(), subscription.ID); deleteErr != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": deleteErr.Error()})
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -918,7 +989,7 @@ func (h *handler) compatUpdateBook(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	updated, err := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, compatWantedUpdateRequest(payload))
+	updated, err := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, h.compatWantedUpdateRequest(r.Context(), payload))
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
@@ -964,6 +1035,41 @@ func (h *handler) compatMonitorBooks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, records)
 }
 
+func (h *handler) compatBookEditor(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "book editor")
+	if !ok {
+		return
+	}
+	ids := bookMonitorIDs(payload)
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "bookIds is required"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	update := h.compatWantedUpdateRequest(r.Context(), payload)
+	records := make([]map[string]any, 0, len(ids))
+	for _, item := range items {
+		if !compatWantedItemVisible(item) || !wantedItemMatchesAnyID(item, ids) {
+			continue
+		}
+		updated, updateErr := h.deps.Wanted.UpdateWanted(r.Context(), item.ID, update)
+		if updateErr != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": updateErr.Error()})
+			return
+		}
+		records = append(records, compatBookRecord(updated))
+	}
+	writeJSON(w, http.StatusAccepted, records)
+}
+
 func (h *handler) compatDeleteBook(w http.ResponseWriter, r *http.Request) {
 	item, ok := h.compatFindBook(w, r, r.PathValue("id"))
 	if !ok {
@@ -972,6 +1078,37 @@ func (h *handler) compatDeleteBook(w http.ResponseWriter, r *http.Request) {
 	if err := h.deps.Wanted.DeleteWanted(r.Context(), item.ID); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) compatDeleteBookEditor(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	payload, ok := decodeCompatObjectPayload(w, r, "book editor delete")
+	if !ok {
+		return
+	}
+	ids := bookMonitorIDs(payload)
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "bookIds is required"})
+		return
+	}
+	items, err := h.deps.Wanted.List(r.Context(), "")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	for _, item := range items {
+		if !compatWantedItemVisible(item) || !wantedItemMatchesAnyID(item, ids) {
+			continue
+		}
+		if deleteErr := h.deps.Wanted.DeleteWanted(r.Context(), item.ID); deleteErr != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": deleteErr.Error()})
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -2001,10 +2138,57 @@ func (h *handler) compatFindBook(w http.ResponseWriter, r *http.Request, id stri
 	return wanted.WantedItem{}, false
 }
 
+func (h *handler) compatAuthorUpdateRequest(ctx context.Context, payload map[string]any) wanted.AuthorUpdateRequest {
+	request := compatAuthorUpdateRequest(payload)
+	if request.QualityProfile == "" {
+		request.QualityProfile = h.compatQualityProfileNameFromPayload(ctx, payload)
+	}
+	return request
+}
+
+func (h *handler) compatWantedUpdateRequest(ctx context.Context, payload map[string]any) wanted.WantedUpdateRequest {
+	request := compatWantedUpdateRequest(payload)
+	if request.QualityProfile == "" {
+		request.QualityProfile = h.compatQualityProfileNameFromPayload(ctx, payload)
+	}
+	return request
+}
+
+func (h *handler) compatQualityProfileNameFromPayload(ctx context.Context, payload map[string]any) string {
+	name := firstNonEmptyString(
+		payloadString(payload, "qualityProfile"),
+		payloadString(payload, "qualityProfileName"),
+		nestedString(payload, "qualityProfile", "name"),
+		nestedString(payload, "profile", "name"),
+	)
+	if name != "" || h.deps.Wanted == nil {
+		return name
+	}
+	id := firstNonEmptyString(
+		payloadString(payload, "qualityProfileId"),
+		payloadString(payload, "qualityProfileID"),
+		nestedString(payload, "qualityProfile", "id"),
+		nestedString(payload, "profile", "id"),
+	)
+	if id == "" {
+		return ""
+	}
+	profiles, err := h.deps.Wanted.ListQualityProfiles(ctx)
+	if err != nil {
+		return ""
+	}
+	for index, profile := range profiles {
+		if compatIDMatches(id, strconv.Itoa(index+1), profile.ID, profile.Name, strconv.Itoa(stableInt(profile.Name)), strconv.Itoa(stableInt(profile.Name+":"+profile.MediaFormat))) {
+			return profile.Name
+		}
+	}
+	return ""
+}
+
 func compatAuthorUpdateRequest(payload map[string]any) wanted.AuthorUpdateRequest {
 	request := wanted.AuthorUpdateRequest{
 		AuthorName:     firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "title"), payloadString(payload, "name")),
-		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name")),
+		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), payloadString(payload, "qualityProfileName"), nestedString(payload, "qualityProfile", "name")),
 		Status:         payloadString(payload, "librarryStatus"),
 	}
 	if monitored, ok := payloadBoolPointer(payload, "monitored"); ok {
@@ -2021,7 +2205,7 @@ func compatWantedUpdateRequest(payload map[string]any) wanted.WantedUpdateReques
 		Title:          firstNonEmptyString(payloadString(payload, "title"), nestedString(payload, "book", "title")),
 		AuthorName:     firstNonEmptyString(payloadString(payload, "authorName"), payloadString(payload, "authorTitle"), nestedString(payload, "author", "authorName")),
 		CoverURL:       firstNonEmptyString(payloadString(payload, "coverUrl"), payloadString(payload, "remoteCover")),
-		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name")),
+		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), payloadString(payload, "qualityProfileName"), nestedString(payload, "qualityProfile", "name")),
 		Status:         payloadString(payload, "librarryStatus"),
 	}
 	if monitored, ok := payloadBoolPointer(payload, "monitored"); ok {
@@ -3283,6 +3467,25 @@ func bookMonitorIDs(payload map[string]any) []string {
 		}
 	}
 	return firstUniqueStrings(ids)
+}
+
+func authorEditorIDs(payload map[string]any) []string {
+	ids := payloadStringList(payload, "authorIds", "authorIDs", "ids", "authorId", "authorID", "id")
+	for _, value := range compatPayloadArray(payload, "authors") {
+		switch typed := value.(type) {
+		case map[string]any:
+			ids = append(ids, payloadStringList(typed, "id", "authorId", "authorID", "librarryAuthorId", "foreignAuthorId")...)
+		default:
+			if text := stringValue(value); text != "" {
+				ids = append(ids, text)
+			}
+		}
+	}
+	return firstUniqueStrings(ids)
+}
+
+func authorSubscriptionMatchesAnyID(subscription wanted.AuthorSubscription, ids []string) bool {
+	return anyCompatIDMatches(ids, subscription.ID, subscription.ProviderKey, subscription.AuthorName)
 }
 
 func wantedItemMatchesAnyID(item wanted.WantedItem, ids []string) bool {

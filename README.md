@@ -183,8 +183,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   `/api/v1/filesystem`, `/api/v1/language`, `/api/v1/localization`,
   `/api/v1/log`, `/api/v1/rootfolder`, `/api/v1/queue`,
   `/api/v1/blocklist`, `/api/v1/blacklist`,
-  `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/book`,
-  `/api/v1/book/lookup`, `/api/v1/bookfile`, `/api/v1/calendar`, `/api/v1/history`,
+  `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/author/editor`,
+  `/api/v1/book`, `/api/v1/book/lookup`, `/api/v1/book/editor`, `/api/v1/bookfile`,
+  `/api/v1/calendar`, `/api/v1/history`,
   `/api/v1/rename`, `/api/v1/parse`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
   `/api/v1/wanted/cutoff`, `/api/v1/qualityprofile`, `/api/v1/qualitydefinition`,
   `/api/v1/delayprofile`, `/api/v1/languageprofile`, `/api/v1/metadataprofile`,
@@ -288,6 +289,8 @@ Important API surfaces:
   - `GET /api/v1/author/{id}`
   - `PUT /api/v1/author/{id}`
   - `DELETE /api/v1/author/{id}`
+  - `PUT /api/v1/author/editor`
+  - `DELETE /api/v1/author/editor`
   - `GET /api/v1/book`
   - `POST /api/v1/book`
   - `GET /api/v1/book/lookup`
@@ -296,6 +299,8 @@ Important API surfaces:
   - `PUT /api/v1/book/{id}`
   - `PUT /api/v1/book/monitor`
   - `DELETE /api/v1/book/{id}`
+  - `PUT /api/v1/book/editor`
+  - `DELETE /api/v1/book/editor`
   - `GET /api/v1/bookfile`
   - `GET /api/v1/bookfile/{id}`
   - `PUT /api/v1/bookfile/{id}`

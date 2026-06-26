@@ -974,6 +974,74 @@ func TestCompatAuthorAndBookUpdateDeleteEndpointsPersist(t *testing.T) {
 	}
 }
 
+func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
+	wantedClient := &fakeMutableWanted{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   wantedClient,
+	})
+
+	authorID := stableInt("author-sub-1")
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/author/editor", strings.NewReader(fmt.Sprintf(`{"authorIds":[%d],"monitored":false,"qualityProfile":"retail","monitorNewItems":false}`, authorID)))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusAccepted {
+		t.Fatalf("expected author editor 202, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"librarryQualityName":"retail"`) {
+		t.Fatalf("expected author editor response, got %s", res.Body.String())
+	}
+	if len(wantedClient.authorUpdates) != 1 ||
+		wantedClient.authorUpdates[0].id != "author-sub-1" ||
+		wantedClient.authorUpdates[0].request.Monitored == nil ||
+		*wantedClient.authorUpdates[0].request.Monitored ||
+		wantedClient.authorUpdates[0].request.MonitorNewItems == nil ||
+		*wantedClient.authorUpdates[0].request.MonitorNewItems ||
+		wantedClient.authorUpdates[0].request.QualityProfile != "retail" {
+		t.Fatalf("expected persisted author editor update, got %+v", wantedClient.authorUpdates)
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/author/editor", strings.NewReader(fmt.Sprintf(`{"authorIds":[%d],"deleteFiles":false}`, authorID)))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected author editor delete 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.authorDeletes) != 1 || wantedClient.authorDeletes[0] != "author-sub-1" {
+		t.Fatalf("expected persisted author editor delete, got %+v", wantedClient.authorDeletes)
+	}
+
+	bookID := stableInt("wanted-1")
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/book/editor", strings.NewReader(fmt.Sprintf(`{"bookIds":[%d],"monitored":false,"qualityProfileId":%d}`, bookID, stableInt("standard"))))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusAccepted {
+		t.Fatalf("expected book editor 202, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"qualityProfile":"standard"`) {
+		t.Fatalf("expected book editor response, got %s", res.Body.String())
+	}
+	if len(wantedClient.wantedUpdates) != 1 ||
+		wantedClient.wantedUpdates[0].id != "wanted-1" ||
+		wantedClient.wantedUpdates[0].request.Monitored == nil ||
+		*wantedClient.wantedUpdates[0].request.Monitored ||
+		wantedClient.wantedUpdates[0].request.QualityProfile != "standard" {
+		t.Fatalf("expected persisted book editor update, got %+v", wantedClient.wantedUpdates)
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/book/editor", strings.NewReader(fmt.Sprintf(`{"bookIds":[%d],"deleteFiles":false}`, bookID)))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected book editor delete 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(wantedClient.wantedDeletes) != 1 || wantedClient.wantedDeletes[0] != "wanted-1" {
+		t.Fatalf("expected persisted book editor delete, got %+v", wantedClient.wantedDeletes)
+	}
+}
+
 func TestCompatBookFileEndpoints(t *testing.T) {
 	deleteLibrary := &fakeDeleteLibrary{}
 	router := NewRouter(Dependencies{
