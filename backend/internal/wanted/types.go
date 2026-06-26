@@ -95,6 +95,40 @@ type SearchReleasesRequest struct {
 	Limit int `json:"limit,omitempty"`
 }
 
+type AcquisitionQueueQuery struct {
+	Status string `json:"status,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
+type AcquisitionQueue struct {
+	Items       []AcquisitionQueueItem  `json:"items"`
+	Summary     AcquisitionQueueSummary `json:"summary"`
+	GeneratedAt time.Time               `json:"generatedAt"`
+}
+
+type AcquisitionQueueSummary struct {
+	Total       int `json:"total"`
+	NeedsSearch int `json:"needsSearch"`
+	ReadyToGrab int `json:"readyToGrab"`
+	Queued      int `json:"queued"`
+	ImportReady int `json:"importReady"`
+	Imported    int `json:"imported"`
+	Blocked     int `json:"blocked"`
+}
+
+type AcquisitionQueueItem struct {
+	WantedItem     WantedItem                   `json:"wantedItem"`
+	State          string                       `json:"state"`
+	NextAction     string                       `json:"nextAction"`
+	ReleaseCount   int                          `json:"releaseCount"`
+	ApprovedCount  int                          `json:"approvedCount"`
+	RejectedCount  int                          `json:"rejectedCount"`
+	BestRelease    *ReleaseDecision             `json:"bestRelease,omitempty"`
+	CurrentRelease *ReleaseDecision             `json:"currentRelease,omitempty"`
+	Downloads      []acquisition.DownloadStatus `json:"downloads,omitempty"`
+	LastActivityAt *time.Time                   `json:"lastActivityAt,omitempty"`
+}
+
 type MonitorRequest struct {
 	Trigger                  string `json:"trigger,omitempty"`
 	Limit                    int    `json:"limit,omitempty"`

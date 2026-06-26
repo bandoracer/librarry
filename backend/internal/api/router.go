@@ -70,6 +70,7 @@ type wantedService interface {
 	MonitorAuthors(ctx context.Context, request wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error)
 	ListAuthorMetadataReviews(ctx context.Context, query wanted.AuthorMetadataReviewQuery) ([]wanted.AuthorMetadataReview, error)
 	ResolveAuthorMetadataReview(ctx context.Context, id string, request wanted.AuthorMetadataReviewDecisionRequest) (wanted.AuthorMetadataReviewDecision, error)
+	AcquisitionQueue(ctx context.Context, query wanted.AcquisitionQueueQuery) (wanted.AcquisitionQueue, error)
 	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
 	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
@@ -372,6 +373,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/wanted/metadata/{id}", handler.wantedMetadata)
 	mux.HandleFunc("POST /api/v1/wanted/metadata/{id}/apply", handler.applyWantedMetadataCorrection)
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}/overrides/{field}", handler.clearWantedOverride)
+	mux.HandleFunc("GET /api/v1/acquisition/queue", handler.acquisitionQueue)
 	mux.HandleFunc("POST /api/v1/wanted/monitor", handler.monitorWanted)
 	mux.HandleFunc("POST /api/v1/wanted/feed-sync", handler.feedSyncWanted)
 	mux.HandleFunc("POST /api/v1/wanted/upgrades", handler.upgradeWanted)
@@ -2019,6 +2021,23 @@ func (h *handler) listWantedReleases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) acquisitionQueue(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	queue, err := h.deps.Wanted.AcquisitionQueue(r.Context(), wanted.AcquisitionQueueQuery{
+		Status: r.URL.Query().Get("status"),
+		Limit:  limit,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, queue)
 }
 
 func (h *handler) grabWanted(w http.ResponseWriter, r *http.Request) {

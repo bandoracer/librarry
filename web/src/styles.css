@@ -873,6 +873,164 @@ select {
   overflow: hidden;
 }
 
+.acquisition-overview {
+  display: grid;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfe;
+}
+
+.acquisition-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(72px, 1fr)) auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+
+.acquisition-metric {
+  min-height: 68px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 10px 14px;
+  border-right: 1px solid var(--border);
+}
+
+.acquisition-metric span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.acquisition-metric strong {
+  color: var(--text);
+  font-size: 21px;
+}
+
+.acquisition-summary-strip > .secondary-action {
+  align-self: center;
+  margin: 12px;
+}
+
+.acquisition-selected {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.acquisition-selected strong,
+.acquisition-selected span {
+  display: block;
+}
+
+.acquisition-selected strong {
+  font-size: 14px;
+}
+
+.acquisition-selected span,
+.acquisition-selected em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.acquisition-selected.ready {
+  background: #f0fdf4;
+}
+
+.acquisition-selected.active {
+  background: #eef2ff;
+}
+
+.acquisition-selected.done {
+  background: #ecfdf5;
+}
+
+.acquisition-selected.blocked {
+  background: #fff7ed;
+}
+
+.acquisition-row-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.acquisition-row {
+  min-width: 0;
+  min-height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.acquisition-row:hover {
+  border-color: #b8c6da;
+  background: #f8fbff;
+}
+
+.acquisition-row span {
+  min-width: 0;
+}
+
+.acquisition-row strong,
+.acquisition-row small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acquisition-row strong {
+  font-size: 13px;
+}
+
+.acquisition-row small,
+.acquisition-row em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.acquisition-row em {
+  white-space: nowrap;
+}
+
+.acquisition-state-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.acquisition-state-dot.ready {
+  background: #16a34a;
+}
+
+.acquisition-state-dot.active {
+  background: #4f46e5;
+}
+
+.acquisition-state-dot.done {
+  background: #0f766e;
+}
+
+.acquisition-state-dot.blocked {
+  background: #ea580c;
+}
+
 .author-panel {
   overflow: hidden;
 }
@@ -3964,6 +4122,19 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .acquisition-summary-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .acquisition-summary-strip > .secondary-action {
+    grid-column: 1 / -1;
+    width: auto;
+  }
+
+  .acquisition-row-list {
+    grid-template-columns: 1fr;
+  }
+
   .segmented {
     justify-content: stretch;
   }
@@ -4305,6 +4476,24 @@ select {
 
   .monitor-actions {
     justify-content: stretch;
+  }
+
+  .acquisition-summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .acquisition-selected {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .acquisition-row {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+
+  .acquisition-row em {
+    grid-column: 2;
+    white-space: normal;
   }
 
   .wanted-scope,

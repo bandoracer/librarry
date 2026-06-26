@@ -3140,6 +3140,26 @@ func TestUpgradeWantedEndpoint(t *testing.T) {
 	}
 }
 
+func TestAcquisitionQueueEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/acquisition/queue?status=all&limit=25", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"readyToGrab":1`) || !strings.Contains(res.Body.String(), `"nextAction":"Grab approved release"`) {
+		t.Fatalf("expected acquisition queue response, got %s", res.Body.String())
+	}
+}
+
 func TestCompatHistoryCalendarAndParseEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -4401,6 +4421,51 @@ func (fakeWanted) ResolveAuthorMetadataReview(context.Context, string, wanted.Au
 	review.WantedID = item.ID
 	review.Decision = "wanted"
 	return wanted.AuthorMetadataReviewDecision{Review: review, WantedItem: &item}, nil
+}
+
+func (fakeWanted) AcquisitionQueue(context.Context, wanted.AcquisitionQueueQuery) (wanted.AcquisitionQueue, error) {
+	now := time.Now().UTC()
+	item := wanted.WantedItem{
+		ID:             "wanted-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	release := wanted.ReleaseDecision{
+		ID:           "release-1",
+		WantedItemID: item.ID,
+		SourceID:     "prowlarr-1",
+		Indexer:      "Books",
+		Title:        "Project Hail Mary EPUB",
+		Protocol:     "torrent",
+		DownloadURL:  "magnet:?xt=urn:btih:abc",
+		Score:        96,
+		Approved:     true,
+		Seeders:      14,
+		SearchedAt:   now,
+		CreatedAt:    now,
+	}
+	return wanted.AcquisitionQueue{
+		Items: []wanted.AcquisitionQueueItem{{
+			WantedItem:     item,
+			State:          "ready_to_grab",
+			NextAction:     "Grab approved release",
+			ReleaseCount:   1,
+			ApprovedCount:  1,
+			BestRelease:    &release,
+			LastActivityAt: &now,
+		}},
+		Summary: wanted.AcquisitionQueueSummary{
+			Total:       1,
+			ReadyToGrab: 1,
+		},
+		GeneratedAt: now,
+	}, nil
 }
 
 func (fakeWanted) SearchReleases(context.Context, string, wanted.SearchReleasesRequest) (wanted.SearchOutcome, error) {

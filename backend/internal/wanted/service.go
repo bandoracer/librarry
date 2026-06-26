@@ -450,6 +450,69 @@ func (s *Service) ListReleases(ctx context.Context, wantedID string) (SearchOutc
 	return SearchOutcome{WantedItem: item, Releases: releases}, nil
 }
 
+func (s *Service) AcquisitionQueue(ctx context.Context, query AcquisitionQueueQuery) (AcquisitionQueue, error) {
+	if !s.Available() {
+		return AcquisitionQueue{}, errors.New("wanted service requires database persistence")
+	}
+	status := strings.TrimSpace(query.Status)
+	if strings.EqualFold(status, "all") {
+		status = ""
+	}
+	items, err := s.store.ListWanted(ctx, status)
+	if err != nil {
+		return AcquisitionQueue{}, err
+	}
+	limit := query.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 200
+	}
+	if len(items) > limit {
+		items = items[:limit]
+	}
+
+	downloadsByWanted := map[string][]acquisition.DownloadStatus{}
+	if s.acquire != nil {
+		downloads, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"})
+		if err == nil {
+			downloadsByWanted = groupDownloadsByWantedID(downloads)
+		}
+	}
+
+	queue := AcquisitionQueue{
+		Items:       make([]AcquisitionQueueItem, 0, len(items)),
+		GeneratedAt: time.Now().UTC(),
+	}
+	for _, item := range items {
+		if item.Status == "removed" || item.Status == "ignored" {
+			continue
+		}
+		releases, err := s.store.ListReleaseDecisions(ctx, item.ID)
+		if err != nil {
+			return AcquisitionQueue{}, err
+		}
+		row := acquisitionQueueItem(item, releases, downloadsByWanted[item.ID])
+		queue.Items = append(queue.Items, row)
+		queue.Summary.Total++
+		switch row.State {
+		case "needs_search":
+			queue.Summary.NeedsSearch++
+		case "ready_to_grab":
+			queue.Summary.ReadyToGrab++
+		case "queued", "downloading":
+			queue.Summary.Queued++
+		case "import_ready":
+			queue.Summary.ImportReady++
+		case "imported":
+			queue.Summary.Imported++
+		default:
+			if row.State == "blocked" {
+				queue.Summary.Blocked++
+			}
+		}
+	}
+	return queue, nil
+}
+
 func (s *Service) Grab(ctx context.Context, wantedID string, request GrabRequest) (acquisition.DownloadStatus, error) {
 	if !s.Available() {
 		return acquisition.DownloadStatus{}, errors.New("wanted service requires database persistence")
@@ -1169,6 +1232,172 @@ func firstApproved(releases []ReleaseDecision) (ReleaseDecision, bool) {
 		}
 	}
 	return ReleaseDecision{}, false
+}
+
+func acquisitionQueueItem(item WantedItem, releases []ReleaseDecision, downloads []acquisition.DownloadStatus) AcquisitionQueueItem {
+	row := AcquisitionQueueItem{
+		WantedItem:     item,
+		Downloads:      downloads,
+		LastActivityAt: timePtr(item.UpdatedAt),
+	}
+	for i, release := range releases {
+		if i == 0 {
+			row.BestRelease = releasePtr(release)
+		}
+		row.ReleaseCount++
+		if release.Approved {
+			row.ApprovedCount++
+			if row.BestRelease == nil {
+				row.BestRelease = releasePtr(release)
+			}
+		} else {
+			row.RejectedCount++
+		}
+		if item.CurrentReleaseID != "" && release.ID == item.CurrentReleaseID {
+			row.CurrentRelease = releasePtr(release)
+		}
+		row.LastActivityAt = laterTimePtr(row.LastActivityAt, release.SearchedAt)
+		row.LastActivityAt = laterTimePtr(row.LastActivityAt, release.CreatedAt)
+	}
+	for _, download := range downloads {
+		row.LastActivityAt = laterDownloadActivity(row.LastActivityAt, download)
+	}
+
+	row.State, row.NextAction = acquisitionQueueState(item, row)
+	return row
+}
+
+func acquisitionQueueState(item WantedItem, row AcquisitionQueueItem) (string, string) {
+	switch {
+	case item.Status == "imported" || downloadsHaveImportStatus(row.Downloads, "imported"):
+		return "imported", "Complete"
+	case downloadsHaveFailure(row.Downloads):
+		return "blocked", "Recover failed download"
+	case downloadsHaveImportReady(row.Downloads):
+		return "import_ready", "Import completed download"
+	case downloadsHaveActiveState(row.Downloads):
+		return "downloading", "Wait for external client"
+	case len(row.Downloads) > 0:
+		return "queued", "Monitor external client"
+	case row.ApprovedCount > 0:
+		return "ready_to_grab", "Grab approved release"
+	case row.ReleaseCount > 0:
+		return "blocked", "Review rejected releases"
+	case item.LastSearchAt == nil:
+		return "needs_search", "Search releases"
+	case item.Status == "grabbed":
+		return "blocked", "Refresh queue or regrab"
+	default:
+		return "needs_search", "Search releases"
+	}
+}
+
+func groupDownloadsByWantedID(downloads []acquisition.DownloadStatus) map[string][]acquisition.DownloadStatus {
+	grouped := map[string][]acquisition.DownloadStatus{}
+	for _, download := range downloads {
+		for _, tag := range download.Tags {
+			tag = strings.TrimSpace(tag)
+			if !strings.HasPrefix(tag, "wanted:") {
+				continue
+			}
+			id := strings.TrimSpace(strings.TrimPrefix(tag, "wanted:"))
+			if id == "" {
+				continue
+			}
+			grouped[id] = append(grouped[id], download)
+		}
+	}
+	return grouped
+}
+
+func releasePtr(release ReleaseDecision) *ReleaseDecision {
+	return &release
+}
+
+func timePtr(value time.Time) *time.Time {
+	if value.IsZero() {
+		return nil
+	}
+	utc := value.UTC()
+	return &utc
+}
+
+func laterTimePtr(current *time.Time, candidate time.Time) *time.Time {
+	if candidate.IsZero() {
+		return current
+	}
+	candidate = candidate.UTC()
+	if current == nil || candidate.After(*current) {
+		return &candidate
+	}
+	return current
+}
+
+func laterDownloadActivity(current *time.Time, download acquisition.DownloadStatus) *time.Time {
+	candidates := []*time.Time{
+		download.LastSeenAt,
+		download.LastActivityAt,
+		download.CompletedAt,
+		download.AddedAt,
+		download.ImportedAt,
+		download.FailedAt,
+	}
+	for _, candidate := range candidates {
+		if candidate != nil {
+			current = laterTimePtr(current, *candidate)
+		}
+	}
+	return current
+}
+
+func downloadsHaveImportStatus(downloads []acquisition.DownloadStatus, status string) bool {
+	for _, download := range downloads {
+		if strings.EqualFold(strings.TrimSpace(download.ImportStatus), status) {
+			return true
+		}
+	}
+	return false
+}
+
+func downloadsHaveFailure(downloads []acquisition.DownloadStatus) bool {
+	for _, download := range downloads {
+		state := strings.ToLower(strings.TrimSpace(download.State))
+		if strings.TrimSpace(download.FailureReason) != "" ||
+			strings.TrimSpace(download.ImportError) != "" ||
+			strings.Contains(state, "error") ||
+			strings.Contains(state, "missing") ||
+			strings.Contains(state, "failed") {
+			return true
+		}
+	}
+	return false
+}
+
+func downloadsHaveImportReady(downloads []acquisition.DownloadStatus) bool {
+	for _, download := range downloads {
+		if strings.EqualFold(strings.TrimSpace(download.ImportStatus), "ready") ||
+			download.CompletedAt != nil ||
+			download.Progress >= 1 {
+			return true
+		}
+	}
+	return false
+}
+
+func downloadsHaveActiveState(downloads []acquisition.DownloadStatus) bool {
+	for _, download := range downloads {
+		state := strings.ToLower(strings.TrimSpace(download.State))
+		if strings.Contains(state, "download") ||
+			strings.Contains(state, "upload") ||
+			strings.Contains(state, "queued") ||
+			strings.Contains(state, "stalled") ||
+			strings.Contains(state, "check") ||
+			strings.Contains(state, "paused") ||
+			strings.Contains(state, "stopped") {
+			return true
+		}
+	}
+	return false
 }
 
 func firstApprovedReplacement(releases []ReleaseDecision, failed acquisition.DownloadStatus) (ReleaseDecision, bool) {

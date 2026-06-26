@@ -37,6 +37,7 @@ import {
   createWanted,
   deleteAuthorSubscription,
   deleteWanted,
+  fetchAcquisitionQueue,
   fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
   fetchDownloadDetails,
@@ -96,6 +97,7 @@ import {
   type AuthorMissingBookPolicy,
   type AuthorSkippedItem,
   type AuthorSubscription,
+  type AcquisitionQueue,
   type DownloadAction,
   type CompletedImportOutcome,
   type DownloadDetails,
@@ -170,10 +172,10 @@ const navItems = [
   },
   {
     id: "downloads",
-    label: "Downloads",
+    label: "Queue",
     icon: HardDriveDownload,
-    title: "Downloads",
-    description: "Search, add, review, and recover book acquisition jobs across configured clients."
+    title: "External queue",
+    description: "Review Librarry-grabbed book jobs in configured download clients and import completed files."
   },
   {
     id: "imports",
@@ -315,6 +317,7 @@ export function App() {
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [wantedMetadata, setWantedMetadata] = useState<MetadataProvenance | null>(null);
   const [wantedMetadataReview, setWantedMetadataReview] = useState<MetadataReviewQueue | null>(null);
+  const [acquisitionQueue, setAcquisitionQueue] = useState<AcquisitionQueue | null>(null);
   const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
@@ -365,6 +368,7 @@ export function App() {
   const [isSearchingReleases, setIsSearchingReleases] = useState(false);
   const [isMarkingWanted, setIsMarkingWanted] = useState(false);
   const [isSearchingWanted, setIsSearchingWanted] = useState(false);
+  const [isRefreshingAcquisitionQueue, setIsRefreshingAcquisitionQueue] = useState(false);
   const [isLoadingWantedReleases, setIsLoadingWantedReleases] = useState(false);
   const [isLoadingWantedMetadata, setIsLoadingWantedMetadata] = useState(false);
   const [isSavingWantedEdit, setIsSavingWantedEdit] = useState(false);
@@ -440,6 +444,7 @@ export function App() {
   const [uploadLimitKiB, setUploadLimitKiB] = useState("");
   const [releaseError, setReleaseError] = useState("");
   const [wantedError, setWantedError] = useState("");
+  const [acquisitionError, setAcquisitionError] = useState("");
   const [monitorError, setMonitorError] = useState("");
   const [authorError, setAuthorError] = useState("");
   const [feedError, setFeedError] = useState("");
@@ -503,6 +508,15 @@ export function App() {
       })
       .catch((error) => {
         setWantedError(error instanceof Error ? error.message : "Wanted refresh failed");
+      });
+    fetchAcquisitionQueue({ status: "all", limit: 100 })
+      .then((queue) => {
+        setAcquisitionQueue(queue);
+        setWantedItems((current) => mergeWanted(current, queue.items.map((item) => item.wantedItem)));
+        setSelectedWantedID((current) => current || queue.items[0]?.wantedItem.id || "");
+      })
+      .catch((error) => {
+        setAcquisitionError(error instanceof Error ? error.message : "Acquisition queue refresh failed");
       });
     fetchWantedMetadataReview()
       .then(setWantedMetadataReview)
@@ -605,6 +619,17 @@ export function App() {
   const selectedWanted = useMemo(
     () => visibleWantedItems.find((item) => item.id === selectedWantedID) ?? visibleWantedItems[0],
     [visibleWantedItems, selectedWantedID]
+  );
+  const acquisitionQueueRows = acquisitionQueue?.items ?? [];
+  const selectedAcquisitionQueueItem = useMemo(
+    () => acquisitionQueueRows.find((item) => item.wantedItem.id === selectedWanted?.id),
+    [acquisitionQueueRows, selectedWanted?.id]
+  );
+  const highlightedAcquisitionItems = useMemo(
+    () => acquisitionQueueRows
+      .filter((item) => item.state !== "imported")
+      .slice(0, 6),
+    [acquisitionQueueRows]
   );
   const selectedWantedQualityProfiles = useMemo(
     () => qualityProfiles.filter((profile) => !selectedWanted || profile.mediaFormat === "any" || profile.mediaFormat === selectedWanted.format),
@@ -813,6 +838,7 @@ export function App() {
       const item = await createWanted(result, result.edition?.format ?? format);
       setWantedItems((current) => mergeWanted(current, [item]));
       setSelectedWantedID(item.id);
+      await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Mark wanted failed");
@@ -911,6 +937,7 @@ export function App() {
       setWantedReleases(outcome.releases);
       setWantedReleaseFilter("all");
       setSelectedWantedID(item.id);
+      await refreshAcquisitionQueue({ quiet: true });
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted release search failed");
     } finally {
@@ -942,6 +969,7 @@ export function App() {
       setWantedItems((current) => mergeWanted(current, [outcome.wantedItem]));
       setWantedReleases(outcome.releases);
       setSelectedWantedID(item.id);
+      await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted release decisions refresh failed");
@@ -970,6 +998,7 @@ export function App() {
       setSelectedWantedID(updated.id);
       setWantedReleases([]);
       await refreshWantedMetadataReview();
+      await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted update failed");
@@ -989,6 +1018,7 @@ export function App() {
       setWantedReleases([]);
       setWantedMetadata(null);
       setSelectedWantedID("");
+      await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted remove failed");
@@ -1011,6 +1041,7 @@ export function App() {
       setSelectedWantedID(updated.id);
       setWantedReleases([]);
       await refreshWantedMetadataReview();
+      await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted override reset failed");
@@ -1034,6 +1065,7 @@ export function App() {
       setWantedItems((current) => mergeWanted(current, [provenance.wantedItem]));
       setSelectedWantedID(provenance.wantedItem.id);
       await refreshWantedMetadataReview();
+      await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted metadata correction failed");
@@ -1150,19 +1182,44 @@ export function App() {
     setHistoryError("");
     setWantedError("");
     try {
-      const [nextWanted, nextHistory, nextReview] = await Promise.all([
+      const [nextWanted, nextHistory, nextReview, nextQueue] = await Promise.all([
         fetchWanted(),
         fetchHistory(),
-        fetchWantedMetadataReview().catch(() => null)
+        fetchWantedMetadataReview().catch(() => null),
+        fetchAcquisitionQueue({ status: "all", limit: 100 }).catch(() => null)
       ]);
       setWantedItems(nextWanted);
       setHistoryEvents(nextHistory);
       setWantedMetadataReview(nextReview);
+      if (nextQueue) {
+        setAcquisitionQueue(nextQueue);
+        setWantedItems((current) => mergeWanted(current, nextQueue.items.map((item) => item.wantedItem)));
+      }
       setSelectedWantedID((current) => current || nextWanted[0]?.id || "");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Refresh failed";
       setHistoryError(message);
       setWantedError(message);
+    }
+  }
+
+  async function refreshAcquisitionQueue(options: { quiet?: boolean } = {}) {
+    if (!options.quiet) {
+      setIsRefreshingAcquisitionQueue(true);
+    }
+    setAcquisitionError("");
+    try {
+      const queue = await fetchAcquisitionQueue({ status: "all", limit: 100 });
+      setAcquisitionQueue(queue);
+      setWantedItems((current) => mergeWanted(current, queue.items.map((item) => item.wantedItem)));
+      setSelectedWantedID((current) => current || queue.items[0]?.wantedItem.id || "");
+      setAPIState("live");
+    } catch (error) {
+      setAcquisitionError(error instanceof Error ? error.message : "Acquisition queue refresh failed");
+    } finally {
+      if (!options.quiet) {
+        setIsRefreshingAcquisitionQueue(false);
+      }
     }
   }
 
@@ -1412,6 +1469,7 @@ export function App() {
       if (resourceClientConfigured) {
         await refreshDownloadResources(true);
       }
+      await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
@@ -2599,6 +2657,53 @@ export function App() {
             </div>
           </div>
           {wantedError ? <div className={isPersistenceRequiredError(wantedError) ? "inline-note" : "inline-error"}>{appErrorMessage(wantedError)}</div> : null}
+          {acquisitionError ? <div className={isPersistenceRequiredError(acquisitionError) ? "inline-note" : "inline-error"}>{appErrorMessage(acquisitionError)}</div> : null}
+          <div className="acquisition-overview" aria-label="Readarr acquisition queue summary">
+            <div className="acquisition-summary-strip">
+              {[
+                ["Search", acquisitionQueue?.summary.needsSearch ?? 0],
+                ["Ready", acquisitionQueue?.summary.readyToGrab ?? 0],
+                ["Queued", acquisitionQueue?.summary.queued ?? 0],
+                ["Import", acquisitionQueue?.summary.importReady ?? 0],
+                ["Done", acquisitionQueue?.summary.imported ?? 0],
+                ["Blocked", acquisitionQueue?.summary.blocked ?? 0]
+              ].map(([label, value]) => (
+                <div className="acquisition-metric" key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+              <button className="secondary-action compact" disabled={isRefreshingAcquisitionQueue} onClick={() => refreshAcquisitionQueue()} type="button">
+                <RefreshCw size={15} />
+                {isRefreshingAcquisitionQueue ? "Refreshing" : "Refresh queue"}
+              </button>
+            </div>
+            {selectedAcquisitionQueueItem ? (
+              <div className={`acquisition-selected ${acquisitionQueueStateTone(selectedAcquisitionQueueItem.state)}`}>
+                <div>
+                  <strong>{acquisitionQueueStateLabel(selectedAcquisitionQueueItem.state)}</strong>
+                  <span>{selectedAcquisitionQueueItem.nextAction}</span>
+                </div>
+                <em>
+                  {selectedAcquisitionQueueItem.approvedCount} approved · {selectedAcquisitionQueueItem.rejectedCount} rejected · {selectedAcquisitionQueueItem.downloads?.length ?? 0} queued
+                </em>
+              </div>
+            ) : null}
+            {highlightedAcquisitionItems.length ? (
+              <div className="acquisition-row-list" aria-label="Book acquisition actions">
+                {highlightedAcquisitionItems.map((item) => (
+                  <button className="acquisition-row" key={item.wantedItem.id} onClick={() => openWantedItem(item.wantedItem)} type="button">
+                    <span className={`acquisition-state-dot ${acquisitionQueueStateTone(item.state)}`} />
+                    <span>
+                      <strong>{item.wantedItem.title}</strong>
+                      <small>{item.wantedItem.authorName || item.wantedItem.format}</small>
+                    </span>
+                    <em>{item.nextAction}</em>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <div className="wanted-grid">
             <div className="wanted-list">
               {visibleWantedItems.length ? (
@@ -4694,6 +4799,44 @@ function integrationStatusTone(status: string) {
   if (normalized.includes("missing") || normalized.includes("not configured") || normalized.includes("unknown")) return "idle";
   if (normalized.includes("error") || normalized.includes("failed")) return "error";
   return "active";
+}
+
+function acquisitionQueueStateLabel(state: string) {
+  switch (state) {
+    case "needs_search":
+      return "Needs search";
+    case "ready_to_grab":
+      return "Ready to grab";
+    case "downloading":
+      return "Downloading";
+    case "queued":
+      return "Queued";
+    case "import_ready":
+      return "Import ready";
+    case "imported":
+      return "Imported";
+    case "blocked":
+      return "Blocked";
+    default:
+      return state || "Unknown";
+  }
+}
+
+function acquisitionQueueStateTone(state: string) {
+  switch (state) {
+    case "ready_to_grab":
+    case "import_ready":
+      return "ready";
+    case "downloading":
+    case "queued":
+      return "active";
+    case "imported":
+      return "done";
+    case "blocked":
+      return "blocked";
+    default:
+      return "idle";
+  }
 }
 
 function uniqueDownloadCategories(downloads: DownloadStatus[], resources?: DownloadResources | null) {

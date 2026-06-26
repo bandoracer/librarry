@@ -624,6 +624,35 @@ export type ReleaseDecision = {
   createdAt: string;
 };
 
+export type AcquisitionQueueSummary = {
+  total: number;
+  needsSearch: number;
+  readyToGrab: number;
+  queued: number;
+  importReady: number;
+  imported: number;
+  blocked: number;
+};
+
+export type AcquisitionQueueItem = {
+  wantedItem: WantedItem;
+  state: string;
+  nextAction: string;
+  releaseCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  bestRelease?: ReleaseDecision;
+  currentRelease?: ReleaseDecision;
+  downloads?: DownloadStatus[];
+  lastActivityAt?: string;
+};
+
+export type AcquisitionQueue = {
+  items: AcquisitionQueueItem[];
+  summary: AcquisitionQueueSummary;
+  generatedAt: string;
+};
+
 export type WantedSearchOutcome = {
   wantedItem: WantedItem;
   releases: ReleaseDecision[];
@@ -1096,6 +1125,17 @@ export async function fetchDownloads(options: string | DownloadListOptions = "")
   }
   const payload = (await response.json()) as { downloads: DownloadStatus[] };
   return payload.downloads;
+}
+
+export async function fetchAcquisitionQueue(options: { status?: string; limit?: number } = {}): Promise<AcquisitionQueue> {
+  const params = new URLSearchParams();
+  if (options.status) params.set("status", options.status);
+  if (options.limit) params.set("limit", String(options.limit));
+  const response = await fetch(`${apiBase}/api/v1/acquisition/queue?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Acquisition queue refresh failed"));
+  }
+  return (await response.json()) as AcquisitionQueue;
 }
 
 export async function fetchDownloadDetails(id: string, client?: string): Promise<DownloadDetails> {

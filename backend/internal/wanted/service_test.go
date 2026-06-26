@@ -4,6 +4,9 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/bandoracer/librarry/backend/internal/acquisition"
 )
 
 func TestNoDatabaseReadPathsReturnEmptyStartupData(t *testing.T) {
@@ -57,5 +60,74 @@ func TestNoDatabaseWritePathsStillRequirePersistence(t *testing.T) {
 	_, err := NewService(nil, nil).Create(context.Background(), CreateRequest{})
 	if err == nil || !strings.Contains(err.Error(), "database persistence") {
 		t.Fatalf("expected persistence error, got %v", err)
+	}
+}
+
+func TestAcquisitionQueueItemStatesReadarrWorkflow(t *testing.T) {
+	now := time.Now().UTC()
+	item := WantedItem{
+		ID:             "wanted-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	approved := ReleaseDecision{
+		ID:           "release-1",
+		WantedItemID: item.ID,
+		Title:        "Project Hail Mary EPUB",
+		DownloadURL:  "magnet:?xt=urn:btih:abc",
+		Protocol:     "torrent",
+		Score:        96,
+		Approved:     true,
+		SearchedAt:   now,
+		CreatedAt:    now,
+	}
+
+	if row := acquisitionQueueItem(item, nil, nil); row.State != "needs_search" || row.NextAction != "Search releases" {
+		t.Fatalf("expected needs-search row, got %+v", row)
+	}
+
+	row := acquisitionQueueItem(item, []ReleaseDecision{approved}, nil)
+	if row.State != "ready_to_grab" || row.ApprovedCount != 1 || row.BestRelease == nil {
+		t.Fatalf("expected ready-to-grab row, got %+v", row)
+	}
+
+	row = acquisitionQueueItem(item, []ReleaseDecision{approved}, []acquisition.DownloadStatus{{
+		ID:       "download-1",
+		Name:     approved.Title,
+		State:    "stoppedDL",
+		Progress: 0.42,
+		Tags:     []string{"librarry", "wanted:" + item.ID},
+	}})
+	if row.State != "downloading" || row.NextAction != "Wait for external client" {
+		t.Fatalf("expected external-client wait row, got %+v", row)
+	}
+
+	row = acquisitionQueueItem(item, []ReleaseDecision{approved}, []acquisition.DownloadStatus{{
+		ID:           "download-1",
+		Name:         approved.Title,
+		State:        "uploading",
+		Progress:     1,
+		ImportStatus: "ready",
+		Tags:         []string{"librarry", "wanted:" + item.ID},
+	}})
+	if row.State != "import_ready" || row.NextAction != "Import completed download" {
+		t.Fatalf("expected import-ready row, got %+v", row)
+	}
+
+	row = acquisitionQueueItem(item, []ReleaseDecision{approved}, []acquisition.DownloadStatus{{
+		ID:            "download-1",
+		Name:          approved.Title,
+		State:         "error",
+		FailureReason: "missing files",
+		Tags:          []string{"librarry", "wanted:" + item.ID},
+	}})
+	if row.State != "blocked" || row.NextAction != "Recover failed download" {
+		t.Fatalf("expected blocked recovery row, got %+v", row)
 	}
 }
