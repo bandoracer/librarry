@@ -470,6 +470,7 @@ export type MetadataFieldCandidate = {
 export type MetadataCorrectionRequest = {
   fieldName: string;
   value: string;
+  reason?: string;
 };
 
 export type MetadataCorrectionBatchRequest = {
@@ -482,6 +483,7 @@ export type MetadataFieldEvidence = {
   canonicalValue?: string;
   canonicalSource?: string;
   protected: boolean;
+  reviewResolved: boolean;
   conflict: boolean;
   candidates?: MetadataFieldCandidate[];
 };

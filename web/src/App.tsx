@@ -144,7 +144,19 @@ import {
   type UpgradeRun,
   type WantedItem
 } from "./lib/api";
-import { seedProviders, seedReadarrCompatibility, seedResults, seedWantedItems } from "./lib/seed";
+import {
+  seedDownloadDetailsByKey,
+  seedDownloadPreferencesByClient,
+  seedDownloadResourcesByClient,
+  seedDownloads,
+  seedIntegrations,
+  seedProviders,
+  seedReadarrCompatibility,
+  seedResults,
+  seedWantedItems,
+  seedWantedMetadataByID,
+  seedWantedMetadataReview
+} from "./lib/seed";
 
 const navItems = [
   {
@@ -596,7 +608,7 @@ export function App() {
   const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [readarrCompatibility, setReadarrCompatibility] = useState<ReadarrCompatibilityReport>(seedReadarrCompatibility);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
-  const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationHealth[]>(seedIntegrations);
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
   const [integrationForm, setIntegrationForm] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
   const [integrationSettingsPersisted, setIntegrationSettingsPersisted] = useState(false);
@@ -609,9 +621,9 @@ export function App() {
   const [wantedItems, setWantedItems] = useState<WantedItem[]>(seedWantedItems);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [wantedMetadata, setWantedMetadata] = useState<MetadataProvenance | null>(null);
-  const [wantedMetadataReview, setWantedMetadataReview] = useState<MetadataReviewQueue | null>(null);
+  const [wantedMetadataReview, setWantedMetadataReview] = useState<MetadataReviewQueue | null>(seedWantedMetadataReview);
   const [acquisitionQueue, setAcquisitionQueue] = useState<AcquisitionQueue | null>(null);
-  const [downloads, setDownloads] = useState<DownloadStatus[]>([]);
+  const [downloads, setDownloads] = useState<DownloadStatus[]>(seedDownloads);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
   const [importReviews, setImportReviews] = useState<ImportReview[]>([]);
@@ -630,8 +642,8 @@ export function App() {
   const [upgradeRun, setUpgradeRun] = useState<UpgradeRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [downloadDetails, setDownloadDetails] = useState<DownloadDetails | null>(null);
-  const [downloadResources, setDownloadResources] = useState<DownloadResources | null>(null);
-  const [downloadPreferences, setDownloadPreferences] = useState<DownloadPreferences | null>(null);
+  const [downloadResources, setDownloadResources] = useState<DownloadResources | null>(seedDownloadResourcesByClient.qBittorrent);
+  const [downloadPreferences, setDownloadPreferences] = useState<DownloadPreferences | null>(seedDownloadPreferencesByClient.qBittorrent);
   const [selectedID, setSelectedID] = useState(seedResults[0] ? searchResultKey(seedResults[0]) : "");
   const [pendingWantedReview, setPendingWantedReview] = useState<SearchResult | null>(null);
   const [selectedWantedID, setSelectedWantedID] = useState("");
@@ -801,7 +813,7 @@ export function App() {
     fetchDownloads(downloadListOptions(downloadScope))
       .then(setDownloads)
       .catch((error) => {
-        setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
+        setDownloadError(error instanceof Error ? `${error.message}. Showing demo acquisition jobs.` : "Download refresh failed. Showing demo acquisition jobs.");
       });
     fetchWanted()
       .then((items) => {
@@ -822,9 +834,7 @@ export function App() {
       });
     fetchWantedMetadataReview()
       .then(setWantedMetadataReview)
-      .catch(() => {
-        setWantedMetadataReview(null);
-      });
+      .catch(() => null);
     fetchQualityProfiles()
       .then(setQualityProfiles)
       .catch((error) => {
@@ -1099,7 +1109,13 @@ export function App() {
         setAPIState("live");
       })
       .catch((error) => {
-        if (!canceled) setWantedError(error instanceof Error ? error.message : "Wanted metadata provenance failed");
+        if (canceled) return;
+        const seeded = seedWantedMetadataByID[selectedWanted.id];
+        if (seeded) {
+          setWantedMetadata(seeded);
+          return;
+        }
+        setWantedError(error instanceof Error ? error.message : "Wanted metadata provenance failed");
       })
       .finally(() => {
         if (!canceled) setIsLoadingWantedMetadata(false);
@@ -1473,6 +1489,31 @@ export function App() {
       setAPIState("live");
     } catch (error) {
       setWantedError(error instanceof Error ? error.message : "Wanted metadata correction failed");
+    } finally {
+      setApplyingMetadataCandidateID("");
+    }
+  }
+
+  async function confirmSelectedMetadataCanonical(field: MetadataFieldEvidence) {
+    const item = selectedWanted;
+    if (!item || !metadataFieldCanConfirmCanonical(field)) return;
+    const actionID = metadataFieldCanonicalActionID(field);
+    setApplyingMetadataCandidateID(actionID);
+    setWantedError("");
+    try {
+      const provenance = await applyWantedMetadataCorrection(item.id, {
+        fieldName: field.fieldName,
+        value: field.canonicalValue || "",
+        reason: "metadata review canonical accepted"
+      });
+      setWantedMetadata(provenance);
+      setWantedItems((current) => mergeWanted(current, [provenance.wantedItem]));
+      setSelectedWantedID(provenance.wantedItem.id);
+      await refreshWantedMetadataReview();
+      await refreshAcquisitionQueue({ quiet: true });
+      setAPIState("live");
+    } catch (error) {
+      setWantedError(error instanceof Error ? error.message : "Wanted metadata confirmation failed");
     } finally {
       setApplyingMetadataCandidateID("");
     }
@@ -1959,7 +2000,7 @@ export function App() {
       await refreshAcquisitionQueue({ quiet: true });
       setAPIState("live");
     } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : "Download refresh failed");
+      setDownloadError(error instanceof Error ? `${error.message}. Keeping current queue data.` : "Download refresh failed. Keeping current queue data.");
     } finally {
       setIsRefreshingDownloads(false);
     }
@@ -1967,7 +2008,7 @@ export function App() {
 
   async function refreshDownloadResources(silent = false) {
     if (!resourceClientConfigured) {
-      setDownloadResources({ client: downloadResourceClient, categories: [], tags: [] });
+      setDownloadResources(seedDownloadResourcesByClient[downloadResourceClient] ?? { client: downloadResourceClient, categories: [], tags: [] });
       setIsLoadingDownloadResources(false);
       return;
     }
@@ -1979,6 +2020,8 @@ export function App() {
       const resources = await fetchDownloadResources(downloadResourceClient);
       setDownloadResources(resources);
     } catch (error) {
+      const fallback = seedDownloadResourcesByClient[downloadResourceClient];
+      if (fallback) setDownloadResources(fallback);
       if (!silent) {
         setDownloadError(error instanceof Error ? error.message : "Download resources refresh failed");
       }
@@ -2005,7 +2048,9 @@ export function App() {
 
   async function refreshDownloadPreferences(silent = false) {
     if (!resourceClientSupportsPreferences || !resourceClientConfigured) {
-      setDownloadPreferences(null);
+      const fallback = seedDownloadPreferencesByClient[downloadResourceClient];
+      setDownloadPreferences(fallback ?? null);
+      if (fallback) hydrateDownloadPreferenceForm(fallback);
       setIsLoadingDownloadPreferences(false);
       return;
     }
@@ -2018,7 +2063,9 @@ export function App() {
       setDownloadPreferences(preferences);
       hydrateDownloadPreferenceForm(preferences);
     } catch (error) {
-      setDownloadPreferences(null);
+      const fallback = seedDownloadPreferencesByClient[downloadResourceClient];
+      setDownloadPreferences(fallback ?? null);
+      if (fallback) hydrateDownloadPreferenceForm(fallback);
       if (!silent) {
         setDownloadError(error instanceof Error ? error.message : "Download preferences refresh failed");
       }
@@ -2246,7 +2293,19 @@ export function App() {
       setDownloadSavePathInput(details.status.savePath || details.properties?.savePath || "");
       setAPIState("live");
     } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : "Download details failed");
+      const fallback = seedDownloadDetailsByKey[downloadKey(download)];
+      if (fallback) {
+        setDownloadDetails(fallback);
+        setDownloadLimitKiB(limitBytesToKiBInput(fallback.properties?.downloadLimit));
+        setUploadLimitKiB(limitBytesToKiBInput(fallback.properties?.uploadLimit));
+        setDownloadNameInput(fallback.status.name || "");
+        setDownloadTagsInput((fallback.status.tags ?? []).join(", "));
+        setDownloadCategoryInput(fallback.status.category || "");
+        setDownloadSavePathInput(fallback.status.savePath || fallback.properties?.savePath || "");
+        setDownloadError(error instanceof Error ? `${error.message}. Showing demo details.` : "Download details failed. Showing demo details.");
+      } else {
+        setDownloadError(error instanceof Error ? error.message : "Download details failed");
+      }
     } finally {
       setIsLoadingDownloadDetails(false);
     }
@@ -3701,8 +3760,18 @@ export function App() {
                             <div>
                               <strong>{field.canonicalValue || "No canonical value"}</strong>
                               <span>{metadataFieldCandidateSummary(field)}</span>
-                              {metadataFieldApplicableCandidates(field).length ? (
+                              {metadataFieldCanConfirmCanonical(field) || metadataFieldApplicableCandidates(field).length ? (
                                 <div className="metadata-field-candidate-actions" aria-label={`${field.label} provider candidates`}>
+                                  {metadataFieldCanConfirmCanonical(field) ? (
+                                    <button
+                                      className="secondary-action compact keep-current"
+                                      disabled={applyingMetadataCandidateID === metadataFieldCanonicalActionID(field)}
+                                      onClick={() => confirmSelectedMetadataCanonical(field)}
+                                      type="button"
+                                    >
+                                      {applyingMetadataCandidateID === metadataFieldCanonicalActionID(field) ? "Keeping" : "Keep current"}
+                                    </button>
+                                  ) : null}
                                   {metadataFieldApplicableCandidates(field).map((candidate) => {
                                     const actionID = `${field.fieldName}:${candidate.provider}:${candidate.value}`;
                                     return (
@@ -3720,7 +3789,7 @@ export function App() {
                                 </div>
                               ) : null}
                             </div>
-                            <em>{field.conflict ? "review" : field.protected ? "protected" : "ok"}</em>
+                            <em>{field.conflict ? "review" : field.reviewResolved ? "confirmed" : field.protected ? "protected" : "ok"}</em>
                           </article>
                         ))}
                       </div>
@@ -6447,6 +6516,7 @@ function metadataProvenanceSummary(metadata: MetadataProvenance | null, loading:
 }
 
 function metadataFieldSourceLabel(field: MetadataFieldEvidence) {
+  if (field.reviewResolved) return "Confirmed current value";
   if (field.protected) return "Manual override";
   if (field.canonicalSource === "wanted") return "Canonical wanted value";
   if (field.candidates?.length) return "Provider candidates only";
@@ -6473,6 +6543,14 @@ function metadataFieldCanApply(field: MetadataFieldEvidence) {
     "series_position",
     "isbn"
   ].includes(field.fieldName);
+}
+
+function metadataFieldCanConfirmCanonical(field: MetadataFieldEvidence) {
+  return field.conflict && metadataFieldCanApply(field) && Boolean(normalizeMetadataValue(field.canonicalValue));
+}
+
+function metadataFieldCanonicalActionID(field: MetadataFieldEvidence) {
+  return `${field.fieldName}:canonical:${field.canonicalValue ?? ""}`;
 }
 
 function metadataFieldApplicableCandidates(field: MetadataFieldEvidence) {
@@ -6584,7 +6662,7 @@ function summarizeDownloads(downloads: DownloadStatus[]) {
       const tone = stateTone(download.state);
       if (tone === "active") summary.active += 1;
       if (tone === "paused") summary.paused += 1;
-      if (tone === "error") summary.failed += 1;
+      if (tone === "error" || download.failureReason || download.importError) summary.failed += 1;
       if ((download.progress ?? 0) >= 1 || download.importStatus === "ready" || download.importStatus === "imported") {
         summary.complete += 1;
       }
@@ -6807,7 +6885,7 @@ function wantedFormat(format: string) {
 
 function stateTone(state: string) {
   const normalized = state.toLowerCase();
-  if (normalized.includes("error") || normalized.includes("missing")) return "error";
+  if (normalized.includes("error") || normalized.includes("fail") || normalized.includes("missing")) return "error";
   if (normalized.includes("stop") || normalized.includes("pause")) return "paused";
   if (normalized.includes("upload") || normalized.includes("seed")) return "seeding";
   if (normalized.includes("download") || normalized.includes("meta")) return "active";

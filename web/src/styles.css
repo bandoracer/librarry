@@ -3257,6 +3257,12 @@ select {
   font-size: 11px;
 }
 
+.metadata-field-candidate-actions .secondary-action.compact.keep-current {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .metadata-section-label {
   min-height: 32px;
   display: flex;

@@ -183,6 +183,62 @@ func TestMetadataReviewItemDoesNotTreatProtectedOnlyFieldsAsReviewWork(t *testin
 	}
 }
 
+func TestMetadataReviewItemTreatsAcceptedCanonicalAsResolved(t *testing.T) {
+	now := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
+	item := WantedItem{
+		ID:             "wanted-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		ManualOverrides: []ManualOverride{{
+			FieldName: "title",
+			Value:     "Project Hail Mary",
+			Reason:    manualOverrideReasonCanonicalAccepted,
+		}},
+	}
+	fields := metadataFieldEvidence(item, []ProviderMetadataRecord{{
+		Provider:    "Hardcover",
+		ProviderKey: "hardcover:123",
+		EntityType:  "work",
+		Confidence:  0.98,
+		FetchedAt:   now.Add(-time.Hour),
+		Values: MetadataRecordValues{
+			Title: "Project Hail Mary",
+		},
+	}, {
+		Provider:    "Open Library",
+		ProviderKey: "openlibrary:OL1W",
+		EntityType:  "work",
+		Confidence:  0.84,
+		FetchedAt:   now,
+		Values: MetadataRecordValues{
+			Title: "Project Hail Mary: A Novel",
+		},
+	}})
+	title, ok := findMetadataField(fields, "title")
+	if !ok {
+		t.Fatalf("expected title evidence in %+v", fields)
+	}
+	if !title.Protected || !title.ReviewResolved || title.Conflict {
+		t.Fatalf("expected accepted canonical title to be protected and resolved, got %+v", title)
+	}
+	review := metadataReviewItem(MetadataProvenance{
+		WantedItem: item,
+		Fields:     fields,
+		Records: []ProviderMetadataRecord{{
+			Provider:  "Hardcover",
+			FetchedAt: now.Add(-time.Hour),
+		}, {
+			Provider:  "Open Library",
+			FetchedAt: now,
+		}},
+	})
+	if review.ConflictCount != 0 || len(review.Fields) != 0 || metadataReviewRequiresOperator(review) {
+		t.Fatalf("expected accepted canonical field to leave review queue, got %+v", review)
+	}
+}
+
 func TestMetadataCorrectionUpdateRequestMapsSupportedFields(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

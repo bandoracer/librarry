@@ -18,6 +18,11 @@ type Store struct {
 	db *sql.DB
 }
 
+const (
+	manualOverrideReasonCorrection        = "manual wanted metadata correction"
+	manualOverrideReasonCanonicalAccepted = "metadata review canonical accepted"
+)
+
 func NewStore(db *sql.DB) *Store {
 	if db == nil {
 		return nil
@@ -674,16 +679,24 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 }
 
 func upsertWantedManualOverride(ctx context.Context, tx *sql.Tx, wantedID string, fieldName string, value string) error {
+	return upsertWantedManualOverrideWithReason(ctx, tx, wantedID, fieldName, value, manualOverrideReasonCorrection)
+}
+
+func upsertWantedManualOverrideWithReason(ctx context.Context, tx *sql.Tx, wantedID string, fieldName string, value string, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = manualOverrideReasonCorrection
+	}
 	_, err := tx.ExecContext(ctx, `
 		insert into manual_overrides(entity_type, entity_id, field_name, value, reason)
-		select 'wanted_item', id, $2, to_jsonb($3::text), 'manual wanted metadata correction'
+		select 'wanted_item', id, $2, to_jsonb($3::text), $4
 		from wanted_items
 		where id::text = $1
 		on conflict (entity_type, entity_id, field_name) do update set
 			value = excluded.value,
 			reason = excluded.reason,
 			updated_at = now()
-	`, strings.TrimSpace(wantedID), strings.TrimSpace(fieldName), strings.TrimSpace(value))
+	`, strings.TrimSpace(wantedID), strings.TrimSpace(fieldName), strings.TrimSpace(value), reason)
 	return err
 }
 
@@ -947,6 +960,10 @@ func (s *Store) ApplyWantedMetadataCorrections(ctx context.Context, wantedID str
 	if err != nil {
 		return MetadataProvenance{}, err
 	}
+	reasons, err := metadataCorrectionReasons(request.Corrections)
+	if err != nil {
+		return MetadataProvenance{}, err
+	}
 	if value, ok := values["quality_profile"]; ok {
 		values["quality_profile"] = normalizeQualityProfile(value)
 	}
@@ -984,7 +1001,7 @@ func (s *Store) ApplyWantedMetadataCorrections(ctx context.Context, wantedID str
 		if value == "" {
 			continue
 		}
-		if err := upsertWantedManualOverride(ctx, tx, wantedID, field, value); err != nil {
+		if err := upsertWantedManualOverrideWithReason(ctx, tx, wantedID, field, value, reasons[field]); err != nil {
 			return MetadataProvenance{}, err
 		}
 	}
@@ -1107,8 +1124,11 @@ type metadataFieldSpec struct {
 
 func metadataFieldEvidence(item WantedItem, records []ProviderMetadataRecord) []MetadataFieldEvidence {
 	overrideValues := make(map[string]string, len(item.ManualOverrides))
+	overrideReasons := make(map[string]string, len(item.ManualOverrides))
 	for _, override := range item.ManualOverrides {
-		overrideValues[strings.TrimSpace(override.FieldName)] = strings.TrimSpace(override.Value)
+		fieldName := strings.TrimSpace(override.FieldName)
+		overrideValues[fieldName] = strings.TrimSpace(override.Value)
+		overrideReasons[fieldName] = strings.TrimSpace(override.Reason)
 	}
 	specs := []metadataFieldSpec{
 		{name: "title", label: "Title", canonical: func(item WantedItem) string { return item.Title }, values: func(values MetadataRecordValues) []string { return oneValue(values.Title) }},
@@ -1142,13 +1162,15 @@ func metadataFieldEvidence(item WantedItem, records []ProviderMetadataRecord) []
 		} else if canonical != "" {
 			source = "wanted"
 		}
+		reviewResolved := protected && overrideReasons[spec.name] == manualOverrideReasonCanonicalAccepted
 		evidence = append(evidence, MetadataFieldEvidence{
 			FieldName:       spec.name,
 			Label:           spec.label,
 			CanonicalValue:  canonical,
 			CanonicalSource: source,
 			Protected:       protected,
-			Conflict:        metadataFieldHasConflict(canonical, candidates, protected),
+			ReviewResolved:  reviewResolved,
+			Conflict:        !reviewResolved && metadataFieldHasConflict(canonical, candidates, protected),
 			Candidates:      candidates,
 		})
 	}
@@ -1318,6 +1340,26 @@ func metadataCorrectionValues(corrections []MetadataCorrectionRequest) (map[stri
 		return nil, errors.New("at least one metadata correction is required")
 	}
 	return values, nil
+}
+
+func metadataCorrectionReasons(corrections []MetadataCorrectionRequest) (map[string]string, error) {
+	reasons := map[string]string{}
+	for _, correction := range corrections {
+		field := normalizeWantedOverrideField(correction.FieldName)
+		if !validWantedOverrideField(field) {
+			return nil, fmt.Errorf("unsupported wanted metadata field %q", correction.FieldName)
+		}
+		reason := strings.TrimSpace(correction.Reason)
+		switch reason {
+		case "":
+			continue
+		case manualOverrideReasonCorrection, manualOverrideReasonCanonicalAccepted:
+			reasons[field] = reason
+		default:
+			return nil, fmt.Errorf("unsupported metadata correction reason %q", correction.Reason)
+		}
+	}
+	return reasons, nil
 }
 
 func metadataCorrectionsIncludeWantedColumns(values map[string]string) bool {

@@ -461,7 +461,10 @@ shown normally again.
 `GET /api/v1/wanted/metadata/review` is conflict-driven: it lists wanted items
 with unresolved provider disagreements, not every item with a protected override.
 Protected-only corrections remain visible in item provenance and override chips
-without keeping the item in the operator's review queue.
+without keeping the item in the operator's review queue. When an operator keeps
+the current canonical value during conflict review, Librarry stores the same
+manual override value with a `metadata review canonical accepted` reason so the
+field remains protected without reappearing as unresolved review work.
 `DELETE /api/v1/wanted/{id}` soft-removes the wanted item without deleting
 library files or download-client data. Monitoring state is stored separately
 from acquisition/import status so Readarr-compatible monitor/unmonitor calls do

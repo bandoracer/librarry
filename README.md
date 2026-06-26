@@ -48,6 +48,30 @@ The project goals are:
   and Usenet client administration to the external clients built for it;
 - integrate with existing self-hosted media stacks instead of replacing them.
 
+## Download Client Boundary
+
+Librarry is not a full torrent manager and does not try to replace the native
+qBittorrent, Transmission, or SABnzbd interfaces. It owns the book workflow:
+which book is wanted, which release was acceptable, which external client got
+the job, whether the completed files match the wanted item, and how those files
+are imported into the library.
+
+The Downloads view is therefore scoped to acquisition work that matters to a
+Readarr replacement:
+
+- add a book download from a magnet, torrent file, torrent URL, or NZB URL;
+- inspect Librarry-tagged jobs or all jobs returned by configured clients;
+- start, stop, remove, recheck, reprioritize, rename, move, tag, and recategorize
+  jobs when the external client supports the action;
+- inspect files, trackers, peers, category/tag resources, and basic client
+  preferences for diagnosing book jobs;
+- import completed jobs, recover failed jobs, and preserve history around the
+  book acquisition.
+
+For general torrent administration such as global rules, plugin management,
+advanced ratio policies, non-book downloads, peer banning, tracker-wide tuning,
+or detailed client settings, the external client remains the source of truth.
+
 ## Librarry vs. Readarr
 
 Readarr is the obvious reference point, but it has been retired by the Servarr
@@ -132,7 +156,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   unresolved provider conflicts before they become hidden library debt, while
   protected override fields stay visible on the selected wanted item. Supported
   provider candidates or all usable fields from one provider record can be
-  applied as protected corrections without copying values by hand.
+  applied as protected corrections without copying values by hand, and the
+  current canonical value can be confirmed to clear a reviewed conflict without
+  changing metadata.
 - Postgres schema for authors, works, editions, series, provider records,
   manual overrides, files, wanted items, releases, and downloads.
 - Scoped Downloads page for configured qBittorrent, Transmission, and SABnzbd

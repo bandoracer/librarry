@@ -238,6 +238,7 @@ type MetadataReviewItem struct {
 type MetadataCorrectionRequest struct {
 	FieldName string `json:"fieldName"`
 	Value     string `json:"value"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 type MetadataCorrectionBatchRequest struct {
@@ -277,6 +278,7 @@ type MetadataFieldEvidence struct {
 	CanonicalValue  string                   `json:"canonicalValue,omitempty"`
 	CanonicalSource string                   `json:"canonicalSource,omitempty"`
 	Protected       bool                     `json:"protected"`
+	ReviewResolved  bool                     `json:"reviewResolved"`
 	Conflict        bool                     `json:"conflict"`
 	Candidates      []MetadataFieldCandidate `json:"candidates,omitempty"`
 }
