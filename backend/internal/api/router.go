@@ -333,6 +333,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/library/files/rename", handler.renameLibraryFiles)
 	mux.HandleFunc("POST /api/v1/library/calibre/conversions/refresh", handler.refreshCalibreConversions)
 	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
+	mux.HandleFunc("POST /api/v1/library/import-reviews/resolve-bulk", handler.resolveImportReviewsBulk)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
@@ -1267,6 +1268,107 @@ func (h *handler) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 		h.notifyReviewImport(r.Context(), "import-review", outcome)
 	}
 	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) resolveImportReviewsBulk(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Library == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.ReviewBulkDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid bulk review decision payload"})
+		return
+	}
+	ids, err := h.bulkImportReviewIDs(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if len(ids) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "at least one review id is required"})
+		return
+	}
+	decision := library.ReviewDecisionRequest{
+		Action:         request.Action,
+		WantedID:       request.WantedID,
+		Format:         request.Format,
+		Move:           request.Move,
+		ImportMode:     request.ImportMode,
+		ConflictAction: request.ConflictAction,
+		Overwrite:      request.Overwrite,
+	}
+	outcome := library.ReviewBulkDecisionOutcome{Requested: len(ids)}
+	for _, id := range ids {
+		result := library.ReviewBulkDecisionResult{ID: id}
+		reviewOutcome, reviewErr := h.deps.Library.ResolveImportReview(r.Context(), id, decision)
+		if reviewErr != nil {
+			result.Status = "error"
+			result.Message = reviewErr.Error()
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		result.Status = reviewOutcome.Review.Status
+		result.Outcome = &reviewOutcome
+		outcome.Resolved++
+		switch strings.ToLower(strings.TrimSpace(reviewOutcome.Review.Status)) {
+		case "imported":
+			outcome.Imported++
+		case "skipped":
+			outcome.Skipped++
+		case "rejected":
+			outcome.Rejected++
+		}
+		if reviewOutcome.Import != nil && reviewOutcome.Import.Imported {
+			h.notifyReviewImport(r.Context(), "import-review-bulk", reviewOutcome)
+		}
+		outcome.Results = append(outcome.Results, result)
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) bulkImportReviewIDs(ctx context.Context, request library.ReviewBulkDecisionRequest) ([]string, error) {
+	ids := compactStringValues(append(append([]string{}, request.IDs...), request.ReviewIDs...))
+	if len(ids) > 0 {
+		return ids, nil
+	}
+	limit := request.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	reviews, err := h.deps.Library.ListImportReviews(ctx, library.ReviewListQuery{
+		Status: defaultString(request.Status, "pending"),
+		Limit:  limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ids = make([]string, 0, len(reviews))
+	for _, review := range reviews {
+		if strings.TrimSpace(review.ID) != "" {
+			ids = append(ids, review.ID)
+		}
+	}
+	return ids, nil
+}
+
+func compactStringValues(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	compact := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		compact = append(compact, trimmed)
+	}
+	return compact
 }
 
 func planDownloadRebalance(downloads []acquisition.DownloadStatus, maxActive int, stopOverflow bool) downloadRebalancePlan {

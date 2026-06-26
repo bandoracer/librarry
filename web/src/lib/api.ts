@@ -523,6 +523,23 @@ export type ReviewDecisionOutcome = {
   import?: LibraryImportOutcome;
 };
 
+export type ReviewBulkDecisionResult = {
+  id: string;
+  status: string;
+  message?: string;
+  outcome?: ReviewDecisionOutcome;
+};
+
+export type ReviewBulkDecisionOutcome = {
+  requested: number;
+  resolved: number;
+  imported: number;
+  skipped: number;
+  rejected: number;
+  errored: number;
+  results: ReviewBulkDecisionResult[];
+};
+
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 const apiKeyStorageKey = "librarry.apiKey";
 
@@ -1151,4 +1168,27 @@ export async function resolveLibraryImportReview(
     throw new Error(`Import review update failed: ${response.status}`);
   }
   return (await response.json()) as ReviewDecisionOutcome;
+}
+
+export async function resolveLibraryImportReviewsBulk(options: {
+  ids?: string[];
+  action: "import" | "skip" | "reject";
+  wantedId?: string;
+  format?: string;
+  move?: boolean;
+  importMode?: "copy" | "move" | "hardlink" | "hardlinkOrCopy";
+  conflictAction?: "rename" | "replace" | "skip" | "fail";
+  overwrite?: boolean;
+  status?: string;
+  limit?: number;
+}): Promise<ReviewBulkDecisionOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-reviews/resolve-bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options)
+  });
+  if (!response.ok) {
+    throw new Error(`Bulk import review update failed: ${response.status}`);
+  }
+  return (await response.json()) as ReviewBulkDecisionOutcome;
 }

@@ -252,6 +252,7 @@ Initial API surface:
   - `POST /api/v1/library/files/rename`
   - `POST /api/v1/library/calibre/conversions/refresh`
   - `GET /api/v1/library/import-reviews`
+  - `POST /api/v1/library/import-reviews/resolve-bulk`
   - `POST /api/v1/library/scan`
   - `POST /api/v1/library/import`
   - `POST /api/v1/library/import-completed`
@@ -505,13 +506,14 @@ wanted tag are persisted as pending import reviews instead of being guessed
 directly into the library. Review decisions can import, skip, or reject the
 pending file.
 
-Manual imports, completed-download imports, and import-review import decisions
-share the same organization policy. `importMode` supports `copy`, `move`,
+Manual imports, completed-download imports, and individual or bulk import-review
+decisions share the same organization policy. `importMode` supports `copy`, `move`,
 `hardlink`, and `hardlinkOrCopy`; `conflictAction` supports keep-both renaming,
 replacement, skip, and fail behavior. Successful imports record the chosen mode,
 conflict action, replacement path, and hardlink status in file metadata, and
 wanted items are marked imported only after the destination file is persisted.
-Future work should add richer matching evidence and bulk review flows.
+Future work should add richer matching evidence and per-profile organization
+rules.
 
 - `books-ebook`
 - `books-audiobook`

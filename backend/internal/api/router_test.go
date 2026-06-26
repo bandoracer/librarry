@@ -2572,6 +2572,78 @@ func TestResolveImportReviewEndpoint(t *testing.T) {
 	}
 }
 
+func TestResolveImportReviewsBulkEndpoint(t *testing.T) {
+	fake := &capturingBulkReviewLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fake,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/import-reviews/resolve-bulk", strings.NewReader(`{"ids":[" review-1 ","review-2","review-1"],"action":"skip","importMode":"hardlinkOrCopy","conflictAction":"replace","overwrite":true}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var outcome library.ReviewBulkDecisionOutcome
+	if err := json.Unmarshal(res.Body.Bytes(), &outcome); err != nil {
+		t.Fatalf("decode bulk outcome: %v", err)
+	}
+	if outcome.Requested != 2 || outcome.Resolved != 2 || outcome.Skipped != 2 || outcome.Errored != 0 {
+		t.Fatalf("unexpected bulk outcome: %+v", outcome)
+	}
+	if len(fake.ids) != 2 || fake.ids[0] != "review-1" || fake.ids[1] != "review-2" {
+		t.Fatalf("expected compact review ids, got %#v", fake.ids)
+	}
+	if len(fake.requests) != 2 {
+		t.Fatalf("expected two review decisions, got %d", len(fake.requests))
+	}
+	for _, request := range fake.requests {
+		if request.Action != "skip" || request.ImportMode != "hardlinkOrCopy" || request.ConflictAction != "replace" || !request.Overwrite {
+			t.Fatalf("unexpected review decision: %+v", request)
+		}
+	}
+}
+
+func TestResolveImportReviewsBulkEndpointDefaultsToPendingReviews(t *testing.T) {
+	fake := &capturingBulkReviewLibrary{
+		reviews: []library.ImportReview{
+			{ID: "review-a", SourcePath: "/downloads/a.epub", MediaFormat: "ebook", Status: "pending", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+			{ID: "review-b", SourcePath: "/downloads/b.epub", MediaFormat: "ebook", Status: "pending", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+	}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fake,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/import-reviews/resolve-bulk", strings.NewReader(`{"action":"reject","status":"pending","limit":2}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var outcome library.ReviewBulkDecisionOutcome
+	if err := json.Unmarshal(res.Body.Bytes(), &outcome); err != nil {
+		t.Fatalf("decode bulk outcome: %v", err)
+	}
+	if outcome.Requested != 2 || outcome.Resolved != 2 || outcome.Rejected != 2 || outcome.Errored != 0 {
+		t.Fatalf("unexpected bulk outcome: %+v", outcome)
+	}
+	if len(fake.listQueries) != 1 || fake.listQueries[0].Status != "pending" || fake.listQueries[0].Limit != 2 {
+		t.Fatalf("expected pending review list query, got %#v", fake.listQueries)
+	}
+	if len(fake.ids) != 2 || fake.ids[0] != "review-a" || fake.ids[1] != "review-b" {
+		t.Fatalf("expected listed review ids, got %#v", fake.ids)
+	}
+}
+
 type fakeAcquire struct{}
 
 func (fakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
@@ -3443,6 +3515,75 @@ func fakeCalibreRefreshOutcome(request library.CalibreConversionRefreshRequest) 
 			Statuses: statuses,
 		}},
 	}
+}
+
+type capturingBulkReviewLibrary struct {
+	fakeLibrary
+	ids         []string
+	requests    []library.ReviewDecisionRequest
+	listQueries []library.ReviewListQuery
+	reviews     []library.ImportReview
+}
+
+func (f *capturingBulkReviewLibrary) ListImportReviews(ctx context.Context, query library.ReviewListQuery) ([]library.ImportReview, error) {
+	f.listQueries = append(f.listQueries, query)
+	if f.reviews != nil {
+		return f.reviews, nil
+	}
+	return f.fakeLibrary.ListImportReviews(ctx, query)
+}
+
+func (f *capturingBulkReviewLibrary) ResolveImportReview(_ context.Context, id string, request library.ReviewDecisionRequest) (library.ReviewDecisionOutcome, error) {
+	f.ids = append(f.ids, id)
+	f.requests = append(f.requests, request)
+
+	action := strings.ToLower(strings.TrimSpace(request.Action))
+	if action == "" {
+		action = "import"
+	}
+	status := "imported"
+	switch action {
+	case "skip":
+		status = "skipped"
+	case "reject":
+		status = "rejected"
+	}
+	review := library.ImportReview{
+		ID:          id,
+		SourcePath:  "/downloads/Project Hail Mary.epub",
+		WantedID:    request.WantedID,
+		MediaFormat: defaultString(request.Format, "ebook"),
+		Title:       "Project Hail Mary",
+		Reason:      "download is not linked to a wanted item",
+		Status:      status,
+		Decision:    action,
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
+	}
+	if status != "imported" {
+		return library.ReviewDecisionOutcome{Review: review}, nil
+	}
+	file := library.FileRecord{
+		ID:           "file-" + id,
+		MediaFormat:  review.MediaFormat,
+		Path:         "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub",
+		Title:        review.Title,
+		AuthorName:   "Andy Weir",
+		ImportStatus: "imported",
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}
+	review.DestinationPath = file.Path
+	return library.ReviewDecisionOutcome{
+		Review: review,
+		Import: &library.ImportOutcome{
+			File:            file,
+			DestinationPath: file.Path,
+			Imported:        true,
+			ImportMode:      request.ImportMode,
+			ConflictAction:  request.ConflictAction,
+		},
+	}, nil
 }
 
 func (fakeLibrary) ListImportReviews(context.Context, library.ReviewListQuery) ([]library.ImportReview, error) {

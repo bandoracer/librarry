@@ -1356,10 +1356,27 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
+.import-review-bulkbar {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.import-review-bulkbar span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .import-review-row {
   min-height: 70px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 10px 16px;
@@ -1367,8 +1384,20 @@ select {
   background: #fffdf7;
 }
 
+.import-review-row.selected {
+  background: #fff7e6;
+}
+
 .import-review-row:first-child {
   border-top: 0;
+}
+
+.import-review-bulkbar + .import-review-row {
+  border-top: 0;
+}
+
+.import-review-select {
+  white-space: nowrap;
 }
 
 .import-review-row strong,
@@ -2407,7 +2436,16 @@ select {
     width: 100%;
   }
 
+  .import-review-bulkbar {
+    align-items: stretch;
+  }
+
+  .import-review-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
   .import-review-actions {
+    grid-column: 1 / -1;
     justify-content: stretch;
   }
 

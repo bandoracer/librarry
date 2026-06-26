@@ -221,3 +221,34 @@ type ReviewDecisionOutcome struct {
 	Review ImportReview   `json:"review"`
 	Import *ImportOutcome `json:"import,omitempty"`
 }
+
+type ReviewBulkDecisionRequest struct {
+	IDs            []string `json:"ids,omitempty"`
+	ReviewIDs      []string `json:"reviewIds,omitempty"`
+	Action         string   `json:"action"`
+	WantedID       string   `json:"wantedId,omitempty"`
+	Format         string   `json:"format,omitempty"`
+	Move           bool     `json:"move,omitempty"`
+	ImportMode     string   `json:"importMode,omitempty"`
+	ConflictAction string   `json:"conflictAction,omitempty"`
+	Overwrite      bool     `json:"overwrite,omitempty"`
+	Status         string   `json:"status,omitempty"`
+	Limit          int      `json:"limit,omitempty"`
+}
+
+type ReviewBulkDecisionOutcome struct {
+	Requested int                        `json:"requested"`
+	Resolved  int                        `json:"resolved"`
+	Imported  int                        `json:"imported"`
+	Skipped   int                        `json:"skipped"`
+	Rejected  int                        `json:"rejected"`
+	Errored   int                        `json:"errored"`
+	Results   []ReviewBulkDecisionResult `json:"results"`
+}
+
+type ReviewBulkDecisionResult struct {
+	ID      string                 `json:"id"`
+	Status  string                 `json:"status"`
+	Message string                 `json:"message,omitempty"`
+	Outcome *ReviewDecisionOutcome `json:"outcome,omitempty"`
+}
