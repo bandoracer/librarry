@@ -1536,6 +1536,164 @@ func (s *Store) FinishMonitorRun(ctx context.Context, run MonitorRun) (MonitorRu
 	return finished, nil
 }
 
+func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMetadataReview) (AuthorMetadataReview, error) {
+	if !s.Configured() {
+		return AuthorMetadataReview{}, errors.New("wanted store is unavailable")
+	}
+	review = normalizeAuthorMetadataReview(review)
+	if strings.TrimSpace(review.AuthorSubscriptionID) == "" {
+		return AuthorMetadataReview{}, errors.New("author subscription id is required")
+	}
+	if strings.TrimSpace(review.CandidateKey) == "" {
+		return AuthorMetadataReview{}, errors.New("author metadata review candidate key is required")
+	}
+	raw, err := json.Marshal(review.Result)
+	if err != nil {
+		return AuthorMetadataReview{}, err
+	}
+	row := s.db.QueryRowContext(ctx, `
+		insert into author_metadata_reviews (
+			author_subscription_id, provider, candidate_key, title, author_name,
+			wanted_format, quality_profile, tags, policy, reason, status, decision,
+			wanted_item_id, result
+		) values (
+			nullif($1, '')::uuid, $2, $3, $4, $5,
+			$6, $7, $8, $9, $10, $11, $12,
+			nullif($13, '')::uuid, $14::jsonb
+		)
+		on conflict (author_subscription_id, candidate_key, wanted_format)
+		do update set
+			provider = excluded.provider,
+			title = excluded.title,
+			author_name = excluded.author_name,
+			quality_profile = excluded.quality_profile,
+			tags = excluded.tags,
+			policy = excluded.policy,
+			reason = excluded.reason,
+			result = excluded.result,
+			updated_at = now()
+		where author_metadata_reviews.status = 'pending'
+		returning
+			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
+			title, author_name, wanted_format, quality_profile, tags, policy, reason,
+			status, decision, coalesce(wanted_item_id::text, ''), result,
+			created_at, updated_at, resolved_at
+	`, review.AuthorSubscriptionID, review.Provider, review.CandidateKey, review.Title, review.AuthorName,
+		review.Format, review.QualityProfile, intTagsString(review.Tags), review.Policy, review.Reason,
+		review.Status, review.Decision, review.WantedID, string(raw))
+	saved, err := scanAuthorMetadataReview(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return s.findAuthorMetadataReviewByCandidate(ctx, review.AuthorSubscriptionID, review.CandidateKey, review.Format)
+	}
+	return saved, err
+}
+
+func (s *Store) findAuthorMetadataReviewByCandidate(ctx context.Context, authorSubscriptionID string, candidateKey string, format string) (AuthorMetadataReview, error) {
+	row := s.db.QueryRowContext(ctx, `
+		select
+			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
+			title, author_name, wanted_format, quality_profile, tags, policy, reason,
+			status, decision, coalesce(wanted_item_id::text, ''), result,
+			created_at, updated_at, resolved_at
+		from author_metadata_reviews
+		where author_subscription_id = nullif($1, '')::uuid
+			and candidate_key = $2
+			and wanted_format = $3
+	`, strings.TrimSpace(authorSubscriptionID), strings.TrimSpace(candidateKey), normalizeFormat(format))
+	return scanAuthorMetadataReview(row)
+}
+
+func (s *Store) ListAuthorMetadataReviews(ctx context.Context, query AuthorMetadataReviewQuery) ([]AuthorMetadataReview, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	limit := query.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	args := []any{}
+	where := []string{}
+	status := strings.TrimSpace(query.Status)
+	if status == "" {
+		status = "pending"
+	}
+	if status != "all" {
+		args = append(args, status)
+		where = append(where, "status = $"+strconv.Itoa(len(args)))
+	}
+	args = append(args, limit)
+	sqlText := `
+		select
+			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
+			title, author_name, wanted_format, quality_profile, tags, policy, reason,
+			status, decision, coalesce(wanted_item_id::text, ''), result,
+			created_at, updated_at, resolved_at
+		from author_metadata_reviews
+	`
+	if len(where) > 0 {
+		sqlText += " where " + strings.Join(where, " and ")
+	}
+	sqlText += " order by created_at desc limit $" + strconv.Itoa(len(args))
+	rows, err := s.db.QueryContext(ctx, sqlText, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	reviews := []AuthorMetadataReview{}
+	for rows.Next() {
+		review, err := scanAuthorMetadataReview(rows)
+		if err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, review)
+	}
+	return reviews, rows.Err()
+}
+
+func (s *Store) GetAuthorMetadataReview(ctx context.Context, id string) (AuthorMetadataReview, error) {
+	if !s.Configured() {
+		return AuthorMetadataReview{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(id) == "" {
+		return AuthorMetadataReview{}, errors.New("author metadata review id is required")
+	}
+	row := s.db.QueryRowContext(ctx, `
+		select
+			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
+			title, author_name, wanted_format, quality_profile, tags, policy, reason,
+			status, decision, coalesce(wanted_item_id::text, ''), result,
+			created_at, updated_at, resolved_at
+		from author_metadata_reviews
+		where id::text = $1
+	`, strings.TrimSpace(id))
+	return scanAuthorMetadataReview(row)
+}
+
+func (s *Store) ResolveAuthorMetadataReview(ctx context.Context, id string, status string, decision string, wantedID string) (AuthorMetadataReview, error) {
+	if !s.Configured() {
+		return AuthorMetadataReview{}, errors.New("wanted store is unavailable")
+	}
+	if strings.TrimSpace(id) == "" {
+		return AuthorMetadataReview{}, errors.New("author metadata review id is required")
+	}
+	row := s.db.QueryRowContext(ctx, `
+		update author_metadata_reviews set
+			status = $2,
+			decision = $3,
+			wanted_item_id = coalesce(nullif($4, '')::uuid, wanted_item_id),
+			updated_at = now(),
+			resolved_at = now()
+		where id::text = $1
+		returning
+			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
+			title, author_name, wanted_format, quality_profile, tags, policy, reason,
+			status, decision, coalesce(wanted_item_id::text, ''), result,
+			created_at, updated_at, resolved_at
+	`, strings.TrimSpace(id), strings.TrimSpace(status), strings.TrimSpace(decision), strings.TrimSpace(wantedID))
+	return scanAuthorMetadataReview(row)
+}
+
 func (s *Store) InsertHistoryEvent(ctx context.Context, event HistoryEvent) (HistoryEvent, error) {
 	if !s.Configured() {
 		return HistoryEvent{}, errors.New("wanted store is unavailable")
@@ -1959,6 +2117,30 @@ func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
 	return subscription, nil
 }
 
+func scanAuthorMetadataReview(row wantedScanner) (AuthorMetadataReview, error) {
+	var review AuthorMetadataReview
+	var tags string
+	var raw []byte
+	var resolvedAt sql.NullTime
+	if err := row.Scan(
+		&review.ID, &review.AuthorSubscriptionID, &review.Provider, &review.CandidateKey,
+		&review.Title, &review.AuthorName, &review.Format, &review.QualityProfile,
+		&tags, &review.Policy, &review.Reason, &review.Status, &review.Decision,
+		&review.WantedID, &raw, &review.CreatedAt, &review.UpdatedAt, &resolvedAt,
+	); err != nil {
+		return AuthorMetadataReview{}, err
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &review.Result)
+	}
+	review.Tags = splitIntTags(tags)
+	if resolvedAt.Valid {
+		value := resolvedAt.Time.UTC()
+		review.ResolvedAt = &value
+	}
+	return review, nil
+}
+
 func scanMonitorRun(row wantedScanner) (MonitorRun, error) {
 	var run MonitorRun
 	var finishedAt sql.NullTime
@@ -2146,6 +2328,42 @@ func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscrip
 		subscription.Status = "monitored"
 	}
 	return subscription
+}
+
+func normalizeAuthorMetadataReview(review AuthorMetadataReview) AuthorMetadataReview {
+	review.AuthorSubscriptionID = strings.TrimSpace(review.AuthorSubscriptionID)
+	review.Provider = strings.TrimSpace(firstNonEmpty(review.Provider, review.Result.Provider))
+	review.CandidateKey = strings.TrimSpace(review.CandidateKey)
+	if review.CandidateKey == "" {
+		review.CandidateKey = authorMetadataReviewCandidateKey(review.Result)
+	}
+	review.Title = strings.TrimSpace(firstNonEmpty(review.Title, review.Result.Work.Title, review.Result.Edition.Title))
+	review.AuthorName = strings.TrimSpace(firstNonEmpty(review.AuthorName, firstResultAuthorName(review.Result)))
+	review.Format = normalizeFormat(firstNonEmpty(review.Format, string(review.Result.Edition.Format)))
+	review.QualityProfile = normalizeQualityProfile(review.QualityProfile)
+	review.Tags = compactRestrictionTags(review.Tags)
+	review.Policy = normalizeAuthorMissingBookPolicy(review.Policy, true)
+	review.Reason = strings.TrimSpace(review.Reason)
+	if strings.TrimSpace(review.Status) == "" {
+		review.Status = "pending"
+	}
+	review.Status = strings.TrimSpace(review.Status)
+	review.Decision = strings.TrimSpace(review.Decision)
+	return review
+}
+
+func authorMetadataReviewCandidateKey(result metadata.SearchResult) string {
+	return strings.Join([]string{
+		strings.TrimSpace(result.Provider),
+		firstNonEmpty(strings.TrimSpace(result.Edition.ID), strings.TrimSpace(result.Work.ID), strings.TrimSpace(result.RawSourceKey), normalizeText(result.Work.Title)),
+	}, ":")
+}
+
+func firstResultAuthorName(result metadata.SearchResult) string {
+	if len(result.Work.Authors) == 0 {
+		return ""
+	}
+	return result.Work.Authors[0].Name
 }
 
 func normalizeAuthorMissingBookPolicy(policy string, monitorNewItems bool) string {

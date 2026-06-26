@@ -403,9 +403,45 @@ type AuthorMonitorItemResult struct {
 }
 
 type AuthorSkippedItem struct {
-	Result metadata.SearchResult `json:"result"`
-	Policy string                `json:"policy"`
-	Reason string                `json:"reason"`
+	ReviewID string                `json:"reviewId,omitempty"`
+	Result   metadata.SearchResult `json:"result"`
+	Policy   string                `json:"policy"`
+	Reason   string                `json:"reason"`
+}
+
+type AuthorMetadataReviewQuery struct {
+	Status string `json:"status,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
+type AuthorMetadataReview struct {
+	ID                   string                `json:"id,omitempty"`
+	AuthorSubscriptionID string                `json:"authorSubscriptionId,omitempty"`
+	Provider             string                `json:"provider"`
+	CandidateKey         string                `json:"candidateKey"`
+	Title                string                `json:"title"`
+	AuthorName           string                `json:"authorName,omitempty"`
+	Format               string                `json:"format"`
+	QualityProfile       string                `json:"qualityProfile"`
+	Tags                 []int                 `json:"tags,omitempty"`
+	Policy               string                `json:"policy"`
+	Reason               string                `json:"reason"`
+	Status               string                `json:"status"`
+	Decision             string                `json:"decision,omitempty"`
+	WantedID             string                `json:"wantedId,omitempty"`
+	Result               metadata.SearchResult `json:"result"`
+	CreatedAt            time.Time             `json:"createdAt"`
+	UpdatedAt            time.Time             `json:"updatedAt"`
+	ResolvedAt           *time.Time            `json:"resolvedAt,omitempty"`
+}
+
+type AuthorMetadataReviewDecisionRequest struct {
+	Action string `json:"action"`
+}
+
+type AuthorMetadataReviewDecision struct {
+	Review     AuthorMetadataReview `json:"review"`
+	WantedItem *WantedItem          `json:"wantedItem,omitempty"`
 }
 
 type UpgradeItemResult struct {

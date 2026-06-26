@@ -68,6 +68,8 @@ type wantedService interface {
 	SubscribeAuthor(ctx context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error)
 	ListAuthorSubscriptions(ctx context.Context, status string) ([]wanted.AuthorSubscription, error)
 	MonitorAuthors(ctx context.Context, request wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error)
+	ListAuthorMetadataReviews(ctx context.Context, query wanted.AuthorMetadataReviewQuery) ([]wanted.AuthorMetadataReview, error)
+	ResolveAuthorMetadataReview(ctx context.Context, id string, request wanted.AuthorMetadataReviewDecisionRequest) (wanted.AuthorMetadataReviewDecision, error)
 	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
 	ListReleases(ctx context.Context, wantedID string) (wanted.SearchOutcome, error)
 	Grab(ctx context.Context, wantedID string, request wanted.GrabRequest) (acquisition.DownloadStatus, error)
@@ -349,6 +351,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PATCH /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("PUT /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("POST /api/v1/authors/monitor", handler.monitorAuthors)
+	mux.HandleFunc("GET /api/v1/authors/metadata/review", handler.authorMetadataReviews)
+	mux.HandleFunc("POST /api/v1/authors/metadata/review/{id}/resolve", handler.resolveAuthorMetadataReview)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
 	mux.HandleFunc("PUT /api/v1/wanted/{id}", handler.updateWanted)
@@ -1103,6 +1107,51 @@ func (h *handler) monitorAuthors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, run)
+}
+
+func (h *handler) authorMetadataReviews(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	reviews, err := h.deps.Wanted.ListAuthorMetadataReviews(r.Context(), wanted.AuthorMetadataReviewQuery{
+		Status: r.URL.Query().Get("status"),
+		Limit:  limit,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"reviews": reviews})
+}
+
+func (h *handler) resolveAuthorMetadataReview(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "review id is required"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.AuthorMetadataReviewDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author metadata review decision payload"})
+		return
+	}
+	outcome, err := h.deps.Wanted.ResolveAuthorMetadataReview(r.Context(), id, request)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
 }
 
 func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {

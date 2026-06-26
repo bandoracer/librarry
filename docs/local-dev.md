@@ -129,9 +129,13 @@ future-dated metadata, or only syncs author metadata. Existing subscriptions can
 be changed with `PATCH /api/v1/authors/{id}`. Manual author refreshes are
 available through `POST /api/v1/authors/monitor`; monitor results report
 metadata hits, wanted items created, and entries skipped by policy. Skipped
-entries include the normalized metadata result and skip reason so the web UI can
-review them and mark individual books wanted without changing the author policy.
-Author monitoring does not grab releases.
+entries are persisted in `author_metadata_reviews` and include the normalized
+metadata result and skip reason so the web UI can review them and mark
+individual books wanted without changing the author policy. Use
+`GET /api/v1/authors/metadata/review` to inspect pending candidates and
+`POST /api/v1/authors/metadata/review/{id}/resolve` with `{"action":"wanted"}`
+or `{"action":"ignore"}` to resolve one. Author monitoring does not grab
+releases.
 
 ## Feed Sync
 

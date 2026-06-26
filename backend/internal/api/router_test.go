@@ -2656,6 +2656,46 @@ func TestMonitorAuthorsEndpoint(t *testing.T) {
 	}
 }
 
+func TestAuthorMetadataReviewsEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/authors/metadata/review?status=pending", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"reviews"`) || !strings.Contains(res.Body.String(), `"future policy requires a publication date"`) {
+		t.Fatalf("expected author metadata review queue in response, got %s", res.Body.String())
+	}
+}
+
+func TestResolveAuthorMetadataReviewEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/authors/metadata/review/author-review-1/resolve", strings.NewReader(`{"action":"wanted"}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"status":"wanted"`) || !strings.Contains(res.Body.String(), `"wantedItem"`) {
+		t.Fatalf("expected resolved author metadata review in response, got %s", res.Body.String())
+	}
+}
+
 func TestFeedSyncWantedEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -3755,6 +3795,7 @@ func (fakeWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.Aut
 }
 
 func (fakeWanted) MonitorAuthors(context.Context, wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error) {
+	review := fakeAuthorMetadataReview("pending")
 	return wanted.AuthorMonitorRun{
 		ID:             "author-run-1",
 		Trigger:        "manual",
@@ -3775,8 +3816,9 @@ func (fakeWanted) MonitorAuthors(context.Context, wanted.AuthorMonitorRequest) (
 			WantedCreated: 2,
 			SkippedCount:  1,
 			SkippedItems: []wanted.AuthorSkippedItem{{
-				Policy: "future",
-				Reason: "future policy requires a publication date",
+				ReviewID: review.ID,
+				Policy:   "future",
+				Reason:   "future policy requires a publication date",
 				Result: metadata.SearchResult{
 					Provider: "Open Library",
 					Kind:     metadata.SearchTypeAuthor,
@@ -3790,6 +3832,30 @@ func (fakeWanted) MonitorAuthors(context.Context, wanted.AuthorMonitorRequest) (
 			}},
 		}},
 	}, nil
+}
+
+func (fakeWanted) ListAuthorMetadataReviews(context.Context, wanted.AuthorMetadataReviewQuery) ([]wanted.AuthorMetadataReview, error) {
+	return []wanted.AuthorMetadataReview{fakeAuthorMetadataReview("pending")}, nil
+}
+
+func (fakeWanted) ResolveAuthorMetadataReview(context.Context, string, wanted.AuthorMetadataReviewDecisionRequest) (wanted.AuthorMetadataReviewDecision, error) {
+	review := fakeAuthorMetadataReview("wanted")
+	item := wanted.WantedItem{
+		ID:             "wanted-1",
+		WorkID:         review.Result.Work.ID,
+		EditionID:      review.Result.Edition.ID,
+		Title:          review.Title,
+		AuthorName:     review.AuthorName,
+		Format:         review.Format,
+		QualityProfile: review.QualityProfile,
+		Status:         "wanted",
+		Monitored:      true,
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}
+	review.WantedID = item.ID
+	review.Decision = "wanted"
+	return wanted.AuthorMetadataReviewDecision{Review: review, WantedItem: &item}, nil
 }
 
 func (fakeWanted) SearchReleases(context.Context, string, wanted.SearchReleasesRequest) (wanted.SearchOutcome, error) {
@@ -4192,6 +4258,36 @@ func fakeWantedSearchOutcome() wanted.SearchOutcome {
 			SearchedAt:   now,
 			CreatedAt:    now,
 		}},
+	}
+}
+
+func fakeAuthorMetadataReview(status string) wanted.AuthorMetadataReview {
+	now := time.Now().UTC()
+	return wanted.AuthorMetadataReview{
+		ID:                   "author-review-1",
+		AuthorSubscriptionID: "author-sub-1",
+		Provider:             "Open Library",
+		CandidateKey:         "Open Library:openlibrary:OL1M",
+		Title:                "Untitled Andy Weir",
+		AuthorName:           "Andy Weir",
+		Format:               "ebook",
+		QualityProfile:       "standard",
+		Tags:                 []int{5},
+		Policy:               "future",
+		Reason:               "future policy requires a publication date",
+		Status:               status,
+		Result: metadata.SearchResult{
+			Provider: "Open Library",
+			Kind:     metadata.SearchTypeAuthor,
+			Work: metadata.Work{
+				ID:      "openlibrary:OL1W",
+				Title:   "Untitled Andy Weir",
+				Authors: []metadata.Author{{ID: "openlibrary:OL123A", Name: "Andy Weir"}},
+			},
+			Edition: metadata.Edition{ID: "openlibrary:OL1M", Format: metadata.FormatEbook},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 }
 

@@ -35,6 +35,7 @@ import {
   clearWantedOverride,
   createWanted,
   deleteWanted,
+  fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
   fetchDownloadDetails,
   fetchDownloadPreferences,
@@ -62,6 +63,7 @@ import {
   rebalanceDownloads,
   resolveLibraryImportReview,
   resolveLibraryImportReviewsBulk,
+  resolveAuthorMetadataReview,
   runAuthorMonitor,
   runUpgradeSearch,
   runWantedFeedSync,
@@ -82,6 +84,7 @@ import {
   subscribeAuthor,
   updateAuthorSubscription,
   updateWanted,
+  type AuthorMetadataReview,
   type AuthorMonitorRun,
   type AuthorMissingBookPolicy,
   type AuthorSkippedItem,
@@ -253,6 +256,7 @@ export function App() {
   const [bulkReviewOutcome, setBulkReviewOutcome] = useState<ReviewBulkDecisionOutcome | null>(null);
   const [monitorRun, setMonitorRun] = useState<MonitorRun | null>(null);
   const [authorMonitorRun, setAuthorMonitorRun] = useState<AuthorMonitorRun | null>(null);
+  const [authorMetadataReviews, setAuthorMetadataReviews] = useState<AuthorMetadataReview[]>([]);
   const [feedSyncRun, setFeedSyncRun] = useState<FeedSyncRun | null>(null);
   const [failedDownloadRun, setFailedDownloadRun] = useState<FailedDownloadRun | null>(null);
   const [queueRebalancePlan, setQueueRebalancePlan] = useState<DownloadRebalancePlan | null>(null);
@@ -297,6 +301,7 @@ export function App() {
   const [isRunningAuthorMonitor, setIsRunningAuthorMonitor] = useState(false);
   const [updatingAuthorID, setUpdatingAuthorID] = useState("");
   const [markingAuthorSkippedKey, setMarkingAuthorSkippedKey] = useState("");
+  const [authorReviewActionID, setAuthorReviewActionID] = useState("");
   const [isRunningFeedSync, setIsRunningFeedSync] = useState(false);
   const [isRunningUpgrade, setIsRunningUpgrade] = useState(false);
   const [isScanningLibrary, setIsScanningLibrary] = useState(false);
@@ -437,6 +442,11 @@ export function App() {
       .then(setAuthorSubscriptions)
       .catch((error) => {
         setAuthorError(error instanceof Error ? error.message : "Author subscriptions refresh failed");
+      });
+    fetchAuthorMetadataReviews()
+      .then(setAuthorMetadataReviews)
+      .catch(() => {
+        setAuthorMetadataReviews([]);
       });
     fetchHistory()
       .then(setHistoryEvents)
@@ -764,10 +774,20 @@ export function App() {
     setMarkingAuthorSkippedKey(key);
     setAuthorError("");
     try {
-      const wantedFormat = skipped.result.edition?.format === "audiobook" ? "audiobook" : subscription.format;
-      const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? []);
-      setWantedItems((current) => mergeWanted(current, [item]));
-      setSelectedWantedID(item.id);
+      if (skipped.reviewId) {
+        const outcome = await resolveAuthorMetadataReview(skipped.reviewId, "wanted");
+        setAuthorMetadataReviews((current) => current.filter((item) => item.id !== outcome.review.id));
+        if (outcome.wantedItem) {
+          setWantedItems((current) => mergeWanted(current, [outcome.wantedItem!]));
+          setSelectedWantedID(outcome.wantedItem.id);
+        }
+      } else {
+        const wantedFormat = skipped.result.edition?.format === "audiobook" ? "audiobook" : subscription.format;
+        const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? []);
+        setWantedItems((current) => mergeWanted(current, [item]));
+        setSelectedWantedID(item.id);
+      }
+      await refreshWantedAndHistory();
       setAPIState("live");
     } catch (error) {
       setAuthorError(error instanceof Error ? error.message : "Mark skipped book wanted failed");
@@ -958,8 +978,9 @@ export function App() {
       if (created.length) {
         setWantedItems((current) => mergeWanted(current, created));
       }
-      const [nextSubscriptions] = await Promise.all([fetchAuthorSubscriptions(), refreshWantedAndHistory()]);
+      const [nextSubscriptions, nextReviews] = await Promise.all([fetchAuthorSubscriptions(), fetchAuthorMetadataReviews().catch(() => []), refreshWantedAndHistory()]);
       setAuthorSubscriptions(nextSubscriptions);
+      setAuthorMetadataReviews(nextReviews);
       setAPIState("live");
     } catch (error) {
       setAuthorError(error instanceof Error ? error.message : "Author monitor failed");
@@ -1033,6 +1054,34 @@ export function App() {
       setWantedMetadataReview(await fetchWantedMetadataReview());
     } catch {
       setWantedMetadataReview(null);
+    }
+  }
+
+  async function refreshAuthorMetadataReviews() {
+    try {
+      setAuthorMetadataReviews(await fetchAuthorMetadataReviews());
+    } catch {
+      setAuthorMetadataReviews([]);
+    }
+  }
+
+  async function resolveAuthorReview(review: AuthorMetadataReview, action: "wanted" | "ignore") {
+    if (!review.id) return;
+    setAuthorReviewActionID(`${review.id}:${action}`);
+    setAuthorError("");
+    try {
+      const outcome = await resolveAuthorMetadataReview(review.id, action);
+      setAuthorMetadataReviews((current) => current.filter((item) => item.id !== outcome.review.id));
+      if (outcome.wantedItem) {
+        setWantedItems((current) => mergeWanted(current, [outcome.wantedItem!]));
+        setSelectedWantedID(outcome.wantedItem.id);
+      }
+      await refreshWantedAndHistory();
+      setAPIState("live");
+    } catch (error) {
+      setAuthorError(error instanceof Error ? error.message : "Author metadata review update failed");
+    } finally {
+      setAuthorReviewActionID("");
     }
   }
 
@@ -2628,6 +2677,44 @@ export function App() {
               ) : (
                 <div className="wanted-empty">Run due authors to refresh monitored writers.</div>
               )}
+              <div className="author-review-queue" aria-label="Author metadata review queue">
+                <div className="author-review-heading">
+                  <div>
+                    <strong>Author review queue</strong>
+                    <span>
+                      {authorMetadataReviews.length
+                        ? `${authorMetadataReviews.length} skipped metadata candidate${authorMetadataReviews.length === 1 ? "" : "s"} need review.`
+                        : "No skipped author candidates are pending review."}
+                    </span>
+                  </div>
+                  <button className="secondary-action compact" disabled={Boolean(authorReviewActionID)} onClick={refreshAuthorMetadataReviews} type="button">
+                    <RefreshCw size={16} />
+                    Refresh
+                  </button>
+                </div>
+                {authorMetadataReviews.slice(0, 6).map((review) => {
+                  const wantedActionID = `${review.id}:wanted`;
+                  const ignoreActionID = `${review.id}:ignore`;
+                  return (
+                    <article className="author-review-row" key={review.id}>
+                      <div>
+                        <strong>{review.title || review.result.work.title || "Untitled"}</strong>
+                        <span>
+                          {review.authorName || firstAuthorName(review.result)} · {authorSkippedDateLabel(review.result)} · {review.reason}
+                        </span>
+                      </div>
+                      <div className="author-review-actions">
+                        <button className="secondary-action compact" disabled={Boolean(authorReviewActionID)} onClick={() => resolveAuthorReview(review, "wanted")} type="button">
+                          {authorReviewActionID === wantedActionID ? "Marking" : "Mark wanted"}
+                        </button>
+                        <button className="secondary-action compact danger-outline" disabled={Boolean(authorReviewActionID)} onClick={() => resolveAuthorReview(review, "ignore")} type="button">
+                          {authorReviewActionID === ignoreActionID ? "Ignoring" : "Ignore"}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>

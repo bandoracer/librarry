@@ -481,6 +481,33 @@ export type AuthorSkippedItem = {
   result: SearchResult;
   policy: AuthorMissingBookPolicy;
   reason: string;
+  reviewId?: string;
+};
+
+export type AuthorMetadataReview = {
+  id: string;
+  authorSubscriptionId?: string;
+  provider: string;
+  candidateKey: string;
+  title: string;
+  authorName?: string;
+  format: "ebook" | "audiobook";
+  qualityProfile: string;
+  tags?: number[];
+  policy: AuthorMissingBookPolicy;
+  reason: string;
+  status: string;
+  decision?: string;
+  wantedId?: string;
+  result: SearchResult;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+};
+
+export type AuthorMetadataReviewDecision = {
+  review: AuthorMetadataReview;
+  wantedItem?: WantedItem;
 };
 
 export type AuthorMonitorRun = {
@@ -1245,6 +1272,28 @@ export async function updateAuthorSubscription(authorID: string, request: Author
     throw new Error(await apiError(response, "Author subscription update failed"));
   }
   return (await response.json()) as AuthorSubscription;
+}
+
+export async function fetchAuthorMetadataReviews(status = "pending", limit = 100): Promise<AuthorMetadataReview[]> {
+  const params = new URLSearchParams({ status, limit: String(limit) });
+  const response = await fetch(`${apiBase}/api/v1/authors/metadata/review?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Author metadata review refresh failed"));
+  }
+  const payload = (await response.json()) as { reviews: AuthorMetadataReview[] };
+  return payload.reviews;
+}
+
+export async function resolveAuthorMetadataReview(reviewId: string, action: "wanted" | "ignore"): Promise<AuthorMetadataReviewDecision> {
+  const response = await fetch(`${apiBase}/api/v1/authors/metadata/review/${encodeURIComponent(reviewId)}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action })
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Author metadata review update failed"));
+  }
+  return (await response.json()) as AuthorMetadataReviewDecision;
 }
 
 export async function runAuthorMonitor(options: {

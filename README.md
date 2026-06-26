@@ -117,8 +117,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   events.
 - Author subscriptions with all/future/none missing-book policies and manual or
   scheduled metadata refresh that creates or refreshes wanted items from
-  monitored authors; skipped metadata candidates include provider/title/date
-  evidence and can be marked wanted from the monitor review UI.
+  monitored authors; skipped metadata candidates are persisted in an author
+  metadata review queue with provider/title/date evidence and can be marked
+  wanted or ignored from the monitor review UI.
 - Readarr-compatible author/book update and delete endpoints that persist
   monitor/unmonitor state, quality profile changes, and soft removals in
   Postgres.
@@ -493,6 +494,8 @@ Important API surfaces:
   - `PATCH /api/v1/authors/{id}`
   - `PUT /api/v1/authors/{id}`
   - `POST /api/v1/authors/monitor`
+  - `GET /api/v1/authors/metadata/review`
+  - `POST /api/v1/authors/metadata/review/{id}/resolve`
   - `GET /api/v1/wanted`
   - `POST /api/v1/wanted`
   - `PUT /api/v1/wanted/{id}`

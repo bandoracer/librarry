@@ -240,11 +240,22 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			result.ResultsFound++
 			if allowed, reason := authorResultAllowedByMissingPolicy(subscription, candidate, time.Now().UTC()); !allowed {
 				result.SkippedCount++
-				if len(result.SkippedItems) < defaultAuthorSkippedItemsLimit {
+				reviewID := ""
+				includeSkippedItem := true
+				review, reviewErr := s.store.UpsertAuthorMetadataReview(ctx, authorMetadataReviewFromSkipped(subscription, candidate, reason))
+				if reviewErr != nil {
+					result.Error = reviewErr.Error()
+					run.ErrorCount++
+				} else {
+					reviewID = review.ID
+					includeSkippedItem = review.Status == "pending"
+				}
+				if includeSkippedItem && len(result.SkippedItems) < defaultAuthorSkippedItemsLimit {
 					result.SkippedItems = append(result.SkippedItems, AuthorSkippedItem{
-						Result: candidate,
-						Policy: normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems),
-						Reason: reason,
+						ReviewID: reviewID,
+						Result:   candidate,
+						Policy:   normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems),
+						Reason:   reason,
 					})
 				}
 				continue
@@ -295,6 +306,74 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 	}
 	run.Message = authorMonitorMessage(run)
 	return s.store.FinishAuthorMonitorRun(ctx, run)
+}
+
+func (s *Service) ListAuthorMetadataReviews(ctx context.Context, query AuthorMetadataReviewQuery) ([]AuthorMetadataReview, error) {
+	if !s.Available() {
+		return nil, errors.New("wanted service requires database persistence")
+	}
+	return s.store.ListAuthorMetadataReviews(ctx, query)
+}
+
+func (s *Service) ResolveAuthorMetadataReview(ctx context.Context, id string, request AuthorMetadataReviewDecisionRequest) (AuthorMetadataReviewDecision, error) {
+	if !s.Available() {
+		return AuthorMetadataReviewDecision{}, errors.New("wanted service requires database persistence")
+	}
+	review, err := s.store.GetAuthorMetadataReview(ctx, id)
+	if err != nil {
+		return AuthorMetadataReviewDecision{}, err
+	}
+	if strings.TrimSpace(review.Status) != "pending" {
+		return AuthorMetadataReviewDecision{}, errors.New("author metadata review is already resolved")
+	}
+	switch strings.ToLower(strings.TrimSpace(request.Action)) {
+	case "wanted", "mark_wanted", "mark-wanted":
+		item, err := s.store.CreateWanted(ctx, CreateRequest{
+			Result:         review.Result,
+			Format:         review.Format,
+			QualityProfile: review.QualityProfile,
+			Tags:           review.Tags,
+		})
+		if err != nil {
+			return AuthorMetadataReviewDecision{}, err
+		}
+		resolved, err := s.store.ResolveAuthorMetadataReview(ctx, review.ID, "wanted", "wanted", item.ID)
+		if err != nil {
+			return AuthorMetadataReviewDecision{}, err
+		}
+		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+			EventType:  "author_metadata_review_wanted",
+			EntityType: "wanted_item",
+			EntityID:   item.ID,
+			Severity:   "info",
+			Message:    "Marked author metadata candidate wanted for " + item.Title,
+			Data: map[string]any{
+				"reviewId": resolved.ID,
+				"policy":   resolved.Policy,
+				"reason":   resolved.Reason,
+			},
+		})
+		return AuthorMetadataReviewDecision{Review: resolved, WantedItem: &item}, nil
+	case "ignore", "ignored", "skip":
+		resolved, err := s.store.ResolveAuthorMetadataReview(ctx, review.ID, "ignored", "ignored", "")
+		if err != nil {
+			return AuthorMetadataReviewDecision{}, err
+		}
+		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+			EventType:  "author_metadata_review_ignored",
+			EntityType: "author_metadata_review",
+			EntityID:   resolved.ID,
+			Severity:   "info",
+			Message:    "Ignored author metadata candidate for " + resolved.Title,
+			Data: map[string]any{
+				"policy": resolved.Policy,
+				"reason": resolved.Reason,
+			},
+		})
+		return AuthorMetadataReviewDecision{Review: resolved}, nil
+	default:
+		return AuthorMetadataReviewDecision{}, errors.New("author metadata review action must be wanted or ignore")
+	}
 }
 
 func (s *Service) SearchReleases(ctx context.Context, wantedID string, request SearchReleasesRequest) (SearchOutcome, error) {
@@ -1233,6 +1312,23 @@ func authorResultMatchesSubscription(subscription AuthorSubscription, result met
 		}
 	}
 	return false
+}
+
+func authorMetadataReviewFromSkipped(subscription AuthorSubscription, result metadata.SearchResult, reason string) AuthorMetadataReview {
+	return AuthorMetadataReview{
+		AuthorSubscriptionID: subscription.ID,
+		Provider:             result.Provider,
+		CandidateKey:         authorMetadataReviewCandidateKey(result),
+		Title:                firstNonEmpty(result.Work.Title, result.Edition.Title),
+		AuthorName:           firstResultAuthorName(result),
+		Format:               subscription.Format,
+		QualityProfile:       subscription.QualityProfile,
+		Tags:                 subscription.Tags,
+		Policy:               normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems),
+		Reason:               reason,
+		Status:               "pending",
+		Result:               result,
+	}
 }
 
 func authorResultAllowedByMissingPolicy(subscription AuthorSubscription, result metadata.SearchResult, now time.Time) (bool, string) {
