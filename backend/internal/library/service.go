@@ -644,6 +644,17 @@ func (s *Service) applyCalibreImport(ctx context.Context, destination string, re
 	record.Metadata["calibreLibrary"] = settings.Library
 	record.Metadata["calibreOutputFormat"] = settings.OutputFormat
 	record.Metadata["calibreOutputProfile"] = settings.OutputProfile
+	metadata := calibreMetadataFromRecord(*record)
+	if calibreMetadataHasChanges(metadata) {
+		if err := s.calibre.SetFields(ctx, calibre.SetFieldsRequest{
+			Settings: settings,
+			ID:       result.ID,
+			Metadata: metadata,
+		}); err != nil {
+			return err
+		}
+		record.Metadata["calibreMetadataSyncedAt"] = time.Now().UTC().Format(time.RFC3339)
+	}
 	return nil
 }
 
@@ -710,6 +721,41 @@ func calibreSettingsFromMetadata(metadata map[string]any) calibre.Settings {
 		OutputProfile: metadataString(metadata, "outputProfile"),
 		UseSSL:        metadataBool(metadata, "useSsl", false),
 	}
+}
+
+func calibreMetadataFromRecord(record FileRecord) calibre.Metadata {
+	return calibre.Metadata{
+		Title:       record.Title,
+		Authors:     compactStrings([]string{record.AuthorName}),
+		Identifiers: calibreIdentifiers(record),
+	}
+}
+
+func calibreMetadataHasChanges(metadata calibre.Metadata) bool {
+	return strings.TrimSpace(metadata.Title) != "" || len(compactStrings(metadata.Authors)) > 0 ||
+		strings.TrimSpace(metadata.Publisher) != "" || strings.TrimSpace(metadata.Languages) != "" ||
+		len(compactStrings(metadata.Tags)) > 0 || strings.TrimSpace(metadata.Comments) != "" ||
+		len(metadata.Identifiers) > 0 || strings.TrimSpace(metadata.Series) != "" || metadata.SeriesIndex != nil
+}
+
+func calibreIdentifiers(record FileRecord) map[string]string {
+	pairs := map[string]string{
+		"isbn":        firstNonEmpty(metadataString(record.Metadata, "isbn"), metadataString(record.Metadata, "isbn13"), metadataString(record.Metadata, "isbn10")),
+		"asin":        metadataString(record.Metadata, "asin"),
+		"goodreads":   metadataString(record.Metadata, "goodreads"),
+		"openlibrary": firstNonEmpty(metadataString(record.Metadata, "openlibrary"), metadataString(record.Metadata, "openLibraryId")),
+	}
+	result := map[string]string{}
+	for key, value := range pairs {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			result[key] = value
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func pathWithinRoot(candidate string, root string) bool {

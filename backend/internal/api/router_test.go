@@ -1217,7 +1217,8 @@ func TestCompatBookFileEndpoints(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0]["librarryId"] != "file-1" || list[0]["path"] != "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" {
+	if len(list) != 1 || list[0]["librarryId"] != "file-1" || list[0]["path"] != "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" ||
+		int(list[0]["calibreId"].(float64)) != 77 {
 		t.Fatalf("unexpected bookfile list: %+v", list)
 	}
 	if int(list[0]["bookId"].(float64)) != stableInt("wanted-1") {
@@ -3048,6 +3049,7 @@ func fakeLibraryFile() library.FileRecord {
 		Extension:    ".epub",
 		SizeBytes:    7340032,
 		ImportStatus: "imported",
+		Metadata:     map[string]any{"calibreId": 77},
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
 	}

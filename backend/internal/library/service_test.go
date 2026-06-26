@@ -195,7 +195,12 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 			"outputProfile":    "kindle",
 		},
 	}}})
-	record := FileRecord{Path: destination, Metadata: map[string]any{}}
+	record := FileRecord{
+		Path:       destination,
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Metadata:   map[string]any{"isbn13": "9780593135204"},
+	}
 
 	if err := service.applyCalibreImport(context.Background(), destination, &record); err != nil {
 		t.Fatal(err)
@@ -204,8 +209,16 @@ func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
 		t.Fatalf("unexpected importer request: %+v", importer.request)
 	}
 	if record.Metadata["calibreId"] != 77 || record.Metadata["calibreLibrary"] != "Main" ||
-		record.Metadata["calibreOutputFormat"] != "EPUB" || record.Metadata["calibreOutputProfile"] != "kindle" {
+		record.Metadata["calibreOutputFormat"] != "EPUB" || record.Metadata["calibreOutputProfile"] != "kindle" ||
+		record.Metadata["calibreMetadataSyncedAt"] == "" {
 		t.Fatalf("expected Calibre metadata, got %#v", record.Metadata)
+	}
+	if len(importer.setFieldsRequests) != 1 || importer.setFieldsRequests[0].ID != 77 ||
+		importer.setFieldsRequests[0].Metadata.Title != "Project Hail Mary" ||
+		len(importer.setFieldsRequests[0].Metadata.Authors) != 1 ||
+		importer.setFieldsRequests[0].Metadata.Authors[0] != "Andy Weir" ||
+		importer.setFieldsRequests[0].Metadata.Identifiers["isbn"] != "9780593135204" {
+		t.Fatalf("unexpected Calibre set-fields request: %+v", importer.setFieldsRequests)
 	}
 }
 
@@ -280,9 +293,10 @@ func (f fakeRootFolders) ListRootFolders(context.Context) ([]compatdata.RootFold
 }
 
 type fakeCalibreImporter struct {
-	id             int
-	request        calibre.AddBookRequest
-	deleteRequests []calibre.DeleteBooksRequest
+	id                int
+	request           calibre.AddBookRequest
+	deleteRequests    []calibre.DeleteBooksRequest
+	setFieldsRequests []calibre.SetFieldsRequest
 }
 
 func (f *fakeCalibreImporter) AddBook(_ context.Context, request calibre.AddBookRequest) (calibre.AddBookResult, error) {
@@ -296,6 +310,11 @@ func (f *fakeCalibreImporter) AddBook(_ context.Context, request calibre.AddBook
 
 func (f *fakeCalibreImporter) DeleteBooks(_ context.Context, request calibre.DeleteBooksRequest) error {
 	f.deleteRequests = append(f.deleteRequests, request)
+	return nil
+}
+
+func (f *fakeCalibreImporter) SetFields(_ context.Context, request calibre.SetFieldsRequest) error {
+	f.setFieldsRequests = append(f.setFieldsRequests, request)
 	return nil
 }
 

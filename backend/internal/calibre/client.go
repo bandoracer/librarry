@@ -44,6 +44,24 @@ type DeleteBooksRequest struct {
 	IDs      []int
 }
 
+type SetFieldsRequest struct {
+	Settings Settings
+	ID       int
+	Metadata Metadata
+}
+
+type Metadata struct {
+	Title       string
+	Authors     []string
+	Publisher   string
+	Languages   string
+	Tags        []string
+	Comments    string
+	Identifiers map[string]string
+	Series      string
+	SeriesIndex *float64
+}
+
 type Importer interface {
 	AddBook(ctx context.Context, request AddBookRequest) (AddBookResult, error)
 }
@@ -51,6 +69,7 @@ type Importer interface {
 type Manager interface {
 	Importer
 	DeleteBooks(ctx context.Context, request DeleteBooksRequest) error
+	SetFields(ctx context.Context, request SetFieldsRequest) error
 }
 
 type Client struct {
@@ -154,6 +173,50 @@ func (c *Client) DeleteBooks(ctx context.Context, request DeleteBooksRequest) er
 	return nil
 }
 
+func (c *Client) SetFields(ctx context.Context, request SetFieldsRequest) error {
+	if c == nil {
+		return errors.New("calibre client is unavailable")
+	}
+	settings := normalizeSettings(request.Settings)
+	if settings.Host == "" {
+		return errors.New("calibre host is required")
+	}
+	if request.ID <= 0 {
+		return errors.New("calibre book id is required")
+	}
+	payload := setFieldsPayloadFromRequest(request)
+	if !payload.Changes.hasChanges() {
+		return nil
+	}
+	endpoint, err := setFieldsURL(settings, request.ID)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	if settings.Username != "" {
+		req.SetBasicAuth(settings.Username, settings.Password)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("calibre set-fields returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
+	}
+	return nil
+}
+
 func addBookURL(settings Settings, jobID int, ext string) (string, error) {
 	base, err := baseURL(settings)
 	if err != nil {
@@ -190,6 +253,26 @@ func deleteBooksURL(settings Settings, ids []int) (string, error) {
 	segments := []string{
 		strings.Trim(base.Path, "/"),
 		"cdb", "delete-books", strings.Join(idStrings, ","),
+	}
+	if settings.Library != "" {
+		segments = append(segments, settings.Library)
+	}
+	base.Path = joinURLPath(segments...)
+	base.RawQuery = ""
+	return base.String(), nil
+}
+
+func setFieldsURL(settings Settings, id int) (string, error) {
+	base, err := baseURL(settings)
+	if err != nil {
+		return "", err
+	}
+	if id <= 0 {
+		id = 1
+	}
+	segments := []string{
+		strings.Trim(base.Path, "/"),
+		"cdb", "set-fields", strconv.Itoa(id),
 	}
 	if settings.Library != "" {
 		segments = append(segments, settings.Library)
@@ -253,6 +336,79 @@ func compactPositiveIDs(ids []int) []int {
 		}
 		seen[id] = true
 		result = append(result, id)
+	}
+	return result
+}
+
+type setFieldsPayload struct {
+	Changes       setFieldsChanges `json:"changes"`
+	LoadedBookIDs []int            `json:"loaded_book_ids"`
+}
+
+type setFieldsChanges struct {
+	Title       string            `json:"title,omitempty"`
+	Authors     []string          `json:"authors,omitempty"`
+	Publisher   string            `json:"publisher,omitempty"`
+	Languages   string            `json:"languages,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
+	Comments    string            `json:"comments,omitempty"`
+	Identifiers map[string]string `json:"identifiers,omitempty"`
+	Series      string            `json:"series,omitempty"`
+	SeriesIndex *float64          `json:"series_index,omitempty"`
+}
+
+func setFieldsPayloadFromRequest(request SetFieldsRequest) setFieldsPayload {
+	metadata := request.Metadata
+	return setFieldsPayload{
+		LoadedBookIDs: []int{request.ID},
+		Changes: setFieldsChanges{
+			Title:       strings.TrimSpace(metadata.Title),
+			Authors:     compactNonEmptyStrings(metadata.Authors),
+			Publisher:   strings.TrimSpace(metadata.Publisher),
+			Languages:   strings.TrimSpace(metadata.Languages),
+			Tags:        compactNonEmptyStrings(metadata.Tags),
+			Comments:    strings.TrimSpace(metadata.Comments),
+			Identifiers: compactStringMap(metadata.Identifiers),
+			Series:      strings.TrimSpace(metadata.Series),
+			SeriesIndex: metadata.SeriesIndex,
+		},
+	}
+}
+
+func (c setFieldsChanges) hasChanges() bool {
+	return c.Title != "" || len(c.Authors) > 0 || c.Publisher != "" || c.Languages != "" ||
+		len(c.Tags) > 0 || c.Comments != "" || len(c.Identifiers) > 0 || c.Series != "" || c.SeriesIndex != nil
+}
+
+func compactNonEmptyStrings(values []string) []string {
+	seen := map[string]bool{}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		result = append(result, value)
+	}
+	return result
+}
+
+func compactStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := map[string]string{}
+	for key, value := range values {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" || value == "" {
+			continue
+		}
+		result[key] = value
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	return result
 }

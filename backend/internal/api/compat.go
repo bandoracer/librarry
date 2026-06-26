@@ -3941,7 +3941,7 @@ func compatBookFileRecord(file library.FileRecord, item *wanted.WantedItem) map[
 			"format":           format,
 		},
 		"bookFileType":          format,
-		"calibreId":             0,
+		"calibreId":             payloadIntDefault(file.Metadata, "calibreId", 0),
 		"partCount":             1,
 		"sceneName":             "",
 		"releaseGroup":          "",
