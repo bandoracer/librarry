@@ -334,8 +334,9 @@ auto-grab and failed-torrent removal are explicit settings.
 
 Readarr-compatible `/api/v1/blocklist` and legacy `/api/v1/blacklist` endpoints
 are populated from failed active downloads plus failed Librarry history events.
-The delete endpoints currently acknowledge compatibility clear requests; durable
-blocklist editing still needs a dedicated persisted blocklist model.
+Single and bulk delete clear persisted download failure metadata when the record
+maps to an active download, and store compatibility tombstones so cleared
+download or history records stay suppressed from future blocklist responses.
 
 Readarr-compatible root folders are persisted in Postgres through
 `compat_root_folders`. The compatibility API keeps environment-configured ebook

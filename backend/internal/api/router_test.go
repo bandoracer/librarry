@@ -331,12 +331,15 @@ func TestCompatQueueEndpoints(t *testing.T) {
 }
 
 func TestCompatBlocklistEndpoints(t *testing.T) {
+	acquire := &fakeBlocklistAcquire{}
+	compatResources := &fakeCompatResources{}
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
 		Config:   config.Config{WebOrigin: "*"},
 		Metadata: metadata.NewService(nil),
-		Acquire:  fakeBlocklistAcquire{},
+		Acquire:  acquire,
 		Wanted:   fakeBlocklistWanted{},
+		Compat:   compatResources,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/blocklist?page=1&pageSize=10", nil)
@@ -366,12 +369,35 @@ func TestCompatBlocklistEndpoints(t *testing.T) {
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
 	}
+	if len(acquire.clearedFailures) != 1 || acquire.clearedFailures[0] != "failed-1" {
+		t.Fatalf("expected failed download to be cleared, got %+v", acquire.clearedFailures)
+	}
+	if len(compatResources.resources) != 1 || compatResources.resources[0].ResourceType != "blocklist-clear" || compatResources.resources[0].CompatID != stableInt("download:failed-1") {
+		t.Fatalf("expected persisted blocklist clear, got %+v", compatResources.resources)
+	}
 
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blacklist/bulk", strings.NewReader(`{"ids":[1]}`))
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/blocklist?page=1&pageSize=10", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"totalRecords":1`) || strings.Contains(res.Body.String(), `"librarrySource":"download"`) {
+		t.Fatalf("expected download blocklist record to be suppressed, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blacklist/bulk", strings.NewReader(`{"ids":[`+strconv.Itoa(stableInt("history:event-failed"))+`]}`))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(compatResources.resources) != 2 || compatResources.resources[1].CompatID != stableInt("history:event-failed") {
+		t.Fatalf("expected history blocklist clear to be persisted, got %+v", compatResources.resources)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/blacklist", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"totalRecords":0`) {
+		t.Fatalf("expected all blocklist records to be suppressed, got %d: %s", res.Code, res.Body.String())
 	}
 }
 
@@ -3001,6 +3027,10 @@ func (fakeAcquire) DownloadTagAction(_ context.Context, request acquisition.Down
 	}, nil
 }
 
+func (fakeAcquire) ClearDownloadFailure(context.Context, string) error {
+	return nil
+}
+
 type fakeResourceAcquire struct {
 	fakeAcquire
 	category acquisition.DownloadCategoryActionRequest
@@ -3038,9 +3068,10 @@ func (f *fakeRebalanceAcquire) DownloadAction(_ context.Context, request acquisi
 
 type fakeBlocklistAcquire struct {
 	fakeAcquire
+	clearedFailures []string
 }
 
-func (fakeBlocklistAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
+func (*fakeBlocklistAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
 	failedAt := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
 	return []acquisition.DownloadStatus{{
 		Client:        "qBittorrent",
@@ -3054,6 +3085,11 @@ func (fakeBlocklistAcquire) Downloads(context.Context, acquisition.DownloadListQ
 		FailureReason: "missing files",
 		FailedAt:      &failedAt,
 	}}, nil
+}
+
+func (f *fakeBlocklistAcquire) ClearDownloadFailure(_ context.Context, id string) error {
+	f.clearedFailures = append(f.clearedFailures, id)
+	return nil
 }
 
 type fakeWanted struct{}

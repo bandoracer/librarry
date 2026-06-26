@@ -891,12 +891,58 @@ func (h *handler) compatBlocklist(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatDeleteBlocklist(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(strings.TrimSpace(r.PathValue("id")))
+	if err != nil || id <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "blocklist id is required"})
+		return
+	}
+	records, ok := h.compatBlocklistRecords(w, r)
+	if !ok {
+		return
+	}
+	record, found := compatBlocklistRecordByID(records, id)
+	if !found {
+		record = map[string]any{"id": id, "librarrySource": "unknown"}
+	}
+	if err := h.persistCompatBlocklistClear(r.Context(), record); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) compatDeleteBlocklistBulk(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil {
 		defer r.Body.Close()
+	}
+	var payload map[string]any
+	if r.Body != nil && r.Body != http.NoBody {
+		_ = json.NewDecoder(r.Body).Decode(&payload)
+	}
+	ids := compatBlocklistIDsFromPayload(payload)
+	if len(ids) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	records, ok := h.compatBlocklistRecords(w, r)
+	if !ok {
+		return
+	}
+	recordsByID := make(map[int]map[string]any, len(records))
+	for _, record := range records {
+		if id := compatRecordID(record); id > 0 {
+			recordsByID[id] = record
+		}
+	}
+	for _, id := range ids {
+		record, found := recordsByID[id]
+		if !found {
+			record = map[string]any{"id": id, "librarrySource": "unknown"}
+		}
+		if err := h.persistCompatBlocklistClear(r.Context(), record); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -3129,6 +3175,11 @@ func (h *handler) compatDownloads(w http.ResponseWriter, r *http.Request) ([]acq
 func (h *handler) compatBlocklistRecords(w http.ResponseWriter, r *http.Request) ([]map[string]any, bool) {
 	items := h.compatWantedItems(r)
 	recordsByID := map[int]map[string]any{}
+	clearedIDs, err := h.compatClearedBlocklistIDs(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return nil, false
+	}
 	if h.deps.Acquire != nil {
 		downloads, err := h.deps.Acquire.Downloads(r.Context(), acquisition.DownloadListQuery{Tag: "librarry"})
 		if err != nil {
@@ -3141,6 +3192,9 @@ func (h *handler) compatBlocklistRecords(w http.ResponseWriter, r *http.Request)
 			}
 			record := compatBlocklistDownloadRecord(download, items)
 			if id, ok := record["id"].(int); ok {
+				if clearedIDs[id] {
+					continue
+				}
 				recordsByID[id] = record
 			}
 		}
@@ -3161,6 +3215,9 @@ func (h *handler) compatBlocklistRecords(w http.ResponseWriter, r *http.Request)
 			}
 			record := compatBlocklistHistoryRecord(event, items)
 			if id, ok := record["id"].(int); ok {
+				if clearedIDs[id] {
+					continue
+				}
 				recordsByID[id] = record
 			}
 		}
@@ -3170,6 +3227,103 @@ func (h *handler) compatBlocklistRecords(w http.ResponseWriter, r *http.Request)
 		return compatRecordDate(records[i]).After(compatRecordDate(records[j]))
 	})
 	return records, true
+}
+
+const compatBlocklistClearResourceType = "blocklist-clear"
+
+func (h *handler) compatClearedBlocklistIDs(ctx context.Context) (map[int]bool, error) {
+	cleared := map[int]bool{}
+	if h.deps.Compat == nil {
+		return cleared, nil
+	}
+	resources, err := h.deps.Compat.ListResources(ctx, compatBlocklistClearResourceType)
+	if err != nil {
+		return nil, err
+	}
+	for _, resource := range resources {
+		if resource.CompatID > 0 {
+			cleared[resource.CompatID] = true
+		}
+	}
+	return cleared, nil
+}
+
+func (h *handler) persistCompatBlocklistClear(ctx context.Context, record map[string]any) error {
+	id := compatRecordID(record)
+	if id <= 0 {
+		return nil
+	}
+	if h.deps.Acquire != nil && strings.EqualFold(payloadString(record, "librarrySource"), "download") {
+		if downloadID := payloadString(record, "downloadId"); downloadID != "" {
+			if err := h.deps.Acquire.ClearDownloadFailure(ctx, downloadID); err != nil {
+				return err
+			}
+		}
+	}
+	if h.deps.Compat == nil {
+		return nil
+	}
+	payload := map[string]any{
+		"clearedAt":      time.Now().UTC().Format(time.RFC3339),
+		"source":         payloadString(record, "librarrySource"),
+		"downloadId":     payloadString(record, "downloadId"),
+		"releaseId":      payloadString(record, "releaseId"),
+		"sourceTitle":    payloadString(record, "sourceTitle"),
+		"message":        payloadString(record, "message"),
+		"librarryReason": payloadString(record, "librarryReason"),
+	}
+	_, err := h.deps.Compat.UpsertResource(ctx, compatdata.Resource{
+		ResourceType: compatBlocklistClearResourceType,
+		CompatID:     id,
+		Name:         firstNonEmptyString(payloadString(record, "sourceTitle"), "Blocklist record "+strconv.Itoa(id)),
+		Payload:      payload,
+	})
+	return err
+}
+
+func compatBlocklistRecordByID(records []map[string]any, id int) (map[string]any, bool) {
+	for _, record := range records {
+		if compatRecordID(record) == id {
+			return record, true
+		}
+	}
+	return nil, false
+}
+
+func compatBlocklistIDsFromPayload(payload map[string]any) []int {
+	values := payloadStringList(payload, "ids", "id", "blocklistIds", "blocklistIDs", "blacklistIds", "blacklistIDs")
+	ids := make([]int, 0, len(values))
+	seen := map[int]bool{}
+	for _, value := range values {
+		id, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || id <= 0 || seen[id] {
+			continue
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func compatRecordID(record map[string]any) int {
+	value, ok := record["id"]
+	if !ok || value == nil {
+		return 0
+	}
+	switch typed := value.(type) {
+	case int:
+		return typed
+	case int64:
+		return int(typed)
+	case float64:
+		return int(typed)
+	case string:
+		parsed, _ := strconv.Atoi(strings.TrimSpace(typed))
+		return parsed
+	default:
+		parsed, _ := strconv.Atoi(stringValue(typed))
+		return parsed
+	}
 }
 
 func (h *handler) compatHistoryEvents(w http.ResponseWriter, r *http.Request) ([]wanted.HistoryEvent, bool) {

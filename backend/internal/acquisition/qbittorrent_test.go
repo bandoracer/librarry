@@ -766,6 +766,10 @@ func (s fakeDownloadStore) MarkDownloadFailed(context.Context, string, string) e
 	return nil
 }
 
+func (s fakeDownloadStore) ClearDownloadFailure(context.Context, string) error {
+	return nil
+}
+
 func (s fakeDownloadStore) MarkDownloadReplacement(context.Context, string, string) error {
 	return nil
 }

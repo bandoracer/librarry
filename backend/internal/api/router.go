@@ -47,6 +47,7 @@ type acquisitionService interface {
 	DownloadResources(ctx context.Context, client string) (acquisition.DownloadResources, error)
 	DownloadCategoryAction(ctx context.Context, request acquisition.DownloadCategoryActionRequest) (acquisition.DownloadResourceActionResult, error)
 	DownloadTagAction(ctx context.Context, request acquisition.DownloadTagActionRequest) (acquisition.DownloadResourceActionResult, error)
+	ClearDownloadFailure(ctx context.Context, id string) error
 }
 
 type wantedService interface {

@@ -383,6 +383,13 @@ func (s *Service) MarkDownloadFailed(ctx context.Context, id string, reason stri
 	return s.store.MarkDownloadFailed(ctx, id, reason)
 }
 
+func (s *Service) ClearDownloadFailure(ctx context.Context, id string) error {
+	if s.store == nil {
+		return nil
+	}
+	return s.store.ClearDownloadFailure(ctx, id)
+}
+
 func (s *Service) MarkDownloadReplacement(ctx context.Context, id string, replacementID string) error {
 	if s.store == nil {
 		return nil

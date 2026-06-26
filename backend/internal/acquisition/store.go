@@ -13,6 +13,7 @@ type DownloadStore interface {
 	ListDownloads(ctx context.Context, query DownloadListQuery) ([]DownloadStatus, error)
 	MarkDownloadsDeleted(ctx context.Context, ids []string) error
 	MarkDownloadFailed(ctx context.Context, id string, reason string) error
+	ClearDownloadFailure(ctx context.Context, id string) error
 	MarkDownloadReplacement(ctx context.Context, id string, replacementID string) error
 	MarkDownloadImported(ctx context.Context, id string, fileID string) error
 	MarkDownloadImportError(ctx context.Context, id string, message string) error
@@ -208,6 +209,26 @@ func (s *SQLDownloadStore) MarkDownloadFailed(ctx context.Context, id string, re
 			updated_at = now()
 		where external_id = $1
 	`, id, strings.TrimSpace(reason))
+	return err
+}
+
+func (s *SQLDownloadStore) ClearDownloadFailure(ctx context.Context, id string) error {
+	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `
+		update downloads
+		set failure_reason = '',
+			failed_at = null,
+			import_error = '',
+			import_status = case
+				when import_status = 'error' then 'pending'
+				else import_status
+			end,
+			replacement_external_id = '',
+			updated_at = now()
+		where external_id = $1
+	`, strings.TrimSpace(id))
 	return err
 }
 

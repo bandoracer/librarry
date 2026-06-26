@@ -178,7 +178,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   no-seed stalled downloads, with replacement search/grab and optional removal
   of failed torrents.
 - Readarr-compatible blocklist and legacy blacklist endpoints populated from
-  failed active downloads and failed Librarry history events.
+  failed active downloads and failed Librarry history events, with single and
+  bulk delete clearing download failure state and persisting compatibility
+  tombstones for suppressed records.
 - Readarr-compatible root folder list, lookup, create, update, and delete
   endpoints backed by Postgres, with environment-configured ebook/audiobook
   roots kept as defaults and Calibre Content Server fields round-tripped.
