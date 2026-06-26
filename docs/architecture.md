@@ -437,8 +437,9 @@ matching native operation. The command collection exposes stable completed task
 records, `POST /api/v1/command` returns a pollable command ID, and
 `GET /api/v1/command/{id}` plus `DELETE /api/v1/command/{id}` support clients
 that follow the normal Arr command polling and cancel flow. `RssSync`,
-`MissingBookSearch`, `RefreshAuthor`, `FailedDownloadCheck`, `UpgradeSearch`,
-`RenameFiles`, and `RescanFolders` map to native Librarry work.
+`MissingBookSearch`, `BookSearch`, `RefreshAuthor`, `AuthorSearch`,
+`FailedDownloadCheck`, `UpgradeSearch`, `CutoffUnmetBookSearch`, `RenameFiles`,
+and `RescanFolders` map to native Librarry work.
 
 Readarr-compatible calendar, history, parse, missing, and cutoff-unmet endpoints
 are derived from wanted items, Librarry history events, title parsing, and

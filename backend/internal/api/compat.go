@@ -2144,7 +2144,16 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 			}
 			command["body"] = run
 		}
-	case "refreshauthor":
+	case "booksearch":
+		if h.deps.Wanted != nil {
+			run, err := h.compatRunBookSearchCommand(r.Context(), payload)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+				return
+			}
+			command["body"] = run
+		}
+	case "refreshauthor", "authorsearch":
 		if h.deps.Wanted != nil {
 			run, err := h.deps.Wanted.MonitorAuthors(r.Context(), wanted.AuthorMonitorRequest{Trigger: "api", Force: true})
 			if err != nil {
@@ -2173,11 +2182,16 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 			}
 			command["body"] = run
 		}
-	case "upgradesearch":
+	case "upgradesearch", "cutoffunmetbooksearch":
 		if h.deps.Wanted != nil {
+			wantedIDs, _, err := h.compatCommandWantedIDs(r.Context(), payload)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+				return
+			}
 			run, err := h.deps.Wanted.SearchUpgrades(r.Context(), wanted.UpgradeRequest{
 				Trigger:                  "api",
-				WantedIDs:                payloadStringList(payload, "wantedIds", "wantedIDs", "bookIds", "bookIDs", "ids"),
+				WantedIDs:                wantedIDs,
 				Limit:                    payloadIntDefault(payload, "limit", 0),
 				SearchLimit:              payloadIntDefault(payload, "searchLimit", 0),
 				MinSearchIntervalMinutes: payloadIntDefault(payload, "minSearchIntervalMinutes", 0),
@@ -2222,13 +2236,130 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, command)
 }
 
+func (h *handler) compatRunBookSearchCommand(ctx context.Context, payload map[string]any) (map[string]any, error) {
+	wantedIDs, unmatched, err := h.compatCommandWantedIDs(ctx, payload)
+	if err != nil {
+		return nil, err
+	}
+	if len(wantedIDs) == 0 {
+		return map[string]any{
+			"searched":      0,
+			"releasesFound": 0,
+			"approvedCount": 0,
+			"grabbedCount":  0,
+			"errorCount":    0,
+			"unmatchedIds":  unmatched,
+			"items":         []any{},
+		}, nil
+	}
+	limit := payloadIntDefault(payload, "searchLimit", payloadIntDefault(payload, "limit", 0))
+	autoGrab := payloadBoolDefault(payload, "autoGrab", true)
+	paused := payloadBoolDefault(payload, "paused", true)
+	client := firstNonEmptyString(payloadString(payload, "client"), payloadString(payload, "downloadClient"), payloadString(payload, "downloadClientName"))
+	run := map[string]any{
+		"searched":      0,
+		"releasesFound": 0,
+		"approvedCount": 0,
+		"grabbedCount":  0,
+		"errorCount":    0,
+		"unmatchedIds":  unmatched,
+		"items":         []map[string]any{},
+	}
+	items := []map[string]any{}
+	for _, wantedID := range wantedIDs {
+		outcome, searchErr := h.deps.Wanted.SearchReleases(ctx, wantedID, wanted.SearchReleasesRequest{Limit: limit})
+		run["searched"] = run["searched"].(int) + 1
+		item := map[string]any{
+			"wantedId": wantedID,
+		}
+		if searchErr != nil {
+			run["errorCount"] = run["errorCount"].(int) + 1
+			item["error"] = searchErr.Error()
+			items = append(items, item)
+			continue
+		}
+		approvedCount := 0
+		for _, release := range outcome.Releases {
+			if release.Approved {
+				approvedCount++
+			}
+		}
+		run["releasesFound"] = run["releasesFound"].(int) + len(outcome.Releases)
+		run["approvedCount"] = run["approvedCount"].(int) + approvedCount
+		item["wantedItem"] = outcome.WantedItem
+		item["releasesFound"] = len(outcome.Releases)
+		item["approvedCount"] = approvedCount
+		item["releases"] = outcome.Releases
+		if autoGrab {
+			if release, ok := firstApprovedReleaseDecision(outcome.Releases); ok {
+				status, grabErr := h.deps.Wanted.Grab(ctx, outcome.WantedItem.ID, wanted.GrabRequest{ReleaseID: release.ID, Client: client, Paused: paused})
+				if grabErr != nil {
+					run["errorCount"] = run["errorCount"].(int) + 1
+					item["error"] = grabErr.Error()
+				} else {
+					run["grabbedCount"] = run["grabbedCount"].(int) + 1
+					item["grabbedDownload"] = status
+				}
+			}
+		}
+		items = append(items, item)
+	}
+	run["items"] = items
+	return run, nil
+}
+
+func (h *handler) compatCommandWantedIDs(ctx context.Context, payload map[string]any) ([]string, []string, error) {
+	ids := payloadStringList(payload, "wantedIds", "wantedIDs", "wantedId", "wantedID", "librarryWantedId", "librarryWantedID")
+	ids = append(ids, bookMonitorIDs(payload)...)
+	ids = firstUniqueStrings(ids)
+	if len(ids) == 0 {
+		return nil, nil, nil
+	}
+	items, err := h.deps.Wanted.List(ctx, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	var wantedIDs []string
+	var unmatched []string
+	seen := map[string]bool{}
+	for _, id := range ids {
+		matched := false
+		for _, item := range items {
+			if !compatWantedItemVisible(item) || !wantedItemMatchesAnyID(item, []string{id}) {
+				continue
+			}
+			if !seen[item.ID] {
+				wantedIDs = append(wantedIDs, item.ID)
+				seen[item.ID] = true
+			}
+			matched = true
+		}
+		if !matched {
+			unmatched = append(unmatched, id)
+		}
+	}
+	return wantedIDs, unmatched, nil
+}
+
+func firstApprovedReleaseDecision(releases []wanted.ReleaseDecision) (wanted.ReleaseDecision, bool) {
+	for _, release := range releases {
+		if release.Approved {
+			return release, true
+		}
+	}
+	return wanted.ReleaseDecision{}, false
+}
+
 func compatCommandNames() []string {
 	return []string{
 		"RssSync",
 		"MissingBookSearch",
+		"BookSearch",
 		"RefreshAuthor",
+		"AuthorSearch",
 		"FailedDownloadCheck",
 		"UpgradeSearch",
+		"CutoffUnmetBookSearch",
 		"RenameFiles",
 		"RenameBookFiles",
 		"RenameBooks",

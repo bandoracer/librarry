@@ -746,6 +746,28 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"commandName":"FailedDownloadCheck"`) || !strings.Contains(res.Body.String(), `"replacementsFound":1`) {
 		t.Fatalf("expected failed download command result, got %d: %s", res.Code, res.Body.String())
 	}
+
+	bookID := stableInt("wanted-1")
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"BookSearch","bookIds":[`+strconv.Itoa(bookID)+`],"autoGrab":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"commandName":"BookSearch"`) || !strings.Contains(res.Body.String(), `"searched":1`) || !strings.Contains(res.Body.String(), `"grabbedCount":1`) {
+		t.Fatalf("expected book search command result, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"CutOffUnmetBookSearch","bookIds":[`+strconv.Itoa(bookID)+`],"autoGrab":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"commandName":"CutoffUnmetBookSearch"`) || !strings.Contains(res.Body.String(), `"upgradeCount":1`) {
+		t.Fatalf("expected cutoff unmet command result, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"AuthorSearch"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"commandName":"AuthorSearch"`) || !strings.Contains(res.Body.String(), `"wantedCreated":2`) {
+		t.Fatalf("expected author search command result, got %d: %s", res.Code, res.Body.String())
+	}
 }
 
 func TestCompatArrResourceUtilityEndpointsPersist(t *testing.T) {
