@@ -1182,6 +1182,30 @@ select {
   gap: 3px;
 }
 
+.source-cell {
+  display: grid;
+  gap: 3px;
+}
+
+.source-cell strong,
+.source-cell small {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-cell strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.source-cell small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .edition-cell strong,
 .edition-cell small {
   min-width: 0;

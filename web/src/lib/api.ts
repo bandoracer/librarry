@@ -12,7 +12,7 @@ export type SearchResult = {
   work: {
     id: string;
     title: string;
-    authors?: Array<{ id: string; name: string }>;
+    authors?: Array<{ id: string; name: string; providerIds?: string[] }>;
     firstPublishYear?: number;
     description?: string;
     series?: string;

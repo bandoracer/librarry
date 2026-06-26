@@ -69,7 +69,7 @@ func matchedOn(query Query, title string, author string, isbns []string) []strin
 			}
 		}
 	}
-	if normalize(title) != "" && strings.Contains(normalize(query.Query), normalize(title)) || strings.Contains(normalize(title), normalize(query.Query)) {
+	if normalize(title) != "" && (strings.Contains(normalize(query.Query), normalize(title)) || strings.Contains(normalize(title), normalize(query.Query))) {
 		matches = append(matches, "title")
 	}
 	if author != "" && strings.Contains(normalize(query.Query), normalize(author)) {

@@ -81,6 +81,8 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 		merged = append(merged, results...)
 	}
 
+	merged = mergeEquivalentResults(query, merged)
+
 	sort.SliceStable(merged, func(i, j int) bool {
 		if merged[i].Score == merged[j].Score {
 			return providerRank(merged[i].Provider) < providerRank(merged[j].Provider)

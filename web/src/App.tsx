@@ -285,6 +285,8 @@ function searchResultMatchChips(result: SearchResult) {
   const chips: SearchEvidenceChip[] = [
     { label: `score ${searchResultScoreLabel(result)}`, tone: result.confidence }
   ];
+  const sourceCount = searchResultSourceNames(result).length;
+  if (sourceCount > 1) chips.push({ label: `${sourceCount} sources`, tone: "high" });
   result.matchedOn.forEach((field) => chips.push({ label: searchMatchFieldLabel(field), tone: "neutral" }));
   if (result.kind !== "author" && searchResultIdentifierSummary(result, 1)) chips.push({ label: "identifier", tone: "high" });
   if (result.kind !== "author" && searchResultPublishedLabel(result)) chips.push({ label: "published", tone: "neutral" });
@@ -339,7 +341,7 @@ function searchResultEvidenceSummary(result: SearchResult, currentFormat: string
     {
       label: "Source identity",
       value: sourceKey,
-      detail: "Stored with provider records so future corrections can be traced."
+      detail: `${searchResultSourceLabel(result)} stored with provider records for future corrections.`
     }
   ];
 }
@@ -371,6 +373,8 @@ function searchMatchFieldLabel(field: string) {
       return "author";
     case "series":
       return "series";
+    case "provider corroboration":
+      return "provider corroboration";
     default:
       return field;
   }
@@ -413,14 +417,14 @@ function searchResultNeedsWantedReview(result: SearchResult) {
 }
 
 function uniqueSearchProviders(results: SearchResult[]) {
-  return Array.from(new Set(results.map((result) => result.provider).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  return Array.from(new Set(results.flatMap(searchResultSourceNames))).sort((a, b) => a.localeCompare(b));
 }
 
 function searchResultVisibleForFilters(
   result: SearchResult,
   filters: { provider: string; confidence: SearchConfidenceFilter; evidence: SearchEvidenceFilter }
 ) {
-  if (filters.provider && result.provider !== filters.provider) return false;
+  if (filters.provider && !searchResultSourceNames(result).includes(filters.provider)) return false;
   if (filters.confidence !== "all" && result.confidence !== filters.confidence) return false;
   return searchResultHasEvidence(result, filters.evidence);
 }
@@ -456,6 +460,37 @@ function searchResultSubtitle(result: SearchResult) {
 
 function searchResultProviderKey(result: SearchResult) {
   return result.work.authors?.[0]?.id || result.rawSourceKey || result.work.providerIds?.[0] || result.work.id || "Unknown";
+}
+
+function searchResultSourceNames(result: SearchResult) {
+  const names = compactStringList([
+    result.provider,
+    ...(result.work.providerIds ?? []).map(providerNameFromIdentity),
+    ...(result.work.authors ?? []).flatMap((author) => (author.providerIds ?? []).map(providerNameFromIdentity))
+  ]);
+  const seen = new Set<string>();
+  return names.filter((name) => {
+    const key = name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function searchResultSourceLabel(result: SearchResult) {
+  const names = searchResultSourceNames(result);
+  if (names.length === 0) return result.provider || "Unknown";
+  if (names.length === 1) return names[0];
+  return `${names[0]} + ${names.length - 1}`;
+}
+
+function providerNameFromIdentity(identity: string) {
+  const value = identity.trim().toLowerCase();
+  if (!value) return "";
+  if (value.startsWith("hardcover:") || value.startsWith("hardcover-author:")) return "Hardcover";
+  if (value.startsWith("openlibrary:") || value.includes("/authors/") || value.includes("/works/")) return "Open Library";
+  if (value.startsWith("googlebooks:") || value.startsWith("googlebooks-author:")) return "Google Books";
+  return "";
 }
 
 function searchResultSourceIdentity(result: SearchResult) {
@@ -3385,6 +3420,8 @@ export function App() {
                 const resultKey = searchResultKey(result);
                 const existingWanted = wantedBySearchKey.get(resultKey);
                 const resultNeedsReview = searchResultNeedsWantedReview(result);
+                const resultSources = searchResultSourceNames(result);
+                const resultSourceLabel = searchResultSourceLabel(result);
                 return (
                   <div className={resultKey === selectedSearchKey ? "table-row result-row selected" : "table-row result-row"} key={resultKey} role="row">
                     <button className="title-cell result-select" onClick={() => selectSearchResult(result)} type="button">
@@ -3403,7 +3440,10 @@ export function App() {
                       <strong>{searchResultEditionSummary(result, format)}</strong>
                       <small>{searchResultEditionSubline(result)}</small>
                     </span>
-                    <span>{result.provider}</span>
+                    <span className="source-cell" title={resultSources.join(", ")}>
+                      <strong>{resultSourceLabel}</strong>
+                      {resultSources.length > 1 ? <small>{resultSources.join(", ")}</small> : null}
+                    </span>
                     <span>
                       <em className={`confidence ${result.confidence}`}>{result.confidence}</em>
                     </span>
@@ -3498,8 +3538,8 @@ export function App() {
 
                 <dl className="detail-list">
                   <div>
-                    <dt>Provider</dt>
-                    <dd>{selected.provider}</dd>
+                    <dt>Sources</dt>
+                    <dd>{searchResultSourceNames(selected).join(", ") || selected.provider}</dd>
                   </div>
                   {selected.kind === "author" ? (
                     <div>

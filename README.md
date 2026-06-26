@@ -122,6 +122,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   book wanted. Provider, confidence, and evidence filters make ambiguous result
   sets easier to narrow before creating wanted items, and selected candidates
   show score, source identity, matched-field, and edition-evidence summaries.
+  Equivalent candidates from multiple providers are clustered by ISBN or
+  normalized title/author evidence, then shown as one result with contributing
+  source names and merged provider IDs so corroboration strengthens the match
+  without hiding provenance.
   Medium, low-confidence, or weak-evidence candidates require explicit review
   confirmation before they are marked wanted. Candidates already tracked as
   wanted open the existing wanted item instead of creating duplicates.

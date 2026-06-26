@@ -23,6 +23,11 @@ normalizing multiple providers into a local canonical model with provenance.
 Exact identifiers beat fuzzy matching:
 
 - ISBN, ASIN, and provider IDs are high-confidence matches.
+- Search results from different providers are clustered before ranking when
+  they share an exact ISBN or compatible normalized title/author evidence.
+  The primary result keeps the best provider identity while merged provider IDs,
+  identifiers, dates, publisher fields, covers, and match evidence are retained
+  as provenance.
 - Title plus author identity can be medium-confidence.
 - Author subscriptions prefer provider keys, then normalized author names, when
   deciding whether a returned work belongs to the monitored author.
