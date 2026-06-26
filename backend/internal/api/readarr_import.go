@@ -26,6 +26,9 @@ type readarrImportRequest struct {
 	ImportBooks           *bool  `json:"importBooks,omitempty"`
 	ImportQualityProfiles *bool  `json:"importQualityProfiles,omitempty"`
 	ImportRootFolders     *bool  `json:"importRootFolders,omitempty"`
+	ImportTags            *bool  `json:"importTags,omitempty"`
+	ImportLists           *bool  `json:"importLists,omitempty"`
+	ImportListExclusions  *bool  `json:"importListExclusions,omitempty"`
 }
 
 type readarrImportOutcome struct {
@@ -102,6 +105,7 @@ type readarrRemoteAuthor struct {
 	MetadataProfileID int                  `json:"metadataProfileId"`
 	AddOptions        map[string]any       `json:"addOptions"`
 	Images            []readarrRemoteImage `json:"images"`
+	Tags              []int                `json:"tags"`
 }
 
 type readarrRemoteBook struct {
@@ -114,6 +118,7 @@ type readarrRemoteBook struct {
 	Author           *readarrRemoteAuthor   `json:"author"`
 	Images           []readarrRemoteImage   `json:"images"`
 	Editions         []readarrRemoteEdition `json:"editions"`
+	Tags             []int                  `json:"tags"`
 }
 
 type readarrRemoteEdition struct {
@@ -212,6 +217,14 @@ func (h *handler) runReadarrImport(ctx context.Context, request readarrImportReq
 		}
 	}
 
+	if readarrImportEnabled(request.ImportTags) {
+		var tags []map[string]any
+		if err := client.get(ctx, "/api/v1/tag", &tags); err != nil {
+			return outcome, fmt.Errorf("readarr tag fetch failed: %w", err)
+		}
+		outcome.Sections = append(outcome.Sections, h.importReadarrCompatResources(ctx, "tags", "tag", tags, dryRun))
+	}
+
 	if readarrImportEnabled(request.ImportRootFolders) {
 		var roots []readarrRemoteRootFolder
 		if err := client.get(ctx, "/api/v1/rootfolder", &roots); err != nil {
@@ -234,6 +247,22 @@ func (h *handler) runReadarrImport(ctx context.Context, request readarrImportReq
 			return outcome, fmt.Errorf("readarr book fetch failed: %w", err)
 		}
 		outcome.Sections = append(outcome.Sections, h.importReadarrBooks(ctx, books, qualityProfileMap, dryRun))
+	}
+
+	if readarrImportEnabled(request.ImportLists) {
+		var lists []map[string]any
+		if err := client.get(ctx, "/api/v1/importlist", &lists); err != nil {
+			return outcome, fmt.Errorf("readarr import list fetch failed: %w", err)
+		}
+		outcome.Sections = append(outcome.Sections, h.importReadarrCompatResources(ctx, "importLists", "import-list", lists, dryRun))
+	}
+
+	if readarrImportEnabled(request.ImportListExclusions) {
+		var exclusions []map[string]any
+		if err := client.get(ctx, "/api/v1/importlistexclusion", &exclusions); err != nil {
+			return outcome, fmt.Errorf("readarr import list exclusion fetch failed: %w", err)
+		}
+		outcome.Sections = append(outcome.Sections, h.importReadarrCompatResources(ctx, "importListExclusions", "import-list-exclusion", exclusions, dryRun))
 	}
 
 	for _, section := range outcome.Sections {
@@ -312,6 +341,48 @@ func (h *handler) importReadarrQualityProfiles(ctx context.Context, profiles []r
 		} else {
 			item.Status = "imported"
 			item.ID = firstNonEmptyString(saved.ID, item.ID)
+			section.Imported++
+		}
+		section.Items = append(section.Items, item)
+	}
+	return trimReadarrImportSection(section)
+}
+
+func (h *handler) importReadarrCompatResources(ctx context.Context, sectionName string, resourceType string, records []map[string]any, dryRun bool) readarrImportSection {
+	section := readarrImportSection{Name: sectionName, Count: len(records)}
+	if h.deps.Compat == nil && !dryRun {
+		section.Errors = append(section.Errors, "compat resource store is unavailable")
+		section.Skipped = len(records)
+	}
+	for _, record := range records {
+		payload := cloneCompatRecord(record)
+		payload["librarryImportedFrom"] = "readarr"
+		compatID := stablePayloadID(payload, resourceType)
+		name := firstNonEmptyString(compatResourceName(payload), resourceType)
+		item := readarrImportItem{
+			ID:      strconv.Itoa(compatID),
+			Title:   name,
+			Status:  "preview",
+			Message: resourceType,
+		}
+		if dryRun || h.deps.Compat == nil {
+			section.Items = append(section.Items, item)
+			continue
+		}
+		saved, err := h.deps.Compat.UpsertResource(ctx, compatdata.Resource{
+			ResourceType: resourceType,
+			CompatID:     compatID,
+			Name:         name,
+			Payload:      payload,
+		})
+		if err != nil {
+			section.Errors = append(section.Errors, fmt.Sprintf("%s: %v", name, err))
+			item.Status = "error"
+			item.Message = err.Error()
+			section.Skipped++
+		} else {
+			item.Status = "imported"
+			item.ID = strconv.Itoa(saved.CompatID)
 			section.Imported++
 		}
 		section.Items = append(section.Items, item)
@@ -407,6 +478,7 @@ func (h *handler) importReadarrAuthors(ctx context.Context, authors []readarrRem
 			QualityProfile:    item.QualityProfile,
 			MonitorNewItems:   &monitorNewItems,
 			MissingBookPolicy: "all",
+			Tags:              compactCompatTags(author.Tags),
 		})
 		if err != nil {
 			section.Errors = append(section.Errors, fmt.Sprintf("%s: %v", authorName, err))
@@ -455,6 +527,7 @@ func (h *handler) importReadarrBooks(ctx context.Context, books []readarrRemoteB
 			Result:         readarrBookSearchResult(book, bookFormat),
 			Format:         string(bookFormat),
 			QualityProfile: item.QualityProfile,
+			Tags:           compactCompatTags(book.Tags),
 		})
 		if err != nil {
 			section.Errors = append(section.Errors, fmt.Sprintf("%s: %v", title, err))

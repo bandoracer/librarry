@@ -120,13 +120,13 @@ func TestReadarrImportPreviewReadsRemoteState(t *testing.T) {
 		t.Fatalf("unexpected preview outcome: %+v", outcome)
 	}
 	sections := readarrSectionsByName(outcome.Sections)
-	for _, name := range []string{"qualityProfiles", "rootFolders", "authors", "books"} {
+	for _, name := range []string{"qualityProfiles", "tags", "rootFolders", "authors", "books", "importLists", "importListExclusions"} {
 		if sections[name].Count != 1 {
 			t.Fatalf("expected one %s item, got %+v", name, sections[name])
 		}
 	}
-	if len(wantedCapture.profiles) != 0 || len(wantedCapture.authors) != 0 || len(wantedCapture.creates) != 0 || len(compatResources.roots) != 0 {
-		t.Fatalf("preview should not persist state: wanted=%+v compat=%+v", wantedCapture, compatResources.roots)
+	if len(wantedCapture.profiles) != 0 || len(wantedCapture.authors) != 0 || len(wantedCapture.creates) != 0 || len(compatResources.roots) != 0 || len(compatResources.resources) != 0 {
+		t.Fatalf("preview should not persist state: wanted=%+v compat roots=%+v resources=%+v", wantedCapture, compatResources.roots, compatResources.resources)
 	}
 }
 
@@ -166,11 +166,27 @@ func TestReadarrImportApplyPersistsNativeState(t *testing.T) {
 	if len(compatResources.roots) != 1 || compatResources.roots[0].Path != "/books/ebooks" {
 		t.Fatalf("expected imported root folder, got %+v", compatResources.roots)
 	}
+	resources := fakeCompatResourcesByType(compatResources.resources)
+	if len(resources["tag"]) != 1 || resources["tag"][0].CompatID != 12 || resources["tag"][0].Name != "favorites" {
+		t.Fatalf("expected imported tag resource, got %+v", resources["tag"])
+	}
+	if len(resources["import-list"]) != 1 || resources["import-list"][0].CompatID != 13 {
+		t.Fatalf("expected imported import list resource, got %+v", resources["import-list"])
+	}
+	if len(resources["import-list-exclusion"]) != 1 || resources["import-list-exclusion"][0].CompatID != 14 {
+		t.Fatalf("expected imported import-list exclusion resource, got %+v", resources["import-list-exclusion"])
+	}
 	if len(wantedCapture.authors) != 1 || wantedCapture.authors[0].AuthorName != "Andy Weir" || wantedCapture.authors[0].QualityProfile != "Ebook Standard" {
 		t.Fatalf("expected imported author subscription, got %+v", wantedCapture.authors)
 	}
+	if got := wantedCapture.authors[0].Tags; len(got) != 1 || got[0] != 12 {
+		t.Fatalf("expected author tags to carry over, got %+v", got)
+	}
 	if len(wantedCapture.creates) != 1 || wantedCapture.creates[0].Result.Work.Title != "Project Hail Mary" {
 		t.Fatalf("expected imported wanted book, got %+v", wantedCapture.creates)
+	}
+	if got := wantedCapture.creates[0].Tags; len(got) != 1 || got[0] != 12 {
+		t.Fatalf("expected book tags to carry over, got %+v", got)
 	}
 	if got := wantedCapture.creates[0].Result.Edition.ISBNs; len(got) != 1 || got[0] != "9780593135204" {
 		t.Fatalf("expected edition ISBN to carry over, got %+v", wantedCapture.creates[0].Result.Edition)
@@ -203,6 +219,10 @@ func newFakeReadarrServer(t *testing.T) *httptest.Server {
 			_, _ = w.Write([]byte(`[
 				{"id": 7, "name": "Books", "path": "/books/ebooks", "defaultQualityProfileId": 1}
 			]`))
+		case "/api/v1/tag":
+			_, _ = w.Write([]byte(`[
+				{"id": 12, "label": "favorites"}
+			]`))
 		case "/api/v1/author":
 			_, _ = w.Write([]byte(`[
 				{
@@ -211,7 +231,8 @@ func newFakeReadarrServer(t *testing.T) *httptest.Server {
 					"foreignAuthorId": "ol:OL123A",
 					"path": "/books/ebooks/Andy Weir",
 					"monitored": true,
-					"qualityProfileId": 1
+					"qualityProfileId": 1,
+					"tags": [12]
 				}
 			]`))
 		case "/api/v1/book":
@@ -223,6 +244,7 @@ func newFakeReadarrServer(t *testing.T) *httptest.Server {
 					"authorTitle": "Andy Weir",
 					"monitored": true,
 					"qualityProfileId": 1,
+					"tags": [12],
 					"author": {
 						"id": 8,
 						"authorName": "Andy Weir",
@@ -240,6 +262,14 @@ func newFakeReadarrServer(t *testing.T) *httptest.Server {
 					]
 				}
 			]`))
+		case "/api/v1/importlist":
+			_, _ = w.Write([]byte(`[
+				{"id": 13, "name": "Favorites list", "implementation": "ReadarrImportList", "enable": true, "tags": [12], "books": [{"title": "The Martian", "authorName": "Andy Weir"}]}
+			]`))
+		case "/api/v1/importlistexclusion":
+			_, _ = w.Write([]byte(`[
+				{"id": 14, "foreignId": "ol:ignored", "bookTitle": "Ignored Book", "authorName": "Ignored Author"}
+			]`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -252,6 +282,14 @@ func readarrSectionsByName(sections []readarrImportSection) map[string]readarrIm
 		byName[section.Name] = section
 	}
 	return byName
+}
+
+func fakeCompatResourcesByType(resources []compatdata.Resource) map[string][]compatdata.Resource {
+	byType := map[string][]compatdata.Resource{}
+	for _, resource := range resources {
+		byType[resource.ResourceType] = append(byType[resource.ResourceType], resource)
+	}
+	return byType
 }
 
 func TestAPIKeyAuthIsOptionalWhenUnset(t *testing.T) {

@@ -121,6 +121,9 @@ export type ReadarrImportSettings = {
   importBooks: boolean;
   importQualityProfiles: boolean;
   importRootFolders: boolean;
+  importTags: boolean;
+  importLists: boolean;
+  importListExclusions: boolean;
 };
 
 export type ReadarrImportItem = {

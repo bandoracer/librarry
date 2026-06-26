@@ -286,7 +286,10 @@ function emptyReadarrImportSettings(): ReadarrImportSettings {
     importAuthors: true,
     importBooks: true,
     importQualityProfiles: true,
-    importRootFolders: true
+    importRootFolders: true,
+    importTags: true,
+    importLists: true,
+    importListExclusions: true
   };
 }
 
@@ -4322,6 +4325,18 @@ export function App() {
                   <input checked={readarrImportForm.importRootFolders} onChange={(event) => updateReadarrImportForm({ importRootFolders: event.target.checked })} type="checkbox" />
                   <span>Root folders</span>
                 </label>
+                <label>
+                  <input checked={readarrImportForm.importTags} onChange={(event) => updateReadarrImportForm({ importTags: event.target.checked })} type="checkbox" />
+                  <span>Tags</span>
+                </label>
+                <label>
+                  <input checked={readarrImportForm.importLists} onChange={(event) => updateReadarrImportForm({ importLists: event.target.checked })} type="checkbox" />
+                  <span>Import lists</span>
+                </label>
+                <label>
+                  <input checked={readarrImportForm.importListExclusions} onChange={(event) => updateReadarrImportForm({ importListExclusions: event.target.checked })} type="checkbox" />
+                  <span>List exclusions</span>
+                </label>
               </div>
             </div>
             {readarrImportOutcome ? (
@@ -5362,6 +5377,12 @@ function readarrImportSectionLabel(name: string) {
       return "Authors";
     case "books":
       return "Books";
+    case "tags":
+      return "Tags";
+    case "importLists":
+      return "Import lists";
+    case "importListExclusions":
+      return "List exclusions";
     default:
       return name;
   }

@@ -56,7 +56,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Capability | Readarr | Librarry today | Librarry direction |
 | --- | --- | --- | --- |
 | Project status | Retired and archived; existing installs may continue but upstream development has stopped. | Active early alpha. | Public, maintained replacement with a smaller but durable core. |
-| Readarr migration | Source application; state is managed in the existing Readarr database and API. | Settings UI and native API can preview and import an existing Readarr instance's quality profiles, root folders, authors, and books into Librarry quality profiles, root folders, author subscriptions, and wanted items. | Expand migration to include tags, import lists, exclusions, file mappings, and richer edition/history preservation. |
+| Readarr migration | Source application; state is managed in the existing Readarr database and API. | Settings UI and native API can preview and import an existing Readarr instance's quality profiles, tags, root folders, authors, books, import lists, and import-list exclusions into Librarry quality profiles, compatibility resources, root folders, author subscriptions, and wanted items. Imported author/book tags are preserved for restriction scoring. | Expand migration to include file mappings, history, notifications, indexers, download clients, and richer edition preservation. |
 | Metadata source model | Historically depended on centralized metadata; the retirement announcement names metadata failure as the blocking issue. | Multi-provider abstraction with Hardcover, Open Library, Google Books fallback, and local metadata stubs. | Local canonical graph with provider provenance, explainable matches, and resilient fallback behavior. |
 | Manual correction | Supports normal app-level editing workflows. | Native wanted-item editor can correct title, author, cover URL, quality profile, and monitoring state; corrected title/author/cover/profile values write `manual_overrides` rows, provider refreshes preserve those fields, and visible override chips can reset individual fields. | Expand correction to the full author/work/edition graph, embedded file metadata writes, and batch review workflows. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
@@ -97,8 +97,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   previews immediately, are written as Readarr-compatible root-folder and naming
   config records, and are loaded again on restart.
 - Readarr migration API and Settings UI that preview and import quality
-  profiles, root folders, authors, and books from an existing Readarr API into
-  native Librarry state.
+  profiles, tags, root folders, authors, books, import lists, and import-list
+  exclusions from an existing Readarr API into native Librarry and compatibility
+  state.
 - Native wanted metadata correction for title, author, cover URL, quality
   profile, and monitoring state, with `manual_overrides` persistence so provider
   refreshes do not overwrite corrected display metadata. Wanted payloads include
