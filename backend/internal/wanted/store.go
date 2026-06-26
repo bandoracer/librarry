@@ -873,14 +873,40 @@ func (s *Store) ApplyWantedMetadataCorrection(ctx context.Context, wantedID stri
 	if wantedID == "" {
 		return MetadataProvenance{}, errors.New("wanted item id is required")
 	}
-	update, err := metadataCorrectionUpdateRequest(request)
+	field, value, err := metadataCorrectionFieldValue(request)
 	if err != nil {
 		return MetadataProvenance{}, err
 	}
-	if _, err := s.UpdateWanted(ctx, wantedID, update); err != nil {
-		return MetadataProvenance{}, err
+	switch field {
+	case "title", "author_name", "cover_url", "quality_profile":
+		update, err := metadataCorrectionUpdateRequest(MetadataCorrectionRequest{FieldName: field, Value: value})
+		if err != nil {
+			return MetadataProvenance{}, err
+		}
+		if _, err := s.UpdateWanted(ctx, wantedID, update); err != nil {
+			return MetadataProvenance{}, err
+		}
+	default:
+		if err := s.upsertWantedManualOverride(ctx, wantedID, field, value); err != nil {
+			return MetadataProvenance{}, err
+		}
 	}
 	return s.WantedMetadataProvenance(ctx, wantedID)
+}
+
+func (s *Store) upsertWantedManualOverride(ctx context.Context, wantedID string, fieldName string, value string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := upsertWantedManualOverride(ctx, tx, wantedID, fieldName, value); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID string, field string) error {
@@ -926,6 +952,8 @@ func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID stri
 			where id::text = $1
 		`, wantedID)
 		return err
+	case "language", "publisher", "published_date", "series", "series_position", "isbn":
+		return nil
 	default:
 		return fmt.Errorf("unsupported wanted override field %q", field)
 	}
@@ -978,9 +1006,9 @@ type metadataFieldSpec struct {
 }
 
 func metadataFieldEvidence(item WantedItem, records []ProviderMetadataRecord) []MetadataFieldEvidence {
-	overrideFields := make(map[string]bool, len(item.ManualOverrides))
+	overrideValues := make(map[string]string, len(item.ManualOverrides))
 	for _, override := range item.ManualOverrides {
-		overrideFields[strings.TrimSpace(override.FieldName)] = true
+		overrideValues[strings.TrimSpace(override.FieldName)] = strings.TrimSpace(override.Value)
 	}
 	specs := []metadataFieldSpec{
 		{name: "title", label: "Title", canonical: func(item WantedItem) string { return item.Title }, values: func(values MetadataRecordValues) []string { return oneValue(values.Title) }},
@@ -998,11 +1026,13 @@ func metadataFieldEvidence(item WantedItem, records []ProviderMetadataRecord) []
 	evidence := make([]MetadataFieldEvidence, 0, len(specs))
 	for _, spec := range specs {
 		canonical := ""
-		if spec.canonical != nil {
+		overrideValue, protected := overrideValues[spec.name]
+		if protected {
+			canonical = strings.TrimSpace(overrideValue)
+		} else if spec.canonical != nil {
 			canonical = strings.TrimSpace(spec.canonical(item))
 		}
 		candidates := metadataFieldCandidates(spec, records)
-		protected := overrideFields[spec.name]
 		if canonical == "" && len(candidates) == 0 && !protected {
 			continue
 		}
@@ -1138,13 +1168,9 @@ func latestProviderRecordFetchedAt(records []ProviderMetadataRecord) *time.Time 
 }
 
 func metadataCorrectionUpdateRequest(request MetadataCorrectionRequest) (WantedUpdateRequest, error) {
-	field := normalizeWantedOverrideField(request.FieldName)
-	if !validWantedOverrideField(field) {
-		return WantedUpdateRequest{}, fmt.Errorf("unsupported wanted metadata field %q", request.FieldName)
-	}
-	value := strings.TrimSpace(request.Value)
-	if value == "" {
-		return WantedUpdateRequest{}, errors.New("metadata correction value is required")
+	field, value, err := metadataCorrectionFieldValue(request)
+	if err != nil {
+		return WantedUpdateRequest{}, err
 	}
 	switch field {
 	case "title":
@@ -1160,9 +1186,21 @@ func metadataCorrectionUpdateRequest(request MetadataCorrectionRequest) (WantedU
 	}
 }
 
+func metadataCorrectionFieldValue(request MetadataCorrectionRequest) (string, string, error) {
+	field := normalizeWantedOverrideField(request.FieldName)
+	if !validWantedOverrideField(field) {
+		return "", "", fmt.Errorf("unsupported wanted metadata field %q", request.FieldName)
+	}
+	value := strings.TrimSpace(request.Value)
+	if value == "" {
+		return "", "", errors.New("metadata correction value is required")
+	}
+	return field, value, nil
+}
+
 func normalizeWantedOverrideFields(fields []string) ([]string, error) {
 	if len(fields) == 0 {
-		return []string{"title", "author_name", "cover_url", "quality_profile"}, nil
+		return allWantedOverrideFields(), nil
 	}
 	seen := map[string]bool{}
 	var normalized []string
@@ -1193,6 +1231,18 @@ func normalizeWantedOverrideField(field string) string {
 		return "cover_url"
 	case "quality", "qualityprofile", "quality_profile":
 		return "quality_profile"
+	case "lang", "language":
+		return "language"
+	case "publisher":
+		return "publisher"
+	case "published", "publisheddate", "published_date", "publicationdate", "publication_date":
+		return "published_date"
+	case "series":
+		return "series"
+	case "seriesposition", "series_position", "seriesindex", "series_index":
+		return "series_position"
+	case "isbn", "isbns":
+		return "isbn"
 	default:
 		return strings.ToLower(strings.TrimSpace(field))
 	}
@@ -1200,11 +1250,15 @@ func normalizeWantedOverrideField(field string) string {
 
 func validWantedOverrideField(field string) bool {
 	switch field {
-	case "title", "author_name", "cover_url", "quality_profile":
+	case "title", "author_name", "cover_url", "quality_profile", "language", "publisher", "published_date", "series", "series_position", "isbn":
 		return true
 	default:
 		return false
 	}
+}
+
+func allWantedOverrideFields() []string {
+	return []string{"title", "author_name", "cover_url", "quality_profile", "language", "publisher", "published_date", "series", "series_position", "isbn"}
 }
 
 func manualOverrideValueString(raw []byte) string {

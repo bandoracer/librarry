@@ -5454,6 +5454,18 @@ function wantedOverrideLabel(fieldName: string) {
       return "Cover";
     case "quality_profile":
       return "Quality";
+    case "language":
+      return "Language";
+    case "publisher":
+      return "Publisher";
+    case "published_date":
+      return "Published";
+    case "series":
+      return "Series";
+    case "series_position":
+      return "Series position";
+    case "isbn":
+      return "ISBN";
     default:
       return fieldName.replace(/_/g, " ");
   }
@@ -5489,7 +5501,18 @@ function metadataFieldCandidateSummary(field: MetadataFieldEvidence) {
 }
 
 function metadataFieldCanApply(field: MetadataFieldEvidence) {
-  return ["title", "author_name", "cover_url", "quality_profile"].includes(field.fieldName);
+  return [
+    "title",
+    "author_name",
+    "cover_url",
+    "quality_profile",
+    "language",
+    "publisher",
+    "published_date",
+    "series",
+    "series_position",
+    "isbn"
+  ].includes(field.fieldName);
 }
 
 function metadataFieldApplicableCandidates(field: MetadataFieldEvidence) {

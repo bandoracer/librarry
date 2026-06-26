@@ -15,6 +15,9 @@ func TestMetadataFieldEvidenceMarksProtectedConflict(t *testing.T) {
 		ManualOverrides: []ManualOverride{{
 			FieldName: "title",
 			Value:     "Project Hail Mary",
+		}, {
+			FieldName: "publisher",
+			Value:     "Ballantine Books",
 		}},
 	}
 	fields := metadataFieldEvidence(item, []ProviderMetadataRecord{
@@ -40,6 +43,7 @@ func TestMetadataFieldEvidenceMarksProtectedConflict(t *testing.T) {
 			Values: MetadataRecordValues{
 				Title:      "Project Hail Mary: A Novel",
 				AuthorName: "Andy Weir",
+				Publisher:  "Random House Worlds",
 				ISBNs:      []string{"9780593135204"},
 				MatchedOn:  []string{"title"},
 			},
@@ -66,6 +70,13 @@ func TestMetadataFieldEvidenceMarksProtectedConflict(t *testing.T) {
 	isbn, ok := findMetadataField(fields, "isbn")
 	if !ok || len(isbn.Candidates) != 1 {
 		t.Fatalf("expected ISBN candidate evidence, got ok=%v %+v", ok, isbn)
+	}
+	publisher, ok := findMetadataField(fields, "publisher")
+	if !ok {
+		t.Fatalf("expected publisher evidence in %+v", fields)
+	}
+	if !publisher.Protected || publisher.CanonicalValue != "Ballantine Books" || !publisher.Conflict {
+		t.Fatalf("expected protected publisher conflict, got %+v", publisher)
 	}
 }
 
@@ -174,6 +185,34 @@ func TestMetadataCorrectionUpdateRequestRejectsUnsupportedFields(t *testing.T) {
 	}
 	if _, err := metadataCorrectionUpdateRequest(MetadataCorrectionRequest{FieldName: "title", Value: "  "}); err == nil {
 		t.Fatal("expected empty value error")
+	}
+}
+
+func TestMetadataCorrectionFieldValueSupportsBibliographicFields(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		fieldName string
+		wantField string
+	}{
+		{name: "language", fieldName: "language", wantField: "language"},
+		{name: "publisher", fieldName: "publisher", wantField: "publisher"},
+		{name: "published alias", fieldName: "publishedDate", wantField: "published_date"},
+		{name: "series", fieldName: "series", wantField: "series"},
+		{name: "series position alias", fieldName: "seriesIndex", wantField: "series_position"},
+		{name: "isbn plural alias", fieldName: "isbns", wantField: "isbn"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			field, value, err := metadataCorrectionFieldValue(MetadataCorrectionRequest{
+				FieldName: tc.fieldName,
+				Value:     "  provider value  ",
+			})
+			if err != nil {
+				t.Fatalf("unexpected correction field error: %v", err)
+			}
+			if field != tc.wantField || value != "provider value" {
+				t.Fatalf("expected %s/provider value, got %s/%s", tc.wantField, field, value)
+			}
+		})
 	}
 }
 

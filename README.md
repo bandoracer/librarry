@@ -18,8 +18,9 @@ book data is incomplete or ambiguous.
 > and ad hoc library scan, manual and completed-download import, Readarr
 > migration preview/import, Calibre Content Server handoff,
 > Readarr-compatible author/book/wanted/import/history/config routes, and
-> durable manual overrides for title, author, cover, quality profile, and
-> monitoring state.
+> durable manual overrides for title, author, cover, quality profile, language,
+> publisher, published date, series, series position, ISBN, and monitoring
+> state.
 >
 > Download clients are deliberately supporting infrastructure. Librarry can send
 > approved book releases to configured clients and expose scoped book-acquisition
@@ -103,9 +104,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   profiles, metadata consumers, custom formats, restrictions, notifications,
   remote path mappings, download clients, and indexers into compatibility state.
 - Native wanted metadata correction for title, author, cover URL, quality
-  profile, and monitoring state, with `manual_overrides` persistence so provider
-  refreshes do not overwrite corrected display metadata. Wanted payloads include
-  visible override state, and individual override fields can be reset.
+  profile, language, publisher, published date, series, series position, ISBN,
+  and monitoring state, with `manual_overrides` persistence so provider
+  refreshes do not overwrite corrected metadata. Wanted payloads include visible
+  override state, and individual override fields can be reset.
 - Wanted metadata provenance API and UI show the stored provider records behind
   a selected wanted item, including provider, matched fields, confidence, and
   the active manual overrides that protect corrected fields. Field-level

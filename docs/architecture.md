@@ -437,12 +437,17 @@ and upgrade search.
 Wanted items are stored in Postgres from normalized metadata results. Native
 `PUT`/`PATCH /api/v1/wanted/{id}` updates title, author, cover URL,
 quality profile, monitoring state, and tags. Title, author, cover URL, and
-quality-profile edits create `manual_overrides` rows for the wanted item, and
-provider refreshes preserve those manually corrected fields during upsert.
-Wanted item payloads include the current manual override list, and
+quality-profile edits create `manual_overrides` rows for the wanted item. The
+metadata correction API also supports protected bibliographic overrides for
+language, publisher, published date, series, series position, and ISBN, so
+provider evidence can be promoted without changing the provider record itself.
+Provider refreshes preserve manually corrected fields during upsert. Wanted
+item payloads include the current manual override list, and
 `DELETE /api/v1/wanted/{id}/overrides/{field}` clears one override. Title,
 author, and cover URL resets immediately restore canonical work/author values
-when those rows are available; quality-profile reset returns to `standard`.
+when those rows are available; quality-profile reset returns to `standard`, and
+bibliographic override resets remove the protected value so provider evidence is
+shown normally again.
 `DELETE /api/v1/wanted/{id}` soft-removes the wanted item without deleting
 library files or download-client data. Monitoring state is stored separately
 from acquisition/import status so Readarr-compatible monitor/unmonitor calls do
