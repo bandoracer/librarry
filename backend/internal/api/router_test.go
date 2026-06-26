@@ -1,11 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1864,6 +1866,62 @@ func TestNotificationWebhookFiresOnGrab(t *testing.T) {
 	}
 }
 
+func TestGrabAcceptsMultipartTorrentUpload(t *testing.T) {
+	acquire := &captureGrabAcquire{}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("title", "Uploaded Book"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("client", "Transmission"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("category", "books-ebook"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("paused", "true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("tags", "librarry,manual"); err != nil {
+		t.Fatal(err)
+	}
+	file, err := writer.CreateFormFile("file", "uploaded.torrent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Write([]byte("torrent-bytes")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  acquire,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/grabs", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if acquire.request.UploadName != "uploaded.torrent" || string(acquire.request.UploadData) != "torrent-bytes" {
+		t.Fatalf("unexpected upload request: %+v", acquire.request)
+	}
+	if acquire.request.Client != "Transmission" || acquire.request.Category != "books-ebook" || !acquire.request.Paused {
+		t.Fatalf("unexpected request fields: %+v", acquire.request)
+	}
+	if strings.Join(acquire.request.Tags, ",") != "librarry,manual" || acquire.request.Protocol != "torrent" {
+		t.Fatalf("unexpected tags/protocol: %+v", acquire.request)
+	}
+}
+
 func TestNotificationWebhookFiresOnLibraryImport(t *testing.T) {
 	var delivered map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2491,6 +2549,27 @@ func (fakeAcquire) Grab(_ context.Context, request acquisition.DownloadRequest) 
 		Tags:      request.Tags,
 		SizeBytes: 7340032,
 		AddedAt:   &now,
+	}, nil
+}
+
+type captureGrabAcquire struct {
+	fakeAcquire
+	request acquisition.DownloadRequest
+}
+
+func (f *captureGrabAcquire) Grab(_ context.Context, request acquisition.DownloadRequest) (acquisition.DownloadStatus, error) {
+	f.request = request
+	now := time.Now().UTC()
+	return acquisition.DownloadStatus{
+		Client:   defaultString(request.Client, "qBittorrent"),
+		ID:       "upload-1",
+		Name:     defaultString(request.Title, request.UploadName),
+		State:    "stoppedDL",
+		Progress: 0,
+		SavePath: request.SavePath,
+		Category: request.Category,
+		Tags:     request.Tags,
+		AddedAt:  &now,
 	}, nil
 }
 

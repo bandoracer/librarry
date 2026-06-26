@@ -284,8 +284,9 @@ payload requests it. Usenet/NZB releases are sent to SABnzbd through the same
 `/api/v1/grabs` API. Startup and `/api/v1/integrations/bootstrap` ensure the
 book categories exist in qBittorrent when qBittorrent is configured; Transmission
 does not have native categories, so Librarry maps book categories to labels.
-The Downloads page can also send a manual magnet, torrent, or NZB URL through
-the same grab path, paused by default, with ebook/audiobook category selection.
+The Downloads page can also send a manual magnet link, `.torrent` file,
+torrent URL, or NZB URL through the same grab path, paused by default, with
+ebook/audiobook category selection.
 
 Download state is reconciled from qBittorrent, Transmission, and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is

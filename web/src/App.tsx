@@ -214,6 +214,8 @@ export function App() {
   const [downloadSavePathInput, setDownloadSavePathInput] = useState("");
   const [downloadRebalanceMax, setDownloadRebalanceMax] = useState("3");
   const [manualGrabURL, setManualGrabURL] = useState("");
+  const [manualGrabFile, setManualGrabFile] = useState<File | null>(null);
+  const [manualGrabFileInputKey, setManualGrabFileInputKey] = useState(0);
   const [manualGrabTitle, setManualGrabTitle] = useState("");
   const [manualGrabFormat, setManualGrabFormat] = useState("ebook");
   const [manualGrabClient, setManualGrabClient] = useState("");
@@ -374,12 +376,13 @@ export function App() {
 
   async function addManualDownload() {
     const releaseUrl = manualGrabURL.trim();
-    if (!releaseUrl) return;
+    if (!releaseUrl && !manualGrabFile) return;
     setIsAddingDownload(true);
     setDownloadError("");
     try {
       const status = await grabManualDownload({
-        releaseUrl,
+        releaseUrl: releaseUrl || undefined,
+        file: manualGrabFile ?? undefined,
         title: manualGrabTitle.trim() || undefined,
         format: manualGrabFormat,
         client: manualGrabClient || undefined,
@@ -387,6 +390,8 @@ export function App() {
       });
       setDownloadStatus(status);
       setManualGrabURL("");
+      setManualGrabFile(null);
+      setManualGrabFileInputKey((current) => current + 1);
       setManualGrabTitle("");
       await refreshDownloads();
       setAPIState("live");
@@ -1732,6 +1737,21 @@ export function App() {
                 <span>Display title</span>
                 <input value={manualGrabTitle} onChange={(event) => setManualGrabTitle(event.target.value)} placeholder="Optional queue name" />
               </label>
+              <label>
+                <span>Torrent file</span>
+                <input
+                  key={manualGrabFileInputKey}
+                  accept=".torrent,application/x-bittorrent"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] ?? null;
+                    setManualGrabFile(file);
+                    if (file && manualGrabClient === "SABnzbd") {
+                      setManualGrabClient("");
+                    }
+                  }}
+                  type="file"
+                />
+              </label>
             </div>
             <div className="manual-grab-options">
               <select value={manualGrabFormat} onChange={(event) => setManualGrabFormat(event.target.value)} aria-label="Download format">
@@ -1742,9 +1762,9 @@ export function App() {
                 <option value="">Auto client</option>
                 <option value="qBittorrent">qBittorrent</option>
                 <option value="Transmission">Transmission</option>
-                <option value="SABnzbd">SABnzbd</option>
+                <option value="SABnzbd" disabled={Boolean(manualGrabFile)}>SABnzbd</option>
               </select>
-              <button className="primary-action" disabled={!manualGrabURL.trim() || isAddingDownload} onClick={addManualDownload} type="button">
+              <button className="primary-action" disabled={(!manualGrabURL.trim() && !manualGrabFile) || isAddingDownload} onClick={addManualDownload} type="button">
                 <Download size={17} />
                 {isAddingDownload ? "Adding" : "Add paused"}
               </button>

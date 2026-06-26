@@ -609,7 +609,8 @@ export async function grabRelease(release: Release, format: string): Promise<Dow
 }
 
 export async function grabManualDownload(request: {
-  releaseUrl: string;
+  releaseUrl?: string;
+  file?: File;
   title?: string;
   format?: string;
   client?: string;
@@ -617,14 +618,34 @@ export async function grabManualDownload(request: {
 }): Promise<DownloadStatus> {
   const format = request.format === "audiobook" ? "audiobook" : "ebook";
   const category = format === "audiobook" ? "books-audiobook" : "books-ebook";
+  if (request.file) {
+    const form = new FormData();
+    if (request.releaseUrl) form.set("releaseUrl", request.releaseUrl);
+    form.set("file", request.file);
+    form.set("uploadName", request.file.name);
+    if (request.title) form.set("title", request.title);
+    if (request.client && request.client !== "SABnzbd") form.set("client", request.client);
+    form.set("protocol", "torrent");
+    form.set("category", category);
+    form.set("paused", String(request.paused ?? true));
+    form.set("tags", "librarry,librarry-ui,manual");
+    const response = await fetch(`${apiBase}/api/v1/grabs`, {
+      method: "POST",
+      body: form
+    });
+    if (!response.ok) {
+      throw new Error(`Manual upload failed: ${response.status}`);
+    }
+    return (await response.json()) as DownloadStatus;
+  }
   const response = await fetch(`${apiBase}/api/v1/grabs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       client: request.client || undefined,
-      releaseUrl: request.releaseUrl,
+      releaseUrl: request.releaseUrl ?? "",
       title: request.title,
-      protocol: protocolForURL(request.releaseUrl),
+      protocol: protocolForURL(request.releaseUrl ?? ""),
       category,
       paused: request.paused ?? true,
       tags: ["librarry", "librarry-ui", "manual"]

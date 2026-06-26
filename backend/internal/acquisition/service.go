@@ -121,6 +121,9 @@ func (s *Service) Feed(ctx context.Context, query ReleaseFeedQuery) ([]Release, 
 }
 
 func (s *Service) Grab(ctx context.Context, request DownloadRequest) (DownloadStatus, error) {
+	if len(request.UploadData) > 0 && strings.EqualFold(strings.TrimSpace(request.Client), s.sab.Name()) {
+		return DownloadStatus{}, errors.New("torrent uploads require qBittorrent or Transmission")
+	}
 	if request.Category == "" {
 		request.Category = s.categoryForFormat("")
 	}
@@ -394,6 +397,9 @@ func (s *Service) downloadClientForRequest(request DownloadRequest) downloadClie
 }
 
 func (s *Service) shouldUseSAB(request DownloadRequest) bool {
+	if len(request.UploadData) > 0 {
+		return false
+	}
 	protocol := strings.ToLower(strings.TrimSpace(request.Protocol))
 	switch protocol {
 	case "usenet", "nzb", "newznab":

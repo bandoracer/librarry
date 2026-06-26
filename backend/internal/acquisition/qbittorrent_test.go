@@ -3,12 +3,69 @@ package acquisition
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestQBittorrentAddUploadsTorrentFile(t *testing.T) {
+	var filename string
+	var uploaded string
+	var category string
+	var tags string
+	var paused string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/torrents/add" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		file, header, err := r.FormFile("torrents")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer file.Close()
+		body, err := io.ReadAll(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		filename = header.Filename
+		uploaded = string(body)
+		category = r.FormValue("category")
+		tags = r.FormValue("tags")
+		paused = r.FormValue("paused")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success_count":1,"added_torrent_ids":["abc123"]}`))
+	}))
+	defer server.Close()
+
+	client := NewQBittorrentClient(server.URL, "", "", server.Client())
+	status, err := client.Add(context.Background(), DownloadRequest{
+		Title:      "Book upload",
+		Category:   CategoryBooksEbook,
+		SavePath:   "/downloads/books",
+		Paused:     true,
+		Tags:       []string{"librarry", "manual"},
+		UploadName: "book.torrent",
+		UploadData: []byte("torrent-bytes"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filename != "book.torrent" || uploaded != "torrent-bytes" {
+		t.Fatalf("unexpected upload %q %q", filename, uploaded)
+	}
+	if category != CategoryBooksEbook || tags != "librarry,manual" || paused != "true" {
+		t.Fatalf("unexpected form fields category=%q tags=%q paused=%q", category, tags, paused)
+	}
+	if status.ID != "abc123" || status.Name != "Book upload" || status.Client != "qBittorrent" {
+		t.Fatalf("unexpected status: %+v", status)
+	}
+}
 
 func TestQBittorrentActionStop(t *testing.T) {
 	var endpoint string

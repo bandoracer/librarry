@@ -2,12 +2,61 @@ package acquisition
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+func TestTransmissionAddUploadsTorrentMetainfo(t *testing.T) {
+	var addArgs map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != transmissionRPCPath {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		var payload struct {
+			Method    string         `json:"method"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Method != "torrent-add" {
+			t.Fatalf("unexpected method %s", payload.Method)
+		}
+		addArgs = payload.Arguments
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"result": "success",
+			"arguments": map[string]any{
+				"torrent-added": map[string]any{"id": 42, "hashString": "abc123", "name": "Book upload"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewTransmissionClient(server.URL, "", "", server.Client())
+	status, err := client.Add(context.Background(), DownloadRequest{
+		Title:      "Book upload",
+		SavePath:   "/downloads/books",
+		Paused:     true,
+		UploadName: "book.torrent",
+		UploadData: []byte("torrent-bytes"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if addArgs["filename"] != nil {
+		t.Fatalf("expected upload to avoid filename arg, got %#v", addArgs)
+	}
+	if addArgs["metainfo"] != base64.StdEncoding.EncodeToString([]byte("torrent-bytes")) || addArgs["paused"] != true {
+		t.Fatalf("unexpected add args: %#v", addArgs)
+	}
+	if status.Client != "Transmission" || status.ID != "abc123" || status.Name != "Book upload" {
+		t.Fatalf("unexpected status: %+v", status)
+	}
+}
 
 func TestTransmissionAddRetriesSessionAndLabelsTorrent(t *testing.T) {
 	var methods []string

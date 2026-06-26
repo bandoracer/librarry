@@ -282,6 +282,18 @@ func TestServiceRoutesUsenetGrabsToSABnzbd(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsTorrentUploadToSABnzbd(t *testing.T) {
+	service := NewService(IntegrationConfig{SABnzbdURL: "http://sabnzbd.example", SABnzbdAPIKey: "api-key"})
+	_, err := service.Grab(context.Background(), DownloadRequest{
+		Client:     "SABnzbd",
+		UploadName: "book.torrent",
+		UploadData: []byte("torrent-bytes"),
+	})
+	if err == nil || !strings.Contains(err.Error(), "torrent uploads require") {
+		t.Fatalf("expected torrent upload rejection, got %v", err)
+	}
+}
+
 func TestServiceRoutesExplicitSABnzbdDetailsAndAction(t *testing.T) {
 	var commands []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

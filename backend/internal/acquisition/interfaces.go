@@ -49,6 +49,8 @@ type DownloadRequest struct {
 	SavePath   string   `json:"savePath,omitempty"`
 	Paused     bool     `json:"paused"`
 	Tags       []string `json:"tags,omitempty"`
+	UploadName string   `json:"uploadName,omitempty"`
+	UploadData []byte   `json:"-"`
 }
 
 type DownloadStatus struct {

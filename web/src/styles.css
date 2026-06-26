@@ -1775,7 +1775,7 @@ select {
 .manual-grab-main {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(260px, 1.4fr) minmax(180px, 0.6fr);
+  grid-template-columns: minmax(240px, 1.2fr) minmax(170px, 0.55fr) minmax(170px, 0.65fr);
   gap: 10px;
 }
 
@@ -1805,6 +1805,10 @@ select {
   background: var(--surface);
   padding: 0 10px;
   outline: 0;
+}
+
+.manual-grab-main input[type="file"] {
+  padding: 7px 10px;
 }
 
 .manual-grab-options {

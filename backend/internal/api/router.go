@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -20,6 +21,8 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/settings"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
+
+const maxGrabUploadBytes = 64 << 20
 
 type Dependencies struct {
 	Logger   *slog.Logger
@@ -446,8 +449,8 @@ func (h *handler) grab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	var request acquisition.DownloadRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	request, err := decodeGrabRequest(r)
+	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid grab payload"})
 		return
 	}
@@ -458,6 +461,106 @@ func (h *handler) grab(w http.ResponseWriter, r *http.Request) {
 	}
 	h.notifyDownloadGrab(r.Context(), "native-grab", status, "")
 	writeJSON(w, http.StatusOK, status)
+}
+
+func decodeGrabRequest(r *http.Request) (acquisition.DownloadRequest, error) {
+	contentType := strings.ToLower(r.Header.Get("Content-Type"))
+	if strings.Contains(contentType, "multipart/form-data") {
+		return decodeMultipartGrabRequest(r)
+	}
+	var request acquisition.DownloadRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return acquisition.DownloadRequest{}, err
+	}
+	return request, nil
+}
+
+func decodeMultipartGrabRequest(r *http.Request) (acquisition.DownloadRequest, error) {
+	if err := r.ParseMultipartForm(maxGrabUploadBytes); err != nil {
+		return acquisition.DownloadRequest{}, err
+	}
+	request := acquisition.DownloadRequest{
+		Client:     strings.TrimSpace(firstFormValue(r, "client")),
+		ReleaseURL: strings.TrimSpace(firstFormValue(r, "releaseUrl", "releaseURL", "url")),
+		InfoHash:   strings.TrimSpace(firstFormValue(r, "infoHash")),
+		Title:      strings.TrimSpace(firstFormValue(r, "title")),
+		Protocol:   strings.TrimSpace(firstFormValue(r, "protocol")),
+		Category:   strings.TrimSpace(firstFormValue(r, "category")),
+		SavePath:   strings.TrimSpace(firstFormValue(r, "savePath")),
+		Paused:     formBoolValue(r, "paused"),
+		Tags:       formListValue(r, "tags"),
+	}
+	if name := strings.TrimSpace(firstFormValue(r, "uploadName", "fileName", "filename")); name != "" {
+		request.UploadName = name
+	}
+	for _, field := range []string{"file", "torrent", "torrents", "upload"} {
+		file, header, err := r.FormFile(field)
+		if err != nil {
+			if errors.Is(err, http.ErrMissingFile) {
+				continue
+			}
+			return acquisition.DownloadRequest{}, err
+		}
+		defer file.Close()
+		data, err := readLimitedUpload(file, maxGrabUploadBytes)
+		if err != nil {
+			return acquisition.DownloadRequest{}, err
+		}
+		request.UploadData = data
+		if request.UploadName == "" && header != nil {
+			request.UploadName = header.Filename
+		}
+		if request.Protocol == "" {
+			request.Protocol = "torrent"
+		}
+		break
+	}
+	return request, nil
+}
+
+func firstFormValue(r *http.Request, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(r.FormValue(key)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func formBoolValue(r *http.Request, key string) bool {
+	value := strings.TrimSpace(r.FormValue(key))
+	if value == "" {
+		return false
+	}
+	parsed, err := strconv.ParseBool(value)
+	return err == nil && parsed
+}
+
+func formListValue(r *http.Request, key string) []string {
+	if r.MultipartForm == nil {
+		return nil
+	}
+	values := r.MultipartForm.Value[key]
+	var items []string
+	for _, value := range values {
+		for _, item := range strings.Split(value, ",") {
+			if trimmed := strings.TrimSpace(item); trimmed != "" {
+				items = append(items, trimmed)
+			}
+		}
+	}
+	return items
+}
+
+func readLimitedUpload(file io.Reader, limit int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, errors.New("upload is too large")
+	}
+	return data, nil
 }
 
 func (h *handler) downloads(w http.ResponseWriter, r *http.Request) {

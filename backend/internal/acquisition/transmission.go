@@ -3,6 +3,7 @@ package acquisition
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -64,12 +65,16 @@ func (c *TransmissionClient) Add(ctx context.Context, request DownloadRequest) (
 	if !c.Configured() {
 		return DownloadStatus{}, ErrIntegrationNotConfigured
 	}
-	if strings.TrimSpace(request.ReleaseURL) == "" {
-		return DownloadStatus{}, errors.New("releaseUrl is required")
+	if strings.TrimSpace(request.ReleaseURL) == "" && len(request.UploadData) == 0 {
+		return DownloadStatus{}, errors.New("releaseUrl or torrent upload is required")
 	}
 	args := map[string]any{
-		"filename": request.ReleaseURL,
-		"paused":   request.Paused,
+		"paused": request.Paused,
+	}
+	if len(request.UploadData) > 0 {
+		args["metainfo"] = base64.StdEncoding.EncodeToString(request.UploadData)
+	} else {
+		args["filename"] = request.ReleaseURL
 	}
 	if strings.TrimSpace(request.SavePath) != "" {
 		args["download-dir"] = request.SavePath

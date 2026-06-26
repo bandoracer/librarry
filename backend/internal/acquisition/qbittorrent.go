@@ -1,6 +1,7 @@
 package acquisition
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -109,16 +110,27 @@ func (c *QBittorrentClient) Add(ctx context.Context, request DownloadRequest) (D
 	if !c.Configured() {
 		return DownloadStatus{}, ErrIntegrationNotConfigured
 	}
-	if strings.TrimSpace(request.ReleaseURL) == "" {
-		return DownloadStatus{}, errors.New("releaseUrl is required")
+	if strings.TrimSpace(request.ReleaseURL) == "" && len(request.UploadData) == 0 {
+		return DownloadStatus{}, errors.New("releaseUrl or torrent upload is required")
 	}
 	if err := c.login(ctx); err != nil {
 		return DownloadStatus{}, err
 	}
 
-	var body strings.Builder
+	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	_ = writer.WriteField("urls", request.ReleaseURL)
+	if strings.TrimSpace(request.ReleaseURL) != "" {
+		_ = writer.WriteField("urls", request.ReleaseURL)
+	}
+	if len(request.UploadData) > 0 {
+		part, err := writer.CreateFormFile("torrents", firstNonEmpty(request.UploadName, "upload.torrent"))
+		if err != nil {
+			return DownloadStatus{}, err
+		}
+		if _, err := part.Write(request.UploadData); err != nil {
+			return DownloadStatus{}, err
+		}
+	}
 	_ = writer.WriteField("category", request.Category)
 	_ = writer.WriteField("savepath", request.SavePath)
 	_ = writer.WriteField("paused", boolString(request.Paused))
@@ -128,7 +140,7 @@ func (c *QBittorrentClient) Add(ctx context.Context, request DownloadRequest) (D
 	}
 	_ = writer.Close()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v2/torrents/add", strings.NewReader(body.String()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v2/torrents/add", &body)
 	if err != nil {
 		return DownloadStatus{}, err
 	}
@@ -158,8 +170,8 @@ func (c *QBittorrentClient) Add(ctx context.Context, request DownloadRequest) (D
 	now := time.Now().UTC()
 	return DownloadStatus{
 		Client:     c.Name(),
-		ID:         id,
-		Name:       firstNonEmpty(request.Title, request.ReleaseURL),
+		ID:         firstNonEmpty(id, request.UploadName),
+		Name:       firstNonEmpty(request.Title, request.UploadName, request.ReleaseURL),
 		State:      state,
 		Progress:   0,
 		SavePath:   request.SavePath,
