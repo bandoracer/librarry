@@ -367,11 +367,12 @@ configured, Librarry fetches Calibre conversion book data and starts conversion
 jobs for target formats that are not already present, then captures an immediate
 status snapshot from Calibre's conversion status endpoint. Stored conversion
 jobs can be refreshed later through the native refresh endpoint or
-`RefreshCalibreConversions` command. When a Calibre-backed file is physically
-deleted, Librarry calls the Content Server delete-books endpoint before removing
-the local file record. Scheduled background conversion completion polling,
-richer edition metadata, embedded metadata writes, path refresh after Calibre
-renames, and rollback for failed Calibre imports are still future work.
+`RefreshCalibreConversions` command, and the API process can poll those jobs on
+an interval through the `RefreshCalibreConversions` background task. When a
+Calibre-backed file is physically deleted, Librarry calls the Content Server
+delete-books endpoint before removing the local file record. Richer edition
+metadata, embedded metadata writes, path refresh after Calibre renames, and
+rollback for failed Calibre imports are still future work.
 
 Readarr-compatible operational support endpoints expose filesystem browsing,
 languages, localization strings, logs, update records, and backup records. The

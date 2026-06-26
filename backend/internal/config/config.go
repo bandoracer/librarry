@@ -60,6 +60,10 @@ type Config struct {
 	UpgradeSearchLimit        int
 	UpgradeSearchAutoGrab     bool
 	UpgradeSearchMinDelta     float64
+	CalibreRefreshEnabled     bool
+	CalibreRefreshInterval    time.Duration
+	CalibreRefreshLimit       int
+	CalibreRefreshMaxAttempts int
 	WebOrigin                 string
 }
 
@@ -117,6 +121,10 @@ func FromEnv() Config {
 		UpgradeSearchLimit:        envInt("LIBRARRY_UPGRADE_SEARCH_LIMIT", 50),
 		UpgradeSearchAutoGrab:     envBool("LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB", false),
 		UpgradeSearchMinDelta:     envFloat("LIBRARRY_UPGRADE_SEARCH_MIN_DELTA", 5),
+		CalibreRefreshEnabled:     envBool("LIBRARRY_CALIBRE_REFRESH_ENABLED", true),
+		CalibreRefreshInterval:    envDuration("LIBRARRY_CALIBRE_REFRESH_INTERVAL", 15*time.Minute),
+		CalibreRefreshLimit:       envInt("LIBRARRY_CALIBRE_REFRESH_LIMIT", 200),
+		CalibreRefreshMaxAttempts: envInt("LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS", 1),
 		WebOrigin:                 env("LIBRARRY_WEB_ORIGIN", "http://127.0.0.1:5173"),
 	}
 }

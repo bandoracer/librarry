@@ -119,6 +119,10 @@ func main() {
 		monitorWG.Add(1)
 		go runUpgradeSearch(ctx, &monitorWG, logger, wantedService, cfg)
 	}
+	if cfg.CalibreRefreshEnabled && libraryService.Available() {
+		monitorWG.Add(1)
+		go runCalibreConversionRefresh(ctx, &monitorWG, logger, libraryService, cfg)
+	}
 
 	router := api.NewRouter(api.Dependencies{
 		Logger:   logger,
@@ -425,4 +429,92 @@ func runAuthorMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logg
 			run("scheduled")
 		}
 	}
+}
+
+type calibreConversionRefreshService interface {
+	RefreshCalibreConversions(ctx context.Context, request library.CalibreConversionRefreshRequest) (library.CalibreConversionRefreshOutcome, error)
+}
+
+func runCalibreConversionRefresh(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service calibreConversionRefreshService, cfg config.Config) {
+	defer wg.Done()
+	interval, _ := calibreConversionRefreshSchedule(cfg)
+
+	run := func(trigger string) {
+		outcome, err := runCalibreConversionRefreshOnce(ctx, logger, service, cfg, trigger)
+		if err != nil {
+			logger.Warn("calibre conversion refresh failed", "trigger", trigger, "error", err)
+			return
+		}
+		logger.Info(
+			"calibre conversion refresh completed",
+			"trigger", trigger,
+			"checked", outcome.Checked,
+			"refreshed", outcome.Refreshed,
+			"skipped", outcome.Skipped,
+			"errors", outcome.Errored,
+		)
+	}
+
+	startup := time.NewTimer(75 * time.Second)
+	ticker := time.NewTicker(interval)
+	defer startup.Stop()
+	defer ticker.Stop()
+	logger.Info("calibre conversion refresh enabled", "interval", interval, "limit", calibreConversionRefreshLimit(cfg), "max_attempts", calibreConversionRefreshMaxAttempts(cfg))
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			run("scheduled-startup")
+		case <-ticker.C:
+			run("scheduled")
+		}
+	}
+}
+
+func runCalibreConversionRefreshOnce(ctx context.Context, logger *slog.Logger, service calibreConversionRefreshService, cfg config.Config, trigger string) (library.CalibreConversionRefreshOutcome, error) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	_, request := calibreConversionRefreshSchedule(cfg)
+	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	outcome, err := service.RefreshCalibreConversions(runCtx, request)
+	if err != nil {
+		return library.CalibreConversionRefreshOutcome{}, err
+	}
+	logger.Debug("calibre conversion refresh run completed", "trigger", trigger, "checked", outcome.Checked, "refreshed", outcome.Refreshed, "skipped", outcome.Skipped, "errors", outcome.Errored)
+	return outcome, nil
+}
+
+func calibreConversionRefreshSchedule(cfg config.Config) (time.Duration, library.CalibreConversionRefreshRequest) {
+	interval := cfg.CalibreRefreshInterval
+	if interval <= 0 {
+		interval = 15 * time.Minute
+	}
+	return interval, library.CalibreConversionRefreshRequest{
+		Limit:       calibreConversionRefreshLimit(cfg),
+		MaxAttempts: calibreConversionRefreshMaxAttempts(cfg),
+	}
+}
+
+func calibreConversionRefreshLimit(cfg config.Config) int {
+	if cfg.CalibreRefreshLimit <= 0 {
+		return 200
+	}
+	if cfg.CalibreRefreshLimit > 500 {
+		return 500
+	}
+	return cfg.CalibreRefreshLimit
+}
+
+func calibreConversionRefreshMaxAttempts(cfg config.Config) int {
+	if cfg.CalibreRefreshMaxAttempts <= 0 {
+		return 1
+	}
+	if cfg.CalibreRefreshMaxAttempts > 10 {
+		return 10
+	}
+	return cfg.CalibreRefreshMaxAttempts
 }

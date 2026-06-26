@@ -4460,6 +4460,7 @@ func (h *handler) compatSystemTaskRecords() []map[string]any {
 		compatSystemTaskRecord(4, "FailedDownloadCheck", "Failed download recovery", h.deps.Config.FailedDownloadInterval, h.deps.Config.FailedDownloadEnabled, now),
 		compatSystemTaskRecord(5, "UpgradeSearch", "Wanted upgrade search", h.deps.Config.UpgradeSearchInterval, h.deps.Config.UpgradeSearchEnabled, now),
 		compatSystemTaskRecord(6, "ImportListSync", "Import list sync", h.deps.Config.FeedSyncInterval, h.deps.Config.FeedSyncEnabled, now),
+		compatSystemTaskRecord(7, "RefreshCalibreConversions", "Calibre conversion status refresh", h.deps.Config.CalibreRefreshInterval, h.deps.Config.CalibreRefreshEnabled, now),
 	}
 }
 

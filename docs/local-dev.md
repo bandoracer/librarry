@@ -179,6 +179,26 @@ qBittorrent error/missing-file states and stale stalled downloads with no
 seeders, marks the linked wanted item wanted again, searches for replacements,
 and only grabs or removes torrents when explicitly requested.
 
+## Calibre Conversion Refresh
+
+Calibre conversion status polling can run on an interval when database
+persistence and Calibre root-folder settings are available:
+
+```dotenv
+LIBRARRY_CALIBRE_REFRESH_ENABLED=true
+LIBRARRY_CALIBRE_REFRESH_INTERVAL=15m
+LIBRARRY_CALIBRE_REFRESH_LIMIT=200
+LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS=1
+```
+
+Manual refreshes are available through
+`POST /api/v1/library/calibre/conversions/refresh` or the Readarr-compatible
+`RefreshCalibreConversions` command. Scheduled refreshes poll stored conversion
+jobs and update completed or failed conversion metadata; they do not start new
+conversion jobs.
+
+## Downloads
+
 The download queue UI uses `POST /api/v1/downloads/actions` for single and
 selected-row bulk actions. Supported queue actions include start, stop, delete,
 recheck, priority movement, force-start, sequential-download toggle,
@@ -249,8 +269,9 @@ through the Content Server set-fields endpoint. If `outputFormat` is configured
 on the root folder, Librarry starts Calibre conversion jobs for missing target
 formats and captures an immediate status snapshot. Stored conversion jobs can be
 refreshed with `POST /api/v1/library/calibre/conversions/refresh` or the
-Readarr-compatible `RefreshCalibreConversions` command. Physical deletion of a
-Calibre-backed file calls the Content Server delete-books endpoint before
-removing the local file record. Scheduled Calibre conversion completion
-polling, richer edition metadata, embedded metadata writes, path refresh after
-Calibre renames, and failed-import rollback are not implemented yet.
+Readarr-compatible `RefreshCalibreConversions` command, and the API process can
+poll those jobs on an interval with `LIBRARRY_CALIBRE_REFRESH_ENABLED=true`.
+Physical deletion of a Calibre-backed file calls the Content Server
+delete-books endpoint before removing the local file record. Richer edition
+metadata, embedded metadata writes, path refresh after Calibre renames, and
+failed-import rollback are not implemented yet.

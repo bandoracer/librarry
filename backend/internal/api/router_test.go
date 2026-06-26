@@ -1761,6 +1761,8 @@ func TestCompatHostUIIndexerDownloadConfigAndTasks(t *testing.T) {
 			FailedDownloadInterval: 30 * time.Minute,
 			UpgradeSearchEnabled:   true,
 			UpgradeSearchInterval:  12 * time.Hour,
+			CalibreRefreshEnabled:  true,
+			CalibreRefreshInterval: 15 * time.Minute,
 		},
 		Metadata: metadata.NewService(nil),
 	})
@@ -1775,6 +1777,7 @@ func TestCompatHostUIIndexerDownloadConfigAndTasks(t *testing.T) {
 		{"/api/v1/config/indexer", `"rssSyncInterval":15`},
 		{"/api/v1/delayprofile", `"preferredProtocol":"torrent"`},
 		{"/api/v1/system/task", `"taskName":"RssSync"`},
+		{"/api/v1/system/task", `"taskName":"RefreshCalibreConversions"`},
 	}
 	for _, check := range checks {
 		req := httptest.NewRequest(http.MethodGet, check.path, nil)
@@ -1815,6 +1818,14 @@ func TestCompatHostUIIndexerDownloadConfigAndTasks(t *testing.T) {
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"taskName":"RssSync"`) {
 		t.Fatalf("expected single system task, got %d: %s", res.Code, res.Body.String())
+	}
+
+	taskID = stableInt("RefreshCalibreConversions")
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/system/task/"+strconv.Itoa(taskID), nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"taskName":"RefreshCalibreConversions"`) {
+		t.Fatalf("expected Calibre refresh system task, got %d: %s", res.Code, res.Body.String())
 	}
 }
 
