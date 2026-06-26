@@ -86,6 +86,24 @@ func NewService(config IntegrationConfig) *Service {
 	}
 }
 
+func (s *Service) IntegrationConfig() IntegrationConfig {
+	if s == nil {
+		return IntegrationConfig{}
+	}
+	return s.config
+}
+
+func (s *Service) Reconfigure(config IntegrationConfig) {
+	if s == nil {
+		return
+	}
+	if config.DownloadStore == nil {
+		config.DownloadStore = s.store
+	}
+	next := NewService(config)
+	*s = *next
+}
+
 func (s *Service) Health(ctx context.Context) []IntegrationHealth {
 	return []IntegrationHealth{
 		s.prowlarr.Health(ctx),

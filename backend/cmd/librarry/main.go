@@ -16,6 +16,7 @@ import (
 	compatstore "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/database"
+	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
@@ -61,7 +62,7 @@ func main() {
 		HTTPTimeout:    12 * time.Second,
 	})
 	metadataService := metadata.NewService(providers)
-	acquire := acquisition.NewService(acquisition.IntegrationConfig{
+	integrationConfig := acquisition.IntegrationConfig{
 		ProwlarrURL:       cfg.ProwlarrURL,
 		ProwlarrAPIKey:    cfg.ProwlarrAPIKey,
 		QBittorrentURL:    cfg.QBittorrentURL,
@@ -78,8 +79,16 @@ func main() {
 		AudiobookCategory: cfg.AudiobookCategory,
 		BookTorrentRoot:   cfg.BookTorrentRoot,
 		DownloadStore:     downloadStore,
-	})
-	if cfg.QBittorrentURL != "" {
+	}
+	if compatStore != nil {
+		var err error
+		integrationConfig, err = integrationsettings.FromResources(ctx, compatStore, integrationConfig)
+		if err != nil {
+			logger.Warn("persisted integration settings unavailable", "error", err)
+		}
+	}
+	acquire := acquisition.NewService(integrationConfig)
+	if integrationConfig.QBittorrentURL != "" {
 		bootstrapCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		if result, err := acquire.Bootstrap(bootstrapCtx); err != nil {
 			logger.Warn("qBittorrent category bootstrap failed", "error", err)

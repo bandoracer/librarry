@@ -2399,6 +2399,89 @@ select {
   padding: 0 10px;
 }
 
+.integration-settings-panel {
+  display: grid;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.integration-settings-header {
+  min-height: 62px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.integration-settings-header > div:first-child {
+  min-width: 0;
+}
+
+.integration-settings-header strong,
+.integration-settings-header span {
+  display: block;
+  min-width: 0;
+}
+
+.integration-settings-header strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.integration-settings-header span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.integration-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.integration-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.integration-settings-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.integration-settings-grid label.wide {
+  grid-column: span 2;
+}
+
+.integration-settings-grid label span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.integration-settings-grid input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  color: var(--text);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
 .quality-profile-row {
   min-height: 76px;
   display: grid;
@@ -2623,13 +2706,26 @@ select {
   .download-resource-editor.tag-editor,
   .download-resource-lists,
   .download-resource-row,
-  .download-preference-grid {
+  .download-preference-grid,
+  .integration-settings-grid {
     grid-template-columns: 1fr;
   }
 
-  .download-preference-header {
+  .download-preference-header,
+  .integration-settings-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .integration-settings-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .integration-settings-actions button,
+  .integration-settings-grid label.wide {
+    width: 100%;
+    grid-column: auto;
   }
 
   .download-resource-row .icon-button {

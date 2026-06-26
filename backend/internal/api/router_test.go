@@ -2998,7 +2998,92 @@ func TestResolveImportReviewsBulkEndpointDefaultsToPendingReviews(t *testing.T) 
 	}
 }
 
+func TestUpdateIntegrationConfigPersistsAndReconfiguresAcquireService(t *testing.T) {
+	acquire := &configurableFakeAcquire{config: acquisition.IntegrationConfig{
+		ProwlarrAPIKey:    "existing-prowlarr-key",
+		EbookCategory:     "books-ebook",
+		AudiobookCategory: "books-audiobook",
+		BookTorrentRoot:   "/data/torrents/books",
+	}}
+	compatResources := &fakeCompatResources{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Acquire:  acquire,
+		Compat:   compatResources,
+	})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/integrations/config", strings.NewReader(`{
+		"prowlarrUrl":"http://prowlarr.local/",
+		"prowlarrApiKey":"",
+		"qbittorrentUrl":"http://qbit.local/",
+		"qbittorrentUsername":"admin",
+		"qbittorrentPassword":"qbit-secret",
+		"sabnzbdUrl":"http://sab.local",
+		"sabnzbdApiKey":"sab-secret",
+		"ebookCategory":"ebook-cat",
+		"audiobookCategory":"audio-cat",
+		"bookTorrentRoot":"/downloads/books"
+	}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if len(acquire.reconfigured) != 1 {
+		t.Fatalf("expected acquisition service reconfigure, got %#v", acquire.reconfigured)
+	}
+	config := acquire.config
+	if config.ProwlarrURL != "http://prowlarr.local" || config.ProwlarrAPIKey != "existing-prowlarr-key" {
+		t.Fatalf("expected trimmed Prowlarr URL and preserved API key, got %+v", config)
+	}
+	if config.QBittorrentURL != "http://qbit.local" || config.QBittorrentUser != "admin" || config.QBittorrentPass != "qbit-secret" {
+		t.Fatalf("expected qBittorrent settings to apply, got %+v", config)
+	}
+	if config.SABnzbdURL != "http://sab.local" || config.SABnzbdAPIKey != "sab-secret" {
+		t.Fatalf("expected SABnzbd settings to apply, got %+v", config)
+	}
+	if config.EbookCategory != "ebook-cat" || config.AudiobookCategory != "audio-cat" || config.BookTorrentRoot != "/downloads/books" {
+		t.Fatalf("expected category/root settings to apply, got %+v", config)
+	}
+	if strings.Contains(res.Body.String(), "existing-prowlarr-key") || strings.Contains(res.Body.String(), "qbit-secret") || strings.Contains(res.Body.String(), "sab-secret") {
+		t.Fatalf("response leaked a secret: %s", res.Body.String())
+	}
+	qbit, ok, err := compatResources.GetResource(context.Background(), "download-client", 1)
+	if err != nil || !ok {
+		t.Fatalf("expected qBittorrent resource, ok=%v err=%v", ok, err)
+	}
+	if compatTestFieldString(qbit.Payload, "host") != "http://qbit.local" || compatTestFieldString(qbit.Payload, "password") != "qbit-secret" {
+		t.Fatalf("unexpected qBittorrent payload: %#v", qbit.Payload)
+	}
+}
+
 type fakeAcquire struct{}
+
+type configurableFakeAcquire struct {
+	fakeAcquire
+	config       acquisition.IntegrationConfig
+	reconfigured []acquisition.IntegrationConfig
+}
+
+func (f *configurableFakeAcquire) IntegrationConfig() acquisition.IntegrationConfig {
+	return f.config
+}
+
+func (f *configurableFakeAcquire) Reconfigure(config acquisition.IntegrationConfig) {
+	f.config = config
+	f.reconfigured = append(f.reconfigured, config)
+}
+
+func (f *configurableFakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
+	return []acquisition.IntegrationHealth{{
+		Name:       "qBittorrent",
+		Configured: f.config.QBittorrentURL != "",
+		Status:     "ready",
+	}}
+}
 
 func (fakeAcquire) Health(context.Context) []acquisition.IntegrationHealth {
 	return nil
@@ -3814,6 +3899,30 @@ func cloneFakeCompatResource(resource compatdata.Resource) compatdata.Resource {
 		cloned.Payload[key] = value
 	}
 	return cloned
+}
+
+func compatTestFieldString(payload map[string]any, name string) string {
+	fields, ok := payload["fields"].([]map[string]any)
+	if ok {
+		for _, field := range fields {
+			if field["name"] == name {
+				value, _ := field["value"].(string)
+				return value
+			}
+		}
+	}
+	anyFields, ok := payload["fields"].([]any)
+	if ok {
+		for _, field := range anyFields {
+			fieldMap, ok := field.(map[string]any)
+			if !ok || fieldMap["name"] != name {
+				continue
+			}
+			value, _ := fieldMap["value"].(string)
+			return value
+		}
+	}
+	return ""
 }
 
 func fakeNotificationCompat(url string, overrides map[string]any) *fakeCompatResources {

@@ -37,6 +37,7 @@ import {
   fetchDownloadPreferences,
   fetchDownloadResources,
   fetchIntegrationHealth,
+  fetchIntegrationSettings,
   fetchDownloads,
   fetchHistory,
   fetchLibraryFiles,
@@ -64,6 +65,7 @@ import {
   runDownloadTagAction,
   runDownloadTrackerAction,
   saveQualityProfile,
+  saveIntegrationSettings,
   saveDownloadPreferences,
   scanLibrary,
   searchMetadata,
@@ -87,6 +89,7 @@ import {
   type HistoryEvent,
   type ImportReview,
   type IntegrationHealth,
+  type IntegrationSettings,
   type LibraryFile,
   type LibraryImportOutcome,
   type LibraryScanOutcome,
@@ -159,11 +162,50 @@ type DownloadScope = "all" | "librarry";
 type DownloadStateFilter = "all" | "active" | "paused" | "complete" | "failed";
 type WantedViewFilter = "missing" | "wanted" | "grabbed" | "all";
 
+function emptyIntegrationSettings(): IntegrationSettings {
+  return {
+    prowlarrUrl: "",
+    prowlarrApiKey: "",
+    prowlarrApiKeyConfigured: false,
+    qbittorrentUrl: "",
+    qbittorrentUsername: "",
+    qbittorrentPassword: "",
+    qbittorrentPasswordConfigured: false,
+    transmissionUrl: "",
+    transmissionUsername: "",
+    transmissionPassword: "",
+    transmissionPasswordConfigured: false,
+    sabnzbdUrl: "",
+    sabnzbdApiKey: "",
+    sabnzbdApiKeyConfigured: false,
+    sabnzbdUsername: "",
+    sabnzbdPassword: "",
+    sabnzbdPasswordConfigured: false,
+    ebookCategory: "books-ebook",
+    audiobookCategory: "books-audiobook",
+    bookTorrentRoot: "/data/torrents/books"
+  };
+}
+
+function integrationSettingsForm(settings: IntegrationSettings): IntegrationSettings {
+  return {
+    ...settings,
+    prowlarrApiKey: "",
+    qbittorrentPassword: "",
+    transmissionPassword: "",
+    sabnzbdApiKey: "",
+    sabnzbdPassword: ""
+  };
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<ViewID>("downloads");
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
   const [results, setResults] = useState<SearchResult[]>(seedResults);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
+  const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
+  const [integrationForm, setIntegrationForm] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
+  const [integrationSettingsPersisted, setIntegrationSettingsPersisted] = useState(false);
   const [releases, setReleases] = useState<Release[]>([]);
   const [wantedItems, setWantedItems] = useState<WantedItem[]>([]);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
@@ -225,6 +267,7 @@ export function App() {
   const [isLoadingDownloadResources, setIsLoadingDownloadResources] = useState(false);
   const [isLoadingDownloadPreferences, setIsLoadingDownloadPreferences] = useState(false);
   const [isSavingDownloadPreferences, setIsSavingDownloadPreferences] = useState(false);
+  const [isSavingIntegrationSettings, setIsSavingIntegrationSettings] = useState(false);
   const [savingProfileID, setSavingProfileID] = useState("");
   const [reviewActionID, setReviewActionID] = useState("");
   const [downloadActionID, setDownloadActionID] = useState("");
@@ -290,6 +333,18 @@ export function App() {
       })
       .catch(() => {
         setAPIState("offline");
+      });
+    fetchIntegrationSettings()
+      .then((response) => {
+        setIntegrationSettings(response.settings);
+        setIntegrationForm(integrationSettingsForm(response.settings));
+        setIntegrationSettingsPersisted(response.persisted);
+        if (response.integrations?.length) {
+          setIntegrations(response.integrations);
+        }
+      })
+      .catch((error) => {
+        setSettingsError(error instanceof Error ? error.message : "Integration settings refresh failed");
       });
     fetchDownloads(downloadListOptions(downloadScope))
       .then(setDownloads)
@@ -1390,6 +1445,34 @@ export function App() {
       setSettingsError(error instanceof Error ? error.message : "Quality profile save failed");
     } finally {
       setSavingProfileID("");
+    }
+  }
+
+  function updateIntegrationForm(changes: Partial<IntegrationSettings>) {
+    setIntegrationForm((current) => ({ ...current, ...changes }));
+  }
+
+  async function persistIntegrationSettings() {
+    setIsSavingIntegrationSettings(true);
+    setSettingsError("");
+    setSettingsNotice("");
+    try {
+      const response = await saveIntegrationSettings(integrationForm);
+      setIntegrationSettings(response.settings);
+      setIntegrationForm(integrationSettingsForm(response.settings));
+      setIntegrationSettingsPersisted(response.persisted);
+      if (response.integrations?.length) {
+        setIntegrations(response.integrations);
+      } else {
+        setIntegrations(await fetchIntegrationHealth());
+      }
+      await Promise.allSettled([refreshDownloads(), refreshDownloadResources(true), refreshDownloadPreferences(true)]);
+      setSettingsNotice(response.persisted ? "Integration settings saved and applied." : "Integration settings applied for this process. Add Postgres to persist them.");
+      setAPIState("live");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "Integration settings save failed");
+    } finally {
+      setIsSavingIntegrationSettings(false);
     }
   }
 
@@ -2882,6 +2965,102 @@ export function App() {
           </div>
           {settingsNotice ? <div className="inline-note">{settingsNotice}</div> : null}
           {settingsError ? <div className="inline-error">{settingsError}</div> : null}
+          <div className="integration-settings-panel">
+            <div className="integration-settings-header">
+              <div>
+                <strong>Indexer and download clients</strong>
+                <span>
+                  {integrationSettingsPersisted ? "Postgres" : "runtime"} · {integrationSettings.prowlarrUrl ? "indexer set" : "no indexer"} ·{" "}
+                  {integrationSettings.qbittorrentUrl || integrationSettings.transmissionUrl || integrationSettings.sabnzbdUrl ? "client set" : "no client"}
+                </span>
+              </div>
+              <div className="integration-settings-actions">
+                <button
+                  className="secondary-action compact"
+                  disabled={isSavingIntegrationSettings}
+                  onClick={() =>
+                    fetchIntegrationSettings()
+                      .then((response) => {
+                        setIntegrationSettings(response.settings);
+                        setIntegrationForm(integrationSettingsForm(response.settings));
+                        setIntegrationSettingsPersisted(response.persisted);
+                      })
+                      .catch((error) => setSettingsError(error instanceof Error ? error.message : "Integration settings refresh failed"))
+                  }
+                  type="button"
+                >
+                  <RefreshCw size={16} />
+                  Refresh
+                </button>
+                <button className="primary-action compact" disabled={isSavingIntegrationSettings} onClick={persistIntegrationSettings} type="button">
+                  <CheckCircle2 size={16} />
+                  {isSavingIntegrationSettings ? "Saving" : "Save integrations"}
+                </button>
+              </div>
+            </div>
+            <div className="integration-settings-grid">
+              <label className="wide">
+                <span>Prowlarr URL</span>
+                <input value={integrationForm.prowlarrUrl} onChange={(event) => updateIntegrationForm({ prowlarrUrl: event.target.value })} placeholder="http://prowlarr:9696" />
+              </label>
+              <label>
+                <span>Prowlarr API key {integrationSettings.prowlarrApiKeyConfigured ? "saved" : ""}</span>
+                <input autoComplete="off" type="password" value={integrationForm.prowlarrApiKey ?? ""} onChange={(event) => updateIntegrationForm({ prowlarrApiKey: event.target.value })} placeholder={integrationSettings.prowlarrApiKeyConfigured ? "Leave blank to keep" : "API key"} />
+              </label>
+              <label className="wide">
+                <span>qBittorrent URL</span>
+                <input value={integrationForm.qbittorrentUrl} onChange={(event) => updateIntegrationForm({ qbittorrentUrl: event.target.value })} placeholder="http://qbittorrent:8080" />
+              </label>
+              <label>
+                <span>qBittorrent user</span>
+                <input value={integrationForm.qbittorrentUsername} onChange={(event) => updateIntegrationForm({ qbittorrentUsername: event.target.value })} placeholder="admin" />
+              </label>
+              <label>
+                <span>qBittorrent password {integrationSettings.qbittorrentPasswordConfigured ? "saved" : ""}</span>
+                <input autoComplete="off" type="password" value={integrationForm.qbittorrentPassword ?? ""} onChange={(event) => updateIntegrationForm({ qbittorrentPassword: event.target.value })} placeholder={integrationSettings.qbittorrentPasswordConfigured ? "Leave blank to keep" : "Password"} />
+              </label>
+              <label className="wide">
+                <span>Transmission URL</span>
+                <input value={integrationForm.transmissionUrl} onChange={(event) => updateIntegrationForm({ transmissionUrl: event.target.value })} placeholder="http://transmission:9091" />
+              </label>
+              <label>
+                <span>Transmission user</span>
+                <input value={integrationForm.transmissionUsername} onChange={(event) => updateIntegrationForm({ transmissionUsername: event.target.value })} placeholder="Optional" />
+              </label>
+              <label>
+                <span>Transmission password {integrationSettings.transmissionPasswordConfigured ? "saved" : ""}</span>
+                <input autoComplete="off" type="password" value={integrationForm.transmissionPassword ?? ""} onChange={(event) => updateIntegrationForm({ transmissionPassword: event.target.value })} placeholder={integrationSettings.transmissionPasswordConfigured ? "Leave blank to keep" : "Password"} />
+              </label>
+              <label className="wide">
+                <span>SABnzbd URL</span>
+                <input value={integrationForm.sabnzbdUrl} onChange={(event) => updateIntegrationForm({ sabnzbdUrl: event.target.value })} placeholder="http://sabnzbd:8080" />
+              </label>
+              <label>
+                <span>SABnzbd API key {integrationSettings.sabnzbdApiKeyConfigured ? "saved" : ""}</span>
+                <input autoComplete="off" type="password" value={integrationForm.sabnzbdApiKey ?? ""} onChange={(event) => updateIntegrationForm({ sabnzbdApiKey: event.target.value })} placeholder={integrationSettings.sabnzbdApiKeyConfigured ? "Leave blank to keep" : "API key"} />
+              </label>
+              <label>
+                <span>SABnzbd user</span>
+                <input value={integrationForm.sabnzbdUsername} onChange={(event) => updateIntegrationForm({ sabnzbdUsername: event.target.value })} placeholder="Optional" />
+              </label>
+              <label>
+                <span>SABnzbd password {integrationSettings.sabnzbdPasswordConfigured ? "saved" : ""}</span>
+                <input autoComplete="off" type="password" value={integrationForm.sabnzbdPassword ?? ""} onChange={(event) => updateIntegrationForm({ sabnzbdPassword: event.target.value })} placeholder={integrationSettings.sabnzbdPasswordConfigured ? "Leave blank to keep" : "Password"} />
+              </label>
+              <label>
+                <span>Ebook category</span>
+                <input value={integrationForm.ebookCategory} onChange={(event) => updateIntegrationForm({ ebookCategory: event.target.value })} placeholder="books-ebook" />
+              </label>
+              <label>
+                <span>Audiobook category</span>
+                <input value={integrationForm.audiobookCategory} onChange={(event) => updateIntegrationForm({ audiobookCategory: event.target.value })} placeholder="books-audiobook" />
+              </label>
+              <label className="wide">
+                <span>Torrent root</span>
+                <input value={integrationForm.bookTorrentRoot} onChange={(event) => updateIntegrationForm({ bookTorrentRoot: event.target.value })} placeholder="/data/torrents/books" />
+              </label>
+            </div>
+          </div>
           <div className="quality-profile-list">
             {qualityProfiles.map((profile) => {
               const key = profileKey(profile);

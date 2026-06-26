@@ -16,6 +16,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
+	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/settings"
@@ -50,6 +51,11 @@ type acquisitionService interface {
 	DownloadCategoryAction(ctx context.Context, request acquisition.DownloadCategoryActionRequest) (acquisition.DownloadResourceActionResult, error)
 	DownloadTagAction(ctx context.Context, request acquisition.DownloadTagActionRequest) (acquisition.DownloadResourceActionResult, error)
 	ClearDownloadFailure(ctx context.Context, id string) error
+}
+
+type configurableAcquisitionService interface {
+	IntegrationConfig() acquisition.IntegrationConfig
+	Reconfigure(config acquisition.IntegrationConfig)
 }
 
 type wantedService interface {
@@ -311,6 +317,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/search", handler.search)
 	mux.HandleFunc("POST /api/v1/settings/validate", handler.validateSettings)
 	mux.HandleFunc("GET /api/v1/integrations/health", handler.integrationHealth)
+	mux.HandleFunc("GET /api/v1/integrations/config", handler.integrationConfig)
+	mux.HandleFunc("PUT /api/v1/integrations/config", handler.updateIntegrationConfig)
 	mux.HandleFunc("POST /api/v1/integrations/bootstrap", handler.integrationBootstrap)
 	mux.HandleFunc("POST /api/v1/releases/search", handler.releaseSearch)
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
@@ -420,6 +428,74 @@ func (h *handler) integrationHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"integrations": h.deps.Acquire.Health(r.Context())})
+}
+
+func (h *handler) integrationConfig(w http.ResponseWriter, r *http.Request) {
+	config, err := h.effectiveIntegrationConfig(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings":  integrationsettings.ToSettings(config),
+		"persisted": h.deps.Compat != nil,
+	})
+}
+
+func (h *handler) updateIntegrationConfig(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var patch integrationsettings.Patch
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid integration config payload"})
+		return
+	}
+	current, err := h.effectiveIntegrationConfig(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	next := integrationsettings.ApplyPatch(current, patch)
+	if h.deps.Compat != nil {
+		if err := integrationsettings.SaveResources(r.Context(), h.deps.Compat, next); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+	}
+	if configurable, ok := h.deps.Acquire.(configurableAcquisitionService); ok {
+		configurable.Reconfigure(next)
+	}
+	response := map[string]any{
+		"settings":  integrationsettings.ToSettings(next),
+		"persisted": h.deps.Compat != nil,
+	}
+	if h.deps.Acquire != nil {
+		response["integrations"] = h.deps.Acquire.Health(r.Context())
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *handler) effectiveIntegrationConfig(ctx context.Context) (acquisition.IntegrationConfig, error) {
+	if configurable, ok := h.deps.Acquire.(configurableAcquisitionService); ok {
+		return configurable.IntegrationConfig(), nil
+	}
+	base := acquisition.IntegrationConfig{
+		ProwlarrURL:       h.deps.Config.ProwlarrURL,
+		ProwlarrAPIKey:    h.deps.Config.ProwlarrAPIKey,
+		QBittorrentURL:    h.deps.Config.QBittorrentURL,
+		QBittorrentUser:   h.deps.Config.QBittorrentUser,
+		QBittorrentPass:   h.deps.Config.QBittorrentPass,
+		TransmissionURL:   h.deps.Config.TransmissionURL,
+		TransmissionUser:  h.deps.Config.TransmissionUser,
+		TransmissionPass:  h.deps.Config.TransmissionPass,
+		SABnzbdURL:        h.deps.Config.SABnzbdURL,
+		SABnzbdAPIKey:     h.deps.Config.SABnzbdAPIKey,
+		SABnzbdUser:       h.deps.Config.SABnzbdUser,
+		SABnzbdPass:       h.deps.Config.SABnzbdPass,
+		EbookCategory:     h.deps.Config.EbookCategory,
+		AudiobookCategory: h.deps.Config.AudiobookCategory,
+		BookTorrentRoot:   h.deps.Config.BookTorrentRoot,
+	}
+	return integrationsettings.FromResources(ctx, h.deps.Compat, base)
 }
 
 func (h *handler) integrationBootstrap(w http.ResponseWriter, r *http.Request) {

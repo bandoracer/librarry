@@ -223,6 +223,8 @@ Initial API surface:
   - `GET /api/v1/providers/diagnostics`
   - `GET /api/v1/search?query=&type=book&format=any`
   - `GET /api/v1/integrations/health`
+  - `GET /api/v1/integrations/config`
+  - `PUT /api/v1/integrations/config`
   - `POST /api/v1/integrations/bootstrap`
   - `POST /api/v1/releases/search`
   - `POST /api/v1/grabs`
@@ -295,6 +297,14 @@ does not have native categories, so Librarry maps book categories to labels.
 The Downloads page can also send a manual magnet link, `.torrent` file,
 torrent URL, or NZB URL through the same grab path, paused by default, with
 ebook/audiobook category selection.
+
+Native integration settings are exposed through `GET` and `PUT`
+`/api/v1/integrations/config`. The Settings page writes Prowlarr,
+qBittorrent, Transmission, and SABnzbd connection details into the same
+Postgres-backed compatibility resource records used by the Readarr-compatible
+indexer/download-client endpoints. The running acquisition service is
+reconfigured immediately after a save, and startup reloads those persisted
+records before constructing the Prowlarr and download-client clients.
 
 Download state is reconciled from qBittorrent, Transmission, and SABnzbd through
 `/api/v1/downloads` and stored in Postgres when database persistence is

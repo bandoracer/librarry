@@ -39,6 +39,35 @@ export type IntegrationHealth = {
   message: string;
 };
 
+export type IntegrationSettings = {
+  prowlarrUrl: string;
+  prowlarrApiKey?: string;
+  prowlarrApiKeyConfigured: boolean;
+  qbittorrentUrl: string;
+  qbittorrentUsername: string;
+  qbittorrentPassword?: string;
+  qbittorrentPasswordConfigured: boolean;
+  transmissionUrl: string;
+  transmissionUsername: string;
+  transmissionPassword?: string;
+  transmissionPasswordConfigured: boolean;
+  sabnzbdUrl: string;
+  sabnzbdApiKey?: string;
+  sabnzbdApiKeyConfigured: boolean;
+  sabnzbdUsername: string;
+  sabnzbdPassword?: string;
+  sabnzbdPasswordConfigured: boolean;
+  ebookCategory: string;
+  audiobookCategory: string;
+  bookTorrentRoot: string;
+};
+
+export type IntegrationSettingsResponse = {
+  settings: IntegrationSettings;
+  persisted: boolean;
+  integrations?: IntegrationHealth[];
+};
+
 export type Release = {
   id: string;
   infoHash?: string;
@@ -638,6 +667,26 @@ export async function fetchIntegrationHealth(): Promise<IntegrationHealth[]> {
   }
   const payload = (await response.json()) as { integrations: IntegrationHealth[] };
   return payload.integrations;
+}
+
+export async function fetchIntegrationSettings(): Promise<IntegrationSettingsResponse> {
+  const response = await fetch(`${apiBase}/api/v1/integrations/config`);
+  if (!response.ok) {
+    throw new Error(`Integration settings failed: ${response.status}`);
+  }
+  return (await response.json()) as IntegrationSettingsResponse;
+}
+
+export async function saveIntegrationSettings(settings: Partial<IntegrationSettings>): Promise<IntegrationSettingsResponse> {
+  const response = await fetch(`${apiBase}/api/v1/integrations/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings)
+  });
+  if (!response.ok) {
+    throw new Error(`Integration settings update failed: ${response.status}`);
+  }
+  return (await response.json()) as IntegrationSettingsResponse;
 }
 
 export async function searchReleases(query: string, format: string): Promise<Release[]> {

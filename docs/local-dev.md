@@ -70,6 +70,12 @@ LAN deployments with download-client auth disabled for the calling host.
 SABnzbd requires both URL and API key; username/password are only needed when
 SABnzbd itself is protected by basic auth.
 
+These environment variables are startup defaults. With Postgres enabled, the
+Settings page can save Prowlarr, qBittorrent, Transmission, and SABnzbd
+connection details through `PUT /api/v1/integrations/config`; those records are
+stored in `compat_resources`, applied to the running acquisition service
+immediately, and reloaded on restart.
+
 ## Quality Profiles
 
 Quality profiles are available through `GET /api/v1/quality-profiles` and can be
