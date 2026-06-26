@@ -364,10 +364,11 @@ path mappings. These endpoints render useful defaults and persist create,
 update, and delete operations in `compat_resources` using the Readarr-style
 integer ID exposed to API clients. Resource payloads are kept as JSON so
 Librarry can preserve fields it does not natively interpret yet.
-Untagged Readarr-compatible restriction resources are interpreted by the wanted
-release evaluator as additional required, ignored, and preferred terms. Tagged
-restrictions remain persisted compatibility records until wanted items and
-author subscriptions have native tag assignments.
+Readarr-compatible restriction resources are interpreted by the wanted release
+evaluator as additional required, ignored, and preferred terms. Untagged
+restrictions apply globally; tagged restrictions apply when the wanted item has
+at least one matching tag ID. Author-monitor-created wanted items inherit their
+author subscription tags.
 Download-client, indexer, notification, and import-list resources also expose
 Readarr-style schema, test, test-all, action, and bulk mutation endpoints so
 Arr clients that validate resource implementations before saving can complete

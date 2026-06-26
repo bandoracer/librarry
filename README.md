@@ -48,8 +48,9 @@ book data is incomplete or ambiguous.
 > Postgres when database-backed compatibility storage is configured.
 > Delay-profile and system-task compatibility endpoints are implemented.
 > Persisted quality profiles now drive release scoring, preferred and rejected
-> terms, size limits, seeder minimums, and upgrade cutoffs. Untagged
-> Readarr-compatible restrictions also affect native release evaluation.
+> terms, size limits, seeder minimums, and upgrade cutoffs.
+> Readarr-compatible restrictions also affect native release evaluation,
+> including tag-scoped restrictions for tagged wanted items.
 > Librarry has useful
 > torrent-manager controls, but it is not a complete general-purpose torrent
 > client replacement yet; global torrent-client preferences, category/tag
@@ -90,7 +91,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual correction | Supports normal app-level editing workflows. | Schema includes manual overrides as first-class records. | Manual overrides always win and remain auditable across provider refreshes. |
 | Ebook and audiobook handling | Supports ebooks and audiobooks, but Readarr notes that one type of a given book requires one instance; both formats require multiple instances. | Data model and acquisition categories are format-aware for ebooks and audiobooks. | One app should manage both formats without collapsing editions or file targets. |
 | Library import | Mature library scan and missing-book detection. | Library roots can be scanned for ebook/audiobook files, OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms are extracted during scan/import, files are tracked in Postgres, completed qBittorrent imports feed the library, and unlinked completed downloads are queued for review. | Add missing-book detection and stronger import matching. |
-| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, untagged Readarr-compatible release restrictions, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, and bulk selected-download actions. | Add richer review flows, missing-book policy, tag-scoped restriction semantics, and conflict handling. |
+| Wanted automation | Mature author/book monitoring, RSS monitoring, automatic grabs, failed-download handling, upgrades, sorting, and renaming. | Wanted queue, author subscriptions, metadata search, persisted quality profiles, Readarr-compatible release restrictions including tag-scoped rules for tagged wanted items, release evaluation, manual/interval wanted monitoring, scheduled author metadata sync, feed-based indexer sync, failed-download replacement search/grab, score-based upgrade search/grab, optional paused auto-grab, history, provider health, integration bootstrap, qBittorrent/Transmission/SABnzbd grabs, download reconciliation, file rename previews/apply, and bulk selected-download actions. | Add richer review flows, missing-book policy, bulk retagging polish, and conflict handling. |
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, manual magnet/torrent-file/torrent-URL/NZB add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL/file add, client/state/category/text filters, selected-row bulk actions, and configurable active-queue rebalancing. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, force-start, sequential-download and first/last-piece toggles, delete-with-data, rename, tag add/remove, category/save-path edits, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, and per-file skip/normal/high/max priority actions are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, `.torrent` upload through RPC metainfo, set location, labels, per-torrent speed limits, details, file/tracker/peer inspection, and skip/normal/high/max file-priority actions. SABnzbd can add NZB/Usenet releases, list queue/history state, show details and queue files, start/stop/delete jobs, rename jobs, change category, and change priority. This is still not a full multi-client torrent manager or standalone qBittorrent replacement. | Add conflict-aware arbitration, per-client capability handling, and more clients only behind small interfaces once metadata and matching are stable. |
@@ -128,9 +129,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Persisted quality profiles for ebooks and audiobooks, including minimum
   scores, upgrade cutoffs, seeder minimums, size limits, preferred terms,
   required terms, and rejected terms.
-- Untagged Readarr-compatible release restrictions apply to native release
-  evaluation as additional required, ignored, and preferred terms; tag-scoped
-  restrictions are persisted until native item tags are implemented.
+- Readarr-compatible release restrictions apply to native release evaluation as
+  additional required, ignored, and preferred terms; tag-scoped restrictions
+  apply to wanted items carrying matching tag IDs.
 - Manual and scheduled wanted monitoring with monitor-run summaries and history
   events.
 - Author subscriptions with manual and scheduled metadata refresh that creates

@@ -23,7 +23,7 @@ func evaluateReleaseWithProfile(item WantedItem, release acquisition.Release, pr
 func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, profile QualityProfile, restrictions []ReleaseRestriction) ReleaseDecision {
 	policy := releasePolicy{
 		format:  normalizeFormat(item.Format),
-		profile: profileWithReleaseRestrictions(normalizeProfile(profile, item), restrictions),
+		profile: profileWithReleaseRestrictions(normalizeProfile(profile, item), restrictions, item.Tags),
 	}
 	score := 20.0
 	var reasons []string
@@ -151,9 +151,9 @@ func ParseReleaseRestrictionTerms(value string) []string {
 	return terms
 }
 
-func profileWithReleaseRestrictions(profile QualityProfile, restrictions []ReleaseRestriction) QualityProfile {
+func profileWithReleaseRestrictions(profile QualityProfile, restrictions []ReleaseRestriction, itemTags []int) QualityProfile {
 	for _, restriction := range restrictions {
-		if !releaseRestrictionAppliesGlobally(restriction) {
+		if !releaseRestrictionApplies(restriction, itemTags) {
 			continue
 		}
 		profile.RequiredTerms = appendUniqueTerms(profile.RequiredTerms, restriction.RequiredTerms...)
@@ -163,8 +163,24 @@ func profileWithReleaseRestrictions(profile QualityProfile, restrictions []Relea
 	return profile
 }
 
-func releaseRestrictionAppliesGlobally(restriction ReleaseRestriction) bool {
-	return len(restriction.Tags) == 0
+func releaseRestrictionApplies(restriction ReleaseRestriction, itemTags []int) bool {
+	if len(restriction.Tags) == 0 {
+		return true
+	}
+	itemTags = compactRestrictionTags(itemTags)
+	if len(itemTags) == 0 {
+		return false
+	}
+	itemTagSet := make(map[int]bool, len(itemTags))
+	for _, tag := range itemTags {
+		itemTagSet[tag] = true
+	}
+	for _, tag := range restriction.Tags {
+		if itemTagSet[tag] {
+			return true
+		}
+	}
+	return false
 }
 
 func appendUniqueTerms(base []string, additions ...string) []string {

@@ -69,8 +69,8 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 	err = tx.QueryRowContext(ctx, `
 		insert into wanted_items (
 			work_id, edition_id, wanted_format, quality_profile, status,
-			title, author_name, cover_url, metadata_provider, source_key
-		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9)
+			title, author_name, cover_url, metadata_provider, source_key, tags
+		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10)
 		on conflict (metadata_provider, source_key, wanted_format)
 			where metadata_provider <> '' and source_key <> ''
 		do update set
@@ -79,9 +79,10 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 			title = excluded.title,
 			author_name = excluded.author_name,
 			cover_url = excluded.cover_url,
+			tags = case when excluded.tags <> '' then excluded.tags else wanted_items.tags end,
 			updated_at = now()
 		returning id
-	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey).Scan(&wantedID)
+	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, intTagsString(request.Tags)).Scan(&wantedID)
 	if err != nil {
 		return WantedItem{}, err
 	}
@@ -107,7 +108,7 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
-			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		`+where+`
@@ -278,10 +279,10 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 	row := s.db.QueryRowContext(ctx, `
 		insert into author_subscriptions (
 			provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items
+			status, monitor_new_items, tags
 		) values (
 			$1, $2, $3, $4, $5,
-			$6, $7
+			$6, $7, $8
 		)
 		on conflict (provider, provider_key, wanted_format)
 			where provider <> '' and provider_key <> ''
@@ -290,12 +291,13 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 			quality_profile = excluded.quality_profile,
 			status = case when author_subscriptions.status = 'removed' then 'monitored' else author_subscriptions.status end,
 			monitor_new_items = excluded.monitor_new_items,
+			tags = case when excluded.tags <> '' then excluded.tags else author_subscriptions.tags end,
 			updated_at = now()
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, last_sync_at, created_at, updated_at
+			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
 	`, subscription.Provider, subscription.ProviderKey, subscription.AuthorName, subscription.Format,
-		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems)
+		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, intTagsString(subscription.Tags))
 	return scanAuthorSubscription(row)
 }
 
@@ -312,7 +314,7 @@ func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]A
 	rows, err := s.db.QueryContext(ctx, `
 		select
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, last_sync_at, created_at, updated_at
+			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
 		from author_subscriptions
 		`+where+`
 		order by author_name, wanted_format
@@ -359,18 +361,24 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 		monitorNewItems.Valid = true
 		monitorNewItems.Bool = *request.MonitorNewItems
 	}
+	tags := sql.NullString{}
+	if request.TagsSet {
+		tags.Valid = true
+		tags.String = intTagsString(request.Tags)
+	}
 	row := s.db.QueryRowContext(ctx, `
 		update author_subscriptions set
 			author_name = case when $2 = '' then author_name else $2 end,
 			quality_profile = case when $3 = '' then quality_profile else $3 end,
 			status = case when $4 = '' then status else $4 end,
 			monitor_new_items = coalesce($5, monitor_new_items),
+			tags = coalesce($6, tags),
 			updated_at = now()
 		where id::text = $1
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, last_sync_at, created_at, updated_at
-	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems)
+			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
+	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags)
 	return scanAuthorSubscription(row)
 }
 
@@ -416,7 +424,7 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 	rows, err := s.db.QueryContext(ctx, `
 		select
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, last_sync_at, created_at, updated_at
+			status, monitor_new_items, tags, last_sync_at, created_at, updated_at
 		from author_subscriptions
 		where status = 'monitored'
 			and monitor_new_items = true
@@ -508,7 +516,7 @@ func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
-			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.id = $1
@@ -533,6 +541,11 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 		monitored.Valid = true
 		monitored.Bool = *request.Monitored
 	}
+	tags := sql.NullString{}
+	if request.TagsSet {
+		tags.Valid = true
+		tags.String = intTagsString(request.Tags)
+	}
 	result, err := s.db.ExecContext(ctx, `
 		update wanted_items set
 			title = case when $2 = '' then title else $2 end,
@@ -545,10 +558,11 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 				when coalesce($6::boolean, monitored) = true and status in ('removed', 'ignored') then 'wanted'
 				else status
 			end,
+			tags = coalesce($8, tags),
 			updated_at = now()
 		where id::text = $1
 	`, id, strings.TrimSpace(request.Title), strings.TrimSpace(request.AuthorName), strings.TrimSpace(request.CoverURL),
-		qualityProfile, monitored, strings.TrimSpace(request.Status))
+		qualityProfile, monitored, strings.TrimSpace(request.Status), tags)
 	if err != nil {
 		return WantedItem{}, err
 	}
@@ -714,7 +728,7 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
-			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.status = 'wanted'
@@ -774,7 +788,7 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
-			wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where `+strings.Join(where, " and ")+`
@@ -1226,11 +1240,12 @@ func scanWanted(row wantedScanner) (WantedItem, error) {
 	var item WantedItem
 	var workID, editionID, coverURL, sourceProvider, sourceKey sql.NullString
 	var lastSearchAt, lastUpgradeSearchAt sql.NullTime
+	var tags string
 	if err := row.Scan(
 		&item.ID, &workID, &editionID, &item.Title, &item.AuthorName, &coverURL,
 		&item.Format, &item.QualityProfile, &item.Status, &item.Monitored, &sourceProvider,
 		&sourceKey, &item.CurrentReleaseID, &item.CurrentReleaseScore,
-		&lastSearchAt, &lastUpgradeSearchAt, &item.CreatedAt, &item.UpdatedAt,
+		&tags, &lastSearchAt, &lastUpgradeSearchAt, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return WantedItem{}, err
 	}
@@ -1239,6 +1254,7 @@ func scanWanted(row wantedScanner) (WantedItem, error) {
 	item.CoverURL = coverURL.String
 	item.SourceProvider = sourceProvider.String
 	item.SourceKey = sourceKey.String
+	item.Tags = splitIntTags(tags)
 	if lastSearchAt.Valid {
 		value := lastSearchAt.Time.UTC()
 		item.LastSearchAt = &value
@@ -1290,14 +1306,16 @@ func scanQualityProfile(row wantedScanner) (QualityProfile, error) {
 func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
 	var subscription AuthorSubscription
 	var lastSyncAt sql.NullTime
+	var tags string
 	if err := row.Scan(
 		&subscription.ID, &subscription.Provider, &subscription.ProviderKey,
 		&subscription.AuthorName, &subscription.Format, &subscription.QualityProfile,
-		&subscription.Status, &subscription.MonitorNewItems, &lastSyncAt,
+		&subscription.Status, &subscription.MonitorNewItems, &tags, &lastSyncAt,
 		&subscription.CreatedAt, &subscription.UpdatedAt,
 	); err != nil {
 		return AuthorSubscription{}, err
 	}
+	subscription.Tags = splitIntTags(tags)
 	if lastSyncAt.Valid {
 		value := lastSyncAt.Time.UTC()
 		subscription.LastSyncAt = &value
@@ -1485,6 +1503,7 @@ func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscrip
 	subscription.AuthorName = strings.TrimSpace(subscription.AuthorName)
 	subscription.Format = normalizeFormat(subscription.Format)
 	subscription.QualityProfile = normalizeQualityProfile(subscription.QualityProfile)
+	subscription.Tags = compactRestrictionTags(subscription.Tags)
 	if strings.TrimSpace(subscription.Status) == "" {
 		subscription.Status = "monitored"
 	}
@@ -1514,6 +1533,35 @@ func cleanTerms(values []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+func intTagsString(tags []int) string {
+	tags = compactRestrictionTags(tags)
+	if len(tags) == 0 {
+		return ""
+	}
+	values := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		values = append(values, strconv.Itoa(tag))
+	}
+	return strings.Join(values, ",")
+}
+
+func splitIntTags(value string) []int {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || r == '|' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+	tags := make([]int, 0, len(parts))
+	for _, part := range parts {
+		tag, err := strconv.Atoi(strings.TrimSpace(part))
+		if err == nil {
+			tags = append(tags, tag)
+		}
+	}
+	return compactRestrictionTags(tags)
 }
 
 func sortValue(value string) string {

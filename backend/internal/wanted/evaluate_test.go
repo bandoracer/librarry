@@ -211,6 +211,39 @@ func TestEvaluateReleaseIgnoresTaggedRestrictionsUntilItemTagsExist(t *testing.T
 	}
 }
 
+func TestEvaluateReleaseAppliesTaggedRestrictionsForMatchingWantedTags(t *testing.T) {
+	item := WantedItem{Title: "Project Hail Mary", AuthorName: "Andy Weir", Format: "ebook", QualityProfile: "standard", Tags: []int{7}}
+	release := acquisition.Release{
+		ID:          "r1",
+		Title:       "Project Hail Mary by Andy Weir EPUB screener",
+		DownloadURL: "magnet:?xt=urn:btih:abc",
+		Protocol:    "torrent",
+		Seeders:     20,
+		SizeBytes:   2_000_000,
+		Categories:  []string{"Books/EBook"},
+	}
+	decision := evaluateReleaseWithPolicy(item, release, QualityProfile{
+		Name:          "standard",
+		MediaFormat:   "ebook",
+		MinScore:      60,
+		CutoffScore:   85,
+		MinSeeders:    1,
+		RejectedTerms: []string{"summary", "review"},
+	}, []ReleaseRestriction{
+		NewReleaseRestriction("1", "", "screener", "", []int{7}),
+		NewReleaseRestriction("2", "retail", "", "", []int{9}),
+	})
+	if decision.Approved {
+		t.Fatal("expected matching tagged restriction to reject release")
+	}
+	if !strings.Contains(decision.RejectedReason, "rejected term: screener") {
+		t.Fatalf("expected matching tagged restriction reason, got %q", decision.RejectedReason)
+	}
+	if strings.Contains(decision.RejectedReason, "retail") {
+		t.Fatalf("expected non-matching tagged restriction to be ignored, got %q", decision.RejectedReason)
+	}
+}
+
 func TestParseReleaseRestrictionTermsDeduplicatesSeparators(t *testing.T) {
 	terms := ParseReleaseRestrictionTerms("Retail, retail; WEB\nproper|")
 	if strings.Join(terms, "|") != "Retail|WEB|proper" {

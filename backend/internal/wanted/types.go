@@ -24,6 +24,7 @@ type CreateRequest struct {
 	Result         metadata.SearchResult `json:"result"`
 	Format         string                `json:"format,omitempty"`
 	QualityProfile string                `json:"qualityProfile,omitempty"`
+	Tags           []int                 `json:"tags,omitempty"`
 }
 
 type QualityProfile struct {
@@ -59,6 +60,7 @@ type AuthorSubscribeRequest struct {
 	Format          string                `json:"format,omitempty"`
 	QualityProfile  string                `json:"qualityProfile,omitempty"`
 	MonitorNewItems *bool                 `json:"monitorNewItems,omitempty"`
+	Tags            []int                 `json:"tags,omitempty"`
 }
 
 type AuthorSubscription struct {
@@ -70,6 +72,7 @@ type AuthorSubscription struct {
 	QualityProfile  string     `json:"qualityProfile"`
 	Status          string     `json:"status"`
 	MonitorNewItems bool       `json:"monitorNewItems"`
+	Tags            []int      `json:"tags,omitempty"`
 	LastSyncAt      *time.Time `json:"lastSyncAt,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	UpdatedAt       time.Time  `json:"updatedAt"`
@@ -81,6 +84,8 @@ type AuthorUpdateRequest struct {
 	Status          string `json:"status,omitempty"`
 	MonitorNewItems *bool  `json:"monitorNewItems,omitempty"`
 	Monitored       *bool  `json:"monitored,omitempty"`
+	Tags            []int  `json:"tags,omitempty"`
+	TagsSet         bool   `json:"-"`
 }
 
 type SearchReleasesRequest struct {
@@ -155,6 +160,7 @@ type WantedItem struct {
 	QualityProfile      string     `json:"qualityProfile"`
 	Status              string     `json:"status"`
 	Monitored           bool       `json:"monitored"`
+	Tags                []int      `json:"tags,omitempty"`
 	SourceProvider      string     `json:"sourceProvider,omitempty"`
 	SourceKey           string     `json:"sourceKey,omitempty"`
 	CurrentReleaseID    string     `json:"currentReleaseId,omitempty"`
@@ -172,6 +178,8 @@ type WantedUpdateRequest struct {
 	QualityProfile string `json:"qualityProfile,omitempty"`
 	Status         string `json:"status,omitempty"`
 	Monitored      *bool  `json:"monitored,omitempty"`
+	Tags           []int  `json:"tags,omitempty"`
+	TagsSet        bool   `json:"-"`
 }
 
 type ReleaseDecision struct {

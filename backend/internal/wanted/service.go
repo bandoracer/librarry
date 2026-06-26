@@ -213,6 +213,7 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 				Result:         candidate,
 				Format:         subscription.Format,
 				QualityProfile: subscription.QualityProfile,
+				Tags:           subscription.Tags,
 			})
 			if err != nil {
 				result.Error = err.Error()
@@ -1155,6 +1156,7 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 		QualityProfile:  qualityProfile,
 		Status:          "monitored",
 		MonitorNewItems: monitorNewItems,
+		Tags:            compactRestrictionTags(request.Tags),
 	}
 }
 

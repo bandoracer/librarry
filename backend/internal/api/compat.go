@@ -942,6 +942,7 @@ func (h *handler) compatCreateAuthor(w http.ResponseWriter, r *http.Request) {
 		ProviderKey:    firstNonEmptyString(payloadString(payload, "foreignAuthorId"), payloadString(payload, "id")),
 		Format:         firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "wantedFormat"), "ebook"),
 		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
+		Tags:           compatPayloadIntArray(payload, "tags"),
 	}
 	monitor := true
 	if monitored, ok := payload["monitored"].(bool); ok {
@@ -1150,6 +1151,7 @@ func (h *handler) compatCreateBook(w http.ResponseWriter, r *http.Request) {
 		},
 		Format:         firstNonEmptyString(payloadString(payload, "format"), "ebook"),
 		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
+		Tags:           compatPayloadIntArray(payload, "tags"),
 	}
 	item, err := h.deps.Wanted.Create(r.Context(), request)
 	if err != nil {
@@ -2811,6 +2813,10 @@ func compatAuthorUpdateRequest(payload map[string]any) wanted.AuthorUpdateReques
 	if monitorNewItems, ok := payloadBoolPointer(payload, "monitorNewItems"); ok {
 		request.MonitorNewItems = monitorNewItems
 	}
+	if payloadHasKey(payload, "tags") {
+		request.Tags = compatPayloadIntArray(payload, "tags")
+		request.TagsSet = true
+	}
 	return request
 }
 
@@ -2825,7 +2831,19 @@ func compatWantedUpdateRequest(payload map[string]any) wanted.WantedUpdateReques
 	if monitored, ok := payloadBoolPointer(payload, "monitored"); ok {
 		request.Monitored = monitored
 	}
+	if payloadHasKey(payload, "tags") {
+		request.Tags = compatPayloadIntArray(payload, "tags")
+		request.TagsSet = true
+	}
 	return request
+}
+
+func payloadHasKey(payload map[string]any, key string) bool {
+	if payload == nil {
+		return false
+	}
+	_, ok := payload[key]
+	return ok
 }
 
 func payloadBoolPointer(payload map[string]any, key string) (*bool, bool) {
@@ -4821,7 +4839,7 @@ func compatAuthorRecord(subscription wanted.AuthorSubscription, books []wanted.W
 		"path":                "",
 		"qualityProfileId":    stableInt(subscription.QualityProfile),
 		"metadataProfileId":   stableInt(subscription.Format),
-		"tags":                []int{},
+		"tags":                subscription.Tags,
 		"genres":              []string{},
 		"ratings":             map[string]any{"votes": 0, "value": 0},
 		"statistics":          map[string]any{"bookCount": len(bookRecords), "bookFileCount": 0},
@@ -4848,6 +4866,7 @@ func compatAuthorBookRecord(item wanted.WantedItem) map[string]any {
 		"qualityProfile": item.QualityProfile,
 		"releaseDate":    item.CreatedAt,
 		"statistics":     map[string]any{"bookFileCount": boolInt(item.Status == "imported")},
+		"tags":           item.Tags,
 	}
 }
 
@@ -4870,6 +4889,7 @@ func compatBookRecord(item wanted.WantedItem) map[string]any {
 			"sizeOnDisk":    0,
 		},
 		"images": compatImages(item.CoverURL),
+		"tags":   item.Tags,
 		"author": map[string]any{
 			"id":         stableInt(item.AuthorName),
 			"authorName": item.AuthorName,

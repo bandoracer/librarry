@@ -1166,13 +1166,13 @@ func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
 	})
 
 	authorID := stableInt("author-sub-1")
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/author/editor", strings.NewReader(fmt.Sprintf(`{"authorIds":[%d],"monitored":false,"qualityProfile":"retail","monitorNewItems":false}`, authorID)))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/author/editor", strings.NewReader(fmt.Sprintf(`{"authorIds":[%d],"monitored":false,"qualityProfile":"retail","monitorNewItems":false,"tags":[5,7]}`, authorID)))
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusAccepted {
 		t.Fatalf("expected author editor 202, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"librarryQualityName":"retail"`) {
+	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"librarryQualityName":"retail"`) || !strings.Contains(res.Body.String(), `"tags":[5,7]`) {
 		t.Fatalf("expected author editor response, got %s", res.Body.String())
 	}
 	if len(wantedClient.authorUpdates) != 1 ||
@@ -1181,7 +1181,11 @@ func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
 		*wantedClient.authorUpdates[0].request.Monitored ||
 		wantedClient.authorUpdates[0].request.MonitorNewItems == nil ||
 		*wantedClient.authorUpdates[0].request.MonitorNewItems ||
-		wantedClient.authorUpdates[0].request.QualityProfile != "retail" {
+		wantedClient.authorUpdates[0].request.QualityProfile != "retail" ||
+		!wantedClient.authorUpdates[0].request.TagsSet ||
+		len(wantedClient.authorUpdates[0].request.Tags) != 2 ||
+		wantedClient.authorUpdates[0].request.Tags[0] != 5 ||
+		wantedClient.authorUpdates[0].request.Tags[1] != 7 {
 		t.Fatalf("expected persisted author editor update, got %+v", wantedClient.authorUpdates)
 	}
 
@@ -1196,20 +1200,23 @@ func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
 	}
 
 	bookID := stableInt("wanted-1")
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/book/editor", strings.NewReader(fmt.Sprintf(`{"bookIds":[%d],"monitored":false,"qualityProfileId":%d}`, bookID, stableInt("standard"))))
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/book/editor", strings.NewReader(fmt.Sprintf(`{"bookIds":[%d],"monitored":false,"qualityProfileId":%d,"tags":[9]}`, bookID, stableInt("standard"))))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusAccepted {
 		t.Fatalf("expected book editor 202, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"qualityProfile":"standard"`) {
+	if !strings.Contains(res.Body.String(), `"monitored":false`) || !strings.Contains(res.Body.String(), `"qualityProfile":"standard"`) || !strings.Contains(res.Body.String(), `"tags":[9]`) {
 		t.Fatalf("expected book editor response, got %s", res.Body.String())
 	}
 	if len(wantedClient.wantedUpdates) != 1 ||
 		wantedClient.wantedUpdates[0].id != "wanted-1" ||
 		wantedClient.wantedUpdates[0].request.Monitored == nil ||
 		*wantedClient.wantedUpdates[0].request.Monitored ||
-		wantedClient.wantedUpdates[0].request.QualityProfile != "standard" {
+		wantedClient.wantedUpdates[0].request.QualityProfile != "standard" ||
+		!wantedClient.wantedUpdates[0].request.TagsSet ||
+		len(wantedClient.wantedUpdates[0].request.Tags) != 1 ||
+		wantedClient.wantedUpdates[0].request.Tags[0] != 9 {
 		t.Fatalf("expected persisted book editor update, got %+v", wantedClient.wantedUpdates)
 	}
 
@@ -2754,7 +2761,7 @@ func (fakeBlocklistAcquire) Downloads(context.Context, acquisition.DownloadListQ
 
 type fakeWanted struct{}
 
-func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedItem, error) {
+func (fakeWanted) Create(_ context.Context, request wanted.CreateRequest) (wanted.WantedItem, error) {
 	return wanted.WantedItem{
 		ID:             "wanted-1",
 		WorkID:         "openlibrary:OL1W",
@@ -2764,6 +2771,7 @@ func (fakeWanted) Create(context.Context, wanted.CreateRequest) (wanted.WantedIt
 		QualityProfile: "standard",
 		Status:         "wanted",
 		Monitored:      true,
+		Tags:           request.Tags,
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),
 	}, nil
@@ -2779,6 +2787,7 @@ func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
 		QualityProfile:      "standard",
 		Status:              "wanted",
 		Monitored:           true,
+		Tags:                []int{9},
 		CurrentReleaseID:    "release-1",
 		CurrentReleaseScore: 70,
 		CreatedAt:           time.Now().UTC(),
@@ -2825,6 +2834,7 @@ func (fakeWanted) SubscribeAuthor(_ context.Context, request wanted.AuthorSubscr
 		QualityProfile:  "standard",
 		Status:          "monitored",
 		MonitorNewItems: true,
+		Tags:            request.Tags,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}, nil
@@ -2840,6 +2850,7 @@ func (fakeWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.Aut
 		QualityProfile:  "standard",
 		Status:          "monitored",
 		MonitorNewItems: true,
+		Tags:            []int{5},
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}}, nil
@@ -2941,6 +2952,7 @@ func (fakeWanted) UpdateWanted(_ context.Context, _ string, request wanted.Wante
 		QualityProfile: defaultString(request.QualityProfile, "standard"),
 		Status:         defaultString(request.Status, "wanted"),
 		Monitored:      monitored,
+		Tags:           request.Tags,
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),
 	}, nil
@@ -2964,6 +2976,7 @@ func (fakeWanted) UpdateAuthorSubscription(_ context.Context, _ string, request 
 		QualityProfile:  defaultString(request.QualityProfile, "standard"),
 		Status:          status,
 		MonitorNewItems: request.MonitorNewItems == nil || *request.MonitorNewItems,
+		Tags:            request.Tags,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}, nil
