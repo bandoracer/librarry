@@ -17,9 +17,13 @@ func evaluateRelease(item WantedItem, release acquisition.Release) ReleaseDecisi
 }
 
 func evaluateReleaseWithProfile(item WantedItem, release acquisition.Release, profile QualityProfile) ReleaseDecision {
+	return evaluateReleaseWithPolicy(item, release, profile, nil)
+}
+
+func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, profile QualityProfile, restrictions []ReleaseRestriction) ReleaseDecision {
 	policy := releasePolicy{
 		format:  normalizeFormat(item.Format),
-		profile: normalizeProfile(profile, item),
+		profile: profileWithReleaseRestrictions(normalizeProfile(profile, item), restrictions),
 	}
 	score := 20.0
 	var reasons []string
@@ -114,6 +118,91 @@ func evaluateReleaseWithProfile(item WantedItem, release acquisition.Release, pr
 		RejectedReason: strings.Join(reasons, "; "),
 		PublishedAt:    release.PublishedAt,
 	}
+}
+
+func NewReleaseRestriction(id string, required string, ignored string, preferred string, tags []int) ReleaseRestriction {
+	return ReleaseRestriction{
+		ID:             strings.TrimSpace(id),
+		RequiredTerms:  ParseReleaseRestrictionTerms(required),
+		IgnoredTerms:   ParseReleaseRestrictionTerms(ignored),
+		PreferredTerms: ParseReleaseRestrictionTerms(preferred),
+		Tags:           compactRestrictionTags(tags),
+	}
+}
+
+func ParseReleaseRestrictionTerms(value string) []string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '|'
+	})
+	terms := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		term := strings.TrimSpace(part)
+		if term == "" {
+			continue
+		}
+		key := normalizeText(term)
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		terms = append(terms, term)
+	}
+	return terms
+}
+
+func profileWithReleaseRestrictions(profile QualityProfile, restrictions []ReleaseRestriction) QualityProfile {
+	for _, restriction := range restrictions {
+		if !releaseRestrictionAppliesGlobally(restriction) {
+			continue
+		}
+		profile.RequiredTerms = appendUniqueTerms(profile.RequiredTerms, restriction.RequiredTerms...)
+		profile.RejectedTerms = appendUniqueTerms(profile.RejectedTerms, restriction.IgnoredTerms...)
+		profile.PreferredTerms = appendUniqueTerms(profile.PreferredTerms, restriction.PreferredTerms...)
+	}
+	return profile
+}
+
+func releaseRestrictionAppliesGlobally(restriction ReleaseRestriction) bool {
+	return len(restriction.Tags) == 0
+}
+
+func appendUniqueTerms(base []string, additions ...string) []string {
+	if len(additions) == 0 {
+		return base
+	}
+	seen := make(map[string]bool, len(base)+len(additions))
+	for _, term := range base {
+		if key := normalizeText(term); key != "" {
+			seen[key] = true
+		}
+	}
+	for _, term := range additions {
+		term = strings.TrimSpace(term)
+		key := normalizeText(term)
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		base = append(base, term)
+	}
+	return base
+}
+
+func compactRestrictionTags(tags []int) []int {
+	if len(tags) == 0 {
+		return nil
+	}
+	compact := make([]int, 0, len(tags))
+	seen := map[int]bool{}
+	for _, tag := range tags {
+		if tag <= 0 || seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		compact = append(compact, tag)
+	}
+	return compact
 }
 
 func normalizeFormat(value string) string {

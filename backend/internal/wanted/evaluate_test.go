@@ -126,3 +126,94 @@ func TestEvaluateReleaseAppliesPreferredTermsAndMinimumSeeders(t *testing.T) {
 		t.Fatalf("expected preferred terms to improve score before rejection cap, got %0.2f", decision.Score)
 	}
 }
+
+func TestEvaluateReleaseAppliesGlobalRestrictions(t *testing.T) {
+	item := WantedItem{Title: "Project Hail Mary", AuthorName: "Andy Weir", Format: "ebook", QualityProfile: "standard"}
+	release := acquisition.Release{
+		ID:          "r1",
+		Title:       "Project Hail Mary by Andy Weir EPUB retail screener",
+		DownloadURL: "magnet:?xt=urn:btih:abc",
+		Protocol:    "torrent",
+		Seeders:     20,
+		SizeBytes:   2_000_000,
+		Categories:  []string{"Books/EBook"},
+	}
+	decision := evaluateReleaseWithPolicy(item, release, QualityProfile{
+		Name:          "standard",
+		MediaFormat:   "ebook",
+		MinScore:      60,
+		CutoffScore:   85,
+		MinSeeders:    1,
+		RejectedTerms: []string{"summary", "review"},
+	}, []ReleaseRestriction{
+		NewReleaseRestriction("1", "retail", "screener", "", nil),
+	})
+	if decision.Approved {
+		t.Fatal("expected ignored restriction term to reject release")
+	}
+	if !strings.Contains(decision.RejectedReason, "rejected term: screener") {
+		t.Fatalf("expected restriction rejected-term reason, got %q", decision.RejectedReason)
+	}
+}
+
+func TestEvaluateReleaseRequiresGlobalRestrictionTerm(t *testing.T) {
+	item := WantedItem{Title: "Project Hail Mary", AuthorName: "Andy Weir", Format: "ebook", QualityProfile: "standard"}
+	release := acquisition.Release{
+		ID:          "r1",
+		Title:       "Project Hail Mary by Andy Weir EPUB",
+		DownloadURL: "magnet:?xt=urn:btih:abc",
+		Protocol:    "torrent",
+		Seeders:     20,
+		SizeBytes:   2_000_000,
+		Categories:  []string{"Books/EBook"},
+	}
+	decision := evaluateReleaseWithPolicy(item, release, QualityProfile{
+		Name:          "standard",
+		MediaFormat:   "ebook",
+		MinScore:      60,
+		CutoffScore:   85,
+		MinSeeders:    1,
+		RejectedTerms: []string{"summary", "review"},
+	}, []ReleaseRestriction{
+		NewReleaseRestriction("1", "retail", "", "", nil),
+	})
+	if decision.Approved {
+		t.Fatal("expected missing required restriction term to reject release")
+	}
+	if !strings.Contains(decision.RejectedReason, "missing required term: retail") {
+		t.Fatalf("expected missing required restriction reason, got %q", decision.RejectedReason)
+	}
+}
+
+func TestEvaluateReleaseIgnoresTaggedRestrictionsUntilItemTagsExist(t *testing.T) {
+	item := WantedItem{Title: "Project Hail Mary", AuthorName: "Andy Weir", Format: "ebook", QualityProfile: "standard"}
+	release := acquisition.Release{
+		ID:          "r1",
+		Title:       "Project Hail Mary by Andy Weir EPUB screener",
+		DownloadURL: "magnet:?xt=urn:btih:abc",
+		Protocol:    "torrent",
+		Seeders:     20,
+		SizeBytes:   2_000_000,
+		Categories:  []string{"Books/EBook"},
+	}
+	decision := evaluateReleaseWithPolicy(item, release, QualityProfile{
+		Name:          "standard",
+		MediaFormat:   "ebook",
+		MinScore:      60,
+		CutoffScore:   85,
+		MinSeeders:    1,
+		RejectedTerms: []string{"summary", "review"},
+	}, []ReleaseRestriction{
+		NewReleaseRestriction("1", "", "screener", "", []int{7}),
+	})
+	if !decision.Approved {
+		t.Fatalf("expected tagged restriction to be ignored without item tags, got %q", decision.RejectedReason)
+	}
+}
+
+func TestParseReleaseRestrictionTermsDeduplicatesSeparators(t *testing.T) {
+	terms := ParseReleaseRestrictionTerms("Retail, retail; WEB\nproper|")
+	if strings.Join(terms, "|") != "Retail|WEB|proper" {
+		t.Fatalf("unexpected terms: %#v", terms)
+	}
+}

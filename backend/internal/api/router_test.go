@@ -716,6 +716,27 @@ func TestCompatCatalogResourcePersistenceEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatRestrictionRecordRoundTripsAliases(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/restriction", strings.NewReader(`{"mustContain":"retail","mustNotContain":"screener","preferredTerms":"proper","tags":[5]}`))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	body := res.Body.String()
+	if res.Code != http.StatusCreated ||
+		!strings.Contains(body, `"required":"retail"`) ||
+		!strings.Contains(body, `"ignored":"screener"`) ||
+		!strings.Contains(body, `"preferred":"proper"`) ||
+		!strings.Contains(body, `"tags":[5]`) {
+		t.Fatalf("expected normalized restriction record, got %d: %s", res.Code, body)
+	}
+}
+
 func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger: slog.Default(),

@@ -43,6 +43,14 @@ type QualityProfile struct {
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
+type ReleaseRestriction struct {
+	ID             string   `json:"id,omitempty"`
+	RequiredTerms  []string `json:"requiredTerms,omitempty"`
+	IgnoredTerms   []string `json:"ignoredTerms,omitempty"`
+	PreferredTerms []string `json:"preferredTerms,omitempty"`
+	Tags           []int    `json:"tags,omitempty"`
+}
+
 type AuthorSubscribeRequest struct {
 	Result          metadata.SearchResult `json:"result,omitempty"`
 	AuthorName      string                `json:"authorName,omitempty"`

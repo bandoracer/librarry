@@ -25,13 +25,18 @@ const (
 )
 
 type Service struct {
-	store    *Store
-	acquire  Acquisition
-	metadata MetadataSearch
+	store        *Store
+	acquire      Acquisition
+	metadata     MetadataSearch
+	restrictions ReleaseRestrictionProvider
 }
 
 type MetadataSearch interface {
 	Search(ctx context.Context, query metadata.Query) ([]metadata.SearchResult, error)
+}
+
+type ReleaseRestrictionProvider interface {
+	ListReleaseRestrictions(ctx context.Context) ([]ReleaseRestriction, error)
 }
 
 func NewService(store *Store, acquire Acquisition, metadataSearch ...MetadataSearch) *Service {
@@ -40,6 +45,13 @@ func NewService(store *Store, acquire Acquisition, metadataSearch ...MetadataSea
 		search = metadataSearch[0]
 	}
 	return &Service{store: store, acquire: acquire, metadata: search}
+}
+
+func (s *Service) WithReleaseRestrictionProvider(provider ReleaseRestrictionProvider) *Service {
+	if s != nil {
+		s.restrictions = provider
+	}
+	return s
 }
 
 func (s *Service) Available() bool {
@@ -275,9 +287,13 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 		return SearchOutcome{}, err
 	}
 	profile := s.qualityProfileForItem(ctx, item)
+	restrictions, err := s.releaseRestrictions(ctx)
+	if err != nil {
+		return SearchOutcome{}, err
+	}
 	decisions := make([]ReleaseDecision, 0, len(releases))
 	for _, release := range releases {
-		decisions = append(decisions, evaluateReleaseWithProfile(item, release, profile))
+		decisions = append(decisions, evaluateReleaseWithPolicy(item, release, profile, restrictions))
 	}
 	sort.SliceStable(decisions, func(i, j int) bool {
 		if decisions[i].Approved != decisions[j].Approved {
@@ -526,12 +542,18 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 			continue
 		}
 		profile := s.qualityProfileForItem(ctx, item)
+		restrictions, err := s.releaseRestrictions(ctx)
+		if err != nil {
+			run.ErrorCount++
+			run.Matches = append(run.Matches, FeedSyncMatch{WantedItem: item, Error: err.Error()})
+			continue
+		}
 		var decisions []ReleaseDecision
 		for _, release := range releases {
 			if !feedReleaseMatchesWanted(item, release) {
 				continue
 			}
-			decisions = append(decisions, evaluateReleaseWithProfile(item, release, profile))
+			decisions = append(decisions, evaluateReleaseWithPolicy(item, release, profile, restrictions))
 		}
 		if len(decisions) == 0 {
 			continue
@@ -1063,6 +1085,17 @@ func (s *Service) qualityProfileForItem(ctx context.Context, item WantedItem) Qu
 		return defaultQualityProfile(item.QualityProfile, item.Format)
 	}
 	return normalizeProfile(profile, item)
+}
+
+func (s *Service) releaseRestrictions(ctx context.Context) ([]ReleaseRestriction, error) {
+	if s.restrictions == nil {
+		return nil, nil
+	}
+	restrictions, err := s.restrictions.ListReleaseRestrictions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return restrictions, nil
 }
 
 func bestUpgradeRelease(releases []ReleaseDecision, currentScore float64, cutoffScore float64, minDelta float64) (ReleaseDecision, bool) {

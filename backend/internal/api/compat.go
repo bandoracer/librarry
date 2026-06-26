@@ -5165,8 +5165,9 @@ func compatRestrictionRecord(payload map[string]any, id int) map[string]any {
 	}
 	return map[string]any{
 		"id":                id,
-		"required":          payloadString(payload, "required"),
-		"ignored":           firstNonEmptyString(payloadString(payload, "ignored"), payloadString(payload, "mustNotContain")),
+		"required":          firstNonEmptyString(payloadString(payload, "required"), payloadString(payload, "mustContain"), payloadString(payload, "requiredTerms")),
+		"ignored":           firstNonEmptyString(payloadString(payload, "ignored"), payloadString(payload, "mustNotContain"), payloadString(payload, "ignoredTerms")),
+		"preferred":         firstNonEmptyString(payloadString(payload, "preferred"), payloadString(payload, "preferredTerms")),
 		"tags":              compatPayloadIntArray(payload, "tags"),
 		"librarryEphemeral": true,
 	}

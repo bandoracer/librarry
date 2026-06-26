@@ -88,7 +88,8 @@ func main() {
 		}
 		cancel()
 	}
-	wantedService := wanted.NewService(wantedStore, acquire, metadataService)
+	wantedService := wanted.NewService(wantedStore, acquire, metadataService).
+		WithReleaseRestrictionProvider(compatstore.NewReleaseRestrictionProvider(compatStore))
 	libraryService := library.NewService(libraryStore, library.Config{
 		EbookRoot:                  cfg.EbookLibraryRoot,
 		AudiobookRoot:              cfg.AudiobookLibraryRoot,
