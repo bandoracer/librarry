@@ -68,7 +68,7 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (WantedItem
 
 func (s *Service) List(ctx context.Context, status string) ([]WantedItem, error) {
 	if !s.Available() {
-		return nil, errors.New("wanted service requires database persistence")
+		return []WantedItem{}, nil
 	}
 	return s.store.ListWanted(ctx, status)
 }
@@ -103,7 +103,7 @@ func (s *Service) MetadataProvenance(ctx context.Context, id string) (MetadataPr
 
 func (s *Service) MetadataReviewQueue(ctx context.Context) (MetadataReviewQueue, error) {
 	if !s.Available() {
-		return MetadataReviewQueue{}, errors.New("wanted service requires database persistence")
+		return MetadataReviewQueue{Items: []MetadataReviewItem{}, GeneratedAt: time.Now().UTC()}, nil
 	}
 	return s.store.WantedMetadataReviewQueue(ctx)
 }
@@ -117,7 +117,7 @@ func (s *Service) ApplyMetadataCorrection(ctx context.Context, id string, reques
 
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Available() {
-		return nil, errors.New("wanted service requires database persistence")
+		return DefaultQualityProfiles(), nil
 	}
 	return s.store.ListQualityProfiles(ctx)
 }
@@ -156,7 +156,7 @@ func (s *Service) SubscribeAuthor(ctx context.Context, request AuthorSubscribeRe
 
 func (s *Service) ListAuthorSubscriptions(ctx context.Context, status string) ([]AuthorSubscription, error) {
 	if !s.Available() {
-		return nil, errors.New("wanted service requires database persistence")
+		return []AuthorSubscription{}, nil
 	}
 	return s.store.ListAuthorSubscriptions(ctx, status)
 }
@@ -311,7 +311,7 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 
 func (s *Service) ListAuthorMetadataReviews(ctx context.Context, query AuthorMetadataReviewQuery) ([]AuthorMetadataReview, error) {
 	if !s.Available() {
-		return nil, errors.New("wanted service requires database persistence")
+		return []AuthorMetadataReview{}, nil
 	}
 	return s.store.ListAuthorMetadataReviews(ctx, query)
 }
@@ -1090,7 +1090,7 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 
 func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEvent, error) {
 	if !s.Available() {
-		return nil, errors.New("wanted service requires database persistence")
+		return []HistoryEvent{}, nil
 	}
 	return s.store.ListHistory(ctx, query)
 }

@@ -111,7 +111,7 @@ func (s *Service) Reconfigure(config Config) {
 
 func (s *Service) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecord, error) {
 	if !s.Available() {
-		return nil, errors.New("library service requires database persistence")
+		return []FileRecord{}, nil
 	}
 	return s.store.ListFiles(ctx, query)
 }
@@ -343,7 +343,7 @@ func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, a
 
 func (s *Service) ListImportReviews(ctx context.Context, query ReviewListQuery) ([]ImportReview, error) {
 	if !s.Available() {
-		return nil, errors.New("library service requires database persistence")
+		return []ImportReview{}, nil
 	}
 	return s.store.ListImportReviews(ctx, query)
 }

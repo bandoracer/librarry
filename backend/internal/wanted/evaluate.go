@@ -310,6 +310,19 @@ func defaultQualityProfile(name string, format string) QualityProfile {
 	return profile
 }
 
+func DefaultQualityProfiles() []QualityProfile {
+	profiles := []QualityProfile{
+		defaultQualityProfile("standard", "ebook"),
+		defaultQualityProfile("standard", "audiobook"),
+		defaultQualityProfile("large", "ebook"),
+		defaultQualityProfile("large", "audiobook"),
+	}
+	for i := range profiles {
+		profiles[i].ID = profiles[i].Name + "-" + profiles[i].MediaFormat
+	}
+	return profiles
+}
+
 func normalizeProfile(profile QualityProfile, item WantedItem) QualityProfile {
 	if strings.TrimSpace(profile.Name) == "" {
 		profile = defaultQualityProfile(item.QualityProfile, item.Format)

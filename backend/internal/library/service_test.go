@@ -37,6 +37,21 @@ func TestParseBookFilename(t *testing.T) {
 	}
 }
 
+func TestNoDatabaseReadPathsReturnEmptyStartupData(t *testing.T) {
+	service := NewService(nil, Config{}, nil, nil)
+	ctx := context.Background()
+
+	files, err := service.ListFiles(ctx, FileListQuery{Limit: 25})
+	if err != nil || len(files) != 0 {
+		t.Fatalf("expected empty files without database, got %d files and error %v", len(files), err)
+	}
+
+	reviews, err := service.ListImportReviews(ctx, ReviewListQuery{Status: "pending", Limit: 25})
+	if err != nil || len(reviews) != 0 {
+		t.Fatalf("expected empty import reviews without database, got %d reviews and error %v", len(reviews), err)
+	}
+}
+
 func TestParsedBookForPathPrefersEPUBMetadata(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "Bad_File_Name.epub")
