@@ -133,6 +133,8 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "POST", "path": "/api/v1/manualimport"},
 		{"method": "GET", "path": "/api/v1/command"},
 		{"method": "POST", "path": "/api/v1/command"},
+		{"method": "GET", "path": "/api/v1/command/{id}"},
+		{"method": "DELETE", "path": "/api/v1/command/{id}"},
 		{"method": "GET", "path": "/api/v1/system/task"},
 	})
 }
@@ -1917,23 +1919,46 @@ func (h *handler) compatCreateManualImport(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *handler) compatCommands(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{})
+	records := make([]map[string]any, 0, len(compatCommandNames()))
+	for _, name := range compatCommandNames() {
+		records = append(records, compatCommandRecord(name, nil))
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatCommand(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "command not found"})
+		return
+	}
+	for _, name := range compatCommandNames() {
+		if compatIDMatches(id, name) {
+			writeJSON(w, http.StatusOK, compatCommandRecord(name, nil))
+			return
+		}
+	}
+	if numericID, err := strconv.Atoi(id); err == nil && numericID > 0 {
+		writeJSON(w, http.StatusOK, compatCommandRecordWithID(numericID, "Unknown", nil))
+		return
+	}
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "command not found"})
+}
+
+func (h *handler) compatDeleteCommand(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSpace(r.PathValue("id")) == "" {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "command not found"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	payload := map[string]any{}
 	_ = json.NewDecoder(r.Body).Decode(&payload)
-	name := firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "commandName"), "Unknown")
-	command := map[string]any{
-		"id":          stableInt(name + time.Now().UTC().Format(time.RFC3339Nano)),
-		"name":        name,
-		"commandName": name,
-		"status":      "completed",
-		"queued":      time.Now().UTC(),
-		"started":     time.Now().UTC(),
-		"ended":       time.Now().UTC(),
-	}
+	name := compatCommandName(firstNonEmptyString(payloadString(payload, "name"), payloadString(payload, "commandName"), "Unknown"))
+	command := compatCommandRecord(name, nil)
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "rsssync":
 		if h.deps.Wanted != nil {
@@ -1956,6 +1981,45 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 	case "refreshauthor":
 		if h.deps.Wanted != nil {
 			run, err := h.deps.Wanted.MonitorAuthors(r.Context(), wanted.AuthorMonitorRequest{Trigger: "api", Force: true})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+				return
+			}
+			command["body"] = run
+		}
+	case "faileddownloadcheck":
+		if h.deps.Wanted != nil {
+			run, err := h.deps.Wanted.RecoverFailedDownloads(r.Context(), wanted.FailedDownloadRequest{
+				Trigger:           "api",
+				DownloadIDs:       payloadStringList(payload, "downloadIds", "downloadIDs", "downloads", "ids"),
+				Limit:             payloadIntDefault(payload, "limit", 0),
+				SearchLimit:       payloadIntDefault(payload, "searchLimit", 0),
+				MinStalledMinutes: payloadIntDefault(payload, "minStalledMinutes", 0),
+				AutoGrab:          payloadBoolDefault(payload, "autoGrab", false),
+				Paused:            payloadBoolDefault(payload, "paused", false),
+				RemoveFailed:      payloadBoolDefault(payload, "removeFailed", false),
+				DeleteFailedFiles: payloadBoolDefault(payload, "deleteFailedFiles", false),
+				Force:             payloadBoolDefault(payload, "force", true),
+			})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+				return
+			}
+			command["body"] = run
+		}
+	case "upgradesearch":
+		if h.deps.Wanted != nil {
+			run, err := h.deps.Wanted.SearchUpgrades(r.Context(), wanted.UpgradeRequest{
+				Trigger:                  "api",
+				WantedIDs:                payloadStringList(payload, "wantedIds", "wantedIDs", "bookIds", "bookIDs", "ids"),
+				Limit:                    payloadIntDefault(payload, "limit", 0),
+				SearchLimit:              payloadIntDefault(payload, "searchLimit", 0),
+				MinSearchIntervalMinutes: payloadIntDefault(payload, "minSearchIntervalMinutes", 0),
+				MinScoreDelta:            payloadFloatDefault(payload, "minScoreDelta", 0),
+				AutoGrab:                 payloadBoolDefault(payload, "autoGrab", false),
+				Paused:                   payloadBoolDefault(payload, "paused", false),
+				Force:                    payloadBoolDefault(payload, "force", true),
+			})
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
 				return
@@ -1990,6 +2054,57 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusCreated, command)
+}
+
+func compatCommandNames() []string {
+	return []string{
+		"RssSync",
+		"MissingBookSearch",
+		"RefreshAuthor",
+		"FailedDownloadCheck",
+		"UpgradeSearch",
+		"RenameFiles",
+		"RenameBookFiles",
+		"RenameBooks",
+		"RescanFolders",
+	}
+}
+
+func compatCommandName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "Unknown"
+	}
+	for _, candidate := range compatCommandNames() {
+		if strings.EqualFold(name, candidate) {
+			return candidate
+		}
+	}
+	return name
+}
+
+func compatCommandRecord(name string, body any) map[string]any {
+	return compatCommandRecordWithID(stableInt(name), name, body)
+}
+
+func compatCommandRecordWithID(id int, name string, body any) map[string]any {
+	now := time.Now().UTC()
+	record := map[string]any{
+		"id":          id,
+		"name":        name,
+		"commandName": name,
+		"status":      "completed",
+		"state":       "completed",
+		"queued":      now,
+		"started":     now,
+		"ended":       now,
+		"duration":    "00:00:00",
+		"message":     "Completed synchronously by Librarry",
+	}
+	if body != nil {
+		record["body"] = body
+	}
+	return record
 }
 
 func (h *handler) compatSystemTasks(w http.ResponseWriter, r *http.Request) {
@@ -5154,6 +5269,30 @@ func payloadIntDefault(payload map[string]any, key string, fallback int) int {
 		return int(typed)
 	case string:
 		parsed, err := strconv.Atoi(strings.TrimSpace(typed))
+		if err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func payloadFloatDefault(payload map[string]any, key string, fallback float64) float64 {
+	if payload == nil {
+		return fallback
+	}
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return fallback
+	}
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case int:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case string:
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(typed), 64)
 		if err == nil {
 			return parsed
 		}

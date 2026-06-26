@@ -278,6 +278,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/manualimport", handler.compatCreateManualImport)
 	mux.HandleFunc("GET /api/v1/command", handler.compatCommands)
 	mux.HandleFunc("POST /api/v1/command", handler.compatCreateCommand)
+	mux.HandleFunc("GET /api/v1/command/{id}", handler.compatCommand)
+	mux.HandleFunc("DELETE /api/v1/command/{id}", handler.compatDeleteCommand)
 	mux.HandleFunc("GET /api/v1/system/task", handler.compatSystemTasks)
 	mux.HandleFunc("GET /api/v1/system/task/{id}", handler.compatSystemTask)
 	mux.HandleFunc("GET /api/v1/providers/health", handler.providerHealth)

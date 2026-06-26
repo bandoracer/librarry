@@ -664,6 +664,35 @@ func TestCompatDownloadClientIndexerAndCommandEndpoints(t *testing.T) {
 	if !strings.Contains(res.Body.String(), `"commandName":"RssSync"`) || !strings.Contains(res.Body.String(), `"status":"completed"`) {
 		t.Fatalf("expected command result, got %s", res.Body.String())
 	}
+	var command map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&command); err != nil {
+		t.Fatal(err)
+	}
+	commandID := strconv.Itoa(int(command["id"].(float64)))
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/command/"+commandID, nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected command poll 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"commandName":"RssSync"`) || !strings.Contains(res.Body.String(), `"status":"completed"`) {
+		t.Fatalf("expected completed polled command, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/command/"+commandID, nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected command cancel 204, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"FailedDownloadCheck","force":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated || !strings.Contains(res.Body.String(), `"commandName":"FailedDownloadCheck"`) || !strings.Contains(res.Body.String(), `"replacementsFound":1`) {
+		t.Fatalf("expected failed download command result, got %d: %s", res.Code, res.Body.String())
+	}
 }
 
 func TestCompatArrResourceUtilityEndpointsPersist(t *testing.T) {

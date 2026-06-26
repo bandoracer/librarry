@@ -199,6 +199,8 @@ Initial API surface:
   - `POST /api/v1/manualimport`
   - `GET /api/v1/command`
   - `POST /api/v1/command`
+  - `GET /api/v1/command/{id}`
+  - `DELETE /api/v1/command/{id}`
   - `GET /api/v1/system/task`
   - `GET /api/v1/system/task/{id}`
 - Librarry-native endpoints:
@@ -423,6 +425,14 @@ files using the active naming templates. The Readarr-compatible `/api/v1/rename`
 endpoint maps tracked files into Arr-style rename previews, and `RenameFiles`,
 `RenameBookFiles`, or `RenameBooks` commands apply the same native rename path
 after translating Readarr-style numeric IDs back to Librarry file IDs.
+
+Readarr-compatible commands complete synchronously when Librarry can execute the
+matching native operation. The command collection exposes stable completed task
+records, `POST /api/v1/command` returns a pollable command ID, and
+`GET /api/v1/command/{id}` plus `DELETE /api/v1/command/{id}` support clients
+that follow the normal Arr command polling and cancel flow. `RssSync`,
+`MissingBookSearch`, `RefreshAuthor`, `FailedDownloadCheck`, `UpgradeSearch`,
+`RenameFiles`, and `RescanFolders` map to native Librarry work.
 
 Readarr-compatible calendar, history, parse, missing, and cutoff-unmet endpoints
 are derived from wanted items, Librarry history events, title parsing, and

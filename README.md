@@ -413,6 +413,8 @@ Important API surfaces:
   - `POST /api/v1/manualimport`
   - `GET /api/v1/command`
   - `POST /api/v1/command`
+  - `GET /api/v1/command/{id}`
+  - `DELETE /api/v1/command/{id}`
   - `GET /api/v1/system/task`
   - `GET /api/v1/system/task/{id}`
 - Librarry-native endpoints:
