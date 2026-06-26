@@ -1438,6 +1438,75 @@ func TestCompatBookFileEndpoints(t *testing.T) {
 	}
 }
 
+func TestCompatRetagEndpoints(t *testing.T) {
+	libraryClient := &fakeDeleteLibrary{}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+		Library:  libraryClient,
+	})
+
+	fileID := stableInt("file-1")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/retag", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var preview []map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&preview); err != nil {
+		t.Fatal(err)
+	}
+	if len(preview) != 1 || int(preview[0]["bookFileId"].(float64)) != fileID || preview[0]["librarryRetagWriteScope"] != "database-metadata" {
+		t.Fatalf("unexpected retag preview: %+v", preview)
+	}
+	changes, ok := preview[0]["changes"].([]any)
+	if !ok || len(changes) < 3 {
+		t.Fatalf("expected title/author/language retag changes, got %+v", preview[0]["changes"])
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/retag", strings.NewReader(`{"bookFileIds":[`+strconv.Itoa(fileID)+`]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected retag 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var outcome map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&outcome); err != nil {
+		t.Fatal(err)
+	}
+	if int(outcome["retagged"].(float64)) != 1 || int(outcome["errored"].(float64)) != 0 {
+		t.Fatalf("unexpected retag outcome: %+v", outcome)
+	}
+	if len(libraryClient.updates) != 1 {
+		t.Fatalf("expected one retag file update, got %+v", libraryClient.updates)
+	}
+	metadata := libraryClient.updates[0].Metadata
+	if metadata["readarrRetagTitle"] != "Project Hail Mary" || metadata["readarrRetagAuthor"] != "Andy Weir" ||
+		metadata["readarrRetagQuality"] != "ebook" || metadata["librarryRetagMode"] != "database-metadata" {
+		t.Fatalf("expected retag metadata, got %+v", metadata)
+	}
+	languages, ok := metadata["readarrRetagLanguages"].([]string)
+	if !ok || len(languages) != 1 || languages[0] != "English" {
+		t.Fatalf("expected persisted retag language, got %+v", metadata["readarrRetagLanguages"])
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/command", strings.NewReader(`{"name":"RetagFiles","files":[`+strconv.Itoa(fileID)+`]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("expected retag command 201, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"commandName":"RetagFiles"`) || !strings.Contains(res.Body.String(), `"retagged":1`) {
+		t.Fatalf("expected retag command outcome, got %s", res.Body.String())
+	}
+	if len(libraryClient.updates) != 2 {
+		t.Fatalf("expected command retag update, got %+v", libraryClient.updates)
+	}
+}
+
 func TestCompatRenamePreviewEndpoint(t *testing.T) {
 	renameLibrary := &fakeRenameLibrary{}
 	router := NewRouter(Dependencies{

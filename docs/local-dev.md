@@ -232,6 +232,9 @@ conflict policy fields. OPF sidecars and embedded
 EPUB package metadata plus MP3 ID3 and M4B/MP4 audio tags are extracted during
 scan/import and used for title, author, identifiers, language, publisher,
 series, album, year, and track evidence before falling back to filename parsing.
+Readarr-compatible `/api/v1/retag` previews and applies title, author, language,
+and quality tag state on tracked file records for compatibility clients; it does
+not rewrite embedded EPUB, MP3, or M4B metadata yet.
 
 If the destination path is inside a Readarr-compatible root folder with
 `isCalibreLibrary=true`, Librarry also posts the imported file to the configured

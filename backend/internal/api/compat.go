@@ -23,6 +23,8 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
+var errCompatServiceUnavailable = errors.New("library service is unavailable")
+
 func (h *handler) compatPing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	if r.Method == http.MethodHead {
@@ -119,6 +121,8 @@ func (h *handler) compatSystemRoutes(w http.ResponseWriter, r *http.Request) {
 		{"method": "PUT", "path": "/api/v1/bookfile/{id}"},
 		{"method": "DELETE", "path": "/api/v1/bookfile/{id}"},
 		{"method": "DELETE", "path": "/api/v1/bookfile/bulk"},
+		{"method": "GET", "path": "/api/v1/retag"},
+		{"method": "POST", "path": "/api/v1/retag"},
 		{"method": "GET", "path": "/api/v1/rename"},
 		{"method": "GET", "path": "/api/v1/wanted/missing"},
 		{"method": "GET", "path": "/api/v1/wanted/missing/{id}"},
@@ -1518,9 +1522,21 @@ func (h *handler) compatDeleteBookFileBulk(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *handler) compatBookFileSource(w http.ResponseWriter, r *http.Request) ([]library.FileRecord, []wanted.WantedItem, bool) {
-	if h.deps.Library == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
+	files, items, err := h.compatBookFileData(r)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, errCompatServiceUnavailable) {
+			status = http.StatusServiceUnavailable
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return nil, nil, false
+	}
+	return files, items, true
+}
+
+func (h *handler) compatBookFileData(r *http.Request) ([]library.FileRecord, []wanted.WantedItem, error) {
+	if h.deps.Library == nil {
+		return nil, nil, errCompatServiceUnavailable
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	files, err := h.deps.Library.ListFiles(r.Context(), library.FileListQuery{
@@ -1529,10 +1545,9 @@ func (h *handler) compatBookFileSource(w http.ResponseWriter, r *http.Request) (
 		Limit:  limit,
 	})
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
-		return nil, nil, false
+		return nil, nil, err
 	}
-	return files, h.compatWantedItemsBestEffort(r), true
+	return files, h.compatWantedItemsBestEffort(r), nil
 }
 
 func (h *handler) compatFindBookFile(w http.ResponseWriter, r *http.Request, id string) (library.FileRecord, *wanted.WantedItem, bool) {
@@ -1584,6 +1599,102 @@ func (h *handler) compatRenamePreview(w http.ResponseWriter, r *http.Request) {
 		records = append(records, compatRenamePreviewRecord(preview, wantedItemForFile(preview.File, items)))
 	}
 	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatRetagPreview(w http.ResponseWriter, r *http.Request) {
+	files, items, ok := h.compatBookFileSource(w, r)
+	if !ok {
+		return
+	}
+	includeCurrent := parseBoolDefault(r.URL.Query().Get("includeCurrent"), false)
+	records := make([]map[string]any, 0, len(files))
+	for _, file := range files {
+		item := wantedItemForFile(file, items)
+		if !bookFileMatchesQuery(r, file, item) {
+			continue
+		}
+		record := compatRetagRecord(file, item)
+		if includeCurrent || len(compatRetagChangesFromRecord(record)) > 0 {
+			records = append(records, record)
+		}
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (h *handler) compatRetag(w http.ResponseWriter, r *http.Request) {
+	payload, ok := decodeCompatRetagPayload(w, r)
+	if !ok {
+		return
+	}
+	outcome, err := h.compatApplyRetag(r, payload)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "outcome": outcome})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) compatApplyRetag(r *http.Request, payload map[string]any) (map[string]any, error) {
+	files, items, err := h.compatBookFileData(r)
+	if err != nil {
+		return map[string]any{}, err
+	}
+	ids := retagCommandFileIDs(payload)
+	paths := renameCommandPaths(payload)
+	force := payloadBoolDefault(payload, "force", parseBoolDefault(r.URL.Query().Get("force"), false))
+	requested := 0
+	retagged := 0
+	skipped := 0
+	errored := 0
+	results := make([]map[string]any, 0, len(files))
+	matchedPaths := map[string]bool{}
+	for _, file := range files {
+		item := wantedItemForFile(file, items)
+		matchesID := len(ids) > 0 && bookFileMatchesAnyID(file, ids)
+		matchesPath := len(paths) > 0 && bookFileMatchesAnyPath(file, paths)
+		matchesSelection := len(ids) == 0 && len(paths) == 0 && (bookFileMatchesPayloadSelection(file, item, payload) || bookFileQueryHasFilter(r) && bookFileMatchesQuery(r, file, item))
+		matchesAll := len(ids) == 0 && len(paths) == 0 && !bookFileQueryHasFilter(r) && !retagPayloadHasSelection(payload)
+		if !matchesID && !matchesPath && !matchesSelection && !matchesAll {
+			continue
+		}
+		requested++
+		record := compatRetagRecord(file, item)
+		changes := compatRetagChangesFromRecord(record)
+		for _, path := range paths {
+			if compatIDMatches(path, file.Path, file.SourcePath, filepath.Base(file.Path)) {
+				matchedPaths[path] = true
+			}
+		}
+		if len(changes) == 0 && !force {
+			skipped++
+			results = append(results, map[string]any{"bookFileId": record["bookFileId"], "status": "skipped", "retag": record})
+			continue
+		}
+		updated := applyCompatRetag(file, item, record)
+		saved, err := h.deps.Library.UpdateFile(r.Context(), updated)
+		if err != nil {
+			errored++
+			results = append(results, map[string]any{"bookFileId": record["bookFileId"], "status": "error", "error": err.Error(), "retag": record})
+			continue
+		}
+		retagged++
+		results = append(results, map[string]any{"bookFileId": record["bookFileId"], "status": "retagged", "retag": compatRetagRecord(saved, item)})
+	}
+	for _, path := range paths {
+		if !matchedPaths[path] {
+			requested++
+			errored++
+			results = append(results, map[string]any{"path": path, "status": "error", "error": "book file path not found"})
+		}
+	}
+	return map[string]any{
+		"requested":             requested,
+		"retagged":              retagged,
+		"skipped":               skipped,
+		"errored":               errored,
+		"results":               results,
+		"librarryCompatibility": "readarr-retag",
+	}, nil
 }
 
 func (h *handler) compatBookLookup(w http.ResponseWriter, r *http.Request) {
@@ -2537,6 +2648,15 @@ func (h *handler) compatCreateCommand(w http.ResponseWriter, r *http.Request) {
 			}
 			command["body"] = run
 		}
+	case "retagfiles", "retagbookfiles", "retagbooks":
+		if h.deps.Library != nil {
+			run, err := h.compatApplyRetag(r, payload)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "command": command})
+				return
+			}
+			command["body"] = run
+		}
 	case "rescanfolders":
 		if h.deps.Library != nil {
 			run, err := h.deps.Library.Scan(r.Context(), library.ScanRequest{})
@@ -3102,6 +3222,9 @@ func compatCommandNames() []string {
 		"RenameFiles",
 		"RenameBookFiles",
 		"RenameBooks",
+		"RetagFiles",
+		"RetagBookFiles",
+		"RetagBooks",
 		"RescanFolders",
 		"RefreshCalibreConversions",
 	}
@@ -4782,6 +4905,133 @@ func compatRenamePreviewRecord(preview library.RenameFilePreview, item *wanted.W
 	}
 }
 
+func compatRetagRecord(file library.FileRecord, item *wanted.WantedItem) map[string]any {
+	bookFile := compatBookFileRecord(file, item)
+	bookID := payloadIntDefault(bookFile, "bookId", stableInt(file.Title))
+	authorID := payloadIntDefault(bookFile, "authorId", stableInt(file.AuthorName))
+	currentTags := compatRetagCurrentTags(file)
+	newTags := compatRetagDesiredTags(file, item)
+	changes := compatRetagChanges(currentTags, newTags)
+	return map[string]any{
+		"id":                      stableInt(firstNonEmptyString(file.ID, file.Path) + ":retag"),
+		"authorId":                authorID,
+		"bookId":                  bookID,
+		"bookFileId":              stableInt(firstNonEmptyString(file.ID, file.Path)),
+		"path":                    file.Path,
+		"relativePath":            filepath.Base(file.Path),
+		"bookFile":                bookFile,
+		"book":                    bookFile["book"],
+		"author":                  bookFile["author"],
+		"changes":                 changes,
+		"currentTags":             currentTags,
+		"newTags":                 newTags,
+		"librarryId":              file.ID,
+		"librarryNeedsRetag":      len(changes) > 0,
+		"librarryCompatibility":   "readarr-retag",
+		"librarryRetagWriteScope": "database-metadata",
+	}
+}
+
+func compatRetagCurrentTags(file library.FileRecord) map[string]any {
+	return map[string]any{
+		"title":     fileMetadataString(file, "readarrRetagTitle"),
+		"author":    fileMetadataString(file, "readarrRetagAuthor"),
+		"languages": fileMetadataStringList(file, "readarrRetagLanguages"),
+		"quality":   fileMetadataString(file, "readarrRetagQuality"),
+	}
+}
+
+func compatRetagDesiredTags(file library.FileRecord, item *wanted.WantedItem) map[string]any {
+	title := defaultString(file.Title, strings.TrimSuffix(filepath.Base(file.Path), filepath.Ext(file.Path)))
+	authorName := file.AuthorName
+	if item != nil {
+		title = defaultString(item.Title, title)
+		authorName = defaultString(item.AuthorName, authorName)
+	}
+	format := blocklistFormat(file.MediaFormat, file.Extension, file.Path, item)
+	qualityName := firstNonEmptyString(fileMetadataString(file, "qualityName"), fileMetadataString(file, "quality"), format)
+	return map[string]any{
+		"title":     title,
+		"author":    authorName,
+		"languages": compatBookFileLanguageNames(file),
+		"quality":   qualityName,
+	}
+}
+
+func compatRetagChanges(current map[string]any, desired map[string]any) []map[string]any {
+	var changes []map[string]any
+	if !strings.EqualFold(payloadString(current, "title"), payloadString(desired, "title")) {
+		changes = append(changes, compatRetagChange("title", payloadString(current, "title"), payloadString(desired, "title")))
+	}
+	if !strings.EqualFold(payloadString(current, "author"), payloadString(desired, "author")) {
+		changes = append(changes, compatRetagChange("author", payloadString(current, "author"), payloadString(desired, "author")))
+	}
+	if !stringSlicesEqualFold(retagTagList(current, "languages"), retagTagList(desired, "languages")) {
+		changes = append(changes, compatRetagChange("languages", retagTagList(current, "languages"), retagTagList(desired, "languages")))
+	}
+	if !strings.EqualFold(payloadString(current, "quality"), payloadString(desired, "quality")) {
+		changes = append(changes, compatRetagChange("quality", payloadString(current, "quality"), payloadString(desired, "quality")))
+	}
+	return changes
+}
+
+func compatRetagChange(field string, oldValue any, newValue any) map[string]any {
+	return map[string]any{
+		"field":    field,
+		"oldValue": oldValue,
+		"newValue": newValue,
+	}
+}
+
+func compatRetagChangesFromRecord(record map[string]any) []map[string]any {
+	switch changes := record["changes"].(type) {
+	case []map[string]any:
+		return changes
+	case []any:
+		records := make([]map[string]any, 0, len(changes))
+		for _, change := range changes {
+			if typed, ok := change.(map[string]any); ok {
+				records = append(records, typed)
+			}
+		}
+		return records
+	default:
+		return nil
+	}
+}
+
+func applyCompatRetag(file library.FileRecord, item *wanted.WantedItem, record map[string]any) library.FileRecord {
+	updated := file
+	updated.Metadata = cloneMetadata(file.Metadata)
+	desired := compatRetagDesiredTags(file, item)
+	if tags, ok := record["newTags"].(map[string]any); ok {
+		desired = tags
+	}
+	title := payloadString(desired, "title")
+	authorName := payloadString(desired, "author")
+	languages := retagTagList(desired, "languages")
+	qualityName := payloadString(desired, "quality")
+	if title != "" {
+		updated.Title = title
+		updated.Metadata["readarrRetagTitle"] = title
+	}
+	if authorName != "" {
+		updated.AuthorName = authorName
+		updated.Metadata["readarrRetagAuthor"] = authorName
+		updated.Metadata["readarrRetagAuthors"] = []string{authorName}
+	}
+	if len(languages) > 0 {
+		updated.Metadata["readarrRetagLanguages"] = languages
+	}
+	if qualityName != "" {
+		updated.Metadata["readarrRetagQuality"] = qualityName
+	}
+	updated.Metadata["readarrRetagChanges"] = compatRetagChangesFromRecord(record)
+	updated.Metadata["readarrRetaggedAt"] = time.Now().UTC().Format(time.RFC3339)
+	updated.Metadata["librarryRetagMode"] = "database-metadata"
+	return updated
+}
+
 func wantedItemForFile(file library.FileRecord, items []wanted.WantedItem) *wanted.WantedItem {
 	for _, item := range items {
 		if compatIDMatches(firstNonEmptyString(file.EditionID, fileMetadataString(file, "editionId")), item.EditionID, item.WorkID, item.ID, item.SourceKey) {
@@ -5005,6 +5255,36 @@ func renameCommandFileIDs(payload map[string]any) []string {
 	return firstUniqueStrings(ids)
 }
 
+func retagCommandFileIDs(payload map[string]any) []string {
+	ids := bookFileDeleteIDs(payload)
+	for _, key := range []string{"files", "items", "records", "retags"} {
+		for _, value := range compatPayloadArray(payload, key) {
+			switch typed := value.(type) {
+			case map[string]any:
+				ids = append(ids, payloadStringList(typed, "id", "bookFileId", "bookFileID", "fileId", "fileID", "librarryId")...)
+				if nested, ok := typed["bookFile"].(map[string]any); ok {
+					ids = append(ids, payloadStringList(nested, "id", "bookFileId", "bookFileID", "librarryId")...)
+				}
+			default:
+				if text := stringValue(value); text != "" {
+					ids = append(ids, text)
+				}
+			}
+		}
+	}
+	return firstUniqueStrings(ids)
+}
+
+func retagPayloadHasSelection(payload map[string]any) bool {
+	return len(retagCommandFileIDs(payload)) > 0 ||
+		len(renameCommandPaths(payload)) > 0 ||
+		len(payloadStringList(payload, "bookIds", "bookIDs", "bookId", "bookID", "authorIds", "authorIDs", "authorId", "authorID")) > 0 ||
+		len(compatPayloadArray(payload, "files")) > 0 ||
+		len(compatPayloadArray(payload, "items")) > 0 ||
+		len(compatPayloadArray(payload, "records")) > 0 ||
+		len(compatPayloadArray(payload, "retags")) > 0
+}
+
 func renameCommandPaths(payload map[string]any) []string {
 	paths := payloadStringList(payload, "paths", "path", "existingPath", "sourcePath")
 	for _, value := range compatPayloadArray(payload, "files") {
@@ -5173,6 +5453,42 @@ func fileMetadataString(file library.FileRecord, key string) string {
 		return strings.TrimSpace(text)
 	}
 	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(jsonString(value)), `"`), `"`))
+}
+
+func fileMetadataStringList(file library.FileRecord, key string) []string {
+	if file.Metadata == nil {
+		return nil
+	}
+	value, ok := file.Metadata[key]
+	if !ok || value == nil {
+		return nil
+	}
+	return firstUniqueStrings(languageNamesFromValue(value))
+}
+
+func retagTagList(payload map[string]any, key string) []string {
+	if payload == nil {
+		return nil
+	}
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return nil
+	}
+	return firstUniqueStrings(languageNamesFromValue(value))
+}
+
+func stringSlicesEqualFold(left []string, right []string) bool {
+	left = firstUniqueStrings(left)
+	right = firstUniqueStrings(right)
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if !strings.EqualFold(left[i], right[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func fileMetadataMap(file library.FileRecord, key string) map[string]any {
@@ -6864,6 +7180,29 @@ func decodeCompatObjectPayload(w http.ResponseWriter, r *http.Request, name stri
 		payload = map[string]any{}
 	}
 	return payload, true
+}
+
+func decodeCompatRetagPayload(w http.ResponseWriter, r *http.Request) (map[string]any, bool) {
+	defer r.Body.Close()
+	var raw any
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		if errors.Is(err, io.EOF) {
+			return map[string]any{}, true
+		}
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid retag payload"})
+		return nil, false
+	}
+	switch typed := raw.(type) {
+	case nil:
+		return map[string]any{}, true
+	case map[string]any:
+		return typed, true
+	case []any:
+		return map[string]any{"records": typed}, true
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid retag payload"})
+		return nil, false
+	}
 }
 
 func pathValueInt(r *http.Request, key string) int {

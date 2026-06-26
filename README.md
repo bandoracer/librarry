@@ -36,6 +36,8 @@ book data is incomplete or ambiguous.
 > Readarr-compatible bookfile endpoints map imported Librarry files back
 > to books, delete bookfile records with optional physical file removal, and
 > preview/apply file renames through the configured Librarry naming templates.
+> Readarr-compatible retag preview/apply endpoints and commands persist desired
+> title, author, language, and quality tag state on tracked file records.
 > Failed-download detection and replacement search/grab are implemented.
 > Failed downloads and failed history events are exposed through
 > Readarr-compatible blocklist/blacklist endpoints. Score-based upgrade
@@ -100,7 +102,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | Manual release search | Mature manual search with rejection reasons and direct send to download clients. | Prowlarr-backed wanted release search with score/rejection reasons, paused grab endpoint, manual magnet/torrent-file/torrent-URL/NZB add, stateful Readarr-compatible `/api/v1/release` search/grab adapter that can grab a persisted decision by returned Arr ID, qBittorrent/Transmission controls, and SABnzbd add/list/start/stop/delete support for NZB releases. | Add richer rejection explanations, quality scoring, and manual review queues. |
 | Indexers | Native Readarr indexer support plus common Arr ecosystem patterns. | Prowlarr-compatible search client. | Keep Prowlarr as the preferred indexer aggregator instead of duplicating every indexer implementation. |
 | Download clients | Supports SABnzbd, NZBGet, qBittorrent, Deluge, rTorrent, Transmission, uTorrent, and others. | Dedicated Downloads page with manual URL/file add, client/state/category/text filters, selected-row bulk actions, and configurable active-queue rebalancing. qBittorrent add/list/start/stop/delete/recheck/queue-priority controls, force-start, sequential-download and first/last-piece toggles, delete-with-data, rename, tag add/remove, category/save-path edits, category/tag namespace administration, per-torrent download/upload speed limits, details, peer lists, tracker add/edit/remove, tracker/file inspection, and per-file skip/normal/high/max priority actions are implemented. Transmission supports RPC health, torrent add/list/start/stop/delete/recheck, `.torrent` upload through RPC metainfo, queue movement, force-start, set location, label-backed category/tag edits, label-derived category/tag listing, label rename/delete, tracker add/edit/remove, per-torrent speed limits, details, file/tracker/peer inspection, and skip/normal/high/max file-priority actions. SABnzbd can add NZB/Usenet releases, list queue/history state, show details and queue files, start/stop/delete jobs, rename jobs, change category, and change priority. This is still not a full multi-client torrent manager or standalone qBittorrent replacement. | Add conflict-aware arbitration, per-client capability handling, SABnzbd category namespace controls, and more clients only behind small interfaces once metadata and matching are stable. |
-| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers optional Readarr-style API-key auth, common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders with Calibre settings, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename preview and native-backed command handling for RSS sync, missing search, book search, author search, failed-download recovery, upgrade/cutoff-unmet search, and rename/rescan; manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, Webhook notifications with native delivery, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, retagging, Calibre content-server operations, and broader native behavior behind compatibility resources. |
+| API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers optional Readarr-style API-key auth, common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders with Calibre settings, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename and retag preview/apply flows, and native-backed command handling for RSS sync, missing search, book search, author search, failed-download recovery, upgrade/cutoff-unmet search, rename/rescan, and database-backed retag state; manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, Webhook notifications with native delivery, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, embedded metadata writes, Calibre content-server operations, and broader native behavior behind compatibility resources. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Readarr-style Calibre root-folder settings are accepted, validated, persisted, and returned. Imports that land under a Calibre-enabled root are posted to the Calibre Content Server add-book endpoint, store the returned Calibre ID, push basic title, author, and identifier metadata through set-fields, start configured output-format conversions, and refresh conversion status through native API or command calls. Physical deletes for Calibre-backed files call the Content Server delete-books endpoint. Scheduled background conversion polling, richer edition metadata, embedded metadata writes, path refresh after Calibre renames, and failed-import rollback are not implemented yet. | Implement scheduled conversion polling, richer metadata sync, and stronger error recovery behind the same root-folder contract. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, choose copy/move/hardlink mode and duplicate-file behavior, queue unlinked files for individual or bulk review, and rename tracked files through native or Readarr-compatible APIs. | Add richer matching evidence and per-profile organization rules. |
 | Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
@@ -170,6 +172,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Native and Readarr-compatible file rename preview/apply flows using the active
   library naming templates, including `/api/v1/rename` and `RenameFiles`
   command compatibility.
+- Readarr-compatible retag preview/apply flows, including `/api/v1/retag` and
+  `RetagFiles` command compatibility, that persist desired title, author,
+  language, and quality tag state on tracked file records.
 - Readarr-compatible calendar, history, and parse endpoints mapped from wanted
   items and Librarry history events.
 - Configurable library naming templates for author folder, book folder, file
@@ -230,7 +235,7 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   `/api/v1/author`, `/api/v1/author/lookup`, `/api/v1/author/editor`,
   `/api/v1/book`, `/api/v1/book/lookup`, `/api/v1/book/editor`, `/api/v1/bookfile`,
   `/api/v1/calendar`, `/api/v1/history`,
-  `/api/v1/rename`, `/api/v1/parse`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
+  `/api/v1/rename`, `/api/v1/retag`, `/api/v1/parse`, `/api/v1/manualimport`, `/api/v1/wanted/missing`,
   `/api/v1/wanted/cutoff`, `/api/v1/qualityprofile`, `/api/v1/qualitydefinition`,
   `/api/v1/delayprofile`, `/api/v1/languageprofile`, `/api/v1/metadataprofile`,
   `/api/v1/metadata`, `/api/v1/customformat`, `/api/v1/tag`, `/api/v1/restriction`,
@@ -358,6 +363,8 @@ Important API surfaces:
   - `DELETE /api/v1/bookfile/{id}`
   - `DELETE /api/v1/bookfile/bulk`
   - `GET /api/v1/rename`
+  - `GET /api/v1/retag`
+  - `POST /api/v1/retag`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/wanted/missing/{id}`
   - `GET /api/v1/wanted/cutoff`

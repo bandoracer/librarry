@@ -99,6 +99,8 @@ Initial API surface:
   - `DELETE /api/v1/bookfile/{id}`
   - `DELETE /api/v1/bookfile/bulk`
   - `GET /api/v1/rename`
+  - `GET /api/v1/retag`
+  - `POST /api/v1/retag`
   - `GET /api/v1/wanted/missing`
   - `GET /api/v1/wanted/missing/{id}`
   - `GET /api/v1/wanted/cutoff`
@@ -491,6 +493,13 @@ file record and honors `deleteFiles=true` for physical file removal. `PUT`
 persists Readarr-style quality, language, scene/release-group, and Arr ID
 metadata on the tracked file record without moving or rewriting the physical
 file.
+
+The Readarr-compatible `/api/v1/retag` surface computes title, author,
+language, and quality tag differences for tracked files and persists applied
+retag state back onto the native file record. `RetagFiles`, `RetagBookFiles`,
+and `RetagBooks` commands run the same path. This is database-backed retag state
+for compatibility and auditability; embedded EPUB/MP3/M4B metadata writes remain
+separate future work.
 
 The native library rename endpoints preview or apply moves for selected tracked
 files using the active naming templates. The Readarr-compatible `/api/v1/rename`
