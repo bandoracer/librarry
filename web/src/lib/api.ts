@@ -957,13 +957,17 @@ async function apiError(response: Response, label: string) {
   return `${label}: ${detail || response.status}`;
 }
 
+function arrayPayload<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
 export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
   const response = await fetch(`${apiBase}/api/v1/providers/health`);
   if (!response.ok) {
     throw new Error(await apiError(response, "Provider health failed"));
   }
-  const payload = (await response.json()) as { providers: ProviderHealth[] };
-  return payload.providers;
+  const payload = (await response.json()) as { providers?: ProviderHealth[] | null };
+  return arrayPayload(payload.providers);
 }
 
 export async function searchMetadata(query: string, format: string, type: MetadataSearchType = "book"): Promise<SearchResult[]> {
@@ -976,8 +980,8 @@ export async function searchMetadata(query: string, format: string, type: Metada
   if (!response.ok) {
     throw new Error(`Search failed: ${response.status}`);
   }
-  const payload = (await response.json()) as { results: SearchResult[] };
-  return payload.results;
+  const payload = (await response.json()) as { results?: SearchResult[] | null };
+  return arrayPayload(payload.results);
 }
 
 export async function fetchIntegrationHealth(): Promise<IntegrationHealth[]> {
@@ -985,8 +989,8 @@ export async function fetchIntegrationHealth(): Promise<IntegrationHealth[]> {
   if (!response.ok) {
     throw new Error(`Integration health failed: ${response.status}`);
   }
-  const payload = (await response.json()) as { integrations: IntegrationHealth[] };
-  return payload.integrations;
+  const payload = (await response.json()) as { integrations?: IntegrationHealth[] | null };
+  return arrayPayload(payload.integrations);
 }
 
 export async function fetchSystemStatus(): Promise<SystemStatus> {
@@ -1086,8 +1090,8 @@ export async function searchReleases(query: string, format: string): Promise<Rel
   if (!response.ok) {
     throw new Error(`Release search failed: ${response.status}`);
   }
-  const payload = (await response.json()) as { releases: Release[] };
-  return payload.releases;
+  const payload = (await response.json()) as { releases?: Release[] | null };
+  return arrayPayload(payload.releases);
 }
 
 export async function grabRelease(release: Release, format: string): Promise<DownloadStatus> {
@@ -1176,8 +1180,8 @@ export async function fetchDownloads(options: string | DownloadListOptions = "")
   if (!response.ok) {
     throw new Error(`Download refresh failed: ${response.status}`);
   }
-  const payload = (await response.json()) as { downloads: DownloadStatus[] };
-  return payload.downloads;
+  const payload = (await response.json()) as { downloads?: DownloadStatus[] | null };
+  return arrayPayload(payload.downloads);
 }
 
 export async function fetchAcquisitionQueue(options: { status?: string; limit?: number } = {}): Promise<AcquisitionQueue> {
@@ -1432,8 +1436,8 @@ export async function fetchWanted(): Promise<WantedItem[]> {
   if (!response.ok) {
     throw new Error(await apiError(response, "Wanted refresh failed"));
   }
-  const payload = (await response.json()) as { wanted: WantedItem[] };
-  return payload.wanted.filter((item) => !["imported", "removed", "ignored"].includes((item.status || "").toLowerCase()));
+  const payload = (await response.json()) as { wanted?: WantedItem[] | null };
+  return arrayPayload(payload.wanted).filter((item) => !["imported", "removed", "ignored"].includes((item.status || "").toLowerCase()));
 }
 
 export async function fetchQualityProfiles(): Promise<QualityProfile[]> {
@@ -1441,8 +1445,8 @@ export async function fetchQualityProfiles(): Promise<QualityProfile[]> {
   if (!response.ok) {
     throw new Error(await apiError(response, "Quality profiles refresh failed"));
   }
-  const payload = (await response.json()) as { profiles: QualityProfile[] };
-  return payload.profiles;
+  const payload = (await response.json()) as { profiles?: QualityProfile[] | null };
+  return arrayPayload(payload.profiles);
 }
 
 export async function saveQualityProfile(profile: QualityProfile): Promise<QualityProfile> {
@@ -1463,8 +1467,8 @@ export async function fetchAuthorSubscriptions(status = "monitored"): Promise<Au
   if (!response.ok) {
     throw new Error(await apiError(response, "Author subscriptions refresh failed"));
   }
-  const payload = (await response.json()) as { authors: AuthorSubscription[] };
-  return payload.authors;
+  const payload = (await response.json()) as { authors?: AuthorSubscription[] | null };
+  return arrayPayload(payload.authors);
 }
 
 export async function subscribeAuthor(result: SearchResult, format: string, qualityProfile = "standard", missingBookPolicy: AuthorMissingBookPolicy = "all"): Promise<AuthorSubscription> {
@@ -1512,8 +1516,8 @@ export async function fetchAuthorMetadataReviews(status = "pending", limit = 100
   if (!response.ok) {
     throw new Error(await apiError(response, "Author metadata review refresh failed"));
   }
-  const payload = (await response.json()) as { reviews: AuthorMetadataReview[] };
-  return payload.reviews;
+  const payload = (await response.json()) as { reviews?: AuthorMetadataReview[] | null };
+  return arrayPayload(payload.reviews);
 }
 
 export async function resolveAuthorMetadataReview(reviewId: string, action: "wanted" | "ignore"): Promise<AuthorMetadataReviewDecision> {
@@ -1772,8 +1776,8 @@ export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
   if (!response.ok) {
     throw new Error(await apiError(response, "History refresh failed"));
   }
-  const payload = (await response.json()) as { events: HistoryEvent[] };
-  return payload.events;
+  const payload = (await response.json()) as { events?: HistoryEvent[] | null };
+  return arrayPayload(payload.events);
 }
 
 export async function fetchLibraryFiles(format = "any", limit = 100): Promise<LibraryFile[]> {
@@ -1783,8 +1787,8 @@ export async function fetchLibraryFiles(format = "any", limit = 100): Promise<Li
   if (!response.ok) {
     throw new Error(await apiError(response, "Library files refresh failed"));
   }
-  const payload = (await response.json()) as { files: LibraryFile[] };
-  return payload.files;
+  const payload = (await response.json()) as { files?: LibraryFile[] | null };
+  return arrayPayload(payload.files);
 }
 
 export async function fetchLibraryImportReviews(status = "pending", limit = 100): Promise<ImportReview[]> {
@@ -1793,8 +1797,8 @@ export async function fetchLibraryImportReviews(status = "pending", limit = 100)
   if (!response.ok) {
     throw new Error(await apiError(response, "Import review refresh failed"));
   }
-  const payload = (await response.json()) as { reviews: ImportReview[] };
-  return payload.reviews;
+  const payload = (await response.json()) as { reviews?: ImportReview[] | null };
+  return arrayPayload(payload.reviews);
 }
 
 export async function scanLibrary(format = "any", options: { root?: string; limit?: number } = {}): Promise<LibraryScanOutcome> {
