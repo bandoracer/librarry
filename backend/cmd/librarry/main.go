@@ -98,7 +98,8 @@ func main() {
 		cancel()
 	}
 	wantedService := wanted.NewService(wantedStore, acquire, metadataService).
-		WithReleaseRestrictionProvider(compatstore.NewReleaseRestrictionProvider(compatStore))
+		WithReleaseRestrictionProvider(compatstore.NewReleaseRestrictionProvider(compatStore)).
+		WithDefaultSearchLanguage(cfg.StandardSearchLanguage)
 	libraryConfig := library.Config{
 		EbookRoot:                  cfg.EbookLibraryRoot,
 		AudiobookRoot:              cfg.AudiobookLibraryRoot,
@@ -106,6 +107,7 @@ func main() {
 		NamingBookFolderTemplate:   cfg.NamingBookFolder,
 		NamingFileNameTemplate:     cfg.NamingFileName,
 		NamingSpaceReplacement:     cfg.NamingSpaceReplacement,
+		StandardSearchLanguage:     cfg.StandardSearchLanguage,
 	}
 	if compatStore != nil {
 		roots, err := compatStore.ListRootFolders(ctx)
@@ -125,6 +127,7 @@ func main() {
 		rootFolders = compatStore
 	}
 	libraryService := library.NewService(libraryStore, libraryConfig, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), rootFolders)
+	wantedService.SetDefaultSearchLanguage(libraryConfig.StandardSearchLanguage)
 	var monitorWG sync.WaitGroup
 	if cfg.MonitorEnabled && wantedService.Available() {
 		monitorWG.Add(1)

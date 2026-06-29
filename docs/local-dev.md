@@ -273,6 +273,7 @@ LIBRARRY_NAMING_AUTHOR_FOLDER={Author}
 LIBRARRY_NAMING_BOOK_FOLDER={Title}
 LIBRARRY_NAMING_FILE_NAME={Title}{Ext}
 LIBRARRY_NAMING_SPACE_REPLACEMENT=
+LIBRARRY_STANDARD_SEARCH_LANGUAGE=English
 ```
 
 `POST /api/v1/library/scan` indexes existing files. `POST /api/v1/library/import`
@@ -296,6 +297,10 @@ series, album, year, and track evidence before falling back to filename parsing.
 Readarr-compatible `/api/v1/retag` previews and applies title, author, language,
 and quality tag state on tracked file records for compatibility clients; it does
 not rewrite embedded EPUB, MP3, or M4B metadata yet.
+`LIBRARRY_STANDARD_SEARCH_LANGUAGE` defaults provider metadata search, manual
+release search, and wanted-item release search to English. Operators can change
+the persisted preference from Settings; explicit wanted-item language overrides
+still win for release scoring.
 
 If the destination path is inside a Readarr-compatible root folder with
 `isCalibreLibrary=true`, Librarry also posts the imported file to the configured

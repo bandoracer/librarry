@@ -32,6 +32,8 @@ Important current facts:
 - Local images are `librarry-api:local` and `librarry-web:local`.
 - The live portal, when available, is `http://192.168.1.221:30200/`.
 - The Cosmos hostname, when configured, is `https://librarry.borchetta.xyz/`.
+- The standard search language should stay `English` unless the user explicitly
+  asks for multilingual or unfiltered results.
 - Prowlarr and qBittorrent have been verified through the live app, but
   Hardcover and Google Books credentials still need to be supplied for rich
   metadata coverage.
@@ -128,4 +130,3 @@ When adding or changing product behavior, update the relevant docs:
 - `docs/architecture.md` for API surfaces or system design changes.
 - `docs/metadata-strategy.md` for metadata policy changes.
 - `docs/provider-setup.md` for provider credential or behavior changes.
-

@@ -14,6 +14,7 @@ func NormalizeConfig(config Config) Config {
 	config.NamingBookFolderTemplate = firstNonEmpty(strings.TrimSpace(config.NamingBookFolderTemplate), "{Title}")
 	config.NamingFileNameTemplate = firstNonEmpty(strings.TrimSpace(config.NamingFileNameTemplate), "{Title}{Ext}")
 	config.NamingSpaceReplacement = strings.TrimSpace(config.NamingSpaceReplacement)
+	config.StandardSearchLanguage = firstNonEmpty(strings.TrimSpace(config.StandardSearchLanguage), "English")
 	return config
 }
 
@@ -45,6 +46,11 @@ func ConfigWithNamingRecord(config Config, payload map[string]any) Config {
 	} else if replacement := payloadString(payload, "replaceSpacesWith"); replacement != "" {
 		config.NamingSpaceReplacement = replacement
 	}
+	config.StandardSearchLanguage = firstNonEmpty(
+		payloadString(payload, "librarryStandardSearchLanguage"),
+		payloadString(payload, "standardSearchLanguage"),
+		config.StandardSearchLanguage,
+	)
 	return NormalizeConfig(config)
 }
 

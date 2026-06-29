@@ -17,11 +17,12 @@ const (
 )
 
 type Query struct {
-	Query       string      `json:"query"`
-	Type        SearchType  `json:"type"`
-	Format      MediaFormat `json:"format"`
-	Limit       int         `json:"limit"`
-	ProviderKey string      `json:"providerKey,omitempty"`
+	Query             string      `json:"query"`
+	Type              SearchType  `json:"type"`
+	Format            MediaFormat `json:"format"`
+	PreferredLanguage string      `json:"preferredLanguage,omitempty"`
+	Limit             int         `json:"limit"`
+	ProviderKey       string      `json:"providerKey,omitempty"`
 }
 
 type Author struct {

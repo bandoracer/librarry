@@ -739,6 +739,7 @@ LIBRARRY_NAMING_AUTHOR_FOLDER={Author}
 LIBRARRY_NAMING_BOOK_FOLDER={Title}
 LIBRARRY_NAMING_FILE_NAME={Title}{Ext}
 LIBRARRY_NAMING_SPACE_REPLACEMENT=
+LIBRARRY_STANDARD_SEARCH_LANGUAGE=English
 LIBRARRY_MONITOR_ENABLED=true
 LIBRARRY_MONITOR_INTERVAL=30m
 LIBRARRY_MONITOR_SEARCH_INTERVAL=6h
@@ -774,6 +775,9 @@ LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS=1
 `/api/` routes require a Readarr-compatible key through `X-Api-Key`, `apikey`,
 `apiKey`, or `Authorization: Bearer ...`; `/healthz` and `/ping` stay open for
 service probes. The web UI can store the key per browser from Settings.
+`LIBRARRY_STANDARD_SEARCH_LANGUAGE` defaults metadata and release searches to
+English. Set it to `Any` only when you intentionally want unfiltered language
+results.
 
 Provider notes:
 

@@ -4586,27 +4586,30 @@ func (h *handler) compatNamingConfigRecord(overrides map[string]any) map[string]
 	bookFolder := firstNonEmptyString(payloadString(overrides, "librarryBookFolderTemplate"), payloadString(overrides, "bookFolderFormat"), payloadString(overrides, "bookFolderTemplate"), defaults.NamingBookFolderTemplate)
 	fileName := firstNonEmptyString(payloadString(overrides, "librarryFileNameTemplate"), payloadString(overrides, "standardBookFormat"), payloadString(overrides, "fileNameFormat"), defaults.NamingFileNameTemplate)
 	spaceReplacement := firstNonEmptyString(payloadString(overrides, "replaceSpacesWith"), defaults.NamingSpaceReplacement)
+	searchLanguage := firstNonEmptyString(payloadString(overrides, "librarryStandardSearchLanguage"), payloadString(overrides, "standardSearchLanguage"), defaults.StandardSearchLanguage)
 	replaceSpaces := payloadBoolDefault(overrides, "replaceSpaces", spaceReplacement != "")
 	if !replaceSpaces {
 		spaceReplacement = ""
 	}
 	return map[string]any{
-		"id":                           1,
-		"renameBooks":                  payloadBoolDefault(overrides, "renameBooks", true),
-		"replaceIllegalCharacters":     payloadBoolDefault(overrides, "replaceIllegalCharacters", true),
-		"colonReplacementFormat":       firstNonEmptyString(payloadString(overrides, "colonReplacementFormat"), "delete"),
-		"standardBookFormat":           defaultString(fileName, "{Title}{Ext}"),
-		"authorFolderFormat":           defaultString(authorFolder, "{Author}"),
-		"bookFolderFormat":             defaultString(bookFolder, "{Title}"),
-		"includeAuthorName":            payloadBoolDefault(overrides, "includeAuthorName", true),
-		"includeBookTitle":             payloadBoolDefault(overrides, "includeBookTitle", true),
-		"includeQuality":               payloadBoolDefault(overrides, "includeQuality", false),
-		"replaceSpaces":                replaceSpaces,
-		"replaceSpacesWith":            spaceReplacement,
-		"multiAuthorStyle":             firstNonEmptyString(payloadString(overrides, "multiAuthorStyle"), "standard"),
-		"librarryAuthorFolderTemplate": defaultString(authorFolder, "{Author}"),
-		"librarryBookFolderTemplate":   defaultString(bookFolder, "{Title}"),
-		"librarryFileNameTemplate":     defaultString(fileName, "{Title}{Ext}"),
+		"id":                             1,
+		"renameBooks":                    payloadBoolDefault(overrides, "renameBooks", true),
+		"replaceIllegalCharacters":       payloadBoolDefault(overrides, "replaceIllegalCharacters", true),
+		"colonReplacementFormat":         firstNonEmptyString(payloadString(overrides, "colonReplacementFormat"), "delete"),
+		"standardBookFormat":             defaultString(fileName, "{Title}{Ext}"),
+		"authorFolderFormat":             defaultString(authorFolder, "{Author}"),
+		"bookFolderFormat":               defaultString(bookFolder, "{Title}"),
+		"includeAuthorName":              payloadBoolDefault(overrides, "includeAuthorName", true),
+		"includeBookTitle":               payloadBoolDefault(overrides, "includeBookTitle", true),
+		"includeQuality":                 payloadBoolDefault(overrides, "includeQuality", false),
+		"replaceSpaces":                  replaceSpaces,
+		"replaceSpacesWith":              spaceReplacement,
+		"multiAuthorStyle":               firstNonEmptyString(payloadString(overrides, "multiAuthorStyle"), "standard"),
+		"librarryAuthorFolderTemplate":   defaultString(authorFolder, "{Author}"),
+		"librarryBookFolderTemplate":     defaultString(bookFolder, "{Title}"),
+		"librarryFileNameTemplate":       defaultString(fileName, "{Title}{Ext}"),
+		"librarryStandardSearchLanguage": defaultString(searchLanguage, "English"),
+		"standardSearchLanguage":         defaultString(searchLanguage, "English"),
 	}
 }
 
@@ -4619,6 +4622,7 @@ func (h *handler) defaultLibraryNamingConfig() library.Config {
 		NamingBookFolderTemplate:   h.deps.Config.NamingBookFolder,
 		NamingFileNameTemplate:     h.deps.Config.NamingFileName,
 		NamingSpaceReplacement:     h.deps.Config.NamingSpaceReplacement,
+		StandardSearchLanguage:     h.deps.Config.StandardSearchLanguage,
 	})
 }
 

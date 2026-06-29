@@ -3963,7 +3963,8 @@ func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) 
 		"namingAuthorFolder":"{Author}/{Format}",
 		"namingBookFolder":"{Title} ({Format})",
 		"namingFileName":"{Author} - {Title}{Ext}",
-		"namingSpaceReplacement":"_"
+		"namingSpaceReplacement":"_",
+		"standardSearchLanguage":"English"
 	}`))
 	res := httptest.NewRecorder()
 
@@ -3980,6 +3981,9 @@ func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) 
 	}
 	if libraryService.config.NamingAuthorFolderTemplate != "{Author}/{Format}" || libraryService.config.NamingBookFolderTemplate != "{Title} ({Format})" || libraryService.config.NamingFileNameTemplate != "{Author} - {Title}{Ext}" || libraryService.config.NamingSpaceReplacement != "_" {
 		t.Fatalf("expected library naming to apply, got %+v", libraryService.config)
+	}
+	if libraryService.config.StandardSearchLanguage != "English" {
+		t.Fatalf("expected standard search language to apply, got %+v", libraryService.config)
 	}
 	if len(compatResources.roots) != 2 {
 		t.Fatalf("expected persisted ebook and audiobook roots, got %#v", compatResources.roots)
@@ -4015,7 +4019,7 @@ func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) 
 	if res.Code != http.StatusOK {
 		t.Fatalf("expected naming config 200, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"authorFolderFormat":"{Author}/{Format}"`) || !strings.Contains(res.Body.String(), `"standardBookFormat":"{Author} - {Title}{Ext}"`) || !strings.Contains(res.Body.String(), `"replaceSpacesWith":"_"`) {
+	if !strings.Contains(res.Body.String(), `"authorFolderFormat":"{Author}/{Format}"`) || !strings.Contains(res.Body.String(), `"standardBookFormat":"{Author} - {Title}{Ext}"`) || !strings.Contains(res.Body.String(), `"replaceSpacesWith":"_"`) || !strings.Contains(res.Body.String(), `"standardSearchLanguage":"English"`) {
 		t.Fatalf("expected Readarr naming config to reflect native library naming, got %s", res.Body.String())
 	}
 	naming, ok, err := compatResources.GetResource(context.Background(), "config-naming", 1)
@@ -4024,6 +4028,9 @@ func TestUpdateLibraryConfigPersistsAndReconfiguresLibraryService(t *testing.T) 
 	}
 	if payloadString(naming.Payload, "standardBookFormat") != "{Author} - {Title}{Ext}" {
 		t.Fatalf("unexpected naming payload: %#v", naming.Payload)
+	}
+	if payloadString(naming.Payload, "standardSearchLanguage") != "English" {
+		t.Fatalf("expected persisted search language, got %#v", naming.Payload)
 	}
 }
 

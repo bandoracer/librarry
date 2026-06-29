@@ -35,6 +35,7 @@ type Config struct {
 	NamingBookFolder          string
 	NamingFileName            string
 	NamingSpaceReplacement    string
+	StandardSearchLanguage    string
 	MonitorEnabled            bool
 	MonitorInterval           time.Duration
 	MonitorSearchInterval     time.Duration
@@ -96,6 +97,7 @@ func FromEnv() Config {
 		NamingBookFolder:          env("LIBRARRY_NAMING_BOOK_FOLDER", "{Title}"),
 		NamingFileName:            env("LIBRARRY_NAMING_FILE_NAME", "{Title}{Ext}"),
 		NamingSpaceReplacement:    strings.TrimSpace(os.Getenv("LIBRARRY_NAMING_SPACE_REPLACEMENT")),
+		StandardSearchLanguage:    env("LIBRARRY_STANDARD_SEARCH_LANGUAGE", "English"),
 		MonitorEnabled:            envBool("LIBRARRY_MONITOR_ENABLED", true),
 		MonitorInterval:           envDuration("LIBRARRY_MONITOR_INTERVAL", 30*time.Minute),
 		MonitorSearchInterval:     envDuration("LIBRARRY_MONITOR_SEARCH_INTERVAL", 6*time.Hour),

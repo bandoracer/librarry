@@ -92,7 +92,8 @@ type AuthorUpdateRequest struct {
 }
 
 type SearchReleasesRequest struct {
-	Limit int `json:"limit,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
+	Language string `json:"language,omitempty"`
 }
 
 type AcquisitionQueueQuery struct {

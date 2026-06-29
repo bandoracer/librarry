@@ -13,6 +13,7 @@ type Config struct {
 	NamingBookFolderTemplate   string
 	NamingFileNameTemplate     string
 	NamingSpaceReplacement     string
+	StandardSearchLanguage     string
 }
 
 type FileRecord struct {

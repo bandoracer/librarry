@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
@@ -26,10 +27,12 @@ const (
 )
 
 type Service struct {
-	store        *Store
-	acquire      Acquisition
-	metadata     MetadataSearch
-	restrictions ReleaseRestrictionProvider
+	store                 *Store
+	acquire               Acquisition
+	metadata              MetadataSearch
+	restrictions          ReleaseRestrictionProvider
+	defaultSearchLanguage string
+	configMu              sync.RWMutex
 }
 
 type MetadataSearch interface {
@@ -46,6 +49,31 @@ func NewService(store *Store, acquire Acquisition, metadataSearch ...MetadataSea
 		search = metadataSearch[0]
 	}
 	return &Service{store: store, acquire: acquire, metadata: search}
+}
+
+func (s *Service) WithDefaultSearchLanguage(language string) *Service {
+	if s != nil {
+		s.SetDefaultSearchLanguage(language)
+	}
+	return s
+}
+
+func (s *Service) SetDefaultSearchLanguage(language string) {
+	if s == nil {
+		return
+	}
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+	s.defaultSearchLanguage = normalizeDefaultSearchLanguage(language)
+}
+
+func (s *Service) DefaultSearchLanguage() string {
+	if s == nil {
+		return ""
+	}
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return s.defaultSearchLanguage
 }
 
 func (s *Service) WithReleaseRestrictionProvider(provider ReleaseRestrictionProvider) *Service {
@@ -448,6 +476,8 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 	if limit <= 0 || limit > 50 {
 		limit = defaultWantedMonitorSearchLimit
 	}
+	language := firstNonEmptyString(request.Language, s.DefaultSearchLanguage())
+	item = wantedItemWithDefaultSearchLanguage(item, language)
 	releases, err := s.acquire.Search(ctx, releaseSearchQueryForWanted(item, limit))
 	if err != nil {
 		return SearchOutcome{}, err
@@ -494,6 +524,24 @@ func releaseSearchQueryForWanted(item WantedItem, limit int) acquisition.Release
 	}
 }
 
+func wantedItemWithDefaultSearchLanguage(item WantedItem, language string) WantedItem {
+	language = normalizeDefaultSearchLanguage(language)
+	if language == "" || strings.EqualFold(language, "Any") {
+		return item
+	}
+	for _, override := range item.ManualOverrides {
+		if strings.EqualFold(strings.TrimSpace(override.FieldName), "language") && strings.TrimSpace(override.Value) != "" {
+			return item
+		}
+	}
+	next := item
+	next.ManualOverrides = append(append([]ManualOverride(nil), item.ManualOverrides...), ManualOverride{
+		FieldName: "language",
+		Value:     language,
+	})
+	return next
+}
+
 func wantedManualOverrideValues(item WantedItem) map[string]string {
 	values := make(map[string]string, len(item.ManualOverrides))
 	for _, override := range item.ManualOverrides {
@@ -537,7 +585,34 @@ func wantedReleaseLanguages(overrides map[string]string) []string {
 	if language == "" {
 		return nil
 	}
+	if strings.EqualFold(language, "any") {
+		return nil
+	}
 	return []string{language}
+}
+
+func normalizeDefaultSearchLanguage(language string) string {
+	language = strings.TrimSpace(language)
+	if language == "" {
+		return ""
+	}
+	switch strings.ToLower(language) {
+	case "any", "all", "none", "no preference":
+		return "Any"
+	case "en", "eng", "english":
+		return "English"
+	default:
+		return language
+	}
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (s *Service) ListReleases(ctx context.Context, wantedID string) (SearchOutcome, error) {

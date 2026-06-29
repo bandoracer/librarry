@@ -114,6 +114,10 @@ type configurableLibraryService interface {
 	Reconfigure(config library.Config)
 }
 
+type configurableWantedSearchLanguage interface {
+	SetDefaultSearchLanguage(language string)
+}
+
 type compatResourceService interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 	CreateRootFolder(ctx context.Context, folder compatdata.RootFolder) (compatdata.RootFolder, error)
@@ -761,11 +765,12 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := metadata.Query{
-		Query:       queryText,
-		Type:        metadata.SearchType(defaultString(r.URL.Query().Get("type"), string(metadata.SearchTypeBook))),
-		Format:      metadata.MediaFormat(defaultString(r.URL.Query().Get("format"), string(metadata.FormatAny))),
-		Limit:       10,
-		ProviderKey: r.URL.Query().Get("providerKey"),
+		Query:             queryText,
+		Type:              metadata.SearchType(defaultString(r.URL.Query().Get("type"), string(metadata.SearchTypeBook))),
+		Format:            metadata.MediaFormat(defaultString(r.URL.Query().Get("format"), string(metadata.FormatAny))),
+		PreferredLanguage: h.searchLanguageForRequest(r),
+		Limit:             10,
+		ProviderKey:       r.URL.Query().Get("providerKey"),
 	}
 	outcome := h.deps.Metadata.SearchDetailed(r.Context(), query)
 	if len(outcome.ProviderErrors) > 0 {
@@ -871,6 +876,7 @@ type libraryConfigSettings struct {
 	NamingBookFolder       string `json:"namingBookFolder"`
 	NamingFileName         string `json:"namingFileName"`
 	NamingSpaceReplacement string `json:"namingSpaceReplacement"`
+	StandardSearchLanguage string `json:"standardSearchLanguage"`
 }
 
 func (h *handler) libraryConfig(w http.ResponseWriter, r *http.Request) {
@@ -915,6 +921,9 @@ func (h *handler) updateLibraryConfig(w http.ResponseWriter, r *http.Request) {
 	if configurable, ok := h.deps.Library.(configurableLibraryService); ok {
 		configurable.Reconfigure(next)
 	}
+	if configurable, ok := h.deps.Wanted.(configurableWantedSearchLanguage); ok {
+		configurable.SetDefaultSearchLanguage(next.StandardSearchLanguage)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"settings":  libraryConfigSettingsFromConfig(next),
 		"persisted": h.deps.Compat != nil,
@@ -932,6 +941,7 @@ func (h *handler) effectiveLibraryConfig(ctx context.Context) (library.Config, e
 		NamingBookFolderTemplate:   h.deps.Config.NamingBookFolder,
 		NamingFileNameTemplate:     h.deps.Config.NamingFileName,
 		NamingSpaceReplacement:     h.deps.Config.NamingSpaceReplacement,
+		StandardSearchLanguage:     h.deps.Config.StandardSearchLanguage,
 	}
 	if h.deps.Compat == nil {
 		return library.NormalizeConfig(base), nil
@@ -951,6 +961,18 @@ func (h *handler) effectiveLibraryConfig(ctx context.Context) (library.Config, e
 	return config, nil
 }
 
+func (h *handler) searchLanguageForRequest(r *http.Request) string {
+	language := strings.TrimSpace(defaultString(r.URL.Query().Get("language"), r.URL.Query().Get("preferredLanguage")))
+	if language != "" {
+		return normalizeStandardSearchLanguage(language)
+	}
+	config, err := h.effectiveLibraryConfig(r.Context())
+	if err != nil {
+		return normalizeStandardSearchLanguage(h.deps.Config.StandardSearchLanguage)
+	}
+	return normalizeStandardSearchLanguage(config.StandardSearchLanguage)
+}
+
 func libraryConfigSettingsFromConfig(config library.Config) libraryConfigSettings {
 	config = library.NormalizeConfig(config)
 	return libraryConfigSettings{
@@ -960,6 +982,7 @@ func libraryConfigSettingsFromConfig(config library.Config) libraryConfigSetting
 		NamingBookFolder:       config.NamingBookFolderTemplate,
 		NamingFileName:         config.NamingFileNameTemplate,
 		NamingSpaceReplacement: config.NamingSpaceReplacement,
+		StandardSearchLanguage: config.StandardSearchLanguage,
 	}
 }
 
@@ -991,7 +1014,23 @@ func applyLibraryConfigSettings(current library.Config, settings libraryConfigSe
 	next.NamingBookFolderTemplate = bookFolder
 	next.NamingFileNameTemplate = fileName
 	next.NamingSpaceReplacement = strings.TrimSpace(settings.NamingSpaceReplacement)
+	next.StandardSearchLanguage = normalizeStandardSearchLanguage(settings.StandardSearchLanguage)
 	return next, nil
+}
+
+func normalizeStandardSearchLanguage(language string) string {
+	language = strings.TrimSpace(language)
+	if language == "" {
+		return "English"
+	}
+	switch strings.ToLower(language) {
+	case "any", "all", "none", "no preference":
+		return "Any"
+	case "en", "eng", "english":
+		return "English"
+	default:
+		return language
+	}
 }
 
 func (h *handler) saveLibraryRootFolders(ctx context.Context, config library.Config) ([]compatdata.RootFolder, error) {
@@ -1055,22 +1094,24 @@ func (h *handler) saveLibraryNamingConfig(ctx context.Context, config library.Co
 func (h *handler) libraryNamingPayload(config library.Config) map[string]any {
 	config = library.NormalizeConfig(config)
 	return map[string]any{
-		"id":                           1,
-		"renameBooks":                  true,
-		"replaceIllegalCharacters":     true,
-		"colonReplacementFormat":       "delete",
-		"standardBookFormat":           config.NamingFileNameTemplate,
-		"authorFolderFormat":           config.NamingAuthorFolderTemplate,
-		"bookFolderFormat":             config.NamingBookFolderTemplate,
-		"includeAuthorName":            strings.Contains(config.NamingFileNameTemplate, "{Author}"),
-		"includeBookTitle":             strings.Contains(config.NamingFileNameTemplate, "{Title}"),
-		"includeQuality":               false,
-		"replaceSpaces":                config.NamingSpaceReplacement != "",
-		"replaceSpacesWith":            config.NamingSpaceReplacement,
-		"multiAuthorStyle":             "standard",
-		"librarryAuthorFolderTemplate": config.NamingAuthorFolderTemplate,
-		"librarryBookFolderTemplate":   config.NamingBookFolderTemplate,
-		"librarryFileNameTemplate":     config.NamingFileNameTemplate,
+		"id":                             1,
+		"renameBooks":                    true,
+		"replaceIllegalCharacters":       true,
+		"colonReplacementFormat":         "delete",
+		"standardBookFormat":             config.NamingFileNameTemplate,
+		"authorFolderFormat":             config.NamingAuthorFolderTemplate,
+		"bookFolderFormat":               config.NamingBookFolderTemplate,
+		"includeAuthorName":              strings.Contains(config.NamingFileNameTemplate, "{Author}"),
+		"includeBookTitle":               strings.Contains(config.NamingFileNameTemplate, "{Title}"),
+		"includeQuality":                 false,
+		"replaceSpaces":                  config.NamingSpaceReplacement != "",
+		"replaceSpacesWith":              config.NamingSpaceReplacement,
+		"multiAuthorStyle":               "standard",
+		"librarryAuthorFolderTemplate":   config.NamingAuthorFolderTemplate,
+		"librarryBookFolderTemplate":     config.NamingBookFolderTemplate,
+		"librarryFileNameTemplate":       config.NamingFileNameTemplate,
+		"librarryStandardSearchLanguage": config.StandardSearchLanguage,
+		"standardSearchLanguage":         config.StandardSearchLanguage,
 	}
 }
 
@@ -1139,6 +1180,11 @@ func (h *handler) releaseSearch(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(query.Query) == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "query is required"})
 		return
+	}
+	if len(query.Languages) == 0 {
+		if language := h.searchLanguageForRequest(r); language != "" && !strings.EqualFold(language, "Any") {
+			query.Languages = []string{language}
+		}
 	}
 	releases, err := h.deps.Acquire.Search(r.Context(), query)
 	if err != nil {

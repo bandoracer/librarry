@@ -182,6 +182,44 @@ func TestSearchDetailedDoesNotMergeConflictingConcreteFormatsForAnyQuery(t *test
 	}
 }
 
+func TestSearchDetailedFiltersExplicitNonPreferredLanguages(t *testing.T) {
+	service := NewService([]Provider{
+		staticMetadataProvider{name: "Open Library", results: []SearchResult{
+			{
+				Provider: "Open Library",
+				Kind:     SearchTypeBook,
+				Work:     Work{ID: "openlibrary:english", Title: "The Hobbit", Authors: []Author{{Name: "J.R.R. Tolkien"}}},
+				Edition:  Edition{ID: "openlibrary:english:edition", Title: "The Hobbit", Format: FormatEbook, Language: "eng"},
+				Score:    0.99,
+			},
+			{
+				Provider: "Open Library",
+				Kind:     SearchTypeBook,
+				Work:     Work{ID: "openlibrary:dutch", Title: "De Hobbit", Authors: []Author{{Name: "J.R.R. Tolkien"}}},
+				Edition:  Edition{ID: "openlibrary:dutch:edition", Title: "De Hobbit", Format: FormatEbook, Language: "dut"},
+				Score:    0.98,
+			},
+			{
+				Provider: "Hardcover",
+				Kind:     SearchTypeBook,
+				Work:     Work{ID: "hardcover:unknown", Title: "The Hobbit Companion", Authors: []Author{{Name: "Fallback Author"}}},
+				Edition:  Edition{ID: "hardcover:unknown:edition", Title: "The Hobbit Companion", Format: FormatEbook},
+				Score:    0.97,
+			},
+		}},
+	})
+
+	outcome := service.SearchDetailed(context.Background(), Query{Query: "The Hobbit", Type: SearchTypeBook, Format: FormatEbook, PreferredLanguage: "English", Limit: 10})
+	if len(outcome.Results) != 2 {
+		t.Fatalf("expected English and unknown-language results only, got %d: %+v", len(outcome.Results), outcome.Results)
+	}
+	for _, result := range outcome.Results {
+		if result.Edition.Language == "dut" {
+			t.Fatalf("expected Dutch edition to be filtered, got %+v", result)
+		}
+	}
+}
+
 type staticMetadataProvider struct {
 	name    string
 	results []SearchResult

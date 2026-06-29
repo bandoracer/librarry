@@ -82,6 +82,7 @@ export type LibrarySettings = {
   namingBookFolder: string;
   namingFileName: string;
   namingSpaceReplacement: string;
+  standardSearchLanguage: string;
 };
 
 export type LibrarySettingsResponse = {
@@ -701,6 +702,10 @@ export type WantedSearchOutcome = {
   releases: ReleaseDecision[];
 };
 
+type WantedSearchPayload = Omit<WantedSearchOutcome, "releases"> & {
+  releases?: ReleaseDecision[] | null;
+};
+
 export type MonitorItemResult = {
   wantedItem: WantedItem;
   releasesFound: number;
@@ -961,6 +966,13 @@ function arrayPayload<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : [];
 }
 
+function normalizeWantedSearchOutcome(outcome: WantedSearchPayload): WantedSearchOutcome {
+  return {
+    ...outcome,
+    releases: arrayPayload(outcome.releases)
+  };
+}
+
 export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
   const response = await fetch(`${apiBase}/api/v1/providers/health`);
   if (!response.ok) {
@@ -970,11 +982,12 @@ export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
   return arrayPayload(payload.providers);
 }
 
-export async function searchMetadata(query: string, format: string, type: MetadataSearchType = "book"): Promise<SearchResult[]> {
+export async function searchMetadata(query: string, format: string, type: MetadataSearchType = "book", language = "English"): Promise<SearchResult[]> {
   const params = new URLSearchParams({
     query,
     type,
-    format
+    format,
+    language
   });
   const response = await fetch(`${apiBase}/api/v1/search?${params.toString()}`);
   if (!response.ok) {
@@ -1081,11 +1094,11 @@ export async function runReadarrImport(settings: ReadarrImportSettings): Promise
   return (await response.json()) as ReadarrImportOutcome;
 }
 
-export async function searchReleases(query: string, format: string): Promise<Release[]> {
+export async function searchReleases(query: string, format: string, language = "English"): Promise<Release[]> {
   const response = await fetch(`${apiBase}/api/v1/releases/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, format, limit: 12 })
+    body: JSON.stringify({ query, format, languages: language && language !== "Any" ? [language] : [], limit: 12 })
   });
   if (!response.ok) {
     throw new Error(`Release search failed: ${response.status}`);
@@ -1658,16 +1671,16 @@ export async function applyWantedMetadataCorrections(wantedID: string, request: 
   return (await response.json()) as MetadataProvenance;
 }
 
-export async function searchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {
+export async function searchWantedReleases(wantedID: string, language = "English"): Promise<WantedSearchOutcome> {
   const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(wantedID)}/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ limit: 20 })
+    body: JSON.stringify({ limit: 20, language })
   });
   if (!response.ok) {
     throw new Error(`Wanted release search failed: ${response.status}`);
   }
-  return (await response.json()) as WantedSearchOutcome;
+  return normalizeWantedSearchOutcome((await response.json()) as WantedSearchPayload);
 }
 
 export async function fetchWantedReleases(wantedID: string): Promise<WantedSearchOutcome> {
@@ -1675,7 +1688,7 @@ export async function fetchWantedReleases(wantedID: string): Promise<WantedSearc
   if (!response.ok) {
     throw new Error(`Wanted release decisions refresh failed: ${response.status}`);
   }
-  return (await response.json()) as WantedSearchOutcome;
+  return normalizeWantedSearchOutcome((await response.json()) as WantedSearchPayload);
 }
 
 export async function grabWanted(wantedID: string, releaseID?: string, options: { paused?: boolean; force?: boolean } = {}): Promise<DownloadStatus> {

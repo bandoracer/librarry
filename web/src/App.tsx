@@ -15,6 +15,7 @@ import {
   HardDriveDownload,
   History as HistoryIcon,
   Library,
+  Moon,
   Pause,
   Pencil,
   Play,
@@ -24,6 +25,7 @@ import {
   Settings,
   SlidersHorizontal,
   Square,
+  Sun,
   Tags,
   Trash2,
   TrendingUp,
@@ -31,6 +33,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Navigate, NavLink, Outlet, Route, Routes, matchPath, useLocation, useNavigate } from "react-router-dom";
 import {
   applyWantedMetadataCorrection,
   applyWantedMetadataCorrections,
@@ -160,9 +163,13 @@ import {
   seedWantedMetadataReview
 } from "./lib/seed";
 
+const demoModeEnabled = import.meta.env.VITE_LIBRARRY_DEMO === "true";
+
 const navItems = [
   {
     id: "dashboard",
+    group: "Overview",
+    path: "/dashboard",
     label: "Dashboard",
     icon: Activity,
     title: "Operations dashboard",
@@ -170,6 +177,8 @@ const navItems = [
   },
   {
     id: "library",
+    group: "Collection",
+    path: "/library",
     label: "Library",
     icon: Library,
     title: "Library",
@@ -177,6 +186,8 @@ const navItems = [
   },
   {
     id: "search",
+    group: "Collection",
+    path: "/search",
     label: "Search",
     icon: Search,
     title: "Metadata search",
@@ -184,6 +195,8 @@ const navItems = [
   },
   {
     id: "wanted",
+    group: "Pipeline",
+    path: "/wanted",
     label: "Wanted",
     icon: Clock3,
     title: "Wanted queue",
@@ -191,6 +204,8 @@ const navItems = [
   },
   {
     id: "downloads",
+    group: "Pipeline",
+    path: "/downloads",
     label: "Queue",
     icon: HardDriveDownload,
     title: "Download activity",
@@ -198,6 +213,8 @@ const navItems = [
   },
   {
     id: "imports",
+    group: "Pipeline",
+    path: "/imports",
     label: "Imports",
     icon: UploadCloud,
     title: "Library imports",
@@ -205,6 +222,8 @@ const navItems = [
   },
   {
     id: "providers",
+    group: "System",
+    path: "/providers",
     label: "Providers",
     icon: Database,
     title: "Provider health",
@@ -212,12 +231,16 @@ const navItems = [
   },
   {
     id: "settings",
+    group: "System",
+    path: "/settings",
     label: "Settings",
     icon: Settings,
     title: "Release policy",
     description: "Tune quality profiles used by search, feeds, failed-download recovery, and upgrades."
   }
 ] as const;
+
+type ThemeMode = "light" | "dark";
 
 type ViewID = (typeof navItems)[number]["id"];
 type DownloadScope = "all" | "librarry";
@@ -232,9 +255,21 @@ type SearchEvidenceTone = "high" | "medium" | "review" | "neutral";
 type SearchEvidenceChip = { label: string; tone?: SearchEvidenceTone };
 type SearchEvidenceItem = { label: string; value: string; detail: string };
 
+const defaultView: ViewID = "library";
+const defaultViewPath = viewPath(defaultView);
+
+function viewPath(view: ViewID) {
+  return navItems.find((item) => item.id === view)?.path ?? "/library";
+}
+
+function activeViewFromPath(pathname: string): ViewID {
+  return navItems.find((item) => matchPath({ path: item.path, end: true }, pathname))?.id ?? defaultView;
+}
+
 const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
 const searchModeOptions: SearchMode[] = ["book", "author"];
 const searchConfidenceOptions: SearchResult["confidence"][] = ["high", "medium", "review"];
+const standardSearchLanguageOptions = ["English", "Any", "German", "French", "Spanish", "Italian", "Dutch", "Japanese", "Chinese", "Korean", "Portuguese"];
 
 function firstAuthorName(result: SearchResult) {
   return result.work.authors?.[0]?.name || "Unknown author";
@@ -619,7 +654,8 @@ function emptyLibrarySettings(): LibrarySettings {
     namingAuthorFolder: "{Author}",
     namingBookFolder: "{Title}",
     namingFileName: "{Title}{Ext}",
-    namingSpaceReplacement: ""
+    namingSpaceReplacement: "",
+    standardSearchLanguage: "English"
   };
 }
 
@@ -639,13 +675,53 @@ function emptyReadarrImportSettings(): ReadarrImportSettings {
   };
 }
 
+function resolveInitialTheme(): ThemeMode {
+  if (typeof document !== "undefined") {
+    const current = document.documentElement.getAttribute("data-theme");
+    if (current === "light" || current === "dark") {
+      return current;
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const stored = window.localStorage.getItem("librarry-theme");
+      if (stored === "light" || stored === "dark") {
+        return stored;
+      }
+    } catch {
+      /* ignore storage access errors */
+    }
+    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+      return "dark";
+    }
+  }
+  return "light";
+}
+
 export function App() {
-  const [activeView, setActiveView] = useState<ViewID>("library");
+  return (
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route index element={<Navigate to={defaultViewPath} replace />} />
+        {navItems.map((item) => (
+          <Route element={null} key={item.id} path={item.path.slice(1)} />
+        ))}
+        <Route path="*" element={<Navigate to={defaultViewPath} replace />} />
+      </Route>
+    </Routes>
+  );
+}
+
+function AppShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeView = activeViewFromPath(location.pathname);
+  const [theme, setTheme] = useState<ThemeMode>(resolveInitialTheme);
   const [providers, setProviders] = useState<ProviderHealth[]>(seedProviders);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [readarrCompatibility, setReadarrCompatibility] = useState<ReadarrCompatibilityReport>(seedReadarrCompatibility);
-  const [results, setResults] = useState<SearchResult[]>(seedResults);
+  const [results, setResults] = useState<SearchResult[]>(demoModeEnabled ? seedResults : []);
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>(seedIntegrations);
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
   const [integrationForm, setIntegrationForm] = useState<IntegrationSettings>(() => emptyIntegrationSettings());
@@ -656,12 +732,12 @@ export function App() {
   const [readarrImportForm, setReadarrImportForm] = useState<ReadarrImportSettings>(() => emptyReadarrImportSettings());
   const [readarrImportOutcome, setReadarrImportOutcome] = useState<ReadarrImportOutcome | null>(null);
   const [releases, setReleases] = useState<Release[]>([]);
-  const [wantedItems, setWantedItems] = useState<WantedItem[]>(seedWantedItems);
+  const [wantedItems, setWantedItems] = useState<WantedItem[]>(demoModeEnabled ? seedWantedItems : []);
   const [wantedReleases, setWantedReleases] = useState<ReleaseDecision[]>([]);
   const [wantedMetadata, setWantedMetadata] = useState<MetadataProvenance | null>(null);
-  const [wantedMetadataReview, setWantedMetadataReview] = useState<MetadataReviewQueue | null>(seedWantedMetadataReview);
+  const [wantedMetadataReview, setWantedMetadataReview] = useState<MetadataReviewQueue | null>(demoModeEnabled ? seedWantedMetadataReview : null);
   const [acquisitionQueue, setAcquisitionQueue] = useState<AcquisitionQueue | null>(null);
-  const [downloads, setDownloads] = useState<DownloadStatus[]>(seedDownloads);
+  const [downloads, setDownloads] = useState<DownloadStatus[]>(demoModeEnabled ? seedDownloads : []);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
   const [importReviews, setImportReviews] = useState<ImportReview[]>([]);
@@ -681,9 +757,9 @@ export function App() {
   const [upgradeRun, setUpgradeRun] = useState<UpgradeRun | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus | null>(null);
   const [downloadDetails, setDownloadDetails] = useState<DownloadDetails | null>(null);
-  const [downloadResources, setDownloadResources] = useState<DownloadResources | null>(seedDownloadResourcesByClient.qBittorrent);
-  const [downloadPreferences, setDownloadPreferences] = useState<DownloadPreferences | null>(seedDownloadPreferencesByClient.qBittorrent);
-  const [selectedID, setSelectedID] = useState(seedResults[0] ? searchResultKey(seedResults[0]) : "");
+  const [downloadResources, setDownloadResources] = useState<DownloadResources | null>(demoModeEnabled ? seedDownloadResourcesByClient.qBittorrent : null);
+  const [downloadPreferences, setDownloadPreferences] = useState<DownloadPreferences | null>(demoModeEnabled ? seedDownloadPreferencesByClient.qBittorrent : null);
+  const [selectedID, setSelectedID] = useState(demoModeEnabled && seedResults[0] ? searchResultKey(seedResults[0]) : "");
   const [pendingWantedReview, setPendingWantedReview] = useState<SearchResult | null>(null);
   const [selectedWantedID, setSelectedWantedID] = useState("");
   const [selectedDownloadKeys, setSelectedDownloadKeys] = useState<string[]>([]);
@@ -702,8 +778,8 @@ export function App() {
   const [libraryFormatFilter, setLibraryFormatFilter] = useState<LibraryFormatFilter>("all");
   const [libraryTextFilter, setLibraryTextFilter] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("book");
-  const [bookQuery, setBookQuery] = useState("Project Hail Mary");
-  const [authorQuery, setAuthorQuery] = useState("Andy Weir");
+  const [bookQuery, setBookQuery] = useState(demoModeEnabled ? "Project Hail Mary" : "");
+  const [authorQuery, setAuthorQuery] = useState(demoModeEnabled ? "Andy Weir" : "");
   const [searchFiltersOpen, setSearchFiltersOpen] = useState(false);
   const [searchProviderFilter, setSearchProviderFilter] = useState("");
   const [searchConfidenceFilter, setSearchConfidenceFilter] = useState<SearchConfidenceFilter>("all");
@@ -816,6 +892,15 @@ export function App() {
       category: downloadCategoryFilter.trim()
     };
   }
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      window.localStorage.setItem("librarry-theme", theme);
+    } catch {
+      /* ignore storage access errors */
+    }
+  }, [theme]);
 
   useEffect(() => {
     Promise.all([fetchProviderHealth(), fetchIntegrationHealth(), fetchSystemStatus(), fetchReadiness(), fetchReadarrCompatibility()])
@@ -1163,7 +1248,7 @@ export function App() {
       })
       .catch((error) => {
         if (canceled) return;
-        const seeded = seedWantedMetadataByID[selectedWanted.id];
+        const seeded = demoModeEnabled ? seedWantedMetadataByID[selectedWanted.id] : undefined;
         if (seeded) {
           setWantedMetadata(seeded);
           return;
@@ -1205,7 +1290,7 @@ export function App() {
     if (!query.trim()) return;
     setIsSearching(true);
     try {
-      const nextResults = await searchMetadata(query, searchMode === "author" ? "any" : format, searchMode);
+      const nextResults = await searchMetadata(query, searchMode === "author" ? "any" : format, searchMode, librarySettings.standardSearchLanguage);
       setResults(nextResults);
       setSelectedID(nextResults[0] ? searchResultKey(nextResults[0]) : "");
       setPendingWantedReview(null);
@@ -1225,7 +1310,7 @@ export function App() {
     setIsSearchingReleases(true);
     setReleaseError("");
     try {
-      const nextReleases = await searchReleases(releaseQuery, selected?.edition?.format ?? format);
+      const nextReleases = await searchReleases(releaseQuery, selected?.edition?.format ?? format, librarySettings.standardSearchLanguage);
       setReleases(nextReleases);
     } catch (error) {
       setReleaseError(error instanceof Error ? error.message : "Release search failed");
@@ -1292,7 +1377,7 @@ export function App() {
     setWantedError("");
     setPendingWantedReview(null);
     setSelectedID(searchResultKey(result));
-    setActiveView("wanted");
+    navigateToView("wanted");
     try {
       const item = await createWanted(result, result.edition?.format ?? format);
       setWantedItems((current) => mergeWanted(current, [item]));
@@ -1315,7 +1400,7 @@ export function App() {
     setIsSubscribingAuthor(true);
     setAuthorError("");
     setSelectedID(result.work.id);
-    setActiveView("wanted");
+    navigateToView("wanted");
     try {
       const subscription = await subscribeAuthor(result, result.edition?.format ?? format, "standard", authorMissingPolicy);
       setAuthorSubscriptions((current) => mergeAuthorSubscriptions(current, [subscription]));
@@ -1391,7 +1476,7 @@ export function App() {
     setIsSearchingWanted(true);
     setWantedError("");
     try {
-      const outcome = await searchWantedReleases(item.id);
+      const outcome = await searchWantedReleases(item.id, librarySettings.standardSearchLanguage);
       setWantedItems((current) => mergeWanted(current, [outcome.wantedItem]));
       setWantedReleases(outcome.releases);
       setWantedReleaseFilter("all");
@@ -1410,21 +1495,21 @@ export function App() {
     setWantedReleaseFilter("all");
     setWantedReleases([]);
     setWantedMetadata(null);
-    setActiveView("wanted");
+    navigateToView("wanted");
   }
 
   function openImportReview(review: ImportReview) {
     if (review.id) {
       setSelectedImportReviewIDs([review.id]);
     }
-    setActiveView("imports");
+    navigateToView("imports");
   }
 
   function openDownloadActivity(download: DownloadStatus) {
     setDownloadTextFilter(download.name || download.id);
     setDownloadStateFilter("all");
     setDownloadScope("all");
-    setActiveView("downloads");
+    navigateToView("downloads");
   }
 
   function openAuthorSubscriptionBooks(subscription: AuthorSubscription) {
@@ -1835,7 +1920,7 @@ export function App() {
           }
           setDownloadScope("librarry");
           setDownloadTextFilter(item.wantedItem.title);
-          setActiveView("downloads");
+          navigateToView("downloads");
           break;
         default:
           openWantedItem(item.wantedItem);
@@ -2110,7 +2195,7 @@ export function App() {
 
   async function refreshDownloadResources(silent = false) {
     if (!resourceClientConfigured) {
-      setDownloadResources(seedDownloadResourcesByClient[downloadResourceClient] ?? { client: downloadResourceClient, categories: [], tags: [] });
+      setDownloadResources(demoModeEnabled ? seedDownloadResourcesByClient[downloadResourceClient] ?? { client: downloadResourceClient, categories: [], tags: [] } : null);
       setIsLoadingDownloadResources(false);
       return;
     }
@@ -2122,7 +2207,7 @@ export function App() {
       const resources = await fetchDownloadResources(downloadResourceClient);
       setDownloadResources(resources);
     } catch (error) {
-      const fallback = seedDownloadResourcesByClient[downloadResourceClient];
+      const fallback = demoModeEnabled ? seedDownloadResourcesByClient[downloadResourceClient] : undefined;
       if (fallback) setDownloadResources(fallback);
       if (!silent) {
         setDownloadError(error instanceof Error ? error.message : "Download resources refresh failed");
@@ -2150,7 +2235,7 @@ export function App() {
 
   async function refreshDownloadPreferences(silent = false) {
     if (!resourceClientSupportsPreferences || !resourceClientConfigured) {
-      const fallback = seedDownloadPreferencesByClient[downloadResourceClient];
+      const fallback = demoModeEnabled ? seedDownloadPreferencesByClient[downloadResourceClient] : undefined;
       setDownloadPreferences(fallback ?? null);
       if (fallback) hydrateDownloadPreferenceForm(fallback);
       setIsLoadingDownloadPreferences(false);
@@ -2165,7 +2250,7 @@ export function App() {
       setDownloadPreferences(preferences);
       hydrateDownloadPreferenceForm(preferences);
     } catch (error) {
-      const fallback = seedDownloadPreferencesByClient[downloadResourceClient];
+      const fallback = demoModeEnabled ? seedDownloadPreferencesByClient[downloadResourceClient] : undefined;
       setDownloadPreferences(fallback ?? null);
       if (fallback) hydrateDownloadPreferenceForm(fallback);
       if (!silent) {
@@ -2395,7 +2480,7 @@ export function App() {
       setDownloadSavePathInput(details.status.savePath || details.properties?.savePath || "");
       setAPIState("live");
     } catch (error) {
-      const fallback = seedDownloadDetailsByKey[downloadKey(download)];
+      const fallback = demoModeEnabled ? seedDownloadDetailsByKey[downloadKey(download)] : undefined;
       if (fallback) {
         setDownloadDetails(fallback);
         setDownloadLimitKiB(limitBytesToKiBInput(fallback.properties?.downloadLimit));
@@ -2775,8 +2860,13 @@ export function App() {
   const databaseLabel = systemStatus ? (databaseReady ? `${systemStatus.databaseType} persistence` : "No database") : "Database unknown";
   const activeNav = navItems.find((item) => item.id === activeView) ?? navItems[0];
 
+  function navigateToView(view: ViewID) {
+    navigate(viewPath(view));
+  }
+
   return (
     <div className="app-shell">
+      <Outlet />
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
@@ -2790,16 +2880,28 @@ export function App() {
 
         <nav className="nav-list" aria-label="Primary navigation">
           {navItems.map((item) => (
-            <button className={item.id === activeView ? "nav-item active" : "nav-item"} key={item.id} onClick={() => setActiveView(item.id)} type="button">
+            <NavLink className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")} end key={item.id} to={item.path}>
               <item.icon size={17} />
               <span>{item.label}</span>
-            </button>
+            </NavLink>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-          <span className={apiState === "live" ? "status-dot ready" : "status-dot muted"} />
-          <span>{apiState === "live" ? "API connected" : apiState === "checking" ? "Checking API" : "Demo data"}</span>
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            <span>{theme === "dark" ? "Light" : "Dark"}</span>
+          </button>
+          <div className="sidebar-status">
+            <span className={apiState === "live" ? "status-dot ready" : "status-dot muted"} />
+            <span>{apiState === "live" ? "API connected" : apiState === "checking" ? "Checking API" : "Demo data"}</span>
+          </div>
         </div>
       </aside>
 
@@ -2830,14 +2932,14 @@ export function App() {
                 Set <code>LIBRARRY_DATABASE_URL</code> and restart the API.
               </p>
             </div>
-            <button className="secondary-action compact" onClick={() => setActiveView("settings")} type="button">
+            <button className="secondary-action compact" onClick={() => navigateToView("settings")} type="button">
               <Settings size={16} />
               Settings
             </button>
           </section>
         ) : null}
 
-        {readiness && (activeView === "dashboard" || activeView === "providers" || activeView === "settings") ? (
+        {readiness && activeView === "providers" ? (
           <section className={`setup-checklist ${readiness.status}`} aria-label="Readarr workflow setup">
             <div className="setup-checklist-header">
               <div>
@@ -2859,7 +2961,7 @@ export function App() {
                   <div className="setup-step-side">
                     {step.required ? <em>Required</em> : <em>Optional</em>}
                     {step.actionLabel && step.targetView ? (
-                      <button className="secondary-action compact" onClick={() => setActiveView(readinessTargetView(step.targetView!))} type="button">
+                      <button className="secondary-action compact" onClick={() => navigateToView(readinessTargetView(step.targetView!))} type="button">
                         {step.actionLabel}
                       </button>
                     ) : null}
@@ -2870,7 +2972,7 @@ export function App() {
           </section>
         ) : null}
 
-        {(activeView === "dashboard" || activeView === "providers" || activeView === "settings") ? (
+        {activeView === "providers" ? (
           <section className="readarr-compatibility-panel" aria-label="Readarr compatibility status">
             <div className="readarr-compatibility-header">
               <div>
@@ -2993,29 +3095,17 @@ export function App() {
               </button>
             </div>
           </div>
-          <div className="review-inbox-metrics">
-            {[
-              ["Metadata", metadataReviewSummary.items, `${metadataReviewSummary.conflicts} conflicts`],
-              ["Authors", authorMetadataReviews.length, "skipped candidates"],
-              ["Imports", importReviews.length, "pending files"],
-              ["Blocked", acquisitionQueue?.summary.blocked ?? dashboardBlockedItems.length, "book acquisitions"],
-              ["Failed", dashboardFailedDownloads.length, "downloads"]
-            ].map(([label, value, detail]) => (
-              <div className="review-inbox-metric" key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-                <em>{detail}</em>
-              </div>
-            ))}
-          </div>
           <div className="review-inbox-lanes">
             <article className="review-lane">
               <div className="review-lane-heading">
-                <div>
-                  <strong>Metadata review</strong>
+                <div className="review-lane-title">
+                  <div className="review-lane-name">
+                    <strong>Metadata review</strong>
+                    {metadataReviewSummary.items > 0 ? <span className="lane-count">{metadataReviewSummary.items}</span> : null}
+                  </div>
                   <span>{metadataReviewSummary.protected} protected fields</span>
                 </div>
-                <button className="secondary-action compact" onClick={() => setActiveView("wanted")} type="button">
+                <button className="secondary-action compact" onClick={() => navigateToView("wanted")} type="button">
                   Wanted
                 </button>
               </div>
@@ -3040,11 +3130,14 @@ export function App() {
 
             <article className="review-lane">
               <div className="review-lane-heading">
-                <div>
-                  <strong>Author candidates</strong>
+                <div className="review-lane-title">
+                  <div className="review-lane-name">
+                    <strong>Author candidates</strong>
+                    {authorMetadataReviews.length > 0 ? <span className="lane-count">{authorMetadataReviews.length}</span> : null}
+                  </div>
                   <span>{authorMetadataReviews.length} skipped by policy</span>
                 </div>
-                <button className="secondary-action compact" onClick={() => setActiveView("wanted")} type="button">
+                <button className="secondary-action compact" onClick={() => navigateToView("wanted")} type="button">
                   Authors
                 </button>
               </div>
@@ -3080,11 +3173,14 @@ export function App() {
 
             <article className="review-lane">
               <div className="review-lane-heading">
-                <div>
-                  <strong>Import review</strong>
+                <div className="review-lane-title">
+                  <div className="review-lane-name">
+                    <strong>Import review</strong>
+                    {importReviews.length > 0 ? <span className="lane-count">{importReviews.length}</span> : null}
+                  </div>
                   <span>{importReviews.length} unmatched files</span>
                 </div>
-                <button className="secondary-action compact" onClick={() => setActiveView("imports")} type="button">
+                <button className="secondary-action compact" onClick={() => navigateToView("imports")} type="button">
                   Imports
                 </button>
               </div>
@@ -3109,11 +3205,16 @@ export function App() {
 
             <article className="review-lane">
               <div className="review-lane-heading">
-                <div>
-                  <strong>Blocked acquisition</strong>
+                <div className="review-lane-title">
+                  <div className="review-lane-name">
+                    <strong>Blocked acquisition</strong>
+                    {(acquisitionQueue?.summary.blocked ?? dashboardBlockedItems.length) > 0 ? (
+                      <span className="lane-count">{acquisitionQueue?.summary.blocked ?? dashboardBlockedItems.length}</span>
+                    ) : null}
+                  </div>
                   <span>{acquisitionQueue?.summary.blocked ?? dashboardBlockedItems.length} books blocked</span>
                 </div>
-                <button className="secondary-action compact" onClick={() => setActiveView("wanted")} type="button">
+                <button className="secondary-action compact" onClick={() => navigateToView("wanted")} type="button">
                   Wanted
                 </button>
               </div>
@@ -3148,11 +3249,14 @@ export function App() {
 
             <article className="review-lane">
               <div className="review-lane-heading">
-                <div>
-                  <strong>Failed downloads</strong>
+                <div className="review-lane-title">
+                  <div className="review-lane-name">
+                    <strong>Failed downloads</strong>
+                    {dashboardFailedDownloads.length > 0 ? <span className="lane-count">{dashboardFailedDownloads.length}</span> : null}
+                  </div>
                   <span>{dashboardFailedDownloads.length} need recovery</span>
                 </div>
-                <button className="secondary-action compact" onClick={() => setActiveView("downloads")} type="button">
+                <button className="secondary-action compact" onClick={() => navigateToView("downloads")} type="button">
                   Queue
                 </button>
               </div>
@@ -4541,34 +4645,40 @@ export function App() {
               </p>
             </div>
             <div className="monitor-actions">
-              <button className="secondary-action compact" disabled={isRunningMonitor} onClick={() => runMonitor({ force: false })} type="button">
-                <RadioTower size={16} />
-                Due scan
-              </button>
-              <button className="secondary-action compact" disabled={isRunningMonitor} onClick={() => runMonitor({ force: true })} type="button">
-                <RefreshCw size={16} />
-                Force scan
-              </button>
-              <button className="secondary-action compact danger-outline" disabled={isRunningMonitor} onClick={() => runMonitor({ force: true, autoGrab: true })} type="button">
-                <HardDriveDownload size={16} />
-                Scan + grab paused
-              </button>
-              <button className="secondary-action compact" disabled={isRunningFeedSync} onClick={() => runFeedSync({})} type="button">
-                <RadioTower size={16} />
-                Feed
-              </button>
-              <button className="secondary-action compact danger-outline" disabled={isRunningFeedSync} onClick={() => runFeedSync({ autoGrab: true })} type="button">
-                <HardDriveDownload size={16} />
-                Feed + grab
-              </button>
-              <button className="secondary-action compact" disabled={isRunningUpgrade} onClick={() => runUpgrades({})} type="button">
-                <TrendingUp size={16} />
-                Upgrades
-              </button>
-              <button className="secondary-action compact danger-outline" disabled={isRunningUpgrade} onClick={() => runUpgrades({ autoGrab: true })} type="button">
-                <HardDriveDownload size={16} />
-                Upgrade + grab
-              </button>
+              <div className="monitor-action-group" role="group" aria-label="Scan">
+                <button className="secondary-action compact" disabled={isRunningMonitor} onClick={() => runMonitor({ force: false })} type="button">
+                  <RadioTower size={15} />
+                  Due scan
+                </button>
+                <button className="secondary-action compact" disabled={isRunningMonitor} onClick={() => runMonitor({ force: true })} type="button">
+                  <RefreshCw size={15} />
+                  Force scan
+                </button>
+                <button className="secondary-action compact danger-outline" disabled={isRunningMonitor} onClick={() => runMonitor({ force: true, autoGrab: true })} type="button">
+                  <HardDriveDownload size={15} />
+                  + grab
+                </button>
+              </div>
+              <div className="monitor-action-group" role="group" aria-label="Feed sync">
+                <button className="secondary-action compact" disabled={isRunningFeedSync} onClick={() => runFeedSync({})} type="button">
+                  <RadioTower size={15} />
+                  Feed
+                </button>
+                <button className="secondary-action compact danger-outline" disabled={isRunningFeedSync} onClick={() => runFeedSync({ autoGrab: true })} type="button">
+                  <HardDriveDownload size={15} />
+                  + grab
+                </button>
+              </div>
+              <div className="monitor-action-group" role="group" aria-label="Upgrades">
+                <button className="secondary-action compact" disabled={isRunningUpgrade} onClick={() => runUpgrades({})} type="button">
+                  <TrendingUp size={15} />
+                  Upgrades
+                </button>
+                <button className="secondary-action compact danger-outline" disabled={isRunningUpgrade} onClick={() => runUpgrades({ autoGrab: true })} type="button">
+                  <HardDriveDownload size={15} />
+                  + grab
+                </button>
+              </div>
             </div>
           </div>
           {monitorError ? <div className={isPersistenceRequiredError(monitorError) ? "inline-note" : "inline-error"}>{appErrorMessage(monitorError)}</div> : null}
@@ -4648,7 +4758,7 @@ export function App() {
           ) : null}
         </section>
 
-        <section className="downloads-panel" aria-label="Download activity" hidden={activeView !== "dashboard" && activeView !== "downloads"}>
+        <section className="downloads-panel" aria-label="Download activity" hidden={activeView !== "downloads"}>
           <div className="panel-heading">
             <div>
               <h2>Download activity</h2>
@@ -4697,7 +4807,7 @@ export function App() {
                 <em className={`download-badge ${integrationStatusTone(client.status)}`}>{client.status}</em>
               </article>
             ))}
-            <button className="secondary-action compact" onClick={() => setActiveView("settings")} type="button">
+            <button className="secondary-action compact" onClick={() => navigateToView("settings")} type="button">
               <Settings size={16} />
               Clients
             </button>
@@ -5326,7 +5436,7 @@ export function App() {
                     Refresh
                   </button>
                   {downloads.length === 0 ? (
-                    <button className="secondary-action compact" onClick={() => setActiveView("settings")} type="button">
+                    <button className="secondary-action compact" onClick={() => navigateToView("settings")} type="button">
                       <Settings size={16} />
                       Client settings
                     </button>
@@ -5466,7 +5576,7 @@ export function App() {
                 <strong>Library roots and naming</strong>
                 <span>
                   {librarySettingsPersisted ? "Postgres" : "runtime"} · ebooks {librarySettings.ebookLibraryRoot || "unset"} · audio{" "}
-                  {librarySettings.audiobookLibraryRoot || "unset"}
+                  {librarySettings.audiobookLibraryRoot || "unset"} · search {librarySettings.standardSearchLanguage || "English"}
                 </span>
               </div>
               <div className="integration-settings-actions">
@@ -5529,6 +5639,14 @@ export function App() {
               <label>
                 <span>Space replacement</span>
                 <input value={librarySettingsForm.namingSpaceReplacement} onChange={(event) => updateLibrarySettingsForm({ namingSpaceReplacement: event.target.value })} placeholder="Optional" />
+              </label>
+              <label>
+                <span>Search language</span>
+                <select value={librarySettingsForm.standardSearchLanguage || "English"} onChange={(event) => updateLibrarySettingsForm({ standardSearchLanguage: event.target.value })}>
+                  {standardSearchLanguageOptions.map((language) => (
+                    <option key={language} value={language}>{language === "Any" ? "Any language" : language}</option>
+                  ))}
+                </select>
               </label>
               <div className="library-naming-preview">
                 <span>Preview</span>

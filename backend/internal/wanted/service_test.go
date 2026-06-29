@@ -156,3 +156,29 @@ func TestReleaseSearchQueryForWantedUsesProtectedBibliographicMetadata(t *testin
 		t.Fatalf("expected protected language in search query, got %#v", query.Languages)
 	}
 }
+
+func TestWantedDefaultSearchLanguageAppliesWhenNoManualLanguageOverride(t *testing.T) {
+	item := wantedItemWithDefaultSearchLanguage(WantedItem{
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+	}, "English")
+	query := releaseSearchQueryForWanted(item, 20)
+
+	if len(query.Languages) != 1 || query.Languages[0] != "English" {
+		t.Fatalf("expected default English language in release query, got %#v", query.Languages)
+	}
+
+	item = wantedItemWithDefaultSearchLanguage(WantedItem{
+		Title:      "Project Hail Mary",
+		AuthorName: "Andy Weir",
+		Format:     "ebook",
+		ManualOverrides: []ManualOverride{
+			{FieldName: "language", Value: "German"},
+		},
+	}, "English")
+	query = releaseSearchQueryForWanted(item, 20)
+	if len(query.Languages) != 1 || query.Languages[0] != "German" {
+		t.Fatalf("expected manual language override to win, got %#v", query.Languages)
+	}
+}
