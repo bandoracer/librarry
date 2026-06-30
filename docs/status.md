@@ -1,6 +1,6 @@
 # Current Status
 
-Last updated: 2026-06-29.
+Last updated: 2026-06-30.
 
 Librarry is an early alpha Readarr replacement. It is useful for validating the
 metadata-first workflow and exercising acquisition integrations, but it is not
@@ -10,6 +10,8 @@ yet ready to replace a production Readarr instance unattended.
 
 - The Go API, React web UI, Postgres migrations, and Docker/TrueNAS custom-app
   shape build and run together.
+- Public distribution files are present for generic Docker Compose, TrueNAS
+  Custom Apps, and Unraid Docker Compose Manager.
 - The live TrueNAS deployment was verified at `http://192.168.1.221:30200/`.
 - The Cosmos route `https://librarry.borchetta.xyz/` was verified after the
   route was added, and the app rendered through the proxy.
@@ -66,11 +68,11 @@ yet ready to replace a production Readarr instance unattended.
 - Google Books exact-match fallback is implemented, but the live deployment
   still needs `LIBRARRY_GOOGLE_BOOKS_API_KEY`.
 - Goodreads, Amazon, and Audible scraping are intentionally not in core.
-- Published, versioned container images are not available yet; the TrueNAS
-  deployment currently uses local images.
-- The default local and TrueNAS examples are operator-facing and should be put
-  behind `LIBRARRY_API_KEY`, Cosmos auth, Cloudflare Access, or another trusted
-  boundary before WAN exposure.
+- The GHCR image workflow is in-repo, but the first tagged release still needs
+  to be cut and verified after the workflow runs from `main`.
+- The default local, TrueNAS, and Unraid examples are operator-facing and should
+  be put behind `LIBRARRY_API_KEY`, Cosmos auth, Cloudflare Access, or another
+  trusted boundary before WAN exposure.
 - Librarry intentionally does not replace qBittorrent, Transmission, or SABnzbd
   as full download-client administration UIs.
 
@@ -81,7 +83,9 @@ The local homelab deployment, when present, uses:
 - TrueNAS custom app name: `librarry`
 - Web portal: `http://192.168.1.221:30200/`
 - Cosmos hostname: `https://librarry.borchetta.xyz/`
-- API and web images: `librarry-api:local` and `librarry-web:local`
+- API and web images: currently deployed from local images; public templates use
+  `ghcr.io/bandoracer/librarry-api:latest` and
+  `ghcr.io/bandoracer/librarry-web:latest`
 - Postgres data: `/mnt/HDD_pool/vault/app-config/librarry/postgres`
 - Media mount: `/mnt/HDD_pool/vault/media-stack:/data`
 - Ebook root: `/data/media/books/ebooks`

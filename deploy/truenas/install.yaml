@@ -1,7 +1,7 @@
 x-portals:
   - name: Web UI
     scheme: http
-    host: 192.168.1.221
+    host: truenas.local
     port: 30200
     path: /
 
@@ -14,7 +14,7 @@ services:
       POSTGRES_PASSWORD: change-me
       POSTGRES_DB: librarry
     volumes:
-      - /mnt/HDD_pool/vault/app-config/librarry/postgres:/var/lib/postgresql/data
+      - /mnt/tank/apps/librarry/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U librarry"]
       interval: 10s
@@ -22,20 +22,20 @@ services:
       retries: 10
 
   api:
-    image: librarry-api:local
-    pull_policy: never
+    image: ghcr.io/bandoracer/librarry-api:latest
+    pull_policy: always
     restart: unless-stopped
     environment:
       LIBRARRY_LISTEN_ADDR: :8080
       LIBRARRY_API_KEY:
       LIBRARRY_DATABASE_URL: postgres://librarry:change-me@postgres:5432/librarry?sslmode=disable
       LIBRARRY_MIGRATIONS_DIR: /app/backend/migrations
-      LIBRARRY_WEB_ORIGIN: http://192.168.1.221:30200
+      LIBRARRY_WEB_ORIGIN: http://truenas.local:30200
       LIBRARRY_HARDCOVER_TOKEN:
       LIBRARRY_GOOGLE_BOOKS_API_KEY:
-      LIBRARRY_PROWLARR_URL: http://192.168.1.221:30050
-      LIBRARRY_PROWLARR_API_KEY: change-me
-      LIBRARRY_QBITTORRENT_URL: http://192.168.1.221:30026
+      LIBRARRY_PROWLARR_URL:
+      LIBRARRY_PROWLARR_API_KEY:
+      LIBRARRY_QBITTORRENT_URL:
       LIBRARRY_QBITTORRENT_USERNAME:
       LIBRARRY_QBITTORRENT_PASSWORD:
       LIBRARRY_TRANSMISSION_URL:
@@ -85,16 +85,29 @@ services:
       LIBRARRY_CALIBRE_REFRESH_LIMIT: "200"
       LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS: "1"
     volumes:
-      - /mnt/HDD_pool/vault/media-stack:/data
+      - /mnt/tank/media-stack:/data
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   web:
-    image: librarry-web:local
-    pull_policy: never
+    image: ghcr.io/bandoracer/librarry-web:latest
+    pull_policy: always
     restart: unless-stopped
     ports:
-      - 192.168.1.221:30200:80/tcp
+      - 0.0.0.0:30200:80/tcp
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

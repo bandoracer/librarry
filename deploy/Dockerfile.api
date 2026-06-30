@@ -7,6 +7,10 @@ COPY backend ./backend
 RUN go build -o /out/librarry ./backend/cmd/librarry
 
 FROM alpine:3.20
+LABEL org.opencontainers.image.title="Librarry API" \
+  org.opencontainers.image.description="Go API and worker for Librarry, a self-hosted ebook and audiobook manager." \
+  org.opencontainers.image.source="https://github.com/bandoracer/librarry" \
+  org.opencontainers.image.licenses="AGPL-3.0"
 RUN adduser -D -H librarry
 WORKDIR /app
 COPY --from=build /out/librarry /usr/local/bin/librarry
@@ -14,4 +18,3 @@ COPY backend/migrations ./backend/migrations
 USER librarry
 EXPOSE 8080
 CMD ["librarry"]
-

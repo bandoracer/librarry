@@ -44,7 +44,9 @@ Current verified highlights:
 - Prowlarr release search and qBittorrent book-acquisition handoff have been
   tested against a live deployment.
 - The live TrueNAS/Cosmos deployment path has been exercised with Postgres,
-  local Docker images, and the `media-stack` mount.
+  Docker images, and the `media-stack` mount.
+- Public packaging is present for generic Docker Compose, TrueNAS Custom Apps,
+  and Unraid Docker Compose Manager installs.
 
 Current gaps:
 
@@ -52,8 +54,8 @@ Current gaps:
 - A real Readarr migration dry run, real book-root scan, and full
   wanted-to-import loop still need controlled validation before relying on
   Librarry as the only book automation system.
-- Published versioned container images and release artifacts are not available
-  yet.
+- The first tagged release still needs to be cut after the GHCR image workflow
+  runs cleanly from `main`.
 
 See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.
@@ -62,8 +64,10 @@ deployment notes, and known gaps.
 
 - [Current status](docs/status.md): what works, what is risky, and what needs
   validation next.
-- [Local development](docs/local-dev.md): run commands, configuration, Docker
-  Compose, TrueNAS, integrations, and worker settings.
+- [Deployment](docs/deployment.md): generic Docker Compose, TrueNAS, Unraid,
+  image publishing, reverse proxying, upgrades, and backups.
+- [Local development](docs/local-dev.md): run commands, source-build Compose,
+  integrations, and worker settings.
 - [Architecture](docs/architecture.md): backend/frontend/Postgres structure and
   API surfaces.
 - [Metadata strategy](docs/metadata-strategy.md): provider order, matching
@@ -137,7 +141,7 @@ Librarry is an early replacement focused first on fixing the metadata model.
 | API compatibility | Readarr exposes the standard Arr `/api/v1` API for clients and tooling. | Compatibility shim covers optional Readarr-style API-key auth, common probes and read paths: ping, system status, health, diskspace, Postgres-backed root folders with Calibre settings, resource catalogs, and config records for naming/media-management/host/UI/indexer/download-client settings; calendar, history, parse, queue, blocklist/blacklist, durable author/book list/create/update/delete compatibility, bookfile list/get/update/delete compatibility, rename and retag preview/apply flows, and native-backed command handling for RSS sync, missing search, book search, author search, failed-download recovery, upgrade/cutoff-unmet search, rename/rescan, and database-backed retag state; manual import, missing wanted books, quality profiles, quality definitions, delay profiles, language/metadata profiles, tags, custom formats, restrictions, Webhook notifications with native delivery, import lists, remote path mappings, system tasks, download clients, indexers, release search/grab, plus schema/test/action/bulk routes for common configurable Arr resources. | Expand toward full OpenAPI compatibility, including deeper native config side effects, embedded metadata writes, Calibre content-server operations, and broader native behavior behind compatibility resources. |
 | Calibre integration | Supports Calibre library integration and conversion through Calibre Content Server. | Readarr-style Calibre root-folder settings are accepted, validated, persisted, and returned. Imports that land under a Calibre-enabled root are posted to the Calibre Content Server add-book endpoint, store the returned Calibre ID, push basic title, author, and identifier metadata through set-fields, start configured output-format conversions, and refresh conversion status through native API, command calls, or scheduled background polling. Physical deletes for Calibre-backed files call the Content Server delete-books endpoint. Richer edition metadata, embedded metadata writes, path refresh after Calibre renames, and failed-import rollback are not implemented yet. | Implement richer metadata sync, embedded metadata writes, path refresh after Calibre-side changes, and stronger error recovery behind the same root-folder contract. |
 | Post-download organization | Mature sorting and renaming. | Completed Librarry-tagged downloads can be imported into format-aware ebook/audiobook roots, mark wanted items imported, use configurable naming templates, choose copy/move/hardlink mode and duplicate-file behavior, queue unlinked files for individual or bulk review, and rename tracked files through native or Readarr-compatible APIs. | Add richer matching evidence and per-profile organization rules. |
-| Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | Docker Compose and TrueNAS custom-app templates. | Publish versioned container images and release artifacts. |
+| Deployment | Windows, Linux, macOS, NAS, and Docker guidance; no official Docker image according to Readarr docs. | GHCR image workflow, generic Docker Compose, TrueNAS Custom App template, and Unraid Docker Compose Manager stack are in-repo. | Cut versioned releases, keep release notes current, and add broader NAS install feedback. |
 | License | GPL-3.0. | AGPL-3.0. | Keep network-service modifications available to users. |
 
 Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
@@ -356,7 +360,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Native Readarr compatibility report at `/api/v1/readarr/compatibility` and in
   the UI, separating ready, partial, and delegated areas so operators can see
   what behaves like Readarr and what remains owned by external download clients.
-- Docker Compose and TrueNAS custom-app deployment templates.
+- Generic Docker Compose, source-build Compose, TrueNAS Custom App, and Unraid
+  Docker Compose Manager deployment templates.
 
 ## Metadata Strategy
 
@@ -383,8 +388,8 @@ Goodreads, Amazon, and Audible scraping are intentionally not part of core.
 ```text
 backend/   Go API, worker foundation, metadata adapters, acquisition clients
 web/       Vite, React, TypeScript UI
-deploy/    Dockerfiles, Compose files, TrueNAS template, sample environment
-docs/      Architecture, metadata policy, local dev, provider setup
+deploy/    Dockerfiles, Compose files, TrueNAS and Unraid deployment files
+docs/      Architecture, metadata policy, deployment, local dev, provider setup
 ```
 
 The backend owns provider credentials and normalization. The browser only talks
@@ -667,26 +672,45 @@ Important API surfaces:
 
 ## Quick Start
 
-Requirements:
+Fastest Docker install:
+
+```bash
+git clone https://github.com/bandoracer/librarry.git
+cd librarry/deploy
+cp .env.example .env
+docker compose pull
+docker compose up -d
+```
+
+Then open:
+
+```text
+http://127.0.0.1:30200
+```
+
+The default Compose stack pulls:
+
+- `ghcr.io/bandoracer/librarry-api:latest`
+- `ghcr.io/bandoracer/librarry-web:latest`
+- `postgres:16-alpine`
+
+Edit `deploy/.env` before production use. At minimum, set a real Postgres
+password, update `LIBRARRY_DATABASE_URL` to match it, choose persistent host
+paths, and set `LIBRARRY_API_KEY` before exposing the app outside trusted local
+access.
+
+Development requirements:
 
 - Go 1.23+
 - Node.js 22+
 - Docker and Docker Compose
 - Postgres 16, unless using Compose
 
-Run the full local stack:
+Run the full stack from source instead of GHCR images:
 
 ```bash
-git clone https://github.com/bandoracer/librarry.git
 cd librarry/deploy
-cp .env.example .env
-docker compose up --build
-```
-
-Then open:
-
-```text
-http://127.0.0.1:5173
+docker compose -f docker-compose.build.yml up --build
 ```
 
 Run the backend without Docker:
@@ -817,17 +841,21 @@ Provider notes:
 
 ## Deployment
 
-The default Compose stack starts Postgres, the API, and the built web UI:
+The supported public install targets are documented in
+[docs/deployment.md](docs/deployment.md):
 
-```bash
-cd deploy
-docker compose up --build
-```
+- Generic Docker Compose:
+  [deploy/docker-compose.yml](deploy/docker-compose.yml)
+- Source-build Compose:
+  [deploy/docker-compose.build.yml](deploy/docker-compose.build.yml)
+- TrueNAS Custom App:
+  [deploy/truenas/install.yaml](deploy/truenas/install.yaml)
+- Unraid Docker Compose Manager:
+  [deploy/unraid/docker-compose.yml](deploy/unraid/docker-compose.yml)
 
-The TrueNAS custom-app template lives at
-[deploy/truenas/install.yaml](deploy/truenas/install.yaml). It intentionally
-contains placeholder secrets and local image names. Build or publish your own
-`librarry-api` and `librarry-web` images before installing it.
+The app listens on web port `30200` by default. Reverse proxies should target
+the web container, which serves the React app and proxies `/api/` plus
+`/healthz` to the API service.
 
 ## Development
 
@@ -852,7 +880,7 @@ will grow as the automation path stabilizes.
 - Better edition selection for narrator, language, format, and ISBN.
 - Hardcover and Google Books fixture coverage.
 - Conflict-aware queue arbitration and additional download clients.
-- Public image publishing and release builds.
+- First tagged GHCR release and release notes.
 
 ## Contributing
 

@@ -26,24 +26,26 @@ npm run dev
 
 The Vite dev server proxies `/api` to `http://127.0.0.1:8080`.
 
-## Compose
+## Source-Build Compose
+
+The default [deploy/docker-compose.yml](../deploy/docker-compose.yml) is the
+public install file and pulls published images. For local development from a
+checkout, use the source-build compose file:
 
 ```bash
 cd deploy
 cp .env.example .env
-docker compose up --build
+docker compose -f docker-compose.build.yml up --build
 ```
 
-## TrueNAS Custom App
+## Deployment Templates
 
-`deploy/truenas/install.yaml` is a paste-ready shape for TrueNAS custom apps,
-but it intentionally contains placeholder secrets. Build `librarry-api:local`
-and `librarry-web:local` on the TrueNAS host or replace the images with registry
-tags before installing the custom app. Do not commit a real Prowlarr API key.
-Do not commit SABnzbd or download-client credentials either.
+Public deployment instructions live in [deployment.md](deployment.md). The repo
+includes install files for generic Docker Compose, TrueNAS Custom Apps, and
+Unraid Docker Compose Manager.
 
-The default TrueNAS port is `192.168.1.221:30200`, with `/mnt/HDD_pool/vault/media-stack`
-mounted into the API container as `/data`.
+Do not commit real Prowlarr API keys, SABnzbd credentials, download-client
+credentials, provider tokens, or database passwords.
 
 ## Acquisition
 

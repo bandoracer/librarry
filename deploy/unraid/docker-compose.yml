@@ -3,13 +3,14 @@ name: librarry
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: librarry-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-librarry}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-librarry}
       POSTGRES_DB: ${POSTGRES_DB:-librarry}
     volumes:
-      - ${LIBRARRY_POSTGRES_DATA:-postgres-data}:/var/lib/postgresql/data
+      - ${LIBRARRY_APPDATA_PATH:-/mnt/user/appdata/librarry}/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-librarry}"]
       interval: 10s
@@ -18,13 +19,14 @@ services:
 
   api:
     image: ${LIBRARRY_API_IMAGE:-ghcr.io/bandoracer/librarry-api:latest}
+    container_name: librarry-api
     restart: unless-stopped
     environment:
       LIBRARRY_LISTEN_ADDR: :8080
       LIBRARRY_API_KEY: ${LIBRARRY_API_KEY:-}
       LIBRARRY_DATABASE_URL: ${LIBRARRY_DATABASE_URL:-postgres://librarry:librarry@postgres:5432/librarry?sslmode=disable}
       LIBRARRY_MIGRATIONS_DIR: /app/backend/migrations
-      LIBRARRY_WEB_ORIGIN: ${LIBRARRY_WEB_ORIGIN:-http://127.0.0.1:30200}
+      LIBRARRY_WEB_ORIGIN: ${LIBRARRY_WEB_ORIGIN:-http://tower.local:30200}
       LIBRARRY_HARDCOVER_TOKEN: ${LIBRARRY_HARDCOVER_TOKEN:-}
       LIBRARRY_GOOGLE_BOOKS_API_KEY: ${LIBRARRY_GOOGLE_BOOKS_API_KEY:-}
       LIBRARRY_PROWLARR_URL: ${LIBRARRY_PROWLARR_URL:-}
@@ -79,7 +81,7 @@ services:
       LIBRARRY_CALIBRE_REFRESH_LIMIT: ${LIBRARRY_CALIBRE_REFRESH_LIMIT:-200}
       LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS: ${LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS:-1}
     volumes:
-      - ${LIBRARRY_MEDIA_STACK_PATH:-./data/media-stack}:/data
+      - ${LIBRARRY_MEDIA_STACK_PATH:-/mnt/user/media-stack}:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,18 +94,16 @@ services:
 
   web:
     image: ${LIBRARRY_WEB_IMAGE:-ghcr.io/bandoracer/librarry-web:latest}
+    container_name: librarry-web
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${LIBRARRY_WEB_BIND:-0.0.0.0}:${LIBRARRY_WEB_PORT:-30200}:80"
+      - "${LIBRARRY_WEB_PORT:-30200}:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 20s
-
-volumes:
-  postgres-data:
