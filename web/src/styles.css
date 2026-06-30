@@ -1155,7 +1155,7 @@ select option {
 .content-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(560px, 1fr) 330px;
+  grid-template-columns: minmax(0, 1fr) 330px;
   gap: 14px;
   align-items: start;
 }
@@ -1297,7 +1297,7 @@ select option {
 .table-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) minmax(170px, 0.78fr) 104px 106px 168px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr) minmax(88px, 0.5fr) 96px 172px;
   align-items: center;
   gap: 10px;
   padding: 0 18px;
@@ -5242,6 +5242,71 @@ select option {
   white-space: nowrap;
 }
 
+/* Settings sub-navigation — split the long settings page into arr-style
+   sections (General / Media Management / Profiles / Connections / Import). */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 18px 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.settings-tab {
+  flex: 1 1 auto;
+  min-width: max-content;
+  height: 36px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.settings-tab:hover {
+  color: var(--text);
+}
+
+.settings-tab.active {
+  background: var(--surface);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.quality-profiles-panel .settings-empty,
+.settings-empty {
+  margin: 0;
+  padding: 16px 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Below ~1240px a side-by-side results table + 330px detail panel gets too
+   cramped and the row would clip, so stack the detail panel underneath and
+   give the results table the full width. */
+@media (max-width: 1240px) {
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail-panel {
+    position: static;
+    top: auto;
+  }
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -5661,6 +5726,12 @@ select option {
 
   .secondary-action.compact {
     width: 100%;
+  }
+
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
   }
 }
 

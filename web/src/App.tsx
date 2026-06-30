@@ -235,8 +235,8 @@ const navItems = [
     path: "/settings",
     label: "Settings",
     icon: Settings,
-    title: "Release policy",
-    description: "Tune quality profiles used by search, feeds, failed-download recovery, and upgrades."
+    title: "Settings",
+    description: "Access, library layout, release policy, connections, and Readarr import."
   }
 ] as const;
 
@@ -254,6 +254,19 @@ type SearchEvidenceFilter = "all" | "identifiers" | "published" | "series";
 type SearchEvidenceTone = "high" | "medium" | "review" | "neutral";
 type SearchEvidenceChip = { label: string; tone?: SearchEvidenceTone };
 type SearchEvidenceItem = { label: string; value: string; detail: string };
+type SettingsTab = "general" | "media" | "profiles" | "connections" | "import";
+
+const settingsTabs: { id: SettingsTab; label: string; path: string }[] = [
+  { id: "general", label: "General", path: "/settings" },
+  { id: "media", label: "Media Management", path: "/settings/media" },
+  { id: "profiles", label: "Profiles", path: "/settings/profiles" },
+  { id: "connections", label: "Connections", path: "/settings/connections" },
+  { id: "import", label: "Import", path: "/settings/import" }
+];
+
+function settingsTabFromPath(pathname: string): SettingsTab {
+  return settingsTabs.find((tab) => matchPath({ path: tab.path, end: true }, pathname))?.id ?? "general";
+}
 
 const defaultView: ViewID = "library";
 const defaultViewPath = viewPath(defaultView);
@@ -263,7 +276,7 @@ function viewPath(view: ViewID) {
 }
 
 function activeViewFromPath(pathname: string): ViewID {
-  return navItems.find((item) => matchPath({ path: item.path, end: true }, pathname))?.id ?? defaultView;
+  return navItems.find((item) => matchPath({ path: item.path, end: item.id !== "settings" }, pathname))?.id ?? defaultView;
 }
 
 const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
@@ -647,6 +660,158 @@ function integrationSettingsForm(settings: IntegrationSettings): IntegrationSett
   };
 }
 
+function normalizedFormText(value?: string | null) {
+  return (value ?? "").trim();
+}
+
+function sameFormText(a?: string | null, b?: string | null) {
+  return normalizedFormText(a) === normalizedFormText(b);
+}
+
+function normalizedFormTerms(values?: string[]) {
+  return (values ?? []).map((value) => normalizedFormText(value)).filter(Boolean);
+}
+
+function sameFormTerms(a?: string[], b?: string[]) {
+  const left = normalizedFormTerms(a);
+  const right = normalizedFormTerms(b);
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function cloneQualityProfile(profile: QualityProfile): QualityProfile {
+  return {
+    ...profile,
+    preferredTerms: [...(profile.preferredTerms ?? [])],
+    requiredTerms: [...(profile.requiredTerms ?? [])],
+    rejectedTerms: [...(profile.rejectedTerms ?? [])]
+  };
+}
+
+function qualityProfileChanged(profile: QualityProfile, saved?: QualityProfile) {
+  if (!saved) return true;
+  return (
+    profile.minScore !== saved.minScore ||
+    profile.cutoffScore !== saved.cutoffScore ||
+    profile.minSeeders !== saved.minSeeders ||
+    profile.maxSizeBytes !== saved.maxSizeBytes ||
+    profile.preferredScore !== saved.preferredScore ||
+    profile.upgradeAllowed !== saved.upgradeAllowed ||
+    !sameFormTerms(profile.preferredTerms, saved.preferredTerms) ||
+    !sameFormTerms(profile.requiredTerms, saved.requiredTerms) ||
+    !sameFormTerms(profile.rejectedTerms, saved.rejectedTerms)
+  );
+}
+
+function librarySettingsChanged(form: LibrarySettings, saved: LibrarySettings) {
+  return (
+    !sameFormText(form.ebookLibraryRoot, saved.ebookLibraryRoot) ||
+    !sameFormText(form.audiobookLibraryRoot, saved.audiobookLibraryRoot) ||
+    !sameFormText(form.namingAuthorFolder, saved.namingAuthorFolder) ||
+    !sameFormText(form.namingBookFolder, saved.namingBookFolder) ||
+    !sameFormText(form.namingFileName, saved.namingFileName) ||
+    !sameFormText(form.namingSpaceReplacement, saved.namingSpaceReplacement) ||
+    (normalizedFormText(form.standardSearchLanguage) || "English") !== (normalizedFormText(saved.standardSearchLanguage) || "English")
+  );
+}
+
+function integrationSettingsChanged(form: IntegrationSettings, saved: IntegrationSettings) {
+  const secretChanged = Boolean(
+    normalizedFormText(form.prowlarrApiKey) ||
+    normalizedFormText(form.qbittorrentPassword) ||
+    normalizedFormText(form.transmissionPassword) ||
+    normalizedFormText(form.sabnzbdApiKey) ||
+    normalizedFormText(form.sabnzbdPassword)
+  );
+  return (
+    secretChanged ||
+    !sameFormText(form.prowlarrUrl, saved.prowlarrUrl) ||
+    !sameFormText(form.qbittorrentUrl, saved.qbittorrentUrl) ||
+    !sameFormText(form.qbittorrentUsername, saved.qbittorrentUsername) ||
+    !sameFormText(form.transmissionUrl, saved.transmissionUrl) ||
+    !sameFormText(form.transmissionUsername, saved.transmissionUsername) ||
+    !sameFormText(form.sabnzbdUrl, saved.sabnzbdUrl) ||
+    !sameFormText(form.sabnzbdUsername, saved.sabnzbdUsername) ||
+    !sameFormText(form.ebookCategory, saved.ebookCategory) ||
+    !sameFormText(form.audiobookCategory, saved.audiobookCategory) ||
+    !sameFormText(form.bookTorrentRoot, saved.bookTorrentRoot)
+  );
+}
+
+type WantedEditForm = {
+  title: string;
+  authorName: string;
+  coverUrl: string;
+  qualityProfile: string;
+  monitored: boolean;
+};
+
+function wantedEditChanged(item: WantedItem | undefined, form: WantedEditForm) {
+  if (!item) return false;
+  return (
+    !sameFormText(form.title, item.title) ||
+    !sameFormText(form.authorName, item.authorName) ||
+    !sameFormText(form.coverUrl, item.coverUrl) ||
+    (normalizedFormText(form.qualityProfile) || "standard") !== (normalizedFormText(item.qualityProfile) || "standard") ||
+    form.monitored !== item.monitored
+  );
+}
+
+type DownloadPreferenceForm = {
+  savePath: string;
+  tempPath: string;
+  tempPathEnabled: boolean;
+  startPaused: boolean;
+  queueingEnabled: boolean;
+  speedScheduleEnabled: boolean;
+  downloadLimitKiB: string;
+  uploadLimitKiB: string;
+  altDownloadLimitKiB: string;
+  altUploadLimitKiB: string;
+  maxActiveDownloads: string;
+  maxActiveUploads: string;
+  maxActiveTorrents: string;
+};
+
+function downloadPreferenceFormLimits(form: DownloadPreferenceForm, includeMaxActiveTorrents: boolean) {
+  return {
+    downloadLimit: bandwidthInputToBytes(form.downloadLimitKiB),
+    uploadLimit: bandwidthInputToBytes(form.uploadLimitKiB),
+    alternativeDownloadLimit: bandwidthInputToBytes(form.altDownloadLimitKiB),
+    alternativeUploadLimit: bandwidthInputToBytes(form.altUploadLimitKiB),
+    maxActiveDownloads: queueLimitInputToInt(form.maxActiveDownloads),
+    maxActiveUploads: queueLimitInputToInt(form.maxActiveUploads),
+    maxActiveTorrents: includeMaxActiveTorrents ? queueLimitInputToInt(form.maxActiveTorrents) : -1
+  };
+}
+
+function downloadPreferenceFormValid(form: DownloadPreferenceForm, includeMaxActiveTorrents: boolean) {
+  const limits = downloadPreferenceFormLimits(form, includeMaxActiveTorrents);
+  return (
+    [limits.downloadLimit, limits.uploadLimit, limits.alternativeDownloadLimit, limits.alternativeUploadLimit].every((value) => value >= 0) &&
+    [limits.maxActiveDownloads, limits.maxActiveUploads, limits.maxActiveTorrents].every((value) => value >= -1)
+  );
+}
+
+function downloadPreferencesChanged(preferences: DownloadPreferences | null, form: DownloadPreferenceForm, includeMaxActiveTorrents: boolean) {
+  if (!preferences || !downloadPreferenceFormValid(form, includeMaxActiveTorrents)) return false;
+  const limits = downloadPreferenceFormLimits(form, includeMaxActiveTorrents);
+  return (
+    !sameFormText(form.savePath, preferences.savePath) ||
+    form.tempPathEnabled !== Boolean(preferences.tempPathEnabled) ||
+    !sameFormText(form.tempPath, preferences.tempPath) ||
+    form.startPaused !== Boolean(preferences.startPaused) ||
+    form.queueingEnabled !== Boolean(preferences.queueingEnabled) ||
+    form.speedScheduleEnabled !== Boolean(preferences.speedScheduleEnabled) ||
+    limits.downloadLimit !== (preferences.downloadLimit ?? 0) ||
+    limits.uploadLimit !== (preferences.uploadLimit ?? 0) ||
+    limits.alternativeDownloadLimit !== (preferences.alternativeDownloadLimit ?? 0) ||
+    limits.alternativeUploadLimit !== (preferences.alternativeUploadLimit ?? 0) ||
+    limits.maxActiveDownloads !== (preferences.maxActiveDownloads ?? -1) ||
+    limits.maxActiveUploads !== (preferences.maxActiveUploads ?? -1) ||
+    (includeMaxActiveTorrents && limits.maxActiveTorrents !== (preferences.maxActiveTorrents ?? -1))
+  );
+}
+
 function emptyLibrarySettings(): LibrarySettings {
   return {
     ebookLibraryRoot: "/data/media/books/ebooks",
@@ -706,6 +871,11 @@ export function App() {
         {navItems.map((item) => (
           <Route element={null} key={item.id} path={item.path.slice(1)} />
         ))}
+        {settingsTabs
+          .filter((tab) => tab.path !== "/settings")
+          .map((tab) => (
+            <Route element={null} key={tab.id} path={tab.path.slice(1)} />
+          ))}
         <Route path="*" element={<Navigate to={defaultViewPath} replace />} />
       </Route>
     </Routes>
@@ -742,6 +912,7 @@ function AppShell() {
   const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
   const [importReviews, setImportReviews] = useState<ImportReview[]>([]);
   const [qualityProfiles, setQualityProfiles] = useState<QualityProfile[]>([]);
+  const [savedQualityProfiles, setSavedQualityProfiles] = useState<QualityProfile[]>([]);
   const [authorSubscriptions, setAuthorSubscriptions] = useState<AuthorSubscription[]>([]);
   const [libraryScan, setLibraryScan] = useState<LibraryScanOutcome | null>(null);
   const [libraryImport, setLibraryImport] = useState<LibraryImportOutcome | null>(null);
@@ -884,6 +1055,7 @@ function AppShell() {
   const [downloadError, setDownloadError] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const [settingsNotice, setSettingsNotice] = useState("");
+  const settingsTab = settingsTabFromPath(location.pathname);
 
   function downloadListOptions(scope = downloadScope) {
     return {
@@ -891,6 +1063,11 @@ function AppShell() {
       client: downloadClientFilter.trim(),
       category: downloadCategoryFilter.trim()
     };
+  }
+
+  function applyQualityProfiles(profiles: QualityProfile[]) {
+    setQualityProfiles(profiles);
+    setSavedQualityProfiles(profiles.map(cloneQualityProfile));
   }
 
   useEffect(() => {
@@ -962,7 +1139,7 @@ function AppShell() {
       .then(setWantedMetadataReview)
       .catch(() => null);
     fetchQualityProfiles()
-      .then(setQualityProfiles)
+      .then(applyQualityProfiles)
       .catch((error) => {
         setSettingsError(error instanceof Error ? error.message : "Quality profiles refresh failed");
       });
@@ -1175,6 +1352,75 @@ function AppShell() {
   const selectedImportReviewsCanImport =
     selectedImportReviews.length > 0 && selectedImportReviews.every((review) => Boolean(importReviewResolvedWantedID(review, selectedImportReviewWantedIDs)));
   const libraryNamingPreview = useMemo(() => libraryNamingPreviewPath(librarySettingsForm), [librarySettingsForm]);
+  const savedQualityProfileByKey = useMemo(() => {
+    const profiles = new Map<string, QualityProfile>();
+    savedQualityProfiles.forEach((profile) => profiles.set(profileKey(profile), profile));
+    return profiles;
+  }, [savedQualityProfiles]);
+  const storedAPIKey = getStoredAPIKey();
+  const apiKeyHasChanges = normalizedFormText(apiKeyInput) !== normalizedFormText(storedAPIKey);
+  const librarySettingsHasChanges = librarySettingsChanged(librarySettingsForm, librarySettings);
+  const integrationSettingsHasChanges = integrationSettingsChanged(integrationForm, integrationSettings);
+  const selectedWantedEditHasChanges = wantedEditChanged(selectedWanted, {
+    title: wantedEditTitle,
+    authorName: wantedEditAuthor,
+    coverUrl: wantedEditCoverURL,
+    qualityProfile: wantedEditQualityProfile,
+    monitored: wantedEditMonitored
+  });
+  const downloadPreferenceForm = useMemo<DownloadPreferenceForm>(() => ({
+    savePath: preferenceSavePath,
+    tempPath: preferenceTempPath,
+    tempPathEnabled: preferenceTempPathEnabled,
+    startPaused: preferenceStartPaused,
+    queueingEnabled: preferenceQueueingEnabled,
+    speedScheduleEnabled: preferenceSpeedScheduleEnabled,
+    downloadLimitKiB: preferenceDownloadLimitKiB,
+    uploadLimitKiB: preferenceUploadLimitKiB,
+    altDownloadLimitKiB: preferenceAltDownloadLimitKiB,
+    altUploadLimitKiB: preferenceAltUploadLimitKiB,
+    maxActiveDownloads: preferenceMaxActiveDownloads,
+    maxActiveUploads: preferenceMaxActiveUploads,
+    maxActiveTorrents: preferenceMaxActiveTorrents
+  }), [
+    preferenceAltDownloadLimitKiB,
+    preferenceAltUploadLimitKiB,
+    preferenceDownloadLimitKiB,
+    preferenceMaxActiveDownloads,
+    preferenceMaxActiveTorrents,
+    preferenceMaxActiveUploads,
+    preferenceQueueingEnabled,
+    preferenceSavePath,
+    preferenceSpeedScheduleEnabled,
+    preferenceStartPaused,
+    preferenceTempPath,
+    preferenceTempPathEnabled,
+    preferenceUploadLimitKiB
+  ]);
+  const downloadPreferenceInputsValid = downloadPreferenceFormValid(downloadPreferenceForm, resourceClientIsQbittorrent);
+  const downloadPreferencesHaveChanges = downloadPreferencesChanged(downloadPreferences, downloadPreferenceForm, resourceClientIsQbittorrent);
+  const resourceCategoryMatch = (downloadResources?.categories ?? []).find((category) => category.name.toLowerCase() === resourceCategoryName.trim().toLowerCase());
+  const resourceCategoryHasChanges = resourceClientIsTransmission
+    ? Boolean(resourceCategoryName.trim() && resourceCategoryNewName.trim() && !sameFormText(resourceCategoryName, resourceCategoryNewName))
+    : Boolean(resourceCategoryName.trim() && (!resourceCategoryMatch || !sameFormText(resourceCategoryPath, resourceCategoryMatch.savePath)));
+  const resourceTagNames = splitTagInput(resourceTagName);
+  const resourceTagSet = new Set((downloadResources?.tags ?? []).map((tag) => tag.trim().toLowerCase()));
+  const resourceTagHasChanges = resourceClientIsTransmission
+    ? resourceTagNames.length === 1 && Boolean(resourceTagNewName.trim()) && !sameFormText(resourceTagNames[0], resourceTagNewName)
+    : resourceTagNames.some((tag) => !resourceTagSet.has(tag.toLowerCase()));
+  const downloadNameHasChanges = Boolean(downloadDetails && !sameFormText(downloadNameInput, downloadDetails.status.name));
+  const downloadCurrentTagSet = new Set((downloadDetails?.status.tags ?? []).map((tag) => tag.trim().toLowerCase()));
+  const downloadInputTags = splitTagInput(downloadTagsInput);
+  const downloadTagsCanAdd = downloadInputTags.some((tag) => !downloadCurrentTagSet.has(tag.toLowerCase()));
+  const downloadTagsCanRemove = downloadInputTags.some((tag) => downloadCurrentTagSet.has(tag.toLowerCase()));
+  const downloadCategoryHasChanges = Boolean(downloadDetails && !sameFormText(downloadCategoryInput, downloadDetails.status.category));
+  const downloadSavePathHasChanges = Boolean(downloadDetails && !sameFormText(downloadSavePathInput, downloadDetails.status.savePath || downloadDetails.properties?.savePath));
+  const downloadLimitBytes = bandwidthInputToBytes(downloadLimitKiB);
+  const uploadLimitBytes = bandwidthInputToBytes(uploadLimitKiB);
+  const downloadLimitHasChanges = Boolean(downloadDetails && downloadLimitBytes >= 0 && downloadLimitBytes !== (downloadDetails.properties?.downloadLimit ?? 0));
+  const uploadLimitHasChanges = Boolean(downloadDetails && uploadLimitBytes >= 0 && uploadLimitBytes !== (downloadDetails.properties?.uploadLimit ?? 0));
+  const trackerURLHasChanges = (url: string) => Boolean(trackerURL.trim() && !sameFormText(trackerURL, url));
+  const trackerURLIsNew = Boolean(trackerURL.trim() && !(downloadDetails?.trackers ?? []).some((tracker) => sameFormText(tracker.url, trackerURL)));
   const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
     const author = selected?.work.authors?.[0];
@@ -1538,7 +1784,7 @@ function AppShell() {
 
   async function saveWantedEdit() {
     const item = selectedWanted;
-    if (!item || !wantedEditTitle.trim()) return;
+    if (!item || !wantedEditTitle.trim() || !selectedWantedEditHasChanges) return;
     setIsSavingWantedEdit(true);
     setWantedError("");
     try {
@@ -2262,7 +2508,7 @@ function AppShell() {
   }
 
   async function applyDownloadPreferences() {
-    if (!resourceClientSupportsPreferences) return;
+    if (!resourceClientSupportsPreferences || !downloadPreferencesHaveChanges) return;
     const downloadLimit = bandwidthInputToBytes(preferenceDownloadLimitKiB);
     const uploadLimit = bandwidthInputToBytes(preferenceUploadLimitKiB);
     const altDownloadLimit = bandwidthInputToBytes(preferenceAltDownloadLimitKiB);
@@ -2351,7 +2597,7 @@ function AppShell() {
 
   async function saveDownloadCategoryResource() {
     const name = resourceCategoryName.trim();
-    if (!name) return;
+    if (!name || !resourceCategoryHasChanges) return;
     const existing = (downloadResources?.categories ?? []).some((category) => category.name.toLowerCase() === name.toLowerCase());
     const action = resourceClientIsTransmission ? "edit" : existing ? "edit" : "create";
     const newName = resourceCategoryNewName.trim();
@@ -2414,7 +2660,7 @@ function AppShell() {
 
   async function createDownloadTagResource() {
     const names = splitTagInput(resourceTagName);
-    if (names.length === 0) return;
+    if (names.length === 0 || !resourceTagHasChanges) return;
     setDownloadResourceActionID(`tag:create:${names.join(",")}`);
     setDownloadError("");
     try {
@@ -2559,7 +2805,7 @@ function AppShell() {
     if (!downloadID) return;
     const text = kind === "download" ? downloadLimitKiB : uploadLimitKiB;
     const limit = bandwidthInputToBytes(text);
-    if (limit < 0) return;
+    if (limit < 0 || (kind === "download" ? !downloadLimitHasChanges : !uploadLimitHasChanges)) return;
     const action: DownloadAction = kind === "download" ? "setDownloadLimit" : "setUploadLimit";
     setDownloadActionID(`${downloadID}:${action}`);
     setDownloadError("");
@@ -2585,7 +2831,7 @@ function AppShell() {
     const downloadID = downloadDetails?.status.id;
     if (!downloadID) return;
     const category = downloadCategoryInput.trim();
-    if (!category) return;
+    if (!category || !downloadCategoryHasChanges) return;
     setDownloadActionID(`${downloadID}:setCategory`);
     setDownloadError("");
     try {
@@ -2606,7 +2852,7 @@ function AppShell() {
     const downloadID = downloadDetails?.status.id;
     if (!downloadID) return;
     const savePath = downloadSavePathInput.trim();
-    if (!savePath) return;
+    if (!savePath || !downloadSavePathHasChanges) return;
     setDownloadActionID(`${downloadID}:setLocation`);
     setDownloadError("");
     try {
@@ -2626,7 +2872,7 @@ function AppShell() {
   async function applyDownloadRename() {
     const downloadID = downloadDetails?.status.id;
     const name = downloadNameInput.trim();
-    if (!downloadID || !name) return;
+    if (!downloadID || !name || !downloadNameHasChanges) return;
     setDownloadActionID(`${downloadID}:rename`);
     setDownloadError("");
     try {
@@ -2646,7 +2892,7 @@ function AppShell() {
   async function applyDownloadTags(action: "addTags" | "removeTags") {
     const downloadID = downloadDetails?.status.id;
     const tags = splitTagInput(downloadTagsInput);
-    if (!downloadID || tags.length === 0) return;
+    if (!downloadID || tags.length === 0 || (action === "addTags" ? !downloadTagsCanAdd : !downloadTagsCanRemove)) return;
     setDownloadActionID(`${downloadID}:${action}`);
     setDownloadError("");
     try {
@@ -2728,11 +2974,21 @@ function AppShell() {
 
   async function persistQualityProfile(profile: QualityProfile) {
     const key = profileKey(profile);
+    if (!qualityProfileChanged(profile, savedQualityProfileByKey.get(key))) return;
     setSavingProfileID(key);
     setSettingsError("");
     try {
       const saved = await saveQualityProfile(profile);
       setQualityProfiles((current) => current.map((item) => (profileKey(item) === key ? saved : item)));
+      setSavedQualityProfiles((current) => {
+        let replaced = false;
+        const next = current.map((item) => {
+          if (profileKey(item) !== key) return item;
+          replaced = true;
+          return cloneQualityProfile(saved);
+        });
+        return replaced ? next : [...next, cloneQualityProfile(saved)];
+      });
       setReadiness(await fetchReadiness());
       setAPIState("live");
     } catch (error) {
@@ -2778,7 +3034,7 @@ function AppShell() {
       const outcome = await runReadarrImport(readarrImportForm);
       setReadarrImportOutcome(outcome);
       await Promise.allSettled([
-        fetchQualityProfiles().then(setQualityProfiles),
+        fetchQualityProfiles().then(applyQualityProfiles),
         fetchWanted().then(setWantedItems),
         fetchAuthorSubscriptions().then(setAuthorSubscriptions),
         fetchReadiness().then(setReadiness)
@@ -2793,6 +3049,7 @@ function AppShell() {
   }
 
   async function persistIntegrationSettings() {
+    if (!integrationSettingsHasChanges) return;
     setIsSavingIntegrationSettings(true);
     setSettingsError("");
     setSettingsNotice("");
@@ -2818,6 +3075,7 @@ function AppShell() {
   }
 
   async function persistLibrarySettings() {
+    if (!librarySettingsHasChanges) return;
     setIsSavingLibrarySettings(true);
     setSettingsError("");
     setSettingsNotice("");
@@ -2837,6 +3095,7 @@ function AppShell() {
   }
 
   async function saveAPIKeySetting() {
+    if (!apiKeyHasChanges) return;
     setStoredAPIKey(apiKeyInput);
     setSettingsError("");
     setSettingsNotice(apiKeyInput.trim() ? "API key saved for this browser." : "API key cleared for this browser.");
@@ -2880,7 +3139,7 @@ function AppShell() {
 
         <nav className="nav-list" aria-label="Primary navigation">
           {navItems.map((item) => (
-            <NavLink className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")} end key={item.id} to={item.path}>
+            <NavLink className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")} end={item.id !== "settings"} key={item.id} to={item.path}>
               <item.icon size={17} />
               <span>{item.label}</span>
             </NavLink>
@@ -4104,7 +4363,7 @@ function AppShell() {
                     </label>
                   </div>
                   <div className="wanted-edit-actions">
-                    <button className="secondary-action compact" disabled={isSavingWantedEdit || !wantedEditTitle.trim()} onClick={saveWantedEdit} type="button">
+                    <button className="secondary-action compact" disabled={isSavingWantedEdit || !wantedEditTitle.trim() || !selectedWantedEditHasChanges} onClick={saveWantedEdit} type="button">
                       <CheckCircle2 size={16} />
                       {isSavingWantedEdit ? "Saving" : "Save correction"}
                     </button>
@@ -4880,7 +5139,7 @@ function AppShell() {
               </label>
               <button
                 className="secondary-action compact"
-                disabled={!resourceClientConfigured || !resourceCategoryName.trim() || (resourceClientIsTransmission && !resourceCategoryNewName.trim()) || Boolean(downloadResourceActionID)}
+                disabled={!resourceClientConfigured || !resourceCategoryName.trim() || !resourceCategoryHasChanges || Boolean(downloadResourceActionID)}
                 onClick={saveDownloadCategoryResource}
                 type="button"
               >
@@ -4913,6 +5172,7 @@ function AppShell() {
                   disabled={
                     !resourceClientConfigured ||
                     splitTagInput(resourceTagName).length === 0 ||
+                    !resourceTagHasChanges ||
                     (resourceClientIsTransmission && (!resourceTagNewName.trim() || splitTagInput(resourceTagName).length !== 1)) ||
                     Boolean(downloadResourceActionID)
                   }
@@ -5042,7 +5302,7 @@ function AppShell() {
                   <RefreshCw size={16} />
                   {isLoadingDownloadPreferences ? "Loading" : "Refresh prefs"}
                 </button>
-                <button className="secondary-action compact" disabled={isSavingDownloadPreferences || isLoadingDownloadPreferences} onClick={applyDownloadPreferences} type="button">
+                <button className="secondary-action compact" disabled={isSavingDownloadPreferences || isLoadingDownloadPreferences || !downloadPreferenceInputsValid || !downloadPreferencesHaveChanges} onClick={applyDownloadPreferences} type="button">
                   <SlidersHorizontal size={16} />
                   {isSavingDownloadPreferences ? "Saving" : "Save prefs"}
                 </button>
@@ -5276,7 +5536,7 @@ function AppShell() {
                       <span>Name</span>
                       <input value={downloadNameInput} onChange={(event) => setDownloadNameInput(event.target.value)} placeholder="Torrent display name" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadNameInput.trim() || !supportsDownloadAction(downloadDetails.status, "rename")} onClick={applyDownloadRename} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadNameInput.trim() || !downloadNameHasChanges || !supportsDownloadAction(downloadDetails.status, "rename")} onClick={applyDownloadRename} type="button">
                       <Pencil size={16} />
                       Rename
                     </button>
@@ -5284,11 +5544,11 @@ function AppShell() {
                       <span>Tags</span>
                       <input value={downloadTagsInput} onChange={(event) => setDownloadTagsInput(event.target.value)} placeholder="librarry, audiobook" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || splitTagInput(downloadTagsInput).length === 0 || !supportsDownloadAction(downloadDetails.status, "addTags")} onClick={() => applyDownloadTags("addTags")} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || splitTagInput(downloadTagsInput).length === 0 || !downloadTagsCanAdd || !supportsDownloadAction(downloadDetails.status, "addTags")} onClick={() => applyDownloadTags("addTags")} type="button">
                       <Tags size={16} />
                       Add tags
                     </button>
-                    <button className="secondary-action compact danger-outline" disabled={Boolean(downloadActionID) || splitTagInput(downloadTagsInput).length === 0 || !supportsDownloadAction(downloadDetails.status, "removeTags")} onClick={() => applyDownloadTags("removeTags")} type="button">
+                    <button className="secondary-action compact danger-outline" disabled={Boolean(downloadActionID) || splitTagInput(downloadTagsInput).length === 0 || !downloadTagsCanRemove || !supportsDownloadAction(downloadDetails.status, "removeTags")} onClick={() => applyDownloadTags("removeTags")} type="button">
                       <Tags size={16} />
                       Remove tags
                     </button>
@@ -5296,14 +5556,14 @@ function AppShell() {
                       <span>Category</span>
                       <input value={downloadCategoryInput} onChange={(event) => setDownloadCategoryInput(event.target.value)} placeholder="books-ebook" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadCategoryInput.trim() || !supportsDownloadAction(downloadDetails.status, "setCategory")} onClick={applyDownloadCategory} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadCategoryInput.trim() || !downloadCategoryHasChanges || !supportsDownloadAction(downloadDetails.status, "setCategory")} onClick={applyDownloadCategory} type="button">
                       Set category
                     </button>
                     <label>
                       <span>Save path</span>
                       <input value={downloadSavePathInput} onChange={(event) => setDownloadSavePathInput(event.target.value)} placeholder="/data/torrents/books" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadSavePathInput.trim() || !supportsDownloadAction(downloadDetails.status, "setLocation")} onClick={applyDownloadLocation} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || !downloadSavePathInput.trim() || !downloadSavePathHasChanges || !supportsDownloadAction(downloadDetails.status, "setLocation")} onClick={applyDownloadLocation} type="button">
                       Move
                     </button>
                     <button className="secondary-action compact danger-outline" disabled={Boolean(downloadActionID)} onClick={() => applyDownloadAction("delete", downloadDetails.status, true)} type="button">
@@ -5315,20 +5575,20 @@ function AppShell() {
                       <span>Download KiB/s</span>
                       <input inputMode="numeric" min="0" value={downloadLimitKiB} onChange={(event) => setDownloadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(downloadLimitKiB) < 0 || !supportsDownloadAction(downloadDetails.status, "setDownloadLimit")} onClick={() => applyDownloadBandwidthLimit("download")} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(downloadLimitKiB) < 0 || !downloadLimitHasChanges || !supportsDownloadAction(downloadDetails.status, "setDownloadLimit")} onClick={() => applyDownloadBandwidthLimit("download")} type="button">
                       Set down
                     </button>
                     <label>
                       <span>Upload KiB/s</span>
                       <input inputMode="numeric" min="0" value={uploadLimitKiB} onChange={(event) => setUploadLimitKiB(event.target.value)} placeholder="unlimited" type="number" />
                     </label>
-                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(uploadLimitKiB) < 0 || !supportsDownloadAction(downloadDetails.status, "setUploadLimit")} onClick={() => applyDownloadBandwidthLimit("upload")} type="button">
+                    <button className="secondary-action compact" disabled={Boolean(downloadActionID) || bandwidthInputToBytes(uploadLimitKiB) < 0 || !uploadLimitHasChanges || !supportsDownloadAction(downloadDetails.status, "setUploadLimit")} onClick={() => applyDownloadBandwidthLimit("upload")} type="button">
                       Set up
                     </button>
                   </div>
                   <div className="download-tracker-tools">
                     <input value={trackerURL} onChange={(event) => setTrackerURL(event.target.value)} placeholder="https://tracker.example/announce" />
-                    <button className="secondary-action compact" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || !trackerURL.trim() || Boolean(downloadActionID)} onClick={() => applyDownloadTrackerAction("add")} type="button">
+                    <button className="secondary-action compact" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || !trackerURL.trim() || !trackerURLIsNew || Boolean(downloadActionID)} onClick={() => applyDownloadTrackerAction("add")} type="button">
                       Add tracker
                     </button>
                   </div>
@@ -5349,7 +5609,7 @@ function AppShell() {
                               {tracker.seeds ?? 0} seeds · {tracker.leeches ?? 0} leeches
                             </em>
                             <div className="tracker-action-buttons">
-                              <button className="secondary-action compact" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || trackerBusy || !trackerURL.trim()} onClick={() => applyDownloadTrackerAction("edit", tracker.url)} type="button">
+                              <button className="secondary-action compact" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || trackerBusy || !trackerURLHasChanges(tracker.url)} onClick={() => applyDownloadTrackerAction("edit", tracker.url)} type="button">
                                 Replace
                               </button>
                               <button className="secondary-action compact danger-outline" disabled={!downloadSupportsTrackerActions(downloadDetails.status) || trackerBusy} onClick={() => applyDownloadTrackerAction("remove", tracker.url)} type="button">
@@ -5525,14 +5785,26 @@ function AppShell() {
           <div className="panel-heading">
             <div>
               <h2>Settings</h2>
-              <p>{qualityProfiles.length} release policy profiles used by search, feeds, recovery, and upgrades.</p>
+              <p>Configure access, library layout, release policy, and connections.</p>
             </div>
-            <button className="secondary-action compact" onClick={() => fetchQualityProfiles().then(setQualityProfiles).catch((error) => setSettingsError(error instanceof Error ? error.message : "Quality profiles refresh failed"))} type="button">
+            <button className="secondary-action compact" onClick={() => fetchQualityProfiles().then(applyQualityProfiles).catch((error) => setSettingsError(error instanceof Error ? error.message : "Quality profiles refresh failed"))} type="button">
               <RefreshCw size={16} />
               Refresh
             </button>
           </div>
-          <div className="settings-auth-row">
+          <nav className="settings-tabs" aria-label="Settings sections">
+            {settingsTabs.map((tab) => (
+              <NavLink
+                className={({ isActive }) => (isActive ? "settings-tab active" : "settings-tab")}
+                end
+                key={tab.id}
+                to={tab.path}
+              >
+                {tab.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="settings-auth-row" hidden={settingsTab !== "general"}>
             <div className="settings-auth-title">
               <strong>API key</strong>
               <span>{getStoredAPIKey() ? "Saved in this browser" : "Not saved"}</span>
@@ -5550,7 +5822,7 @@ function AppShell() {
                 placeholder="Readarr-compatible API key"
               />
             </label>
-            <button className="secondary-action compact" onClick={saveAPIKeySetting} type="button">
+            <button className="secondary-action compact" disabled={!apiKeyHasChanges} onClick={saveAPIKeySetting} type="button">
               <CheckCircle2 size={16} />
               Save key
             </button>
@@ -5570,7 +5842,7 @@ function AppShell() {
           </div>
           {settingsNotice ? <div className="inline-note">{settingsNotice}</div> : null}
           {settingsError ? <div className={isPersistenceRequiredError(settingsError) ? "inline-note" : "inline-error"}>{appErrorMessage(settingsError)}</div> : null}
-          <div className="integration-settings-panel library-settings-panel">
+          <div className="integration-settings-panel library-settings-panel" hidden={settingsTab !== "media"}>
             <div className="integration-settings-header">
               <div>
                 <strong>Library roots and naming</strong>
@@ -5601,6 +5873,7 @@ function AppShell() {
                   className="primary-action compact"
                   disabled={
                     isSavingLibrarySettings ||
+                    !librarySettingsHasChanges ||
                     !librarySettingsForm.ebookLibraryRoot.trim() ||
                     !librarySettingsForm.audiobookLibraryRoot.trim() ||
                     !librarySettingsForm.namingAuthorFolder.trim() ||
@@ -5654,7 +5927,7 @@ function AppShell() {
               </div>
             </div>
           </div>
-          <div className="integration-settings-panel readarr-import-panel">
+          <div className="integration-settings-panel readarr-import-panel" hidden={settingsTab !== "import"}>
             <div className="integration-settings-header">
               <div>
                 <strong>Readarr migration</strong>
@@ -5758,7 +6031,7 @@ function AppShell() {
               </div>
             ) : null}
           </div>
-          <div className="integration-settings-panel">
+          <div className="integration-settings-panel" hidden={settingsTab !== "connections"}>
             <div className="integration-settings-header">
               <div>
                 <strong>Indexer and download clients</strong>
@@ -5785,7 +6058,7 @@ function AppShell() {
                   <RefreshCw size={16} />
                   Refresh
                 </button>
-                <button className="primary-action compact" disabled={isSavingIntegrationSettings} onClick={persistIntegrationSettings} type="button">
+                <button className="primary-action compact" disabled={isSavingIntegrationSettings || !integrationSettingsHasChanges} onClick={persistIntegrationSettings} type="button">
                   <CheckCircle2 size={16} />
                   {isSavingIntegrationSettings ? "Saving" : "Save integrations"}
                 </button>
@@ -5854,9 +6127,20 @@ function AppShell() {
               </label>
             </div>
           </div>
-          <div className="quality-profile-list">
+          <div className="integration-settings-panel quality-profiles-panel" hidden={settingsTab !== "profiles"}>
+            <div className="integration-settings-header">
+              <div>
+                <strong>Quality profiles</strong>
+                <span>{qualityProfiles.length} release policy profile{qualityProfiles.length === 1 ? "" : "s"} used by search, feeds, recovery, and upgrades.</span>
+              </div>
+            </div>
+            {qualityProfiles.length ? null : (
+              <p className="settings-empty">No release policy profiles yet. They appear once Postgres persistence and the API are configured.</p>
+            )}
+            <div className="quality-profile-list">
             {qualityProfiles.map((profile) => {
               const key = profileKey(profile);
+              const profileHasChanges = qualityProfileChanged(profile, savedQualityProfileByKey.get(key));
               return (
                 <article className="quality-profile-row" key={key}>
                   <div className="quality-profile-title">
@@ -5909,13 +6193,14 @@ function AppShell() {
                       onChange={(event) => updateQualityProfile(profile, { rejectedTerms: splitTerms(event.target.value) })}
                     />
                   </label>
-                  <button className="secondary-action compact" disabled={Boolean(savingProfileID)} onClick={() => persistQualityProfile(profile)} type="button">
+                  <button className="secondary-action compact" disabled={Boolean(savingProfileID) || !profileHasChanges} onClick={() => persistQualityProfile(profile)} type="button">
                     <CheckCircle2 size={16} />
                     {savingProfileID === key ? "Saving" : "Save"}
                   </button>
                 </article>
               );
             })}
+            </div>
           </div>
         </section>
 
