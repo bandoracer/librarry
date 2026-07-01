@@ -115,6 +115,14 @@ yet ready to replace a production Readarr instance unattended.
   the new "Moby Dick · Herman Melville" wanted-item link from the downloads
   annotation. Zero browser console errors. The test book and its wanted item
   were intentionally left in place as proof.
+- Completed download handling now runs automatically (arr parity): a
+  background worker imports completed librarry-tagged downloads every minute
+  by default (`LIBRARRY_COMPLETED_IMPORT_*`, mode `hardlinkOrCopy`), matching
+  wanted-linked downloads directly and routing unmatched files to the import
+  review queue with store-level dedupe by source path. Covered by unit tests;
+  needs live verification after the next API image deploy — the Moby Dick
+  E2E download sitting at `importStatus: ready` should import on its own
+  within ~a minute of startup.
 
 ## Available But Still Needs Real-World Proving
 

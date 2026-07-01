@@ -65,6 +65,10 @@ type Config struct {
 	CalibreRefreshInterval    time.Duration
 	CalibreRefreshLimit       int
 	CalibreRefreshMaxAttempts int
+	CompletedImportEnabled    bool
+	CompletedImportInterval   time.Duration
+	CompletedImportLimit      int
+	CompletedImportMode       string
 	WebOrigin                 string
 }
 
@@ -127,6 +131,10 @@ func FromEnv() Config {
 		CalibreRefreshInterval:    envDuration("LIBRARRY_CALIBRE_REFRESH_INTERVAL", 15*time.Minute),
 		CalibreRefreshLimit:       envInt("LIBRARRY_CALIBRE_REFRESH_LIMIT", 200),
 		CalibreRefreshMaxAttempts: envInt("LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS", 1),
+		CompletedImportEnabled:    envBool("LIBRARRY_COMPLETED_IMPORT_ENABLED", true),
+		CompletedImportInterval:   envDuration("LIBRARRY_COMPLETED_IMPORT_INTERVAL", time.Minute),
+		CompletedImportLimit:      envInt("LIBRARRY_COMPLETED_IMPORT_LIMIT", 50),
+		CompletedImportMode:       env("LIBRARRY_COMPLETED_IMPORT_MODE", "hardlinkOrCopy"),
 		WebOrigin:                 env("LIBRARRY_WEB_ORIGIN", "http://127.0.0.1:5173"),
 	}
 }

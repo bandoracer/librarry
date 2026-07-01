@@ -233,6 +233,27 @@ Manual refreshes are available through
 jobs and update completed or failed conversion metadata; they do not start new
 conversion jobs.
 
+## Completed Download Handling
+
+Completed librarry-tagged downloads import automatically, matching arr
+completed-download handling. Downloads linked to a wanted item import
+directly; unlinked files are auto-matched against wanted metadata and fall
+back to the import review queue. The worker requires database persistence and
+runs every minute by default:
+
+```dotenv
+LIBRARRY_COMPLETED_IMPORT_ENABLED=true
+LIBRARRY_COMPLETED_IMPORT_INTERVAL=1m
+LIBRARRY_COMPLETED_IMPORT_LIMIT=50
+LIBRARRY_COMPLETED_IMPORT_MODE=hardlinkOrCopy
+```
+
+`hardlinkOrCopy` keeps torrents seeding without duplicating disk space when
+the torrent root and library roots share a filesystem, and falls back to copy
+when they do not. Set the mode to `copy` or `move` to override. The manual
+"Import Completed" action in the Activity queue remains available for
+immediate imports.
+
 ## Downloads
 
 The download queue UI uses `POST /api/v1/downloads/actions` for single and

@@ -153,6 +153,10 @@ func main() {
 		monitorWG.Add(1)
 		go runCalibreConversionRefresh(ctx, &monitorWG, logger, libraryService, cfg)
 	}
+	if cfg.CompletedImportEnabled && libraryService.Available() {
+		monitorWG.Add(1)
+		go runCompletedDownloadImport(ctx, &monitorWG, logger, libraryService, acquire, cfg)
+	}
 
 	deps := api.Dependencies{
 		Logger:   logger,
@@ -466,6 +470,93 @@ func runAuthorMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logg
 
 type calibreConversionRefreshService interface {
 	RefreshCalibreConversions(ctx context.Context, request library.CalibreConversionRefreshRequest) (library.CalibreConversionRefreshOutcome, error)
+}
+
+type completedDownloadImportService interface {
+	ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request library.CompletedImportRequest) (library.CompletedImportOutcome, error)
+}
+
+type completedDownloadLister interface {
+	Downloads(ctx context.Context, query acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error)
+}
+
+// runCompletedDownloadImport is Librarry's take on arr "Completed Download
+// Handling": finished librarry-tagged downloads are imported automatically —
+// auto-matched to their wanted item, or queued for review when no match
+// exists — without an operator pressing Import.
+func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadLister, cfg config.Config) {
+	defer wg.Done()
+	interval := completedImportInterval(cfg)
+
+	run := func(trigger string) {
+		outcome, err := runCompletedDownloadImportOnce(ctx, service, downloads, cfg)
+		if err != nil {
+			logger.Warn("completed download import failed", "trigger", trigger, "error", err)
+			return
+		}
+		// Unresolved reviews re-count every tick (dedup happens in the store),
+		// so only imports and errors get Info-level noise.
+		level := slog.LevelDebug
+		if outcome.Imported > 0 || outcome.Errored > 0 {
+			level = slog.LevelInfo
+		}
+		logger.Log(
+			ctx,
+			level,
+			"completed download import finished",
+			"trigger", trigger,
+			"checked", outcome.Checked,
+			"imported", outcome.Imported,
+			"auto_matched", outcome.AutoMatched,
+			"review_queued", outcome.ReviewQueued,
+			"skipped", outcome.Skipped,
+			"errors", outcome.Errored,
+		)
+	}
+
+	startup := time.NewTimer(45 * time.Second)
+	ticker := time.NewTicker(interval)
+	defer startup.Stop()
+	defer ticker.Stop()
+	logger.Info("completed download import enabled", "interval", interval, "limit", completedImportLimit(cfg))
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			run("scheduled-startup")
+		case <-ticker.C:
+			run("scheduled")
+		}
+	}
+}
+
+func runCompletedDownloadImportOnce(ctx context.Context, service completedDownloadImportService, lister completedDownloadLister, cfg config.Config) (library.CompletedImportOutcome, error) {
+	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	rows, err := lister.Downloads(runCtx, acquisition.DownloadListQuery{Tag: "librarry"})
+	if err != nil {
+		return library.CompletedImportOutcome{}, err
+	}
+	return service.ImportCompletedDownloads(runCtx, rows, library.CompletedImportRequest{
+		Limit:      completedImportLimit(cfg),
+		ImportMode: cfg.CompletedImportMode,
+	})
+}
+
+func completedImportInterval(cfg config.Config) time.Duration {
+	if cfg.CompletedImportInterval <= 0 {
+		return time.Minute
+	}
+	return cfg.CompletedImportInterval
+}
+
+func completedImportLimit(cfg config.Config) int {
+	if cfg.CompletedImportLimit <= 0 {
+		return 50
+	}
+	return cfg.CompletedImportLimit
 }
 
 func runCalibreConversionRefresh(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service calibreConversionRefreshService, cfg config.Config) {

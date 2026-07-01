@@ -46,7 +46,7 @@ states in demo mode.
 | Google Books fallback | partial | Needs `LIBRARRY_GOOGLE_BOOKS_API_KEY` in live deploys |
 | Readarr migration (Settings → Import) | partial | Full API+UI coverage, but never dry-run against a real Readarr instance |
 | Library scan/import on real roots | partial | Real `media-stack` roots still need a controlled full scan + review |
-| Completed download → import → missing-state clears | partial | Proven once E2E; needs repeated proof on real data |
+| Completed download → import → missing-state clears | partial | Auto-import worker added 2026-07-01 (arr completed-download handling, default on, hardlinkOrCopy); loop still needs repeated proof on real data |
 | Author monitoring auto-grab | partial | Policies exist; needs longer observation before auto-grab is trusted |
 | Calibre handoff | partial | Add/convert/status/delete work; edition sync, embedded writes, rename-refresh, rollback are future work |
 | Settings → Connections validation | partial | Saving credentials does not fully validate against live clients in all cases; System checklist is the source of truth |
