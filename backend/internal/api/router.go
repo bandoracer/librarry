@@ -85,6 +85,13 @@ type wantedService interface {
 	SearchUpgrades(ctx context.Context, request wanted.UpgradeRequest) (wanted.UpgradeRun, error)
 	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
 	AnnotateDownloads(ctx context.Context, downloads []acquisition.DownloadStatus) []acquisition.DownloadStatus
+	ListCutoffUnmet(ctx context.Context) ([]wanted.WantedItem, error)
+	BulkUpdateWanted(ctx context.Context, request wanted.WantedBulkRequest) ([]wanted.WantedBulkResult, error)
+	ListBlocklist(ctx context.Context, limit int) ([]wanted.BlocklistEntry, error)
+	BlocklistDownload(ctx context.Context, request wanted.BlocklistDownloadRequest) (wanted.BlocklistEntry, error)
+	DeleteBlocklistEntry(ctx context.Context, id string) error
+	ClearBlocklist(ctx context.Context, ids []string) (int, error)
+	MarkDownloadFailedManually(ctx context.Context, request wanted.ManualFailRequest) (wanted.ManualFailOutcome, error)
 }
 
 type metadataProvenanceService interface {
@@ -362,6 +369,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/downloads/{id}/trackers/actions", handler.downloadTrackerAction)
 	mux.HandleFunc("POST /api/v1/downloads/rebalance", handler.rebalanceDownloads)
 	mux.HandleFunc("POST /api/v1/downloads/recover-failed", handler.recoverFailedDownloads)
+	mux.HandleFunc("POST /api/v1/downloads/mark-failed", handler.markDownloadFailed)
 	mux.HandleFunc("GET /api/v1/quality-profiles", handler.qualityProfiles)
 	mux.HandleFunc("POST /api/v1/quality-profiles", handler.saveQualityProfile)
 	mux.HandleFunc("GET /api/v1/authors", handler.authorSubscriptions)
@@ -374,6 +382,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/authors/metadata/review/{id}/resolve", handler.resolveAuthorMetadataReview)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
+	mux.HandleFunc("POST /api/v1/wanted/bulk", handler.bulkUpdateWanted)
 	mux.HandleFunc("PUT /api/v1/wanted/{id}", handler.updateWanted)
 	mux.HandleFunc("PATCH /api/v1/wanted/{id}", handler.updateWanted)
 	mux.HandleFunc("DELETE /api/v1/wanted/{id}", handler.deleteWanted)
@@ -391,6 +400,10 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/wanted/releases/{id}", handler.listWantedReleases)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
 	mux.HandleFunc("GET /api/v1/librarry/history", handler.history)
+	mux.HandleFunc("GET /api/v1/librarry/blocklist", handler.blocklist)
+	mux.HandleFunc("POST /api/v1/librarry/blocklist", handler.createBlocklistEntry)
+	mux.HandleFunc("POST /api/v1/librarry/blocklist/clear", handler.clearBlocklist)
+	mux.HandleFunc("DELETE /api/v1/librarry/blocklist/{id}", handler.deleteBlocklistEntry)
 	mux.HandleFunc("GET /api/v1/library/config", handler.libraryConfig)
 	mux.HandleFunc("PUT /api/v1/library/config", handler.updateLibraryConfig)
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
@@ -1827,12 +1840,47 @@ func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
 		return
 	}
-	items, err := h.deps.Wanted.List(r.Context(), r.URL.Query().Get("status"))
+	var items []wanted.WantedItem
+	var err error
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "cutoff-unmet") {
+		items, err = h.deps.Wanted.ListCutoffUnmet(r.Context())
+	} else {
+		items, err = h.deps.Wanted.List(r.Context(), r.URL.Query().Get("status"))
+	}
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
+	if items == nil {
+		items = []wanted.WantedItem{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"wanted": items})
+}
+
+func (h *handler) bulkUpdateWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.WantedBulkRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted bulk payload"})
+		return
+	}
+	if len(request.IDs) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "at least one wanted id is required"})
+		return
+	}
+	results, err := h.deps.Wanted.BulkUpdateWanted(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if results == nil {
+		results = []wanted.WantedBulkResult{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"results": results})
 }
 
 func (h *handler) createWanted(w http.ResponseWriter, r *http.Request) {
@@ -2257,6 +2305,113 @@ func (h *handler) history(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"events": events})
+}
+
+func (h *handler) blocklist(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	entries, err := h.deps.Wanted.ListBlocklist(r.Context(), limit)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if entries == nil {
+		entries = []wanted.BlocklistEntry{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": entries})
+}
+
+func (h *handler) createBlocklistEntry(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.BlocklistDownloadRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid blocklist payload"})
+		return
+	}
+	if strings.TrimSpace(request.DownloadID) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "download id is required"})
+		return
+	}
+	entry, err := h.deps.Wanted.BlocklistDownload(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, entry)
+}
+
+func (h *handler) deleteBlocklistEntry(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "blocklist id is required"})
+		return
+	}
+	if err := h.deps.Wanted.DeleteBlocklistEntry(r.Context(), id); err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (h *handler) clearBlocklist(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request struct {
+		IDs []string `json:"ids"`
+	}
+	if r.Body != http.NoBody {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil && !errors.Is(err, io.EOF) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid blocklist clear payload"})
+			return
+		}
+	}
+	removed, err := h.deps.Wanted.ClearBlocklist(r.Context(), request.IDs)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"removed": removed})
+}
+
+func (h *handler) markDownloadFailed(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request wanted.ManualFailRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid mark-failed payload"})
+		return
+	}
+	if strings.TrimSpace(request.ID) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "download id is required"})
+		return
+	}
+	outcome, err := h.deps.Wanted.MarkDownloadFailedManually(r.Context(), request)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, outcome)
 }
 
 func (h *handler) libraryFiles(w http.ResponseWriter, r *http.Request) {

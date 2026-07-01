@@ -101,6 +101,73 @@ func (s *Service) List(ctx context.Context, status string) ([]WantedItem, error)
 	return s.store.ListWanted(ctx, status)
 }
 
+// ListCutoffUnmet returns monitored wanted items that already have a tracked
+// library file but whose current release score is still below the quality
+// profile cutoff (and whose profile allows upgrades).
+func (s *Service) ListCutoffUnmet(ctx context.Context) ([]WantedItem, error) {
+	if !s.Available() {
+		return []WantedItem{}, nil
+	}
+	items, err := s.store.ListWantedWithFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	unmet := make([]WantedItem, 0, len(items))
+	for _, item := range items {
+		profile := s.qualityProfileForItem(ctx, item)
+		score := s.currentReleaseScore(ctx, item)
+		if cutoffUnmet(profile, score) {
+			unmet = append(unmet, item)
+		}
+	}
+	return unmet, nil
+}
+
+func cutoffUnmet(profile QualityProfile, currentScore float64) bool {
+	return profile.UpgradeAllowed && currentScore < profile.CutoffScore
+}
+
+// BulkUpdateWanted applies a shared patch (or delete) to many wanted items,
+// reporting a per-item outcome. Items are updated one statement at a time so a
+// single conflicting row (for example a format flip that collides with the
+// provider unique index) cannot poison the rest of the batch.
+func (s *Service) BulkUpdateWanted(ctx context.Context, request WantedBulkRequest) ([]WantedBulkResult, error) {
+	if !s.Available() {
+		return nil, errors.New("wanted service requires database persistence")
+	}
+	ids := compactStrings(request.IDs)
+	if len(ids) == 0 {
+		return nil, errors.New("at least one wanted id is required")
+	}
+	results := make([]WantedBulkResult, 0, len(ids))
+	for _, id := range ids {
+		result := WantedBulkResult{ID: id}
+		if request.Delete {
+			if err := s.store.DeleteWanted(ctx, id); err != nil {
+				result.Status = "error"
+				result.Error = err.Error()
+			} else {
+				result.Status = "deleted"
+			}
+			results = append(results, result)
+			continue
+		}
+		_, err := s.store.UpdateWanted(ctx, id, WantedUpdateRequest{
+			Monitored:      request.Set.Monitored,
+			QualityProfile: request.Set.QualityProfile,
+			Format:         request.Set.Format,
+		})
+		if err != nil {
+			result.Status = "error"
+			result.Error = err.Error()
+		} else {
+			result.Status = "updated"
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
 func (s *Service) UpdateWanted(ctx context.Context, id string, request WantedUpdateRequest) (WantedItem, error) {
 	if !s.Available() {
 		return WantedItem{}, errors.New("wanted service requires database persistence")
@@ -314,12 +381,20 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			run.Items = append(run.Items, result)
 			continue
 		}
+		matched := make([]metadata.SearchResult, 0, len(results))
 		for _, candidate := range results {
-			if !authorResultMatchesSubscription(subscription, candidate) {
-				continue
+			if authorResultMatchesSubscription(subscription, candidate) {
+				matched = append(matched, candidate)
 			}
+		}
+		policyCtx, policyErr := s.authorPolicyContext(ctx, subscription, matched, time.Now().UTC())
+		if policyErr != nil {
+			result.Error = policyErr.Error()
+			run.ErrorCount++
+		}
+		for _, candidate := range matched {
 			result.ResultsFound++
-			if allowed, reason := authorResultAllowedByMissingPolicy(subscription, candidate, time.Now().UTC()); !allowed {
+			if allowed, reason := authorResultAllowedByPolicy(subscription, candidate, policyCtx); !allowed {
 				result.SkippedCount++
 				reviewID := ""
 				includeSkippedItem := true
@@ -487,9 +562,13 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 	if err != nil {
 		return SearchOutcome{}, err
 	}
+	blocklist, err := s.store.ListBlocklist(ctx, maxBlocklistMatchEntries)
+	if err != nil {
+		return SearchOutcome{}, err
+	}
 	decisions := make([]ReleaseDecision, 0, len(releases))
 	for _, release := range releases {
-		decisions = append(decisions, evaluateReleaseWithPolicy(item, release, profile, restrictions))
+		decisions = append(decisions, evaluateReleaseWithBlocklist(item, release, profile, restrictions, blocklist))
 	}
 	sort.SliceStable(decisions, func(i, j int) bool {
 		if decisions[i].Approved != decisions[j].Approved {
@@ -902,6 +981,18 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 		return finished, err
 	}
 
+	blocklist, err := s.store.ListBlocklist(ctx, maxBlocklistMatchEntries)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+		if finishErr != nil {
+			return FeedSyncRun{}, finishErr
+		}
+		return finished, err
+	}
+
 	grabbedWanted := map[string]bool{}
 	for _, item := range items {
 		if !formatMatchesRequest(request.Format, item.Format) {
@@ -919,7 +1010,7 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 			if !feedReleaseMatchesWanted(item, release) {
 				continue
 			}
-			decisions = append(decisions, evaluateReleaseWithPolicy(item, release, profile, restrictions))
+			decisions = append(decisions, evaluateReleaseWithBlocklist(item, release, profile, restrictions, blocklist))
 		}
 		if len(decisions) == 0 {
 			continue
@@ -1095,6 +1186,13 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 				"runId":      run.ID,
 			},
 		})
+
+		// Blocklist the failed release identity before searching so the
+		// replacement search can never re-approve the same release.
+		if _, err := s.blocklistDownloadRelease(ctx, item, download, reason, BlocklistSourceAutoFailed); err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+		}
 
 		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
 		if err != nil {
@@ -1738,43 +1836,6 @@ func authorMetadataReviewFromSkipped(subscription AuthorSubscription, result met
 		Reason:               reason,
 		Status:               "pending",
 		Result:               result,
-	}
-}
-
-func authorResultAllowedByMissingPolicy(subscription AuthorSubscription, result metadata.SearchResult, now time.Time) (bool, string) {
-	switch normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems) {
-	case "none":
-		return false, "author policy is set to none"
-	case "future":
-		published, ok := resultPublicationDate(result)
-		if !ok {
-			return false, "future policy requires a publication date"
-		}
-		cutoff := subscription.CreatedAt
-		if cutoff.IsZero() {
-			cutoff = now
-		}
-		switch published.Precision {
-		case "year":
-			if published.Time.Year() >= cutoff.Year() {
-				return true, ""
-			}
-		case "month":
-			publishedMonth := time.Date(published.Time.Year(), published.Time.Month(), 1, 0, 0, 0, 0, time.UTC)
-			cutoffMonth := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
-			if !publishedMonth.Before(cutoffMonth) {
-				return true, ""
-			}
-		default:
-			publishedDay := time.Date(published.Time.Year(), published.Time.Month(), published.Time.Day(), 0, 0, 0, 0, time.UTC)
-			cutoffDay := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), cutoff.UTC().Day(), 0, 0, 0, 0, time.UTC)
-			if !publishedDay.Before(cutoffDay) {
-				return true, ""
-			}
-		}
-		return false, "published before the author subscription cutoff"
-	default:
-		return true, ""
 	}
 }
 

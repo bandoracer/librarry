@@ -19,7 +19,15 @@ export type SearchEvidenceItem = { label: string; value: string; detail: string 
 
 export const searchModeOptions: SearchMode[] = ["book", "author"];
 export const searchConfidenceOptions: SearchResult["confidence"][] = ["high", "medium", "review"];
-export const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
+export const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = [
+  "all",
+  "future",
+  "missing",
+  "existing",
+  "first",
+  "latest",
+  "none"
+];
 export const searchFormatOptions = ["any", "ebook", "audiobook"] as const;
 
 export function firstAuthorName(result: SearchResult) {
@@ -378,11 +386,19 @@ export function compactStringList(values: Array<string | number | null | undefin
 export function authorMissingPolicyLabel(policy: AuthorMissingBookPolicy) {
   switch (policy) {
     case "future":
-      return "Future";
+      return "Future Books";
+    case "missing":
+      return "Missing Books";
+    case "existing":
+      return "Existing Books";
+    case "first":
+      return "First Book";
+    case "latest":
+      return "Latest Book";
     case "none":
       return "None";
     default:
-      return "All";
+      return "All Books";
   }
 }
 

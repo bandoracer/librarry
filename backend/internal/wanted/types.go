@@ -321,10 +321,29 @@ type WantedUpdateRequest struct {
 	AuthorName     string `json:"authorName,omitempty"`
 	CoverURL       string `json:"coverUrl,omitempty"`
 	QualityProfile string `json:"qualityProfile,omitempty"`
+	Format         string `json:"format,omitempty"`
 	Status         string `json:"status,omitempty"`
 	Monitored      *bool  `json:"monitored,omitempty"`
 	Tags           []int  `json:"tags,omitempty"`
 	TagsSet        bool   `json:"-"`
+}
+
+type WantedBulkRequest struct {
+	IDs    []string      `json:"ids"`
+	Set    WantedBulkSet `json:"set"`
+	Delete bool          `json:"delete,omitempty"`
+}
+
+type WantedBulkSet struct {
+	Monitored      *bool  `json:"monitored,omitempty"`
+	QualityProfile string `json:"qualityProfile,omitempty"`
+	Format         string `json:"format,omitempty"`
+}
+
+type WantedBulkResult struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
 }
 
 type ReleaseDecision struct {

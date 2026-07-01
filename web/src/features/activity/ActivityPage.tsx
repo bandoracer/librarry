@@ -44,6 +44,7 @@ import { keys, useDownloads, useIntegrationHealth } from "../../lib/queries";
 import { demoModeEnabled, demoSeeds } from "../../lib/demo";
 import { formatBytes, formatPercent, formatSpeed } from "../../lib/format";
 import {
+  blocklistDownload,
   fetchDownloadDetails,
   importCompletedDownloads,
   rebalanceDownloads,
@@ -62,6 +63,7 @@ import {
   downloadKey,
   downloadKeyID,
   downloadMatchesFilters,
+  downloadNeedsRecovery,
   downloadScopeTag,
   downloadSupportsDetails,
   downloadSupportsQbitManagerActions,
@@ -79,22 +81,26 @@ import AddDownloadModal from "./AddDownloadModal";
 import ManageClientsModal from "./ManageClientsModal";
 import DownloadDetailsPanel from "./DownloadDetailsPanel";
 import HistoryTab from "./HistoryTab";
+import BlocklistTab from "./BlocklistTab";
 import "./activity.css";
 
 type RemovalRequest = { ids: string[]; client?: string; label: string };
 
 const activityTabs = [
   { label: "Queue", to: "/downloads", end: true },
-  { label: "History", to: "/downloads/history" }
+  { label: "History", to: "/downloads/history" },
+  { label: "Blocklist", to: "/downloads/blocklist" }
 ];
 
 export default function ActivityPage() {
   const location = useLocation();
-  const isHistory = location.pathname.replace(/\/+$/, "").endsWith("/history");
+  const path = location.pathname.replace(/\/+$/, "");
+  const isHistory = path.endsWith("/history");
+  const isBlocklist = path.endsWith("/blocklist");
 
   return (
     <>
-      <PageHeader title="Activity" subtitle="Download queue and history across your configured clients." />
+      <PageHeader title="Activity" subtitle="Download queue, history, and blocklist across your configured clients." />
       <TabNav
         tabs={activityTabs}
         render={(tab) => (
@@ -103,7 +109,7 @@ export default function ActivityPage() {
           </NavLink>
         )}
       />
-      {isHistory ? <HistoryTab /> : <QueueTab />}
+      {isBlocklist ? <BlocklistTab /> : isHistory ? <HistoryTab /> : <QueueTab />}
     </>
   );
 }
@@ -135,6 +141,7 @@ function QueueTab() {
   const [addOpen, setAddOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [removal, setRemoval] = useState<RemovalRequest | null>(null);
+  const [removalBlocklist, setRemovalBlocklist] = useState(false);
   const [expandedKey, setExpandedKey] = useState("");
   const [details, setDetails] = useState<DownloadDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -217,6 +224,12 @@ function QueueTab() {
     setSelectedKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]));
   }
 
+  /** Opens the remove modal; "Blocklist release" defaults on when every target row is failed. */
+  function openRemoval(targets: DownloadStatus[], label: string, client?: string) {
+    setRemoval({ ids: targets.map((target) => target.id).filter(Boolean), client, label });
+    setRemovalBlocklist(targets.length > 0 && targets.every(downloadNeedsRecovery));
+  }
+
   function toggleAll() {
     setSelectedKeys((current) => {
       const next = new Set(current);
@@ -237,7 +250,7 @@ function QueueTab() {
   async function applyActionToIDs(
     action: DownloadAction,
     ids: string[],
-    options: { client?: string; deleteFiles?: boolean; forceStart?: boolean } = {}
+    options: { client?: string; deleteFiles?: boolean; forceStart?: boolean; toastSuffix?: string } = {}
   ) {
     const actionIDs = ids.filter(Boolean);
     if (!actionIDs.length) return;
@@ -257,7 +270,8 @@ function QueueTab() {
           setExpandedKey("");
         }
       }
-      toast.success(downloadActionToast(action, actionIDs.length, result.applied ? undefined : result.message));
+      const actionToast = downloadActionToast(action, actionIDs.length, result.applied ? undefined : result.message);
+      toast.success(options.toastSuffix ? `${actionToast} · ${options.toastSuffix}` : actionToast);
       if (
         action !== "delete" &&
         details?.status.id &&
@@ -276,6 +290,39 @@ function QueueTab() {
     } finally {
       setActionID("");
     }
+  }
+
+  /**
+   * Confirms the remove modal: optionally blocklists each release first so the
+   * same grab is not retried, then runs the client delete. The removal toast
+   * carries the combined outcome.
+   */
+  async function confirmRemoval(deleteFiles: boolean) {
+    const request = removal;
+    if (!request) return;
+    setRemoval(null);
+    let toastSuffix = "";
+    if (removalBlocklist) {
+      let blocklisted = 0;
+      let firstError = "";
+      for (const id of request.ids) {
+        const target = downloads.find((download) => download.id === id);
+        try {
+          await blocklistDownload({ downloadId: id, client: target?.client ?? request.client });
+          blocklisted += 1;
+        } catch (error) {
+          if (!firstError) firstError = error instanceof Error ? error.message : "Blocklist release failed";
+        }
+      }
+      if (firstError) {
+        toast.notify(`Blocklisted ${blocklisted}/${request.ids.length} release${request.ids.length === 1 ? "" : "s"} — ${firstError}`, "warn");
+      }
+      if (blocklisted > 0) {
+        toastSuffix = `${blocklisted} release${blocklisted === 1 ? "" : "s"} blocklisted`;
+        void queryClient.invalidateQueries({ queryKey: keys.blocklist() });
+      }
+    }
+    await applyActionToIDs("delete", request.ids, { client: request.client, deleteFiles, toastSuffix });
   }
 
   async function runCompletedImport(target: DownloadStatus | DownloadStatus[]) {
@@ -596,7 +643,7 @@ function QueueTab() {
             variant="danger"
             icon={Trash2}
             disabled={Boolean(actionID)}
-            onClick={() => setRemoval({ ids: selectedIDs, label: `${selectedDownloads.length} selected downloads` })}
+            onClick={() => openRemoval(selectedDownloads, `${selectedDownloads.length} selected downloads`)}
           >
             Remove…
           </Button>
@@ -801,9 +848,7 @@ function QueueTab() {
                         size="sm"
                         tone="danger"
                         disabled={busy}
-                        onClick={() =>
-                          setRemoval({ ids: [download.id], client: download.client, label: download.name || download.id })
-                        }
+                        onClick={() => openRemoval([download], download.name || download.id, download.client)}
                       />
                     </td>
                   </tr>
@@ -821,9 +866,7 @@ function QueueTab() {
                           onAction={(action, options) =>
                             applyActionToIDs(action, [download.id], { client: download.client, ...options })
                           }
-                          onRequestDelete={() =>
-                            setRemoval({ ids: [download.id], client: download.client, label: download.name || download.id })
-                          }
+                          onRequestDelete={() => openRemoval([download], download.name || download.id, download.client)}
                         />
                       </td>
                     </tr>
@@ -857,24 +900,10 @@ function QueueTab() {
               <Button variant="ghost" onClick={() => setRemoval(null)}>
                 Cancel
               </Button>
-              <Button
-                variant="secondary"
-                icon={Trash2}
-                onClick={() => {
-                  void applyActionToIDs("delete", removal.ids, { client: removal.client, deleteFiles: false });
-                  setRemoval(null);
-                }}
-              >
+              <Button variant="secondary" icon={Trash2} onClick={() => void confirmRemoval(false)}>
                 Remove
               </Button>
-              <Button
-                variant="danger"
-                icon={Trash2}
-                onClick={() => {
-                  void applyActionToIDs("delete", removal.ids, { client: removal.client, deleteFiles: true });
-                  setRemoval(null);
-                }}
-              >
+              <Button variant="danger" icon={Trash2} onClick={() => void confirmRemoval(true)}>
                 Delete with data
               </Button>
             </>
@@ -889,6 +918,16 @@ function QueueTab() {
             <p className="cell-muted">
               “Remove” keeps downloaded files on disk. “Delete with data” also deletes the downloaded files.
             </p>
+            <label className="activity-modal-check">
+              <input
+                type="checkbox"
+                checked={removalBlocklist}
+                onChange={(event) => setRemovalBlocklist(event.target.checked)}
+              />
+              <span>
+                Blocklist release{removal.ids.length === 1 ? "" : "s"} so the same grab{removal.ids.length === 1 ? " is" : "s are"} not retried
+              </span>
+            </label>
           </>
         ) : null}
       </Modal>

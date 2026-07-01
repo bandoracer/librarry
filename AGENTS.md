@@ -99,8 +99,10 @@ docker compose up --build
   provider IDs or raw record links when choosing a canonical result.
 - Keep release evaluation explainable. Rejections should carry reasons that the
   UI and history can show.
-- Scheduled automation should default to review/search-first behavior. Auto-grab
-  must remain explicit.
+- Scheduled automation defaults to arr-style auto-grab (owner decision
+  2026-07-01, see docs/parity-plan.md); the blocklist backstops failures, and
+  the `LIBRARRY_*_AUTO_GRAB` / `LIBRARRY_FAILED_DOWNLOAD_REMOVE` env flags can
+  restore review-first behavior.
 - Prefer focused tests for matching, provider normalization, API handlers,
   settings validation, release scoring, import matching, and download-client
   actions.

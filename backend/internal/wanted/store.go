@@ -177,6 +177,83 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 	return s.attachWantedManualOverrides(ctx, items)
 }
 
+// ListWantedWithFiles returns monitored wanted items that have at least one
+// tracked library file (imported files record their wanted linkage in the
+// files metadata payload).
+func (s *Store) ListWantedWithFiles(ctx context.Context) ([]WantedItem, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select
+			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
+			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
+			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
+			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+		from wanted_items wi
+		left join works w on w.id = wi.work_id
+		where wi.monitored = true
+			and wi.status not in ('removed', 'ignored')
+			and exists (
+				select 1 from files f
+				where f.metadata->>'wantedId' = wi.id::text
+			)
+		order by wi.created_at desc
+		limit 200
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []WantedItem
+	for rows.Next() {
+		item, err := scanWanted(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return s.attachWantedManualOverrides(ctx, items)
+}
+
+// WantedSourceKeysWithFiles returns the provider identity keys (see
+// wantedSourceFileKey) of wanted items that have a tracked library file, so
+// author monitoring can tell missing books from existing ones.
+func (s *Store) WantedSourceKeysWithFiles(ctx context.Context) (map[string]bool, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select wi.metadata_provider, wi.source_key, wi.wanted_format
+		from wanted_items wi
+		where wi.metadata_provider <> ''
+			and wi.source_key <> ''
+			and exists (
+				select 1 from files f
+				where f.metadata->>'wantedId' = wi.id::text
+			)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	keys := map[string]bool{}
+	for rows.Next() {
+		var provider, sourceKey, format string
+		if err := rows.Scan(&provider, &sourceKey, &format); err != nil {
+			return nil, err
+		}
+		keys[wantedSourceFileKey(provider, sourceKey, format)] = true
+	}
+	return keys, rows.Err()
+}
+
 func (s *Store) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
@@ -614,6 +691,10 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 	if qualityProfile != "" {
 		qualityProfile = normalizeQualityProfile(qualityProfile)
 	}
+	format := strings.TrimSpace(request.Format)
+	if format != "" {
+		format = normalizeFormat(format)
+	}
 	monitored := sql.NullBool{}
 	if request.Monitored != nil {
 		monitored.Valid = true
@@ -643,10 +724,11 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 				else status
 			end,
 			tags = coalesce($8, tags),
+			wanted_format = case when $9 = '' then wanted_format else $9 end,
 			updated_at = now()
 		where id::text = $1
 	`, id, strings.TrimSpace(request.Title), strings.TrimSpace(request.AuthorName), strings.TrimSpace(request.CoverURL),
-		qualityProfile, monitored, strings.TrimSpace(request.Status), tags)
+		qualityProfile, monitored, strings.TrimSpace(request.Status), tags, format)
 	if err != nil {
 		return WantedItem{}, err
 	}
@@ -2719,8 +2801,16 @@ func firstResultAuthorName(result metadata.SearchResult) string {
 
 func normalizeAuthorMissingBookPolicy(policy string, monitorNewItems bool) string {
 	switch strings.ToLower(strings.ReplaceAll(strings.TrimSpace(policy), "_", "")) {
-	case "all", "allbooks", "missing", "missingbooks", "existing", "existingbooks":
+	case "all", "allbooks":
 		return "all"
+	case "missing", "missingbooks":
+		return "missing"
+	case "existing", "existingbooks":
+		return "existing"
+	case "first", "firstbook":
+		return "first"
+	case "latest", "latestbook":
+		return "latest"
 	case "future", "futurebooks", "new", "newbooks", "newitems":
 		return "future"
 	case "none", "no", "off", "unmonitored":

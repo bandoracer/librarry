@@ -96,12 +96,14 @@ LIBRARRY_MONITOR_ENABLED=true
 LIBRARRY_MONITOR_INTERVAL=30m
 LIBRARRY_MONITOR_SEARCH_INTERVAL=6h
 LIBRARRY_MONITOR_LIMIT=50
-LIBRARRY_MONITOR_AUTO_GRAB=false
+LIBRARRY_MONITOR_AUTO_GRAB=true
 ```
 
 Manual monitor runs are available through `POST /api/v1/wanted/monitor`.
-`LIBRARRY_MONITOR_AUTO_GRAB=false` keeps scheduled runs search-only while still
-recording release decisions and history.
+Scheduled runs auto-grab the best approved release by default (arr parity,
+owner decision 2026-07-01); the blocklist keeps failed releases from being
+re-grabbed. Set `LIBRARRY_MONITOR_AUTO_GRAB=false` to restore search-only
+review-first runs that still record release decisions and history.
 
 Manual wanted search uses `POST /api/v1/wanted/{id}/search` to persist scored
 release decisions. The web UI reloads those decisions with
@@ -130,9 +132,13 @@ mode is the preferred path for monitoring an author before choosing individual
 books. The web app runs a targeted author monitor after saving a subscription,
 and each author row has a refresh action that sends that author's subscription
 ID/provider key to `POST /api/v1/authors/monitor`. Set
-`missingBookPolicy` to `all`, `future`, or `none` to control whether a monitored
-author backfills the visible bibliography, only creates wanted items for
-future-dated metadata, or only syncs author metadata. Existing subscriptions can
+`missingBookPolicy` to `all`, `future`, `none`, `missing`, `existing`,
+`first`, or `latest` to control which discovered books become wanted items:
+`all` backfills the visible bibliography, `future` only takes books published
+after the subscription, `none` only syncs author metadata, `missing` takes
+books without a tracked library file, `existing` takes books with a library
+file plus future releases, `first` only takes the earliest discovered book,
+and `latest` takes the most recent book plus future releases. Existing subscriptions can
 be changed with `PATCH /api/v1/authors/{id}` and soft-removed with
 `DELETE /api/v1/authors/{id}`. Manual author refreshes are
 available through `POST /api/v1/authors/monitor`; monitor results report
@@ -155,12 +161,14 @@ The API can also poll Prowlarr-compatible indexer RSS feeds on an interval:
 LIBRARRY_FEED_SYNC_ENABLED=true
 LIBRARRY_FEED_SYNC_INTERVAL=15m
 LIBRARRY_FEED_SYNC_LIMIT=100
-LIBRARRY_FEED_SYNC_AUTO_GRAB=false
+LIBRARRY_FEED_SYNC_AUTO_GRAB=true
 ```
 
 Manual feed runs are available through `POST /api/v1/wanted/feed-sync`.
-`LIBRARRY_FEED_SYNC_AUTO_GRAB=false` keeps scheduled feed runs search-only while
-still recording feed releases, matched release decisions, and history.
+Scheduled feed runs auto-grab approved matches by default (arr parity, owner
+decision 2026-07-01). Set `LIBRARRY_FEED_SYNC_AUTO_GRAB=false` to keep feed
+runs search-only while still recording feed releases, matched release
+decisions, and history.
 
 ## Import Lists
 
@@ -187,13 +195,16 @@ Upgrade search can run on an interval:
 LIBRARRY_UPGRADE_SEARCH_ENABLED=true
 LIBRARRY_UPGRADE_SEARCH_INTERVAL=12h
 LIBRARRY_UPGRADE_SEARCH_LIMIT=50
-LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=false
+LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=true
 LIBRARRY_UPGRADE_SEARCH_MIN_DELTA=5
 ```
 
 Manual upgrade runs are available through `POST /api/v1/wanted/upgrades`.
-Upgrade search compares grabbed/imported items against profile cutoffs and only
-queues replacements when `autoGrab` is true.
+Upgrade search compares grabbed/imported items against profile cutoffs and
+grabs qualifying replacements by default (arr parity, owner decision
+2026-07-01). Set `LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB=false` for search-only
+runs. `GET /api/v1/wanted?view=cutoff-unmet` lists items with a tracked
+library file whose current release score is still below the profile cutoff.
 
 ## Failed Downloads
 
@@ -204,16 +215,40 @@ LIBRARRY_FAILED_DOWNLOAD_ENABLED=true
 LIBRARRY_FAILED_DOWNLOAD_INTERVAL=30m
 LIBRARRY_FAILED_DOWNLOAD_STALLED_AGE=24h
 LIBRARRY_FAILED_DOWNLOAD_LIMIT=50
-LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB=false
-LIBRARRY_FAILED_DOWNLOAD_REMOVE=false
+LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB=true
+LIBRARRY_FAILED_DOWNLOAD_REMOVE=true
 LIBRARRY_FAILED_DOWNLOAD_DELETE_FILES=false
 ```
 
 Manual recovery runs are available through
 `POST /api/v1/downloads/recover-failed`. The recovery path detects
 qBittorrent error/missing-file states and stale stalled downloads with no
-seeders, marks the linked wanted item wanted again, searches for replacements,
-and only grabs or removes torrents when explicitly requested.
+seeders, marks the linked wanted item wanted again, blocklists the failed
+release identity (source `auto-failed`) so evaluation rejects it with reason
+`blocklisted`, searches for replacements, and — by default (arr parity, owner
+decision 2026-07-01) — grabs the best approved replacement and removes the
+failed download from the client. Set the auto-grab/remove flags to `false` to
+restore review-first recovery.
+
+## Blocklist
+
+The blocklist stores release identities (infohash, download URL hash, or
+title+indexer) that release evaluation must reject:
+
+- `GET /api/v1/librarry/blocklist?limit=` returns `{"items":[...]}`.
+- `POST /api/v1/librarry/blocklist` with `{"downloadId","client","reason"}`
+  blocklists the release behind a queue download (source `queue-remove`).
+- `DELETE /api/v1/librarry/blocklist/{id}` removes one entry.
+- `POST /api/v1/librarry/blocklist/clear` with `{"ids":[...]}` removes the
+  listed entries; empty ids clears everything. Returns `{"removed":N}`.
+- `POST /api/v1/downloads/mark-failed` with
+  `{"id","client","blocklist":bool,"research":bool}` marks a download failed,
+  optionally blocklists it (source `history-mark-failed`), and optionally
+  re-searches the linked wanted item. Returns
+  `{"blocklisted":bool,"searchTriggered":bool}`.
+
+The Readarr-compatible `GET /api/v1/blocklist` and its delete routes are
+backed by the same table.
 
 ## Calibre Conversion Refresh
 
@@ -246,6 +281,7 @@ LIBRARRY_COMPLETED_IMPORT_ENABLED=true
 LIBRARRY_COMPLETED_IMPORT_INTERVAL=1m
 LIBRARRY_COMPLETED_IMPORT_LIMIT=50
 LIBRARRY_COMPLETED_IMPORT_MODE=hardlinkOrCopy
+LIBRARRY_COMPLETED_REMOVE_ENABLED=true
 ```
 
 `hardlinkOrCopy` keeps torrents seeding without duplicating disk space when
@@ -253,6 +289,12 @@ the torrent root and library roots share a filesystem, and falls back to copy
 when they do not. Set the mode to `copy` or `move` to override. The manual
 "Import Completed" action in the Activity queue remains available for
 immediate imports.
+
+`LIBRARRY_COMPLETED_REMOVE_ENABLED=true` (arr parity, default on) deletes an
+imported download — with its data — once the client reports seeding has
+finished (qBittorrent `stoppedUP`/`pausedUP`, Transmission stopped and done).
+Imports use hardlink-or-copy, so the library copy survives. Set it to `false`
+to leave finished torrents in the client.
 
 ## Downloads
 

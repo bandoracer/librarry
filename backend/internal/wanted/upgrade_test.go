@@ -118,11 +118,12 @@ func TestAuthorMissingBookPolicyAllowsFutureOnly(t *testing.T) {
 		MissingBookPolicy: "future",
 		CreatedAt:         time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC),
 	}
+	policyCtx := authorPolicyContext{now: time.Now().UTC()}
 	newBook := metadata.SearchResult{
 		Work:    metadata.Work{FirstPublishYear: 2027},
 		Edition: metadata.Edition{PublishedDate: "2027-03-01"},
 	}
-	if allowed, reason := authorResultAllowedByMissingPolicy(subscription, newBook, time.Now()); !allowed || reason != "" {
+	if allowed, reason := authorResultAllowedByPolicy(subscription, newBook, policyCtx); !allowed || reason != "" {
 		t.Fatal("expected future-dated result to be allowed")
 	}
 
@@ -130,12 +131,12 @@ func TestAuthorMissingBookPolicyAllowsFutureOnly(t *testing.T) {
 		Work:    metadata.Work{FirstPublishYear: 2021},
 		Edition: metadata.Edition{PublishedDate: "2021-05-04"},
 	}
-	if allowed, reason := authorResultAllowedByMissingPolicy(subscription, oldBook, time.Now()); allowed || reason == "" {
+	if allowed, reason := authorResultAllowedByPolicy(subscription, oldBook, policyCtx); allowed || reason == "" {
 		t.Fatal("expected existing bibliography result to be skipped")
 	}
 
 	undatedBook := metadata.SearchResult{Work: metadata.Work{Title: "Untitled"}}
-	if allowed, reason := authorResultAllowedByMissingPolicy(subscription, undatedBook, time.Now()); allowed || reason == "" {
+	if allowed, reason := authorResultAllowedByPolicy(subscription, undatedBook, policyCtx); allowed || reason == "" {
 		t.Fatal("expected undated future-only result to require review instead of auto-wanted")
 	}
 }

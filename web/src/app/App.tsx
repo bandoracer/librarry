@@ -30,6 +30,7 @@ export function App() {
               <Route path="/wanted" element={<WantedPage />} />
               <Route path="/downloads" element={<ActivityPage />} />
               <Route path="/downloads/history" element={<ActivityPage />} />
+              <Route path="/downloads/blocklist" element={<ActivityPage />} />
               <Route path="/imports" element={<ImportsPage />} />
               <Route path="/providers" element={<SystemPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />

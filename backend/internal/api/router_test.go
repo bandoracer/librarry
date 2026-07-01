@@ -708,15 +708,12 @@ func TestCompatQueueEndpoints(t *testing.T) {
 }
 
 func TestCompatBlocklistEndpoints(t *testing.T) {
-	acquire := &fakeBlocklistAcquire{}
-	compatResources := &fakeCompatResources{}
+	wantedClient := &capturingBlocklistWanted{}
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
 		Config:   config.Config{WebOrigin: "*"},
 		Metadata: metadata.NewService(nil),
-		Acquire:  acquire,
-		Wanted:   fakeBlocklistWanted{},
-		Compat:   compatResources,
+		Wanted:   wantedClient,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/blocklist?page=1&pageSize=10", nil)
@@ -726,55 +723,193 @@ func TestCompatBlocklistEndpoints(t *testing.T) {
 	if res.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"totalRecords":2`) || !strings.Contains(res.Body.String(), `"librarrySource":"download"`) || !strings.Contains(res.Body.String(), `"librarrySource":"history"`) {
-		t.Fatalf("expected failed download and failed history blocklist records, got %s", res.Body.String())
+	if !strings.Contains(res.Body.String(), `"totalRecords":1`) || !strings.Contains(res.Body.String(), `"librarryId":"blocklist-1"`) {
+		t.Fatalf("expected real blocklist record, got %s", res.Body.String())
 	}
-	if !strings.Contains(res.Body.String(), `"sourceTitle":"Project Hail Mary failed.epub"`) || !strings.Contains(res.Body.String(), `"message":"missing files"`) {
-		t.Fatalf("expected failed download details, got %s", res.Body.String())
+	if !strings.Contains(res.Body.String(), `"sourceTitle":"Andy Weir - Project Hail Mary EPUB"`) ||
+		!strings.Contains(res.Body.String(), `"message":"missing files"`) ||
+		!strings.Contains(res.Body.String(), `"librarrySource":"auto-failed"`) ||
+		!strings.Contains(res.Body.String(), `"indexer":"Public Indexer"`) {
+		t.Fatalf("expected blocklist entry details, got %s", res.Body.String())
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/blacklist", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"totalRecords":2`) {
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"totalRecords":1`) {
 		t.Fatalf("expected legacy blacklist alias, got %d: %s", res.Code, res.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blocklist/"+strconv.Itoa(stableInt("download:failed-1")), nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blocklist/"+strconv.Itoa(stableInt("blocklist-1")), nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
 	}
-	if len(acquire.clearedFailures) != 1 || acquire.clearedFailures[0] != "failed-1" {
-		t.Fatalf("expected failed download to be cleared, got %+v", acquire.clearedFailures)
-	}
-	if len(compatResources.resources) != 1 || compatResources.resources[0].ResourceType != "blocklist-clear" || compatResources.resources[0].CompatID != stableInt("download:failed-1") {
-		t.Fatalf("expected persisted blocklist clear, got %+v", compatResources.resources)
+	if len(wantedClient.deleted) != 1 || wantedClient.deleted[0] != "blocklist-1" {
+		t.Fatalf("expected real blocklist delete, got %+v", wantedClient.deleted)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/blocklist?page=1&pageSize=10", nil)
-	res = httptest.NewRecorder()
-	router.ServeHTTP(res, req)
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"totalRecords":1`) || strings.Contains(res.Body.String(), `"librarrySource":"download"`) {
-		t.Fatalf("expected download blocklist record to be suppressed, got %d: %s", res.Code, res.Body.String())
-	}
-
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blacklist/bulk", strings.NewReader(`{"ids":[`+strconv.Itoa(stableInt("history:event-failed"))+`]}`))
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blacklist/bulk", strings.NewReader(`{"ids":[`+strconv.Itoa(stableInt("blocklist-1"))+`]}`))
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d: %s", res.Code, res.Body.String())
 	}
-	if len(compatResources.resources) != 2 || compatResources.resources[1].CompatID != stableInt("history:event-failed") {
-		t.Fatalf("expected history blocklist clear to be persisted, got %+v", compatResources.resources)
+	if len(wantedClient.deleted) != 2 || wantedClient.deleted[1] != "blocklist-1" {
+		t.Fatalf("expected bulk blocklist delete, got %+v", wantedClient.deleted)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/blacklist", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/blocklist/999999", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"totalRecords":0`) {
-		t.Fatalf("expected all blocklist records to be suppressed, got %d: %s", res.Code, res.Body.String())
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for unknown blocklist record, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
+type capturingBlocklistWanted struct {
+	fakeWanted
+	deleted []string
+}
+
+func (f *capturingBlocklistWanted) DeleteBlocklistEntry(_ context.Context, id string) error {
+	f.deleted = append(f.deleted, id)
+	return nil
+}
+
+func TestNativeBlocklistEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/librarry/blocklist?limit=10", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"items":[`) ||
+		!strings.Contains(res.Body.String(), `"id":"blocklist-1"`) ||
+		!strings.Contains(res.Body.String(), `"wantedItemId":"wanted-1"`) ||
+		!strings.Contains(res.Body.String(), `"infohash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`) ||
+		!strings.Contains(res.Body.String(), `"source":"auto-failed"`) {
+		t.Fatalf("expected blocklist items payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/librarry/blocklist", strings.NewReader(`{"downloadId":"abc123","client":"qBittorrent"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"source":"queue-remove"`) {
+		t.Fatalf("expected queue-remove blocklist entry, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/librarry/blocklist/blocklist-1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || strings.TrimSpace(res.Body.String()) != "{}" {
+		t.Fatalf("expected empty 200 body, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/librarry/blocklist/clear", strings.NewReader(`{"ids":["blocklist-1","blocklist-2"]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"removed":2`) {
+		t.Fatalf("expected removed count, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/librarry/blocklist/clear", strings.NewReader(`{}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"removed":1`) {
+		t.Fatalf("expected clear-all removed count, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
+func TestMarkDownloadFailedEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/downloads/mark-failed", strings.NewReader(`{"id":"abc123","client":"qBittorrent","blocklist":true,"research":true}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"blocklisted":true`) || !strings.Contains(res.Body.String(), `"searchTriggered":true`) {
+		t.Fatalf("expected mark-failed outcome payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/downloads/mark-failed", strings.NewReader(`{"client":"qBittorrent"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 without download id, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
+func TestWantedBulkEndpoint(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/wanted/bulk", strings.NewReader(`{"ids":["wanted-1","wanted-2"],"set":{"monitored":false,"qualityProfile":"large"}}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"results":[`) || !strings.Contains(res.Body.String(), `"status":"updated"`) {
+		t.Fatalf("expected per-item results, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/wanted/bulk", strings.NewReader(`{"ids":["wanted-1"],"delete":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"status":"deleted"`) {
+		t.Fatalf("expected delete results, got %d: %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/wanted/bulk", strings.NewReader(`{"ids":[]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for empty ids, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
+func TestListWantedCutoffUnmetView(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wanted?view=cutoff-unmet", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"wanted":[`) || !strings.Contains(res.Body.String(), `"id":"wanted-2"`) {
+		t.Fatalf("expected cutoff-unmet payload, got %s", res.Body.String())
+	}
+	if strings.Contains(res.Body.String(), `"id":"wanted-1"`) {
+		t.Fatalf("expected the regular list to be bypassed, got %s", res.Body.String())
 	}
 }
 
@@ -4348,32 +4483,6 @@ func (f *fakeRebalanceAcquire) DownloadAction(_ context.Context, request acquisi
 	}, nil
 }
 
-type fakeBlocklistAcquire struct {
-	fakeAcquire
-	clearedFailures []string
-}
-
-func (*fakeBlocklistAcquire) Downloads(context.Context, acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
-	failedAt := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
-	return []acquisition.DownloadStatus{{
-		Client:        "qBittorrent",
-		ID:            "failed-1",
-		Name:          "Project Hail Mary failed.epub",
-		State:         "error",
-		SavePath:      "/downloads",
-		Category:      "books-ebook",
-		Tags:          []string{"librarry", "wanted:wanted-1"},
-		SizeBytes:     7340032,
-		FailureReason: "missing files",
-		FailedAt:      &failedAt,
-	}}, nil
-}
-
-func (f *fakeBlocklistAcquire) ClearDownloadFailure(_ context.Context, id string) error {
-	f.clearedFailures = append(f.clearedFailures, id)
-	return nil
-}
-
 type fakeWanted struct{}
 
 type capturingImportListWanted struct {
@@ -5051,6 +5160,76 @@ func (fakeWanted) DeleteAuthorSubscription(context.Context, string) error {
 	return nil
 }
 
+func (fakeWanted) ListCutoffUnmet(context.Context) ([]wanted.WantedItem, error) {
+	return []wanted.WantedItem{{
+		ID:                  "wanted-2",
+		Title:               "The Martian",
+		AuthorName:          "Andy Weir",
+		Format:              "ebook",
+		QualityProfile:      "standard",
+		Status:              "imported",
+		Monitored:           true,
+		CurrentReleaseScore: 62,
+		CreatedAt:           time.Now().UTC(),
+		UpdatedAt:           time.Now().UTC(),
+	}}, nil
+}
+
+func (fakeWanted) BulkUpdateWanted(_ context.Context, request wanted.WantedBulkRequest) ([]wanted.WantedBulkResult, error) {
+	status := "updated"
+	if request.Delete {
+		status = "deleted"
+	}
+	results := make([]wanted.WantedBulkResult, 0, len(request.IDs))
+	for _, id := range request.IDs {
+		results = append(results, wanted.WantedBulkResult{ID: id, Status: status})
+	}
+	return results, nil
+}
+
+func (fakeWanted) ListBlocklist(context.Context, int) ([]wanted.BlocklistEntry, error) {
+	return []wanted.BlocklistEntry{{
+		ID:           "blocklist-1",
+		WantedItemID: "wanted-1",
+		Title:        "Andy Weir - Project Hail Mary EPUB",
+		Indexer:      "Public Indexer",
+		Protocol:     "torrent",
+		InfoHash:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Reason:       "missing files",
+		Source:       "auto-failed",
+		CreatedAt:    time.Date(2026, 6, 25, 12, 5, 0, 0, time.UTC),
+	}}, nil
+}
+
+func (fakeWanted) BlocklistDownload(_ context.Context, request wanted.BlocklistDownloadRequest) (wanted.BlocklistEntry, error) {
+	source := request.Source
+	if source == "" {
+		source = "queue-remove"
+	}
+	return wanted.BlocklistEntry{
+		ID:        "blocklist-2",
+		Title:     "Andy Weir - Project Hail Mary EPUB",
+		Reason:    request.Reason,
+		Source:    source,
+		CreatedAt: time.Now().UTC(),
+	}, nil
+}
+
+func (fakeWanted) DeleteBlocklistEntry(context.Context, string) error {
+	return nil
+}
+
+func (fakeWanted) ClearBlocklist(_ context.Context, ids []string) (int, error) {
+	if len(ids) == 0 {
+		return 1, nil
+	}
+	return len(ids), nil
+}
+
+func (fakeWanted) MarkDownloadFailedManually(_ context.Context, request wanted.ManualFailRequest) (wanted.ManualFailOutcome, error) {
+	return wanted.ManualFailOutcome{Blocklisted: request.Blocklist, SearchTriggered: request.Research}, nil
+}
+
 type fakeMutableWanted struct {
 	fakeWanted
 	authorUpdates []struct {
@@ -5384,29 +5563,6 @@ func fakeNotificationCompat(url string, overrides map[string]any) *fakeCompatRes
 		Name:         "Webhook",
 		Payload:      payload,
 	}}}
-}
-
-type fakeBlocklistWanted struct {
-	fakeWanted
-}
-
-func (fakeBlocklistWanted) History(context.Context, wanted.HistoryQuery) ([]wanted.HistoryEvent, error) {
-	return []wanted.HistoryEvent{{
-		ID:         "event-failed",
-		EventType:  "download_failed",
-		EntityType: "wanted_item",
-		EntityID:   "wanted-1",
-		Severity:   "error",
-		Message:    "Download failed for Project Hail Mary",
-		Data: map[string]any{
-			"wantedId":     "wanted-1",
-			"downloadId":   "failed-1",
-			"releaseTitle": "Andy Weir - Project Hail Mary EPUB",
-			"reason":       "missing files",
-			"protocol":     "torrent",
-		},
-		CreatedAt: time.Date(2026, 6, 25, 12, 5, 0, 0, time.UTC),
-	}}, nil
 }
 
 type fakeMissingWanted struct {

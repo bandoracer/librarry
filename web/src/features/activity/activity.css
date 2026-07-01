@@ -236,6 +236,15 @@
   gap: 6px;
 }
 
+/* Modal checkbox rows (remove blocklist option, mark-failed options) */
+
+.activity-modal-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
 /* History tab */
 
 .activity-history-time {

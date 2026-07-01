@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -480,11 +481,19 @@ type completedDownloadLister interface {
 	Downloads(ctx context.Context, query acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error)
 }
 
+type completedDownloadClient interface {
+	completedDownloadLister
+	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
+}
+
 // runCompletedDownloadImport is Librarry's take on arr "Completed Download
 // Handling": finished librarry-tagged downloads are imported automatically —
 // auto-matched to their wanted item, or queued for review when no match
-// exists — without an operator pressing Import.
-func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadLister, cfg config.Config) {
+// exists — without an operator pressing Import. A second phase mirrors the
+// arr "Remove Completed" behavior: imported downloads whose client reports
+// seeding has finished are deleted with their data (imports use
+// hardlink-or-copy, so the library copy survives).
+func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadClient, cfg config.Config) {
 	defer wg.Done()
 	interval := completedImportInterval(cfg)
 
@@ -494,10 +503,17 @@ func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger 
 			logger.Warn("completed download import failed", "trigger", trigger, "error", err)
 			return
 		}
+		removed := 0
+		if cfg.CompletedRemoveEnabled {
+			removed, err = runCompletedDownloadRemovalOnce(ctx, downloads)
+			if err != nil {
+				logger.Warn("completed download removal failed", "trigger", trigger, "error", err)
+			}
+		}
 		// Unresolved reviews re-count every tick (dedup happens in the store),
-		// so only imports and errors get Info-level noise.
+		// so only imports, removals, and errors get Info-level noise.
 		level := slog.LevelDebug
-		if outcome.Imported > 0 || outcome.Errored > 0 {
+		if outcome.Imported > 0 || outcome.Errored > 0 || removed > 0 {
 			level = slog.LevelInfo
 		}
 		logger.Log(
@@ -510,6 +526,7 @@ func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger 
 			"auto_matched", outcome.AutoMatched,
 			"review_queued", outcome.ReviewQueued,
 			"skipped", outcome.Skipped,
+			"removed", removed,
 			"errors", outcome.Errored,
 		)
 	}
@@ -518,7 +535,7 @@ func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger 
 	ticker := time.NewTicker(interval)
 	defer startup.Stop()
 	defer ticker.Stop()
-	logger.Info("completed download import enabled", "interval", interval, "limit", completedImportLimit(cfg))
+	logger.Info("completed download import enabled", "interval", interval, "limit", completedImportLimit(cfg), "remove_after_seeding", cfg.CompletedRemoveEnabled)
 
 	for {
 		select {
@@ -543,6 +560,60 @@ func runCompletedDownloadImportOnce(ctx context.Context, service completedDownlo
 		Limit:      completedImportLimit(cfg),
 		ImportMode: cfg.CompletedImportMode,
 	})
+}
+
+// runCompletedDownloadRemovalOnce deletes imported, seed-finished downloads
+// (with their data) from the download client. It lists fresh state so the
+// downloads imported earlier in the same tick are eligible immediately.
+func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownloadClient) (int, error) {
+	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	rows, err := client.Downloads(runCtx, acquisition.DownloadListQuery{Tag: "librarry"})
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	var firstErr error
+	for _, download := range rows {
+		if !completedDownloadRemovalEligible(download) {
+			continue
+		}
+		result, err := client.DownloadAction(runCtx, acquisition.DownloadActionRequest{
+			Action:      acquisition.DownloadActionDelete,
+			Client:      download.Client,
+			IDs:         []string{download.ID},
+			DeleteFiles: true,
+		})
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		if result.Applied {
+			removed++
+		}
+	}
+	return removed, firstErr
+}
+
+// completedDownloadRemovalEligible reports whether an imported download has
+// finished seeding and can be deleted with its data: qBittorrent parks
+// finished torrents in stoppedUP (5.x) or pausedUP (4.x), and Transmission
+// reports stopped-and-done torrents as completed.
+func completedDownloadRemovalEligible(download acquisition.DownloadStatus) bool {
+	if !strings.EqualFold(strings.TrimSpace(download.ImportStatus), "imported") {
+		return false
+	}
+	state := strings.ToLower(strings.TrimSpace(download.State))
+	switch state {
+	case "stoppedup", "pausedup":
+		return true
+	}
+	if strings.EqualFold(strings.TrimSpace(download.Client), "transmission") {
+		return (state == "completed" || state == "stopped") && download.Progress >= 1
+	}
+	return false
 }
 
 func completedImportInterval(cfg config.Config) time.Duration {

@@ -119,11 +119,71 @@ func TestRunCompletedDownloadImportOnceScopesToLibrarryTag(t *testing.T) {
 type fakeCompletedDownloadLister struct {
 	rows    []acquisition.DownloadStatus
 	queries []acquisition.DownloadListQuery
+	actions []acquisition.DownloadActionRequest
 }
 
 func (f *fakeCompletedDownloadLister) Downloads(_ context.Context, query acquisition.DownloadListQuery) ([]acquisition.DownloadStatus, error) {
 	f.queries = append(f.queries, query)
 	return f.rows, nil
+}
+
+func (f *fakeCompletedDownloadLister) DownloadAction(_ context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error) {
+	f.actions = append(f.actions, request)
+	return acquisition.DownloadActionResult{Action: request.Action, IDs: request.IDs, Applied: true}, nil
+}
+
+func TestCompletedDownloadRemovalEligible(t *testing.T) {
+	cases := []struct {
+		name     string
+		download acquisition.DownloadStatus
+		eligible bool
+	}{
+		{"qbit 5.x stoppedUP imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "stoppedUP", ImportStatus: "imported", Progress: 1}, true},
+		{"qbit 4.x pausedUP imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "pausedUP", ImportStatus: "imported", Progress: 1}, true},
+		{"qbit still uploading", acquisition.DownloadStatus{Client: "qBittorrent", State: "uploading", ImportStatus: "imported", Progress: 1}, false},
+		{"qbit stopped but not imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "stoppedUP", ImportStatus: "ready", Progress: 1}, false},
+		{"qbit stopped pending import", acquisition.DownloadStatus{Client: "qBittorrent", State: "stoppedUP", Progress: 1}, false},
+		{"transmission stopped and done", acquisition.DownloadStatus{Client: "Transmission", State: "completed", ImportStatus: "imported", Progress: 1}, true},
+		{"transmission stopped mid-download", acquisition.DownloadStatus{Client: "Transmission", State: "stopped", ImportStatus: "imported", Progress: 0.4}, false},
+		{"transmission still seeding", acquisition.DownloadStatus{Client: "Transmission", State: "seeding", ImportStatus: "imported", Progress: 1}, false},
+		{"sabnzbd completed import stays", acquisition.DownloadStatus{Client: "SABnzbd", State: "completed", ImportStatus: "imported", Progress: 1}, false},
+	}
+	for _, testCase := range cases {
+		if got := completedDownloadRemovalEligible(testCase.download); got != testCase.eligible {
+			t.Fatalf("%s: expected eligible=%v, got %v", testCase.name, testCase.eligible, got)
+		}
+	}
+}
+
+func TestRunCompletedDownloadRemovalOnceDeletesEligibleDownloads(t *testing.T) {
+	client := &fakeCompletedDownloadLister{
+		rows: []acquisition.DownloadStatus{
+			{Client: "qBittorrent", ID: "keep-seeding", State: "uploading", ImportStatus: "imported", Progress: 1, Tags: []string{"librarry"}},
+			{Client: "qBittorrent", ID: "done-1", State: "stoppedUP", ImportStatus: "imported", Progress: 1, Tags: []string{"librarry"}},
+			{Client: "Transmission", ID: "done-2", State: "completed", ImportStatus: "imported", Progress: 1, Tags: []string{"librarry"}},
+		},
+	}
+	removed, err := runCompletedDownloadRemovalOnce(context.Background(), client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if removed != 2 {
+		t.Fatalf("expected 2 removals, got %d", removed)
+	}
+	if len(client.actions) != 2 {
+		t.Fatalf("expected 2 delete actions, got %+v", client.actions)
+	}
+	for _, action := range client.actions {
+		if action.Action != acquisition.DownloadActionDelete || !action.DeleteFiles {
+			t.Fatalf("expected delete-with-data action, got %+v", action)
+		}
+	}
+	if client.actions[0].IDs[0] != "done-1" || client.actions[0].Client != "qBittorrent" {
+		t.Fatalf("expected qBittorrent removal first, got %+v", client.actions[0])
+	}
+	if client.actions[1].IDs[0] != "done-2" || client.actions[1].Client != "Transmission" {
+		t.Fatalf("expected Transmission removal second, got %+v", client.actions[1])
+	}
 }
 
 type fakeCompletedImportService struct {

@@ -21,6 +21,10 @@ func evaluateReleaseWithProfile(item WantedItem, release acquisition.Release, pr
 }
 
 func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, profile QualityProfile, restrictions []ReleaseRestriction) ReleaseDecision {
+	return evaluateReleaseWithBlocklist(item, release, profile, restrictions, nil)
+}
+
+func evaluateReleaseWithBlocklist(item WantedItem, release acquisition.Release, profile QualityProfile, restrictions []ReleaseRestriction, blocklist []BlocklistEntry) ReleaseDecision {
 	policy := releasePolicy{
 		format:  normalizeFormat(item.Format),
 		profile: profileWithReleaseRestrictions(normalizeProfile(profile, item), restrictions, item.Tags),
@@ -35,6 +39,9 @@ func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, pro
 	overrides := wantedManualOverrideValues(item)
 	isbnMatched := wantedISBNMatchesRelease(overrides["isbn"], release)
 
+	if blocklistMatchesRelease(blocklist, release) {
+		reasons = append(reasons, blocklistRejectionReason)
+	}
 	if release.DownloadURL == "" {
 		reasons = append(reasons, "missing download URL")
 	}

@@ -29,6 +29,7 @@ import {
   grabRelease,
   searchMetadata,
   searchReleases,
+  searchWantedReleases,
   subscribeAuthor,
   type AuthorMissingBookPolicy,
   type DownloadStatus,
@@ -85,6 +86,14 @@ import "./search.css";
 
 const searchNav = navItems.find((item) => item.id === "search");
 
+/** Persisted "Start search for missing book" choice for the add flow. */
+const searchOnAddStorageKey = "librarry.searchOnAdd";
+
+function storedSearchOnAdd(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(searchOnAddStorageKey) === "true";
+}
+
 /** Desktop breakpoint mirrors the .search-layout media query in search.css. */
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(
@@ -136,6 +145,7 @@ export default function SearchPage() {
   const [authorPolicy, setAuthorPolicy] = useState<AuthorMissingBookPolicy>("all");
   const [qualityProfile, setQualityProfile] = useState("standard");
   const [addedByKey, setAddedByKey] = useState<Record<string, WantedItem>>({});
+  const [searchOnAdd, setSearchOnAdd] = useState(storedSearchOnAdd);
 
   const [releases, setReleases] = useState<Release[]>([]);
   const [releasesSearched, setReleasesSearched] = useState(false);
@@ -311,6 +321,13 @@ export default function SearchPage() {
     navigate(`/wanted?item=${encodeURIComponent(item.id)}`);
   }
 
+  function updateSearchOnAdd(next: boolean) {
+    setSearchOnAdd(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(searchOnAddStorageKey, String(next));
+    }
+  }
+
   // --- Mutations --------------------------------------------------------------
   const addWanted = useInvalidatingMutation(
     (args: { result: SearchResult; format: string; profile: string }) =>
@@ -347,10 +364,31 @@ export default function SearchPage() {
     addWanted.mutate(
       { result, format: result.edition?.format ?? format, profile: effectiveProfile },
       {
-        onSuccess: (item) => {
+        onSuccess: async (item) => {
           setAddedByKey((current) => ({ ...current, [key]: item }));
           setPendingReview(null);
-          toast.success(`Added "${item.title}" to Wanted — open the Wanted page to search and grab releases.`);
+          if (!searchOnAdd) {
+            toast.success(`Added "${item.title}" to Wanted — open the Wanted page to search and grab releases.`);
+            return;
+          }
+          // Search-on-add: review-first rule intact — releases are evaluated
+          // and stored, never grabbed.
+          try {
+            const outcome = await searchWantedReleases(item.id, language);
+            const approved = outcome.releases.filter((release) => release.approved).length;
+            toast.success(
+              `Added "${item.title}" to Wanted · release search: ${outcome.releases.length} found, ${approved} approved, ${
+                outcome.releases.length - approved
+              } rejected.`
+            );
+          } catch (error) {
+            toast.notify(
+              `Added "${item.title}" to Wanted, but the release search failed: ${
+                error instanceof Error ? error.message : "Wanted release search failed"
+              }`,
+              "warn"
+            );
+          }
         },
         onError: (error) => {
           toast.error(error instanceof Error ? error.message : "Mark wanted failed");
@@ -611,6 +649,13 @@ export default function SearchPage() {
             </select>
           </Field>
         </div>
+
+        {canBeWanted ? (
+          <label className="search-add-search-toggle" title="After adding, run a release search for the new wanted item (paused review-first — nothing is grabbed).">
+            <input type="checkbox" checked={searchOnAdd} onChange={(event) => updateSearchOnAdd(event.target.checked)} />
+            <span>Start search for missing book</span>
+          </label>
+        ) : null}
 
         <div className="search-detail-actions">
           {existing ? (
@@ -904,6 +949,10 @@ export default function SearchPage() {
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
+            <label className="search-add-search-toggle" title="After adding, run a release search for the new wanted item (paused review-first — nothing is grabbed).">
+              <input type="checkbox" checked={searchOnAdd} onChange={(event) => updateSearchOnAdd(event.target.checked)} />
+              <span>Start search for missing book</span>
+            </label>
           </>
         ) : null}
       </Modal>

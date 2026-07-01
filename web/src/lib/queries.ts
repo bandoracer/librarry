@@ -3,6 +3,7 @@ import {
   fetchAcquisitionQueue,
   fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
+  fetchBlocklist,
   fetchDownloads,
   fetchHistory,
   fetchIntegrationHealth,
@@ -16,7 +17,9 @@ import {
   fetchReadiness,
   fetchSystemStatus,
   fetchWanted,
+  fetchWantedMetadata,
   fetchWantedMetadataReview,
+  fetchWantedReleases,
   type DownloadListOptions
 } from "./api";
 import { demoModeEnabled, demoSeeds, withDemoFallback } from "./demo";
@@ -41,12 +44,16 @@ export const keys = {
   readiness: ["readiness"] as const,
   readarrCompatibility: ["readarr-compatibility"] as const,
   wanted: ["wanted"] as const,
+  wantedCutoffUnmet: ["wanted", "cutoff-unmet"] as const,
   wantedMetadataReview: ["wanted-metadata-review"] as const,
+  wantedMetadata: (wantedID: string) => ["wanted-metadata", wantedID] as const,
+  wantedReleases: (wantedID: string) => ["wanted-releases", wantedID] as const,
   acquisitionQueue: ["acquisition-queue"] as const,
   authorSubscriptions: ["author-subscriptions"] as const,
   authorMetadataReviews: ["author-metadata-reviews"] as const,
   qualityProfiles: ["quality-profiles"] as const,
   downloads: (options?: DownloadListOptions) => ["downloads", options ?? {}] as const,
+  blocklist: (limit?: number) => ["blocklist", limit ?? 100] as const,
   history: (limit?: number) => ["history", limit ?? 50] as const,
   libraryFiles: (format?: string) => ["library-files", format ?? "any"] as const,
   importReviews: (status?: string) => ["import-reviews", status ?? "pending"] as const
@@ -99,10 +106,56 @@ export function useWanted() {
   });
 }
 
+/** Wanted items whose tracked file scores under the profile cutoff (server-defined view). */
+export function useCutoffUnmet(enabled = true) {
+  return useQuery({
+    queryKey: keys.wantedCutoffUnmet,
+    queryFn: withDemoFallback(
+      () => fetchWanted("cutoff-unmet"),
+      () => []
+    ),
+    refetchInterval: 30_000,
+    enabled
+  });
+}
+
 export function useWantedMetadataReview() {
   return useQuery({
     queryKey: keys.wantedMetadataReview,
     queryFn: withDemoFallback(fetchWantedMetadataReview, () => demoSeeds.wantedMetadataReview)
+  });
+}
+
+/**
+ * Metadata provenance for one wanted item. Demo installs fall back to the
+ * seeded provenance for known demo IDs (matches the legacy BooksTab behavior);
+ * other failures surface as query errors.
+ */
+export function useWantedMetadata(wantedID: string) {
+  return useQuery({
+    queryKey: keys.wantedMetadata(wantedID),
+    queryFn: async () => {
+      try {
+        return await fetchWantedMetadata(wantedID);
+      } catch (error) {
+        const seeded = demoModeEnabled ? demoSeeds.wantedMetadataByID[wantedID] : undefined;
+        if (seeded) return seeded;
+        throw error;
+      }
+    },
+    enabled: Boolean(wantedID)
+  });
+}
+
+/** Stored release decisions for one wanted item (empty list in demo mode on failure). */
+export function useWantedReleases(wantedID: string) {
+  return useQuery({
+    queryKey: keys.wantedReleases(wantedID),
+    queryFn: withDemoFallback(
+      async () => (await fetchWantedReleases(wantedID)).releases,
+      () => []
+    ),
+    enabled: Boolean(wantedID)
   });
 }
 
@@ -173,6 +226,17 @@ export function useDownloads(options?: DownloadListOptions) {
       () => demoSeeds.downloads
     ),
     refetchInterval: 10_000
+  });
+}
+
+export function useBlocklist(limit = 100) {
+  return useQuery({
+    queryKey: keys.blocklist(limit),
+    queryFn: withDemoFallback(
+      () => fetchBlocklist(limit),
+      () => []
+    ),
+    refetchInterval: 30_000
   });
 }
 

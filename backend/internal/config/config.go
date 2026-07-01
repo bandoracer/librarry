@@ -69,6 +69,7 @@ type Config struct {
 	CompletedImportInterval   time.Duration
 	CompletedImportLimit      int
 	CompletedImportMode       string
+	CompletedRemoveEnabled    bool
 	WebOrigin                 string
 }
 
@@ -106,7 +107,7 @@ func FromEnv() Config {
 		MonitorInterval:           envDuration("LIBRARRY_MONITOR_INTERVAL", 30*time.Minute),
 		MonitorSearchInterval:     envDuration("LIBRARRY_MONITOR_SEARCH_INTERVAL", 6*time.Hour),
 		MonitorLimit:              envInt("LIBRARRY_MONITOR_LIMIT", 50),
-		MonitorAutoGrab:           envBool("LIBRARRY_MONITOR_AUTO_GRAB", false),
+		MonitorAutoGrab:           envBool("LIBRARRY_MONITOR_AUTO_GRAB", true),
 		AuthorMonitorEnabled:      envBool("LIBRARRY_AUTHOR_MONITOR_ENABLED", true),
 		AuthorMonitorInterval:     envDuration("LIBRARRY_AUTHOR_MONITOR_INTERVAL", 6*time.Hour),
 		AuthorMonitorSyncInterval: envDuration("LIBRARRY_AUTHOR_MONITOR_SYNC_INTERVAL", 24*time.Hour),
@@ -114,18 +115,18 @@ func FromEnv() Config {
 		FeedSyncEnabled:           envBool("LIBRARRY_FEED_SYNC_ENABLED", true),
 		FeedSyncInterval:          envDuration("LIBRARRY_FEED_SYNC_INTERVAL", 15*time.Minute),
 		FeedSyncLimit:             envInt("LIBRARRY_FEED_SYNC_LIMIT", 100),
-		FeedSyncAutoGrab:          envBool("LIBRARRY_FEED_SYNC_AUTO_GRAB", false),
+		FeedSyncAutoGrab:          envBool("LIBRARRY_FEED_SYNC_AUTO_GRAB", true),
 		FailedDownloadEnabled:     envBool("LIBRARRY_FAILED_DOWNLOAD_ENABLED", true),
 		FailedDownloadInterval:    envDuration("LIBRARRY_FAILED_DOWNLOAD_INTERVAL", 30*time.Minute),
 		FailedDownloadStalledAge:  envDuration("LIBRARRY_FAILED_DOWNLOAD_STALLED_AGE", 24*time.Hour),
 		FailedDownloadLimit:       envInt("LIBRARRY_FAILED_DOWNLOAD_LIMIT", 50),
-		FailedDownloadAutoGrab:    envBool("LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB", false),
-		FailedDownloadRemove:      envBool("LIBRARRY_FAILED_DOWNLOAD_REMOVE", false),
+		FailedDownloadAutoGrab:    envBool("LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB", true),
+		FailedDownloadRemove:      envBool("LIBRARRY_FAILED_DOWNLOAD_REMOVE", true),
 		FailedDownloadDeleteFiles: envBool("LIBRARRY_FAILED_DOWNLOAD_DELETE_FILES", false),
 		UpgradeSearchEnabled:      envBool("LIBRARRY_UPGRADE_SEARCH_ENABLED", true),
 		UpgradeSearchInterval:     envDuration("LIBRARRY_UPGRADE_SEARCH_INTERVAL", 12*time.Hour),
 		UpgradeSearchLimit:        envInt("LIBRARRY_UPGRADE_SEARCH_LIMIT", 50),
-		UpgradeSearchAutoGrab:     envBool("LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB", false),
+		UpgradeSearchAutoGrab:     envBool("LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB", true),
 		UpgradeSearchMinDelta:     envFloat("LIBRARRY_UPGRADE_SEARCH_MIN_DELTA", 5),
 		CalibreRefreshEnabled:     envBool("LIBRARRY_CALIBRE_REFRESH_ENABLED", true),
 		CalibreRefreshInterval:    envDuration("LIBRARRY_CALIBRE_REFRESH_INTERVAL", 15*time.Minute),
@@ -135,6 +136,7 @@ func FromEnv() Config {
 		CompletedImportInterval:   envDuration("LIBRARRY_COMPLETED_IMPORT_INTERVAL", time.Minute),
 		CompletedImportLimit:      envInt("LIBRARRY_COMPLETED_IMPORT_LIMIT", 50),
 		CompletedImportMode:       env("LIBRARRY_COMPLETED_IMPORT_MODE", "hardlinkOrCopy"),
+		CompletedRemoveEnabled:    envBool("LIBRARRY_COMPLETED_REMOVE_ENABLED", true),
 		WebOrigin:                 env("LIBRARRY_WEB_ORIGIN", "http://127.0.0.1:5173"),
 	}
 }

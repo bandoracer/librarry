@@ -581,7 +581,7 @@ export type AuthorSubscription = {
   updatedAt: string;
 };
 
-export type AuthorMissingBookPolicy = "all" | "future" | "none";
+export type AuthorMissingBookPolicy = "all" | "future" | "missing" | "existing" | "first" | "latest" | "none";
 
 export type AuthorUpdateRequest = {
   authorName?: string;
@@ -921,6 +921,47 @@ export type ReviewBulkDecisionOutcome = {
   rejected: number;
   errored: number;
   results: ReviewBulkDecisionResult[];
+};
+
+export type BlocklistItem = {
+  id: string;
+  wantedItemId?: string;
+  title: string;
+  indexer: string;
+  protocol: string;
+  reason: string;
+  source: string;
+  infohash?: string;
+  createdAt: string;
+};
+
+export type BlocklistClearOutcome = {
+  removed: number;
+};
+
+export type MarkDownloadFailedOutcome = {
+  blocklisted: boolean;
+  searchTriggered: boolean;
+};
+
+export type WantedBulkUpdateRequest = {
+  ids: string[];
+  set?: {
+    monitored?: boolean;
+    qualityProfile?: string;
+    format?: string;
+  };
+  delete?: boolean;
+};
+
+export type WantedBulkItemResult = {
+  id: string;
+  status: string;
+  error?: string;
+};
+
+export type WantedBulkOutcome = {
+  results: WantedBulkItemResult[];
 };
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -1447,13 +1488,20 @@ export async function recoverFailedDownloads(options: {
   return (await response.json()) as FailedDownloadRun;
 }
 
-export async function fetchWanted(): Promise<WantedItem[]> {
-  const response = await fetch(`${apiBase}/api/v1/wanted`);
+export async function fetchWanted(view?: "cutoff-unmet"): Promise<WantedItem[]> {
+  const params = new URLSearchParams();
+  if (view) params.set("view", view);
+  const query = params.toString();
+  const response = await fetch(`${apiBase}/api/v1/wanted${query ? `?${query}` : ""}`);
   if (!response.ok) {
     throw new Error(await apiError(response, "Wanted refresh failed"));
   }
   const payload = (await response.json()) as { wanted?: WantedItem[] | null };
-  return arrayPayload(payload.wanted).filter((item) => !["imported", "removed", "ignored"].includes((item.status || "").toLowerCase()));
+  const items = arrayPayload(payload.wanted);
+  // Server-defined views (cutoff-unmet) decide membership themselves; the
+  // default list hides terminal statuses client-side.
+  if (view) return items;
+  return items.filter((item) => !["imported", "removed", "ignored"].includes((item.status || "").toLowerCase()));
 }
 
 export async function fetchQualityProfiles(): Promise<QualityProfile[]> {
@@ -1927,4 +1975,75 @@ export async function resolveLibraryImportReviewsBulk(options: {
     throw new Error(await apiError(response, "Bulk import review update failed"));
   }
   return (await response.json()) as ReviewBulkDecisionOutcome;
+}
+
+export async function fetchBlocklist(limit = 100): Promise<BlocklistItem[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await fetch(`${apiBase}/api/v1/librarry/blocklist?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Blocklist refresh failed"));
+  }
+  const payload = (await response.json()) as { items?: BlocklistItem[] | null };
+  return arrayPayload(payload.items);
+}
+
+export async function removeBlocklistItem(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/librarry/blocklist/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Blocklist remove failed"));
+  }
+}
+
+export async function clearBlocklist(ids?: string[]): Promise<BlocklistClearOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/librarry/blocklist/clear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: ids ?? [] })
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Blocklist clear failed"));
+  }
+  return (await response.json()) as BlocklistClearOutcome;
+}
+
+export async function blocklistDownload(options: { downloadId: string; client?: string }): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/librarry/blocklist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ downloadId: options.downloadId, client: options.client })
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Blocklist release failed"));
+  }
+}
+
+export async function markDownloadFailed(options: {
+  id: string;
+  client?: string;
+  blocklist: boolean;
+  research: boolean;
+}): Promise<MarkDownloadFailedOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/downloads/mark-failed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Mark as failed request failed"));
+  }
+  return (await response.json()) as MarkDownloadFailedOutcome;
+}
+
+export async function bulkUpdateWanted(request: WantedBulkUpdateRequest): Promise<WantedBulkOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Wanted bulk update failed"));
+  }
+  return (await response.json()) as WantedBulkOutcome;
 }

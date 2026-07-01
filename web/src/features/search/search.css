@@ -321,3 +321,11 @@
 .search-release-title {
   overflow-wrap: anywhere;
 }
+
+/* Search-on-add toggle near the Add button and in the review modal. */
+.search-add-search-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
