@@ -152,6 +152,11 @@ func (s *Service) Grab(ctx context.Context, request DownloadRequest) (DownloadSt
 		request.Tags = []string{"librarry"}
 	}
 	client := s.downloadClientForRequest(request)
+	var err error
+	request, err = s.resolveProwlarrReleasePayload(ctx, request, client)
+	if err != nil {
+		return DownloadStatus{}, err
+	}
 	status, err := client.Add(ctx, request)
 	if err != nil {
 		return DownloadStatus{}, err
@@ -521,6 +526,95 @@ func (s *Service) downloadClientForRequest(request DownloadRequest) downloadClie
 		return s.trans
 	}
 	return s.qbit
+}
+
+func (s *Service) resolveProwlarrReleasePayload(ctx context.Context, request DownloadRequest, client downloadClient) (DownloadRequest, error) {
+	if len(request.UploadData) > 0 || strings.TrimSpace(request.ReleaseURL) == "" {
+		return request, nil
+	}
+	if !isTorrentClient(client, s.qbit.Name(), s.trans.Name()) || !s.prowlarr.CanFetchRelease(request.ReleaseURL) {
+		return request, nil
+	}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(request.ReleaseURL)), "magnet:") {
+		return request, nil
+	}
+	if !requestUsesTorrentPayload(request) {
+		return request, nil
+	}
+	payload, err := s.prowlarr.FetchRelease(ctx, request.ReleaseURL)
+	if err != nil {
+		return request, fmt.Errorf("fetch Prowlarr release payload: %w", err)
+	}
+	if strings.TrimSpace(payload.RedirectURL) != "" {
+		request.ReleaseURL = payload.RedirectURL
+		if strings.TrimSpace(request.Protocol) == "" {
+			request.Protocol = "torrent"
+		}
+		return request, nil
+	}
+	if len(payload.Data) == 0 {
+		return request, errors.New("fetch Prowlarr release payload: empty response")
+	}
+	if strings.TrimSpace(request.InfoHash) == "" {
+		infoHash, err := torrentInfoHashV1(payload.Data)
+		if err != nil {
+			return request, fmt.Errorf("fetch Prowlarr release payload: invalid torrent metadata: %w", err)
+		}
+		request.InfoHash = infoHash
+	}
+	request.UploadData = payload.Data
+	request.UploadName = firstNonEmpty(request.UploadName, payload.Name, safeUploadName(request.Title, "release.torrent"))
+	request.ReleaseURL = ""
+	if strings.TrimSpace(request.Protocol) == "" {
+		request.Protocol = "torrent"
+	}
+	return request, nil
+}
+
+func isTorrentClient(client downloadClient, qbitName string, transmissionName string) bool {
+	if client == nil {
+		return false
+	}
+	name := clientName(client)
+	return strings.EqualFold(name, qbitName) || strings.EqualFold(name, transmissionName)
+}
+
+func clientName(client downloadClient) string {
+	type namedClient interface {
+		Name() string
+	}
+	if named, ok := client.(namedClient); ok {
+		return named.Name()
+	}
+	return ""
+}
+
+func requestUsesTorrentPayload(request DownloadRequest) bool {
+	protocol := strings.ToLower(strings.TrimSpace(request.Protocol))
+	switch protocol {
+	case "", "torrent", "torznab":
+		return true
+	case "usenet", "nzb", "newznab":
+		return false
+	default:
+		return false
+	}
+}
+
+func safeUploadName(title string, fallback string) string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return fallback
+	}
+	replacer := strings.NewReplacer("/", "-", "\\", "-", ":", "-", "\x00", "")
+	name := strings.TrimSpace(replacer.Replace(title))
+	if name == "" {
+		return fallback
+	}
+	if !strings.HasSuffix(strings.ToLower(name), ".torrent") {
+		name += ".torrent"
+	}
+	return name
 }
 
 func (s *Service) shouldUseSAB(request DownloadRequest) bool {

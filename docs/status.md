@@ -30,6 +30,14 @@ yet ready to replace a production Readarr instance unattended.
 - Manual override persistence exists for wanted-item bibliographic corrections.
 - Prowlarr integration is configured in the live deployment and returned real
   ebook release results through Librarry.
+- Prowlarr release grabs now resolve the Prowlarr download URL inside Librarry
+  before handing off to qBittorrent or Transmission. Torrent files are uploaded
+  to the client, magnet redirects are handed off as magnets, and qBittorrent
+  infohash IDs are normalized to lowercase so live queue rows reconcile with
+  stored rows. This was verified against the live TrueNAS deployment on
+  2026-07-01 with a public-domain Moby Dick EPUB candidate:
+  `740b73b9bd31325f178b216cc43b4e735a6dca47` appeared in qBittorrent and was
+  then removed through Librarry cleanup.
 - A deployed browser E2E through `https://librarry.borchetta.xyz/` successfully
   searched ISBN `9781250313195`, created a temporary wanted item for Gideon the
   Ninth, searched Prowlarr releases, persisted four approved release decisions,

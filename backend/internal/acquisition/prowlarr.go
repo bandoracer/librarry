@@ -6,19 +6,31 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
 )
 
+const maxProwlarrReleasePayloadBytes = 64 << 20
+
 type ProwlarrClient struct {
 	baseURL string
 	apiKey  string
 	client  *http.Client
+}
+
+type ReleasePayload struct {
+	Name        string
+	ContentType string
+	Data        []byte
+	RedirectURL string
 }
 
 func NewProwlarrClient(baseURL string, apiKey string, client *http.Client) *ProwlarrClient {
@@ -231,6 +243,96 @@ func (c *ProwlarrClient) Feed(ctx context.Context, query ReleaseFeedQuery) ([]Re
 		releases = releases[:limit]
 	}
 	return releases, nil
+}
+
+func (c *ProwlarrClient) CanFetchRelease(rawURL string) bool {
+	if !c.Configured() {
+		return false
+	}
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" || strings.HasPrefix(strings.ToLower(rawURL), "magnet:") {
+		return false
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	if !parsed.IsAbs() {
+		return strings.HasPrefix(rawURL, "/")
+	}
+	base, err := url.Parse(c.baseURL)
+	if err != nil || !base.IsAbs() {
+		return false
+	}
+	return strings.EqualFold(parsed.Scheme, base.Scheme) && strings.EqualFold(parsed.Host, base.Host)
+}
+
+func (c *ProwlarrClient) FetchRelease(ctx context.Context, rawURL string) (ReleasePayload, error) {
+	if !c.Configured() {
+		return ReleasePayload{}, ErrIntegrationNotConfigured
+	}
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return ReleasePayload{}, errors.New("release download URL is required")
+	}
+	if !c.CanFetchRelease(rawURL) {
+		return ReleasePayload{}, errors.New("release URL is not from the configured Prowlarr instance")
+	}
+	endpoint := rawURL
+	if strings.HasPrefix(rawURL, "/") {
+		endpoint = c.baseURL + rawURL
+	}
+	client := *c.client
+	client.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	for redirects := 0; redirects < 5; redirects++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return ReleasePayload{}, err
+		}
+		req.Header.Set("X-Api-Key", c.apiKey)
+		req.Header.Set("Accept", "application/x-bittorrent, application/x-nzb, application/octet-stream, */*")
+		req.Header.Set("User-Agent", "librarry/0.1")
+		resp, err := client.Do(req)
+		if err != nil {
+			return ReleasePayload{}, err
+		}
+		if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+			location := strings.TrimSpace(resp.Header.Get("Location"))
+			_ = resp.Body.Close()
+			if location == "" {
+				return ReleasePayload{}, fmt.Errorf("prowlarr release download returned %s without Location", resp.Status)
+			}
+			next, err := resp.Request.URL.Parse(location)
+			if err != nil {
+				return ReleasePayload{}, err
+			}
+			if strings.EqualFold(next.Scheme, "magnet") {
+				return ReleasePayload{RedirectURL: next.String()}, nil
+			}
+			endpoint = next.String()
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 400 {
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			return ReleasePayload{}, fmt.Errorf("prowlarr release download returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+		}
+		data, err := io.ReadAll(io.LimitReader(resp.Body, maxProwlarrReleasePayloadBytes+1))
+		if err != nil {
+			return ReleasePayload{}, err
+		}
+		if len(data) > maxProwlarrReleasePayloadBytes {
+			return ReleasePayload{}, fmt.Errorf("prowlarr release payload exceeds %d bytes", maxProwlarrReleasePayloadBytes)
+		}
+		return ReleasePayload{
+			Name:        releasePayloadName(resp, endpoint),
+			ContentType: strings.TrimSpace(resp.Header.Get("Content-Type")),
+			Data:        data,
+		}, nil
+	}
+	return ReleasePayload{}, errors.New("prowlarr release download redirected too many times")
 }
 
 type rawProwlarrRelease struct {
@@ -460,6 +562,31 @@ func (c *ProwlarrClient) request(ctx context.Context, method string, endpoint st
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "librarry/0.1")
 	return req, nil
+}
+
+func releasePayloadName(resp *http.Response, endpoint string) string {
+	if disposition := strings.TrimSpace(resp.Header.Get("Content-Disposition")); disposition != "" {
+		_, params, err := mime.ParseMediaType(disposition)
+		if err == nil {
+			if name := strings.TrimSpace(params["filename"]); name != "" {
+				return name
+			}
+		}
+	}
+	parsed, err := url.Parse(endpoint)
+	if err == nil {
+		if fileName := strings.TrimSpace(parsed.Query().Get("file")); fileName != "" {
+			return fileName
+		}
+		if fileName := strings.TrimSpace(path.Base(parsed.Path)); fileName != "" && fileName != "." && fileName != "/" {
+			return fileName
+		}
+	}
+	contentType := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type")))
+	if strings.Contains(contentType, "nzb") {
+		return "release.nzb"
+	}
+	return "release.torrent"
 }
 
 func torznabAttrs(items []torznabAttr) map[string][]string {

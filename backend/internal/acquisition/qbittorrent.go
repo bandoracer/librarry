@@ -120,7 +120,7 @@ func (c *QBittorrentClient) Add(ctx context.Context, request DownloadRequest) (D
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	if strings.TrimSpace(request.ReleaseURL) != "" {
+	if strings.TrimSpace(request.ReleaseURL) != "" && len(request.UploadData) == 0 {
 		_ = writer.WriteField("urls", request.ReleaseURL)
 	}
 	if len(request.UploadData) > 0 {
@@ -171,7 +171,7 @@ func (c *QBittorrentClient) Add(ctx context.Context, request DownloadRequest) (D
 	now := time.Now().UTC()
 	return DownloadStatus{
 		Client:     c.Name(),
-		ID:         firstNonEmpty(id, request.UploadName),
+		ID:         normalizeTorrentHash(firstNonEmpty(id, request.UploadName)),
 		Name:       firstNonEmpty(request.Title, request.UploadName, request.ReleaseURL),
 		State:      state,
 		Progress:   0,

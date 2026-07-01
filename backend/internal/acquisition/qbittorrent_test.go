@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +64,204 @@ func TestQBittorrentAddUploadsTorrentFile(t *testing.T) {
 		t.Fatalf("unexpected form fields category=%q tags=%q paused=%q", category, tags, paused)
 	}
 	if status.ID != "abc123" || status.Name != "Book upload" || status.Client != "qBittorrent" {
+		t.Fatalf("unexpected status: %+v", status)
+	}
+}
+
+func TestQBittorrentAddNormalizesInfoHashFallback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/torrents/add" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte("Ok."))
+	}))
+	defer server.Close()
+
+	client := NewQBittorrentClient(server.URL, "", "", server.Client())
+	status, err := client.Add(context.Background(), DownloadRequest{
+		ReleaseURL: "magnet:?xt=urn:btih:740B73B9BD31325F178B216CC43B4E735A6DCA47",
+		InfoHash:   "740B73B9BD31325F178B216CC43B4E735A6DCA47",
+		Title:      "Moby Dick by Herman Melville EPUB",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.ID != "740b73b9bd31325f178b216cc43b4e735a6dca47" {
+		t.Fatalf("expected lowercase infohash fallback, got %+v", status)
+	}
+}
+
+func TestServiceFetchesProwlarrTorrentBeforeQBittorrentGrab(t *testing.T) {
+	torrentData := testTorrentPayload("Project Hail Mary.epub")
+	wantHash, err := torrentInfoHashV1(torrentData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prowlarrFetches int
+	prowlarr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		prowlarrFetches++
+		if r.URL.Path != "/2/download" {
+			t.Fatalf("unexpected Prowlarr path %s", r.URL.Path)
+		}
+		if r.Header.Get("X-Api-Key") != "prowlarr-key" {
+			t.Fatalf("expected Prowlarr API key header, got %q", r.Header.Get("X-Api-Key"))
+		}
+		w.Header().Set("Content-Type", "application/x-bittorrent")
+		w.Header().Set("Content-Disposition", `attachment; filename="Project Hail Mary.torrent"`)
+		_, _ = w.Write(torrentData)
+	}))
+	defer prowlarr.Close()
+
+	var qbitURLs string
+	var qbitUploadName string
+	var qbitUploadData []byte
+	qbit := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/torrents/add" {
+			t.Fatalf("unexpected qBittorrent path %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		qbitURLs = r.FormValue("urls")
+		file, header, err := r.FormFile("torrents")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer file.Close()
+		qbitUploadName = header.Filename
+		qbitUploadData, err = io.ReadAll(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = w.Write([]byte("Ok."))
+	}))
+	defer qbit.Close()
+
+	service := NewService(IntegrationConfig{
+		ProwlarrURL:     prowlarr.URL,
+		ProwlarrAPIKey:  "prowlarr-key",
+		QBittorrentURL:  qbit.URL,
+		BookTorrentRoot: "/data/torrents/books",
+	})
+	status, err := service.Grab(context.Background(), DownloadRequest{
+		ReleaseURL: prowlarr.URL + "/2/download?apikey=query-key&file=Project+Hail+Mary.torrent",
+		Title:      "Project Hail Mary by Andy Weir EPUB",
+		Protocol:   "torrent",
+		Paused:     true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prowlarrFetches != 1 {
+		t.Fatalf("expected one Prowlarr fetch, got %d", prowlarrFetches)
+	}
+	if qbitURLs != "" {
+		t.Fatalf("expected qBittorrent upload without URL handoff, got urls=%q", qbitURLs)
+	}
+	if qbitUploadName != "Project Hail Mary.torrent" || string(qbitUploadData) != string(torrentData) {
+		t.Fatalf("unexpected qBittorrent upload name=%q data=%q", qbitUploadName, string(qbitUploadData))
+	}
+	if status.ID != wantHash {
+		t.Fatalf("expected computed infohash %s, got %+v", wantHash, status)
+	}
+}
+
+func TestServiceLeavesMagnetURLHandoffUntouched(t *testing.T) {
+	var prowlarrFetches int
+	prowlarr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		prowlarrFetches++
+		t.Fatalf("did not expect Prowlarr fetch for magnet URL")
+	}))
+	defer prowlarr.Close()
+
+	var qbitURLs string
+	qbit := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/torrents/add" {
+			t.Fatalf("unexpected qBittorrent path %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		qbitURLs = r.FormValue("urls")
+		if _, _, err := r.FormFile("torrents"); err == nil {
+			t.Fatal("did not expect torrent upload for magnet URL")
+		}
+		_, _ = w.Write([]byte(`{"success_count":1,"added_torrent_ids":["abc123"]}`))
+	}))
+	defer qbit.Close()
+
+	service := NewService(IntegrationConfig{
+		ProwlarrURL:    prowlarr.URL,
+		ProwlarrAPIKey: "prowlarr-key",
+		QBittorrentURL: qbit.URL,
+	})
+	status, err := service.Grab(context.Background(), DownloadRequest{
+		ReleaseURL: "magnet:?xt=urn:btih:abc123",
+		Title:      "Book",
+		Protocol:   "torrent",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prowlarrFetches != 0 {
+		t.Fatalf("expected no Prowlarr fetch, got %d", prowlarrFetches)
+	}
+	if qbitURLs != "magnet:?xt=urn:btih:abc123" {
+		t.Fatalf("expected magnet URL handoff, got %q", qbitURLs)
+	}
+	if status.ID != "abc123" {
+		t.Fatalf("unexpected status: %+v", status)
+	}
+}
+
+func TestServiceUsesProwlarrMagnetRedirectForQBittorrentGrab(t *testing.T) {
+	const magnet = "magnet:?xt=urn:btih:740B73B9BD31325F178B216CC43B4E735A6DCA47&dn=Moby+Dick"
+	var prowlarrFetches int
+	prowlarr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		prowlarrFetches++
+		if r.URL.Path != "/1/download" {
+			t.Fatalf("unexpected Prowlarr path %s", r.URL.Path)
+		}
+		http.Redirect(w, r, magnet, http.StatusFound)
+	}))
+	defer prowlarr.Close()
+
+	var qbitURLs string
+	qbit := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/torrents/add" {
+			t.Fatalf("unexpected qBittorrent path %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		qbitURLs = r.FormValue("urls")
+		if _, _, err := r.FormFile("torrents"); err == nil {
+			t.Fatal("did not expect torrent upload for magnet redirect")
+		}
+		_, _ = w.Write([]byte(`{"success_count":1,"added_torrent_ids":["740b73b9bd31325f178b216cc43b4e735a6dca47"]}`))
+	}))
+	defer qbit.Close()
+
+	service := NewService(IntegrationConfig{
+		ProwlarrURL:    prowlarr.URL,
+		ProwlarrAPIKey: "prowlarr-key",
+		QBittorrentURL: qbit.URL,
+	})
+	status, err := service.Grab(context.Background(), DownloadRequest{
+		ReleaseURL: prowlarr.URL + "/1/download?apikey=query-key",
+		Title:      "Moby Dick by Herman Melville EPUB",
+		Protocol:   "torrent",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prowlarrFetches != 1 {
+		t.Fatalf("expected one Prowlarr fetch, got %d", prowlarrFetches)
+	}
+	if qbitURLs != magnet {
+		t.Fatalf("expected magnet redirect handoff, got %q", qbitURLs)
+	}
+	if status.ID != "740b73b9bd31325f178b216cc43b4e735a6dca47" {
 		t.Fatalf("unexpected status: %+v", status)
 	}
 }
@@ -896,4 +1095,9 @@ func (s fakeDownloadStore) MarkDownloadImported(context.Context, string, string)
 
 func (s fakeDownloadStore) MarkDownloadImportError(context.Context, string, string) error {
 	return nil
+}
+
+func testTorrentPayload(name string) []byte {
+	info := "d4:name" + strconv.Itoa(len(name)) + ":" + name + "12:piece lengthi16384e6:pieces20:abcdefghijklmnopqrste"
+	return []byte("d8:announce13:http://t.test4:info" + info + "e")
 }
