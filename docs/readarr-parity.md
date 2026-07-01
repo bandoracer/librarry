@@ -74,11 +74,6 @@ auto-import with hardlink-or-copy (parity as of 2026-07-01).
 
 ## Suggested phase-2 ordering (parity-driven)
 
-1. Blocklist (correctness for automation) and remove-after-seeding.
-2. Cutoff Unmet view + search-on-add toggle + monitor modes (cheap familiarity).
-3. Library poster/overview views, author/book detail pages, mass editor.
-4. Multiple root folders with per-root defaults; remote path mappings.
-5. Rename UI over the existing backend endpoints; recycle bin.
-6. Tasks/System visibility for workers; notifications UI + worker dispatch.
-7. Calendar + iCal.
-8. Import lists (Hardcover-native), metadata-profile-style author filters.
+Superseded by the full execution plan in [parity-plan.md](parity-plan.md)
+(six milestones: automation correctness → familiarity wins → library
+experience → roots & files → operability → long tail).
