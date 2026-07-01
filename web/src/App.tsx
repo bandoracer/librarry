@@ -1324,6 +1324,8 @@ function AppShell() {
   const selectedDownloads = useMemo(() => filteredDownloads.filter((download) => selectedDownloadKeySet.has(downloadKey(download))), [filteredDownloads, selectedDownloadKeySet]);
   const selectedActionDownloadIDs = selectedDownloads.map((download) => download.id);
   const allDownloadsSelected = selectableDownloadKeys.length > 0 && selectableDownloadKeys.every((key) => selectedDownloadKeySet.has(key));
+  const selectedDownloadsSupportStart = selectedDownloads.every((download) => supportsDownloadAction(download, "start"));
+  const selectedDownloadsSupportStop = selectedDownloads.every((download) => supportsDownloadAction(download, "stop"));
   const selectedDownloadsSupportRecheck = selectedDownloads.every((download) => supportsDownloadAction(download, "recheck"));
   const selectedDownloadsSupportPriority = selectedDownloads.every((download) => supportsDownloadAction(download, "topPriority"));
   const selectedDownloadsSupportForceStart = selectedDownloads.length > 0 && selectedDownloads.every((download) => supportsDownloadAction(download, "forceStart"));
@@ -5379,11 +5381,11 @@ function AppShell() {
               {allDownloadsSelected ? <CheckSquare size={16} /> : <Square size={16} />}
               {allDownloadsSelected ? "Clear all" : "Select all"}
             </button>
-            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("start", selectedActionDownloadIDs)} type="button">
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || !selectedDownloadsSupportStart || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("start", selectedActionDownloadIDs)} type="button">
               <Play size={16} />
               Start
             </button>
-            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("stop", selectedActionDownloadIDs)} type="button">
+            <button className="secondary-action compact" disabled={selectedDownloads.length === 0 || !selectedDownloadsSupportStop || Boolean(downloadActionID)} onClick={() => applyDownloadActionToIDs("stop", selectedActionDownloadIDs)} type="button">
               <Pause size={16} />
               Stop
             </button>
@@ -5750,10 +5752,10 @@ function AppShell() {
                     <div className="download-path">{download.savePath}</div>
                   </div>
                   <div className="download-actions">
-                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("start", download)} type="button" aria-label="Start download" title="Start">
+                    <button className="icon-button" disabled={busy || !supportsDownloadAction(download, "start")} onClick={() => applyDownloadAction("start", download)} type="button" aria-label="Start download" title="Start">
                       <Play size={16} />
                     </button>
-                    <button className="icon-button" disabled={busy} onClick={() => applyDownloadAction("stop", download)} type="button" aria-label="Stop download" title="Stop">
+                    <button className="icon-button" disabled={busy || !supportsDownloadAction(download, "stop")} onClick={() => applyDownloadAction("stop", download)} type="button" aria-label="Stop download" title="Stop">
                       <Pause size={16} />
                     </button>
                     <button className="icon-button" disabled={busy || !supportsDownloadAction(download, "recheck")} onClick={() => applyDownloadAction("recheck", download)} type="button" aria-label="Recheck download" title="Recheck">
@@ -6529,6 +6531,9 @@ function boundedPositiveInt(value: string, fallback: number, max: number) {
 }
 
 function supportsDownloadAction(download: DownloadStatus, action: DownloadAction) {
+  if (downloadIsPendingPlaceholder(download)) {
+    return false;
+  }
   const client = (download.client || "qBittorrent").toLowerCase();
   if (client === "sabnzbd") {
     return [
@@ -6558,12 +6563,22 @@ function qbitOnlyDownloadAction(action: DownloadAction) {
 }
 
 function downloadSupportsQbitManagerActions(download: DownloadStatus) {
+  if (downloadIsPendingPlaceholder(download)) {
+    return false;
+  }
   return (download.client || "qBittorrent").toLowerCase() === "qbittorrent";
 }
 
 function downloadSupportsDetails(download: DownloadStatus) {
+  if (downloadIsPendingPlaceholder(download)) {
+    return false;
+  }
   const client = (download.client || "qBittorrent").toLowerCase();
   return client === "qbittorrent" || client === "transmission" || client === "sabnzbd";
+}
+
+function downloadIsPendingPlaceholder(download: DownloadStatus) {
+  return download.state.trim().toLowerCase() === "pending";
 }
 
 function downloadSupportsTrackerActions(download: DownloadStatus) {

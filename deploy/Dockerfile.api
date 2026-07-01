@@ -11,7 +11,8 @@ LABEL org.opencontainers.image.title="Librarry API" \
   org.opencontainers.image.description="Go API and worker for Librarry, a self-hosted ebook and audiobook manager." \
   org.opencontainers.image.source="https://github.com/bandoracer/librarry" \
   org.opencontainers.image.licenses="AGPL-3.0"
-RUN adduser -D -H librarry
+RUN apk add --no-cache ca-certificates tzdata \
+  && adduser -D -H -u 1000 librarry
 WORKDIR /app
 COPY --from=build /out/librarry /usr/local/bin/librarry
 COPY backend/migrations ./backend/migrations

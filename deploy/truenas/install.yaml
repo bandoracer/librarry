@@ -24,6 +24,9 @@ services:
   api:
     image: ghcr.io/bandoracer/librarry-api:latest
     pull_policy: always
+    # TrueNAS SCALE commonly grants app datasets to the apps user/group
+    # 568:568. Replace this if your media dataset uses a different ACL owner.
+    user: "568:568"
     restart: unless-stopped
     environment:
       LIBRARRY_LISTEN_ADDR: :8080

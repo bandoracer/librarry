@@ -57,7 +57,8 @@ download-client credentials.
   restrictions.
 - `backend/migrations`: append-only Postgres migrations.
 - `web/src`: Vite React UI.
-- `deploy`: Docker Compose, Dockerfiles, nginx config, and TrueNAS template.
+- `deploy`: Docker Compose, Dockerfiles, nginx config, TrueNAS template, and
+  Unraid stack files.
 - `docs`: human-facing architecture, setup, metadata, provider, and status docs.
 
 ## Development Commands
@@ -126,6 +127,8 @@ When adding or changing product behavior, update the relevant docs:
 
 - README for public-facing feature and positioning changes.
 - `docs/status.md` for verified status, known gaps, and deployment reality.
+- `docs/deployment.md` plus the relevant `deploy/*/README.md` when changing
+  Docker, TrueNAS, Unraid, image, port, path, permission, or backup behavior.
 - `docs/local-dev.md` for configuration, environment, and operator flows.
 - `docs/architecture.md` for API surfaces or system design changes.
 - `docs/metadata-strategy.md` for metadata policy changes.

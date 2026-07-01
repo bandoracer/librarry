@@ -830,6 +830,38 @@ func TestDownloadsHideRemovedStoredItems(t *testing.T) {
 	}
 }
 
+func TestDownloadsDoNotFallbackToStoredPlaceholderForLiveIDLookup(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/torrents/info" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("hashes"); got != "placeholder" {
+			t.Fatalf("expected hashes=placeholder, got %q", got)
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{})
+	}))
+	defer server.Close()
+
+	service := NewService(IntegrationConfig{
+		QBittorrentURL: server.URL,
+		DownloadStore: fakeDownloadStore{downloads: []DownloadStatus{{
+			Client: "qBittorrent",
+			ID:     "placeholder",
+			Name:   "Placeholder",
+			State:  "pending",
+			Tags:   []string{"librarry"},
+		}}},
+	})
+
+	downloads, err := service.Downloads(context.Background(), DownloadListQuery{IDs: []string{"placeholder"}, Client: "qBittorrent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(downloads) != 0 {
+		t.Fatalf("expected no placeholder fallback for live id lookup, got %+v", downloads)
+	}
+}
+
 type fakeDownloadStore struct {
 	downloads []DownloadStatus
 }

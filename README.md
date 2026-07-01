@@ -66,6 +66,8 @@ deployment notes, and known gaps.
   validation next.
 - [Deployment](docs/deployment.md): generic Docker Compose, TrueNAS, Unraid,
   image publishing, reverse proxying, upgrades, and backups.
+- [Deployment file index](deploy/README.md): which Compose/template file to use
+  for each supported install target.
 - [Local development](docs/local-dev.md): run commands, source-build Compose,
   integrations, and worker settings.
 - [Architecture](docs/architecture.md): backend/frontend/Postgres structure and
@@ -361,7 +363,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   the UI, separating ready, partial, and delegated areas so operators can see
   what behaves like Readarr and what remains owned by external download clients.
 - Generic Docker Compose, source-build Compose, TrueNAS Custom App, and Unraid
-  Docker Compose Manager deployment templates.
+  Docker Compose Manager deployment templates, with public `.env` examples,
+  path/permission guidance, upgrade commands, and backup notes.
 
 ## Metadata Strategy
 
@@ -699,6 +702,13 @@ password, update `LIBRARRY_DATABASE_URL` to match it, choose persistent host
 paths, and set `LIBRARRY_API_KEY` before exposing the app outside trusted local
 access.
 
+NAS installers:
+
+- TrueNAS SCALE Custom App: [deploy/truenas/install.yaml](deploy/truenas/install.yaml)
+- Unraid Docker Compose Manager: [deploy/unraid/docker-compose.yml](deploy/unraid/docker-compose.yml)
+
+Both NAS paths are documented in [docs/deployment.md](docs/deployment.md).
+
 Development requirements:
 
 - Go 1.23+
@@ -738,7 +748,7 @@ Start from [deploy/.env.example](deploy/.env.example).
 Common settings:
 
 ```dotenv
-LIBRARRY_DATABASE_URL=postgres://librarry:librarry@postgres:5432/librarry?sslmode=disable
+LIBRARRY_DATABASE_URL=postgres://librarry:change-me@postgres:5432/librarry?sslmode=disable
 LIBRARRY_API_KEY=
 LIBRARRY_HARDCOVER_TOKEN=
 LIBRARRY_GOOGLE_BOOKS_API_KEY=
@@ -856,6 +866,11 @@ The supported public install targets are documented in
 The app listens on web port `30200` by default. Reverse proxies should target
 the web container, which serves the React app and proxies `/api/` plus
 `/healthz` to the API service.
+
+The API container must see the same completed-download and book-library files as
+your download client. The public examples mount a shared host media root as
+`/data` and default to `/data/torrents/books`,
+`/data/media/books/ebooks`, and `/data/media/books/audiobooks`.
 
 ## Development
 

@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-librarry}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-librarry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
       POSTGRES_DB: ${POSTGRES_DB:-librarry}
     volumes:
       - ${LIBRARRY_POSTGRES_DATA:-postgres-data}:/var/lib/postgresql/data
@@ -18,11 +18,13 @@ services:
 
   api:
     image: ${LIBRARRY_API_IMAGE:-ghcr.io/bandoracer/librarry-api:latest}
+    pull_policy: always
+    user: "${LIBRARRY_RUN_USER:-1000:1000}"
     restart: unless-stopped
     environment:
       LIBRARRY_LISTEN_ADDR: :8080
       LIBRARRY_API_KEY: ${LIBRARRY_API_KEY:-}
-      LIBRARRY_DATABASE_URL: ${LIBRARRY_DATABASE_URL:-postgres://librarry:librarry@postgres:5432/librarry?sslmode=disable}
+      LIBRARRY_DATABASE_URL: ${LIBRARRY_DATABASE_URL:-postgres://librarry:change-me@postgres:5432/librarry?sslmode=disable}
       LIBRARRY_MIGRATIONS_DIR: /app/backend/migrations
       LIBRARRY_WEB_ORIGIN: ${LIBRARRY_WEB_ORIGIN:-http://127.0.0.1:30200}
       LIBRARRY_HARDCOVER_TOKEN: ${LIBRARRY_HARDCOVER_TOKEN:-}
@@ -92,6 +94,7 @@ services:
 
   web:
     image: ${LIBRARRY_WEB_IMAGE:-ghcr.io/bandoracer/librarry-web:latest}
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       api:

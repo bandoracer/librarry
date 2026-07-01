@@ -1,6 +1,6 @@
 # Current Status
 
-Last updated: 2026-06-30.
+Last updated: 2026-07-01.
 
 Librarry is an early alpha Readarr replacement. It is useful for validating the
 metadata-first workflow and exercising acquisition integrations, but it is not
@@ -11,7 +11,8 @@ yet ready to replace a production Readarr instance unattended.
 - The Go API, React web UI, Postgres migrations, and Docker/TrueNAS custom-app
   shape build and run together.
 - Public distribution files are present for generic Docker Compose, TrueNAS
-  Custom Apps, and Unraid Docker Compose Manager.
+  Custom Apps, and Unraid Docker Compose Manager, including example env files,
+  path/permission guidance, backup notes, and upgrade instructions.
 - The live TrueNAS deployment was verified at `http://192.168.1.221:30200/`.
 - The Cosmos route `https://librarry.borchetta.xyz/` was verified after the
   route was added, and the app rendered through the proxy.
@@ -37,6 +38,21 @@ yet ready to replace a production Readarr instance unattended.
 - qBittorrent integration is configured in the live deployment. A paused legal
   Ubuntu torrent smoke test was added, listed through Librarry with
   `librarry-smoke`, deleted with files, and verified absent afterward.
+- A deployed browser E2E on 2026-07-01 searched for Moby-Dick, selected a
+  normalized Open Library result, searched Prowlarr releases, and successfully
+  queued a qBittorrent torrent through the Librarry UI. A public-domain
+  Internet Archive Pride and Prejudice torrent was then added through the
+  deployed manual-add UI, refreshed to the real qBittorrent hash, started from
+  the Librarry queue, and observed through the API as `downloading` at roughly
+  98% before qBittorrent reported `stalledDL` from peer availability.
+- Queue actions no longer merge stored placeholder download rows back into the
+  UI after an ID-specific live client lookup returns no matching hash. The UI
+  also disables Start/Stop/details and qBittorrent manager actions for
+  persisted `pending` placeholder rows until the external client exposes a real
+  download ID.
+- The public Cosmos hostname was re-tested from Chromium after the deployment:
+  `/api/v1/downloads?tag=librarry` returned the live qBittorrent row, and a
+  valid browser POST to `/api/v1/grabs` reached the API and returned 200.
 - Removed qBittorrent downloads are hidden from active download listings.
 - The UI tolerates nullable list payloads from the API, including empty
   `files`, `authors`, `downloads`, `releases`, `profiles`, `reviews`, and
@@ -48,9 +64,10 @@ yet ready to replace a production Readarr instance unattended.
   full dry run against a real Readarr instance and a row-by-row comparison.
 - Library scanning and import can process ebook/audiobook roots, but the real
   `media-stack` book roots still need a controlled full scan and import review.
-- The end-to-end book loop needs more proof on real data:
-  wanted item -> Prowlarr decision -> download client grab -> completed
-  download -> import -> tracked file -> missing state clears.
+- The end-to-end book loop has proof through metadata search, release search,
+  qBittorrent grab, and active download initiation. It still needs more proof on
+  real data for completed download -> import -> tracked file -> missing state
+  clears.
 - Author monitoring exists, including all/future/none policies, but needs longer
   observation with real monitored authors before it should auto-grab.
 - Calibre Content Server handoff exists for add-book, basic metadata fields,
@@ -73,6 +90,9 @@ yet ready to replace a production Readarr instance unattended.
 - The default local, TrueNAS, and Unraid examples are operator-facing and should
   be put behind `LIBRARRY_API_KEY`, Cosmos auth, Cloudflare Access, or another
   trusted boundary before WAN exposure.
+- Public Docker/NAS packaging is ready for trial installs, but the first
+  versioned GHCR release still needs to be cut and smoke tested after the image
+  workflow publishes from `main`.
 - Librarry intentionally does not replace qBittorrent, Transmission, or SABnzbd
   as full download-client administration UIs.
 

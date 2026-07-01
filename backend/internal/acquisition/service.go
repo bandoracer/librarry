@@ -163,12 +163,14 @@ func (s *Service) Grab(ctx context.Context, request DownloadRequest) (DownloadSt
 func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]DownloadStatus, error) {
 	var statuses []DownloadStatus
 	var firstErr error
+	var liveListSucceeded bool
 
 	if s.includeClient(query, s.qbit.Name()) && s.qbit.Configured() {
 		qbitStatuses, err := s.qbit.List(ctx, query)
 		if err != nil {
 			firstErr = err
 		} else {
+			liveListSucceeded = true
 			statuses = append(statuses, qbitStatuses...)
 		}
 	}
@@ -177,6 +179,7 @@ func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]Dow
 		if err != nil && firstErr == nil {
 			firstErr = err
 		} else if err == nil {
+			liveListSucceeded = true
 			statuses = append(statuses, transStatuses...)
 		}
 	}
@@ -185,6 +188,7 @@ func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]Dow
 		if err != nil && firstErr == nil {
 			firstErr = err
 		} else if err == nil {
+			liveListSucceeded = true
 			statuses = append(statuses, sabStatuses...)
 		}
 	}
@@ -192,6 +196,10 @@ func (s *Service) Downloads(ctx context.Context, query DownloadListQuery) ([]Dow
 	if len(statuses) > 0 {
 		_ = s.storeDownloads(ctx, statuses)
 		return s.mergeStoredDownloadState(ctx, statuses, query), nil
+	}
+
+	if len(query.IDs) > 0 && liveListSucceeded {
+		return []DownloadStatus{}, nil
 	}
 
 	if s.store != nil {
