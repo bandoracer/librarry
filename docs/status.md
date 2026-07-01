@@ -102,6 +102,19 @@ yet ready to replace a production Readarr instance unattended.
   (`8e7ca39b82c6`) and verified through both
   `http://192.168.1.221:30200/library` and
   `https://librarry.borchetta.xyz/library`.
+- A real-user E2E was run through the deployed redesigned UI on 2026-07-01
+  (bundle `index-Cuji0PMa.js`, API build 2026-07-01T22:30:20Z): searched
+  "Moby Dick" on Add New (9 normalized Open Library results), added it through
+  the review-confirmation modal (medium-confidence gate fired with reasons),
+  deep-linked to the wanted item via `/wanted?item=<id>`, ran a Prowlarr
+  release search (18 found · 6 approved · 12 rejected, rejection reasons
+  rendered), grabbed the top approved public-domain EPUB (score 88.5) paused,
+  started it from the Activity queue, and watched it complete: progress 1,
+  `stalledUP`, `importStatus: ready` at `/data/torrents/books`. The wanted
+  item flipped to `grabbed` with release score 88.5, and the queue row showed
+  the new "Moby Dick · Herman Melville" wanted-item link from the downloads
+  annotation. Zero browser console errors. The test book and its wanted item
+  were intentionally left in place as proof.
 
 ## Available But Still Needs Real-World Proving
 
