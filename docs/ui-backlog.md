@@ -11,6 +11,12 @@ Status legend: **real** = full backend behavior · **partial** = works with
 caveats · **demo-only** = renders seeded data, no persistence · **stub** =
 endpoint exists but returns placeholders.
 
+Feature-level gaps against Readarr (calendar, blocklist, mass editor, root
+folders, etc.) are tracked separately in [readarr-parity.md](readarr-parity.md).
+One phantom surface found during that audit: the backend exposes library file
+rename endpoints (`POST /api/v1/library/files/rename[/preview]`) that no UI
+calls.
+
 ## 1. API alignment summary (audited 2026-07-01)
 
 All 60 exported functions in `web/src/lib/api.ts` map to registered backend
