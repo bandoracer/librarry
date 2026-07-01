@@ -38,11 +38,15 @@ import type {
  */
 
 export type WantedPresence = "missing" | "grabbed" | "present";
-export type WantedViewFilter = "missing" | "review" | "wanted" | "grabbed" | "all";
+export type WantedViewFilter = "missing" | "review" | "wanted" | "grabbed" | "cutoff-unmet" | "all";
 export type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 
-export const wantedViewFilters: WantedViewFilter[] = ["missing", "review", "wanted", "grabbed", "all"];
+export const wantedViewFilters: WantedViewFilter[] = ["missing", "review", "wanted", "grabbed", "cutoff-unmet", "all"];
 export const releaseDecisionFilters: ReleaseDecisionFilter[] = ["all", "approved", "rejected"];
+
+export function wantedViewFilterLabel(filter: WantedViewFilter) {
+  return filter === "cutoff-unmet" ? "Cutoff Unmet" : filter;
+}
 
 /* ------------------------------ Form helpers ------------------------------ */
 
@@ -187,6 +191,8 @@ export function wantedItemVisibleForFilter(
       return status === "wanted";
     case "grabbed":
       return status === "grabbed";
+    // "cutoff-unmet" membership is server-defined (fetchWanted view); the
+    // Books tab swaps the list wholesale instead of filtering client-side.
     default:
       return true;
   }
@@ -573,21 +579,46 @@ export function authorSubscriptionMonitorOptions(subscription: AuthorSubscriptio
   };
 }
 
-export const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = ["all", "future", "none"];
+export const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = [
+  "all",
+  "future",
+  "missing",
+  "existing",
+  "first",
+  "latest",
+  "none"
+];
 
 export function normalizedAuthorMissingPolicy(policy?: string): AuthorMissingBookPolicy {
-  if (policy === "future" || policy === "none") return policy;
+  if (
+    policy === "future" ||
+    policy === "missing" ||
+    policy === "existing" ||
+    policy === "first" ||
+    policy === "latest" ||
+    policy === "none"
+  ) {
+    return policy;
+  }
   return "all";
 }
 
 export function authorMissingPolicyLabel(policy: AuthorMissingBookPolicy) {
   switch (policy) {
     case "future":
-      return "Future";
+      return "Future Books";
+    case "missing":
+      return "Missing Books";
+    case "existing":
+      return "Existing Books";
+    case "first":
+      return "First Book";
+    case "latest":
+      return "Latest Book";
     case "none":
       return "None";
     default:
-      return "All";
+      return "All Books";
   }
 }
 

@@ -1,4 +1,5 @@
 import type { AuthorSubscription, LibraryFile, WantedItem } from "../../lib/api";
+import { formatDate } from "../../lib/format";
 
 /*
  * Library feature helpers, ported from the legacy single-file App.tsx
@@ -236,6 +237,107 @@ export function authorMonitorBadge(row: LibraryAuthorRow): { label: string; tone
   if (row.subscriptionCount === 0) return { label: "manual", tone: "neutral" };
   if (row.status && row.status !== "active" && row.status !== "manual") return { label: row.status, tone: "warn" };
   return row.monitorNewItems ? { label: "monitor new", tone: "accent" } : { label: "existing only", tone: "neutral" };
+}
+
+/* ------------------------------ View modes -------------------------------- */
+
+export type LibraryViewMode = "table" | "posters" | "overview";
+
+export const libraryViewModes: LibraryViewMode[] = ["table", "posters", "overview"];
+
+const libraryViewStorageKey = "librarry.libraryView";
+
+export function loadLibraryViewMode(): LibraryViewMode {
+  if (typeof window === "undefined") return "table";
+  const stored = window.localStorage.getItem(libraryViewStorageKey);
+  return libraryViewModes.includes(stored as LibraryViewMode) ? (stored as LibraryViewMode) : "table";
+}
+
+export function storeLibraryViewMode(view: LibraryViewMode) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(libraryViewStorageKey, view);
+}
+
+/* ---------------------------- Sort & filters ------------------------------- */
+
+export type LibrarySortMode = "status" | "title" | "author" | "added";
+
+export const librarySortLabels: Record<LibrarySortMode, string> = {
+  status: "Status",
+  title: "Title",
+  author: "Author",
+  added: "Recently Added"
+};
+
+export type LibraryMonitorFilter = "all" | "monitored" | "unmonitored";
+
+export function libraryBookMatchesMonitorFilter(item: WantedItem, filter: LibraryMonitorFilter): boolean {
+  if (filter === "monitored") return item.monitored;
+  if (filter === "unmonitored") return !item.monitored;
+  return true;
+}
+
+function safeTimestamp(iso?: string): number {
+  const value = Date.parse(iso ?? "");
+  return Number.isNaN(value) ? 0 : value;
+}
+
+function authorTitleCompare(a: WantedItem, b: WantedItem): number {
+  return `${a.authorName ?? ""} ${a.title}`.localeCompare(`${b.authorName ?? ""} ${b.title}`);
+}
+
+/** Comparator for the Library books list. "status" preserves the legacy
+ *  ordering: missing first, then grabbed, then present, author+title inside. */
+export function compareLibraryBooks(
+  a: WantedItem,
+  b: WantedItem,
+  presence: Map<string, WantedPresence>,
+  sort: LibrarySortMode
+): number {
+  switch (sort) {
+    case "title": {
+      const delta = a.title.localeCompare(b.title);
+      return delta !== 0 ? delta : (a.authorName ?? "").localeCompare(b.authorName ?? "");
+    }
+    case "author":
+      return authorTitleCompare(a, b);
+    case "added": {
+      const delta = safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt);
+      return delta !== 0 ? delta : authorTitleCompare(a, b);
+    }
+    default: {
+      const stateDelta = libraryPresenceRank(presence.get(a.id)) - libraryPresenceRank(presence.get(b.id));
+      if (stateDelta !== 0) return stateDelta;
+      return authorTitleCompare(a, b);
+    }
+  }
+}
+
+/* -------------------------------- Routes ----------------------------------- */
+
+/** Route to the author detail page for an author name (wanted-only or subscribed). */
+export function libraryAuthorPath(authorName?: string): string {
+  return `/library/author/${encodeURIComponent(libraryAuthorKey(authorName))}`;
+}
+
+/** Route to the book detail page for a wanted item. */
+export function libraryBookPath(wantedID: string): string {
+  return `/library/book/${encodeURIComponent(wantedID)}`;
+}
+
+/** Muted descriptor line for Overview rows and the book page header. */
+export function libraryBookOverviewLine(item: WantedItem): string {
+  const overrideCount = item.manualOverrides?.length ?? 0;
+  return [
+    item.sourceProvider || "manual",
+    item.format,
+    item.qualityProfile,
+    item.monitored ? "monitored" : "unmonitored",
+    item.createdAt ? `added ${formatDate(item.createdAt)}` : "",
+    overrideCount ? `${overrideCount} override${overrideCount === 1 ? "" : "s"}` : ""
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function isPersistenceRequiredError(message: string): boolean {

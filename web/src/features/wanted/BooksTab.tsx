@@ -5,61 +5,32 @@ import {
   BookOpen,
   CheckCircle2,
   CheckSquare,
-  ExternalLink,
   FileSearch,
   RefreshCw,
   Square,
-  Trash2
+  TrendingUp
 } from "lucide-react";
 import {
-  applyWantedMetadataCorrection,
-  applyWantedMetadataCorrections,
-  clearWantedOverride,
   confirmWantedMetadataReviewCanonical,
-  deleteWanted,
-  fetchWantedMetadata,
-  fetchWantedReleases,
   grabWanted,
   importCompletedDownloads,
   recoverFailedDownloads,
-  searchWantedReleases,
-  updateWanted
+  runUpgradeSearch
 } from "../../lib/api";
-import type {
-  AcquisitionQueueItem,
-  MetadataFieldCandidate,
-  MetadataFieldEvidence,
-  MetadataProvenance,
-  MetadataReviewConfirmOutcome,
-  ProviderMetadataRecord,
-  ReleaseDecision,
-  WantedItem
-} from "../../lib/api";
+import type { AcquisitionQueueItem, MetadataReviewConfirmOutcome, WantedItem } from "../../lib/api";
 import {
   keys,
   useAcquisitionQueue,
+  useCutoffUnmet,
   useLibraryFiles,
-  useLibrarySettings,
-  useQualityProfiles,
   useWanted,
   useWantedMetadataReview
 } from "../../lib/queries";
-import { demoModeEnabled, demoSeeds } from "../../lib/demo";
-import { formatBytes } from "../../lib/format";
 import { useToast } from "../../components/toast";
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  Field,
-  FormGrid,
-  InlineNotice,
-  LoadingRow,
-  Modal,
-  Segmented,
-  StatBar
-} from "../../components/ui";
+import { Badge, Button, Card, EmptyState, InlineNotice, LoadingRow, Segmented, StatBar } from "../../components/ui";
+import { WantedEditForm } from "./components/WantedEditForm";
+import { ProvenancePanel } from "./components/ProvenancePanel";
+import { ReleasesPanel, useWantedReleaseSearch } from "./components/ReleasesPanel";
 import {
   acquisitionBadgeTone,
   acquisitionQueueActionDisabled,
@@ -70,44 +41,28 @@ import {
   acquisitionQueueStateTone,
   appErrorMessage,
   errorMessage,
-  metadataConfidenceLabel,
-  metadataFieldApplicableCandidates,
-  metadataFieldCanApply,
-  metadataFieldCanConfirmCanonical,
-  metadataFieldCanonicalActionID,
-  metadataFieldCandidateSummary,
-  metadataFieldSourceLabel,
-  metadataFieldStatusLabel,
-  metadataProvenanceSummary,
-  metadataRecordActionID,
-  metadataRecordCorrections,
-  metadataRecordPrimaryLine,
-  metadataRecordSecondaryLine,
   metadataReviewBadgeLabel,
   metadataReviewMap,
-  profileKey,
   queueDownloadsForImport,
   queueDownloadsForRecovery,
-  releaseActionID,
-  releaseDecisionFilters,
-  releaseDecisionVisibleForFilter,
   summarizeMetadataReview,
-  summarizeReleaseDecisions,
   summarizeWantedItems,
+  upgradeRunSummary,
   wantedBadgeLabel,
-  wantedEditChanged,
   wantedItemSubtitle,
   wantedItemVisibleForFilter,
-  wantedOverrideLabel,
   wantedPresenceMap,
   wantedPresenceTone,
+  wantedViewFilterLabel,
   wantedViewFilters
 } from "./lib";
-import type { ReleaseDecisionFilter, WantedViewFilter } from "./lib";
+import type { WantedViewFilter } from "./lib";
 
 /**
  * Books tab: wanted queue master-detail with metadata provenance, release
  * decisions, acquisition queue strip, and the metadata review bulk flow.
+ * The selected-item detail is composed from the shared components in
+ * ./components (edit form, provenance panel, releases panel).
  */
 export function BooksTab() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -118,15 +73,12 @@ export function BooksTab() {
   const wantedQuery = useWanted();
   const reviewQuery = useWantedMetadataReview();
   const queueQuery = useAcquisitionQueue();
-  const profilesQuery = useQualityProfiles();
   const filesQuery = useLibraryFiles("any");
-  const librarySettingsQuery = useLibrarySettings();
+  const releaseSearch = useWantedReleaseSearch();
 
   const wantedItems = useMemo(() => wantedQuery.data ?? [], [wantedQuery.data]);
   const libraryFiles = useMemo(() => filesQuery.data ?? [], [filesQuery.data]);
-  const qualityProfiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
   const acquisitionQueue = queueQuery.data ?? null;
-  const searchLanguage = librarySettingsQuery.data?.settings.standardSearchLanguage || "English";
 
   /* ------------------------------ URL contract ----------------------------- */
 
@@ -134,6 +86,9 @@ export function BooksTab() {
   const filter: WantedViewFilter = wantedViewFilters.includes(urlFilter as WantedViewFilter)
     ? (urlFilter as WantedViewFilter)
     : "missing";
+  const isCutoffView = filter === "cutoff-unmet";
+  const cutoffQuery = useCutoffUnmet(isCutoffView);
+  const cutoffItems = useMemo(() => cutoffQuery.data ?? [], [cutoffQuery.data]);
 
   function setFilter(next: WantedViewFilter) {
     setSearchParams(
@@ -154,33 +109,14 @@ export function BooksTab() {
 
   /* ------------------------------ Local state ------------------------------ */
 
-  const [releases, setReleases] = useState<ReleaseDecision[]>([]);
-  const [releaseFilter, setReleaseFilter] = useState<ReleaseDecisionFilter>("all");
-  const [releasesError, setReleasesError] = useState("");
-  const [metadata, setMetadata] = useState<MetadataProvenance | null>(null);
-  const [metadataError, setMetadataError] = useState("");
-  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
-  const [isLoadingReleases, setIsLoadingReleases] = useState(false);
-  const [isSearchingReleases, setIsSearchingReleases] = useState(false);
-
-  const [editTitle, setEditTitle] = useState("");
-  const [editAuthor, setEditAuthor] = useState("");
-  const [editCoverURL, setEditCoverURL] = useState("");
-  const [editQualityProfile, setEditQualityProfile] = useState("standard");
-  const [editMonitored, setEditMonitored] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isRemoving, setIsRemoving] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [clearingOverrideField, setClearingOverrideField] = useState("");
-
-  const [applyingCandidateID, setApplyingCandidateID] = useState("");
-  const [applyingRecordID, setApplyingRecordID] = useState("");
   const [selectedReviewIDs, setSelectedReviewIDs] = useState<string[]>([]);
   const [isConfirmingReviews, setIsConfirmingReviews] = useState(false);
   const [reviewConfirmOutcome, setReviewConfirmOutcome] = useState<MetadataReviewConfirmOutcome | null>(null);
 
-  const [grabbingReleaseID, setGrabbingReleaseID] = useState("");
   const [acquisitionActionID, setAcquisitionActionID] = useState("");
+
+  const [selectedUpgradeIDs, setSelectedUpgradeIDs] = useState<string[]>([]);
+  const [isRunningUpgradeSelected, setIsRunningUpgradeSelected] = useState(false);
 
   /* ------------------------------- Derived --------------------------------- */
 
@@ -193,10 +129,21 @@ export function BooksTab() {
     [wantedItems]
   );
 
+  // Cutoff Unmet swaps the list for the server-defined view; every other
+  // filter derives client-side from the shared wanted list.
   const visibleItems = useMemo(
-    () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, presence.get(item.id), filter, reviewByID.has(item.id))),
-    [wantedItems, presence, filter, reviewByID]
+    () =>
+      isCutoffView
+        ? cutoffItems
+        : wantedItems.filter((item) => wantedItemVisibleForFilter(item, presence.get(item.id), filter, reviewByID.has(item.id))),
+    [isCutoffView, cutoffItems, wantedItems, presence, filter, reviewByID]
   );
+  const selectedUpgradeSet = useMemo(() => new Set(selectedUpgradeIDs), [selectedUpgradeIDs]);
+  const selectedUpgradeCount = useMemo(
+    () => cutoffItems.filter((item) => selectedUpgradeSet.has(item.id)).length,
+    [cutoffItems, selectedUpgradeSet]
+  );
+  const allUpgradesSelected = cutoffItems.length > 0 && cutoffItems.every((item) => selectedUpgradeSet.has(item.id));
   const visibleReviewIDs = useMemo(
     () => visibleItems.map((item) => item.id).filter((id) => reviewByID.has(id)),
     [visibleItems, reviewByID]
@@ -219,24 +166,6 @@ export function BooksTab() {
     () => queueRows.filter((item) => item.state !== "imported").slice(0, 6),
     [queueRows]
   );
-
-  const selectedProfiles = useMemo(
-    () => qualityProfiles.filter((profile) => !selected || profile.mediaFormat === "any" || profile.mediaFormat === selected.format),
-    [qualityProfiles, selected]
-  );
-  const releaseSummary = useMemo(() => summarizeReleaseDecisions(releases), [releases]);
-  const visibleReleases = useMemo(
-    () => releases.filter((release) => releaseDecisionVisibleForFilter(release, releaseFilter)),
-    [releases, releaseFilter]
-  );
-
-  const editHasChanges = wantedEditChanged(selected, {
-    title: editTitle,
-    authorName: editAuthor,
-    coverUrl: editCoverURL,
-    qualityProfile: editQualityProfile,
-    monitored: editMonitored
-  });
 
   /* -------------------------------- Effects -------------------------------- */
 
@@ -280,72 +209,8 @@ export function BooksTab() {
     }
     if (selected?.id !== urlItem) return;
     autoSearchDone.current = true;
-    void runReleaseSearch(selected);
+    void releaseSearch.run(selected);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.id]);
-
-  // Reset the edit form when the selected item (or its server values) change.
-  useEffect(() => {
-    setEditTitle(selected?.title ?? "");
-    setEditAuthor(selected?.authorName ?? "");
-    setEditCoverURL(selected?.coverUrl ?? "");
-    setEditQualityProfile(selected?.qualityProfile ?? "standard");
-    setEditMonitored(selected?.monitored ?? true);
-  }, [selected?.id, selected?.title, selected?.authorName, selected?.coverUrl, selected?.qualityProfile, selected?.monitored]);
-
-  // Load metadata provenance for the selected item (demo seeds as fallback).
-  useEffect(() => {
-    setMetadata(null);
-    setMetadataError("");
-    if (!selected?.id) return;
-    const id = selected.id;
-    let canceled = false;
-    setIsLoadingMetadata(true);
-    fetchWantedMetadata(id)
-      .then((provenance) => {
-        if (!canceled) setMetadata(provenance);
-      })
-      .catch((error: unknown) => {
-        if (canceled) return;
-        const seeded = demoModeEnabled ? demoSeeds.wantedMetadataByID[id] : undefined;
-        if (seeded) {
-          setMetadata(seeded);
-          return;
-        }
-        setMetadataError(appErrorMessage(errorMessage(error, "Wanted metadata provenance failed")));
-      })
-      .finally(() => {
-        if (!canceled) setIsLoadingMetadata(false);
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [selected?.id]);
-
-  // Load stored release decisions for the selected item.
-  useEffect(() => {
-    setReleases([]);
-    setReleaseFilter("all");
-    setReleasesError("");
-    if (!selected?.id) return;
-    const id = selected.id;
-    let canceled = false;
-    setIsLoadingReleases(true);
-    fetchWantedReleases(id)
-      .then((outcome) => {
-        if (!canceled) setReleases(outcome.releases);
-      })
-      .catch((error: unknown) => {
-        if (canceled) return;
-        if (demoModeEnabled) return;
-        setReleasesError(appErrorMessage(errorMessage(error, "Wanted release decisions refresh failed")));
-      })
-      .finally(() => {
-        if (!canceled) setIsLoadingReleases(false);
-      });
-    return () => {
-      canceled = true;
-    };
   }, [selected?.id]);
 
   // Drop review selections that are no longer in the review queue.
@@ -353,6 +218,12 @@ export function BooksTab() {
     const available = new Set((reviewQuery.data?.items ?? []).map((item) => item.wantedItem.id));
     setSelectedReviewIDs((current) => current.filter((id) => available.has(id)));
   }, [reviewQuery.data]);
+
+  // Drop upgrade selections that left the cutoff-unmet view.
+  useEffect(() => {
+    const available = new Set((cutoffQuery.data ?? []).map((item) => item.id));
+    setSelectedUpgradeIDs((current) => current.filter((id) => available.has(id)));
+  }, [cutoffQuery.data]);
 
   /* ------------------------------- Mutations -------------------------------- */
 
@@ -362,164 +233,6 @@ export function BooksTab() {
 
   function selectItem(item: WantedItem) {
     setSelectedID(item.id);
-  }
-
-  async function runReleaseSearch(item: WantedItem | undefined = selected) {
-    if (!item) return;
-    setIsSearchingReleases(true);
-    setReleasesError("");
-    try {
-      const outcome = await searchWantedReleases(item.id, searchLanguage);
-      setSelectedID(item.id);
-      setReleases(outcome.releases);
-      setReleaseFilter("all");
-      const summary = summarizeReleaseDecisions(outcome.releases);
-      toast.success(`Release search: ${outcome.releases.length} found · ${summary.approved} approved · ${summary.rejected} rejected`);
-      await invalidate(keys.wanted, keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted release search failed")));
-    } finally {
-      setIsSearchingReleases(false);
-    }
-  }
-
-  async function reloadStoredReleases(item: WantedItem | undefined = selected) {
-    if (!item) return;
-    setIsLoadingReleases(true);
-    setReleasesError("");
-    try {
-      const outcome = await fetchWantedReleases(item.id);
-      setSelectedID(item.id);
-      setReleases(outcome.releases);
-      await invalidate(keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted release decisions refresh failed")));
-    } finally {
-      setIsLoadingReleases(false);
-    }
-  }
-
-  async function saveEdit() {
-    const item = selected;
-    if (!item || !editTitle.trim() || !editHasChanges) return;
-    setIsSaving(true);
-    try {
-      const updated = await updateWanted(item.id, {
-        title: editTitle.trim(),
-        authorName: editAuthor.trim(),
-        coverUrl: editCoverURL.trim(),
-        qualityProfile: editQualityProfile.trim() || "standard",
-        monitored: editMonitored
-      });
-      setMetadata((current) =>
-        current ? { ...current, wantedItem: updated, manualOverrides: updated.manualOverrides ?? [] } : current
-      );
-      setSelectedID(updated.id);
-      toast.success(`Saved correction for “${updated.title}”`);
-      await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted update failed")));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function removeSelected() {
-    const item = selected;
-    if (!item) return;
-    setIsRemoving(true);
-    try {
-      await deleteWanted(item.id);
-      setConfirmingDelete(false);
-      setSelectedID("");
-      setReleases([]);
-      setMetadata(null);
-      toast.success(`Removed “${item.title}” from wanted`);
-      await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted remove failed")));
-    } finally {
-      setIsRemoving(false);
-    }
-  }
-
-  async function clearOverride(fieldName: string) {
-    const item = selected;
-    if (!item || !fieldName) return;
-    setClearingOverrideField(fieldName);
-    try {
-      const updated = await clearWantedOverride(item.id, fieldName);
-      setMetadata((current) =>
-        current ? { ...current, wantedItem: updated, manualOverrides: updated.manualOverrides ?? [] } : current
-      );
-      setSelectedID(updated.id);
-      toast.success(`Cleared ${wantedOverrideLabel(fieldName)} override`);
-      await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted override reset failed")));
-    } finally {
-      setClearingOverrideField("");
-    }
-  }
-
-  async function applyCandidate(field: MetadataFieldEvidence, candidate: MetadataFieldCandidate) {
-    const item = selected;
-    if (!item || !metadataFieldCanApply(field)) return;
-    const actionID = `${field.fieldName}:${candidate.provider}:${candidate.value}`;
-    setApplyingCandidateID(actionID);
-    try {
-      const provenance = await applyWantedMetadataCorrection(item.id, {
-        fieldName: field.fieldName,
-        value: candidate.value
-      });
-      setMetadata(provenance);
-      setSelectedID(provenance.wantedItem.id);
-      toast.success(`Applied ${candidate.provider} ${field.label.toLowerCase()}`);
-      await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted metadata correction failed")));
-    } finally {
-      setApplyingCandidateID("");
-    }
-  }
-
-  async function confirmCanonical(field: MetadataFieldEvidence) {
-    const item = selected;
-    if (!item || !metadataFieldCanConfirmCanonical(field)) return;
-    setApplyingCandidateID(metadataFieldCanonicalActionID(field));
-    try {
-      const provenance = await applyWantedMetadataCorrection(item.id, {
-        fieldName: field.fieldName,
-        value: field.canonicalValue || "",
-        reason: "metadata review canonical accepted"
-      });
-      setMetadata(provenance);
-      setSelectedID(provenance.wantedItem.id);
-      toast.success(`Kept current ${field.label.toLowerCase()}`);
-      await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted metadata confirmation failed")));
-    } finally {
-      setApplyingCandidateID("");
-    }
-  }
-
-  async function applyRecord(record: ProviderMetadataRecord) {
-    const item = selected;
-    const corrections = metadataRecordCorrections(record, metadata);
-    if (!item || corrections.length === 0) return;
-    setApplyingRecordID(metadataRecordActionID(record));
-    try {
-      const provenance = await applyWantedMetadataCorrections(item.id, { corrections });
-      setMetadata(provenance);
-      setSelectedID(provenance.wantedItem.id);
-      toast.success(`Applied ${corrections.length} field${corrections.length === 1 ? "" : "s"} from ${record.provider}`);
-      await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
-    } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted metadata corrections failed")));
-    } finally {
-      setApplyingRecordID("");
-    }
   }
 
   function toggleReviewSelection(item: WantedItem) {
@@ -549,12 +262,9 @@ export function BooksTab() {
     try {
       const outcome = await confirmWantedMetadataReviewCanonical({ wantedIds });
       setReviewConfirmOutcome(outcome);
-      const provenances = outcome.items ?? [];
-      const selectedProvenance = provenances.find((entry) => entry.wantedItem.id === selected?.id);
-      if (selectedProvenance) {
-        setMetadata(selectedProvenance);
-        setSelectedID(selectedProvenance.wantedItem.id);
-      }
+      (outcome.items ?? []).forEach((provenance) => {
+        client.setQueryData(keys.wantedMetadata(provenance.wantedItem.id), provenance);
+      });
       setSelectedReviewIDs((current) => current.filter((id) => !wantedIds.includes(id)));
       toast.success(`${outcome.fieldsConfirmed} field${outcome.fieldsConfirmed === 1 ? "" : "s"} confirmed across ${outcome.itemsReviewed} item${outcome.itemsReviewed === 1 ? "" : "s"}`);
       await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
@@ -565,19 +275,29 @@ export function BooksTab() {
     }
   }
 
-  async function grabRelease(release?: ReleaseDecision, force = false) {
-    const item = selected;
-    if (!item) return;
-    const actionID = release ? releaseActionID(release, force) : "auto";
-    setGrabbingReleaseID(actionID);
+  function toggleUpgradeSelection(item: WantedItem) {
+    setSelectedUpgradeIDs((current) =>
+      current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id]
+    );
+  }
+
+  function toggleAllUpgrades() {
+    setSelectedUpgradeIDs(allUpgradesSelected ? [] : cutoffItems.map((item) => item.id));
+  }
+
+  async function runUpgradeSearchSelected() {
+    const wantedIds = cutoffItems.map((item) => item.id).filter((id) => selectedUpgradeSet.has(id));
+    if (!wantedIds.length) return;
+    setIsRunningUpgradeSelected(true);
+    toast.notify(`Upgrade search started for ${wantedIds.length} book${wantedIds.length === 1 ? "" : "s"}…`, "info");
     try {
-      const status = await grabWanted(item.id, release?.id, { paused: true, force });
-      toast.success(`Grab queued (paused): ${status.name || item.title}`);
-      await invalidate(keys.wanted, keys.acquisitionQueue, keys.downloads(), keys.history());
+      const run = await runUpgradeSearch({ wantedIds, autoGrab: false, paused: true, force: true });
+      toast.success(upgradeRunSummary(run));
+      await invalidate(keys.wanted, keys.wantedCutoffUnmet, keys.acquisitionQueue, keys.downloads(), keys.history());
     } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Wanted grab failed")));
+      toast.error(appErrorMessage(errorMessage(error, "Upgrade search failed")));
     } finally {
-      setGrabbingReleaseID("");
+      setIsRunningUpgradeSelected(false);
     }
   }
 
@@ -588,7 +308,7 @@ export function BooksTab() {
     try {
       switch (item.state) {
         case "needs_search":
-          await runReleaseSearch(item.wantedItem);
+          await releaseSearch.run(item.wantedItem);
           break;
         case "ready_to_grab": {
           const status = await grabWanted(item.wantedItem.id, item.bestRelease?.id, { paused: true });
@@ -623,7 +343,7 @@ export function BooksTab() {
             toast.success(`Recovery: ${run.replacementsFound} replacements · ${run.grabbedCount} grabbed · ${run.errorCount} errors`);
             await invalidate(keys.wanted, keys.acquisitionQueue, keys.downloads(), keys.history());
           } else {
-            await reloadStoredReleases(item.wantedItem);
+            await invalidate(keys.wantedReleases(item.wantedItem.id), keys.acquisitionQueue);
           }
           break;
         }
@@ -646,7 +366,8 @@ export function BooksTab() {
   const queryNotices = [
     wantedQuery.error ? appErrorMessage(errorMessage(wantedQuery.error, "Wanted refresh failed")) : "",
     reviewQuery.error ? appErrorMessage(errorMessage(reviewQuery.error, "Wanted metadata review failed")) : "",
-    queueQuery.error ? appErrorMessage(errorMessage(queueQuery.error, "Acquisition queue refresh failed")) : ""
+    queueQuery.error ? appErrorMessage(errorMessage(queueQuery.error, "Acquisition queue refresh failed")) : "",
+    isCutoffView && cutoffQuery.error ? appErrorMessage(errorMessage(cutoffQuery.error, "Cutoff unmet refresh failed")) : ""
   ].filter(Boolean);
 
   return (
@@ -670,12 +391,40 @@ export function BooksTab() {
       <div className="wanted-filter-row">
         <Segmented<WantedViewFilter>
           ariaLabel="Wanted queue filter"
-          options={wantedViewFilters.map((value) => ({ value, label: value }))}
+          options={wantedViewFilters.map((value) => ({ value, label: wantedViewFilterLabel(value) }))}
           value={filter}
           onChange={setFilter}
         />
         {wantedQuery.isFetching && !wantedQuery.isLoading ? <LoadingRow label="Refreshing…" /> : null}
       </div>
+
+      {isCutoffView && cutoffItems.length ? (
+        <Card className="wanted-review-bulk-card">
+          <div className="wanted-review-bulkbar" aria-label="Cutoff unmet bulk actions">
+            <div className="wanted-review-bulkbar-text">
+              <strong>
+                {cutoffItems.length} book{cutoffItems.length === 1 ? "" : "s"} below quality cutoff
+              </strong>
+              <span>
+                {selectedUpgradeCount} selected · {cutoffItems.length} shown
+              </span>
+            </div>
+            <Button size="sm" icon={allUpgradesSelected ? CheckSquare : Square} onClick={toggleAllUpgrades}>
+              {allUpgradesSelected ? "Clear shown" : "Select shown"}
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              icon={TrendingUp}
+              disabled={selectedUpgradeCount === 0}
+              busy={isRunningUpgradeSelected}
+              onClick={() => void runUpgradeSearchSelected()}
+            >
+              {isRunningUpgradeSelected ? "Searching" : "Upgrade Search Selected"}
+            </Button>
+          </div>
+        </Card>
+      ) : null}
 
       {filter === "review" && visibleReviewIDs.length ? (
         <Card className="wanted-review-bulk-card">
@@ -798,8 +547,8 @@ export function BooksTab() {
 
       <div className="wanted-grid">
         <Card padded={false} className="wanted-list-card">
-          {wantedQuery.isLoading ? (
-            <LoadingRow label="Loading wanted items…" />
+          {(isCutoffView ? cutoffQuery.isLoading : wantedQuery.isLoading) ? (
+            <LoadingRow label={isCutoffView ? "Loading cutoff unmet books…" : "Loading wanted items…"} />
           ) : visibleItems.length ? (
             <div className="wanted-item-list">
               {visibleItems.map((item) => {
@@ -817,6 +566,16 @@ export function BooksTab() {
                           onChange={() => toggleReviewSelection(item)}
                           type="checkbox"
                           aria-label={`Select metadata review for ${item.title}`}
+                        />
+                      </label>
+                    ) : null}
+                    {isCutoffView ? (
+                      <label className="wanted-review-selector" title="Select for upgrade search">
+                        <input
+                          checked={selectedUpgradeSet.has(item.id)}
+                          onChange={() => toggleUpgradeSelection(item)}
+                          type="checkbox"
+                          aria-label={`Select ${item.title} for upgrade search`}
                         />
                       </label>
                     ) : null}
@@ -858,6 +617,11 @@ export function BooksTab() {
                 );
               })}
             </div>
+          ) : isCutoffView ? (
+            <EmptyState icon={TrendingUp} title="No books below their quality cutoff">
+              Books with a tracked file scoring under their quality profile’s cutoff appear here so you can run upgrade
+              searches for better releases.
+            </EmptyState>
           ) : wantedItems.length ? (
             <EmptyState icon={FileSearch} title="No items match this filter">
               Switch the wanted filter to see more of the queue.
@@ -872,279 +636,9 @@ export function BooksTab() {
         <div className="wanted-detail-stack">
           {selected ? (
             <>
-              <Card
-                title="Metadata correction"
-                subtitle={`${selected.sourceProvider || "manual"} · ${selected.format} · ${selected.sourceKey || selected.id}`}
-                actions={
-                  <label className="wanted-monitor-toggle">
-                    <input
-                      checked={editMonitored}
-                      onChange={(event) => setEditMonitored(event.target.checked)}
-                      type="checkbox"
-                    />
-                    <span>Monitored</span>
-                  </label>
-                }
-              >
-                {selected.manualOverrides?.length ? (
-                  <div className="wanted-override-list" aria-label="Manual metadata overrides">
-                    {selected.manualOverrides.map((override) => (
-                      <button
-                        className="wanted-override-chip"
-                        disabled={clearingOverrideField === override.fieldName}
-                        key={override.fieldName}
-                        onClick={() => void clearOverride(override.fieldName)}
-                        title={`Clear ${wantedOverrideLabel(override.fieldName)} override`}
-                        type="button"
-                      >
-                        <span>
-                          <strong>{wantedOverrideLabel(override.fieldName)}</strong>
-                          <small>{override.value || "protected"}</small>
-                        </span>
-                        <em>{clearingOverrideField === override.fieldName ? "Clearing" : "Reset"}</em>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <FormGrid columns={2}>
-                  <Field label="Title">
-                    <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Book title" />
-                  </Field>
-                  <Field label="Author">
-                    <input value={editAuthor} onChange={(event) => setEditAuthor(event.target.value)} placeholder="Author name" />
-                  </Field>
-                  <Field label="Cover URL">
-                    <input
-                      value={editCoverURL}
-                      onChange={(event) => setEditCoverURL(event.target.value)}
-                      placeholder="https://covers.example/book.jpg"
-                    />
-                  </Field>
-                  <Field label="Quality profile">
-                    <select value={editQualityProfile} onChange={(event) => setEditQualityProfile(event.target.value)}>
-                      {selectedProfiles.length ? (
-                        selectedProfiles.map((profile) => (
-                          <option key={profileKey(profile)} value={profile.name}>
-                            {profile.name} · {profile.mediaFormat}
-                          </option>
-                        ))
-                      ) : (
-                        <option value={editQualityProfile || "standard"}>{editQualityProfile || "standard"}</option>
-                      )}
-                    </select>
-                  </Field>
-                </FormGrid>
-                <div className="form-actions">
-                  <Button
-                    variant="primary"
-                    icon={CheckCircle2}
-                    disabled={!editTitle.trim() || !editHasChanges}
-                    busy={isSaving}
-                    onClick={() => void saveEdit()}
-                  >
-                    {isSaving ? "Saving" : "Save correction"}
-                  </Button>
-                  <Button variant="danger" icon={Trash2} disabled={isRemoving} onClick={() => setConfirmingDelete(true)}>
-                    Remove wanted
-                  </Button>
-                </div>
-              </Card>
-
-              <Card
-                title="Provider provenance"
-                subtitle={metadataProvenanceSummary(metadata, isLoadingMetadata)}
-                actions={
-                  metadata?.manualOverrides?.length ? (
-                    <Badge tone="accent">
-                      {metadata.manualOverrides.length} override{metadata.manualOverrides.length === 1 ? "" : "s"} protected
-                    </Badge>
-                  ) : undefined
-                }
-              >
-                {metadataError ? <InlineNotice tone="danger">{metadataError}</InlineNotice> : null}
-                {metadata?.fields.length ? (
-                  <div className="wanted-provenance-list" aria-label="Metadata field evidence">
-                    {metadata.fields.map((field) => (
-                      <article className="wanted-field-row" key={field.fieldName}>
-                        <div>
-                          <strong>{field.label}</strong>
-                          <span>{metadataFieldSourceLabel(field)}</span>
-                        </div>
-                        <div>
-                          <strong>{field.canonicalValue || "No canonical value"}</strong>
-                          <span>{metadataFieldCandidateSummary(field)}</span>
-                          {metadataFieldCanConfirmCanonical(field) || metadataFieldApplicableCandidates(field).length ? (
-                            <div className="wanted-field-actions" aria-label={`${field.label} provider candidates`}>
-                              {metadataFieldCanConfirmCanonical(field) ? (
-                                <Button
-                                  size="sm"
-                                  busy={applyingCandidateID === metadataFieldCanonicalActionID(field)}
-                                  onClick={() => void confirmCanonical(field)}
-                                >
-                                  {applyingCandidateID === metadataFieldCanonicalActionID(field) ? "Keeping" : "Keep current"}
-                                </Button>
-                              ) : null}
-                              {metadataFieldApplicableCandidates(field).map((candidate) => {
-                                const actionID = `${field.fieldName}:${candidate.provider}:${candidate.value}`;
-                                return (
-                                  <Button
-                                    size="sm"
-                                    key={`${candidate.provider}:${candidate.providerKey}:${candidate.value}`}
-                                    busy={applyingCandidateID === actionID}
-                                    title={candidate.value}
-                                    onClick={() => void applyCandidate(field, candidate)}
-                                  >
-                                    {applyingCandidateID === actionID ? "Applying" : `Use ${candidate.provider}`}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          ) : null}
-                        </div>
-                        <Badge tone={field.conflict ? "warn" : field.protected ? "accent" : field.reviewResolved ? "success" : "neutral"}>
-                          {metadataFieldStatusLabel(field)}
-                        </Badge>
-                      </article>
-                    ))}
-                  </div>
-                ) : null}
-                {metadata?.records.length ? (
-                  <div className="wanted-provenance-list" aria-label="Provider records">
-                    {metadata.records.map((record) => {
-                      const corrections = metadataRecordCorrections(record, metadata);
-                      const actionID = metadataRecordActionID(record);
-                      return (
-                        <article className="wanted-record-row" key={actionID}>
-                          <div>
-                            <strong>{record.provider}</strong>
-                            <span>
-                              {record.entityType} · {record.providerKey}
-                            </span>
-                          </div>
-                          <div>
-                            <strong>{metadataRecordPrimaryLine(record)}</strong>
-                            <span>{metadataRecordSecondaryLine(record)}</span>
-                          </div>
-                          <div className="wanted-record-actions">
-                            {corrections.length ? (
-                              <Button
-                                size="sm"
-                                icon={CheckCircle2}
-                                disabled={Boolean(applyingRecordID || applyingCandidateID) && applyingRecordID !== actionID}
-                                busy={applyingRecordID === actionID}
-                                title={`Apply ${corrections.length} metadata field${corrections.length === 1 ? "" : "s"} from ${record.provider}`}
-                                onClick={() => void applyRecord(record)}
-                              >
-                                {applyingRecordID === actionID ? "Applying" : "Use record"}
-                              </Button>
-                            ) : null}
-                            <em>{metadataConfidenceLabel(record.confidence)}</em>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                ) : isLoadingMetadata ? (
-                  <LoadingRow label="Loading provenance…" />
-                ) : (
-                  <EmptyState title="No stored provider records">
-                    Create or refresh this item from metadata search to attach provider records.
-                  </EmptyState>
-                )}
-              </Card>
-
-              <Card
-                title="Release review"
-                subtitle={
-                  releases.length
-                    ? `${releaseSummary.approved} approved · ${releaseSummary.rejected} rejected · ${releases.length} stored`
-                    : "No stored decisions for this wanted item."
-                }
-                actions={
-                  <div className="wanted-release-toolbar">
-                    <Segmented<ReleaseDecisionFilter>
-                      ariaLabel="Release decision filter"
-                      options={releaseDecisionFilters.map((value) => ({ value, label: value }))}
-                      value={releaseFilter}
-                      onChange={setReleaseFilter}
-                    />
-                    <Button
-                      size="sm"
-                      icon={RefreshCw}
-                      busy={isLoadingReleases}
-                      title="Reload stored release decisions"
-                      onClick={() => void reloadStoredReleases()}
-                    >
-                      {isLoadingReleases ? "Loading" : "Stored"}
-                    </Button>
-                    <Button size="sm" icon={FileSearch} busy={isSearchingReleases} onClick={() => void runReleaseSearch()}>
-                      {isSearchingReleases ? "Searching" : "Search Releases"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      icon={CheckCircle2}
-                      busy={grabbingReleaseID === "auto"}
-                      title="Grab the best approved release for this item"
-                      onClick={() => void grabRelease()}
-                    >
-                      {grabbingReleaseID === "auto" ? "Grabbing" : "Grab Best"}
-                    </Button>
-                  </div>
-                }
-              >
-                {releasesError ? <InlineNotice tone="danger">{releasesError}</InlineNotice> : null}
-                {visibleReleases.length ? (
-                  <div className="wanted-release-list">
-                    {visibleReleases.map((release) => {
-                      const grabID = releaseActionID(release, !release.approved);
-                      return (
-                        <article className="wanted-release-row" key={release.id || release.sourceId || release.title}>
-                          <div className="wanted-release-main">
-                            <div className="wanted-release-title">
-                              <strong>{release.title}</strong>
-                              <Badge tone={release.approved ? "success" : "danger"}>
-                                {release.approved ? "Approved" : "Rejected"}
-                              </Badge>
-                            </div>
-                            <p>
-                              {release.indexer} · {release.protocol || "release"} · score {release.score.toFixed(1)} ·{" "}
-                              {formatBytes(release.sizeBytes ?? 0)} · {release.seeders ?? 0} seeders · {release.leechers ?? 0}{" "}
-                              leechers
-                            </p>
-                            {release.categories?.length ? <small>{release.categories.join(", ")}</small> : null}
-                            {release.rejectedReason ? (
-                              <small className="wanted-release-rejection">{release.rejectedReason}</small>
-                            ) : null}
-                          </div>
-                          <div className="wanted-release-actions">
-                            {release.infoUrl ? (
-                              <a className="btn btn-secondary btn-sm" href={release.infoUrl} rel="noreferrer" target="_blank">
-                                <ExternalLink size={13} aria-hidden />
-                                Details
-                              </a>
-                            ) : null}
-                            <Button
-                              size="sm"
-                              variant={release.approved ? "secondary" : "danger"}
-                              busy={grabbingReleaseID === grabID}
-                              onClick={() => void grabRelease(release, !release.approved)}
-                            >
-                              {grabbingReleaseID === grabID ? "Grabbing" : release.approved ? "Grab paused" : "Force grab"}
-                            </Button>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                ) : isLoadingReleases ? (
-                  <LoadingRow label="Loading stored release decisions…" />
-                ) : (
-                  <EmptyState icon={FileSearch} title="No release decisions">
-                    Search wanted releases to evaluate candidates for this book.
-                  </EmptyState>
-                )}
-              </Card>
+              <WantedEditForm item={selected} onDeleted={() => setSelectedID("")} />
+              <ProvenancePanel key={`provenance-${selected.id}`} item={selected} />
+              <ReleasesPanel key={`releases-${selected.id}`} item={selected} />
             </>
           ) : (
             <Card>
@@ -1155,25 +649,6 @@ export function BooksTab() {
           )}
         </div>
       </div>
-
-      <Modal
-        title="Remove wanted item"
-        open={confirmingDelete}
-        onClose={() => setConfirmingDelete(false)}
-        footer={
-          <>
-            <Button onClick={() => setConfirmingDelete(false)}>Cancel</Button>
-            <Button variant="danger" icon={Trash2} busy={isRemoving} onClick={() => void removeSelected()}>
-              {isRemoving ? "Removing" : "Remove"}
-            </Button>
-          </>
-        }
-      >
-        <p>
-          Remove <strong>{selected?.title ?? "this item"}</strong> from the wanted queue? Stored release decisions and
-          metadata provenance for it are discarded.
-        </p>
-      </Modal>
     </>
   );
 }

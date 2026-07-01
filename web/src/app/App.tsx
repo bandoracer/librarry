@@ -9,6 +9,8 @@ import { LoadingRow } from "../components/ui";
 
 const DashboardPage = lazy(() => import("../features/dashboard/DashboardPage"));
 const LibraryPage = lazy(() => import("../features/library/LibraryPage"));
+const AuthorPage = lazy(() => import("../features/library/AuthorPage"));
+const BookPage = lazy(() => import("../features/library/BookPage"));
 const SearchPage = lazy(() => import("../features/search/SearchPage"));
 const WantedPage = lazy(() => import("../features/wanted/WantedPage"));
 const ActivityPage = lazy(() => import("../features/activity/ActivityPage"));
@@ -26,6 +28,8 @@ export function App() {
               <Route index element={<Navigate to={defaultPath} replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/library" element={<LibraryPage />} />
+              <Route path="/library/author/:authorId" element={<AuthorPage />} />
+              <Route path="/library/book/:wantedId" element={<BookPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/wanted" element={<WantedPage />} />
               <Route path="/downloads" element={<ActivityPage />} />
