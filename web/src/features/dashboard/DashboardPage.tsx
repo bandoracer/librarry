@@ -156,7 +156,8 @@ export default function DashboardPage() {
   const authorReviews = useAuthorMetadataReviews();
   const importReviews = useImportReviews();
   const acquisitionQueue = useAcquisitionQueue();
-  const downloads = useDownloads();
+  // Only Librarry-tagged jobs; unrelated client traffic isn't ours to triage.
+  const downloads = useDownloads({ tag: "librarry" });
   const history = useHistory(10);
 
   const invalidateAfterRun = async () => {

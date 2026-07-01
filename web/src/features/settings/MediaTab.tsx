@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, RefreshCw } from "lucide-react";
-import { Button, Card, Field, FormGrid, LoadingRow } from "../../components/ui";
+import { Button, Card, Field, FormGrid, InlineNotice, LoadingRow } from "../../components/ui";
 import { useToast } from "../../components/toast";
 import { saveLibrarySettings, type LibrarySettings } from "../../lib/api";
 import { keys, useInvalidatingMutation, useLibrarySettings } from "../../lib/queries";
@@ -54,7 +54,7 @@ export function MediaTab() {
       if (response.persisted) {
         toast.success("Library settings saved and applied.");
       } else {
-        toast.notify("Library settings applied for this process. Add Postgres to persist them.", "info");
+        toast.notify("Library settings applied for this process. Add Postgres to persist them.", "warn");
       }
     } catch (error) {
       toast.error(errorMessage(error, "Library settings save failed"));
@@ -73,6 +73,12 @@ export function MediaTab() {
   return (
     <>
       {query.isError ? <QueryErrorNotice error={query.error} fallback="Library settings refresh failed" /> : null}
+      {query.isSuccess && !persisted ? (
+        <InlineNotice tone="warn">
+          No database persistence — these settings apply to the running process only and reset on restart. Set
+          LIBRARRY_DATABASE_URL to keep them.
+        </InlineNotice>
+      ) : null}
       <Card
         title="Library roots and naming"
         subtitle={`${persisted ? "Postgres" : "runtime"} · ebooks ${saved.ebookLibraryRoot || "unset"} · audio ${

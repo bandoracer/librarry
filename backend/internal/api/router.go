@@ -84,6 +84,7 @@ type wantedService interface {
 	RecoverFailedDownloads(ctx context.Context, request wanted.FailedDownloadRequest) (wanted.FailedDownloadRun, error)
 	SearchUpgrades(ctx context.Context, request wanted.UpgradeRequest) (wanted.UpgradeRun, error)
 	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
+	AnnotateDownloads(ctx context.Context, downloads []acquisition.DownloadStatus) []acquisition.DownloadStatus
 }
 
 type metadataProvenanceService interface {
@@ -1328,6 +1329,9 @@ func (h *handler) downloads(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
+	if h.deps.Wanted != nil {
+		statuses = h.deps.Wanted.AnnotateDownloads(r.Context(), statuses)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"downloads": statuses})
 }
 
@@ -1352,6 +1356,10 @@ func (h *handler) downloadDetails(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
+	}
+	if h.deps.Wanted != nil {
+		annotated := h.deps.Wanted.AnnotateDownloads(r.Context(), []acquisition.DownloadStatus{details.Status})
+		details.Status = annotated[0]
 	}
 	writeJSON(w, http.StatusOK, details)
 }

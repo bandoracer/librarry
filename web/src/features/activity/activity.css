@@ -241,3 +241,12 @@
 .activity-history-time {
   white-space: nowrap;
 }
+
+.activity-title-cell .activity-title-book {
+  font-size: 12px;
+  width: fit-content;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 440px;
+}

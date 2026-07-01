@@ -7,7 +7,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
     proxy: {
-      "/api": "http://127.0.0.1:8080"
+      "/api": process.env.LIBRARRY_DEV_API ?? "http://127.0.0.1:8080"
     }
   }
 });

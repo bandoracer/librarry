@@ -88,6 +88,17 @@ yet ready to replace a production Readarr instance unattended.
   and `vite build` pass. See docs/frontend.md and docs/ui-backlog.md. The
   redesigned UI has not yet been re-verified against the live TrueNAS
   deployment.
+- On 2026-07-01 the redesigned UI was verified read-only against the live
+  TrueNAS API (dev server proxied to `http://192.168.1.221:30200`): library,
+  wanted, activity queue, system checklist, and settings all rendered live
+  data with zero console errors, and saved secrets stayed masked. Follow-up
+  changes from that pass: the downloads API now annotates `wanted:<id>`-tagged
+  rows with the wanted item's id/title/author and the Activity queue links
+  them; the queue and dashboard failed-download triage default to the
+  Librarry-tagged scope; and Settings shows a standing warning when saves are
+  runtime-only because no database is configured. The new UI still needs to be
+  deployed to the live TrueNAS app (images are still the pre-migration
+  build).
 
 ## Available But Still Needs Real-World Proving
 

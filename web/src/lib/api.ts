@@ -225,6 +225,9 @@ export type DownloadStatus = {
   failedAt?: string;
   retryCount?: number;
   replacementId?: string;
+  wantedId?: string;
+  wantedTitle?: string;
+  wantedAuthor?: string;
 };
 
 export type DownloadDetails = {

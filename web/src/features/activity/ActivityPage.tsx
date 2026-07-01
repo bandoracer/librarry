@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -114,7 +114,8 @@ function QueueTab() {
   const queryClient = useQueryClient();
 
   /* -------------------------------- filters ------------------------------- */
-  const [scope, setScope] = useState<DownloadScope>("all");
+  // Book jobs by default; Librarry is not a general torrent-client UI.
+  const [scope, setScope] = useState<DownloadScope>("librarry");
   const [clientFilter, setClientFilter] = useState("");
   const [stateFilter, setStateFilter] = useState<DownloadStateFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -672,8 +673,18 @@ function QueueTab() {
                       />
                     </td>
                     <td className="cell-primary">
-                      <div className="activity-table-title">
+                      <div className="activity-title-cell">
                         <strong title={download.name || download.id}>{download.name || download.id}</strong>
+                        {download.wantedTitle ? (
+                          <Link
+                            className="activity-title-book"
+                            to={`/wanted?item=${encodeURIComponent(download.wantedId ?? "")}`}
+                            title="Open wanted book"
+                          >
+                            {download.wantedTitle}
+                            {download.wantedAuthor ? ` · ${download.wantedAuthor}` : ""}
+                          </Link>
+                        ) : null}
                         <span className="cell-muted" title={download.savePath}>
                           {download.savePath || "—"}
                         </span>

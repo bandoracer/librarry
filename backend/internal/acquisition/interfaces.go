@@ -83,6 +83,11 @@ type DownloadStatus struct {
 	FailedAt        *time.Time `json:"failedAt,omitempty"`
 	RetryCount      int        `json:"retryCount,omitempty"`
 	ReplacementID   string     `json:"replacementId,omitempty"`
+	// Wanted-item linkage resolved at the API layer from `wanted:<id>` tags;
+	// never persisted by the download store.
+	WantedID     string `json:"wantedId,omitempty"`
+	WantedTitle  string `json:"wantedTitle,omitempty"`
+	WantedAuthor string `json:"wantedAuthor,omitempty"`
 }
 
 type DownloadDetails struct {

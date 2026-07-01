@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, RefreshCw } from "lucide-react";
-import { Button, Card, Field, FormGrid, LoadingRow } from "../../components/ui";
+import { Button, Card, Field, FormGrid, InlineNotice, LoadingRow } from "../../components/ui";
 import { useToast } from "../../components/toast";
 import { saveIntegrationSettings, type IntegrationSettings } from "../../lib/api";
 import { keys, useIntegrationSettings, useInvalidatingMutation } from "../../lib/queries";
@@ -51,7 +51,7 @@ export function ConnectionsTab() {
       if (response.persisted) {
         toast.success("Integration settings saved and applied.");
       } else {
-        toast.notify("Integration settings applied for this process. Add Postgres to persist them.", "info");
+        toast.notify("Integration settings applied for this process. Add Postgres to persist them.", "warn");
       }
     } catch (error) {
       toast.error(errorMessage(error, "Integration settings save failed"));
@@ -70,6 +70,12 @@ export function ConnectionsTab() {
   return (
     <>
       {query.isError ? <QueryErrorNotice error={query.error} fallback="Integration settings refresh failed" /> : null}
+      {query.isSuccess && !persisted ? (
+        <InlineNotice tone="warn">
+          No database persistence — connection settings apply to the running process only and reset on restart. Set
+          LIBRARRY_DATABASE_URL to keep them.
+        </InlineNotice>
+      ) : null}
       <Card
         title="Indexer and download clients"
         subtitle={`${persisted ? "Postgres" : "runtime"} · ${saved.prowlarrUrl ? "indexer set" : "no indexer"} · ${

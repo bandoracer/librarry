@@ -4484,6 +4484,10 @@ func (fakeWanted) Create(_ context.Context, request wanted.CreateRequest) (wante
 	}, nil
 }
 
+func (fakeWanted) AnnotateDownloads(_ context.Context, downloads []acquisition.DownloadStatus) []acquisition.DownloadStatus {
+	return downloads
+}
+
 func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
 	return []wanted.WantedItem{{
 		ID:                  "wanted-1",

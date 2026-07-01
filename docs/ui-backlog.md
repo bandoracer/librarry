@@ -135,9 +135,10 @@ that silently survive. Consider returning `501 Not Implemented` instead.
 **Settings (/settings):**
 - Without Postgres the backend reports `persisted: false` — library and
   integration saves apply to the running process only and vanish on restart.
-  The UI surfaces this ("runtime" subtitle + runtime-only toast), but it is
-  easy to mistake for a durable save. Backend work: require or clearly
-  advertise persistence.
+  Surfacing hardened 2026-07-01: Media Management and Connections render a
+  standing warning notice when persistence is absent, and runtime-only save
+  toasts are warn-toned. (With Postgres configured, saves are durable via the
+  compat resource store — real deployments are unaffected.)
 - `integration settings` / `library settings` have no demo fallbacks: demo
   mode shows editable defaults whose saves fail with an error toast.
 - Profiles tab now edits preferred score, required terms, and
@@ -147,10 +148,16 @@ that silently survive. Consider returning `501 Not Implemented` instead.
   silently dropped them.
 
 **Activity (/downloads):**
-- `DownloadStatus` has no book/author fields, so the queue cannot show a
-  "which book is this" subline — it shows the save path instead. Backend
-  work: carry the wanted-item link on download rows (the acquisition queue
-  already joins them).
+- ~~`DownloadStatus` has no book/author fields~~ Closed 2026-07-01: the
+  downloads API now annotates rows carrying a `wanted:<id>` tag with
+  `wantedId`/`wantedTitle`/`wantedAuthor` (resolved at the API layer, never
+  persisted), and the queue shows a book·author link to the wanted item.
+  Downloads added outside a wanted grab (e.g. manual adds) have no tag and
+  stay unannotated.
+- The queue and the dashboard's failed-download triage now default to the
+  Librarry-tagged scope; the full client view remains one click away
+  ("All clients"). Matches the product boundary that Librarry is not a
+  general torrent-client UI.
 - Demo mode keeps seeded fallbacks for queue, details, categories/tags, and
   client preferences; all queue mutations in demo appear to succeed but
   persist nothing (legacy "Showing demo…" copy preserved as warn toasts).
