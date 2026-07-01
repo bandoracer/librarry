@@ -96,9 +96,12 @@ yet ready to replace a production Readarr instance unattended.
   rows with the wanted item's id/title/author and the Activity queue links
   them; the queue and dashboard failed-download triage default to the
   Librarry-tagged scope; and Settings shows a standing warning when saves are
-  runtime-only because no database is configured. The new UI still needs to be
-  deployed to the live TrueNAS app (images are still the pre-migration
-  build).
+  runtime-only because no database is configured. The redesigned UI was then
+  deployed to the live TrueNAS app from local images
+  `librarry-api:local` (`6d4f29274da4`) and `librarry-web:local`
+  (`8e7ca39b82c6`) and verified through both
+  `http://192.168.1.221:30200/library` and
+  `https://librarry.borchetta.xyz/library`.
 
 ## Available But Still Needs Real-World Proving
 
