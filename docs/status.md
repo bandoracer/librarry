@@ -45,14 +45,25 @@ yet ready to replace a production Readarr instance unattended.
   deployed manual-add UI, refreshed to the real qBittorrent hash, started from
   the Librarry queue, and observed through the API as `downloading` at roughly
   98% before qBittorrent reported `stalledDL` from peer availability.
+- A deterministic CC0 EPUB fixture in `docs/fixtures/e2e/` was added through the
+  LAN-deployed manual-add UI, started from the Librarry queue, completed in
+  qBittorrent as hash `25fa3db023fd85445bfc49adca0387991839d562`, and rendered
+  in Librarry with `progress: 1` and `importStatus: ready`. The completed file
+  was verified on the `media-stack` filesystem at
+  `/mnt/HDD_pool/vault/media-stack/torrents/books/librarry-public-domain-e2e-book.epub`
+  with SHA-256
+  `3ae24570da25451931c1b2cb62c4cd205eb387801a8dd5099045c2f15ec07eb2`.
 - Queue actions no longer merge stored placeholder download rows back into the
   UI after an ID-specific live client lookup returns no matching hash. The UI
   also disables Start/Stop/details and qBittorrent manager actions for
   persisted `pending` placeholder rows until the external client exposes a real
   download ID.
-- The public Cosmos hostname was re-tested from Chromium after the deployment:
-  `/api/v1/downloads?tag=librarry` returned the live qBittorrent row, and a
-  valid browser POST to `/api/v1/grabs` reached the API and returned 200.
+- The public Cosmos hostname was re-tested after the deployment:
+  `/api/v1/downloads?tag=librarry` returned live qBittorrent rows from both curl
+  and Chromium, and one valid browser POST to `/api/v1/grabs` reached the API
+  and returned 200. A later Chromium POST to `/api/v1/grabs` intermittently
+  reproduced `net::ERR_ECH_FALLBACK_CERTIFICATE_INVALID`; the LAN URL remains
+  the reliable deployed E2E path until the Cosmos/Cloudflare route is fixed.
 - Removed qBittorrent downloads are hidden from active download listings.
 - The UI tolerates nullable list payloads from the API, including empty
   `files`, `authors`, `downloads`, `releases`, `profiles`, `reviews`, and
@@ -65,9 +76,9 @@ yet ready to replace a production Readarr instance unattended.
 - Library scanning and import can process ebook/audiobook roots, but the real
   `media-stack` book roots still need a controlled full scan and import review.
 - The end-to-end book loop has proof through metadata search, release search,
-  qBittorrent grab, and active download initiation. It still needs more proof on
-  real data for completed download -> import -> tracked file -> missing state
-  clears.
+  manual torrent add, qBittorrent grab/start, completed download, and filesystem
+  verification. It still needs more proof on real data for completed download ->
+  import -> tracked file -> missing state clears.
 - Author monitoring exists, including all/future/none policies, but needs longer
   observation with real monitored authors before it should auto-grab.
 - Calibre Content Server handoff exists for add-book, basic metadata fields,
