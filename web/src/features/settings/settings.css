@@ -1,0 +1,166 @@
+/*
+ * Settings feature — layout-only rules (settings- prefix). Colors, spacing
+ * tokens, and typography come from styles.css and the ui.tsx primitives.
+ */
+
+.settings-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Full-width item inside a FormGrid. */
+.settings-field-wide {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Secret input with trailing show/hide toggle. */
+.settings-secret {
+  position: relative;
+  display: flex;
+}
+
+.settings-secret input {
+  flex: 1;
+  padding-right: 34px;
+}
+
+.settings-secret-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 30px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.65;
+}
+
+.settings-secret-toggle:hover {
+  opacity: 1;
+}
+
+/* Connection sub-sections inside one card. */
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group + .settings-group {
+  margin-top: 18px;
+}
+
+.settings-group-title {
+  margin: 0;
+}
+
+/* Live naming preview under the media form. */
+.settings-naming-preview {
+  gap: 4px;
+}
+
+.settings-naming-preview code {
+  overflow-wrap: anywhere;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Readarr import scope checkboxes. */
+.settings-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 16px;
+  padding: 4px 0;
+}
+
+.settings-scope-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Checkbox row that lines up with sibling text inputs. */
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 33px;
+}
+
+/* Quality profile rows. */
+.settings-profile-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-profile + .settings-profile {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-profile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settings-profile-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.settings-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Import outcome details. */
+.settings-outcome-errors {
+  padding: 12px 14px 0;
+}
+
+.settings-import-errors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-import-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 380px;
+}
+
+.settings-import-items span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .settings-profile-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

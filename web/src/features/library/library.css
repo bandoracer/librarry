@@ -1,0 +1,79 @@
+/* Library page — layout-only rules. Colors, spacing scale, and typography
+   come from the design tokens and primitives in styles.css. */
+
+.library-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.library-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.library-filter-row input {
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+/* Two-pane: authors rail left, monitored books right. */
+.library-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+/* Author rows are one full-width button per table row so tr hover/selected
+   styling from styles.css applies while staying keyboard accessible. */
+.library-author-table td {
+  padding: 0;
+}
+
+.library-author-button {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+}
+
+.library-author-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.library-title-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 180px;
+}
+
+.library-cover-cell {
+  width: 40px;
+}
+
+.library-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+@media (max-width: 999px) {
+  .library-layout {
+    grid-template-columns: 1fr;
+  }
+}

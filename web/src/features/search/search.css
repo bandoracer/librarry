@@ -1,0 +1,323 @@
+/* Add New (metadata search) — layout-only classes. Colors, spacing rhythm,
+   and typography come from styles.css tokens and ui.tsx primitives. */
+
+/* Hero search bar directly under the page header. */
+.search-hero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.search-hero-input {
+  position: relative;
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.search-hero-input svg {
+  position: absolute;
+  left: 10px;
+  color: var(--faint);
+  pointer-events: none;
+}
+
+.search-hero-input input {
+  width: 100%;
+  padding-left: 34px;
+}
+
+.search-hero select {
+  flex: 0 0 auto;
+}
+
+/* Results + detail two-pane layout. */
+.search-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .search-layout {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+
+  .search-detail-aside {
+    position: sticky;
+    top: 18px;
+  }
+}
+
+/* Collapsible filter row. */
+.search-filter-panel {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-filter-panel .field {
+  flex: 1 1 140px;
+  max-width: 220px;
+}
+
+/* Roomy result list. */
+.search-result-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.search-result-row:hover {
+  background: var(--surface-2);
+}
+
+.search-result-row.selected {
+  background: var(--accent-soft);
+}
+
+.search-result-thumb {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--faint);
+  overflow: hidden;
+}
+
+.search-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-result-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.search-result-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.search-result-title strong {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-title small {
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.search-result-sub {
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.search-result-side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.search-result-score {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Detail panel layout. */
+.search-detail-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.search-detail-cover {
+  flex: 0 0 84px;
+  width: 84px;
+  height: 118px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--faint);
+  overflow: hidden;
+}
+
+.search-detail-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-detail-head-text {
+  min-width: 0;
+}
+
+.search-detail-head-text h3 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.search-detail-head-text > p {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.search-detail-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.search-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.search-evidence-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.search-evidence-item span {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+.search-evidence-item strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.search-evidence-item small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.search-detail-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.search-detail-list > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.search-detail-list dt {
+  color: var(--muted);
+  font-weight: 550;
+}
+
+.search-detail-list dd {
+  overflow-wrap: anywhere;
+}
+
+.search-detail-form {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.search-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.search-tracked-callout {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-tracked-callout strong {
+  font-size: 12.5px;
+}
+
+.search-tracked-callout span {
+  color: var(--muted);
+  font-size: 12.5px;
+  flex: 1 1 auto;
+}
+
+/* Review-reasons list inside the confirm modal. */
+.search-review-reasons {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+/* Release table cells. */
+.search-release-title {
+  overflow-wrap: anywhere;
+}

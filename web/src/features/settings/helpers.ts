@@ -1,0 +1,309 @@
+import type {
+  IntegrationSettings,
+  LibrarySettings,
+  QualityProfile,
+  ReadarrImportItem,
+  ReadarrImportOutcome,
+  ReadarrImportSettings
+} from "../../lib/api";
+
+/*
+ * Pure helpers ported from the legacy single-file App.tsx. The changed-
+ * detection semantics (trim-insensitive comparison, secrets counting as a
+ * change whenever non-empty) are stable behavior — keep them intact.
+ */
+
+/* ------------------------------ Form defaults ----------------------------- */
+
+export function emptyIntegrationSettings(): IntegrationSettings {
+  return {
+    prowlarrUrl: "",
+    prowlarrApiKey: "",
+    prowlarrApiKeyConfigured: false,
+    qbittorrentUrl: "",
+    qbittorrentUsername: "",
+    qbittorrentPassword: "",
+    qbittorrentPasswordConfigured: false,
+    transmissionUrl: "",
+    transmissionUsername: "",
+    transmissionPassword: "",
+    transmissionPasswordConfigured: false,
+    sabnzbdUrl: "",
+    sabnzbdApiKey: "",
+    sabnzbdApiKeyConfigured: false,
+    sabnzbdUsername: "",
+    sabnzbdPassword: "",
+    sabnzbdPasswordConfigured: false,
+    ebookCategory: "books-ebook",
+    audiobookCategory: "books-audiobook",
+    bookTorrentRoot: "/data/torrents/books"
+  };
+}
+
+/** Form copy of persisted settings: secrets are never echoed back into inputs. */
+export function integrationSettingsForm(settings: IntegrationSettings): IntegrationSettings {
+  return {
+    ...settings,
+    prowlarrApiKey: "",
+    qbittorrentPassword: "",
+    transmissionPassword: "",
+    sabnzbdApiKey: "",
+    sabnzbdPassword: ""
+  };
+}
+
+export function emptyLibrarySettings(): LibrarySettings {
+  return {
+    ebookLibraryRoot: "/data/media/books/ebooks",
+    audiobookLibraryRoot: "/data/media/books/audiobooks",
+    namingAuthorFolder: "{Author}",
+    namingBookFolder: "{Title}",
+    namingFileName: "{Title}{Ext}",
+    namingSpaceReplacement: "",
+    standardSearchLanguage: "English"
+  };
+}
+
+export function emptyReadarrImportSettings(): ReadarrImportSettings {
+  return {
+    baseUrl: "",
+    apiKey: "",
+    importAuthors: true,
+    importBooks: true,
+    importQualityProfiles: true,
+    importRootFolders: true,
+    importBookFiles: true,
+    importTags: true,
+    importLists: true,
+    importListExclusions: true,
+    importConfigResources: true
+  };
+}
+
+export const standardSearchLanguageOptions = [
+  "English",
+  "Any",
+  "German",
+  "French",
+  "Spanish",
+  "Italian",
+  "Dutch",
+  "Japanese",
+  "Chinese",
+  "Korean",
+  "Portuguese"
+];
+
+/* ---------------------------- Changed detection ---------------------------- */
+
+export function normalizedFormText(value?: string | null) {
+  return (value ?? "").trim();
+}
+
+export function sameFormText(a?: string | null, b?: string | null) {
+  return normalizedFormText(a) === normalizedFormText(b);
+}
+
+export function normalizedFormTerms(values?: string[]) {
+  return (values ?? []).map((value) => normalizedFormText(value)).filter(Boolean);
+}
+
+export function sameFormTerms(a?: string[], b?: string[]) {
+  const left = normalizedFormTerms(a);
+  const right = normalizedFormTerms(b);
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+export function cloneQualityProfile(profile: QualityProfile): QualityProfile {
+  return {
+    ...profile,
+    preferredTerms: [...(profile.preferredTerms ?? [])],
+    requiredTerms: [...(profile.requiredTerms ?? [])],
+    rejectedTerms: [...(profile.rejectedTerms ?? [])]
+  };
+}
+
+export function qualityProfileChanged(profile: QualityProfile, saved?: QualityProfile) {
+  if (!saved) return true;
+  return (
+    profile.minScore !== saved.minScore ||
+    profile.cutoffScore !== saved.cutoffScore ||
+    profile.minSeeders !== saved.minSeeders ||
+    profile.maxSizeBytes !== saved.maxSizeBytes ||
+    profile.preferredScore !== saved.preferredScore ||
+    profile.upgradeAllowed !== saved.upgradeAllowed ||
+    !sameFormTerms(profile.preferredTerms, saved.preferredTerms) ||
+    !sameFormTerms(profile.requiredTerms, saved.requiredTerms) ||
+    !sameFormTerms(profile.rejectedTerms, saved.rejectedTerms)
+  );
+}
+
+export function librarySettingsChanged(form: LibrarySettings, saved: LibrarySettings) {
+  return (
+    !sameFormText(form.ebookLibraryRoot, saved.ebookLibraryRoot) ||
+    !sameFormText(form.audiobookLibraryRoot, saved.audiobookLibraryRoot) ||
+    !sameFormText(form.namingAuthorFolder, saved.namingAuthorFolder) ||
+    !sameFormText(form.namingBookFolder, saved.namingBookFolder) ||
+    !sameFormText(form.namingFileName, saved.namingFileName) ||
+    !sameFormText(form.namingSpaceReplacement, saved.namingSpaceReplacement) ||
+    (normalizedFormText(form.standardSearchLanguage) || "English") !== (normalizedFormText(saved.standardSearchLanguage) || "English")
+  );
+}
+
+export function integrationSettingsChanged(form: IntegrationSettings, saved: IntegrationSettings) {
+  const secretChanged = Boolean(
+    normalizedFormText(form.prowlarrApiKey) ||
+      normalizedFormText(form.qbittorrentPassword) ||
+      normalizedFormText(form.transmissionPassword) ||
+      normalizedFormText(form.sabnzbdApiKey) ||
+      normalizedFormText(form.sabnzbdPassword)
+  );
+  return (
+    secretChanged ||
+    !sameFormText(form.prowlarrUrl, saved.prowlarrUrl) ||
+    !sameFormText(form.qbittorrentUrl, saved.qbittorrentUrl) ||
+    !sameFormText(form.qbittorrentUsername, saved.qbittorrentUsername) ||
+    !sameFormText(form.transmissionUrl, saved.transmissionUrl) ||
+    !sameFormText(form.transmissionUsername, saved.transmissionUsername) ||
+    !sameFormText(form.sabnzbdUrl, saved.sabnzbdUrl) ||
+    !sameFormText(form.sabnzbdUsername, saved.sabnzbdUsername) ||
+    !sameFormText(form.ebookCategory, saved.ebookCategory) ||
+    !sameFormText(form.audiobookCategory, saved.audiobookCategory) ||
+    !sameFormText(form.bookTorrentRoot, saved.bookTorrentRoot)
+  );
+}
+
+/* ------------------------------ Naming preview ----------------------------- */
+
+export function libraryNamingPreviewPath(settings: LibrarySettings) {
+  const values = {
+    Author: "Andy Weir",
+    Title: "Project Hail Mary",
+    Format: "ebook",
+    Ext: ".epub"
+  };
+  const replacement = settings.namingSpaceReplacement.trim();
+  const root = settings.ebookLibraryRoot.trim() || "/data/media/books/ebooks";
+  const authorSegments = libraryTemplateSegments(settings.namingAuthorFolder || "{Author}", values, replacement);
+  const bookSegments = libraryTemplateSegments(settings.namingBookFolder || "{Title}", values, replacement);
+  let fileName = renderLibraryTemplate(settings.namingFileName || "{Title}{Ext}", values, replacement);
+  if (!fileName.toLowerCase().endsWith(values.Ext)) fileName += values.Ext;
+  return [root, ...authorSegments, ...bookSegments, fileName].join("/");
+}
+
+export function libraryTemplateSegments(template: string, values: Record<string, string>, replacement: string) {
+  const segments = template
+    .split(/[\\/]/)
+    .map((segment) => renderLibraryTemplate(segment, values, replacement))
+    .filter((segment) => segment && segment !== "." && segment !== "..");
+  return segments.length ? segments : ["Unknown"];
+}
+
+export function renderLibraryTemplate(template: string, values: Record<string, string>, replacement: string) {
+  let rendered = template.trim() || "{Title}";
+  for (const [key, value] of Object.entries(values)) {
+    rendered = rendered.split(`{${key}}`).join(value).split(`{${key.toLowerCase()}}`).join(value);
+  }
+  rendered = rendered.replace(/[<>:"|?*\x00-\x1f]/g, "-").replace(/\s+/g, " ").trim();
+  if (replacement) rendered = rendered.split(" ").join(replacement);
+  return rendered || "Unknown";
+}
+
+/* ----------------------------- Quality profiles ---------------------------- */
+
+export function profileKey(profile: QualityProfile) {
+  return profile.id || `${profile.name}:${profile.mediaFormat}`;
+}
+
+export function splitTerms(value: string) {
+  return value
+    .split(",")
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
+export function bytesToGiB(bytes: number) {
+  if (!bytes) return 0;
+  return Number((bytes / 1024 / 1024 / 1024).toFixed(2));
+}
+
+export function giBToBytes(value: number) {
+  if (!value || value < 0) return 0;
+  return Math.round(value * 1024 * 1024 * 1024);
+}
+
+/* ------------------------------ Readarr import ----------------------------- */
+
+export function readarrImportCount(outcome: ReadarrImportOutcome) {
+  return outcome.sections.reduce((total, section) => total + section.count, 0);
+}
+
+export function readarrImportImported(outcome: ReadarrImportOutcome) {
+  return outcome.sections.reduce((total, section) => total + section.imported, 0);
+}
+
+export function readarrImportSectionLabel(name: string) {
+  switch (name) {
+    case "qualityProfiles":
+      return "Quality profiles";
+    case "rootFolders":
+      return "Root folders";
+    case "authors":
+      return "Authors";
+    case "books":
+      return "Books";
+    case "bookFiles":
+      return "Book files";
+    case "tags":
+      return "Tags";
+    case "importLists":
+      return "Import lists";
+    case "importListExclusions":
+      return "List exclusions";
+    case "delayProfiles":
+      return "Delay profiles";
+    case "languageProfiles":
+      return "Language profiles";
+    case "metadataProfiles":
+      return "Metadata profiles";
+    case "metadataConsumers":
+      return "Metadata consumers";
+    case "customFormats":
+      return "Custom formats";
+    case "restrictions":
+      return "Restrictions";
+    case "notifications":
+      return "Notifications";
+    case "remotePathMappings":
+      return "Remote paths";
+    case "downloadClients":
+      return "Download clients";
+    case "indexers":
+      return "Indexers";
+    default:
+      return name;
+  }
+}
+
+export function readarrImportItemLabel(item: ReadarrImportItem) {
+  const primary = item.title || item.authorName || item.path || item.id || "Imported record";
+  const secondary = [item.authorName && item.authorName !== primary ? item.authorName : "", item.qualityProfile, item.status]
+    .filter(Boolean)
+    .join(" · ");
+  return secondary ? `${primary} · ${secondary}` : primary;
+}
+
+/* --------------------------------- Errors ---------------------------------- */
+
+export function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+export function isPersistenceRequiredError(message: string) {
+  return message.toLowerCase().includes("requires database persistence");
+}
+
+export function appErrorMessage(message: string) {
+  if (!isPersistenceRequiredError(message)) return message;
+  return `${message}. Set LIBRARRY_DATABASE_URL to a Postgres database and restart the API to enable library files, import reviews, wanted queues, author monitoring, and release decisions.`;
+}

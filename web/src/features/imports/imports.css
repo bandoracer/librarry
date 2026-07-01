@@ -1,0 +1,96 @@
+/* Library Import feature — layout-only rules. Colors, typography, and
+   component chrome come from styles.css primitives. */
+
+.imports-scan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 32px;
+  align-items: start;
+}
+
+.imports-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.imports-root-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.imports-root-row .field {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.imports-root-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.imports-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.imports-chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.imports-bulkbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.imports-review-select {
+  width: 28px;
+}
+
+.imports-review-file,
+.imports-review-detected,
+.imports-review-match {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.imports-review-match {
+  max-width: 360px;
+}
+
+.imports-candidate-select {
+  max-width: 320px;
+}
+
+.imports-table-caption {
+  display: block;
+  margin-top: 10px;
+}
+
+.imports-statbar-wrap {
+  margin-bottom: 14px;
+}
+
+.imports-notice-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 1099px) {
+  .imports-scan-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

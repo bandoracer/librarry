@@ -1,0 +1,243 @@
+/*
+ * Activity feature layout. Layout-only rules (`activity-` prefix): colors,
+ * borders, and typography all come from the shared primitives in styles.css.
+ */
+
+.activity-health-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.activity-filters .field {
+  flex: 0 1 auto;
+  min-width: 130px;
+}
+
+.activity-filter-find {
+  flex: 1 1 220px;
+  max-width: 340px;
+}
+
+.activity-filter-find .field {
+  width: 100%;
+}
+
+.activity-filter-max {
+  max-width: 96px;
+  min-width: 82px;
+}
+
+.activity-filter-scope {
+  display: flex;
+  align-items: center;
+  padding-bottom: 2px;
+}
+
+.activity-bulkbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.activity-bulkbar-count {
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.activity-title-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  max-width: 440px;
+}
+
+.activity-title-cell .cell-muted,
+.activity-title-cell strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 440px;
+}
+
+.activity-title-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.activity-state-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.activity-progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 132px;
+}
+
+.activity-progress-cell .progress {
+  flex: 1 1 auto;
+}
+
+.activity-progress-cell span {
+  min-width: 34px;
+  text-align: right;
+}
+
+/* Inline expanded details row */
+
+.activity-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0 8px;
+}
+
+.activity-details-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.activity-detail-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activity-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.activity-detail-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.activity-detail-form .field {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.activity-detail-form .activity-detail-form-narrow {
+  max-width: 140px;
+}
+
+.activity-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-detail-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.activity-detail-row-main strong {
+  overflow-wrap: anywhere;
+}
+
+.activity-detail-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.activity-file-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.activity-file-progress .progress {
+  flex: 1 1 auto;
+}
+
+/* Manage clients modal */
+
+.activity-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.activity-modal-section:last-child {
+  margin-bottom: 0;
+}
+
+.activity-resource-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.activity-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.activity-preference-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.activity-preference-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* History tab */
+
+.activity-history-time {
+  white-space: nowrap;
+}

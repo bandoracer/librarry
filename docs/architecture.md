@@ -2,6 +2,11 @@
 
 Librarry is split into a Go backend, a React frontend, and Postgres.
 
+The frontend is a modular Vite + React + TanStack Query SPA; its structure,
+navigation contract, demo mode, and conventions are documented in
+[frontend.md](frontend.md). UI surfaces that still need backend support are
+tracked in [ui-backlog.md](ui-backlog.md).
+
 ## Backend
 
 The backend owns provider credentials, metadata normalization, provider health,

@@ -76,6 +76,18 @@ yet ready to replace a production Readarr instance unattended.
 - The UI tolerates nullable list payloads from the API, including empty
   `files`, `authors`, `downloads`, `releases`, `profiles`, `reviews`, and
   `events` arrays.
+- On 2026-07-01 the web UI was migrated from a single-file React app
+  (7,445-line `App.tsx`) to a modular feature architecture with TanStack Query
+  and lazy-loaded pages, and redesigned toward classic arr conventions (dark
+  sidebar always reachable: full rail / icon rail / mobile drawer; page
+  toolbars; queue-first Activity page; confirm-before-delete). Route paths are
+  unchanged (`/dashboard`, `/library`, `/search`, `/wanted`, `/downloads`,
+  `/imports`, `/providers`, `/settings`); nav labels changed (Search→Add New,
+  Queue→Activity, Providers→System) and the default route is now `/library`.
+  Verified in demo mode at 375/768/1280 px with zero console errors; `tsc -b`
+  and `vite build` pass. See docs/frontend.md and docs/ui-backlog.md. The
+  redesigned UI has not yet been re-verified against the live TrueNAS
+  deployment.
 
 ## Available But Still Needs Real-World Proving
 

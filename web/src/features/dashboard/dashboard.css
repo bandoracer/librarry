@@ -1,0 +1,58 @@
+/*
+ * Dashboard layout. Layout-only rules — colors, spacing tokens, and
+ * typography come from ui.tsx primitives and styles.css.
+ */
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 1080px) {
+  .dashboard-columns {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+}
+
+.dashboard-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Needs-attention rows: keep the count column tight so labels line up. */
+.dashboard-attention-count {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.dashboard-arrow-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+/* Health card: providers and integrations side by side when there is room. */
+.dashboard-health {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (min-width: 720px) {
+  .dashboard-health {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Recent activity: keep timestamps and badges from wrapping. */
+.dashboard-activity-time,
+.dashboard-activity-type {
+  width: 1%;
+  white-space: nowrap;
+}
