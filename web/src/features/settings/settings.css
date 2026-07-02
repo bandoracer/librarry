@@ -195,6 +195,14 @@
   margin-top: 12px;
 }
 
+/* Connect tab: trigger summary chips inside a table cell. */
+.settings-connect-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 /* Rename preview modal. */
 .settings-rename-head {
   display: flex;

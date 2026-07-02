@@ -2247,3 +2247,178 @@ export async function renameLibraryFiles(request: LibraryRenameRequest): Promise
   }
   return normalizeLibraryRenameOutcome((await response.json()) as LibraryRenamePayload);
 }
+
+/* ---------------------- System tasks / health / disk (M5) ------------------ */
+
+/** One scheduler-registered worker: interval cadence plus last/next run facts. */
+export type SystemTask = {
+  id: string;
+  name: string;
+  interval: string;
+  lastRunAt?: string;
+  lastOutcome?: string;
+  lastError?: string;
+  nextRunAt?: string;
+  running: boolean;
+};
+
+export async function fetchSystemTasks(): Promise<SystemTask[]> {
+  const response = await fetch(`${apiBase}/api/v1/system/tasks`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "System tasks refresh failed"));
+  }
+  const payload = (await response.json()) as { tasks?: SystemTask[] | null };
+  return arrayPayload(payload.tasks);
+}
+
+export type RunSystemTaskOutcome = {
+  started: boolean;
+  /** True when the server answered 409 — the task is already running. */
+  alreadyRunning?: boolean;
+  message?: string;
+};
+
+/**
+ * Trigger a task run. 202 → {started:true}. A 409 (already running) is a
+ * semi-expected outcome, so it is returned rather than thrown; every other
+ * failure throws.
+ */
+export async function runSystemTask(id: string): Promise<RunSystemTaskOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/system/tasks/${encodeURIComponent(id)}/run`, {
+    method: "POST"
+  });
+  if (response.status === 409) {
+    return { started: false, alreadyRunning: true, message: await apiError(response, "Task already running") };
+  }
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Task run failed"));
+  }
+  const payload = (await response.json()) as { started?: boolean };
+  return { started: Boolean(payload.started) };
+}
+
+export type SystemHealthSeverity = "ok" | "warning" | "error";
+
+export type SystemHealthCheck = {
+  id: string;
+  severity: SystemHealthSeverity;
+  name: string;
+  message: string;
+};
+
+export async function fetchSystemHealth(): Promise<SystemHealthCheck[]> {
+  const response = await fetch(`${apiBase}/api/v1/system/health`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Health checks refresh failed"));
+  }
+  const payload = (await response.json()) as { checks?: SystemHealthCheck[] | null };
+  return arrayPayload(payload.checks);
+}
+
+export type DiskSpaceEntry = {
+  path: string;
+  label: string;
+  freeBytes: number;
+  totalBytes: number;
+};
+
+export async function fetchDiskSpace(): Promise<DiskSpaceEntry[]> {
+  const response = await fetch(`${apiBase}/api/v1/system/diskspace`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Disk space refresh failed"));
+  }
+  const payload = (await response.json()) as { disks?: DiskSpaceEntry[] | null };
+  return arrayPayload(payload.disks);
+}
+
+/* --------------------------- Notification targets (M5) --------------------- */
+
+export type NotificationTargetType = "webhook" | "ntfy" | "discord" | "telegram";
+
+export type NotificationTriggers = {
+  onGrab: boolean;
+  onImport: boolean;
+  onUpgrade: boolean;
+  onDownloadFailure: boolean;
+  onHealthIssue: boolean;
+};
+
+export type NotificationTarget = {
+  id: string;
+  name: string;
+  type: NotificationTargetType;
+  /** Schema-driven per-type fields (url, topic, token, webhookUrl, botToken, chatId…). */
+  settings: Record<string, string>;
+  triggers: NotificationTriggers;
+  enabled: boolean;
+  createdAt: string;
+};
+
+/**
+ * Create/update payload: server owns id and createdAt. On update, a blank
+ * secret setting means "keep the stored value" (backend contract) — secrets
+ * are never echoed back for re-submission.
+ */
+export type NotificationTargetRequest = Omit<NotificationTarget, "id" | "createdAt">;
+
+export async function fetchNotificationTargets(): Promise<NotificationTarget[]> {
+  const response = await fetch(`${apiBase}/api/v1/notifications`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Notification targets refresh failed"));
+  }
+  const payload = (await response.json()) as { targets?: NotificationTarget[] | null };
+  return arrayPayload(payload.targets);
+}
+
+export async function createNotificationTarget(request: NotificationTargetRequest): Promise<NotificationTarget> {
+  const response = await fetch(`${apiBase}/api/v1/notifications`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Notification target create failed"));
+  }
+  const payload = (await response.json()) as { target: NotificationTarget };
+  return payload.target;
+}
+
+export async function updateNotificationTarget(
+  id: string,
+  request: NotificationTargetRequest
+): Promise<NotificationTarget> {
+  const response = await fetch(`${apiBase}/api/v1/notifications/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Notification target update failed"));
+  }
+  const payload = (await response.json()) as { target: NotificationTarget };
+  return payload.target;
+}
+
+export async function deleteNotificationTarget(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/notifications/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Notification target delete failed"));
+  }
+}
+
+export type NotificationTestOutcome = {
+  ok: boolean;
+  error?: string;
+};
+
+export async function testNotificationTarget(id: string): Promise<NotificationTestOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/notifications/${encodeURIComponent(id)}/test`, {
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Notification test failed"));
+  }
+  return (await response.json()) as NotificationTestOutcome;
+}

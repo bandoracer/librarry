@@ -4,6 +4,7 @@ import {
   fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
   fetchBlocklist,
+  fetchDiskSpace,
   fetchDownloads,
   fetchHistory,
   fetchIntegrationHealth,
@@ -11,13 +12,16 @@ import {
   fetchLibraryFiles,
   fetchLibraryImportReviews,
   fetchLibrarySettings,
+  fetchNotificationTargets,
   fetchProviderHealth,
   fetchQualityProfiles,
   fetchReadarrCompatibility,
   fetchReadiness,
   fetchRemotePathMappings,
   fetchRootFolders,
+  fetchSystemHealth,
   fetchSystemStatus,
+  fetchSystemTasks,
   fetchWanted,
   fetchWantedMetadata,
   fetchWantedMetadataReview,
@@ -320,4 +324,52 @@ export function useAPIState(): APIState {
   if (status.isSuccess) return "live";
   if (status.isError) return demoModeEnabled ? "demo" : "offline";
   return demoModeEnabled ? "demo" : "live";
+}
+
+/* --------------------- M5 operability: tasks/health/notify ----------------- */
+
+/**
+ * Keys for the M5 operability surface, appended alongside the shared `keys`
+ * map (kept separate so parallel milestones don't collide inside one object).
+ */
+export const operabilityKeys = {
+  systemTasks: ["system-tasks"] as const,
+  systemHealth: ["system-health"] as const,
+  diskSpace: ["disk-space"] as const,
+  notificationTargets: ["notification-targets"] as const
+};
+
+/**
+ * M5 endpoints have no demo seeds — demo installs fall back to empty lists and
+ * render the (real) empty states, matching the root-folders convention.
+ */
+export function useSystemTasks() {
+  return useQuery({
+    queryKey: operabilityKeys.systemTasks,
+    queryFn: withDemoFallback(fetchSystemTasks, () => []),
+    refetchInterval: 15_000
+  });
+}
+
+export function useSystemHealth() {
+  return useQuery({
+    queryKey: operabilityKeys.systemHealth,
+    queryFn: withDemoFallback(fetchSystemHealth, () => []),
+    refetchInterval: 60_000
+  });
+}
+
+export function useDiskSpace() {
+  return useQuery({
+    queryKey: operabilityKeys.diskSpace,
+    queryFn: withDemoFallback(fetchDiskSpace, () => []),
+    refetchInterval: 60_000
+  });
+}
+
+export function useNotificationTargets() {
+  return useQuery({
+    queryKey: operabilityKeys.notificationTargets,
+    queryFn: withDemoFallback(fetchNotificationTargets, () => [])
+  });
 }

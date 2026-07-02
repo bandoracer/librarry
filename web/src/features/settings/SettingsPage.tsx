@@ -6,6 +6,7 @@ import { GeneralTab } from "./GeneralTab";
 import { MediaTab } from "./MediaTab";
 import { ProfilesTab } from "./ProfilesTab";
 import { ConnectionsTab } from "./ConnectionsTab";
+import { ConnectTab } from "./ConnectTab";
 import { ImportTab } from "./ImportTab";
 import "./settings.css";
 
@@ -17,6 +18,7 @@ const tabs = [
   { label: "Media Management", to: "/settings/media" },
   { label: "Profiles", to: "/settings/profiles" },
   { label: "Connections", to: "/settings/connections" },
+  { label: "Connect", to: "/settings/connect" },
   { label: "Import", to: "/settings/import" }
 ];
 
@@ -39,6 +41,7 @@ export default function SettingsPage() {
           <Route path="media" element={<MediaTab />} />
           <Route path="profiles" element={<ProfilesTab />} />
           <Route path="connections" element={<ConnectionsTab />} />
+          <Route path="connect" element={<ConnectTab />} />
           <Route path="import" element={<ImportTab />} />
           <Route path="*" element={<Navigate to="/settings" replace />} />
         </Routes>

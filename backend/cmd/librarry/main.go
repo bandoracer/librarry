@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -20,6 +21,8 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
+	"github.com/bandoracer/librarry/backend/internal/notify"
+	"github.com/bandoracer/librarry/backend/internal/scheduler"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
@@ -35,6 +38,7 @@ func main() {
 	var wantedStore *wanted.Store
 	var libraryStore *library.Store
 	var compatStore *compatstore.Store
+	var notifyStore *notify.Store
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -52,6 +56,7 @@ func main() {
 		wantedStore = wanted.NewStore(db)
 		libraryStore = library.NewStore(db)
 		compatStore = compatstore.NewStore(db)
+		notifyStore = notify.NewStore(db)
 		logger.Info("database migrations applied")
 	} else {
 		logger.Warn("LIBRARRY_DATABASE_URL is not set; starting without database-backed persistence")
@@ -138,47 +143,58 @@ func main() {
 		}
 	}
 	wantedService.SetDefaultSearchLanguage(libraryConfig.StandardSearchLanguage)
-	var monitorWG sync.WaitGroup
+	notifier := notify.NewService(notifyStore, logger)
+
+	// Background workers register with the scheduler registry, which owns the
+	// startup-timer/ticker loops and powers the System Tasks view plus manual
+	// run-now triggers.
+	registry := scheduler.NewRegistry(logger)
+	registerTask := func(task scheduler.Task) {
+		if err := registry.Register(task); err != nil {
+			logger.Error("task registration failed", "task", task.ID, "error", err)
+		}
+	}
 	if cfg.MonitorEnabled && wantedService.Available() {
-		monitorWG.Add(1)
-		go runWantedMonitor(ctx, &monitorWG, logger, wantedService, cfg)
+		registerTask(wantedMonitorTask(logger, wantedService, notifier, cfg))
 	}
 	if cfg.AuthorMonitorEnabled && wantedService.Available() {
-		monitorWG.Add(1)
-		go runAuthorMonitor(ctx, &monitorWG, logger, wantedService, cfg)
+		registerTask(authorMonitorTask(logger, wantedService, cfg))
 	}
 	if cfg.FeedSyncEnabled && wantedService.Available() {
-		monitorWG.Add(1)
-		go runWantedFeedSync(ctx, &monitorWG, logger, wantedService, cfg)
+		registerTask(feedSyncTask(logger, wantedService, notifier, cfg))
 	}
 	if cfg.FailedDownloadEnabled && wantedService.Available() {
-		monitorWG.Add(1)
-		go runFailedDownloadRecovery(ctx, &monitorWG, logger, wantedService, cfg)
+		registerTask(failedDownloadRecoveryTask(logger, wantedService, notifier, cfg))
 	}
 	if cfg.UpgradeSearchEnabled && wantedService.Available() {
-		monitorWG.Add(1)
-		go runUpgradeSearch(ctx, &monitorWG, logger, wantedService, cfg)
+		registerTask(upgradeSearchTask(logger, wantedService, notifier, cfg))
 	}
 	if cfg.CalibreRefreshEnabled && libraryService.Available() {
-		monitorWG.Add(1)
-		go runCalibreConversionRefresh(ctx, &monitorWG, logger, libraryService, cfg)
+		registerTask(calibreConversionRefreshTask(logger, libraryService, cfg))
 	}
 	if cfg.CompletedImportEnabled && libraryService.Available() {
-		monitorWG.Add(1)
-		go runCompletedDownloadImport(ctx, &monitorWG, logger, libraryService, acquire, cfg)
+		registerTask(completedDownloadImportTask(logger, libraryService, acquire, notifier, cfg))
 	}
 
 	deps := api.Dependencies{
-		Logger:   logger,
-		Config:   cfg,
-		Metadata: metadataService,
-		Acquire:  acquire,
-		Wanted:   wantedService,
-		Library:  libraryService,
+		Logger:    logger,
+		Config:    cfg,
+		Metadata:  metadataService,
+		Acquire:   acquire,
+		Wanted:    wantedService,
+		Library:   libraryService,
+		Notify:    notifier,
+		Scheduler: registry,
 	}
 	if compatStore != nil {
 		deps.Compat = compatStore
 	}
+	healthEvaluator := api.NewHealthEvaluator(deps)
+	deps.Health = healthEvaluator
+	registerTask(healthCheckTask(healthEvaluator))
+
+	var monitorWG sync.WaitGroup
+	registry.Start(ctx, &monitorWG)
 	router := api.NewRouter(deps)
 
 	server := &http.Server{
@@ -209,57 +225,50 @@ func main() {
 	}
 }
 
-func runWantedFeedSync(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
-	defer wg.Done()
+func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.FeedSyncInterval
 	if interval <= 0 {
 		interval = 15 * time.Minute
 	}
-	run := func(trigger string) {
-		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
-		outcome, err := service.FeedSync(runCtx, wanted.FeedSyncRequest{
-			Trigger:  trigger,
-			Limit:    cfg.FeedSyncLimit,
-			AutoGrab: cfg.FeedSyncAutoGrab,
-			Paused:   true,
-		})
-		if err != nil {
-			logger.Warn("feed sync failed", "trigger", trigger, "error", err)
-			return
-		}
-		logger.Info(
-			"feed sync completed",
-			"trigger", trigger,
-			"status", outcome.Status,
-			"releases_seen", outcome.ReleasesSeen,
-			"matched", outcome.MatchedCount,
-			"approved", outcome.ApprovedCount,
-			"grabbed", outcome.GrabbedCount,
-			"errors", outcome.ErrorCount,
-		)
-	}
-
-	startup := time.NewTimer(30 * time.Second)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
 	logger.Info("feed sync enabled", "interval", interval, "auto_grab", cfg.FeedSyncAutoGrab)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-startup.C:
-			run("scheduled-startup")
-		case <-ticker.C:
-			run("scheduled")
-		}
+	return scheduler.Task{
+		ID:           "feed-sync",
+		Name:         "Feed Sync",
+		Interval:     interval,
+		StartupDelay: 30 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			defer cancel()
+			outcome, err := service.FeedSync(runCtx, wanted.FeedSyncRequest{
+				Trigger:  trigger,
+				Limit:    cfg.FeedSyncLimit,
+				AutoGrab: cfg.FeedSyncAutoGrab,
+				Paused:   true,
+			})
+			if err != nil {
+				logger.Warn("feed sync failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			notifier.DispatchAll(runCtx, notify.EventsFromFeedSyncRun("feed-sync", outcome))
+			logger.Info(
+				"feed sync completed",
+				"trigger", trigger,
+				"status", outcome.Status,
+				"releases_seen", outcome.ReleasesSeen,
+				"matched", outcome.MatchedCount,
+				"approved", outcome.ApprovedCount,
+				"grabbed", outcome.GrabbedCount,
+				"errors", outcome.ErrorCount,
+			)
+			return fmt.Sprintf(
+				"%d releases seen, %d matched, %d grabbed, %d errors",
+				outcome.ReleasesSeen, outcome.MatchedCount, outcome.GrabbedCount, outcome.ErrorCount,
+			), nil
+		},
 	}
 }
 
-func runFailedDownloadRecovery(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
-	defer wg.Done()
+func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.FailedDownloadInterval
 	if interval <= 0 {
 		interval = 30 * time.Minute
@@ -268,56 +277,50 @@ func runFailedDownloadRecovery(ctx context.Context, wg *sync.WaitGroup, logger *
 	if stalledMinutes <= 0 {
 		stalledMinutes = int((24 * time.Hour) / time.Minute)
 	}
-	run := func(trigger string) {
-		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
-		outcome, err := service.RecoverFailedDownloads(runCtx, wanted.FailedDownloadRequest{
-			Trigger:           trigger,
-			Limit:             cfg.FailedDownloadLimit,
-			SearchLimit:       20,
-			MinStalledMinutes: stalledMinutes,
-			AutoGrab:          cfg.FailedDownloadAutoGrab,
-			Paused:            true,
-			RemoveFailed:      cfg.FailedDownloadRemove,
-			DeleteFailedFiles: cfg.FailedDownloadDeleteFiles,
-		})
-		if err != nil {
-			logger.Warn("failed download recovery failed", "trigger", trigger, "error", err)
-			return
-		}
-		logger.Info(
-			"failed download recovery completed",
-			"trigger", trigger,
-			"status", outcome.Status,
-			"checked", outcome.DownloadsChecked,
-			"failed", outcome.FailedCount,
-			"replacements", outcome.ReplacementsFound,
-			"grabbed", outcome.GrabbedCount,
-			"removed", outcome.RemovedCount,
-			"errors", outcome.ErrorCount,
-		)
-	}
-
-	startup := time.NewTimer(45 * time.Second)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
 	logger.Info("failed download recovery enabled", "interval", interval, "auto_grab", cfg.FailedDownloadAutoGrab, "remove_failed", cfg.FailedDownloadRemove)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-startup.C:
-			run("scheduled-startup")
-		case <-ticker.C:
-			run("scheduled")
-		}
+	return scheduler.Task{
+		ID:           "failed-download-recovery",
+		Name:         "Failed Download Recovery",
+		Interval:     interval,
+		StartupDelay: 45 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			defer cancel()
+			outcome, err := service.RecoverFailedDownloads(runCtx, wanted.FailedDownloadRequest{
+				Trigger:           trigger,
+				Limit:             cfg.FailedDownloadLimit,
+				SearchLimit:       20,
+				MinStalledMinutes: stalledMinutes,
+				AutoGrab:          cfg.FailedDownloadAutoGrab,
+				Paused:            true,
+				RemoveFailed:      cfg.FailedDownloadRemove,
+				DeleteFailedFiles: cfg.FailedDownloadDeleteFiles,
+			})
+			if err != nil {
+				logger.Warn("failed download recovery failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			notifier.DispatchAll(runCtx, notify.EventsFromFailedDownloadRun("failed-download-recovery", outcome))
+			logger.Info(
+				"failed download recovery completed",
+				"trigger", trigger,
+				"status", outcome.Status,
+				"checked", outcome.DownloadsChecked,
+				"failed", outcome.FailedCount,
+				"replacements", outcome.ReplacementsFound,
+				"grabbed", outcome.GrabbedCount,
+				"removed", outcome.RemovedCount,
+				"errors", outcome.ErrorCount,
+			)
+			return fmt.Sprintf(
+				"%d checked, %d failed, %d replacements grabbed, %d removed, %d errors",
+				outcome.DownloadsChecked, outcome.FailedCount, outcome.GrabbedCount, outcome.RemovedCount, outcome.ErrorCount,
+			), nil
+		},
 	}
 }
 
-func runUpgradeSearch(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
-	defer wg.Done()
+func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.UpgradeSearchInterval
 	if interval <= 0 {
 		interval = 12 * time.Hour
@@ -326,53 +329,47 @@ func runUpgradeSearch(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logg
 	if minSearchIntervalMinutes <= 0 {
 		minSearchIntervalMinutes = int((12 * time.Hour) / time.Minute)
 	}
-	run := func(trigger string) {
-		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
-		outcome, err := service.SearchUpgrades(runCtx, wanted.UpgradeRequest{
-			Trigger:                  trigger,
-			Limit:                    cfg.UpgradeSearchLimit,
-			SearchLimit:              20,
-			MinSearchIntervalMinutes: minSearchIntervalMinutes,
-			MinScoreDelta:            cfg.UpgradeSearchMinDelta,
-			AutoGrab:                 cfg.UpgradeSearchAutoGrab,
-			Paused:                   true,
-		})
-		if err != nil {
-			logger.Warn("upgrade search failed", "trigger", trigger, "error", err)
-			return
-		}
-		logger.Info(
-			"upgrade search completed",
-			"trigger", trigger,
-			"status", outcome.Status,
-			"wanted_checked", outcome.WantedChecked,
-			"upgrades", outcome.UpgradeCount,
-			"grabbed", outcome.GrabbedCount,
-			"errors", outcome.ErrorCount,
-		)
-	}
-
-	startup := time.NewTimer(60 * time.Second)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
 	logger.Info("upgrade search enabled", "interval", interval, "auto_grab", cfg.UpgradeSearchAutoGrab, "min_delta", cfg.UpgradeSearchMinDelta)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-startup.C:
-			run("scheduled-startup")
-		case <-ticker.C:
-			run("scheduled")
-		}
+	return scheduler.Task{
+		ID:           "upgrade-search",
+		Name:         "Upgrade Search",
+		Interval:     interval,
+		StartupDelay: 60 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			defer cancel()
+			outcome, err := service.SearchUpgrades(runCtx, wanted.UpgradeRequest{
+				Trigger:                  trigger,
+				Limit:                    cfg.UpgradeSearchLimit,
+				SearchLimit:              20,
+				MinSearchIntervalMinutes: minSearchIntervalMinutes,
+				MinScoreDelta:            cfg.UpgradeSearchMinDelta,
+				AutoGrab:                 cfg.UpgradeSearchAutoGrab,
+				Paused:                   true,
+			})
+			if err != nil {
+				logger.Warn("upgrade search failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			notifier.DispatchAll(runCtx, notify.EventsFromUpgradeRun("upgrade-search", outcome))
+			logger.Info(
+				"upgrade search completed",
+				"trigger", trigger,
+				"status", outcome.Status,
+				"wanted_checked", outcome.WantedChecked,
+				"upgrades", outcome.UpgradeCount,
+				"grabbed", outcome.GrabbedCount,
+				"errors", outcome.ErrorCount,
+			)
+			return fmt.Sprintf(
+				"%d wanted checked, %d upgrades, %d grabbed, %d errors",
+				outcome.WantedChecked, outcome.UpgradeCount, outcome.GrabbedCount, outcome.ErrorCount,
+			), nil
+		},
 	}
 }
 
-func runWantedMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
-	defer wg.Done()
+func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.MonitorInterval
 	if interval <= 0 {
 		interval = 30 * time.Minute
@@ -381,52 +378,45 @@ func runWantedMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logg
 	if searchIntervalMinutes <= 0 {
 		searchIntervalMinutes = int((6 * time.Hour) / time.Minute)
 	}
-
-	run := func(trigger string) {
-		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
-		outcome, err := service.Monitor(runCtx, wanted.MonitorRequest{
-			Trigger:                  trigger,
-			Limit:                    cfg.MonitorLimit,
-			SearchLimit:              20,
-			AutoGrab:                 cfg.MonitorAutoGrab,
-			MinSearchIntervalMinutes: searchIntervalMinutes,
-		})
-		if err != nil {
-			logger.Warn("wanted monitor run failed", "trigger", trigger, "error", err)
-			return
-		}
-		logger.Info(
-			"wanted monitor run completed",
-			"trigger", trigger,
-			"status", outcome.Status,
-			"wanted_checked", outcome.WantedChecked,
-			"approved", outcome.ApprovedCount,
-			"grabbed", outcome.GrabbedCount,
-			"errors", outcome.ErrorCount,
-		)
-	}
-
-	startup := time.NewTimer(15 * time.Second)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
 	logger.Info("wanted monitor enabled", "interval", interval, "auto_grab", cfg.MonitorAutoGrab)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-startup.C:
-			run("scheduled-startup")
-		case <-ticker.C:
-			run("scheduled")
-		}
+	return scheduler.Task{
+		ID:           "wanted-monitor",
+		Name:         "Wanted Monitor",
+		Interval:     interval,
+		StartupDelay: 15 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			defer cancel()
+			outcome, err := service.Monitor(runCtx, wanted.MonitorRequest{
+				Trigger:                  trigger,
+				Limit:                    cfg.MonitorLimit,
+				SearchLimit:              20,
+				AutoGrab:                 cfg.MonitorAutoGrab,
+				MinSearchIntervalMinutes: searchIntervalMinutes,
+			})
+			if err != nil {
+				logger.Warn("wanted monitor run failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			notifier.DispatchAll(runCtx, notify.EventsFromMonitorRun("wanted-monitor", outcome))
+			logger.Info(
+				"wanted monitor run completed",
+				"trigger", trigger,
+				"status", outcome.Status,
+				"wanted_checked", outcome.WantedChecked,
+				"approved", outcome.ApprovedCount,
+				"grabbed", outcome.GrabbedCount,
+				"errors", outcome.ErrorCount,
+			)
+			return fmt.Sprintf(
+				"%d wanted checked, %d approved, %d grabbed, %d errors",
+				outcome.WantedChecked, outcome.ApprovedCount, outcome.GrabbedCount, outcome.ErrorCount,
+			), nil
+		},
 	}
 }
 
-func runAuthorMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service *wanted.Service, cfg config.Config) {
-	defer wg.Done()
+func authorMonitorTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.AuthorMonitorInterval
 	if interval <= 0 {
 		interval = 6 * time.Hour
@@ -435,46 +425,39 @@ func runAuthorMonitor(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logg
 	if syncIntervalMinutes <= 0 {
 		syncIntervalMinutes = int((24 * time.Hour) / time.Minute)
 	}
-
-	run := func(trigger string) {
-		runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-		defer cancel()
-		outcome, err := service.MonitorAuthors(runCtx, wanted.AuthorMonitorRequest{
-			Trigger:                trigger,
-			Limit:                  cfg.AuthorMonitorLimit,
-			SearchLimit:            20,
-			MinSyncIntervalMinutes: syncIntervalMinutes,
-		})
-		if err != nil {
-			logger.Warn("author monitor run failed", "trigger", trigger, "error", err)
-			return
-		}
-		logger.Info(
-			"author monitor run completed",
-			"trigger", trigger,
-			"status", outcome.Status,
-			"authors_checked", outcome.AuthorsChecked,
-			"items_found", outcome.ItemsFound,
-			"wanted_created", outcome.WantedCreated,
-			"errors", outcome.ErrorCount,
-		)
-	}
-
-	startup := time.NewTimer(30 * time.Second)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
 	logger.Info("author monitor enabled", "interval", interval)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-startup.C:
-			run("scheduled-startup")
-		case <-ticker.C:
-			run("scheduled")
-		}
+	return scheduler.Task{
+		ID:           "author-monitor",
+		Name:         "Author Monitor",
+		Interval:     interval,
+		StartupDelay: 30 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			defer cancel()
+			outcome, err := service.MonitorAuthors(runCtx, wanted.AuthorMonitorRequest{
+				Trigger:                trigger,
+				Limit:                  cfg.AuthorMonitorLimit,
+				SearchLimit:            20,
+				MinSyncIntervalMinutes: syncIntervalMinutes,
+			})
+			if err != nil {
+				logger.Warn("author monitor run failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			logger.Info(
+				"author monitor run completed",
+				"trigger", trigger,
+				"status", outcome.Status,
+				"authors_checked", outcome.AuthorsChecked,
+				"items_found", outcome.ItemsFound,
+				"wanted_created", outcome.WantedCreated,
+				"errors", outcome.ErrorCount,
+			)
+			return fmt.Sprintf(
+				"%d authors checked, %d items found, %d wanted created, %d errors",
+				outcome.AuthorsChecked, outcome.ItemsFound, outcome.WantedCreated, outcome.ErrorCount,
+			), nil
+		},
 	}
 }
 
@@ -499,76 +482,69 @@ type recycleBinCleaner interface {
 	CleanupRecycleBin(now time.Time) (int, error)
 }
 
-// runCompletedDownloadImport is Librarry's take on arr "Completed Download
+// completedDownloadImportTask is Librarry's take on arr "Completed Download
 // Handling": finished librarry-tagged downloads are imported automatically —
 // auto-matched to their wanted item, or queued for review when no match
 // exists — without an operator pressing Import. A second phase mirrors the
 // arr "Remove Completed" behavior: imported downloads whose client reports
 // seeding has finished are deleted with their data (imports use
 // hardlink-or-copy, so the library copy survives).
-func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadClient, cfg config.Config) {
-	defer wg.Done()
+func completedDownloadImportTask(logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadClient, notifier *notify.Service, cfg config.Config) scheduler.Task {
 	interval := completedImportInterval(cfg)
-
-	run := func(trigger string) {
-		outcome, err := runCompletedDownloadImportOnce(ctx, service, downloads, cfg)
-		if err != nil {
-			logger.Warn("completed download import failed", "trigger", trigger, "error", err)
-			return
-		}
-		removed := 0
-		if cfg.CompletedRemoveEnabled {
-			removed, err = runCompletedDownloadRemovalOnce(ctx, downloads)
-			if err != nil {
-				logger.Warn("completed download removal failed", "trigger", trigger, "error", err)
-			}
-		}
-		// Recycle-bin retention cleanup rides the same tick (no-op when
-		// LIBRARRY_RECYCLE_BIN is unset).
-		recycled := 0
-		if cleaner, ok := service.(recycleBinCleaner); ok && strings.TrimSpace(cfg.RecycleBin) != "" {
-			recycled, err = cleaner.CleanupRecycleBin(time.Now().UTC())
-			if err != nil {
-				logger.Warn("recycle bin cleanup failed", "trigger", trigger, "error", err)
-			}
-		}
-		// Unresolved reviews re-count every tick (dedup happens in the store),
-		// so only imports, removals, and errors get Info-level noise.
-		level := slog.LevelDebug
-		if outcome.Imported > 0 || outcome.Errored > 0 || removed > 0 || recycled > 0 {
-			level = slog.LevelInfo
-		}
-		logger.Log(
-			ctx,
-			level,
-			"completed download import finished",
-			"trigger", trigger,
-			"checked", outcome.Checked,
-			"imported", outcome.Imported,
-			"auto_matched", outcome.AutoMatched,
-			"review_queued", outcome.ReviewQueued,
-			"skipped", outcome.Skipped,
-			"removed", removed,
-			"recycle_bin_purged", recycled,
-			"errors", outcome.Errored,
-		)
-	}
-
-	startup := time.NewTimer(45 * time.Second)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
 	logger.Info("completed download import enabled", "interval", interval, "limit", completedImportLimit(cfg), "remove_after_seeding", cfg.CompletedRemoveEnabled)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-startup.C:
-			run("scheduled-startup")
-		case <-ticker.C:
-			run("scheduled")
-		}
+	return scheduler.Task{
+		ID:           "completed-import",
+		Name:         "Completed Download Import",
+		Interval:     interval,
+		StartupDelay: 45 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			outcome, err := runCompletedDownloadImportOnce(ctx, service, downloads, cfg)
+			if err != nil {
+				logger.Warn("completed download import failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			notifier.DispatchAll(ctx, notify.EventsFromCompletedImports("completed-import", outcome))
+			removed := 0
+			if cfg.CompletedRemoveEnabled {
+				removed, err = runCompletedDownloadRemovalOnce(ctx, downloads)
+				if err != nil {
+					logger.Warn("completed download removal failed", "trigger", trigger, "error", err)
+				}
+			}
+			// Recycle-bin retention cleanup rides the same tick (no-op when
+			// LIBRARRY_RECYCLE_BIN is unset).
+			recycled := 0
+			if cleaner, ok := service.(recycleBinCleaner); ok && strings.TrimSpace(cfg.RecycleBin) != "" {
+				recycled, err = cleaner.CleanupRecycleBin(time.Now().UTC())
+				if err != nil {
+					logger.Warn("recycle bin cleanup failed", "trigger", trigger, "error", err)
+				}
+			}
+			// Unresolved reviews re-count every tick (dedup happens in the store),
+			// so only imports, removals, and errors get Info-level noise.
+			level := slog.LevelDebug
+			if outcome.Imported > 0 || outcome.Errored > 0 || removed > 0 || recycled > 0 {
+				level = slog.LevelInfo
+			}
+			logger.Log(
+				ctx,
+				level,
+				"completed download import finished",
+				"trigger", trigger,
+				"checked", outcome.Checked,
+				"imported", outcome.Imported,
+				"auto_matched", outcome.AutoMatched,
+				"review_queued", outcome.ReviewQueued,
+				"skipped", outcome.Skipped,
+				"removed", removed,
+				"recycle_bin_purged", recycled,
+				"errors", outcome.Errored,
+			)
+			return fmt.Sprintf(
+				"%d checked, %d imported, %d review queued, %d removed, %d errors",
+				outcome.Checked, outcome.Imported, outcome.ReviewQueued, removed, outcome.Errored,
+			), nil
+		},
 	}
 }
 
@@ -653,41 +629,58 @@ func completedImportLimit(cfg config.Config) int {
 	return cfg.CompletedImportLimit
 }
 
-func runCalibreConversionRefresh(ctx context.Context, wg *sync.WaitGroup, logger *slog.Logger, service calibreConversionRefreshService, cfg config.Config) {
-	defer wg.Done()
+func calibreConversionRefreshTask(logger *slog.Logger, service calibreConversionRefreshService, cfg config.Config) scheduler.Task {
 	interval, _ := calibreConversionRefreshSchedule(cfg)
-
-	run := func(trigger string) {
-		outcome, err := runCalibreConversionRefreshOnce(ctx, logger, service, cfg, trigger)
-		if err != nil {
-			logger.Warn("calibre conversion refresh failed", "trigger", trigger, "error", err)
-			return
-		}
-		logger.Info(
-			"calibre conversion refresh completed",
-			"trigger", trigger,
-			"checked", outcome.Checked,
-			"refreshed", outcome.Refreshed,
-			"skipped", outcome.Skipped,
-			"errors", outcome.Errored,
-		)
-	}
-
-	startup := time.NewTimer(75 * time.Second)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
 	logger.Info("calibre conversion refresh enabled", "interval", interval, "limit", calibreConversionRefreshLimit(cfg), "max_attempts", calibreConversionRefreshMaxAttempts(cfg))
+	return scheduler.Task{
+		ID:           "calibre-refresh",
+		Name:         "Calibre Conversion Refresh",
+		Interval:     interval,
+		StartupDelay: 75 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			outcome, err := runCalibreConversionRefreshOnce(ctx, logger, service, cfg, trigger)
+			if err != nil {
+				logger.Warn("calibre conversion refresh failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			logger.Info(
+				"calibre conversion refresh completed",
+				"trigger", trigger,
+				"checked", outcome.Checked,
+				"refreshed", outcome.Refreshed,
+				"skipped", outcome.Skipped,
+				"errors", outcome.Errored,
+			)
+			return fmt.Sprintf(
+				"%d checked, %d refreshed, %d skipped, %d errors",
+				outcome.Checked, outcome.Refreshed, outcome.Skipped, outcome.Errored,
+			), nil
+		},
+	}
+}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-startup.C:
-			run("scheduled-startup")
-		case <-ticker.C:
-			run("scheduled")
-		}
+// healthCheckTask reruns the health rules every 5 minutes; ok-to-bad
+// transitions dispatch healthIssue notifications from inside the evaluator.
+func healthCheckTask(evaluator *api.HealthEvaluator) scheduler.Task {
+	return scheduler.Task{
+		ID:           "health-check",
+		Name:         "Health Check",
+		Interval:     5 * time.Minute,
+		StartupDelay: 20 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			checks := evaluator.Evaluate(ctx)
+			warnings := 0
+			errored := 0
+			for _, check := range checks {
+				switch check.Severity {
+				case "warning":
+					warnings++
+				case "error":
+					errored++
+				}
+			}
+			return fmt.Sprintf("%d checks, %d warnings, %d errors", len(checks), warnings, errored), nil
+		},
 	}
 }
 

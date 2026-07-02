@@ -97,6 +97,36 @@
   min-width: 0;
 }
 
+/* --------------------------- Scheduled tasks / disks ---------------------- */
+
+.system-task-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Last-run cell: relative time plus an inline error dot when the run failed. */
+.system-task-lastrun {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.system-disk-usage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.system-disk-usage .progress {
+  flex: 1;
+}
+
+.system-disk-usage-col {
+  min-width: 160px;
+}
+
 /* --------------------------- Readarr compatibility ------------------------ */
 
 .system-compat-grid {

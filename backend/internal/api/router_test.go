@@ -2412,6 +2412,9 @@ func TestCompatConfigEndpoints(t *testing.T) {
 	if !strings.Contains(res.Body.String(), "Andy_Weir") || !strings.Contains(res.Body.String(), "Project_Hail_Mary") {
 		t.Fatalf("expected naming example, got %s", res.Body.String())
 	}
+	if !strings.Contains(res.Body.String(), `"series":"Dungeon Crawler Carl"`) || !strings.Contains(res.Body.String(), `"year":"2020"`) {
+		t.Fatalf("expected series naming example, got %s", res.Body.String())
+	}
 
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/config/naming/1", strings.NewReader(`{"standardBookFormat":"{Title}{Ext}","replaceSpaces":false}`))
 	res = httptest.NewRecorder()
@@ -3935,6 +3938,7 @@ func TestUpdateWantedEndpointPersistsMetadataCorrections(t *testing.T) {
 		"coverUrl":"https://covers.example/corrected.jpg",
 		"qualityProfile":"retail",
 		"monitored":false,
+		"rootFolderId":"root-7",
 		"tags":[7,9]
 	}`))
 	res := httptest.NewRecorder()
@@ -3961,7 +3965,9 @@ func TestUpdateWantedEndpointPersistsMetadataCorrections(t *testing.T) {
 		!update.request.TagsSet ||
 		len(update.request.Tags) != 2 ||
 		update.request.Tags[0] != 7 ||
-		update.request.Tags[1] != 9 {
+		update.request.Tags[1] != 9 ||
+		update.request.RootFolderID == nil ||
+		*update.request.RootFolderID != "root-7" {
 		t.Fatalf("unexpected wanted update request: %+v", update)
 	}
 }
@@ -5996,4 +6002,231 @@ func (fakeMetadataProvider) Search(_ metadata.Context, query metadata.Query) ([]
 			ISBNs:  []string{"9780593135204"},
 		},
 	}}, nil
+}
+
+type fakeRootFolderLibrary struct {
+	fakeLibrary
+	folders        []library.RootFolder
+	deleteConflict bool
+	created        []library.RootFolder
+	updated        []library.RootFolder
+	deleted        []string
+	synced         []library.Config
+}
+
+func (f *fakeRootFolderLibrary) ListRootFolders(context.Context) ([]library.RootFolder, error) {
+	return f.folders, nil
+}
+
+func (f *fakeRootFolderLibrary) CreateRootFolder(_ context.Context, folder library.RootFolder) (library.RootFolder, error) {
+	folder.ID = "root-1"
+	f.created = append(f.created, folder)
+	return folder, nil
+}
+
+func (f *fakeRootFolderLibrary) UpdateRootFolder(_ context.Context, id string, folder library.RootFolder) (library.RootFolder, error) {
+	folder.ID = id
+	f.updated = append(f.updated, folder)
+	return folder, nil
+}
+
+func (f *fakeRootFolderLibrary) DeleteRootFolder(_ context.Context, id string) error {
+	if f.deleteConflict {
+		return &library.ConflictError{Reason: "root folder \"/library/ebooks\" is the last ebook root and 3 tracked files still point at it"}
+	}
+	f.deleted = append(f.deleted, id)
+	return nil
+}
+
+func (f *fakeRootFolderLibrary) SyncDefaultRootFolders(_ context.Context, config library.Config) error {
+	f.synced = append(f.synced, config)
+	return nil
+}
+
+type fakeRemotePathMappingLibrary struct {
+	fakeLibrary
+	mappings []library.RemotePathMapping
+	created  []library.RemotePathMapping
+	updated  []library.RemotePathMapping
+	deleted  []string
+}
+
+func (f *fakeRemotePathMappingLibrary) ListRemotePathMappings(context.Context) ([]library.RemotePathMapping, error) {
+	return f.mappings, nil
+}
+
+func (f *fakeRemotePathMappingLibrary) CreateRemotePathMapping(_ context.Context, mapping library.RemotePathMapping) (library.RemotePathMapping, error) {
+	mapping.ID = "mapping-1"
+	f.created = append(f.created, mapping)
+	return mapping, nil
+}
+
+func (f *fakeRemotePathMappingLibrary) UpdateRemotePathMapping(_ context.Context, id string, mapping library.RemotePathMapping) (library.RemotePathMapping, error) {
+	mapping.ID = id
+	f.updated = append(f.updated, mapping)
+	return mapping, nil
+}
+
+func (f *fakeRemotePathMappingLibrary) DeleteRemotePathMapping(_ context.Context, id string) error {
+	f.deleted = append(f.deleted, id)
+	return nil
+}
+
+func TestLibraryRootFolderEndpoints(t *testing.T) {
+	free := int64(42 << 30)
+	fake := &fakeRootFolderLibrary{folders: []library.RootFolder{{
+		ID:             "root-1",
+		Name:           "Ebooks",
+		Path:           "/library/ebooks",
+		MediaFormat:    "ebook",
+		IsDefault:      true,
+		Accessible:     true,
+		FreeSpaceBytes: &free,
+	}}}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fake,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/library/root-folders", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	body := res.Body.String()
+	if !strings.Contains(body, `"rootFolders"`) || !strings.Contains(body, `"path":"/library/ebooks"`) ||
+		!strings.Contains(body, `"accessible":true`) || !strings.Contains(body, `"freeSpaceBytes"`) ||
+		!strings.Contains(body, `"isDefault":true`) {
+		t.Fatalf("unexpected root folder list body: %s", body)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/library/root-folders", strings.NewReader(`{"name":"Audio","path":"/library/audio","mediaFormat":"audiobook","defaultQualityProfile":"lossless"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || len(fake.created) != 1 || fake.created[0].Path != "/library/audio" {
+		t.Fatalf("expected root folder create, got %d %s created=%+v", res.Code, res.Body.String(), fake.created)
+	}
+	if !strings.Contains(res.Body.String(), `"rootFolder"`) {
+		t.Fatalf("expected rootFolder key in create response, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/library/root-folders/root-1", strings.NewReader(`{"name":"Ebooks","path":"/library/ebooks-v2","mediaFormat":"ebook","isDefault":true}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || len(fake.updated) != 1 || fake.updated[0].Path != "/library/ebooks-v2" {
+		t.Fatalf("expected root folder update, got %d %s updated=%+v", res.Code, res.Body.String(), fake.updated)
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/library/root-folders/root-1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || len(fake.deleted) != 1 || fake.deleted[0] != "root-1" {
+		t.Fatalf("expected root folder delete, got %d %s deleted=%+v", res.Code, res.Body.String(), fake.deleted)
+	}
+}
+
+func TestLibraryRootFolderDeleteConflictReturns409(t *testing.T) {
+	fake := &fakeRootFolderLibrary{deleteConflict: true}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fake,
+	})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/library/root-folders/root-1", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), "still point at it") {
+		t.Fatalf("expected conflict reason in body, got %s", res.Body.String())
+	}
+}
+
+func TestLibraryRootFolderEndpointsUnavailableWithoutService(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fakeLibrary{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/library/root-folders", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 for library service without root folder support, got %d", res.Code)
+	}
+}
+
+func TestLibraryRemotePathMappingEndpoints(t *testing.T) {
+	fake := &fakeRemotePathMappingLibrary{mappings: []library.RemotePathMapping{{
+		ID:           "mapping-1",
+		Host:         "qbittorrent",
+		RemotePrefix: "/remote/torrents",
+		LocalPrefix:  "/data/torrents",
+	}}}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  fake,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/library/remote-path-mappings", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"mappings"`) ||
+		!strings.Contains(res.Body.String(), `"remotePrefix":"/remote/torrents"`) {
+		t.Fatalf("unexpected mapping list: %d %s", res.Code, res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/library/remote-path-mappings", strings.NewReader(`{"host":"","remotePrefix":"/remote","localPrefix":"/mnt/remote"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || len(fake.created) != 1 || fake.created[0].RemotePrefix != "/remote" {
+		t.Fatalf("expected mapping create, got %d %s created=%+v", res.Code, res.Body.String(), fake.created)
+	}
+	if !strings.Contains(res.Body.String(), `"mapping"`) {
+		t.Fatalf("expected mapping key in create response, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/library/remote-path-mappings/mapping-1", strings.NewReader(`{"host":"transmission","remotePrefix":"/remote","localPrefix":"/mnt/tr"}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || len(fake.updated) != 1 || fake.updated[0].Host != "transmission" {
+		t.Fatalf("expected mapping update, got %d %s updated=%+v", res.Code, res.Body.String(), fake.updated)
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/library/remote-path-mappings/mapping-1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || len(fake.deleted) != 1 || fake.deleted[0] != "mapping-1" {
+		t.Fatalf("expected mapping delete, got %d %s deleted=%+v", res.Code, res.Body.String(), fake.deleted)
+	}
+}
+
+func TestLibraryConfigSurfacesRecycleBin(t *testing.T) {
+	configurable := &configurableFakeLibrary{config: library.Config{
+		EbookRoot:     "/library/ebooks",
+		AudiobookRoot: "/library/audio",
+		RecycleBin:    "/library/.recycle",
+	}}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Library:  configurable,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/library/config", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"recycleBin":"/library/.recycle"`) {
+		t.Fatalf("expected recycle bin in config response, got %d %s", res.Code, res.Body.String())
+	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/library"
+	"github.com/bandoracer/librarry/backend/internal/notify"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
@@ -167,7 +168,17 @@ func (h *handler) notifyFailedDownloads(ctx context.Context, source string, run 
 }
 
 func (h *handler) dispatchNotifications(ctx context.Context, event notificationEvent) {
-	if h == nil || h.deps.Compat == nil {
+	if h == nil {
+		return
+	}
+	// Native notification targets (webhook/ntfy/discord/telegram) receive the
+	// same events as the compat webhook resources.
+	if h.deps.Notify != nil && h.deps.Notify.Available() {
+		if native, ok := nativeNotificationEvent(event); ok {
+			h.deps.Notify.Dispatch(ctx, native)
+		}
+	}
+	if h.deps.Compat == nil {
 		return
 	}
 	targets, err := h.notificationTargets(ctx, event.EventType, false)
@@ -484,6 +495,30 @@ func notificationFieldValue(payload map[string]any, names ...string) string {
 		}
 	}
 	return ""
+}
+
+// nativeNotificationEvent converts the compat-layer notification event into
+// the provider-agnostic native event dispatched to notification targets.
+func nativeNotificationEvent(event notificationEvent) (notify.Event, bool) {
+	switch event.EventType {
+	case notificationEventGrab:
+		return notify.GrabEvent(event.Source, event.WantedItem, event.Release, event.Download), true
+	case notificationEventUpgrade:
+		return notify.UpgradeEvent(event.Source, event.WantedItem, event.Release, event.Download), true
+	case notificationEventReleaseImport:
+		if event.Import == nil {
+			return notify.Event{}, false
+		}
+		return notify.ImportEvent(event.Source, *event.Import), true
+	case notificationEventDownloadFailed:
+		var download acquisition.DownloadStatus
+		if event.Download != nil {
+			download = *event.Download
+		}
+		return notify.DownloadFailureEvent(event.Source, event.WantedItem, download, event.Message), true
+	default:
+		return notify.Event{}, false
+	}
 }
 
 func (h *handler) logNotificationError(target string, event notificationEvent, err error) {

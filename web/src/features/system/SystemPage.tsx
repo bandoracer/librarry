@@ -1,31 +1,40 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpenCheck, HardDriveDownload, ListChecks, RefreshCw } from "lucide-react";
+import { BookOpenCheck, HardDrive, HardDriveDownload, HeartPulse, ListChecks, Play, RefreshCw, Timer } from "lucide-react";
 import {
   Badge,
   Button,
   Card,
+  DataTable,
   EmptyState,
+  IconButton,
   InlineNotice,
   LoadingRow,
   PageHeader,
+  ProgressBar,
   StatBar,
   ToolbarButton
 } from "../../components/ui";
+import { useToast } from "../../components/toast";
 import { navItems } from "../../app/nav";
 import {
   keys,
+  operabilityKeys,
   useAPIState,
+  useDiskSpace,
   useIntegrationHealth,
+  useInvalidatingMutation,
   useProviderHealth,
   useReadarrCompatibility,
   useReadiness,
-  useSystemStatus
+  useSystemHealth,
+  useSystemStatus,
+  useSystemTasks
 } from "../../lib/queries";
 import { demoModeEnabled } from "../../lib/demo";
-import { formatRelativeTime } from "../../lib/format";
-import type { ReadinessStep } from "../../lib/api";
+import { formatBytes, formatRelativeTime } from "../../lib/format";
+import { runSystemTask, type DiskSpaceEntry, type ReadinessStep, type SystemHealthSeverity, type SystemTask } from "../../lib/api";
 import "./system.css";
 
 const pageSubtitle = navItems.find((item) => item.id === "providers")?.subtitle;
@@ -86,6 +95,30 @@ function compatibilityAuthLabel(mode: string): string {
   return mode === "api_key" ? "API key" : "Open";
 }
 
+function healthSeverityTone(severity: SystemHealthSeverity): Tone {
+  if (severity === "ok") return "success";
+  if (severity === "warning") return "warn";
+  return "danger";
+}
+
+/** ProgressBar tone for a used-space fraction: danger >90%, warn >80%. */
+function diskUsageTone(usedFraction: number): Tone {
+  if (usedFraction > 0.9) return "danger";
+  if (usedFraction > 0.8) return "warn";
+  return "success";
+}
+
+function diskUsedFraction(disk: DiskSpaceEntry): number {
+  if (!disk.totalBytes || disk.totalBytes <= 0) return 0;
+  return Math.max(0, Math.min(1, (disk.totalBytes - disk.freeBytes) / disk.totalBytes));
+}
+
+/** Tooltip body for a task's Last Run cell: outcome summary or error detail. */
+function taskLastRunTitle(task: SystemTask): string | undefined {
+  if (task.lastError) return `Error: ${task.lastError}`;
+  return task.lastOutcome || undefined;
+}
+
 /**
  * Legacy readiness steps navigated by view id ("settings" | "providers").
  * The router now has real settings tabs, so map known step ids onto the tab
@@ -125,20 +158,30 @@ const VISIBLE_EXAMPLE_CHIPS = 4;
 
 export default function SystemPage() {
   const client = useQueryClient();
+  const toast = useToast();
   const apiState = useAPIState();
   const status = useSystemStatus();
   const readiness = useReadiness();
   const providers = useProviderHealth();
   const integrations = useIntegrationHealth();
   const compatibility = useReadarrCompatibility();
+  const health = useSystemHealth();
+  const tasks = useSystemTasks();
+  const diskSpace = useDiskSpace();
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
+  const [showAllHealth, setShowAllHealth] = React.useState(false);
+
+  const runTask = useInvalidatingMutation(runSystemTask, [operabilityKeys.systemTasks]);
 
   const refreshing =
     status.isFetching ||
     readiness.isFetching ||
     providers.isFetching ||
     integrations.isFetching ||
-    compatibility.isFetching;
+    compatibility.isFetching ||
+    health.isFetching ||
+    tasks.isFetching ||
+    diskSpace.isFetching;
 
   const refresh = () => {
     const targets = [
@@ -146,7 +189,10 @@ export default function SystemPage() {
       keys.readiness,
       keys.providerHealth,
       keys.integrationHealth,
-      keys.readarrCompatibility
+      keys.readarrCompatibility,
+      operabilityKeys.systemHealth,
+      operabilityKeys.systemTasks,
+      operabilityKeys.diskSpace
     ];
     void Promise.all(targets.map((queryKey) => client.invalidateQueries({ queryKey })));
   };
@@ -154,6 +200,23 @@ export default function SystemPage() {
   const databaseReady = status.data?.databaseType ? status.data.databaseType !== "none" : false;
   const providerReadyCount = (providers.data ?? []).filter((provider) => provider.status === "ready").length;
   const integrationReadyCount = (integrations.data ?? []).filter((integration) => integration.status === "ready").length;
+
+  const healthChecks = health.data ?? [];
+  const healthIssues = healthChecks.filter((check) => check.severity !== "ok");
+  const visibleHealthChecks = showAllHealth ? healthChecks : healthIssues;
+
+  async function triggerTask(task: SystemTask) {
+    try {
+      const outcome = await runTask.mutateAsync(task.id);
+      if (outcome.alreadyRunning) {
+        toast.notify(outcome.message ?? `${task.name} is already running.`, "info");
+      } else {
+        toast.success(`${task.name} started.`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `${task.name} run failed.`);
+    }
+  }
 
   return (
     <>
@@ -210,6 +273,50 @@ export default function SystemPage() {
               </div>
             ) : null}
           </>
+        )}
+      </Card>
+
+      <Card
+        title="Health"
+        subtitle="Recurring checks over clients, indexers, roots, and disk space."
+        actions={
+          <>
+            {healthChecks.length > 0 ? (
+              <Badge tone={healthIssues.length === 0 ? "success" : healthSeverityTone(healthIssues.some((check) => check.severity === "error") ? "error" : "warning")}>
+                {healthIssues.length === 0 ? "Healthy" : `${healthIssues.length} issue${healthIssues.length === 1 ? "" : "s"}`}
+              </Badge>
+            ) : null}
+            {healthChecks.length > 0 && healthIssues.length < healthChecks.length ? (
+              <Button size="sm" variant="ghost" onClick={() => setShowAllHealth((current) => !current)}>
+                {showAllHealth ? "Issues only" : "Show all"}
+              </Button>
+            ) : null}
+          </>
+        }
+      >
+        {health.isPending ? (
+          <LoadingRow label="Running health checks…" />
+        ) : health.isError ? (
+          queryFailureNotice(health.error, "Health checks need a live API and are not part of the demo data set.")
+        ) : visibleHealthChecks.length === 0 ? (
+          <EmptyState icon={HeartPulse} title="All healthy">
+            {healthChecks.length === 0
+              ? "No health checks reported any findings."
+              : `All ${healthChecks.length} checks passed.`}
+          </EmptyState>
+        ) : (
+          <div className="system-health-list">
+            {visibleHealthChecks.map((check) => (
+              <article className="system-tile system-health" key={check.id}>
+                <div className="system-health-head">
+                  <StatusDot tone={healthSeverityTone(check.severity)} />
+                  <strong>{check.name}</strong>
+                  <Badge tone={healthSeverityTone(check.severity)}>{titleize(check.severity)}</Badge>
+                </div>
+                <p className="system-muted">{check.message}</p>
+              </article>
+            ))}
+          </div>
         )}
       </Card>
 
@@ -333,6 +440,115 @@ export default function SystemPage() {
               </article>
             ))}
           </div>
+        )}
+      </Card>
+
+      <Card
+        title="Scheduled Tasks"
+        subtitle="Background workers: cadence, last outcome, and manual run-now."
+        padded={!tasks.data?.length}
+      >
+        {tasks.isPending ? (
+          <LoadingRow label="Loading scheduled tasks…" />
+        ) : tasks.isError ? (
+          queryFailureNotice(tasks.error, "Scheduled tasks need a live API and are not part of the demo data set.")
+        ) : tasks.data.length === 0 ? (
+          <EmptyState icon={Timer} title="No scheduled tasks">
+            The scheduler registry reported no tasks. Workers appear here once the API runs with scheduling enabled.
+          </EmptyState>
+        ) : (
+          <DataTable>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Interval</th>
+                <th>Last Run</th>
+                <th>Next Run</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.data.map((task) => (
+                <tr key={task.id}>
+                  <td className="cell-primary">
+                    <span className="system-task-name">
+                      {task.name}
+                      {task.running ? <Badge tone="info">Running</Badge> : null}
+                    </span>
+                  </td>
+                  <td className="cell-muted">{task.interval}</td>
+                  <td>
+                    <span className="system-task-lastrun" title={taskLastRunTitle(task)}>
+                      {formatRelativeTime(task.lastRunAt)}
+                      {task.lastError ? <StatusDot tone="danger" /> : null}
+                    </span>
+                  </td>
+                  <td>{formatRelativeTime(task.nextRunAt)}</td>
+                  <td>
+                    <div className="cell-actions">
+                      <IconButton
+                        icon={Play}
+                        size="sm"
+                        label={`Run ${task.name} now`}
+                        busy={task.running || (runTask.isPending && runTask.variables === task.id)}
+                        disabled={runTask.isPending}
+                        onClick={() => void triggerTask(task)}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        )}
+      </Card>
+
+      <Card
+        title="Disk Space"
+        subtitle="Free space per library root and download path."
+        padded={!diskSpace.data?.length}
+      >
+        {diskSpace.isPending ? (
+          <LoadingRow label="Measuring disk space…" />
+        ) : diskSpace.isError ? (
+          queryFailureNotice(diskSpace.error, "Disk space needs a live API and is not part of the demo data set.")
+        ) : diskSpace.data.length === 0 ? (
+          <EmptyState icon={HardDrive} title="No disks reported">
+            Configure library roots and a download client path so the API has locations to measure.
+          </EmptyState>
+        ) : (
+          <DataTable>
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>Label</th>
+                <th>Free</th>
+                <th>Total</th>
+                <th className="system-disk-usage-col">Used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {diskSpace.data.map((disk) => {
+                const used = diskUsedFraction(disk);
+                return (
+                  <tr key={disk.path}>
+                    <td>
+                      <code>{disk.path}</code>
+                    </td>
+                    <td className="cell-muted">{disk.label || "—"}</td>
+                    <td>{formatBytes(disk.freeBytes)}</td>
+                    <td>{formatBytes(disk.totalBytes)}</td>
+                    <td>
+                      <div className="system-disk-usage" title={`${Math.round(used * 100)}% used`}>
+                        <ProgressBar value={used} tone={diskUsageTone(used)} />
+                        <span className="system-meta">{Math.round(used * 100)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </DataTable>
         )}
       </Card>
 

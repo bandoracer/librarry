@@ -20,6 +20,8 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
+	"github.com/bandoracer/librarry/backend/internal/notify"
+	"github.com/bandoracer/librarry/backend/internal/scheduler"
 	"github.com/bandoracer/librarry/backend/internal/settings"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
@@ -27,13 +29,16 @@ import (
 const maxGrabUploadBytes = 64 << 20
 
 type Dependencies struct {
-	Logger   *slog.Logger
-	Config   config.Config
-	Metadata *metadata.Service
-	Acquire  acquisitionService
-	Wanted   wantedService
-	Library  libraryService
-	Compat   compatResourceService
+	Logger    *slog.Logger
+	Config    config.Config
+	Metadata  *metadata.Service
+	Acquire   acquisitionService
+	Wanted    wantedService
+	Library   libraryService
+	Compat    compatResourceService
+	Notify    *notify.Service
+	Scheduler *scheduler.Registry
+	Health    *HealthEvaluator
 }
 
 type acquisitionService interface {
@@ -358,6 +363,15 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("DELETE /api/v1/command/{id}", handler.compatDeleteCommand)
 	mux.HandleFunc("GET /api/v1/system/task", handler.compatSystemTasks)
 	mux.HandleFunc("GET /api/v1/system/task/{id}", handler.compatSystemTask)
+	mux.HandleFunc("GET /api/v1/system/tasks", handler.systemTasks)
+	mux.HandleFunc("POST /api/v1/system/tasks/{id}/run", handler.runSystemTask)
+	mux.HandleFunc("GET /api/v1/system/health", handler.systemHealth)
+	mux.HandleFunc("GET /api/v1/system/diskspace", handler.systemDiskspace)
+	mux.HandleFunc("GET /api/v1/notifications", handler.listNotificationTargets)
+	mux.HandleFunc("POST /api/v1/notifications", handler.createNotificationTarget)
+	mux.HandleFunc("PUT /api/v1/notifications/{id}", handler.updateNotificationTarget)
+	mux.HandleFunc("DELETE /api/v1/notifications/{id}", handler.deleteNotificationTarget)
+	mux.HandleFunc("POST /api/v1/notifications/{id}/test", handler.testNotificationTarget)
 	mux.HandleFunc("GET /api/v1/providers/health", handler.providerHealth)
 	mux.HandleFunc("GET /api/v1/providers/diagnostics", handler.providerDiagnostics)
 	mux.HandleFunc("GET /api/v1/readiness", handler.readiness)

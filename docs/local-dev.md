@@ -339,7 +339,69 @@ LIBRARRY_NAMING_BOOK_FOLDER={Title}
 LIBRARRY_NAMING_FILE_NAME={Title}{Ext}
 LIBRARRY_NAMING_SPACE_REPLACEMENT=
 LIBRARRY_STANDARD_SEARCH_LANGUAGE=English
+LIBRARRY_RECYCLE_BIN=
+LIBRARRY_RECYCLE_BIN_RETENTION=168h
+LIBRARRY_IMPORT_EXTRA_FILES=.cue
 ```
+
+Naming templates accept `{Author}`, `{Title}`, `{Series}`, `{SeriesPosition}`,
+`{Year}` (first published), `{Format}`, and `{Ext}`. Tokens with no value
+collapse cleanly — separators and brackets that only decorated an empty token
+are removed, so `{Series} #{SeriesPosition} - {Title}` renders as just the
+title for standalone books. Series and year come from the wanted item's
+provider metadata (manual overrides win) or embedded file metadata during
+scans and renames.
+
+### Multiple root folders
+
+The two env roots above are the seed values for the native multi-root model.
+`GET /api/v1/library/root-folders` lists root folders (auto-seeding "Ebooks"
+and "Audiobooks" rows from the configured legacy roots the first time it runs
+against an empty table) and returns `{"rootFolders": [...]}` with
+`accessible` and `freeSpaceBytes` computed per path. `POST
+/api/v1/library/root-folders` creates a root (`name`, `path`, `mediaFormat` of
+`ebook`/`audiobook`, optional `defaultQualityProfile`,
+`defaultMissingBookPolicy`, `defaultTags`, `isDefault`); `PUT
+/api/v1/library/root-folders/{id}` updates one, and `DELETE
+/api/v1/library/root-folders/{id}` removes one. Deleting the last root of a
+format while tracked files still live under it is refused with `409` and a
+reason. Marking a root `isDefault` clears the flag from other roots of the
+same format.
+
+Scans walk every root of the requested format. Imports pick the wanted item's
+pinned root when set (`rootFolderId` on `PUT /api/v1/wanted/{id}`), then the
+format's default root, then the legacy config roots. `GET`/`PUT
+/api/v1/library/config` keep working: the legacy two-root fields map onto the
+per-format default root folders.
+
+### Remote path mappings
+
+When a download client reports paths Librarry cannot reach (split hosts,
+different Docker mounts), add a remote path mapping: `GET
+/api/v1/library/remote-path-mappings` returns `{"mappings": [...]}`, with
+`POST`, `PUT /{id}`, and `DELETE /{id}` for CRUD. Each mapping has `host`
+(download client name, empty matches every client), `remotePrefix`, and
+`localPrefix`. The longest matching remote prefix wins and is applied as a
+dumb prefix rewrite before completed-download import reads the client's save
+path.
+
+### Recycle bin
+
+Set `LIBRARRY_RECYCLE_BIN` to a folder to keep deleted or replaced library
+files instead of removing them: files move into
+`<bin>/<yyyy-mm-dd>/<original-name>` (falling back to copy+delete across
+filesystems, and to a plain delete when the bin is unusable). Day folders
+older than `LIBRARRY_RECYCLE_BIN_RETENTION` (default `168h`) are purged during
+the completed-download-import worker tick. The active bin path is surfaced as
+`recycleBin` in `GET /api/v1/library/config`.
+
+### Import extras
+
+`LIBRARRY_IMPORT_EXTRA_FILES` (comma-separated extensions, default `.cue`)
+copies sibling files that share the imported source's basename into the
+destination folder, renamed to match the organized file (audiobook cue sheets
+survive imports). Extras are best-effort: they are not tracked and failures
+only log at debug.
 
 `POST /api/v1/library/scan` indexes existing files. `POST /api/v1/library/import`
 imports a single source file into the organized format root using `importMode`
@@ -381,3 +443,69 @@ Physical deletion of a Calibre-backed file calls the Content Server
 delete-books endpoint before removing the local file record. Richer edition
 metadata, embedded metadata writes, path refresh after Calibre renames, and
 failed-import rollback are not implemented yet.
+
+## System Tasks
+
+Every background worker (wanted monitor, author monitor, feed sync,
+failed-download recovery, upgrade search, calibre refresh, completed-download
+import, health check) runs through a scheduler registry that records interval,
+last run, a one-line outcome summary, last error, and next run.
+
+- `GET /api/v1/system/tasks` lists task status records:
+  `{"tasks":[{id,name,interval,lastRunAt,lastOutcome,lastError,nextRunAt,running}]}`.
+- `POST /api/v1/system/tasks/{id}/run` triggers a manual run and returns
+  `202 {"started":true}`. While a run is in flight the endpoint returns
+  `409 {"error":"task is running"}`; unknown ids return 404.
+
+Task ids: `wanted-monitor`, `author-monitor`, `feed-sync`,
+`failed-download-recovery`, `upgrade-search`, `calibre-refresh`,
+`completed-import`, `health-check`. Workers disabled through their
+`LIBRARRY_*_ENABLED` flags are not registered and do not appear in the list.
+
+## Notifications
+
+Native notification targets are persisted in `notification_targets` and fan
+out grabs, imports, upgrades, download failures, and health issues from both
+API-triggered actions and scheduled worker runs (the Readarr-compatible
+`/api/v1/notification` webhook resources keep working in parallel).
+
+- `GET /api/v1/notifications` →
+  `{"targets":[{id,name,type,settings,triggers:{onGrab,onImport,onUpgrade,onDownloadFailure,onHealthIssue},enabled,createdAt}]}`.
+- `POST /api/v1/notifications` creates a target (response `{"target":...}`),
+  `PUT /api/v1/notifications/{id}` updates, `DELETE /api/v1/notifications/{id}`
+  removes, and `POST /api/v1/notifications/{id}/test` sends a test event and
+  returns `{"ok":bool,"error"?}`.
+
+Provider types and their settings keys:
+
+- `webhook`: `url` (required), optional `authorization` header value. Sends an
+  arr-ish JSON payload with `eventType`, `title`, `message`, and `fields`.
+- `ntfy`: `url` and/or `topic` (server defaults to `https://ntfy.sh`),
+  optional `token` (Bearer) and `priority`. Message body plus `X-Title` header.
+- `discord`: `webhookUrl` (required). Sends an embeds payload with
+  severity-colored embeds and inline fields.
+- `telegram`: `botToken` and `chatId` (required). Calls the Bot API
+  `sendMessage` method.
+
+Secrets: telegram `botToken` values are redacted to their last 4 characters in
+GET responses, and a blank (or redacted) `botToken` on PUT keeps the stored
+credential. Webhook/ntfy/discord URLs are operator-entered endpoints and are
+returned as stored. Health-issue notifications are opt-in per target
+(`triggers.onHealthIssue` defaults to false); all other triggers default on.
+Delivery uses a 10 second timeout and failures are logged, never fatal.
+
+## Health & Disk Space
+
+- `GET /api/v1/system/health` evaluates continuous health checks and returns
+  `{"checks":[{id,severity,name,message}]}` with severity `ok`, `warning`, or
+  `error` for every evaluated rule: database persistence (warning when
+  missing), indexer configured/reachable (error), download client
+  configured/reachable (error), root folders present and accessible (error per
+  root), completed-import enabled (warning when disabled), low disk per root
+  filesystem (<1 GiB error, <5 GiB warning), and quality profiles present
+  (warning). The same evaluator runs on the 5 minute `health-check` task, and
+  checks that transition from ok to warning/error dispatch `healthIssue`
+  notifications.
+- `GET /api/v1/system/diskspace` returns
+  `{"disks":[{path,label,freeBytes,totalBytes}]}` for every root folder plus
+  the book torrent root, deduplicated by backing filesystem.
