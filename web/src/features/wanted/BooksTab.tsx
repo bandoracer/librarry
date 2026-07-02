@@ -43,6 +43,7 @@ import {
   errorMessage,
   metadataReviewBadgeLabel,
   metadataReviewMap,
+  normalizeWantedViewFilter,
   queueDownloadsForImport,
   queueDownloadsForRecovery,
   summarizeMetadataReview,
@@ -82,10 +83,8 @@ export function BooksTab() {
 
   /* ------------------------------ URL contract ----------------------------- */
 
-  const urlFilter = searchParams.get("filter");
-  const filter: WantedViewFilter = wantedViewFilters.includes(urlFilter as WantedViewFilter)
-    ? (urlFilter as WantedViewFilter)
-    : "missing";
+  // `?filter=grabbed` remains a supported alias for the downloading view.
+  const filter: WantedViewFilter = normalizeWantedViewFilter(searchParams.get("filter"));
   const isCutoffView = filter === "cutoff-unmet";
   const cutoffQuery = useCutoffUnmet(isCutoffView);
   const cutoffItems = useMemo(() => cutoffQuery.data ?? [], [cutoffQuery.data]);
@@ -380,10 +379,10 @@ export function BooksTab() {
 
       <StatBar
         stats={[
-          { label: "Missing", value: wantedSummary.missing, tone: "warn" },
+          { label: "Missing", value: wantedSummary.missing, tone: "danger" },
           { label: "Review", value: reviewSummary.items, tone: "info" },
           { label: "Wanted", value: wantedStatusCount, tone: "accent" },
-          { label: "Grabbed", value: wantedSummary.grabbed, tone: "success" },
+          { label: "Downloading", value: wantedSummary.downloading, tone: "info" },
           { label: "Total", value: wantedItems.length }
         ]}
       />

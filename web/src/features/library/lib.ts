@@ -8,8 +8,13 @@ import { formatDate } from "../../lib/format";
  * Behavior is preserved verbatim unless noted.
  */
 
-/** Presence of a wanted item relative to the on-disk library. */
-export type WantedPresence = "missing" | "grabbed" | "present";
+/**
+ * Readarr-style derived book state. Prefer the backend-computed
+ * `WantedItem.derivedState`; `wantedItemBookState` falls back to the legacy
+ * status/file inference when it is absent (demo mode, older APIs).
+ */
+export const bookStates = ["unmonitored", "missing", "downloading", "downloaded", "cutoffUnmet"] as const;
+export type WantedPresence = (typeof bookStates)[number];
 
 export type LibraryFormatFilter = "all" | "ebook" | "audiobook";
 
@@ -22,8 +27,9 @@ export type LibraryAuthorRow = {
   monitoredBooks: number;
   unmonitoredBooks: number;
   missing: number;
-  grabbed: number;
-  present: number;
+  downloading: number;
+  downloaded: number;
+  cutoffUnmet: number;
   lastSyncAt?: string;
   monitorNewItems: boolean;
   status: string;
@@ -34,8 +40,8 @@ export type LibrarySummary = {
   monitoredAuthors: number;
   monitoredBooks: number;
   missing: number;
-  grabbed: number;
-  present: number;
+  downloading: number;
+  downloaded: number;
   files: number;
   manualOverrides: number;
 };
@@ -88,17 +94,23 @@ function wantedItemHasLibraryFile(item: WantedItem, files: LibraryFile[]): boole
   return files.some((file) => libraryFileCountsAsPresent(file) && libraryFileMatchesWanted(item, file));
 }
 
+function normalizedDerivedState(value?: string): WantedPresence | undefined {
+  return bookStates.includes(value as WantedPresence) ? (value as WantedPresence) : undefined;
+}
+
+/** Derived book state: backend `derivedState` first, legacy status/file inference as fallback. */
+export function wantedItemBookState(item: WantedItem, files: LibraryFile[]): WantedPresence {
+  const derived = normalizedDerivedState(item.derivedState);
+  if (derived) return derived;
+  if (wantedItemHasLibraryFile(item, files)) return "downloaded";
+  if ((item.status || "").toLowerCase() === "grabbed") return "downloading";
+  return "missing";
+}
+
 export function wantedPresenceMap(items: WantedItem[], files: LibraryFile[]): Map<string, WantedPresence> {
   const entries = new Map<string, WantedPresence>();
   items.forEach((item) => {
-    const status = (item.status || "").toLowerCase();
-    if (wantedItemHasLibraryFile(item, files)) {
-      entries.set(item.id, "present");
-    } else if (status === "grabbed") {
-      entries.set(item.id, "grabbed");
-    } else {
-      entries.set(item.id, "missing");
-    }
+    entries.set(item.id, wantedItemBookState(item, files));
   });
   return entries;
 }
@@ -107,12 +119,10 @@ export function summarizeWantedItems(items: WantedItem[], presence: Map<string, 
   return items.reduce(
     (summary, item) => {
       const state = presence.get(item.id) ?? "missing";
-      if (state === "present") summary.present += 1;
-      if (state === "grabbed") summary.grabbed += 1;
-      if (state === "missing") summary.missing += 1;
+      summary[state] += 1;
       return summary;
     },
-    { missing: 0, grabbed: 0, present: 0 }
+    { missing: 0, downloading: 0, downloaded: 0, cutoffUnmet: 0, unmonitored: 0 }
   );
 }
 
@@ -137,8 +147,9 @@ export function buildLibraryAuthorRows(
       monitoredBooks: 0,
       unmonitoredBooks: 0,
       missing: 0,
-      grabbed: 0,
-      present: 0,
+      downloading: 0,
+      downloaded: 0,
+      cutoffUnmet: 0,
       monitorNewItems: false,
       status: "manual"
     };
@@ -168,11 +179,16 @@ export function buildLibraryAuthorRows(
       row.unmonitoredBooks += 1;
     }
     switch (presence.get(item.id) ?? "missing") {
-      case "present":
-        row.present += 1;
+      case "downloaded":
+        row.downloaded += 1;
         break;
-      case "grabbed":
-        row.grabbed += 1;
+      case "downloading":
+        row.downloading += 1;
+        break;
+      case "cutoffUnmet":
+        row.cutoffUnmet += 1;
+        break;
+      case "unmonitored":
         break;
       default:
         row.missing += 1;
@@ -208,28 +224,50 @@ export function libraryBookVisibleForFilter(
   ).includes(query);
 }
 
-/** Missing books sort first, then grabbed, then present (legacy ordering). */
+/** Status sort order: Missing → Downloading → Cutoff Unmet → Downloaded, unmonitored last. */
 export function libraryPresenceRank(presence?: WantedPresence): number {
   switch (presence) {
-    case "grabbed":
+    case "downloading":
       return 1;
-    case "present":
+    case "cutoffUnmet":
       return 2;
+    case "downloaded":
+      return 3;
+    case "unmonitored":
+      return 4;
     default:
       return 0;
   }
 }
 
 export function presenceLabel(presence: WantedPresence): string {
-  if (presence === "present") return "Present";
-  if (presence === "grabbed") return "Grabbed";
-  return "Missing";
+  switch (presence) {
+    case "downloaded":
+      return "Downloaded";
+    case "downloading":
+      return "Downloading";
+    case "cutoffUnmet":
+      return "Cutoff Unmet";
+    case "unmonitored":
+      return "Unmonitored";
+    default:
+      return "Missing";
+  }
 }
 
-export function presenceTone(presence: WantedPresence): "danger" | "info" | "success" {
-  if (presence === "present") return "success";
-  if (presence === "grabbed") return "info";
-  return "danger";
+export function presenceTone(presence: WantedPresence): "danger" | "info" | "success" | "warn" | "neutral" {
+  switch (presence) {
+    case "downloaded":
+      return "success";
+    case "downloading":
+      return "info";
+    case "cutoffUnmet":
+      return "warn";
+    case "unmonitored":
+      return "neutral";
+    default:
+      return "danger";
+  }
 }
 
 /** Monitor-policy badge for an author row. */
@@ -286,8 +324,9 @@ function authorTitleCompare(a: WantedItem, b: WantedItem): number {
   return `${a.authorName ?? ""} ${a.title}`.localeCompare(`${b.authorName ?? ""} ${b.title}`);
 }
 
-/** Comparator for the Library books list. "status" preserves the legacy
- *  ordering: missing first, then grabbed, then present, author+title inside. */
+/** Comparator for the Library books list. "status" orders by derived state:
+ *  missing → downloading → cutoff unmet → downloaded (unmonitored last),
+ *  author+title inside. */
 export function compareLibraryBooks(
   a: WantedItem,
   b: WantedItem,

@@ -37,12 +37,24 @@ import type {
  * Everything here is presentation/derivation logic only — no fetching.
  */
 
-export type WantedPresence = "missing" | "grabbed" | "present";
-export type WantedViewFilter = "missing" | "review" | "wanted" | "grabbed" | "cutoff-unmet" | "all";
+/**
+ * Readarr-style derived book state. Prefer the backend-computed
+ * `WantedItem.derivedState`; `wantedItemBookState` falls back to the legacy
+ * status/file inference when it is absent (demo mode, older APIs).
+ */
+export const bookStates = ["unmonitored", "missing", "downloading", "downloaded", "cutoffUnmet"] as const;
+export type WantedPresence = (typeof bookStates)[number];
+export type WantedViewFilter = "missing" | "review" | "wanted" | "downloading" | "cutoff-unmet" | "all";
 export type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 
-export const wantedViewFilters: WantedViewFilter[] = ["missing", "review", "wanted", "grabbed", "cutoff-unmet", "all"];
+export const wantedViewFilters: WantedViewFilter[] = ["missing", "review", "wanted", "downloading", "cutoff-unmet", "all"];
 export const releaseDecisionFilters: ReleaseDecisionFilter[] = ["all", "approved", "rejected"];
+
+/** URL `?filter=` values → view filter; `grabbed` stays a supported alias for downloading. */
+export function normalizeWantedViewFilter(value: string | null | undefined): WantedViewFilter {
+  if (value === "grabbed") return "downloading";
+  return wantedViewFilters.includes(value as WantedViewFilter) ? (value as WantedViewFilter) : "missing";
+}
 
 export function wantedViewFilterLabel(filter: WantedViewFilter) {
   return filter === "cutoff-unmet" ? "cutoff unmet" : filter;
@@ -131,17 +143,23 @@ function wantedItemHasLibraryFile(item: WantedItem, files: LibraryFile[]) {
   return files.some((file) => libraryFileCountsAsPresent(file) && libraryFileMatchesWanted(item, file));
 }
 
+function normalizedDerivedState(value?: string): WantedPresence | undefined {
+  return bookStates.includes(value as WantedPresence) ? (value as WantedPresence) : undefined;
+}
+
+/** Derived book state: backend `derivedState` first, legacy status/file inference as fallback. */
+export function wantedItemBookState(item: WantedItem, files: LibraryFile[]): WantedPresence {
+  const derived = normalizedDerivedState(item.derivedState);
+  if (derived) return derived;
+  if (wantedItemHasLibraryFile(item, files)) return "downloaded";
+  if ((item.status || "").toLowerCase() === "grabbed") return "downloading";
+  return "missing";
+}
+
 export function wantedPresenceMap(items: WantedItem[], files: LibraryFile[]) {
   const entries = new Map<string, WantedPresence>();
   items.forEach((item) => {
-    const status = (item.status || "").toLowerCase();
-    if (wantedItemHasLibraryFile(item, files)) {
-      entries.set(item.id, "present");
-    } else if (status === "grabbed") {
-      entries.set(item.id, "grabbed");
-    } else {
-      entries.set(item.id, "missing");
-    }
+    entries.set(item.id, wantedItemBookState(item, files));
   });
   return entries;
 }
@@ -150,12 +168,10 @@ export function summarizeWantedItems(items: WantedItem[], presence: Map<string, 
   return items.reduce(
     (summary, item) => {
       const state = presence.get(item.id) ?? "missing";
-      if (state === "present") summary.present += 1;
-      if (state === "grabbed") summary.grabbed += 1;
-      if (state === "missing") summary.missing += 1;
+      summary[state] += 1;
       return summary;
     },
-    { missing: 0, grabbed: 0, present: 0 }
+    { missing: 0, downloading: 0, downloaded: 0, cutoffUnmet: 0, unmonitored: 0 }
   );
 }
 
@@ -181,16 +197,16 @@ export function wantedItemVisibleForFilter(
   filter: WantedViewFilter,
   hasMetadataReview: boolean
 ) {
-  const status = (item.status || "").toLowerCase();
+  const state = presence ?? "missing";
   switch (filter) {
     case "missing":
-      return (presence ?? "missing") !== "present";
+      return state === "missing";
     case "review":
       return hasMetadataReview;
     case "wanted":
-      return status === "wanted";
-    case "grabbed":
-      return status === "grabbed";
+      return (item.status || "").toLowerCase() === "wanted";
+    case "downloading":
+      return state === "downloading";
     // "cutoff-unmet" membership is server-defined (fetchWanted view); the
     // Books tab swaps the list wholesale instead of filtering client-side.
     default:
@@ -208,17 +224,38 @@ export function wantedItemSubtitle(item: WantedItem, review?: MetadataReviewItem
   return parts.join(" · ");
 }
 
-export function wantedBadgeLabel(item: WantedItem, presence: WantedPresence | undefined) {
-  const state = presence ?? "missing";
-  if (state === "present") return `Present · ${item.format}`;
-  if (state === "grabbed") return `Grabbed · ${item.format}`;
-  return `Missing · ${item.format}`;
+export function wantedStateLabel(presence: WantedPresence | undefined): string {
+  switch (presence ?? "missing") {
+    case "downloaded":
+      return "Downloaded";
+    case "downloading":
+      return "Downloading";
+    case "cutoffUnmet":
+      return "Cutoff Unmet";
+    case "unmonitored":
+      return "Unmonitored";
+    default:
+      return "Missing";
+  }
 }
 
-export function wantedPresenceTone(presence: WantedPresence | undefined): "success" | "info" | "warn" {
-  if (presence === "present") return "success";
-  if (presence === "grabbed") return "info";
-  return "warn";
+export function wantedBadgeLabel(item: WantedItem, presence: WantedPresence | undefined) {
+  return `${wantedStateLabel(presence)} · ${item.format}`;
+}
+
+export function wantedPresenceTone(presence: WantedPresence | undefined): "success" | "info" | "warn" | "danger" | "neutral" {
+  switch (presence ?? "missing") {
+    case "downloaded":
+      return "success";
+    case "downloading":
+      return "info";
+    case "cutoffUnmet":
+      return "warn";
+    case "unmonitored":
+      return "neutral";
+    default:
+      return "danger";
+  }
 }
 
 export function metadataReviewBadgeLabel(review: MetadataReviewItem) {
@@ -560,8 +597,10 @@ export function profileKey(profile: QualityProfile) {
 export type AuthorSubscriptionStats = {
   total: number;
   missing: number;
-  grabbed: number;
-  present: number;
+  downloading: number;
+  downloaded: number;
+  cutoffUnmet: number;
+  unmonitored: number;
   review: number;
   firstWantedItem?: WantedItem;
 };
@@ -626,8 +665,10 @@ export function emptyAuthorSubscriptionStats(): AuthorSubscriptionStats {
   return {
     total: 0,
     missing: 0,
-    grabbed: 0,
-    present: 0,
+    downloading: 0,
+    downloaded: 0,
+    cutoffUnmet: 0,
+    unmonitored: 0,
     review: 0
   };
 }
@@ -650,11 +691,17 @@ export function buildAuthorSubscriptionStatsMap(
       stats.firstWantedItem ??= item;
       if (reviews.has(item.id)) stats.review += 1;
       switch (presence.get(item.id) ?? "missing") {
-        case "present":
-          stats.present += 1;
+        case "downloaded":
+          stats.downloaded += 1;
           break;
-        case "grabbed":
-          stats.grabbed += 1;
+        case "downloading":
+          stats.downloading += 1;
+          break;
+        case "cutoffUnmet":
+          stats.cutoffUnmet += 1;
+          break;
+        case "unmonitored":
+          stats.unmonitored += 1;
           break;
         default:
           stats.missing += 1;
@@ -672,8 +719,10 @@ export function authorSubscriptionStatsSummary(stats: AuthorSubscriptionStats) {
     return "No wanted books yet. Refresh author metadata to create tracked books.";
   }
   const parts = [`${stats.total} tracked`, `${stats.missing} missing`];
-  if (stats.grabbed > 0) parts.push(`${stats.grabbed} grabbed`);
-  if (stats.present > 0) parts.push(`${stats.present} present`);
+  if (stats.downloading > 0) parts.push(`${stats.downloading} downloading`);
+  if (stats.downloaded > 0) parts.push(`${stats.downloaded} downloaded`);
+  if (stats.cutoffUnmet > 0) parts.push(`${stats.cutoffUnmet} cutoff unmet`);
+  if (stats.unmonitored > 0) parts.push(`${stats.unmonitored} unmonitored`);
   if (stats.review > 0) parts.push(`${stats.review} review`);
   return parts.join(" · ");
 }
@@ -682,8 +731,10 @@ export function authorSubscriptionStatsBadges(stats: AuthorSubscriptionStats): A
   if (stats.total === 0) return [["tracked", 0]];
   const badges: Array<[string, number]> = [
     ["missing", stats.missing],
-    ["grabbed", stats.grabbed],
-    ["present", stats.present],
+    ["downloading", stats.downloading],
+    ["downloaded", stats.downloaded],
+    ["cutoff unmet", stats.cutoffUnmet],
+    ["unmonitored", stats.unmonitored],
     ["review", stats.review]
   ];
   return badges.filter(([, value]) => value > 0);

@@ -858,7 +858,25 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 		return finished, err
 	}
 
+	// Readarr semantics: a grabbed book with a live download is in flight and
+	// skipped; one whose download vanished is treated as missing and searched
+	// again. When the client is unreachable we cannot tell the difference, so
+	// grabbed candidates are skipped rather than risking a double grab.
+	inFlight := map[string]bool{}
+	clientReachable := false
+	if s.acquire != nil {
+		if downloads, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"}); err == nil {
+			clientReachable = true
+			for id := range groupDownloadsByWantedID(downloads) {
+				inFlight[id] = true
+			}
+		}
+	}
+
 	for _, item := range items {
+		if inFlight[item.ID] || (item.Status == "grabbed" && !clientReachable) {
+			continue
+		}
 		select {
 		case <-ctx.Done():
 			run.Status = "canceled"

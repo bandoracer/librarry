@@ -325,6 +325,36 @@ func (s *Store) ListWantedWithFiles(ctx context.Context) ([]WantedItem, error) {
 	return s.attachWantedManualOverrides(ctx, items)
 }
 
+// WantedIDsWithFiles returns the ids of wanted items that have a tracked
+// library file, used to derive Readarr-style presence state.
+func (s *Store) WantedIDsWithFiles(ctx context.Context) (map[string]bool, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select wi.id
+		from wanted_items wi
+		where exists (
+			select 1 from files f
+			where f.metadata->>'wantedId' = wi.id::text
+		)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
+}
+
 // WantedSourceKeysWithFiles returns the provider identity keys (see
 // wantedSourceFileKey) of wanted items that have a tracked library file, so
 // author monitoring can tell missing books from existing ones.
@@ -1884,8 +1914,12 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
-		where wi.status = 'wanted'
+		where wi.status in ('wanted', 'grabbed')
 			and wi.monitored = true
+			and not exists (
+				select 1 from files f
+				where f.metadata->>'wantedId' = wi.id::text
+			)
 			and ($1::boolean or wi.last_search_at is null or wi.last_search_at <= $2)
 		order by coalesce(wi.last_search_at, 'epoch'::timestamptz), wi.created_at
 		limit $3

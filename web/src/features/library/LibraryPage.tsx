@@ -150,8 +150,8 @@ export default function LibraryPage() {
       monitoredAuthors: authorSubscriptions.length,
       monitoredBooks: wantedItems.filter((item) => item.monitored).length,
       missing: wantedSummary.missing,
-      grabbed: wantedSummary.grabbed,
-      present: wantedSummary.present,
+      downloading: wantedSummary.downloading,
+      downloaded: wantedSummary.downloaded,
       files: libraryFiles.length
     }),
     [authorRows.length, authorSubscriptions.length, libraryFiles.length, wantedItems, wantedSummary]
@@ -613,8 +613,8 @@ export default function LibraryPage() {
             { label: "Monitored", value: summary.monitoredAuthors },
             { label: "Books", value: summary.monitoredBooks },
             { label: "Missing", value: summary.missing, tone: summary.missing > 0 ? "danger" : "neutral" },
-            { label: "Grabbed", value: summary.grabbed },
-            { label: "Present", value: summary.present, tone: summary.present > 0 ? "success" : "neutral" },
+            { label: "Downloading", value: summary.downloading, tone: summary.downloading > 0 ? "info" : "neutral" },
+            { label: "Downloaded", value: summary.downloaded, tone: summary.downloaded > 0 ? "success" : "neutral" },
             { label: "Files", value: summary.files }
           ]}
         />
@@ -775,7 +775,8 @@ export default function LibraryPage() {
                                 {(row.formats.join(", ") || "any")} · {row.qualityProfiles.join(", ") || "standard"}
                               </span>
                               <span className="cell-muted">
-                                {row.missing} missing · {row.present} present · {row.grabbed} grabbed
+                                {row.missing} missing · {row.downloaded} downloaded · {row.downloading} downloading
+                                {row.cutoffUnmet > 0 ? ` · ${row.cutoffUnmet} cutoff unmet` : ""}
                               </span>
                               {row.subscriptionCount > 0 ? (
                                 <span className="cell-muted">

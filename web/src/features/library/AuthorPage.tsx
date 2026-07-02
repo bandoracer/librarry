@@ -313,8 +313,8 @@ export default function AuthorPage() {
                 { label: "Books", value: books.length },
                 { label: "Monitored", value: monitoredCount },
                 { label: "Missing", value: stats.missing, tone: stats.missing > 0 ? "danger" : "neutral" },
-                { label: "Grabbed", value: stats.grabbed, tone: stats.grabbed > 0 ? "info" : "neutral" },
-                { label: "Present", value: stats.present, tone: stats.present > 0 ? "success" : "neutral" }
+                { label: "Downloading", value: stats.downloading, tone: stats.downloading > 0 ? "info" : "neutral" },
+                { label: "Downloaded", value: stats.downloaded, tone: stats.downloaded > 0 ? "success" : "neutral" }
               ]}
             />
 

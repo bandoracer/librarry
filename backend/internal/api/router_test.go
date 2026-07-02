@@ -4603,6 +4603,10 @@ func (fakeWanted) AnnotateDownloads(_ context.Context, downloads []acquisition.D
 	return downloads
 }
 
+func (fakeWanted) AnnotateWantedStates(_ context.Context, items []wanted.WantedItem) []wanted.WantedItem {
+	return items
+}
+
 func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
 	return []wanted.WantedItem{{
 		ID:                  "wanted-1",

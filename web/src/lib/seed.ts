@@ -132,6 +132,7 @@ export const seedWantedItems: WantedItem[] = [
     format: "ebook",
     qualityProfile: "standard",
     status: "wanted",
+    derivedState: "missing",
     monitored: true,
     sourceProvider: "Open Library",
     sourceKey: "openlibrary:OL30036715M",

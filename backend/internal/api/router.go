@@ -98,6 +98,7 @@ type wantedService interface {
 	SearchUpgrades(ctx context.Context, request wanted.UpgradeRequest) (wanted.UpgradeRun, error)
 	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
 	AnnotateDownloads(ctx context.Context, downloads []acquisition.DownloadStatus) []acquisition.DownloadStatus
+	AnnotateWantedStates(ctx context.Context, items []wanted.WantedItem) []wanted.WantedItem
 	ListCutoffUnmet(ctx context.Context) ([]wanted.WantedItem, error)
 	ListCalendar(ctx context.Context, start time.Time, end time.Time, includeUnmonitored bool) ([]wanted.WantedItem, error)
 	BulkUpdateWanted(ctx context.Context, request wanted.WantedBulkRequest) ([]wanted.WantedBulkResult, error)
@@ -1956,6 +1957,7 @@ func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []wanted.WantedItem{}
 	}
+	items = h.deps.Wanted.AnnotateWantedStates(r.Context(), items)
 	writeJSON(w, http.StatusOK, map[string]any{"wanted": items})
 }
 

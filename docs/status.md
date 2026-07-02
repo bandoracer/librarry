@@ -183,6 +183,19 @@ yet ready to replace a production Readarr instance unattended.
   web image. The live calendar is empty because existing wanted rows have
   year-only publish dates (full-date items will populate it).
 
+- v0.3.0 adopts Readarr's derived book-state semantics: presence is computed
+  at the API boundary (`derivedState`: missing / downloading / downloaded /
+  cutoffUnmet / unmonitored) from monitored + tracked file + profile cutoff +
+  live librarry downloads, instead of the stored lifecycle status. The UI
+  shows only derived states ("Grabbed"/"Present" labels are gone), and the
+  wanted monitor now treats a grabbed book with no live download and no file
+  as missing again — a vanished download can no longer strand a book in
+  "grabbed" (the client-unreachable case conservatively skips grabbed items
+  to avoid double grabs). The stored status remains in payloads for
+  Readarr-compat clients. Live proof pending next deploy: A Brief History of
+  Time (stranded grabbed, score-100 stored release) should re-enter the
+  monitor and re-grab automatically.
+
 ## Available But Still Needs Real-World Proving
 
 - Readarr migration preview/import has broad API and UI coverage, but needs a

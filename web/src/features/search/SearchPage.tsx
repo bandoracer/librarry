@@ -547,7 +547,8 @@ export default function SearchPage() {
           <div className="search-tracked-callout" aria-label="Existing wanted item">
             <Badge tone="success">Already tracked</Badge>
             <span>
-              {existing.status} · {existing.format}
+              {existing.derivedState === "cutoffUnmet" ? "cutoff unmet" : existing.derivedState || existing.status} ·{" "}
+              {existing.format}
             </span>
             <Button size="sm" icon={HardDriveDownload} onClick={() => openWanted(existing)}>
               Open wanted

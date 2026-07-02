@@ -232,8 +232,12 @@ type WantedItem struct {
 	CurrentReleaseScore float64          `json:"currentReleaseScore,omitempty"`
 	LastSearchAt        *time.Time       `json:"lastSearchAt,omitempty"`
 	LastUpgradeSearchAt *time.Time       `json:"lastUpgradeSearchAt,omitempty"`
-	CreatedAt           time.Time        `json:"createdAt"`
-	UpdatedAt           time.Time        `json:"updatedAt"`
+	// DerivedState is the Readarr-style presence state (missing/downloading/
+	// downloaded/cutoffUnmet/unmonitored) computed at the API boundary; the
+	// stored lifecycle Status no longer drives user-facing state.
+	DerivedState string    `json:"derivedState,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 type MetadataProvenance struct {

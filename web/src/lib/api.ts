@@ -424,6 +424,7 @@ export type WantedItem = {
   format: "ebook" | "audiobook";
   qualityProfile: string;
   status: string;
+  derivedState?: "unmonitored" | "missing" | "downloading" | "downloaded" | "cutoffUnmet";
   monitored: boolean;
   tags?: string[];
   sourceProvider?: string;
