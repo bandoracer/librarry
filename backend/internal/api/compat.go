@@ -86,7 +86,7 @@ func (h *handler) compatSystemStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"appName":           "Librarry",
 		"instanceName":      "Librarry",
-		"version":           "0.4.0",
+		"version":           "0.4.1",
 		"buildTime":         now.Format(time.RFC3339),
 		"isDebug":           false,
 		"isProduction":      true,

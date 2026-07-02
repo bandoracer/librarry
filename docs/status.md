@@ -216,6 +216,20 @@ yet ready to replace a production Readarr instance unattended.
   pages verified at 1920px with zero console errors. Legacy links
   (?filter=…, ?item=…, ?tab=authors, /settings/connections) redirect.
 
+- The deployed v0.4.0 instance was verified on 2026-07-02: bundle and API at
+  0.4.0 on LAN and Cosmos, the /feed/ proxy serves text/calendar, all three
+  new endpoint families answer, quality profiles migrated to ladders with the
+  "Migrated terms" release profile created from legacy terms, and — the
+  v0.3.0 proof — A Brief History of Time un-stranded itself: automatically
+  re-searched, re-grabbed, downloaded, and imported with zero clicks
+  (history events 08:07–08:08Z). Two issues found and fixed in v0.4.1:
+  feed-sync/recovery/upgrade worker grabs were hardcoded paused (only the
+  monitor grabbed active) — all automated grabs now start immediately per
+  arr parity; and legacy-scale release scores (pre-0027, e.g. Moby Dick at
+  88.5) were misclassified as cutoff-unmet and could trigger false upgrade
+  grabs — legacy-scale items now count as at-cutoff until a re-search
+  rescales them.
+
 ## Available But Still Needs Real-World Proving
 
 - Readarr migration preview/import has broad API and UI coverage, but needs a

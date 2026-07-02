@@ -125,6 +125,13 @@ func (s *Service) ListCutoffUnmet(ctx context.Context) ([]WantedItem, error) {
 }
 
 func cutoffUnmet(profile QualityProfile, currentScore float64) bool {
+	// Scores below 1000 predate the ladder composite (migration 0027) and
+	// carry no quality rank; treating them as unmet would trigger false
+	// upgrade grabs, so legacy-scale items count as at-cutoff until a
+	// re-search rescales them.
+	if currentScore > 0 && currentScore < 1000 {
+		return false
+	}
 	return profile.UpgradeAllowed && currentScore < profile.CutoffCompositeScore()
 }
 
@@ -1470,6 +1477,12 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		result.ReleasesFound = len(outcome.Releases)
 		run.ReleasesFound += len(outcome.Releases)
 
+		if currentScore > 0 && currentScore < 1000 {
+			// Legacy-scale current score (pre-0027): comparisons against ladder
+			// composites are meaningless, so record the search but never grab.
+			run.Items = append(run.Items, result)
+			continue
+		}
 		if release, ok := bestUpgradeRelease(outcome.Releases, currentScore, cutoff); ok {
 			candidate := release
 			result.UpgradeRelease = &candidate

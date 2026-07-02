@@ -292,7 +292,8 @@ func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify
 				Trigger:  trigger,
 				Limit:    cfg.FeedSyncLimit,
 				AutoGrab: cfg.FeedSyncAutoGrab,
-				Paused:   true,
+				// arr parity: automated grabs start immediately; blocklist backstops failures.
+				Paused: false,
 			})
 			if err != nil {
 				logger.Warn("feed sync failed", "trigger", trigger, "error", err)
@@ -341,7 +342,7 @@ func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, no
 				SearchLimit:       20,
 				MinStalledMinutes: stalledMinutes,
 				AutoGrab:          cfg.FailedDownloadAutoGrab,
-				Paused:            true,
+				Paused:            false,
 				RemoveFailed:      cfg.FailedDownloadRemove,
 				DeleteFailedFiles: cfg.FailedDownloadDeleteFiles,
 			})
@@ -394,7 +395,7 @@ func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *n
 				MinSearchIntervalMinutes: minSearchIntervalMinutes,
 				MinScoreDelta:            cfg.UpgradeSearchMinDelta,
 				AutoGrab:                 cfg.UpgradeSearchAutoGrab,
-				Paused:                   true,
+				Paused:                   false,
 			})
 			if err != nil {
 				logger.Warn("upgrade search failed", "trigger", trigger, "error", err)
