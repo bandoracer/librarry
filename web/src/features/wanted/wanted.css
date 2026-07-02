@@ -654,3 +654,20 @@
 .wanted-tab-row {
   margin-bottom: 14px;
 }
+
+/* Gap-view DataTable (Missing / Cutoff Unmet / Review tabs). */
+
+.wanted-check-cell {
+  width: 30px;
+}
+
+.wanted-cover-cell {
+  width: 42px;
+}
+
+.wanted-gap-table .wanted-item-cover,
+.wanted-gap-table .wanted-item-cover-placeholder {
+  display: flex;
+  width: 30px;
+  height: 44px;
+}

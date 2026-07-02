@@ -42,6 +42,10 @@ type RootFolderProvider interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 }
 
+// calibreManagedRenameReason is the stable skip reason surfaced on rename
+// preview rows for files under Calibre-managed roots.
+const calibreManagedRenameReason = "managed by Calibre"
+
 type importFileOperation struct {
 	Mode       string
 	Moved      bool
@@ -323,7 +327,19 @@ func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, a
 		outcome.Skipped = outcome.Requested
 		return outcome, nil
 	}
+	nativeRoots := s.nativeRootFolders(ctx)
 	for _, file := range files {
+		// Files under Calibre-managed roots never rename locally: Calibre owns
+		// their layout.
+		if _, managed := calibreRootForPath(nativeRoots, file.Path); managed {
+			preview := calibreManagedRenamePreview(file)
+			outcome.Previews = append(outcome.Previews, preview)
+			outcome.Skipped++
+			if apply {
+				outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "skipped", Message: calibreManagedRenameReason})
+			}
+			continue
+		}
 		preview, err := s.renamePreviewForFile(ctx, file, request.Overwrite)
 		if err != nil {
 			outcome.Errored++
@@ -460,8 +476,14 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 		rootFolderID = strings.TrimSpace(item.RootFolderID)
 	}
 
+	// Calibre-managed destination roots skip the move/hardlink+naming path:
+	// the source file is handed to the root's Calibre content server instead.
+	if folder, ok := resolveImportRootFolder(s.nativeRootFolders(ctx), format, rootFolderID); ok && folder.Calibre.Enabled {
+		return s.importViaCalibre(ctx, request, folder, source, format, parsed, info)
+	}
+
 	root := s.importRootPath(ctx, format, rootFolderID)
-	destination := s.destinationPathIn(root, format, parsed, filepath.Ext(source))
+	destination := s.importDestinationPath(root, format, parsed, source)
 	if destination == "" {
 		return ImportOutcome{}, errors.New("library root is not configured")
 	}
@@ -778,6 +800,25 @@ func (s *Service) scanRoots(ctx context.Context, request ScanRequest) []string {
 	return roots
 }
 
+// importDestinationPath honors the rename toggle: with renaming enabled the
+// full naming templates apply; with renaming disabled (renameBooks=false, arr
+// renaming-off parity) imports land in the author folder keeping the source
+// basename.
+func (s *Service) importDestinationPath(root string, format string, parsed parsedBook, source string) string {
+	if s.Config().RenameBooksEnabled() {
+		return s.destinationPathIn(root, format, parsed, filepath.Ext(source))
+	}
+	root = filepath.Clean(strings.TrimSpace(root))
+	if root == "" || root == "." {
+		return ""
+	}
+	policy := s.namingPolicy()
+	values := namingTokenValues(parsed, format, filepath.Ext(source))
+	parts := []string{root}
+	parts = append(parts, renderPathSegments(policy.AuthorFolderTemplate, values, policy.SpaceReplacement)...)
+	return filepath.Join(append(parts, filepath.Base(source))...)
+}
+
 func (s *Service) destinationPathIn(root string, format string, parsed parsedBook, ext string) string {
 	root = filepath.Clean(strings.TrimSpace(root))
 	if root == "" || root == "." {
@@ -790,6 +831,20 @@ func (s *Service) destinationPathIn(root string, format string, parsed parsedBoo
 	parts = append(parts, renderPathSegments(policy.BookFolderTemplate, values, policy.SpaceReplacement)...)
 	fileName := renderFileName(policy.FileNameTemplate, values, policy.SpaceReplacement, ext)
 	return filepath.Join(append(parts, fileName)...)
+}
+
+// calibreManagedRenamePreview is the skipped preview row for a file under a
+// Calibre-managed root: no destination change, stable "managed by Calibre"
+// reason.
+func calibreManagedRenamePreview(file FileRecord) RenameFilePreview {
+	return RenameFilePreview{
+		File:            file,
+		SourcePath:      file.Path,
+		DestinationPath: file.Path,
+		RelativePath:    filepath.Base(file.Path),
+		Noop:            true,
+		Reason:          calibreManagedRenameReason,
+	}
 }
 
 func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, overwrite bool) (RenameFilePreview, error) {
@@ -909,9 +964,19 @@ func (s *Service) applyCalibreImport(ctx context.Context, destination string, re
 	if !ok {
 		return nil
 	}
+	return s.applyCalibreImportWithSettings(ctx, settings, destination, record)
+}
+
+// applyCalibreImportWithSettings posts path to the Calibre content server
+// (add-book), syncs metadata, and starts conversions per the settings,
+// recording Calibre state onto the file record.
+func (s *Service) applyCalibreImportWithSettings(ctx context.Context, settings calibre.Settings, path string, record *FileRecord) error {
+	if s == nil || s.calibre == nil || record == nil {
+		return errors.New("calibre integration is unavailable")
+	}
 	result, err := s.calibre.AddBook(ctx, calibre.AddBookRequest{
 		Settings: settings,
-		Path:     destination,
+		Path:     path,
 	})
 	if err != nil {
 		return err
@@ -964,6 +1029,81 @@ func (s *Service) applyCalibreImport(ctx context.Context, destination string, re
 		}
 	}
 	return nil
+}
+
+// importViaCalibre is the import path for Calibre-managed native roots: the
+// source file is handed to the root's Calibre content server (add-book plus
+// optional conversion) instead of being moved/hardlinked into the naming
+// layout. Calibre add-book reports only the new book id (never a library
+// path), so the tracked file keeps the source path with import status
+// "calibre".
+func (s *Service) importViaCalibre(ctx context.Context, request ImportRequest, folder RootFolder, source string, format string, parsed parsedBook, info fs.FileInfo) (ImportOutcome, error) {
+	record, err := s.calibreHandoffRecord(ctx, calibreSettingsFromRootFolder(folder), source, format, parsed, info)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	if strings.TrimSpace(folder.ID) != "" {
+		record.Metadata["rootFolderId"] = strings.TrimSpace(folder.ID)
+	}
+	if strings.TrimSpace(request.WantedID) != "" {
+		record.Metadata["wantedId"] = strings.TrimSpace(request.WantedID)
+	}
+	if strings.TrimSpace(request.DownloadID) != "" {
+		record.Metadata["downloadId"] = strings.TrimSpace(request.DownloadID)
+	}
+	stored, err := s.store.UpsertFile(ctx, record)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	if strings.TrimSpace(request.WantedID) != "" && s.wanted != nil {
+		_ = s.wanted.MarkWantedStatus(ctx, request.WantedID, "imported")
+	}
+	return ImportOutcome{
+		File:            stored,
+		DestinationPath: stored.Path,
+		Imported:        true,
+		ImportMode:      "calibre",
+		Message:         fmt.Sprintf("handed to Calibre-managed root %q", folder.Path),
+	}, nil
+}
+
+// calibreHandoffRecord builds the tracked file record for a Calibre-managed
+// import and performs the Calibre handoff (add-book, metadata sync, optional
+// conversion). The record keeps the source path because the Calibre client
+// reports the new book asynchronously by id, not by library path.
+func (s *Service) calibreHandoffRecord(ctx context.Context, settings calibre.Settings, source string, format string, parsed parsedBook, info fs.FileInfo) (FileRecord, error) {
+	if s == nil || s.calibre == nil {
+		return FileRecord{}, errors.New("calibre integration is unavailable")
+	}
+	record := fileRecordFromPath(source, format, info, "calibre")
+	record.SourcePath = source
+	record.Title = firstNonEmpty(parsed.Title, record.Title)
+	record.AuthorName = firstNonEmpty(parsed.AuthorName, record.AuthorName)
+	if record.Metadata == nil {
+		record.Metadata = map[string]any{}
+	}
+	record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
+	record.Metadata["importMode"] = "calibre"
+	if err := s.applyCalibreImportWithSettings(ctx, settings, source, &record); err != nil {
+		return FileRecord{}, err
+	}
+	return record, nil
+}
+
+// calibreSettingsFromRootFolder maps a native root folder's Calibre config
+// onto client settings (convertFormats feeds the conversion target list).
+func calibreSettingsFromRootFolder(folder RootFolder) calibre.Settings {
+	return calibre.Settings{
+		Host:          folder.Calibre.Host,
+		Port:          folder.Calibre.Port,
+		URLBase:       folder.Calibre.URLBase,
+		Username:      folder.Calibre.Username,
+		Password:      folder.Calibre.Password,
+		Library:       folder.Calibre.Library,
+		OutputFormat:  folder.Calibre.ConvertFormats,
+		OutputProfile: folder.Calibre.OutputProfile,
+		UseSSL:        folder.Calibre.UseSSL,
+	}
 }
 
 func (s *Service) applyCalibreDelete(ctx context.Context, file FileRecord) error {

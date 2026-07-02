@@ -196,6 +196,26 @@ yet ready to replace a production Readarr instance unattended.
   Time (stranded grabbed, score-100 stored release) should re-enter the
   monitor and re-grab automatically.
 
+- v0.4.0 closes the remaining Readarr inconsistencies (all ten from the
+  2026-07-02 audit): quality profiles are now ordered quality ladders with a
+  cutoff quality (plus separate release profiles and a quality-definitions
+  size table; release scores became rank×1000+preferred composites and the UI
+  shows parsed quality badges); named metadata profiles selectable per author
+  (per-author filters remain as overrides); Wanted is a pure Missing /
+  Cutoff Unmet / Review gap view with author management moved to Library →
+  Authors and the acquisition strip to the Dashboard; root folders support
+  Calibre-managed mode (per-root content-server settings, import handoff,
+  rename skip); Settings splits into Readarr-shaped tabs (Quality, Indexers,
+  Download Clients; /settings/connections redirects); System gains
+  Status/Tasks/Backups sub-tabs; Library toolbar says Refresh Monitored /
+  Update All / RSS Sync ("Feed Sync" renamed everywhere); a Rename Books
+  toggle (default on — Readarr defaults off — set LIBRARRY_RENAME_BOOKS);
+  the add dialog gains root-folder and tags pickers; the blocklist shows the
+  linked book. Migrations 0027–0029 verified against scratch Postgres 16 on
+  fresh and upgrade paths; full test suite and builds pass; all restructured
+  pages verified at 1920px with zero console errors. Legacy links
+  (?filter=…, ?item=…, ?tab=authors, /settings/connections) redirect.
+
 ## Available But Still Needs Real-World Proving
 
 - Readarr migration preview/import has broad API and UI coverage, but needs a

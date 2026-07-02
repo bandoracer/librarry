@@ -110,9 +110,9 @@ export default function BookPage() {
             />
             <ToolbarButton
               icon={ExternalLink}
-              label="Open in Wanted"
-              title="Open this book in the Wanted queue"
-              onClick={() => navigate(`/wanted?item=${encodeURIComponent(item.id)}`)}
+              label="Wanted Queue"
+              title="Open the Wanted gap view"
+              onClick={() => navigate("/wanted")}
             />
           </>
         }

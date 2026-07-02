@@ -1,7 +1,9 @@
+import { knownQualityIds } from "../../lib/api";
 import type {
   IntegrationSettings,
   LibrarySettings,
   QualityProfile,
+  QualityProfileQuality,
   ReadarrImportItem,
   ReadarrImportOutcome,
   ReadarrImportSettings
@@ -60,7 +62,8 @@ export function emptyLibrarySettings(): LibrarySettings {
     namingBookFolder: "{Title}",
     namingFileName: "{Title}{Ext}",
     namingSpaceReplacement: "",
-    standardSearchLanguage: "English"
+    standardSearchLanguage: "English",
+    renameBooks: true
   };
 }
 
@@ -117,24 +120,26 @@ export function sameFormTerms(a?: string[], b?: string[]) {
 export function cloneQualityProfile(profile: QualityProfile): QualityProfile {
   return {
     ...profile,
-    preferredTerms: [...(profile.preferredTerms ?? [])],
-    requiredTerms: [...(profile.requiredTerms ?? [])],
-    rejectedTerms: [...(profile.rejectedTerms ?? [])]
+    qualities: profile.qualities.map((quality) => ({ ...quality }))
   };
+}
+
+/** Default quality list for a new profile: catalog order, everything allowed. */
+export function defaultProfileQualities(mediaFormat: QualityProfile["mediaFormat"]): QualityProfileQuality[] {
+  return knownQualityIds(mediaFormat).map((id) => ({ id, allowed: true }));
+}
+
+function sameProfileQualities(a: QualityProfileQuality[], b: QualityProfileQuality[]) {
+  return a.length === b.length && a.every((quality, index) => quality.id === b[index].id && quality.allowed === b[index].allowed);
 }
 
 export function qualityProfileChanged(profile: QualityProfile, saved?: QualityProfile) {
   if (!saved) return true;
   return (
-    profile.minScore !== saved.minScore ||
-    profile.cutoffScore !== saved.cutoffScore ||
+    profile.cutoff !== saved.cutoff ||
     profile.minSeeders !== saved.minSeeders ||
-    profile.maxSizeBytes !== saved.maxSizeBytes ||
-    profile.preferredScore !== saved.preferredScore ||
     profile.upgradeAllowed !== saved.upgradeAllowed ||
-    !sameFormTerms(profile.preferredTerms, saved.preferredTerms) ||
-    !sameFormTerms(profile.requiredTerms, saved.requiredTerms) ||
-    !sameFormTerms(profile.rejectedTerms, saved.rejectedTerms)
+    !sameProfileQualities(profile.qualities, saved.qualities)
   );
 }
 
@@ -146,21 +151,26 @@ export function librarySettingsChanged(form: LibrarySettings, saved: LibrarySett
     !sameFormText(form.namingBookFolder, saved.namingBookFolder) ||
     !sameFormText(form.namingFileName, saved.namingFileName) ||
     !sameFormText(form.namingSpaceReplacement, saved.namingSpaceReplacement) ||
+    (form.renameBooks ?? true) !== (saved.renameBooks ?? true) ||
     (normalizedFormText(form.standardSearchLanguage) || "English") !== (normalizedFormText(saved.standardSearchLanguage) || "English")
   );
 }
 
-export function integrationSettingsChanged(form: IntegrationSettings, saved: IntegrationSettings) {
+/** Indexers tab: Prowlarr URL and API key (secret counts as changed when non-empty). */
+export function indexerSettingsChanged(form: IntegrationSettings, saved: IntegrationSettings) {
+  return Boolean(normalizedFormText(form.prowlarrApiKey)) || !sameFormText(form.prowlarrUrl, saved.prowlarrUrl);
+}
+
+/** Download Clients tab: every integration field except the Prowlarr pair. */
+export function downloadClientSettingsChanged(form: IntegrationSettings, saved: IntegrationSettings) {
   const secretChanged = Boolean(
-    normalizedFormText(form.prowlarrApiKey) ||
-      normalizedFormText(form.qbittorrentPassword) ||
+    normalizedFormText(form.qbittorrentPassword) ||
       normalizedFormText(form.transmissionPassword) ||
       normalizedFormText(form.sabnzbdApiKey) ||
       normalizedFormText(form.sabnzbdPassword)
   );
   return (
     secretChanged ||
-    !sameFormText(form.prowlarrUrl, saved.prowlarrUrl) ||
     !sameFormText(form.qbittorrentUrl, saved.qbittorrentUrl) ||
     !sameFormText(form.qbittorrentUsername, saved.qbittorrentUsername) ||
     !sameFormText(form.transmissionUrl, saved.transmissionUrl) ||
@@ -243,16 +253,6 @@ export function splitTerms(value: string) {
     .split(",")
     .map((term) => term.trim())
     .filter(Boolean);
-}
-
-export function bytesToGiB(bytes: number) {
-  if (!bytes) return 0;
-  return Number((bytes / 1024 / 1024 / 1024).toFixed(2));
-}
-
-export function giBToBytes(value: number) {
-  if (!value || value < 0) return 0;
-  return Math.round(value * 1024 * 1024 * 1024);
 }
 
 /* ------------------------------ Readarr import ----------------------------- */

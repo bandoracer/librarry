@@ -137,17 +137,18 @@ func TestBuildAuthorPolicyContextFallsBackToDiscoveryOrder(t *testing.T) {
 }
 
 func TestCutoffUnmetPredicate(t *testing.T) {
-	profile := QualityProfile{CutoffScore: 85, UpgradeAllowed: true}
-	if !cutoffUnmet(profile, 70) {
-		t.Fatal("expected score below cutoff to be unmet")
+	// Default ebook ladder: epub cutoff sits at composite 4000.
+	profile := QualityProfile{MediaFormat: "ebook", UpgradeAllowed: true}
+	if !cutoffUnmet(profile, 3000) {
+		t.Fatal("expected quality below cutoff to be unmet")
 	}
-	if cutoffUnmet(profile, 85) {
+	if cutoffUnmet(profile, 4000) {
 		t.Fatal("expected score at cutoff to be met")
 	}
-	if cutoffUnmet(profile, 92) {
+	if cutoffUnmet(profile, 5000) {
 		t.Fatal("expected score above cutoff to be met")
 	}
-	locked := QualityProfile{CutoffScore: 85, UpgradeAllowed: false}
+	locked := QualityProfile{MediaFormat: "ebook", UpgradeAllowed: false}
 	if cutoffUnmet(locked, 10) {
 		t.Fatal("expected upgrade-locked profile to never be cutoff unmet")
 	}

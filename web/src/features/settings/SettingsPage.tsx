@@ -5,7 +5,9 @@ import { navItems } from "../../app/nav";
 import { GeneralTab } from "./GeneralTab";
 import { MediaTab } from "./MediaTab";
 import { ProfilesTab } from "./ProfilesTab";
-import { ConnectionsTab } from "./ConnectionsTab";
+import { QualityTab } from "./QualityTab";
+import { IndexersTab } from "./IndexersTab";
+import { DownloadClientsTab } from "./DownloadClientsTab";
 import { ConnectTab } from "./ConnectTab";
 import { ImportListsTab } from "./ImportListsTab";
 import { TagsTab } from "./TagsTab";
@@ -19,11 +21,13 @@ const tabs = [
   { label: "General", to: "/settings", end: true },
   { label: "Media Management", to: "/settings/media" },
   { label: "Profiles", to: "/settings/profiles" },
-  { label: "Connections", to: "/settings/connections" },
-  { label: "Connect", to: "/settings/connect" },
+  { label: "Quality", to: "/settings/quality" },
+  { label: "Indexers", to: "/settings/indexers" },
+  { label: "Download Clients", to: "/settings/download-clients" },
   { label: "Import Lists", to: "/settings/import-lists" },
+  { label: "Connect", to: "/settings/connect" },
   { label: "Tags", to: "/settings/tags" },
-  { label: "Import", to: "/settings/import" }
+  { label: "Readarr Import", to: "/settings/import" }
 ];
 
 export default function SettingsPage() {
@@ -44,7 +48,11 @@ export default function SettingsPage() {
           <Route index element={<GeneralTab />} />
           <Route path="media" element={<MediaTab />} />
           <Route path="profiles" element={<ProfilesTab />} />
-          <Route path="connections" element={<ConnectionsTab />} />
+          <Route path="quality" element={<QualityTab />} />
+          <Route path="indexers" element={<IndexersTab />} />
+          <Route path="download-clients" element={<DownloadClientsTab />} />
+          {/* Legacy path: the Connections tab split into Indexers + Download Clients. */}
+          <Route path="connections" element={<Navigate to="/settings/download-clients" replace />} />
           <Route path="connect" element={<ConnectTab />} />
           <Route path="import-lists" element={<ImportListsTab />} />
           <Route path="tags" element={<TagsTab />} />

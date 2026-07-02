@@ -42,7 +42,10 @@ import {
   useAuthorSubscriptions,
   useInvalidatingMutation,
   useLibrarySettings,
+  useMetadataProfiles,
   useQualityProfiles,
+  useRootFolders,
+  useTags,
   useWanted
 } from "../../lib/queries";
 import { demoModeEnabled, demoSeeds, withDemoFallback } from "../../lib/demo";
@@ -143,7 +146,11 @@ export default function SearchPage() {
 
   const [pendingReview, setPendingReview] = useState<SearchResult | null>(null);
   const [authorPolicy, setAuthorPolicy] = useState<AuthorMissingBookPolicy>("all");
+  const [authorMetadataProfileID, setAuthorMetadataProfileID] = useState("");
   const [qualityProfile, setQualityProfile] = useState("standard");
+  // "" = use the format's default root folder; ids are validated per format.
+  const [rootFolderID, setRootFolderID] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [addedByKey, setAddedByKey] = useState<Record<string, WantedItem>>({});
   const [searchOnAdd, setSearchOnAdd] = useState(storedSearchOnAdd);
 
@@ -159,6 +166,9 @@ export default function SearchPage() {
   const wantedItems = useWanted().data ?? [];
   const authorSubscriptions = useAuthorSubscriptions().data ?? [];
   const qualityProfiles = useQualityProfiles().data ?? [];
+  const rootFolders = useRootFolders().data ?? [];
+  const knownTags = useTags().data ?? [];
+  const metadataProfiles = useMetadataProfiles().data ?? [];
 
   // --- Derived state ---------------------------------------------------------
   const query = mode === "author" ? authorQuery : bookQuery;
@@ -229,6 +239,26 @@ export default function SearchPage() {
   const effectiveProfile = profileOptions.some((profile) => profile.name === qualityProfile)
     ? qualityProfile
     : profileOptions[0]?.name ?? "standard";
+
+  // Root folders matching the target format; default = the format's default root.
+  const rootFolderOptions = useMemo(
+    () => rootFolders.filter((folder) => folder.mediaFormat === selectedWantedFormat),
+    [rootFolders, selectedWantedFormat]
+  );
+  const defaultRootFolder = rootFolderOptions.find((folder) => folder.isDefault) ?? rootFolderOptions[0];
+  const effectiveRootFolderID = rootFolderOptions.some((folder) => folder.id === rootFolderID)
+    ? rootFolderID
+    : defaultRootFolder?.id ?? "";
+
+  /** Free-text comma tag entry → labels array for the create payload. */
+  const tagLabels = useMemo(
+    () =>
+      tagsInput
+        .split(",")
+        .map((label) => label.trim())
+        .filter(Boolean),
+    [tagsInput]
+  );
 
   // Legacy behavior: drop a provider filter that no longer matches any result.
   useEffect(() => {
@@ -318,7 +348,7 @@ export default function SearchPage() {
   }
 
   function openWanted(item: WantedItem) {
-    navigate(`/wanted?item=${encodeURIComponent(item.id)}`);
+    navigate(`/library/book/${encodeURIComponent(item.id)}`);
   }
 
   function updateSearchOnAdd(next: boolean) {
@@ -330,14 +360,14 @@ export default function SearchPage() {
 
   // --- Mutations --------------------------------------------------------------
   const addWanted = useInvalidatingMutation(
-    (args: { result: SearchResult; format: string; profile: string }) =>
-      createWanted(args.result, args.format, args.profile),
+    (args: { result: SearchResult; format: string; profile: string; tags: string[]; rootFolderId?: string }) =>
+      createWanted(args.result, args.format, args.profile, args.tags, args.rootFolderId),
     [keys.wanted, keys.acquisitionQueue]
   );
 
   const monitorAuthor = useInvalidatingMutation(
-    (args: { result: SearchResult; format: string; policy: AuthorMissingBookPolicy }) =>
-      subscribeAuthor(args.result, args.format, "standard", args.policy),
+    (args: { result: SearchResult; format: string; policy: AuthorMissingBookPolicy; metadataProfileId?: string }) =>
+      subscribeAuthor(args.result, args.format, "standard", args.policy, args.metadataProfileId),
     [keys.authorSubscriptions]
   );
 
@@ -362,13 +392,19 @@ export default function SearchPage() {
     }
     setSelectedKey(key);
     addWanted.mutate(
-      { result, format: result.edition?.format ?? format, profile: effectiveProfile },
+      {
+        result,
+        format: result.edition?.format ?? format,
+        profile: effectiveProfile,
+        tags: tagLabels,
+        rootFolderId: effectiveRootFolderID || undefined
+      },
       {
         onSuccess: async (item) => {
           setAddedByKey((current) => ({ ...current, [key]: item }));
           setPendingReview(null);
           if (!searchOnAdd) {
-            toast.success(`Added "${item.title}" to Wanted — open the Wanted page to search and grab releases.`);
+            toast.success(`Added "${item.title}" to Wanted — open its book page to search and grab releases.`);
             return;
           }
           // Search-on-add: review-first rule intact — releases are evaluated
@@ -401,7 +437,12 @@ export default function SearchPage() {
     if (!result?.work.authors?.[0]) return;
     setSelectedKey(searchResultKey(result));
     monitorAuthor.mutate(
-      { result, format: result.edition?.format ?? format, policy: authorPolicy },
+      {
+        result,
+        format: result.edition?.format ?? format,
+        policy: authorPolicy,
+        metadataProfileId: authorMetadataProfileID || undefined
+      },
       {
         onSuccess: (subscription) => {
           toast.success(
@@ -452,6 +493,42 @@ export default function SearchPage() {
   }
 
   // --- Renderers --------------------------------------------------------------
+
+  /** Root Folder + Tags fields shared by the add form and the review modal. */
+  function renderAddBookFields() {
+    return (
+      <>
+        <Field label="Root folder" hint="Destination root for the new wanted item.">
+          <select
+            value={effectiveRootFolderID}
+            onChange={(event) => setRootFolderID(event.target.value)}
+            aria-label="Root folder"
+          >
+            {rootFolderOptions.length ? (
+              rootFolderOptions.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name || folder.path}
+                  {folder.isDefault ? " (default)" : ""}
+                </option>
+              ))
+            ) : (
+              <option value="">Format default</option>
+            )}
+          </select>
+        </Field>
+        <Field label="Tags" hint="Comma-separated labels applied to the new wanted item.">
+          <input
+            list="search-tag-suggestions"
+            value={tagsInput}
+            onChange={(event) => setTagsInput(event.target.value)}
+            placeholder="sci-fi, book-club"
+            aria-label="Tags"
+          />
+        </Field>
+      </>
+    );
+  }
+
   function renderResultRow(result: SearchResult) {
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
@@ -637,6 +714,7 @@ export default function SearchPage() {
               </select>
             </Field>
           ) : null}
+          {canBeWanted ? renderAddBookFields() : null}
           <Field label="Missing books" hint="Which existing books to add when monitoring this author.">
             <select
               value={authorPolicy}
@@ -645,6 +723,20 @@ export default function SearchPage() {
               {authorMissingPolicyOptions.map((policy) => (
                 <option key={policy} value={policy}>
                   {authorMissingPolicyLabel(policy)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Metadata profile" hint="Filter set applied when monitoring this author.">
+            <select
+              value={authorMetadataProfileID}
+              onChange={(event) => setAuthorMetadataProfileID(event.target.value)}
+              aria-label="Author metadata profile"
+            >
+              <option value="">None</option>
+              {metadataProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
                 </option>
               ))}
             </select>
@@ -950,6 +1042,7 @@ export default function SearchPage() {
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
+            <div className="search-detail-form">{renderAddBookFields()}</div>
             <label className="search-add-search-toggle" title="After adding, run a release search for the new wanted item (paused review-first — nothing is grabbed).">
               <input type="checkbox" checked={searchOnAdd} onChange={(event) => updateSearchOnAdd(event.target.checked)} />
               <span>Start search for missing book</span>
@@ -957,6 +1050,12 @@ export default function SearchPage() {
           </>
         ) : null}
       </Modal>
+
+      <datalist id="search-tag-suggestions">
+        {knownTags.map((tag) => (
+          <option key={tag.id} value={tag.label} />
+        ))}
+      </datalist>
     </>
   );
 }

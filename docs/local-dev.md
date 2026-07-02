@@ -80,12 +80,43 @@ immediately, and reloaded on restart.
 
 ## Quality Profiles
 
-Quality profiles are available through `GET /api/v1/quality-profiles` and can be
-updated with `POST /api/v1/quality-profiles`. Default ebook and audiobook
-profiles are seeded by migrations for `standard` and `large`.
+Librarry uses Readarr's quality model: each quality profile carries an ordered
+quality ladder (`qualities`, most-preferred first, each entry
+`{"id","allowed"}`) plus a `cutoff` quality at which upgrade searching stops.
+Known qualities are `azw3`, `epub`, `mobi`, `pdf`, `unknownText` for ebooks
+and `flac`, `m4b`, `mp3`, `unknownAudio` for audiobooks. Profiles are
+available through `GET /api/v1/quality-profiles` and saved with
+`POST /api/v1/quality-profiles`; the JSON shape is
+`{id,name,mediaFormat,qualities,cutoff,upgradeAllowed,minSeeders,createdAt,updatedAt}`
+(legacy numeric score fields are still accepted and echoed for compatibility
+readers but no longer drive evaluation). Default ebook and audiobook profiles
+are seeded by migrations for `standard` and `large` with the full ladder
+allowed and cutoffs of `epub` / `m4b`.
+
+Release profiles carry required/ignored/preferred release terms
+(`GET /api/v1/release-profiles` returns `{"profiles":[...]}`,
+`POST /api/v1/release-profiles` returns `{"profile":...}`,
+`PUT /api/v1/release-profiles/{id}`, `DELETE /api/v1/release-profiles/{id}`).
+`required` and `ignored` are string arrays; `preferred` is an array of
+`{"term","score"}`. Missing required terms and present ignored terms reject a
+release; matched preferred term scores are summed into the release score.
+Migration 0027 converts any legacy per-profile terms into one seeded
+"Migrated terms" release profile.
+
+Quality definitions set per-quality size windows
+(`GET /api/v1/quality-definitions` returns
+`{"definitions":[{quality,title,minSizeMB,maxSizeMB}]}`;
+`PUT /api/v1/quality-definitions` accepts a bulk array or the same envelope;
+`0` means unbounded). Releases outside the window are rejected with
+`below minimum size for <quality>` / `above maximum size for <quality>`.
 
 The evaluator uses these rows for manual wanted searches, scheduled monitoring,
-feed sync, failed-download recovery, and upgrade search.
+feed sync, failed-download recovery, and upgrade search. Releases are ranked by
+ladder position first, then summed preferred-word score, then seeders, and the
+persisted score is the composite
+`(ladderLen - ladderIndex) * 1000 + preferredScore`. Every rejection carries an
+explainable reason (for example `quality not allowed: pdf`,
+`missing required term: retail`, `ignored term: screener`).
 
 ## Wanted Monitor
 
@@ -171,6 +202,27 @@ actionable rows — they become skipped entries with explicit reasons instead
 The fields appear on `AuthorSubscription` JSON and are accepted in both the
 subscribe (`POST /api/v1/authors`) and update (`PATCH /api/v1/authors/{id}`)
 payloads.
+
+### Metadata Profiles
+
+Named, reusable add-filter sets (Readarr-style metadata profiles) carry the
+same four filters. Migration 0028 seeds one no-filter "Standard" profile.
+
+- `GET /api/v1/metadata-profiles` returns `{"profiles":[{id,name,
+  allowedLanguages,mustNotContain,skipMissingIsbn,minPages,createdAt,
+  updatedAt}]}`.
+- `POST /api/v1/metadata-profiles` and `PUT /api/v1/metadata-profiles/{id}`
+  accept the same shape (name required, unique) and return `{"profile":...}`.
+- `DELETE /api/v1/metadata-profiles/{id}` returns `200 {}`, or `409
+  {"error":"metadata profile is in use"}` while author subscriptions still
+  reference the profile.
+
+Author subscribe/update payloads and `AuthorSubscription` JSON gain
+`metadataProfileId` (blank on update clears it; unknown ids are rejected with
+`400`). During author monitor runs the referenced profile's filters replace
+the per-author filter fields wholesale — profile wins when present, the
+per-author overrides still apply when no profile is set. Skip reasons are
+unchanged.
 
 ## Feed Sync
 
@@ -281,7 +333,9 @@ restore review-first recovery.
 The blocklist stores release identities (infohash, download URL hash, or
 title+indexer) that release evaluation must reject:
 
-- `GET /api/v1/librarry/blocklist?limit=` returns `{"items":[...]}`.
+- `GET /api/v1/librarry/blocklist?limit=` returns `{"items":[...]}`. Items
+  include `wantedId`, `wantedTitle`, and `wantedAuthor` joined from the linked
+  wanted item (empty strings when the entry is not linked).
 - `POST /api/v1/librarry/blocklist` with `{"downloadId","client","reason"}`
   blocklists the release behind a queue download (source `queue-remove`).
 - `DELETE /api/v1/librarry/blocklist/{id}` removes one entry.
@@ -384,6 +438,7 @@ LIBRARRY_NAMING_AUTHOR_FOLDER={Author}
 LIBRARRY_NAMING_BOOK_FOLDER={Title}
 LIBRARRY_NAMING_FILE_NAME={Title}{Ext}
 LIBRARRY_NAMING_SPACE_REPLACEMENT=
+LIBRARRY_RENAME_BOOKS=true
 LIBRARRY_STANDARD_SEARCH_LANGUAGE=English
 LIBRARRY_RECYCLE_BIN=
 LIBRARRY_RECYCLE_BIN_RETENTION=168h
@@ -397,6 +452,15 @@ are removed, so `{Series} #{SeriesPosition} - {Title}` renders as just the
 title for standalone books. Series and year come from the wanted item's
 provider metadata (manual overrides win) or embedded file metadata during
 scans and renames.
+
+`LIBRARRY_RENAME_BOOKS` controls whether imports apply the naming templates.
+Librarry defaults to `true` (note Readarr ships with renaming off). With
+renaming off, imports still land in the author folder but keep the original
+source filename — the book folder and file-name templates are skipped. The
+toggle is exposed as `renameBooks` on `GET`/`PUT /api/v1/library/config`
+(omitting the key on `PUT` leaves the stored value alone), and explicit
+rename operations through `POST /api/v1/library/files/rename` keep using the
+templates regardless.
 
 ### Multiple root folders
 
@@ -415,10 +479,32 @@ reason. Marking a root `isDefault` clears the flag from other roots of the
 same format.
 
 Scans walk every root of the requested format. Imports pick the wanted item's
-pinned root when set (`rootFolderId` on `PUT /api/v1/wanted/{id}`), then the
-format's default root, then the legacy config roots. `GET`/`PUT
-/api/v1/library/config` keep working: the legacy two-root fields map onto the
-per-format default root folders.
+pinned root when set (`rootFolderId` on `PUT /api/v1/wanted/{id}`, or at add
+time via `rootFolderId` on `POST /api/v1/wanted` — validated to exist and to
+match the wanted format, `400` otherwise), then the format's default root,
+then the legacy config roots. `GET`/`PUT /api/v1/library/config` keep
+working: the legacy two-root fields map onto the per-format default root
+folders.
+
+### Calibre-managed root folders
+
+Native root folders carry an optional `calibre` object on `GET`/`POST`/`PUT`:
+`{enabled,host,port,urlBase,username,password,library,convertFormats,
+outputProfile,useSsl}` (migration 0029). The Calibre content server requires
+authentication, so `enabled:true` needs `host`, `port`, `username`, and
+`password` (`400` otherwise). The password is redacted to `""` in responses;
+sending a blank password on `PUT` keeps the stored credential
+(notification-target pattern).
+
+Imports whose destination resolves to a Calibre-managed root skip the
+move/hardlink+naming path entirely: the source file is posted to the root's
+Calibre Content Server (add-book, metadata set-fields, and conversion jobs
+for `convertFormats`). Calibre reports only the new book id — never a library
+path — so the tracked file keeps its source path with import status
+`calibre`. Rename endpoints skip files under Calibre-managed roots; the
+preview row carries `reason: "managed by Calibre"`. The older
+Readarr-compatible `isCalibreLibrary` root-folder metadata flow below keeps
+working unchanged.
 
 ### Remote path mappings
 

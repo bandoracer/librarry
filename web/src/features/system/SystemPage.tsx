@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Archive, BookOpenCheck, HardDrive, HardDriveDownload, HeartPulse, ListChecks, Play, RefreshCw, Timer, Trash2 } from "lucide-react";
 import {
@@ -15,6 +15,7 @@ import {
   PageHeader,
   ProgressBar,
   StatBar,
+  TabNav,
   ToolbarButton
 } from "../../components/ui";
 import { useToast } from "../../components/toast";
@@ -250,8 +251,8 @@ function BackupsCard() {
 const stepSettingsTab: Record<string, string> = {
   database: "/settings",
   library: "/settings/media",
-  indexer: "/settings/connections",
-  "download-client": "/settings/connections",
+  indexer: "/settings/indexers",
+  "download-client": "/settings/download-clients",
   "quality-profiles": "/settings/profiles"
 };
 
@@ -279,7 +280,18 @@ const VISIBLE_EXAMPLE_CHIPS = 4;
 
 /* ---------------------------------- Page ---------------------------------- */
 
+/** Sub-tab paths are stable API for the integrator's route table. */
+const systemTabs = [
+  { label: "Status", to: "/providers", end: true },
+  { label: "Tasks", to: "/providers/tasks" },
+  { label: "Backups", to: "/providers/backups" }
+];
+
 export default function SystemPage() {
+  const location = useLocation();
+  const path = location.pathname.replace(/\/+$/, "");
+  const isTasks = path.endsWith("/tasks");
+  const isBackups = path.endsWith("/backups");
   const client = useQueryClient();
   const toast = useToast();
   const apiState = useAPIState();
@@ -341,6 +353,68 @@ export default function SystemPage() {
     }
   }
 
+  const tasksCard = (
+    <Card
+      title="Scheduled Tasks"
+      subtitle="Background workers: cadence, last outcome, and manual run-now."
+      padded={!tasks.data?.length}
+    >
+      {tasks.isPending ? (
+        <LoadingRow label="Loading scheduled tasks…" />
+      ) : tasks.isError ? (
+        queryFailureNotice(tasks.error, "Scheduled tasks need a live API and are not part of the demo data set.")
+      ) : tasks.data.length === 0 ? (
+        <EmptyState icon={Timer} title="No scheduled tasks">
+          The scheduler registry reported no tasks. Workers appear here once the API runs with scheduling enabled.
+        </EmptyState>
+      ) : (
+        <DataTable>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Interval</th>
+              <th>Last Run</th>
+              <th>Next Run</th>
+              <th aria-label="Actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.data.map((task) => (
+              <tr key={task.id}>
+                <td className="cell-primary">
+                  <span className="system-task-name">
+                    {task.name}
+                    {task.running ? <Badge tone="info">Running</Badge> : null}
+                  </span>
+                </td>
+                <td className="cell-muted">{task.interval}</td>
+                <td>
+                  <span className="system-task-lastrun" title={taskLastRunTitle(task)}>
+                    {formatRelativeTime(task.lastRunAt)}
+                    {task.lastError ? <StatusDot tone="danger" /> : null}
+                  </span>
+                </td>
+                <td>{formatRelativeTime(task.nextRunAt)}</td>
+                <td>
+                  <div className="cell-actions">
+                    <IconButton
+                      icon={Play}
+                      size="sm"
+                      label={`Run ${task.name} now`}
+                      busy={task.running || (runTask.isPending && runTask.variables === task.id)}
+                      disabled={runTask.isPending}
+                      onClick={() => void triggerTask(task)}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </DataTable>
+      )}
+    </Card>
+  );
+
   return (
     <>
       <PageHeader
@@ -349,6 +423,21 @@ export default function SystemPage() {
         actions={<ToolbarButton icon={RefreshCw} label="Refresh" onClick={refresh} busy={refreshing} />}
       />
 
+      <TabNav
+        tabs={systemTabs}
+        render={(tab) => (
+          <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => (isActive ? "active" : undefined)}>
+            {tab.label}
+          </NavLink>
+        )}
+      />
+
+      {isTasks ? (
+        tasksCard
+      ) : isBackups ? (
+        <BackupsCard />
+      ) : (
+        <>
       <Card
         title="Status"
         subtitle="API build, database persistence, and connection state."
@@ -547,7 +636,7 @@ export default function SystemPage() {
           </InlineNotice>
         ) : integrations.data.length === 0 ? (
           <EmptyState icon={HardDriveDownload} title="No acquisition integrations">
-            Configure Prowlarr and a download client under Settings → Connections.
+            Configure Prowlarr under Settings → Indexers and a download client under Settings → Download Clients.
           </EmptyState>
         ) : (
           <div className="system-health-list">
@@ -563,66 +652,6 @@ export default function SystemPage() {
               </article>
             ))}
           </div>
-        )}
-      </Card>
-
-      <Card
-        title="Scheduled Tasks"
-        subtitle="Background workers: cadence, last outcome, and manual run-now."
-        padded={!tasks.data?.length}
-      >
-        {tasks.isPending ? (
-          <LoadingRow label="Loading scheduled tasks…" />
-        ) : tasks.isError ? (
-          queryFailureNotice(tasks.error, "Scheduled tasks need a live API and are not part of the demo data set.")
-        ) : tasks.data.length === 0 ? (
-          <EmptyState icon={Timer} title="No scheduled tasks">
-            The scheduler registry reported no tasks. Workers appear here once the API runs with scheduling enabled.
-          </EmptyState>
-        ) : (
-          <DataTable>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Interval</th>
-                <th>Last Run</th>
-                <th>Next Run</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.data.map((task) => (
-                <tr key={task.id}>
-                  <td className="cell-primary">
-                    <span className="system-task-name">
-                      {task.name}
-                      {task.running ? <Badge tone="info">Running</Badge> : null}
-                    </span>
-                  </td>
-                  <td className="cell-muted">{task.interval}</td>
-                  <td>
-                    <span className="system-task-lastrun" title={taskLastRunTitle(task)}>
-                      {formatRelativeTime(task.lastRunAt)}
-                      {task.lastError ? <StatusDot tone="danger" /> : null}
-                    </span>
-                  </td>
-                  <td>{formatRelativeTime(task.nextRunAt)}</td>
-                  <td>
-                    <div className="cell-actions">
-                      <IconButton
-                        icon={Play}
-                        size="sm"
-                        label={`Run ${task.name} now`}
-                        busy={task.running || (runTask.isPending && runTask.variables === task.id)}
-                        disabled={runTask.isPending}
-                        onClick={() => void triggerTask(task)}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
         )}
       </Card>
 
@@ -674,8 +703,6 @@ export default function SystemPage() {
           </DataTable>
         )}
       </Card>
-
-      <BackupsCard />
 
       <Card
         title="Readarr API compatibility"
@@ -766,6 +793,8 @@ export default function SystemPage() {
           </>
         )}
       </Card>
+        </>
+      )}
     </>
   );
 }

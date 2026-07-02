@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bandoracer/librarry/backend/internal/wanted"
@@ -111,5 +112,107 @@ func TestWantedOverrideValueWinsOverProviderData(t *testing.T) {
 	}
 	if got := wantedOverrideValue(item, "series_position"); got != "" {
 		t.Fatalf("expected empty value for missing override, got %q", got)
+	}
+}
+
+func TestValidateRootFolderCalibreRequiresConnectionWhenEnabled(t *testing.T) {
+	complete := RootFolderCalibre{
+		Enabled:  true,
+		Host:     "calibre.local",
+		Port:     8080,
+		Username: "reader",
+		Password: "secret",
+	}
+	if err := validateRootFolderCalibre(complete); err != nil {
+		t.Fatalf("expected complete calibre config to validate, got %v", err)
+	}
+	if err := validateRootFolderCalibre(RootFolderCalibre{}); err != nil {
+		t.Fatalf("expected disabled calibre config to validate, got %v", err)
+	}
+
+	// The Calibre content server always authenticates: host, port, username,
+	// and password are each mandatory while enabled.
+	for name, mutate := range map[string]func(RootFolderCalibre) RootFolderCalibre{
+		"host":     func(c RootFolderCalibre) RootFolderCalibre { c.Host = ""; return c },
+		"port":     func(c RootFolderCalibre) RootFolderCalibre { c.Port = 0; return c },
+		"username": func(c RootFolderCalibre) RootFolderCalibre { c.Username = ""; return c },
+		"password": func(c RootFolderCalibre) RootFolderCalibre { c.Password = ""; return c },
+	} {
+		err := validateRootFolderCalibre(mutate(complete))
+		if err == nil || !strings.Contains(err.Error(), name) || !strings.Contains(err.Error(), "is required") {
+			t.Fatalf("expected %s-required error (mapped to 400), got %v", name, err)
+		}
+	}
+}
+
+func TestNormalizeRootFolderInputTrimsCalibreFields(t *testing.T) {
+	folder, err := normalizeRootFolderInput(RootFolder{
+		Path: "/library/ebooks",
+		Calibre: RootFolderCalibre{
+			Enabled:        true,
+			Host:           "  calibre.local  ",
+			Port:           -1,
+			URLBase:        " /calibre ",
+			Username:       " reader ",
+			Password:       "secret",
+			Library:        " Main ",
+			ConvertFormats: " EPUB,AZW3 ",
+			OutputProfile:  " kindle ",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	calibre := folder.Calibre
+	if calibre.Host != "calibre.local" || calibre.Port != 0 || calibre.URLBase != "/calibre" ||
+		calibre.Username != "reader" || calibre.Library != "Main" ||
+		calibre.ConvertFormats != "EPUB,AZW3" || calibre.OutputProfile != "kindle" {
+		t.Fatalf("expected trimmed calibre fields, got %+v", calibre)
+	}
+}
+
+func TestRedactRootFolderSecretsBlanksCalibrePassword(t *testing.T) {
+	folder := RedactRootFolderSecrets(RootFolder{Calibre: RootFolderCalibre{Enabled: true, Password: "secret"}})
+	if folder.Calibre.Password != "" {
+		t.Fatalf("expected redacted password, got %q", folder.Calibre.Password)
+	}
+	if !folder.Calibre.Enabled {
+		t.Fatal("expected redaction to keep other calibre fields")
+	}
+}
+
+func TestCalibreRootForPathPicksDeepestEnabledRoot(t *testing.T) {
+	folders := []RootFolder{
+		{ID: "1", Path: "/library", MediaFormat: "ebook", Calibre: RootFolderCalibre{Enabled: true, Host: "parent"}},
+		{ID: "2", Path: "/library/ebooks", MediaFormat: "ebook", Calibre: RootFolderCalibre{Enabled: true, Host: "child"}},
+		{ID: "3", Path: "/media/audio", MediaFormat: "audiobook"},
+	}
+	folder, ok := calibreRootForPath(folders, "/library/ebooks/Andy Weir/Project Hail Mary.epub")
+	if !ok || folder.ID != "2" {
+		t.Fatalf("expected deepest calibre root, got %+v ok=%v", folder, ok)
+	}
+	if _, ok := calibreRootForPath(folders, "/media/audio/Book.m4b"); ok {
+		t.Fatal("expected non-calibre root to not match")
+	}
+	if _, ok := calibreRootForPath(folders, "/downloads/Book.epub"); ok {
+		t.Fatal("expected outside path to not match")
+	}
+}
+
+func TestResolveImportRootFolderPrefersExplicitIDThenFormatDefault(t *testing.T) {
+	folders := []RootFolder{
+		{ID: "ebooks", Path: "/library/ebooks", MediaFormat: "ebook", IsDefault: true},
+		{ID: "calibre", Path: "/library/calibre", MediaFormat: "ebook", Calibre: RootFolderCalibre{Enabled: true}},
+	}
+	folder, ok := resolveImportRootFolder(folders, "ebook", "calibre")
+	if !ok || folder.ID != "calibre" {
+		t.Fatalf("expected explicit root folder id to win, got %+v ok=%v", folder, ok)
+	}
+	folder, ok = resolveImportRootFolder(folders, "ebook", "")
+	if !ok || folder.ID != "ebooks" {
+		t.Fatalf("expected format default fallback, got %+v ok=%v", folder, ok)
+	}
+	if _, ok := resolveImportRootFolder(folders, "audiobook", ""); ok {
+		t.Fatal("expected no match for format without roots")
 	}
 }

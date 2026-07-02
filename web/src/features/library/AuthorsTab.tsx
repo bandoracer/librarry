@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, RefreshCw, SlidersHorizontal, Trash2, UserRoundSearch } from "lucide-react";
+import { ArrowUpRight, RadioTower, RefreshCw, SlidersHorizontal, Trash2, UserRoundSearch } from "lucide-react";
 import {
   createWanted,
   deleteAuthorSubscription,
   resolveAuthorMetadataReview,
+  runAuthorMonitor,
   updateAuthorSubscription
 } from "../../lib/api";
 import type {
@@ -23,16 +24,33 @@ import {
   useAuthorMetadataReviews,
   useAuthorSubscriptions,
   useLibraryFiles,
+  useMetadataProfiles,
   useWanted,
   useWantedMetadataReview
 } from "../../lib/queries";
 import { formatDateTime } from "../../lib/format";
 import { useToast } from "../../components/toast";
-import { Badge, Button, Card, EmptyState, Field, FormGrid, IconButton, InlineNotice, LoadingRow, Modal } from "../../components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  FormGrid,
+  IconButton,
+  InlineNotice,
+  LoadingRow,
+  Modal,
+  Toolbar,
+  ToolbarButton
+} from "../../components/ui";
+// Author-subscription presentation helpers live with the wanted feature; this
+// cross-feature import is intentional (the tab moved here in wave B).
 import {
   appErrorMessage,
   authorMissingPolicyLabel,
   authorMissingPolicyOptions,
+  authorMonitorRunSummary,
   authorSkippedDateLabel,
   authorSkippedItemKey,
   authorSubscriptionKey,
@@ -44,21 +62,23 @@ import {
   errorMessage,
   firstAuthorName,
   metadataReviewMap,
-  normalizedAuthorMissingPolicy,
   wantedPresenceMap
-} from "./lib";
+} from "../wanted/lib";
+import { libraryAuthorPath } from "./lib";
+import "../wanted/wanted.css";
 
-export type AuthorMonitorOptions = {
+type AuthorMonitorOptions = {
   authorIds?: string[];
   providerKeys?: string[];
   force?: boolean;
   targetKey?: string;
 };
 
-/* -------------------- Per-subscription add filters (M6.3) ------------------- */
+/* ----------------------- Per-subscription add filters ----------------------- */
 
 /** Editable string form of the metadata filters (comma inputs, number text). */
 type AuthorFiltersForm = {
+  metadataProfileId: string;
   allowedLanguages: string;
   mustNotContain: string;
   skipMissingIsbn: boolean;
@@ -70,8 +90,10 @@ function subscriptionFilters(subscription: AuthorSubscription): AuthorFilterFiel
   return subscription as FilteredAuthorSubscription;
 }
 
-function activeFilterCount(filters: AuthorFilterFields): number {
+function activeFilterCount(subscription: AuthorSubscription): number {
+  const filters = subscriptionFilters(subscription);
   let count = 0;
+  if (subscription.metadataProfileId) count += 1;
   if (filters.allowedLanguages?.length) count += 1;
   if (filters.mustNotContain?.length) count += 1;
   if (filters.skipMissingIsbn) count += 1;
@@ -79,8 +101,10 @@ function activeFilterCount(filters: AuthorFilterFields): number {
   return count;
 }
 
-function filtersToForm(filters: AuthorFilterFields): AuthorFiltersForm {
+function filtersToForm(subscription: AuthorSubscription): AuthorFiltersForm {
+  const filters = subscriptionFilters(subscription);
   return {
+    metadataProfileId: subscription.metadataProfileId ?? "",
     allowedLanguages: (filters.allowedLanguages ?? []).join(", "),
     mustNotContain: (filters.mustNotContain ?? []).join(", "),
     skipMissingIsbn: Boolean(filters.skipMissingIsbn),
@@ -95,9 +119,10 @@ function splitCommaTerms(value: string): string[] {
     .filter(Boolean);
 }
 
-/** Empty inputs clear the corresponding filter (empty lists / 0 = disabled). */
+/** Empty inputs clear the corresponding filter (empty lists / 0 / "" = disabled). */
 function filtersFormPayload(form: AuthorFiltersForm): AuthorFilterUpdateRequest {
   return {
+    metadataProfileId: form.metadataProfileId,
     allowedLanguages: splitCommaTerms(form.allowedLanguages),
     mustNotContain: splitCommaTerms(form.mustNotContain),
     skipMissingIsbn: form.skipMissingIsbn,
@@ -106,15 +131,13 @@ function filtersFormPayload(form: AuthorFiltersForm): AuthorFilterUpdateRequest 
 }
 
 /**
- * Authors tab: monitored author subscriptions, author monitor run results
- * (including skipped candidates), and the author metadata review queue.
+ * Library → Authors tab: monitored author subscriptions (policy, metadata
+ * profile, per-author filter overrides), author monitor runs (including
+ * skipped candidates), and the author metadata review queue. Moved from the
+ * Wanted page in the wave-B Readarr alignment; author rows link to
+ * /library/author/:id.
  */
-export function AuthorsTab(props: {
-  monitorRun: AuthorMonitorRun | null;
-  isRunningMonitor: boolean;
-  monitorTargetKey: string;
-  runMonitor: (options?: AuthorMonitorOptions) => Promise<void>;
-}) {
+export function AuthorsTab() {
   const navigate = useNavigate();
   const toast = useToast();
   const client = useQueryClient();
@@ -124,11 +147,13 @@ export function AuthorsTab(props: {
   const wantedQuery = useWanted();
   const wantedReviewQuery = useWantedMetadataReview();
   const filesQuery = useLibraryFiles("any");
+  const metadataProfilesQuery = useMetadataProfiles();
 
   const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data]);
   const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
   const wantedItems = useMemo(() => wantedQuery.data ?? [], [wantedQuery.data]);
   const libraryFiles = useMemo(() => filesQuery.data ?? [], [filesQuery.data]);
+  const metadataProfiles = metadataProfilesQuery.data ?? [];
 
   const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
   const reviewByID = useMemo(() => metadataReviewMap(wantedReviewQuery.data), [wantedReviewQuery.data]);
@@ -137,6 +162,9 @@ export function AuthorsTab(props: {
     [subscriptions, wantedItems, presence, reviewByID]
   );
 
+  const [isRunningMonitor, setIsRunningMonitor] = useState(false);
+  const [monitorTargetKey, setMonitorTargetKey] = useState("");
+  const [monitorRun, setMonitorRun] = useState<AuthorMonitorRun | null>(null);
   const [updatingAuthorID, setUpdatingAuthorID] = useState("");
   const [removingAuthorID, setRemovingAuthorID] = useState("");
   const [unsubscribeTarget, setUnsubscribeTarget] = useState<AuthorSubscription | null>(null);
@@ -148,6 +176,33 @@ export function AuthorsTab(props: {
 
   function invalidate(...queryKeys: readonly (readonly unknown[])[]) {
     return Promise.all(queryKeys.map((key) => client.invalidateQueries({ queryKey: key })));
+  }
+
+  async function runMonitor(options: AuthorMonitorOptions = {}) {
+    setIsRunningMonitor(true);
+    setMonitorTargetKey(options.targetKey ?? (options.authorIds?.[0] || options.providerKeys?.[0] || ""));
+    try {
+      const run = await runAuthorMonitor({
+        authorIds: options.authorIds ?? [],
+        providerKeys: options.providerKeys ?? [],
+        force: options.force ?? false
+      });
+      setMonitorRun(run);
+      toast.success(authorMonitorRunSummary(run));
+      await invalidate(
+        keys.authorSubscriptions,
+        keys.authorMetadataReviews,
+        keys.wanted,
+        keys.wantedMetadataReview,
+        keys.acquisitionQueue,
+        keys.history()
+      );
+    } catch (error) {
+      toast.error(appErrorMessage(errorMessage(error, "Author monitor failed")));
+    } finally {
+      setIsRunningMonitor(false);
+      setMonitorTargetKey("");
+    }
   }
 
   async function updateMissingPolicy(subscription: AuthorSubscription, missingBookPolicy: AuthorMissingBookPolicy) {
@@ -171,7 +226,7 @@ export function AuthorsTab(props: {
       return;
     }
     setFiltersOpenKey(monitorKey);
-    setFiltersForm(filtersToForm(subscriptionFilters(subscription)));
+    setFiltersForm(filtersToForm(subscription));
   }
 
   function updateFiltersForm(changes: Partial<AuthorFiltersForm>) {
@@ -247,14 +302,6 @@ export function AuthorsTab(props: {
     }
   }
 
-  function openAuthorBooks(subscription: AuthorSubscription) {
-    const stats = statsByKey.get(authorSubscriptionKey(subscription));
-    if (!stats?.firstWantedItem) return;
-    navigate(`/wanted?filter=all&item=${encodeURIComponent(stats.firstWantedItem.id)}`);
-  }
-
-  const monitorRun = props.monitorRun;
-
   const queryNotices = [
     subscriptionsQuery.error
       ? appErrorMessage(errorMessage(subscriptionsQuery.error, "Author subscriptions refresh failed"))
@@ -264,6 +311,24 @@ export function AuthorsTab(props: {
 
   return (
     <>
+      <Toolbar align="start">
+        <ToolbarButton
+          icon={RadioTower}
+          label={isRunningMonitor ? "Running authors" : "Author Monitor"}
+          busy={isRunningMonitor && !monitorTargetKey}
+          disabled={isRunningMonitor}
+          title="Check due author subscriptions for new or missing books"
+          onClick={() => void runMonitor({ force: false })}
+        />
+        <ToolbarButton
+          icon={RefreshCw}
+          label="Force"
+          disabled={isRunningMonitor}
+          title="Force-refresh all author subscriptions"
+          onClick={() => void runMonitor({ force: true })}
+        />
+      </Toolbar>
+
       {queryNotices.map((notice) => (
         <InlineNotice key={notice} tone="danger">
           {notice}
@@ -285,19 +350,22 @@ export function AuthorsTab(props: {
           ) : subscriptions.length ? (
             <div className="wanted-author-list">
               {subscriptions.map((subscription) => {
-                const policy = normalizedAuthorMissingPolicy(subscription.missingBookPolicy);
                 const monitorKey = authorSubscriptionKey(subscription);
-                const refreshingAuthor = props.monitorTargetKey === monitorKey;
+                const refreshingAuthor = monitorTargetKey === monitorKey;
                 const stats = statsByKey.get(monitorKey) ?? emptyAuthorSubscriptionStats();
-                const filterCount = activeFilterCount(subscriptionFilters(subscription));
+                const filterCount = activeFilterCount(subscription);
                 const filtersOpen = filtersOpenKey === monitorKey;
+                const activeProfile = metadataProfiles.find((profile) => profile.id === subscription.metadataProfileId);
                 return (
                   <React.Fragment key={monitorKey}>
                     <article className="wanted-author-row">
                       <div className="wanted-author-main">
-                        <strong>{subscription.authorName}</strong>
+                        <Link className="cell-primary" to={libraryAuthorPath(subscription.authorName)}>
+                          <strong>{subscription.authorName}</strong>
+                        </Link>
                         <span>
                           {subscription.provider} · {subscription.format} · {subscription.qualityProfile}
+                          {activeProfile ? ` · ${activeProfile.name}` : ""}
                         </span>
                         <small className="wanted-author-stats">{authorSubscriptionStatsSummary(stats)}</small>
                         <div className="wanted-author-counts" aria-label={`${subscription.authorName} wanted book status`}>
@@ -321,7 +389,7 @@ export function AuthorsTab(props: {
                           aria-label={`${subscription.authorName} missing-book policy`}
                           disabled={updatingAuthorID === subscription.id}
                           onChange={(event) => void updateMissingPolicy(subscription, event.target.value as AuthorMissingBookPolicy)}
-                          value={policy}
+                          value={authorMissingPolicyOptions.includes(subscription.missingBookPolicy) ? subscription.missingBookPolicy : "all"}
                         >
                           {authorMissingPolicyOptions.map((option) => (
                             <option key={option} value={option}>
@@ -337,17 +405,16 @@ export function AuthorsTab(props: {
                             onClick={() => toggleFilters(subscription, monitorKey)}
                           />
                           <IconButton
-                            icon={BookOpen}
-                            label={`Open ${subscription.authorName} wanted books`}
-                            disabled={!stats.firstWantedItem}
-                            onClick={() => openAuthorBooks(subscription)}
+                            icon={ArrowUpRight}
+                            label={`Open ${subscription.authorName} author page`}
+                            onClick={() => navigate(libraryAuthorPath(subscription.authorName))}
                           />
                           <IconButton
                             icon={RefreshCw}
                             label={refreshingAuthor ? `Refreshing ${subscription.authorName}` : `Refresh ${subscription.authorName}`}
-                            disabled={props.isRunningMonitor}
-                            busy={refreshingAuthor && props.isRunningMonitor}
-                            onClick={() => void props.runMonitor(authorSubscriptionMonitorOptions(subscription))}
+                            disabled={isRunningMonitor}
+                            busy={refreshingAuthor && isRunningMonitor}
+                            onClick={() => void runMonitor(authorSubscriptionMonitorOptions(subscription))}
                           />
                           <IconButton
                             icon={Trash2}
@@ -363,6 +430,25 @@ export function AuthorsTab(props: {
                     {filtersOpen && filtersForm ? (
                       <div style={{ padding: "2px 0 14px", borderBottom: "1px solid var(--border)" }}>
                         <FormGrid columns={2}>
+                          <div className="settings-field-wide">
+                            <Field
+                              label="Metadata profile"
+                              hint="Primary filter set; the fields below override it per author."
+                            >
+                              <select
+                                value={filtersForm.metadataProfileId}
+                                onChange={(event) => updateFiltersForm({ metadataProfileId: event.target.value })}
+                                aria-label={`${subscription.authorName} metadata profile`}
+                              >
+                                <option value="">No profile (overrides only)</option>
+                                {metadataProfiles.map((profile) => (
+                                  <option key={profile.id} value={profile.id}>
+                                    {profile.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                          </div>
                           <Field
                             label="Allowed languages"
                             hint="Comma-separated; leave empty to allow every language."

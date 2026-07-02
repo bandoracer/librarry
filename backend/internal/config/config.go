@@ -35,7 +35,11 @@ type Config struct {
 	NamingBookFolder          string
 	NamingFileName            string
 	NamingSpaceReplacement    string
-	StandardSearchLanguage    string
+	// RenameBooks applies the naming templates on import. When false, imports
+	// keep the source basename inside the author folder (arr renaming-off
+	// behavior). Librarry defaults on; Readarr defaults off.
+	RenameBooks            bool
+	StandardSearchLanguage string
 	RecycleBin                string
 	RecycleBinRetention       time.Duration
 	ImportExtraFiles          string
@@ -115,6 +119,7 @@ func FromEnv() Config {
 		NamingBookFolder:          env("LIBRARRY_NAMING_BOOK_FOLDER", "{Title}"),
 		NamingFileName:            env("LIBRARRY_NAMING_FILE_NAME", "{Title}{Ext}"),
 		NamingSpaceReplacement:    strings.TrimSpace(os.Getenv("LIBRARRY_NAMING_SPACE_REPLACEMENT")),
+		RenameBooks:               envBool("LIBRARRY_RENAME_BOOKS", true),
 		StandardSearchLanguage:    env("LIBRARRY_STANDARD_SEARCH_LANGUAGE", "English"),
 		RecycleBin:                strings.TrimSpace(os.Getenv("LIBRARRY_RECYCLE_BIN")),
 		RecycleBinRetention:       envDuration("LIBRARRY_RECYCLE_BIN_RETENTION", 168*time.Hour),

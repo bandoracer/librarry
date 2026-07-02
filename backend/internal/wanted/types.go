@@ -25,21 +25,32 @@ type CreateRequest struct {
 	Format         string                `json:"format,omitempty"`
 	QualityProfile string                `json:"qualityProfile,omitempty"`
 	Tags           []string              `json:"tags,omitempty"`
+	// RootFolderID pins the import destination root at add time. When set it
+	// must reference an existing root folder whose media format matches the
+	// wanted format.
+	RootFolderID string `json:"rootFolderId,omitempty"`
 }
 
 type QualityProfile struct {
-	ID             string    `json:"id,omitempty"`
-	Name           string    `json:"name"`
-	MediaFormat    string    `json:"mediaFormat"`
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name"`
+	MediaFormat string `json:"mediaFormat"`
+	// Qualities is the ordered quality ladder, most-preferred first.
+	Qualities []QualityLevel `json:"qualities"`
+	// Cutoff is the quality ID at which upgrade searching stops.
+	Cutoff         string `json:"cutoff"`
+	UpgradeAllowed bool   `json:"upgradeAllowed"`
+	MinSeeders     int    `json:"minSeeders"`
+	// Legacy score-model fields: still accepted and echoed for compat readers,
+	// but the quality ladder + release profiles + quality definitions drive
+	// release evaluation now.
 	MinScore       float64   `json:"minScore"`
 	CutoffScore    float64   `json:"cutoffScore"`
-	MinSeeders     int       `json:"minSeeders"`
 	MaxSizeBytes   int64     `json:"maxSizeBytes"`
 	PreferredTerms []string  `json:"preferredTerms,omitempty"`
 	RequiredTerms  []string  `json:"requiredTerms,omitempty"`
 	RejectedTerms  []string  `json:"rejectedTerms,omitempty"`
 	PreferredScore float64   `json:"preferredScore"`
-	UpgradeAllowed bool      `json:"upgradeAllowed"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
@@ -62,10 +73,13 @@ type AuthorSubscribeRequest struct {
 	MonitorNewItems   *bool                 `json:"monitorNewItems,omitempty"`
 	MissingBookPolicy string                `json:"missingBookPolicy,omitempty"`
 	Tags              []string              `json:"tags,omitempty"`
-	AllowedLanguages  []string              `json:"allowedLanguages,omitempty"`
-	MustNotContain    []string              `json:"mustNotContain,omitempty"`
-	SkipMissingISBN   bool                  `json:"skipMissingIsbn,omitempty"`
-	MinPages          int                   `json:"minPages,omitempty"`
+	// MetadataProfileID references a metadata profile whose filters win over
+	// the per-author filter fields below when set.
+	MetadataProfileID string   `json:"metadataProfileId,omitempty"`
+	AllowedLanguages  []string `json:"allowedLanguages,omitempty"`
+	MustNotContain    []string `json:"mustNotContain,omitempty"`
+	SkipMissingISBN   bool     `json:"skipMissingIsbn,omitempty"`
+	MinPages          int      `json:"minPages,omitempty"`
 }
 
 type AuthorSubscription struct {
@@ -79,6 +93,7 @@ type AuthorSubscription struct {
 	MonitorNewItems   bool       `json:"monitorNewItems"`
 	MissingBookPolicy string     `json:"missingBookPolicy"`
 	Tags              []string   `json:"tags,omitempty"`
+	MetadataProfileID string     `json:"metadataProfileId,omitempty"`
 	AllowedLanguages  []string   `json:"allowedLanguages,omitempty"`
 	MustNotContain    []string   `json:"mustNotContain,omitempty"`
 	SkipMissingISBN   bool       `json:"skipMissingIsbn"`
@@ -97,6 +112,9 @@ type AuthorUpdateRequest struct {
 	Monitored         *bool    `json:"monitored,omitempty"`
 	Tags              []string `json:"tags,omitempty"`
 	TagsSet           bool     `json:"-"`
+	// MetadataProfileID: nil leaves the stored value untouched, an empty
+	// string clears the profile reference back to per-author filters.
+	MetadataProfileID *string `json:"metadataProfileId,omitempty"`
 	// Add-filter fields: nil slices/pointers leave the stored value untouched
 	// (the HTTP layer sets the *Set flags when the JSON key is present).
 	AllowedLanguages    []string `json:"allowedLanguages,omitempty"`
@@ -183,10 +201,14 @@ type UpgradeRequest struct {
 	Limit                    int      `json:"limit,omitempty"`
 	SearchLimit              int      `json:"searchLimit,omitempty"`
 	MinSearchIntervalMinutes int      `json:"minSearchIntervalMinutes,omitempty"`
-	MinScoreDelta            float64  `json:"minScoreDelta,omitempty"`
-	AutoGrab                 bool     `json:"autoGrab,omitempty"`
-	Paused                   bool     `json:"paused,omitempty"`
-	Force                    bool     `json:"force,omitempty"`
+	// MinScoreDelta is accepted for API compatibility but no longer drives
+	// upgrade selection: with the quality-ladder model any strictly better
+	// composite score (higher ladder rank, or higher preferred-word score)
+	// is an upgrade.
+	MinScoreDelta float64 `json:"minScoreDelta,omitempty"`
+	AutoGrab      bool    `json:"autoGrab,omitempty"`
+	Paused        bool    `json:"paused,omitempty"`
+	Force         bool    `json:"force,omitempty"`
 }
 
 type AuthorMonitorRequest struct {

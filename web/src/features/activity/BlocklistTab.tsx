@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, ShieldX, Trash2 } from "lucide-react";
 import {
@@ -169,6 +170,7 @@ export default function BlocklistTab() {
                 />
               </th>
               <th>Title</th>
+              <th>Book</th>
               <th>Indexer</th>
               <th>Protocol</th>
               <th>Reason</th>
@@ -199,6 +201,18 @@ export default function BlocklistTab() {
                         </span>
                       ) : null}
                     </div>
+                  </td>
+                  <td>
+                    {item.wantedTitle && item.wantedId ? (
+                      <div className="activity-title-cell">
+                        <Link to={`/library/book/${encodeURIComponent(item.wantedId)}`} title={`Open ${item.wantedTitle}`}>
+                          {item.wantedTitle}
+                        </Link>
+                        {item.wantedAuthor ? <span className="cell-muted">{item.wantedAuthor}</span> : null}
+                      </div>
+                    ) : (
+                      <span className="cell-muted">—</span>
+                    )}
                   </td>
                   <td className="cell-muted">{item.indexer || "—"}</td>
                   <td>

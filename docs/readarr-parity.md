@@ -1,5 +1,13 @@
 # Readarr Parity Audit
 
+> **v0.4.0 (2026-07-02): the ten model/nomenclature inconsistencies found in
+> the post-v0.3.0 audit are closed** — quality ladder + release profiles +
+> quality definitions, named metadata profiles, Wanted as a pure gap view
+> with Authors under Library, Calibre-managed root folders, Readarr settings
+> tab names (Indexers / Download Clients / Quality), System sub-tabs, Readarr
+> toolbar verbs and "RSS Sync", Rename Books toggle, add-dialog root/tags
+> pickers, and blocklist book links.
+
 > **v0.2.0 (2026-07-01): all six milestones of [parity-plan.md](parity-plan.md)
 > were implemented** (delay profiles intentionally skipped per owner decision).
 > Closed: blocklist, remove-after-seeding, cutoff-unmet, search-on-add, all

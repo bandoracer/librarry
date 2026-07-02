@@ -4,7 +4,7 @@ import { CheckCircle2, ExternalLink, FileSearch, RefreshCw } from "lucide-react"
 import { grabWanted, searchWantedReleases } from "../../../lib/api";
 import type { ReleaseDecision, WantedItem } from "../../../lib/api";
 import { keys, useLibrarySettings, useWantedReleases } from "../../../lib/queries";
-import { formatBytes } from "../../../lib/format";
+import { formatBytes, formatReleaseScore, releaseQualityLabel } from "../../../lib/format";
 import { useToast } from "../../../components/toast";
 import { Badge, Button, Card, EmptyState, InlineNotice, LoadingRow, Segmented } from "../../../components/ui";
 import {
@@ -158,12 +158,15 @@ export function ReleasesPanel(props: { item: WantedItem }) {
                 <div className="wanted-release-main">
                   <div className="wanted-release-title">
                     <strong>{release.title}</strong>
+                    {releaseQualityLabel(release.title) ? (
+                      <Badge tone="info">{releaseQualityLabel(release.title)}</Badge>
+                    ) : null}
                     <Badge tone={release.approved ? "success" : "danger"}>
                       {release.approved ? "Approved" : "Rejected"}
                     </Badge>
                   </div>
                   <p>
-                    {release.indexer} · {release.protocol || "release"} · score {release.score.toFixed(1)} ·{" "}
+                    {release.indexer} · {release.protocol || "release"} · {formatReleaseScore(release.score)} ·{" "}
                     {formatBytes(release.sizeBytes ?? 0)} · {release.seeders ?? 0} seeders · {release.leechers ?? 0}{" "}
                     leechers
                   </p>

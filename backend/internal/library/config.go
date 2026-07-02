@@ -17,6 +17,10 @@ func NormalizeConfig(config Config) Config {
 	config.NamingBookFolderTemplate = firstNonEmpty(strings.TrimSpace(config.NamingBookFolderTemplate), "{Title}")
 	config.NamingFileNameTemplate = firstNonEmpty(strings.TrimSpace(config.NamingFileNameTemplate), "{Title}{Ext}")
 	config.NamingSpaceReplacement = strings.TrimSpace(config.NamingSpaceReplacement)
+	if config.RenameBooks == nil {
+		renameBooks := true
+		config.RenameBooks = &renameBooks
+	}
 	config.StandardSearchLanguage = firstNonEmpty(strings.TrimSpace(config.StandardSearchLanguage), "English")
 	config.RecycleBin = strings.TrimSpace(config.RecycleBin)
 	if config.RecycleBinRetention <= 0 {
@@ -54,12 +58,22 @@ func ConfigWithNamingRecord(config Config, payload map[string]any) Config {
 	} else if replacement := payloadString(payload, "replaceSpacesWith"); replacement != "" {
 		config.NamingSpaceReplacement = replacement
 	}
+	if value, ok := payload["renameBooks"]; ok {
+		renameBooks := payloadBool(value)
+		config.RenameBooks = &renameBooks
+	}
 	config.StandardSearchLanguage = firstNonEmpty(
 		payloadString(payload, "librarryStandardSearchLanguage"),
 		payloadString(payload, "standardSearchLanguage"),
 		config.StandardSearchLanguage,
 	)
 	return NormalizeConfig(config)
+}
+
+// RenameBooksEnabled reports whether imports apply the naming templates;
+// unset defaults to true (Readarr defaults off — Librarry keeps renaming on).
+func (c Config) RenameBooksEnabled() bool {
+	return c.RenameBooks == nil || *c.RenameBooks
 }
 
 func ConfigWithRootFolders(config Config, roots []compatdata.RootFolder) Config {

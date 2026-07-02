@@ -23,7 +23,6 @@ const (
 	defaultFailedDownloadLimit      = 50
 	defaultFailedDownloadStalledAge = 24 * time.Hour
 	defaultUpgradeSearchInterval    = 12 * time.Hour
-	defaultUpgradeScoreDelta        = 5.0
 )
 
 type Service struct {
@@ -102,8 +101,10 @@ func (s *Service) List(ctx context.Context, status string) ([]WantedItem, error)
 }
 
 // ListCutoffUnmet returns monitored wanted items that already have a tracked
-// library file but whose current release score is still below the quality
-// profile cutoff (and whose profile allows upgrades).
+// library file but whose current release quality is still below the profile's
+// cutoff quality (and whose profile allows upgrades). The stored composite
+// score encodes ladder rank, so "quality below cutoff" is a plain comparison
+// against the profile's cutoff composite score.
 func (s *Service) ListCutoffUnmet(ctx context.Context) ([]WantedItem, error) {
 	if !s.Available() {
 		return []WantedItem{}, nil
@@ -124,7 +125,7 @@ func (s *Service) ListCutoffUnmet(ctx context.Context) ([]WantedItem, error) {
 }
 
 func cutoffUnmet(profile QualityProfile, currentScore float64) bool {
-	return profile.UpgradeAllowed && currentScore < profile.CutoffScore
+	return profile.UpgradeAllowed && currentScore < profile.CutoffCompositeScore()
 }
 
 // ListCalendar returns wanted items with a confident release date inside
@@ -308,6 +309,84 @@ func (s *Service) DeleteQualityProfile(ctx context.Context, idOrName string) err
 	return s.store.DeleteQualityProfile(ctx, idOrName)
 }
 
+func (s *Service) ListReleaseProfiles(ctx context.Context) ([]ReleaseProfile, error) {
+	if !s.Available() {
+		return []ReleaseProfile{}, nil
+	}
+	return s.store.ListReleaseProfiles(ctx)
+}
+
+func (s *Service) SaveReleaseProfile(ctx context.Context, profile ReleaseProfile) (ReleaseProfile, error) {
+	if !s.Available() {
+		return ReleaseProfile{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.UpsertReleaseProfile(ctx, profile)
+}
+
+func (s *Service) DeleteReleaseProfile(ctx context.Context, id string) error {
+	if !s.Available() {
+		return errors.New("wanted service requires database persistence")
+	}
+	if strings.TrimSpace(id) == "" {
+		return errors.New("release profile id is required")
+	}
+	return s.store.DeleteReleaseProfile(ctx, id)
+}
+
+func (s *Service) ListQualityDefinitions(ctx context.Context) ([]QualityDefinition, error) {
+	if !s.Available() {
+		return DefaultQualityDefinitions(), nil
+	}
+	definitions, err := s.store.ListQualityDefinitions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(definitions) == 0 {
+		return DefaultQualityDefinitions(), nil
+	}
+	return definitions, nil
+}
+
+func (s *Service) UpdateQualityDefinitions(ctx context.Context, definitions []QualityDefinition) ([]QualityDefinition, error) {
+	if !s.Available() {
+		return nil, errors.New("wanted service requires database persistence")
+	}
+	return s.store.UpdateQualityDefinitions(ctx, definitions)
+}
+
+// releaseEvaluationOptions assembles the per-item evaluation inputs: the
+// item's quality-ladder profile, enabled release profiles, quality
+// definitions (defaults when the table is empty), legacy compat restrictions,
+// and the blocklist.
+func (s *Service) releaseEvaluationOptions(ctx context.Context, item WantedItem) (releaseEvaluationOptions, error) {
+	restrictions, err := s.releaseRestrictions(ctx)
+	if err != nil {
+		return releaseEvaluationOptions{}, err
+	}
+	releaseProfiles, err := s.store.ListReleaseProfiles(ctx)
+	if err != nil {
+		return releaseEvaluationOptions{}, err
+	}
+	definitions, err := s.store.ListQualityDefinitions(ctx)
+	if err != nil {
+		return releaseEvaluationOptions{}, err
+	}
+	if len(definitions) == 0 {
+		definitions = DefaultQualityDefinitions()
+	}
+	blocklist, err := s.store.ListBlocklist(ctx, maxBlocklistMatchEntries)
+	if err != nil {
+		return releaseEvaluationOptions{}, err
+	}
+	return releaseEvaluationOptions{
+		profile:         s.qualityProfileForItem(ctx, item),
+		restrictions:    restrictions,
+		releaseProfiles: releaseProfiles,
+		definitions:     definitions,
+		blocklist:       blocklist,
+	}, nil
+}
+
 func (s *Service) SubscribeAuthor(ctx context.Context, request AuthorSubscribeRequest) (AuthorSubscription, error) {
 	if !s.Available() {
 		return AuthorSubscription{}, errors.New("wanted service requires database persistence")
@@ -385,6 +464,14 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 
 		result := AuthorMonitorItemResult{Subscription: subscription}
+		// Effective add-filters: the referenced metadata profile wins over the
+		// per-author override columns when set; lookup failures fall back to
+		// the stored overrides and count as run errors.
+		effective, filterErr := s.resolveAuthorSubscriptionFilters(ctx, subscription)
+		if filterErr != nil {
+			result.Error = filterErr.Error()
+			run.ErrorCount++
+		}
 		results, err := s.metadata.Search(ctx, metadata.Query{
 			Query:       subscription.AuthorName,
 			Type:        metadata.SearchTypeAuthorWorks,
@@ -416,7 +503,7 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			// count) run before the missing-book policy; both paths land in
 			// the review queue as skipped entries with explicit reasons.
 			allowed, reason := true, ""
-			if filterReason := authorResultFilterReason(subscription, candidate); filterReason != "" {
+			if filterReason := authorResultFilterReason(effective, candidate); filterReason != "" {
 				allowed, reason = false, filterReason
 			} else {
 				allowed, reason = authorResultAllowedByPolicy(subscription, candidate, policyCtx)
@@ -584,18 +671,13 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 	if err != nil {
 		return SearchOutcome{}, err
 	}
-	profile := s.qualityProfileForItem(ctx, item)
-	restrictions, err := s.releaseRestrictions(ctx)
-	if err != nil {
-		return SearchOutcome{}, err
-	}
-	blocklist, err := s.store.ListBlocklist(ctx, maxBlocklistMatchEntries)
+	options, err := s.releaseEvaluationOptions(ctx, item)
 	if err != nil {
 		return SearchOutcome{}, err
 	}
 	decisions := make([]ReleaseDecision, 0, len(releases))
 	for _, release := range releases {
-		decisions = append(decisions, evaluateReleaseWithBlocklist(item, release, profile, restrictions, blocklist))
+		decisions = append(decisions, evaluateReleaseWithOptions(item, release, options))
 	}
 	sort.SliceStable(decisions, func(i, j int) bool {
 		if decisions[i].Approved != decisions[j].Approved {
@@ -1026,25 +1108,12 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 		return finished, err
 	}
 
-	blocklist, err := s.store.ListBlocklist(ctx, maxBlocklistMatchEntries)
-	if err != nil {
-		run.Status = "failed"
-		run.ErrorCount = 1
-		run.Message = err.Error()
-		finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
-		if finishErr != nil {
-			return FeedSyncRun{}, finishErr
-		}
-		return finished, err
-	}
-
 	grabbedWanted := map[string]bool{}
 	for _, item := range items {
 		if !formatMatchesRequest(request.Format, item.Format) {
 			continue
 		}
-		profile := s.qualityProfileForItem(ctx, item)
-		restrictions, err := s.releaseRestrictions(ctx)
+		options, err := s.releaseEvaluationOptions(ctx, item)
 		if err != nil {
 			run.ErrorCount++
 			run.Matches = append(run.Matches, FeedSyncMatch{WantedItem: item, Error: err.Error()})
@@ -1055,7 +1124,7 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 			if !feedReleaseMatchesWanted(item, release) {
 				continue
 			}
-			decisions = append(decisions, evaluateReleaseWithBlocklist(item, release, profile, restrictions, blocklist))
+			decisions = append(decisions, evaluateReleaseWithOptions(item, release, options))
 		}
 		if len(decisions) == 0 {
 			continue
@@ -1352,10 +1421,6 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 	if request.MinSearchIntervalMinutes > 0 {
 		minSearchInterval = time.Duration(request.MinSearchIntervalMinutes) * time.Minute
 	}
-	minDelta := request.MinScoreDelta
-	if minDelta <= 0 {
-		minDelta = defaultUpgradeScoreDelta
-	}
 
 	items, err := s.store.ListUpgradeWanted(ctx, request.WantedIDs, limit, minSearchInterval, request.Force)
 	if err != nil {
@@ -1380,7 +1445,7 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 
 		profile := s.qualityProfileForItem(ctx, item)
 		currentScore := s.currentReleaseScore(ctx, item)
-		cutoff := profile.CutoffScore
+		cutoff := profile.CutoffCompositeScore()
 		result := UpgradeItemResult{
 			WantedItem:   item,
 			CurrentScore: currentScore,
@@ -1405,7 +1470,7 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		result.ReleasesFound = len(outcome.Releases)
 		run.ReleasesFound += len(outcome.Releases)
 
-		if release, ok := bestUpgradeRelease(outcome.Releases, currentScore, cutoff, minDelta); ok {
+		if release, ok := bestUpgradeRelease(outcome.Releases, currentScore, cutoff); ok {
 			candidate := release
 			result.UpgradeRelease = &candidate
 			run.UpgradeCount++
@@ -1782,19 +1847,19 @@ func (s *Service) releaseRestrictions(ctx context.Context) ([]ReleaseRestriction
 	return restrictions, nil
 }
 
-func bestUpgradeRelease(releases []ReleaseDecision, currentScore float64, cutoffScore float64, minDelta float64) (ReleaseDecision, bool) {
-	if currentScore >= cutoffScore {
-		return ReleaseDecision{}, false
-	}
-	if minDelta <= 0 {
-		minDelta = defaultUpgradeScoreDelta
-	}
+// bestUpgradeRelease picks the best approved upgrade candidate against the
+// stored composite score (quality ladder rank * 1000 + preferred-word score).
+// Below the cutoff quality any strictly better composite is an upgrade; at or
+// above the cutoff only a higher preferred-word component still upgrades (arr
+// rule: a release with a higher preferred score is always an upgrade, but
+// quality never climbs past the cutoff).
+func bestUpgradeRelease(releases []ReleaseDecision, currentScore float64, cutoffScore float64) (ReleaseDecision, bool) {
 	var best ReleaseDecision
 	for _, release := range releases {
-		if !release.Approved {
+		if !release.Approved || release.Score <= currentScore {
 			continue
 		}
-		if release.Score < currentScore+minDelta {
+		if currentScore >= cutoffScore && preferredScoreComponent(release.Score) <= preferredScoreComponent(currentScore) {
 			continue
 		}
 		if best.ID == "" || release.Score > best.Score || (release.Score == best.Score && release.Seeders > best.Seeders) {
@@ -1802,10 +1867,6 @@ func bestUpgradeRelease(releases []ReleaseDecision, currentScore float64, cutoff
 		}
 	}
 	return best, best.ID != ""
-}
-
-func upgradeCutoffFor(item WantedItem) float64 {
-	return defaultQualityProfile(item.QualityProfile, item.Format).CutoffScore
 }
 
 func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscription {
@@ -1843,6 +1904,7 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 		MonitorNewItems:   monitorNewItems,
 		MissingBookPolicy: missingBookPolicy,
 		Tags:              compactTagLabels(request.Tags),
+		MetadataProfileID: strings.TrimSpace(request.MetadataProfileID),
 		AllowedLanguages:  normalizeFilterTerms(request.AllowedLanguages),
 		MustNotContain:    normalizeFilterTerms(request.MustNotContain),
 		SkipMissingISBN:   request.SkipMissingISBN,

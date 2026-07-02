@@ -86,7 +86,7 @@ func (h *handler) compatSystemStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"appName":           "Librarry",
 		"instanceName":      "Librarry",
-		"version":           "0.3.0",
+		"version":           "0.4.0",
 		"buildTime":         now.Format(time.RFC3339),
 		"isDebug":           false,
 		"isProduction":      true,
@@ -2029,7 +2029,7 @@ func (h *handler) compatWantedCutoff(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			profile, ok = profileByKey[compatQualityProfileKey(item.QualityProfile, "any")]
 		}
-		if !ok || !profile.UpgradeAllowed || item.CurrentReleaseScore >= profile.CutoffScore {
+		if !ok || !profile.UpgradeAllowed || item.CurrentReleaseScore >= profile.CutoffCompositeScore() {
 			continue
 		}
 		records = append(records, compatCutoffRecord(item, profile))
@@ -2079,7 +2079,7 @@ func (h *handler) compatWantedCutoffItem(w http.ResponseWriter, r *http.Request)
 		if !ok {
 			profile, ok = profileByKey[compatQualityProfileKey(item.QualityProfile, "any")]
 		}
-		if !ok || !profile.UpgradeAllowed || item.CurrentReleaseScore >= profile.CutoffScore {
+		if !ok || !profile.UpgradeAllowed || item.CurrentReleaseScore >= profile.CutoffCompositeScore() {
 			continue
 		}
 		writeJSON(w, http.StatusOK, compatCutoffRecord(item, profile))
@@ -6133,10 +6133,11 @@ func compatCutoffRecord(item wanted.WantedItem, profile wanted.QualityProfile) m
 	record["statistics"] = map[string]any{"bookFileCount": 1}
 	record["book"] = compatBookRecord(item)
 	record["currentReleaseScore"] = item.CurrentReleaseScore
-	record["cutoffScore"] = profile.CutoffScore
+	record["cutoffScore"] = profile.CutoffCompositeScore()
 	record["qualityCutoffNotMet"] = true
 	record["librarryCurrentReleaseScore"] = item.CurrentReleaseScore
-	record["librarryCutoffScore"] = profile.CutoffScore
+	record["librarryCutoffScore"] = profile.CutoffCompositeScore()
+	record["librarryCutoffQuality"] = profile.Cutoff
 	record["librarryUpgradeAllowed"] = profile.UpgradeAllowed
 	return record
 }
@@ -6399,27 +6400,43 @@ func compatImages(coverURL string) []map[string]any {
 }
 
 func compatQualityProfileRecord(id int, profile wanted.QualityProfile) map[string]any {
+	items := make([]map[string]any, 0, len(profile.Qualities))
+	cutoffID := 0
+	for _, level := range profile.Qualities {
+		qualityID := stableInt("quality:" + level.ID)
+		if level.ID == profile.Cutoff {
+			cutoffID = qualityID
+		}
+		items = append(items, map[string]any{
+			"quality": map[string]any{
+				"id":   qualityID,
+				"name": level.ID,
+			},
+			"allowed": level.Allowed,
+		})
+	}
+	if len(items) == 0 {
+		items = append(items, map[string]any{
+			"quality": map[string]any{"id": id, "name": profile.MediaFormat},
+			"allowed": true,
+		})
+	}
 	return map[string]any{
 		"id":                id,
 		"name":              profile.Name,
 		"upgradeAllowed":    profile.UpgradeAllowed,
-		"cutoff":            0,
+		"cutoff":            cutoffID,
 		"minFormatScore":    profile.MinScore,
 		"cutoffFormatScore": profile.CutoffScore,
 		"language": map[string]any{
 			"id":   1,
 			"name": "English",
 		},
-		"items": []map[string]any{{
-			"quality": map[string]any{
-				"id":   id,
-				"name": profile.MediaFormat,
-			},
-			"allowed": true,
-		}},
-		"formatItems": []map[string]any{},
-		"librarry":    profile,
-		"librarryId":  profile.ID,
+		"items":                 items,
+		"formatItems":           []map[string]any{},
+		"librarry":              profile,
+		"librarryId":            profile.ID,
+		"librarryCutoffQuality": profile.Cutoff,
 		"librarryProfileId": stableInt(firstNonEmptyString(
 			profile.Name+":"+profile.MediaFormat,
 			profile.ID,
@@ -6439,6 +6456,15 @@ func compatQualityProfileFromPayload(payload map[string]any, fallback wanted.Qua
 		compatQualityProfileFormatFromItems(payload),
 		profile.MediaFormat,
 	)
+	if levels := compatQualityLevelsFromPayload(payload, native); len(levels) > 0 {
+		profile.Qualities = levels
+	}
+	profile.Cutoff = firstNonEmptyString(
+		payloadString(payload, "librarryCutoffQuality"),
+		payloadString(native, "cutoff"),
+		compatCutoffQualityFromItems(payload),
+		profile.Cutoff,
+	)
 	profile.MinScore = payloadFloatDefault(payload, "minFormatScore", payloadFloatDefault(payload, "minScore", payloadFloatDefault(native, "minScore", profile.MinScore)))
 	profile.CutoffScore = payloadFloatDefault(payload, "cutoffFormatScore", payloadFloatDefault(payload, "cutoffScore", payloadFloatDefault(native, "cutoffScore", profile.CutoffScore)))
 	profile.MinSeeders = payloadIntDefault(payload, "minSeeders", payloadIntDefault(native, "minSeeders", profile.MinSeeders))
@@ -6449,6 +6475,70 @@ func compatQualityProfileFromPayload(payload map[string]any, fallback wanted.Qua
 	profile.PreferredScore = payloadFloatDefault(payload, "preferredScore", payloadFloatDefault(native, "preferredScore", profile.PreferredScore))
 	profile.UpgradeAllowed = payloadBoolDefault(payload, "upgradeAllowed", payloadBoolDefault(native, "upgradeAllowed", profile.UpgradeAllowed))
 	return profile
+}
+
+// compatQualityLevelsFromPayload reads a quality ladder from a native
+// "qualities" array ({id, allowed}) or, failing that, from Readarr-shaped
+// "items" ({quality: {name}, allowed}). Unknown quality names are dropped by
+// the wanted-package normalizer downstream.
+func compatQualityLevelsFromPayload(payload map[string]any, native map[string]any) []wanted.QualityLevel {
+	levels := compatQualityLevelArray(native, "qualities")
+	if len(levels) == 0 {
+		levels = compatQualityLevelArray(payload, "qualities")
+	}
+	if len(levels) == 0 {
+		for _, item := range compatPayloadArray(payload, "items") {
+			entry, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			id := firstNonEmptyString(nestedString(entry, "quality", "name"), payloadString(entry, "name"))
+			if id == "" {
+				continue
+			}
+			levels = append(levels, wanted.QualityLevel{ID: id, Allowed: payloadBoolDefault(entry, "allowed", true)})
+		}
+	}
+	return levels
+}
+
+func compatQualityLevelArray(payload map[string]any, key string) []wanted.QualityLevel {
+	var levels []wanted.QualityLevel
+	for _, item := range compatPayloadArray(payload, key) {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		id := firstNonEmptyString(payloadString(entry, "id"), payloadString(entry, "name"))
+		if id == "" {
+			continue
+		}
+		levels = append(levels, wanted.QualityLevel{ID: id, Allowed: payloadBoolDefault(entry, "allowed", true)})
+	}
+	return levels
+}
+
+// compatCutoffQualityFromItems resolves a Readarr numeric "cutoff" id against
+// the payload's items array to recover the cutoff quality name.
+func compatCutoffQualityFromItems(payload map[string]any) string {
+	cutoff := payloadIntDefault(payload, "cutoff", 0)
+	if cutoff == 0 {
+		return ""
+	}
+	for _, item := range compatPayloadArray(payload, "items") {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		quality, ok := entry["quality"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if payloadIntDefault(quality, "id", 0) == cutoff {
+			return payloadString(quality, "name")
+		}
+	}
+	return ""
 }
 
 func compatQualityProfileFormatFromItems(payload map[string]any) string {

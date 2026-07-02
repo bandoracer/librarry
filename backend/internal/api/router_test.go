@@ -3621,6 +3621,96 @@ func TestSaveQualityProfileEndpoint(t *testing.T) {
 	}
 }
 
+func TestReleaseProfilesEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/release-profiles", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"profiles"`) || !strings.Contains(res.Body.String(), `"ignored":["summary","review"]`) {
+		t.Fatalf("expected release profiles payload, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/release-profiles", strings.NewReader(`{"name":"terms","required":["retail"],"ignored":["screener"],"preferred":[{"term":"epub","score":10}]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"profile"`) || !strings.Contains(res.Body.String(), `"id":"release-profile-2"`) {
+		t.Fatalf("expected created release profile, got %s", res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"enabled":true`) {
+		t.Fatalf("expected enabled to default true when omitted, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/release-profiles/release-profile-1", strings.NewReader(`{"name":"terms","enabled":false}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"id":"release-profile-1"`) || !strings.Contains(res.Body.String(), `"enabled":false`) {
+		t.Fatalf("expected updated release profile, got %s", res.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/release-profiles/release-profile-1", nil)
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+}
+
+func TestQualityDefinitionsEndpoints(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   fakeWanted{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/quality-definitions", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"definitions"`) || !strings.Contains(res.Body.String(), `"quality":"epub"`) {
+		t.Fatalf("expected quality definitions payload, got %s", res.Body.String())
+	}
+
+	// Bulk update accepts a bare array...
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/quality-definitions", strings.NewReader(`[{"quality":"epub","title":"EPUB","minSizeMB":0,"maxSizeMB":400}]`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"maxSizeMB":400`) {
+		t.Fatalf("expected updated definitions, got %s", res.Body.String())
+	}
+
+	// ...and a {"definitions": [...]} envelope.
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/quality-definitions", strings.NewReader(`{"definitions":[{"quality":"m4b","maxSizeMB":8192}]}`))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"quality":"m4b"`) {
+		t.Fatalf("expected enveloped update to succeed, got %s", res.Body.String())
+	}
+}
+
 func TestLibraryFilesEndpoint(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -4079,6 +4169,69 @@ func TestUpdateIntegrationConfigPersistsAndReconfiguresAcquireService(t *testing
 	}
 	if compatTestFieldString(qbit.Payload, "host") != "http://qbit.local" || compatTestFieldString(qbit.Payload, "password") != "qbit-secret" {
 		t.Fatalf("unexpected qBittorrent payload: %#v", qbit.Payload)
+	}
+}
+
+func TestLibraryConfigRenameBooksToggle(t *testing.T) {
+	libraryService := &configurableFakeLibrary{config: library.Config{
+		EbookRoot:     "/data/media/books/ebooks",
+		AudiobookRoot: "/data/media/books/audiobooks",
+	}}
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*", RenameBooks: true},
+		Metadata: metadata.NewService(nil),
+		Library:  libraryService,
+		Compat:   &fakeCompatResources{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/library/config", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"renameBooks":true`) {
+		t.Fatalf("expected default renameBooks true, got %s", res.Body.String())
+	}
+
+	putBody := `{
+		"ebookLibraryRoot":"/data/media/books/ebooks",
+		"audiobookLibraryRoot":"/data/media/books/audiobooks",
+		"namingAuthorFolder":"{Author}",
+		"namingBookFolder":"{Title}",
+		"namingFileName":"{Title}{Ext}",
+		"renameBooks":false
+	}`
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/library/config", strings.NewReader(putBody))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"renameBooks":false`) {
+		t.Fatalf("expected renameBooks false after update, got %s", res.Body.String())
+	}
+	if libraryService.config.RenameBooksEnabled() {
+		t.Fatalf("expected library service reconfigured with renaming off, got %+v", libraryService.config)
+	}
+
+	// Omitting the key leaves the stored toggle untouched.
+	putBody = `{
+		"ebookLibraryRoot":"/data/media/books/ebooks",
+		"audiobookLibraryRoot":"/data/media/books/audiobooks",
+		"namingAuthorFolder":"{Author}",
+		"namingBookFolder":"{Title}",
+		"namingFileName":"{Title}{Ext}"
+	}`
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/library/config", strings.NewReader(putBody))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	if !strings.Contains(res.Body.String(), `"renameBooks":false`) {
+		t.Fatalf("expected renameBooks to stay false when omitted, got %s", res.Body.String())
 	}
 }
 
@@ -4652,6 +4805,40 @@ func (fakeWanted) SaveQualityProfile(_ context.Context, profile wanted.QualityPr
 
 func (fakeWanted) DeleteQualityProfile(context.Context, string) error {
 	return nil
+}
+
+func (fakeWanted) ListReleaseProfiles(context.Context) ([]wanted.ReleaseProfile, error) {
+	return []wanted.ReleaseProfile{{
+		ID:        "release-profile-1",
+		Name:      "Migrated terms",
+		Enabled:   true,
+		Required:  []string{"retail"},
+		Ignored:   []string{"summary", "review"},
+		Preferred: []wanted.PreferredTerm{{Term: "epub", Score: 8}},
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}}, nil
+}
+
+func (fakeWanted) SaveReleaseProfile(_ context.Context, profile wanted.ReleaseProfile) (wanted.ReleaseProfile, error) {
+	if profile.ID == "" {
+		profile.ID = "release-profile-2"
+	}
+	profile.CreatedAt = time.Now().UTC()
+	profile.UpdatedAt = profile.CreatedAt
+	return profile, nil
+}
+
+func (fakeWanted) DeleteReleaseProfile(context.Context, string) error {
+	return nil
+}
+
+func (fakeWanted) ListQualityDefinitions(context.Context) ([]wanted.QualityDefinition, error) {
+	return wanted.DefaultQualityDefinitions(), nil
+}
+
+func (fakeWanted) UpdateQualityDefinitions(_ context.Context, definitions []wanted.QualityDefinition) ([]wanted.QualityDefinition, error) {
+	return definitions, nil
 }
 
 func (fakeWanted) SubscribeAuthor(_ context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error) {

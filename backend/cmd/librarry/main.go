@@ -123,6 +123,7 @@ func main() {
 		NamingBookFolderTemplate:   cfg.NamingBookFolder,
 		NamingFileNameTemplate:     cfg.NamingFileName,
 		NamingSpaceReplacement:     cfg.NamingSpaceReplacement,
+		RenameBooks:                &cfg.RenameBooks,
 		StandardSearchLanguage:     cfg.StandardSearchLanguage,
 		RecycleBin:                 cfg.RecycleBin,
 		RecycleBinRetention:        cfg.RecycleBinRetention,

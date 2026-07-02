@@ -1,47 +1,51 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Plus, RefreshCw, SlidersHorizontal, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Filter, Pencil, Plus, RefreshCw, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, Card, EmptyState, Field, FormGrid, IconButton, LoadingRow } from "../../components/ui";
+import { Badge, Button, Card, DataTable, EmptyState, Field, FormGrid, IconButton, LoadingRow, Modal } from "../../components/ui";
 import { useToast } from "../../components/toast";
-import { saveQualityProfile, type QualityProfile } from "../../lib/api";
-import { keys, useQualityProfiles } from "../../lib/queries";
-import { QueryErrorNotice } from "./controls";
 import {
-  bytesToGiB,
-  cloneQualityProfile,
-  errorMessage,
-  giBToBytes,
-  profileKey,
-  qualityProfileChanged,
-  splitTerms
-} from "./helpers";
+  createMetadataProfile,
+  deleteMetadataProfile,
+  qualityTitle,
+  saveQualityProfile,
+  updateMetadataProfile,
+  type MetadataProfile,
+  type MetadataProfileRequest,
+  type QualityProfile
+} from "../../lib/api";
+import { keys, metadataProfileKeys, useInvalidatingMutation, useMetadataProfiles, useQualityProfiles } from "../../lib/queries";
+import { QueryErrorNotice } from "./controls";
+import { cloneQualityProfile, defaultProfileQualities, errorMessage, profileKey, qualityProfileChanged } from "./helpers";
 
 type ProfileRow = {
   /** Stable render/edit key — profileKey for persisted rows, a counter for new ones. */
   localKey: string;
   profile: QualityProfile;
   isNew?: boolean;
-  /** Raw comma-separated text so users can type commas without them being normalized away. */
-  termsText: { preferred: string; required: string; rejected: string };
 };
 
 function rowFromProfile(profile: QualityProfile): ProfileRow {
   return {
     localKey: profileKey(profile),
-    profile: cloneQualityProfile(profile),
-    termsText: {
-      preferred: (profile.preferredTerms ?? []).join(", "),
-      required: (profile.requiredTerms ?? []).join(", "),
-      rejected: (profile.rejectedTerms ?? []).join(", ")
-    }
+    profile: cloneQualityProfile(profile)
   };
 }
 
 const mediaFormatOptions: QualityProfile["mediaFormat"][] = ["any", "ebook", "audiobook"];
 
+/** First allowed quality id, used when the cutoff quality gets disallowed. */
+function firstAllowedQuality(profile: QualityProfile): string {
+  return profile.qualities.find((quality) => quality.allowed)?.id ?? "";
+}
+
+function cutoffIsAllowed(profile: QualityProfile): boolean {
+  return profile.qualities.some((quality) => quality.allowed && quality.id === profile.cutoff);
+}
+
 /**
- * Profiles → release policy editor. Scores, seeders, size cap, term lists,
- * and upgrade policy per profile; profiles are keyed by id (or name:format)
+ * Profiles → arr-style quality profile editor. Each profile orders its
+ * qualities most-preferred first, toggles which are allowed, and picks the
+ * cutoff quality upgrades stop at; profiles are keyed by id (or name:format)
  * and saved individually, exactly like the legacy per-row save.
  */
 export function ProfilesTab() {
@@ -78,34 +82,44 @@ export function ProfilesTab() {
     });
   }, [data]);
 
-  function updateRow(localKey: string, changes: Partial<QualityProfile>, termsText?: Partial<ProfileRow["termsText"]>) {
+  function updateRow(localKey: string, changes: Partial<QualityProfile>) {
     setRows((current) =>
-      current.map((row) =>
-        row.localKey === localKey
-          ? { ...row, profile: { ...row.profile, ...changes }, termsText: { ...row.termsText, ...termsText } }
-          : row
-      )
+      current.map((row) => (row.localKey === localKey ? { ...row, profile: { ...row.profile, ...changes } } : row))
     );
   }
 
+  function changeMediaFormat(row: ProfileRow, mediaFormat: QualityProfile["mediaFormat"]) {
+    const qualities = defaultProfileQualities(mediaFormat);
+    updateRow(row.localKey, { mediaFormat, qualities, cutoff: qualities[0]?.id ?? "" });
+  }
+
+  /** Move a quality one step toward most-preferred (delta -1) or least (delta +1). */
+  function moveQuality(row: ProfileRow, index: number, delta: -1 | 1) {
+    const target = index + delta;
+    if (target < 0 || target >= row.profile.qualities.length) return;
+    const qualities = row.profile.qualities.map((quality) => ({ ...quality }));
+    [qualities[index], qualities[target]] = [qualities[target], qualities[index]];
+    updateRow(row.localKey, { qualities });
+  }
+
+  function toggleQuality(row: ProfileRow, id: string, allowed: boolean) {
+    const qualities = row.profile.qualities.map((quality) => (quality.id === id ? { ...quality, allowed } : quality));
+    const next: QualityProfile = { ...row.profile, qualities };
+    if (!cutoffIsAllowed(next)) next.cutoff = firstAllowedQuality(next);
+    updateRow(row.localKey, { qualities: next.qualities, cutoff: next.cutoff });
+  }
+
   function addProfile() {
+    const qualities = defaultProfileQualities("any");
     const profile: QualityProfile = {
       name: "",
       mediaFormat: "any",
-      minScore: 0,
-      cutoffScore: 80,
-      minSeeders: 1,
-      maxSizeBytes: giBToBytes(1),
-      preferredTerms: [],
-      requiredTerms: [],
-      rejectedTerms: [],
-      preferredScore: 10,
-      upgradeAllowed: true
+      qualities,
+      cutoff: qualities[0]?.id ?? "",
+      upgradeAllowed: true,
+      minSeeders: 1
     };
-    setRows((current) => [
-      ...current,
-      { localKey: `new-${newProfileCounter.current++}`, profile, isNew: true, termsText: { preferred: "", required: "", rejected: "" } }
-    ]);
+    setRows((current) => [...current, { localKey: `new-${newProfileCounter.current++}`, profile, isNew: true }]);
   }
 
   function discardRow(localKey: string) {
@@ -151,7 +165,7 @@ export function ProfilesTab() {
       {query.isError ? <QueryErrorNotice error={query.error} fallback="Quality profiles refresh failed" /> : null}
       <Card
         title="Quality profiles"
-        subtitle={`${savedCount} release policy profile${savedCount === 1 ? "" : "s"} used by search, feeds, recovery, and upgrades.`}
+        subtitle={`${savedCount} profile${savedCount === 1 ? "" : "s"} deciding which qualities are grabbed and when upgrades stop.`}
         actions={
           <>
             <Button size="sm" icon={Plus} onClick={addProfile}>
@@ -166,13 +180,16 @@ export function ProfilesTab() {
         {query.isLoading ? (
           <LoadingRow label="Loading quality profiles…" />
         ) : rows.length === 0 ? (
-          <EmptyState icon={SlidersHorizontal} title="No release policy profiles yet">
+          <EmptyState icon={SlidersHorizontal} title="No quality profiles yet">
             They appear once Postgres persistence and the API are configured.
           </EmptyState>
         ) : (
           <div className="settings-profile-list">
             {rows.map((row) => {
               const changed = qualityProfileChanged(row.profile, savedByKey.get(row.localKey));
+              const allowedQualities = row.profile.qualities.filter((quality) => quality.allowed);
+              const cutoffValid = cutoffIsAllowed(row.profile);
+              const saveable = changed && allowedQualities.length > 0 && cutoffValid && (!row.isNew || Boolean(row.profile.name.trim()));
               return (
                 <article className="settings-profile" key={row.localKey}>
                   <div className="settings-profile-head">
@@ -187,9 +204,7 @@ export function ProfilesTab() {
                           />
                           <select
                             value={row.profile.mediaFormat}
-                            onChange={(event) =>
-                              updateRow(row.localKey, { mediaFormat: event.target.value as QualityProfile["mediaFormat"] })
-                            }
+                            onChange={(event) => changeMediaFormat(row, event.target.value as QualityProfile["mediaFormat"])}
                             aria-label="Media format"
                           >
                             {mediaFormatOptions.map((format) => (
@@ -214,7 +229,7 @@ export function ProfilesTab() {
                         variant="primary"
                         icon={CheckCircle2}
                         busy={savingKey === row.localKey}
-                        disabled={Boolean(savingKey) || !changed || (row.isNew && !row.profile.name.trim())}
+                        disabled={Boolean(savingKey) || !saveable}
                         onClick={() => void persistRow(row)}
                       >
                         Save
@@ -224,27 +239,52 @@ export function ProfilesTab() {
                       ) : null}
                     </div>
                   </div>
+                  <div className="settings-quality-list" aria-label={`Qualities for ${row.profile.name || "new profile"}`}>
+                    <span className="field-hint">Most preferred quality on top; unchecked qualities are never grabbed.</span>
+                    {row.profile.qualities.map((quality, index) => (
+                      <div className="settings-quality-row" key={quality.id}>
+                        <IconButton
+                          icon={ChevronUp}
+                          label={`Move ${qualityTitle(quality.id)} up`}
+                          size="sm"
+                          disabled={index === 0}
+                          onClick={() => moveQuality(row, index, -1)}
+                        />
+                        <IconButton
+                          icon={ChevronDown}
+                          label={`Move ${qualityTitle(quality.id)} down`}
+                          size="sm"
+                          disabled={index === row.profile.qualities.length - 1}
+                          onClick={() => moveQuality(row, index, 1)}
+                        />
+                        <label className="settings-check">
+                          <input
+                            type="checkbox"
+                            checked={quality.allowed}
+                            onChange={(event) => toggleQuality(row, quality.id, event.target.checked)}
+                          />
+                          <span>{qualityTitle(quality.id)}</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                   <FormGrid columns={3}>
-                    <Field label="Min score" hint="Releases scoring below this are rejected.">
-                      <input
-                        inputMode="decimal"
-                        value={row.profile.minScore}
-                        onChange={(event) => updateRow(row.localKey, { minScore: Number(event.target.value) || 0 })}
-                      />
-                    </Field>
-                    <Field label="Cutoff score" hint="Upgrades stop once a file reaches this score.">
-                      <input
-                        inputMode="decimal"
-                        value={row.profile.cutoffScore}
-                        onChange={(event) => updateRow(row.localKey, { cutoffScore: Number(event.target.value) || 0 })}
-                      />
-                    </Field>
-                    <Field label="Preferred score" hint="Bonus applied per preferred-term match.">
-                      <input
-                        inputMode="decimal"
-                        value={row.profile.preferredScore}
-                        onChange={(event) => updateRow(row.localKey, { preferredScore: Number(event.target.value) || 0 })}
-                      />
+                    <Field label="Cutoff" hint="Upgrades stop once a file reaches this quality.">
+                      <select
+                        value={row.profile.cutoff}
+                        onChange={(event) => updateRow(row.localKey, { cutoff: event.target.value })}
+                        aria-label="Cutoff quality"
+                      >
+                        {allowedQualities.length === 0 ? <option value="">No qualities allowed</option> : null}
+                        {!cutoffValid && row.profile.cutoff ? (
+                          <option value={row.profile.cutoff}>{qualityTitle(row.profile.cutoff)} (not allowed)</option>
+                        ) : null}
+                        {allowedQualities.map((quality) => (
+                          <option key={quality.id} value={quality.id}>
+                            {qualityTitle(quality.id)}
+                          </option>
+                        ))}
+                      </select>
                     </Field>
                     <Field label="Min seeders" hint="Minimum torrent seeders to grab.">
                       <input
@@ -253,14 +293,7 @@ export function ProfilesTab() {
                         onChange={(event) => updateRow(row.localKey, { minSeeders: Number(event.target.value) || 0 })}
                       />
                     </Field>
-                    <Field label="Max size (GB)" hint="Releases above this size are rejected.">
-                      <input
-                        inputMode="decimal"
-                        value={bytesToGiB(row.profile.maxSizeBytes)}
-                        onChange={(event) => updateRow(row.localKey, { maxSizeBytes: giBToBytes(Number(event.target.value) || 0) })}
-                      />
-                    </Field>
-                    <Field label="Upgrade allowed" hint="Replace existing files when a better release appears.">
+                    <Field label="Upgrade allowed" hint="Replace existing files when a better quality appears.">
                       <div className="settings-check">
                         <input
                           type="checkbox"
@@ -270,33 +303,6 @@ export function ProfilesTab() {
                         <span>{row.profile.upgradeAllowed ? "Enabled" : "Disabled"}</span>
                       </div>
                     </Field>
-                    <Field label="Preferred terms" hint="Comma separated — boost matching releases.">
-                      <input
-                        value={row.termsText.preferred}
-                        onChange={(event) =>
-                          updateRow(row.localKey, { preferredTerms: splitTerms(event.target.value) }, { preferred: event.target.value })
-                        }
-                        placeholder="epub, retail"
-                      />
-                    </Field>
-                    <Field label="Required terms" hint="Comma separated — every term must match.">
-                      <input
-                        value={row.termsText.required}
-                        onChange={(event) =>
-                          updateRow(row.localKey, { requiredTerms: splitTerms(event.target.value) }, { required: event.target.value })
-                        }
-                        placeholder="Optional"
-                      />
-                    </Field>
-                    <Field label="Rejected terms" hint="Comma separated — any match rejects the release.">
-                      <input
-                        value={row.termsText.rejected}
-                        onChange={(event) =>
-                          updateRow(row.localKey, { rejectedTerms: splitTerms(event.target.value) }, { rejected: event.target.value })
-                        }
-                        placeholder="sample, abridged"
-                      />
-                    </Field>
                   </FormGrid>
                 </article>
               );
@@ -304,6 +310,256 @@ export function ProfilesTab() {
           </div>
         )}
       </Card>
+
+      <MetadataProfilesCard />
+    </>
+  );
+}
+
+/* --------------------------- Metadata profiles (wave B) --------------------- */
+
+/** Editable string form of a metadata profile (comma inputs, number text). */
+type MetadataProfileForm = {
+  id?: string;
+  name: string;
+  allowedLanguages: string;
+  mustNotContain: string;
+  skipMissingIsbn: boolean;
+  minPages: string;
+};
+
+function emptyMetadataProfileForm(): MetadataProfileForm {
+  return { name: "", allowedLanguages: "", mustNotContain: "", skipMissingIsbn: false, minPages: "" };
+}
+
+function metadataProfileToForm(profile: MetadataProfile): MetadataProfileForm {
+  return {
+    id: profile.id,
+    name: profile.name,
+    allowedLanguages: (profile.allowedLanguages ?? []).join(", "),
+    mustNotContain: (profile.mustNotContain ?? []).join(", "),
+    skipMissingIsbn: profile.skipMissingIsbn,
+    minPages: profile.minPages > 0 ? String(profile.minPages) : ""
+  };
+}
+
+function splitCommaTerms(value: string): string[] {
+  return value
+    .split(",")
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
+function metadataProfilePayload(form: MetadataProfileForm): MetadataProfileRequest {
+  return {
+    name: form.name.trim(),
+    allowedLanguages: splitCommaTerms(form.allowedLanguages),
+    mustNotContain: splitCommaTerms(form.mustNotContain),
+    skipMissingIsbn: form.skipMissingIsbn,
+    minPages: Math.max(0, Math.round(Number(form.minPages) || 0))
+  };
+}
+
+function metadataProfileFilterSummary(profile: MetadataProfile): string {
+  const parts: string[] = [];
+  if (profile.allowedLanguages?.length) parts.push(`languages: ${profile.allowedLanguages.join(", ")}`);
+  if (profile.mustNotContain?.length) parts.push(`must not contain: ${profile.mustNotContain.join(", ")}`);
+  if (profile.skipMissingIsbn) parts.push("skip books without ISBN");
+  if (profile.minPages > 0) parts.push(`min ${profile.minPages} pages`);
+  return parts.length ? parts.join(" · ") : "No filters — allows every candidate";
+}
+
+/**
+ * Profiles → Metadata Profiles: reusable filter sets applied when author
+ * monitoring evaluates candidate books (per-author filter fields remain as
+ * overrides). A profile still assigned to authors refuses deletion with a
+ * 409 reason, surfaced as a toast.
+ */
+function MetadataProfilesCard() {
+  const toast = useToast();
+  const query = useMetadataProfiles();
+  const profiles = query.data ?? [];
+
+  const [form, setForm] = useState<MetadataProfileForm | null>(null);
+  const [deleting, setDeleting] = useState<MetadataProfile | null>(null);
+
+  const save = useInvalidatingMutation(
+    (request: MetadataProfileForm) =>
+      request.id ? updateMetadataProfile(request.id, metadataProfilePayload(request)) : createMetadataProfile(metadataProfilePayload(request)),
+    [metadataProfileKeys.metadataProfiles]
+  );
+  const remove = useInvalidatingMutation(deleteMetadataProfile, [metadataProfileKeys.metadataProfiles]);
+
+  function update(changes: Partial<MetadataProfileForm>) {
+    setForm((current) => (current ? { ...current, ...changes } : current));
+  }
+
+  async function persist() {
+    if (!form) return;
+    const editing = Boolean(form.id);
+    try {
+      const saved = await save.mutateAsync(form);
+      toast.success(`Metadata profile "${saved.name}" ${editing ? "updated" : "added"}.`);
+      setForm(null);
+    } catch (error) {
+      toast.error(errorMessage(error, editing ? "Metadata profile update failed" : "Metadata profile create failed"));
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    try {
+      await remove.mutateAsync(deleting.id);
+      toast.success(`Metadata profile "${deleting.name}" deleted.`);
+      setDeleting(null);
+    } catch (error) {
+      // 409 refusals carry the reason (e.g. authors still assigned to it).
+      toast.error(errorMessage(error, "Metadata profile delete failed"));
+      setDeleting(null);
+    }
+  }
+
+  const formValid = Boolean(form && form.name.trim());
+
+  return (
+    <>
+      {query.isError ? <QueryErrorNotice error={query.error} fallback="Metadata profiles refresh failed" /> : null}
+      <Card
+        title="Metadata Profiles"
+        subtitle={`${profiles.length} profile${profiles.length === 1 ? "" : "s"} filtering which author-monitor candidates become wanted.`}
+        padded={profiles.length === 0}
+        actions={
+          <Button size="sm" icon={Plus} onClick={() => setForm(emptyMetadataProfileForm())}>
+            Add Metadata Profile
+          </Button>
+        }
+      >
+        {query.isLoading ? (
+          <LoadingRow label="Loading metadata profiles…" />
+        ) : profiles.length ? (
+          <DataTable>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Filters</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {profiles.map((profile) => (
+                <tr key={profile.id}>
+                  <td className="cell-primary">{profile.name}</td>
+                  <td className="cell-muted">{metadataProfileFilterSummary(profile)}</td>
+                  <td>
+                    <div className="cell-actions">
+                      <IconButton
+                        icon={Pencil}
+                        size="sm"
+                        label={`Edit metadata profile ${profile.name}`}
+                        onClick={() => setForm(metadataProfileToForm(profile))}
+                      />
+                      <IconButton
+                        icon={Trash2}
+                        size="sm"
+                        tone="danger"
+                        label={`Delete metadata profile ${profile.name}`}
+                        onClick={() => setDeleting(profile)}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        ) : (
+          <EmptyState
+            icon={Filter}
+            title="No metadata profiles yet"
+            actions={
+              <Button size="sm" variant="primary" icon={Plus} onClick={() => setForm(emptyMetadataProfileForm())}>
+                Add Metadata Profile
+              </Button>
+            }
+          >
+            Metadata profiles bundle language, title, ISBN, and page filters so author subscriptions can share one
+            filter set instead of per-author overrides.
+          </EmptyState>
+        )}
+      </Card>
+
+      <Modal
+        title={form?.id ? "Edit Metadata Profile" : "Add Metadata Profile"}
+        open={Boolean(form)}
+        onClose={() => setForm(null)}
+        footer={
+          <>
+            <Button onClick={() => setForm(null)}>Cancel</Button>
+            <Button variant="primary" busy={save.isPending} disabled={!formValid || save.isPending} onClick={() => void persist()}>
+              {form?.id ? "Save Metadata Profile" : "Add Metadata Profile"}
+            </Button>
+          </>
+        }
+      >
+        {form ? (
+          <FormGrid columns={2}>
+            <div className="settings-field-wide">
+              <Field label="Name" hint="Display name for this filter set.">
+                <input value={form.name} onChange={(event) => update({ name: event.target.value })} placeholder="English ebooks" />
+              </Field>
+            </div>
+            <Field label="Allowed languages" hint="Comma-separated; leave empty to allow every language.">
+              <input
+                value={form.allowedLanguages}
+                onChange={(event) => update({ allowedLanguages: event.target.value })}
+                placeholder="English, German"
+              />
+            </Field>
+            <Field label="Must not contain" hint="Comma-separated terms that reject a candidate title.">
+              <input
+                value={form.mustNotContain}
+                onChange={(event) => update({ mustNotContain: event.target.value })}
+                placeholder="omnibus, boxed set"
+              />
+            </Field>
+            <Field label="Minimum pages" hint="0 disables; applies when the provider reports pages.">
+              <input
+                type="number"
+                min={0}
+                value={form.minPages}
+                onChange={(event) => update({ minPages: event.target.value })}
+                placeholder="0"
+              />
+            </Field>
+            <label className="settings-check" style={{ alignSelf: "end", paddingBottom: 6 }}>
+              <input
+                type="checkbox"
+                checked={form.skipMissingIsbn}
+                onChange={(event) => update({ skipMissingIsbn: event.target.checked })}
+              />
+              <span>Skip books without ISBN</span>
+            </label>
+          </FormGrid>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title="Delete metadata profile"
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button variant="danger" icon={Trash2} busy={remove.isPending} onClick={() => void confirmDelete()}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Delete metadata profile <strong>{deleting?.name}</strong>? The server refuses the delete (with a reason) while
+          author subscriptions still use it.
+        </p>
+      </Modal>
     </>
   );
 }

@@ -26,6 +26,7 @@ import {
   fetchWantedMetadata,
   fetchWantedMetadataReview,
   fetchWantedReleases,
+  knownQualityIds,
   type DownloadListOptions
 } from "./api";
 import { demoModeEnabled, demoSeeds, withDemoFallback } from "./demo";
@@ -211,15 +212,10 @@ export function useQualityProfiles() {
         {
           name: "standard",
           mediaFormat: "any" as const,
-          minScore: 0,
-          cutoffScore: 80,
-          minSeeders: 1,
-          maxSizeBytes: 800 * 1024 * 1024,
-          preferredTerms: [],
-          requiredTerms: [],
-          rejectedTerms: [],
-          preferredScore: 10,
-          upgradeAllowed: true
+          qualities: knownQualityIds("any").map((id) => ({ id, allowed: true })),
+          cutoff: "epub",
+          upgradeAllowed: true,
+          minSeeders: 1
         }
       ]
     )
@@ -460,5 +456,52 @@ export function useBackups() {
   return useQuery({
     queryKey: m6Keys.backups,
     queryFn: withDemoFallback(fetchBackups, () => [])
+  });
+}
+
+/* ------------------- Release profiles / quality definitions ---------------- */
+
+import { fetchQualityDefinitions, fetchReleaseProfiles } from "./api";
+
+/**
+ * Keys for the Quality settings surface, appended alongside the other key
+ * maps (kept separate so parallel milestones don't collide inside one object).
+ */
+export const qualityKeys = {
+  releaseProfiles: ["release-profiles"] as const,
+  qualityDefinitions: ["quality-definitions"] as const
+};
+
+export function useReleaseProfiles() {
+  return useQuery({
+    queryKey: qualityKeys.releaseProfiles,
+    queryFn: withDemoFallback(fetchReleaseProfiles, () => [])
+  });
+}
+
+export function useQualityDefinitions() {
+  return useQuery({
+    queryKey: qualityKeys.qualityDefinitions,
+    queryFn: withDemoFallback(fetchQualityDefinitions, () => [])
+  });
+}
+
+/* --------------------------- Metadata profiles (wave B) --------------------- */
+
+import { fetchMetadataProfiles } from "./api";
+
+/**
+ * Keys for the wave-B metadata-profile surface, appended alongside the other
+ * key maps (kept separate so parallel milestones don't collide in one object).
+ */
+export const metadataProfileKeys = {
+  metadataProfiles: ["metadata-profiles"] as const
+};
+
+/** Demo installs fall back to an empty list per the root-folders convention. */
+export function useMetadataProfiles() {
+  return useQuery({
+    queryKey: metadataProfileKeys.metadataProfiles,
+    queryFn: withDemoFallback(fetchMetadataProfiles, () => [])
   });
 }

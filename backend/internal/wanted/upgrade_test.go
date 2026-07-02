@@ -7,30 +7,47 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 )
 
-func TestBestUpgradeReleaseRequiresCurrentBelowCutoff(t *testing.T) {
+// Composite scores below follow the default ebook ladder
+// (azw3 > epub > mobi > pdf > unknownText, cutoff epub): azw3=5000, epub=4000,
+// mobi=3000, plus the sub-1000 preferred-word component.
+
+func TestBestUpgradeReleaseBlocksQualityAboveCutoff(t *testing.T) {
+	// Current epub (+8 preferred) already meets the epub cutoff; a bare azw3
+	// (higher quality, no preferred words) must not upgrade past the cutoff.
 	_, ok := bestUpgradeRelease([]ReleaseDecision{
-		{ID: "better", Approved: true, Score: 96, Seeders: 30},
-	}, 90, 85, 5)
+		{ID: "azw3", Approved: true, Score: 5000, Seeders: 30},
+	}, 4008, 4000)
 	if ok {
-		t.Fatal("expected no upgrade when current score already meets cutoff")
+		t.Fatal("expected no quality upgrade once cutoff quality is met")
 	}
 }
 
-func TestBestUpgradeReleaseRequiresScoreDelta(t *testing.T) {
+func TestBestUpgradeReleasePreferredScoreAlwaysUpgrades(t *testing.T) {
+	// arr rule: even at/above the cutoff quality, a release with a higher
+	// preferred-word score is always an upgrade.
+	release, ok := bestUpgradeRelease([]ReleaseDecision{
+		{ID: "better-terms", Approved: true, Score: 4020, Seeders: 10},
+	}, 4008, 4000)
+	if !ok || release.ID != "better-terms" {
+		t.Fatalf("expected preferred-score upgrade above cutoff, got ok=%v release=%+v", ok, release)
+	}
+}
+
+func TestBestUpgradeReleaseRequiresStrictImprovement(t *testing.T) {
 	_, ok := bestUpgradeRelease([]ReleaseDecision{
-		{ID: "small-bump", Approved: true, Score: 82, Seeders: 30},
-	}, 80, 85, 5)
+		{ID: "same", Approved: true, Score: 3005, Seeders: 30},
+	}, 3005, 4000)
 	if ok {
-		t.Fatal("expected no upgrade below score delta")
+		t.Fatal("expected no upgrade without a strictly better composite score")
 	}
 }
 
 func TestBestUpgradeReleasePicksHighestApprovedCandidate(t *testing.T) {
 	release, ok := bestUpgradeRelease([]ReleaseDecision{
-		{ID: "rejected", Approved: false, Score: 99, Seeders: 50},
-		{ID: "good", Approved: true, Score: 86, Seeders: 15},
-		{ID: "best", Approved: true, Score: 92, Seeders: 4},
-	}, 70, 85, 5)
+		{ID: "rejected", Approved: false, Score: 5000, Seeders: 50},
+		{ID: "good", Approved: true, Score: 4000, Seeders: 15},
+		{ID: "best", Approved: true, Score: 4020, Seeders: 4},
+	}, 3005, 4000)
 	if !ok {
 		t.Fatal("expected upgrade candidate")
 	}
@@ -39,12 +56,28 @@ func TestBestUpgradeReleasePicksHighestApprovedCandidate(t *testing.T) {
 	}
 }
 
-func TestUpgradeCutoffForProfiles(t *testing.T) {
-	if got := upgradeCutoffFor(WantedItem{QualityProfile: "standard"}); got != 85 {
-		t.Fatalf("expected standard cutoff 85, got %0.1f", got)
+func TestCutoffCompositeScoreDefaults(t *testing.T) {
+	ebook := defaultQualityProfile("standard", "ebook")
+	if got := ebook.CutoffCompositeScore(); got != 4000 {
+		t.Fatalf("expected ebook epub cutoff composite 4000, got %0.1f", got)
 	}
-	if got := upgradeCutoffFor(WantedItem{QualityProfile: "large"}); got != 90 {
-		t.Fatalf("expected large cutoff 90, got %0.1f", got)
+	audiobook := defaultQualityProfile("standard", "audiobook")
+	if got := audiobook.CutoffCompositeScore(); got != 3000 {
+		t.Fatalf("expected audiobook m4b cutoff composite 3000, got %0.1f", got)
+	}
+}
+
+func TestCutoffUnmetUsesCompositeThreshold(t *testing.T) {
+	profile := defaultQualityProfile("standard", "ebook")
+	if !cutoffUnmet(profile, 3005) {
+		t.Fatal("expected mobi-quality score below epub cutoff to be unmet")
+	}
+	if cutoffUnmet(profile, 4008) {
+		t.Fatal("expected epub-quality score to meet the epub cutoff")
+	}
+	profile.UpgradeAllowed = false
+	if cutoffUnmet(profile, 3005) {
+		t.Fatal("expected upgrade-disabled profile to never report cutoff unmet")
 	}
 }
 

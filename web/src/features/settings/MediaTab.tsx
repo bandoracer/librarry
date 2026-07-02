@@ -55,7 +55,7 @@ export function MediaTab() {
   async function persist() {
     if (!hasChanges) return;
     try {
-      const response = await save.mutateAsync(form);
+      const response = await save.mutateAsync({ ...form, renameBooks: form.renameBooks ?? true });
       setForm(response.settings);
       if (response.persisted) {
         toast.success("Library settings saved and applied.");
@@ -147,6 +147,16 @@ export function MediaTab() {
                   onChange={(event) => update({ namingSpaceReplacement: event.target.value })}
                   placeholder="Optional"
                 />
+              </Field>
+              <Field label="Rename Books" hint="Rename imported files against the naming templates.">
+                <div className="settings-check">
+                  <input
+                    type="checkbox"
+                    checked={form.renameBooks ?? true}
+                    onChange={(event) => update({ renameBooks: event.target.checked })}
+                  />
+                  <span>{(form.renameBooks ?? true) ? "Enabled" : "Disabled"}</span>
+                </div>
               </Field>
               <Field label="Search language" hint="Default language filter for standard metadata searches.">
                 <select

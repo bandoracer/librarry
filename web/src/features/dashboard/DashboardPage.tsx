@@ -45,6 +45,7 @@ import type { DownloadStatus } from "../../lib/api";
 import { demoModeEnabled } from "../../lib/demo";
 import { formatRelativeTime } from "../../lib/format";
 import { navItems } from "../../app/nav";
+import { AcquisitionNextActions } from "./AcquisitionActions";
 import "./dashboard.css";
 
 /*
@@ -346,7 +347,7 @@ export default function DashboardPage() {
             />
             <ToolbarButton
               icon={Rss}
-              label="Feed Sync"
+              label="RSS Sync"
               title="Match recent indexer feed releases against wanted books"
               busy={feedSync.isPending}
               onClick={() => feedSync.mutate()}
@@ -471,16 +472,19 @@ export default function DashboardPage() {
             {acquisitionQueue.isLoading ? (
               <LoadingRow label="Loading queue…" />
             ) : summary ? (
-              <StatBar
-                stats={[
-                  { label: "Search", value: summary.needsSearch },
-                  { label: "Ready", value: summary.readyToGrab },
-                  { label: "Queued", value: summary.queued },
-                  { label: "Import", value: summary.importReady },
-                  { label: "Done", value: summary.imported, tone: summary.imported ? "success" : "neutral" },
-                  { label: "Blocked", value: summary.blocked, tone: summary.blocked ? "danger" : "neutral" }
-                ]}
-              />
+              <>
+                <StatBar
+                  stats={[
+                    { label: "Search", value: summary.needsSearch },
+                    { label: "Ready", value: summary.readyToGrab },
+                    { label: "Queued", value: summary.queued },
+                    { label: "Import", value: summary.importReady },
+                    { label: "Done", value: summary.imported, tone: summary.imported ? "success" : "neutral" },
+                    { label: "Blocked", value: summary.blocked, tone: summary.blocked ? "danger" : "neutral" }
+                  ]}
+                />
+                <AcquisitionNextActions items={acquisitionQueue.data?.items ?? []} />
+              </>
             ) : (
               <InlineNotice tone="warn">Acquisition queue could not be loaded.</InlineNotice>
             )}

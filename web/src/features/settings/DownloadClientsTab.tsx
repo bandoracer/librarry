@@ -6,18 +6,19 @@ import { saveIntegrationSettings, type IntegrationSettings } from "../../lib/api
 import { keys, useIntegrationSettings, useInvalidatingMutation } from "../../lib/queries";
 import { QueryErrorNotice, SecretInput } from "./controls";
 import { RemotePathMappingsCard } from "./RemotePathMappingsCard";
-import { emptyIntegrationSettings, errorMessage, integrationSettingsChanged, integrationSettingsForm } from "./helpers";
+import { downloadClientSettingsChanged, emptyIntegrationSettings, errorMessage, integrationSettingsForm } from "./helpers";
 
 function secretLabel(base: string, configured: boolean) {
   return configured ? `${base} (saved)` : base;
 }
 
 /**
- * Connections → Prowlarr indexer plus qBittorrent / Transmission / SABnzbd
- * download clients, categories, and the torrent root. Saved secrets are never
- * echoed back: inputs start blank and "leave blank to keep" preserves them.
+ * Download Clients → qBittorrent / Transmission / SABnzbd plus grab
+ * categories and the torrent root. Saves through the shared integration-
+ * settings endpoint but only sends the client fields; saved secrets are
+ * never echoed back ("leave blank to keep" preserves them).
  */
-export function ConnectionsTab() {
+export function DownloadClientsTab() {
   const toast = useToast();
   const query = useIntegrationSettings();
   const defaults = useMemo(() => emptyIntegrationSettings(), []);
@@ -37,7 +38,7 @@ export function ConnectionsTab() {
     ["downloads"]
   ]);
 
-  const hasChanges = integrationSettingsChanged(form, saved);
+  const hasChanges = downloadClientSettingsChanged(form, saved);
   const clientConfigured = Boolean(saved.qbittorrentUrl || saved.transmissionUrl || saved.sabnzbdUrl);
 
   function update(changes: Partial<IntegrationSettings>) {
@@ -47,15 +48,29 @@ export function ConnectionsTab() {
   async function persist() {
     if (!hasChanges) return;
     try {
-      const response = await save.mutateAsync(form);
+      const response = await save.mutateAsync({
+        qbittorrentUrl: form.qbittorrentUrl,
+        qbittorrentUsername: form.qbittorrentUsername,
+        qbittorrentPassword: form.qbittorrentPassword,
+        transmissionUrl: form.transmissionUrl,
+        transmissionUsername: form.transmissionUsername,
+        transmissionPassword: form.transmissionPassword,
+        sabnzbdUrl: form.sabnzbdUrl,
+        sabnzbdApiKey: form.sabnzbdApiKey,
+        sabnzbdUsername: form.sabnzbdUsername,
+        sabnzbdPassword: form.sabnzbdPassword,
+        ebookCategory: form.ebookCategory,
+        audiobookCategory: form.audiobookCategory,
+        bookTorrentRoot: form.bookTorrentRoot
+      });
       setForm(integrationSettingsForm(response.settings));
       if (response.persisted) {
-        toast.success("Integration settings saved and applied.");
+        toast.success("Download client settings saved and applied.");
       } else {
-        toast.notify("Integration settings applied for this process. Add Postgres to persist them.", "warn");
+        toast.notify("Download client settings applied for this process. Add Postgres to persist them.", "warn");
       }
     } catch (error) {
-      toast.error(errorMessage(error, "Integration settings save failed"));
+      toast.error(errorMessage(error, "Download client settings save failed"));
     }
   }
 
@@ -64,51 +79,27 @@ export function ConnectionsTab() {
     if (result.data) {
       setForm(integrationSettingsForm(result.data.settings));
     } else if (result.error) {
-      toast.error(errorMessage(result.error, "Integration settings refresh failed"));
+      toast.error(errorMessage(result.error, "Download client settings refresh failed"));
     }
   }
 
   return (
     <>
-      {query.isError ? <QueryErrorNotice error={query.error} fallback="Integration settings refresh failed" /> : null}
+      {query.isError ? <QueryErrorNotice error={query.error} fallback="Download client settings refresh failed" /> : null}
       {query.isSuccess && !persisted ? (
         <InlineNotice tone="warn">
-          No database persistence — connection settings apply to the running process only and reset on restart. Set
+          No database persistence — download client settings apply to the running process only and reset on restart. Set
           LIBRARRY_DATABASE_URL to keep them.
         </InlineNotice>
       ) : null}
       <Card
-        title="Indexer and download clients"
-        subtitle={`${persisted ? "Postgres" : "runtime"} · ${saved.prowlarrUrl ? "indexer set" : "no indexer"} · ${
-          clientConfigured ? "client set" : "no client"
-        }`}
+        title="Download clients"
+        subtitle={`${persisted ? "Postgres" : "runtime"} · ${clientConfigured ? "client set" : "no client"}`}
       >
         {query.isLoading ? (
-          <LoadingRow label="Loading integration settings…" />
+          <LoadingRow label="Loading download client settings…" />
         ) : (
           <>
-            <div className="settings-group">
-              <h3 className="settings-group-title field-label">Prowlarr</h3>
-              <FormGrid columns={2}>
-                <div className="settings-field-wide">
-                  <Field label="Prowlarr URL" hint="Indexer aggregator used for release searches.">
-                    <input
-                      value={form.prowlarrUrl}
-                      onChange={(event) => update({ prowlarrUrl: event.target.value })}
-                      placeholder="http://prowlarr:9696"
-                    />
-                  </Field>
-                </div>
-                <Field label={secretLabel("Prowlarr API key", saved.prowlarrApiKeyConfigured)}>
-                  <SecretInput
-                    value={form.prowlarrApiKey ?? ""}
-                    onChange={(value) => update({ prowlarrApiKey: value })}
-                    placeholder={saved.prowlarrApiKeyConfigured ? "Leave blank to keep" : "API key"}
-                    ariaLabel="Prowlarr API key"
-                  />
-                </Field>
-              </FormGrid>
-            </div>
             <div className="settings-group">
               <h3 className="settings-group-title field-label">qBittorrent</h3>
               <FormGrid columns={2}>
@@ -240,7 +231,7 @@ export function ConnectionsTab() {
                 disabled={save.isPending || !hasChanges}
                 onClick={() => void persist()}
               >
-                Save integrations
+                Save download clients
               </Button>
               <Button icon={RefreshCw} disabled={save.isPending} onClick={() => void refresh()}>
                 Refresh

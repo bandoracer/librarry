@@ -78,6 +78,11 @@ type wantedService interface {
 	ListQualityProfiles(ctx context.Context) ([]wanted.QualityProfile, error)
 	SaveQualityProfile(ctx context.Context, profile wanted.QualityProfile) (wanted.QualityProfile, error)
 	DeleteQualityProfile(ctx context.Context, idOrName string) error
+	ListReleaseProfiles(ctx context.Context) ([]wanted.ReleaseProfile, error)
+	SaveReleaseProfile(ctx context.Context, profile wanted.ReleaseProfile) (wanted.ReleaseProfile, error)
+	DeleteReleaseProfile(ctx context.Context, id string) error
+	ListQualityDefinitions(ctx context.Context) ([]wanted.QualityDefinition, error)
+	UpdateQualityDefinitions(ctx context.Context, definitions []wanted.QualityDefinition) ([]wanted.QualityDefinition, error)
 	SubscribeAuthor(ctx context.Context, request wanted.AuthorSubscribeRequest) (wanted.AuthorSubscription, error)
 	ListAuthorSubscriptions(ctx context.Context, status string) ([]wanted.AuthorSubscription, error)
 	MonitorAuthors(ctx context.Context, request wanted.AuthorMonitorRequest) (wanted.AuthorMonitorRun, error)
@@ -411,6 +416,16 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/downloads/mark-failed", handler.markDownloadFailed)
 	mux.HandleFunc("GET /api/v1/quality-profiles", handler.qualityProfiles)
 	mux.HandleFunc("POST /api/v1/quality-profiles", handler.saveQualityProfile)
+	mux.HandleFunc("GET /api/v1/release-profiles", handler.releaseProfiles)
+	mux.HandleFunc("POST /api/v1/release-profiles", handler.createReleaseProfile)
+	mux.HandleFunc("PUT /api/v1/release-profiles/{id}", handler.updateReleaseProfile)
+	mux.HandleFunc("DELETE /api/v1/release-profiles/{id}", handler.deleteReleaseProfile)
+	mux.HandleFunc("GET /api/v1/quality-definitions", handler.qualityDefinitions)
+	mux.HandleFunc("PUT /api/v1/quality-definitions", handler.updateQualityDefinitions)
+	mux.HandleFunc("GET /api/v1/metadata-profiles", handler.metadataProfiles)
+	mux.HandleFunc("POST /api/v1/metadata-profiles", handler.createMetadataProfile)
+	mux.HandleFunc("PUT /api/v1/metadata-profiles/{id}", handler.updateMetadataProfile)
+	mux.HandleFunc("DELETE /api/v1/metadata-profiles/{id}", handler.deleteMetadataProfile)
 	mux.HandleFunc("GET /api/v1/authors", handler.authorSubscriptions)
 	mux.HandleFunc("POST /api/v1/authors", handler.subscribeAuthor)
 	mux.HandleFunc("PATCH /api/v1/authors/{id}", handler.updateAuthorSubscription)
@@ -958,6 +973,10 @@ type libraryConfigSettings struct {
 	NamingBookFolder       string `json:"namingBookFolder"`
 	NamingFileName         string `json:"namingFileName"`
 	NamingSpaceReplacement string `json:"namingSpaceReplacement"`
+	// RenameBooks controls whether imports apply the naming templates
+	// (default true; when false imports keep the source basename inside the
+	// author folder). Omitting the key on PUT leaves the stored value alone.
+	RenameBooks            *bool  `json:"renameBooks,omitempty"`
 	StandardSearchLanguage string `json:"standardSearchLanguage"`
 	// RecycleBin is read-only surface: it is configured through
 	// LIBRARRY_RECYCLE_BIN, not through this endpoint.
@@ -1027,6 +1046,7 @@ func (h *handler) effectiveLibraryConfig(ctx context.Context) (library.Config, e
 	if configurable, ok := h.deps.Library.(configurableLibraryService); ok {
 		return configurable.Config(), nil
 	}
+	renameBooks := h.deps.Config.RenameBooks
 	base := library.Config{
 		EbookRoot:                  h.deps.Config.EbookLibraryRoot,
 		AudiobookRoot:              h.deps.Config.AudiobookLibraryRoot,
@@ -1034,6 +1054,7 @@ func (h *handler) effectiveLibraryConfig(ctx context.Context) (library.Config, e
 		NamingBookFolderTemplate:   h.deps.Config.NamingBookFolder,
 		NamingFileNameTemplate:     h.deps.Config.NamingFileName,
 		NamingSpaceReplacement:     h.deps.Config.NamingSpaceReplacement,
+		RenameBooks:                &renameBooks,
 		StandardSearchLanguage:     h.deps.Config.StandardSearchLanguage,
 	}
 	if h.deps.Compat == nil {
@@ -1068,6 +1089,7 @@ func (h *handler) searchLanguageForRequest(r *http.Request) string {
 
 func libraryConfigSettingsFromConfig(config library.Config) libraryConfigSettings {
 	config = library.NormalizeConfig(config)
+	renameBooks := config.RenameBooksEnabled()
 	return libraryConfigSettings{
 		EbookLibraryRoot:       config.EbookRoot,
 		AudiobookLibraryRoot:   config.AudiobookRoot,
@@ -1075,6 +1097,7 @@ func libraryConfigSettingsFromConfig(config library.Config) libraryConfigSetting
 		NamingBookFolder:       config.NamingBookFolderTemplate,
 		NamingFileName:         config.NamingFileNameTemplate,
 		NamingSpaceReplacement: config.NamingSpaceReplacement,
+		RenameBooks:            &renameBooks,
 		StandardSearchLanguage: config.StandardSearchLanguage,
 		RecycleBin:             config.RecycleBin,
 	}
@@ -1108,6 +1131,10 @@ func applyLibraryConfigSettings(current library.Config, settings libraryConfigSe
 	next.NamingBookFolderTemplate = bookFolder
 	next.NamingFileNameTemplate = fileName
 	next.NamingSpaceReplacement = strings.TrimSpace(settings.NamingSpaceReplacement)
+	if settings.RenameBooks != nil {
+		renameBooks := *settings.RenameBooks
+		next.RenameBooks = &renameBooks
+	}
 	next.StandardSearchLanguage = normalizeStandardSearchLanguage(settings.StandardSearchLanguage)
 	return next, nil
 }
@@ -1189,7 +1216,7 @@ func (h *handler) libraryNamingPayload(config library.Config) map[string]any {
 	config = library.NormalizeConfig(config)
 	return map[string]any{
 		"id":                             1,
-		"renameBooks":                    true,
+		"renameBooks":                    config.RenameBooksEnabled(),
 		"replaceIllegalCharacters":       true,
 		"colonReplacementFormat":         "delete",
 		"standardBookFormat":             config.NamingFileNameTemplate,
@@ -1762,6 +1789,136 @@ func (h *handler) saveQualityProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, saved)
 }
 
+func (h *handler) releaseProfiles(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	profiles, err := h.deps.Wanted.ListReleaseProfiles(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if profiles == nil {
+		profiles = []wanted.ReleaseProfile{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"profiles": profiles})
+}
+
+func (h *handler) createReleaseProfile(w http.ResponseWriter, r *http.Request) {
+	h.saveReleaseProfile(w, r, "")
+}
+
+func (h *handler) updateReleaseProfile(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "release profile id is required"})
+		return
+	}
+	h.saveReleaseProfile(w, r, id)
+}
+
+func (h *handler) saveReleaseProfile(w http.ResponseWriter, r *http.Request, id string) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	profile := wanted.ReleaseProfile{Enabled: true}
+	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid release profile payload"})
+		return
+	}
+	if id != "" {
+		profile.ID = id
+	}
+	saved, err := h.deps.Wanted.SaveReleaseProfile(r.Context(), profile)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"profile": saved})
+}
+
+func (h *handler) deleteReleaseProfile(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "release profile id is required"})
+		return
+	}
+	if err := h.deps.Wanted.DeleteReleaseProfile(r.Context(), id); err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (h *handler) qualityDefinitions(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	definitions, err := h.deps.Wanted.ListQualityDefinitions(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if definitions == nil {
+		definitions = []wanted.QualityDefinition{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"definitions": definitions})
+}
+
+func (h *handler) updateQualityDefinitions(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid quality definitions payload"})
+		return
+	}
+	// Accept both a bare array and a {"definitions": [...]} envelope.
+	var definitions []wanted.QualityDefinition
+	if err := json.Unmarshal(body, &definitions); err != nil {
+		var envelope struct {
+			Definitions []wanted.QualityDefinition `json:"definitions"`
+		}
+		if err := json.Unmarshal(body, &envelope); err != nil || envelope.Definitions == nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid quality definitions payload"})
+			return
+		}
+		definitions = envelope.Definitions
+	}
+	saved, err := h.deps.Wanted.UpdateQualityDefinitions(r.Context(), definitions)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "unknown quality") {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if saved == nil {
+		saved = []wanted.QualityDefinition{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"definitions": saved})
+}
+
 func (h *handler) authorSubscriptions(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
@@ -1788,7 +1945,11 @@ func (h *handler) subscribeAuthor(w http.ResponseWriter, r *http.Request) {
 	}
 	subscription, err := h.deps.Wanted.SubscribeAuthor(r.Context(), request)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		status := http.StatusBadGateway
+		if strings.Contains(err.Error(), "metadata profile") {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, subscription)
@@ -1844,6 +2005,9 @@ func (h *handler) updateAuthorSubscription(w http.ResponseWriter, r *http.Reques
 		status := http.StatusBadGateway
 		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
+		}
+		if strings.Contains(err.Error(), "metadata profile") {
+			status = http.StatusBadRequest
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
@@ -2000,7 +2164,13 @@ func (h *handler) createWanted(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := h.deps.Wanted.Create(r.Context(), request)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		// Root-folder validation (unknown id, format mismatch) is caller
+		// error, not an upstream failure.
+		status := http.StatusBadGateway
+		if strings.Contains(err.Error(), "root folder") {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
@@ -2549,10 +2719,11 @@ func (h *handler) libraryRootFolders(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	if folders == nil {
-		folders = []library.RootFolder{}
+	redacted := make([]library.RootFolder, 0, len(folders))
+	for _, folder := range folders {
+		redacted = append(redacted, library.RedactRootFolderSecrets(folder))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"rootFolders": folders})
+	writeJSON(w, http.StatusOK, map[string]any{"rootFolders": redacted})
 }
 
 func (h *handler) createLibraryRootFolder(w http.ResponseWriter, r *http.Request) {
@@ -2575,7 +2746,7 @@ func (h *handler) createLibraryRootFolder(w http.ResponseWriter, r *http.Request
 		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"rootFolder": created})
+	writeJSON(w, http.StatusOK, map[string]any{"rootFolder": library.RedactRootFolderSecrets(created)})
 }
 
 func (h *handler) updateLibraryRootFolder(w http.ResponseWriter, r *http.Request) {
@@ -2603,7 +2774,7 @@ func (h *handler) updateLibraryRootFolder(w http.ResponseWriter, r *http.Request
 		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"rootFolder": updated})
+	writeJSON(w, http.StatusOK, map[string]any{"rootFolder": library.RedactRootFolderSecrets(updated)})
 }
 
 func (h *handler) deleteLibraryRootFolder(w http.ResponseWriter, r *http.Request) {

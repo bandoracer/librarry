@@ -64,6 +64,29 @@ export function formatRelativeTime(iso: string | undefined | null): string {
   return "just now";
 }
 
+/** Book quality parsed from a release title, mirroring backend detection. */
+export function releaseQualityLabel(title: string): string | null {
+  const haystack = title.toLowerCase();
+  for (const quality of ["azw3", "epub", "mobi", "pdf", "flac", "m4b", "mp3"]) {
+    if (new RegExp(`(^|[^a-z0-9])${quality}([^a-z0-9]|$)`).test(haystack)) {
+      return quality.toUpperCase();
+    }
+  }
+  return null;
+}
+
+/**
+ * Release scores are ladder composites (quality rank × 1000 + preferred-word
+ * score); legacy sub-1000 scores render as plain numbers.
+ */
+export function formatReleaseScore(score: number): string {
+  if (score >= 1000) {
+    const preferred = Math.round(score % 1000);
+    return preferred > 0 ? `rank ${Math.floor(score / 1000)} +${preferred}` : `rank ${Math.floor(score / 1000)}`;
+  }
+  return score.toFixed(1);
+}
+
 export function truncateMiddle(value: string, max = 60): string {
   if (value.length <= max) return value;
   const half = Math.floor((max - 1) / 2);

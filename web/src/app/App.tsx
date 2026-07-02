@@ -44,16 +44,21 @@ export function App() {
               <Route index element={<Navigate to={defaultPath} replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/library" element={<LibraryPage />} />
+              <Route path="/library/authors" element={<LibraryPage />} />
               <Route path="/library/author/:authorId" element={<AuthorPage />} />
               <Route path="/library/book/:wantedId" element={<BookPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/wanted" element={<WantedPage />} />
+              <Route path="/wanted/cutoff-unmet" element={<WantedPage />} />
+              <Route path="/wanted/review" element={<WantedPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/downloads" element={<ActivityPage />} />
               <Route path="/downloads/history" element={<ActivityPage />} />
               <Route path="/downloads/blocklist" element={<ActivityPage />} />
               <Route path="/imports" element={<ImportsPage />} />
               <Route path="/providers" element={<SystemPage />} />
+              <Route path="/providers/tasks" element={<SystemPage />} />
+              <Route path="/providers/backups" element={<SystemPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to={defaultPath} replace />} />
             </Route>

@@ -83,6 +83,8 @@ export type LibrarySettings = {
   namingFileName: string;
   namingSpaceReplacement: string;
   standardSearchLanguage: string;
+  /** Rename imported files against the naming templates; default true. */
+  renameBooks?: boolean;
   /** Read-only recycle-bin path (env-configured); absent on older backends. */
   recycleBin?: string;
 };
@@ -551,22 +553,51 @@ export type WantedUpdateRequest = {
   tags?: string[];
 };
 
+export type QualityProfileQuality = {
+  /** Known quality id, e.g. "epub" or "m4b". */
+  id: string;
+  allowed: boolean;
+};
+
 export type QualityProfile = {
   id?: string;
   name: string;
   mediaFormat: "any" | "ebook" | "audiobook";
-  minScore: number;
-  cutoffScore: number;
-  minSeeders: number;
-  maxSizeBytes: number;
-  preferredTerms?: string[];
-  requiredTerms?: string[];
-  rejectedTerms?: string[];
-  preferredScore: number;
+  /** Ordered most-preferred first. */
+  qualities: QualityProfileQuality[];
+  /** Quality id upgrades stop at — one of the allowed qualities. */
+  cutoff: string;
   upgradeAllowed: boolean;
+  minSeeders: number;
   createdAt?: string;
   updatedAt?: string;
 };
+
+/** Known quality ids per media format, ordered most-preferred first. */
+export const ebookQualityIds = ["azw3", "epub", "mobi", "pdf", "unknownText"];
+export const audiobookQualityIds = ["flac", "m4b", "mp3", "unknownAudio"];
+
+const qualityTitlesById: Record<string, string> = {
+  azw3: "AZW3",
+  epub: "EPUB",
+  mobi: "MOBI",
+  pdf: "PDF",
+  unknownText: "Unknown Text",
+  flac: "FLAC",
+  m4b: "M4B",
+  mp3: "MP3",
+  unknownAudio: "Unknown Audio"
+};
+
+export function qualityTitle(id: string): string {
+  return qualityTitlesById[id] ?? id;
+}
+
+export function knownQualityIds(mediaFormat: QualityProfile["mediaFormat"]): string[] {
+  if (mediaFormat === "ebook") return [...ebookQualityIds];
+  if (mediaFormat === "audiobook") return [...audiobookQualityIds];
+  return [...ebookQualityIds, ...audiobookQualityIds];
+}
 
 export type AuthorSubscription = {
   id: string;
@@ -578,6 +609,8 @@ export type AuthorSubscription = {
   status: string;
   monitorNewItems: boolean;
   missingBookPolicy: AuthorMissingBookPolicy;
+  /** Metadata profile applied before per-author filter overrides (wave B). */
+  metadataProfileId?: string;
   tags?: string[];
   lastSyncAt?: string;
   createdAt: string;
@@ -592,6 +625,7 @@ export type AuthorUpdateRequest = {
   status?: string;
   monitorNewItems?: boolean;
   missingBookPolicy?: AuthorMissingBookPolicy;
+  metadataProfileId?: string;
   tags?: string[];
 };
 
@@ -929,6 +963,10 @@ export type ReviewBulkDecisionOutcome = {
 export type BlocklistItem = {
   id: string;
   wantedItemId?: string;
+  /** Originating wanted book, when the blocked release was tied to one (wave B). */
+  wantedId?: string;
+  wantedTitle?: string;
+  wantedAuthor?: string;
   title: string;
   indexer: string;
   protocol: string;
@@ -1538,7 +1576,13 @@ export async function fetchAuthorSubscriptions(status = "monitored"): Promise<Au
   return arrayPayload(payload.authors);
 }
 
-export async function subscribeAuthor(result: SearchResult, format: string, qualityProfile = "standard", missingBookPolicy: AuthorMissingBookPolicy = "all"): Promise<AuthorSubscription> {
+export async function subscribeAuthor(
+  result: SearchResult,
+  format: string,
+  qualityProfile = "standard",
+  missingBookPolicy: AuthorMissingBookPolicy = "all",
+  metadataProfileId?: string
+): Promise<AuthorSubscription> {
   const response = await fetch(`${apiBase}/api/v1/authors`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1547,7 +1591,8 @@ export async function subscribeAuthor(result: SearchResult, format: string, qual
       format: format === "audiobook" ? "audiobook" : "ebook",
       qualityProfile,
       monitorNewItems: missingBookPolicy !== "none",
-      missingBookPolicy
+      missingBookPolicy,
+      ...(metadataProfileId ? { metadataProfileId } : {})
     })
   });
   if (!response.ok) {
@@ -1624,7 +1669,13 @@ export async function runAuthorMonitor(options: {
   return (await response.json()) as AuthorMonitorRun;
 }
 
-export async function createWanted(result: SearchResult, format: string, qualityProfile = "standard", tags: string[] = []): Promise<WantedItem> {
+export async function createWanted(
+  result: SearchResult,
+  format: string,
+  qualityProfile = "standard",
+  tags: string[] = [],
+  rootFolderId?: string
+): Promise<WantedItem> {
   const wantedFormat = format === "audiobook" ? "audiobook" : "ebook";
   const response = await fetch(`${apiBase}/api/v1/wanted`, {
     method: "POST",
@@ -1633,7 +1684,8 @@ export async function createWanted(result: SearchResult, format: string, quality
       result,
       format: wantedFormat,
       qualityProfile,
-      tags
+      tags,
+      ...(rootFolderId ? { rootFolderId } : {})
     })
   });
   if (!response.ok) {
@@ -2053,6 +2105,23 @@ export async function bulkUpdateWanted(request: WantedBulkUpdateRequest): Promis
 
 /* ------------------------------ Root folders ------------------------------- */
 
+/**
+ * Per-root Calibre content-server integration (wave B). On update, a blank
+ * password means "keep the stored value" (backend contract).
+ */
+export type RootFolderCalibreSettings = {
+  enabled: boolean;
+  host: string;
+  port: number;
+  urlBase?: string;
+  username?: string;
+  password?: string;
+  library?: string;
+  convertFormats?: string;
+  outputProfile?: string;
+  useSsl?: boolean;
+};
+
 export type RootFolder = {
   id: string;
   name: string;
@@ -2063,6 +2132,7 @@ export type RootFolder = {
   /** Serialized tag list — the backend stores and echoes a plain string. */
   defaultTags?: string;
   isDefault: boolean;
+  calibre?: RootFolderCalibreSettings;
   accessible: boolean;
   freeSpaceBytes?: number;
   createdAt: string;
@@ -2771,5 +2841,167 @@ export async function deleteBackup(name: string): Promise<void> {
   });
   if (!response.ok) {
     throw new Error(await apiError(response, "Backup delete failed"));
+  }
+}
+
+/* ------------------- Release profiles / quality definitions ---------------- */
+
+export type ReleaseProfilePreferred = {
+  term: string;
+  score: number;
+};
+
+export type ReleaseProfile = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** Every term must match or the release is rejected. */
+  required: string[];
+  /** Any match rejects the release. */
+  ignored: string[];
+  /** Per-term score adjustments applied to matching releases. */
+  preferred: ReleaseProfilePreferred[];
+  createdAt?: string;
+};
+
+/** Create/update payload: server owns id and createdAt. */
+export type ReleaseProfileRequest = Omit<ReleaseProfile, "id" | "createdAt">;
+
+export async function fetchReleaseProfiles(): Promise<ReleaseProfile[]> {
+  const response = await fetch(`${apiBase}/api/v1/release-profiles`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Release profiles refresh failed"));
+  }
+  const payload = (await response.json()) as { profiles?: ReleaseProfile[] | null };
+  return arrayPayload(payload.profiles);
+}
+
+export async function createReleaseProfile(request: ReleaseProfileRequest): Promise<ReleaseProfile> {
+  const response = await fetch(`${apiBase}/api/v1/release-profiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Release profile create failed"));
+  }
+  const payload = (await response.json()) as { profile: ReleaseProfile };
+  return payload.profile;
+}
+
+export async function updateReleaseProfile(id: string, request: ReleaseProfileRequest): Promise<ReleaseProfile> {
+  const response = await fetch(`${apiBase}/api/v1/release-profiles/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Release profile update failed"));
+  }
+  const payload = (await response.json()) as { profile: ReleaseProfile };
+  return payload.profile;
+}
+
+export async function deleteReleaseProfile(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/release-profiles/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Release profile delete failed"));
+  }
+}
+
+export type QualityDefinition = {
+  quality: string;
+  title: string;
+  minSizeMB: number;
+  maxSizeMB: number;
+};
+
+export async function fetchQualityDefinitions(): Promise<QualityDefinition[]> {
+  const response = await fetch(`${apiBase}/api/v1/quality-definitions`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Quality definitions refresh failed"));
+  }
+  const payload = (await response.json()) as { definitions?: QualityDefinition[] | null };
+  return arrayPayload(payload.definitions);
+}
+
+/** Bulk save: the request body is the full definitions array. */
+export async function saveQualityDefinitions(definitions: QualityDefinition[]): Promise<QualityDefinition[]> {
+  const response = await fetch(`${apiBase}/api/v1/quality-definitions`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(definitions)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Quality definitions save failed"));
+  }
+  const payload = (await response.json()) as { definitions?: QualityDefinition[] | null };
+  return arrayPayload(payload.definitions);
+}
+
+/* --------------------------- Metadata profiles (wave B) --------------------- */
+
+/**
+ * Reusable metadata filter set applied when author monitoring evaluates
+ * candidate books. Per-author filter fields remain as overrides; the profile
+ * is the primary control.
+ */
+export type MetadataProfile = {
+  id: string;
+  name: string;
+  allowedLanguages: string[];
+  mustNotContain: string[];
+  skipMissingIsbn: boolean;
+  minPages: number;
+  createdAt?: string;
+};
+
+/** Create/update payload: server owns id and createdAt. */
+export type MetadataProfileRequest = Omit<MetadataProfile, "id" | "createdAt">;
+
+export async function fetchMetadataProfiles(): Promise<MetadataProfile[]> {
+  const response = await fetch(`${apiBase}/api/v1/metadata-profiles`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Metadata profiles refresh failed"));
+  }
+  const payload = (await response.json()) as { profiles?: MetadataProfile[] | null };
+  return arrayPayload(payload.profiles);
+}
+
+export async function createMetadataProfile(request: MetadataProfileRequest): Promise<MetadataProfile> {
+  const response = await fetch(`${apiBase}/api/v1/metadata-profiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Metadata profile create failed"));
+  }
+  const payload = (await response.json()) as { profile: MetadataProfile };
+  return payload.profile;
+}
+
+export async function updateMetadataProfile(id: string, request: MetadataProfileRequest): Promise<MetadataProfile> {
+  const response = await fetch(`${apiBase}/api/v1/metadata-profiles/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Metadata profile update failed"));
+  }
+  const payload = (await response.json()) as { profile: MetadataProfile };
+  return payload.profile;
+}
+
+/** Delete a metadata profile; a 409 refusal (profile in use) surfaces its {"error"} reason. */
+export async function deleteMetadataProfile(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/metadata-profiles/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Metadata profile delete failed"));
   }
 }

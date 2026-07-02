@@ -1,6 +1,7 @@
 package wanted
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -159,5 +160,39 @@ func TestNormalizeBlocklistEntryDefaultsSource(t *testing.T) {
 	}
 	if entry.Title != "Some Release" || entry.InfoHash != "abcdef" {
 		t.Fatalf("expected trimmed/lowered fields, got %+v", entry)
+	}
+}
+
+func TestBlocklistEntryJSONExposesWantedJoinFields(t *testing.T) {
+	linked, err := json.Marshal(BlocklistEntry{
+		ID:           "blocklist-1",
+		WantedItemID: "wanted-1",
+		WantedID:     "wanted-1",
+		WantedTitle:  "Project Hail Mary",
+		WantedAuthor: "Andy Weir",
+		Title:        "Project.Hail.Mary.epub",
+		Source:       BlocklistSourceAutoFailed,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{
+		`"wantedId":"wanted-1"`, `"wantedTitle":"Project Hail Mary"`, `"wantedAuthor":"Andy Weir"`,
+	} {
+		if !strings.Contains(string(linked), fragment) {
+			t.Fatalf("expected %s in blocklist entry JSON, got %s", fragment, linked)
+		}
+	}
+
+	// Entries without a linked wanted item still emit the join fields (empty),
+	// so list consumers get a stable shape.
+	unlinked, err := json.Marshal(BlocklistEntry{ID: "blocklist-2", Title: "Orphan.epub", Source: BlocklistSourceQueueRemove})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{`"wantedId":""`, `"wantedTitle":""`, `"wantedAuthor":""`} {
+		if !strings.Contains(string(unlinked), fragment) {
+			t.Fatalf("expected %s in unlinked blocklist entry JSON, got %s", fragment, unlinked)
+		}
 	}
 }

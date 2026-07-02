@@ -93,6 +93,46 @@
   min-height: 33px;
 }
 
+/* Ordered quality list inside a quality profile (most-preferred on top). */
+.settings-quality-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-quality-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-quality-row .settings-check {
+  min-height: 0;
+}
+
+/* Preferred term rows in the release-profile editor. */
+.settings-term-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settings-term-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-term-row input:first-child {
+  flex: 1;
+}
+
+/* Compact numeric inputs (MB sizes, term scores). */
+.settings-size-input {
+  width: 90px;
+}
+
 /* Quality profile rows. */
 .settings-profile-list {
   display: flex;

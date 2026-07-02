@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowUpRight,
   BookOpen,
   CheckSquare,
   Eye,
@@ -11,9 +10,9 @@ import {
   Pencil,
   RadioTower,
   RefreshCw,
+  Rss,
   Square,
-  Trash2,
-  Users
+  Trash2
 } from "lucide-react";
 import {
   Badge,
@@ -21,13 +20,13 @@ import {
   Card,
   DataTable,
   EmptyState,
-  IconButton,
   InlineNotice,
   LoadingRow,
   Modal,
   PageHeader,
   Segmented,
   StatBar,
+  TabNav,
   ToolbarButton
 } from "../../components/ui";
 import { useToast } from "../../components/toast";
@@ -43,6 +42,7 @@ import {
 import {
   bulkUpdateWanted,
   runAuthorMonitor,
+  runWantedFeedSync,
   searchWantedReleases,
   type WantedBulkItemResult,
   type WantedBulkUpdateRequest,
@@ -53,14 +53,12 @@ import { navItems } from "../../app/nav";
 // Shared with Settings → Media Management; the rename tooling lives in the
 // settings feature and this cross-feature import is intentional.
 import { RenameFilesModal } from "../settings/RenameFilesModal";
+import { AuthorsTab } from "./AuthorsTab";
 import {
-  authorMonitorBadge,
   buildLibraryAuthorRows,
   compareLibraryBooks,
   isPersistenceRequiredError,
-  libraryAuthorKey,
   libraryAuthorPath,
-  libraryAuthorVisibleForFilter,
   libraryBookMatchesMonitorFilter,
   libraryBookOverviewLine,
   libraryBookPath,
@@ -108,7 +106,10 @@ type BulkAction = "monitor" | "unmonitor" | "profile" | "format" | "delete";
 
 export default function LibraryPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
+
+  const tab: "books" | "authors" = location.pathname.endsWith("/authors") ? "authors" : "books";
 
   const wanted = useWanted();
   const files = useLibraryFiles("any");
@@ -121,7 +122,6 @@ export default function LibraryPage() {
   const [monitorFilter, setMonitorFilter] = useState<LibraryMonitorFilter>("all");
   const [sortMode, setSortMode] = useState<LibrarySortMode>("status");
   const [viewMode, setViewMode] = useState<LibraryViewMode>(() => loadLibraryViewMode());
-  const [selectedAuthorKey, setSelectedAuthorKey] = useState("");
   const [showAllBooks, setShowAllBooks] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
@@ -157,10 +157,6 @@ export default function LibraryPage() {
     [authorRows.length, authorSubscriptions.length, libraryFiles.length, wantedItems, wantedSummary]
   );
 
-  const visibleAuthorRows = useMemo(
-    () => authorRows.filter((row) => libraryAuthorVisibleForFilter(row, textFilter, formatFilter)),
-    [authorRows, textFilter, formatFilter]
-  );
   const visibleBooks = useMemo(
     () =>
       wantedItems
@@ -172,15 +168,7 @@ export default function LibraryPage() {
         .sort((a, b) => compareLibraryBooks(a, b, presence, sortMode)),
     [wantedItems, presence, textFilter, formatFilter, monitorFilter, sortMode]
   );
-  const authorScopedBooks = useMemo(
-    () =>
-      selectedAuthorKey
-        ? visibleBooks.filter((item) => libraryAuthorKey(item.authorName) === selectedAuthorKey)
-        : visibleBooks,
-    [visibleBooks, selectedAuthorKey]
-  );
-  const shownBooks = showAllBooks ? authorScopedBooks : authorScopedBooks.slice(0, BOOK_ROW_CAP);
-  const selectedAuthorRow = selectedAuthorKey ? authorRows.find((row) => row.key === selectedAuthorKey) : undefined;
+  const shownBooks = showAllBooks ? visibleBooks : visibleBooks.slice(0, BOOK_ROW_CAP);
 
   const filtersActive = Boolean(textFilter.trim()) || formatFilter !== "all" || monitorFilter !== "all";
 
@@ -234,6 +222,10 @@ export default function LibraryPage() {
     (request: WantedBulkUpdateRequest) => bulkUpdateWanted(request),
     [keys.wanted, keys.acquisitionQueue, keys.wantedMetadataReview]
   );
+  const feedSyncMutation = useInvalidatingMutation(
+    () => runWantedFeedSync({ format: "any", autoGrab: false, paused: true }),
+    [keys.wanted, keys.acquisitionQueue, keys.downloads(), keys.history()]
+  );
 
   async function handleMonitor(force: boolean) {
     try {
@@ -242,7 +234,7 @@ export default function LibraryPage() {
         toast.notify(
           force
             ? "No author subscriptions to monitor yet — add authors from Add New."
-            : "No authors due for a refresh — use Force All to re-check every subscription.",
+            : "No authors due for a refresh — use Update All to re-check every subscription.",
           "info"
         );
         return;
@@ -258,6 +250,20 @@ export default function LibraryPage() {
     }
   }
 
+  async function handleFeedSync() {
+    try {
+      const run = await feedSyncMutation.mutateAsync(undefined);
+      const message = `RSS sync ${run.status}: ${run.releasesSeen} release${run.releasesSeen === 1 ? "" : "s"} seen, ${run.matchedCount} matched, ${run.grabbedCount} grabbed`;
+      if (run.errorCount > 0) {
+        toast.notify(`${message} · ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}`, "warn");
+      } else {
+        toast.success(message);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "RSS sync failed");
+    }
+  }
+
   async function handleSearch(item: WantedItem) {
     try {
       const outcome = await searchMutation.mutateAsync(item);
@@ -268,7 +274,7 @@ export default function LibraryPage() {
       } else {
         toast.notify(`No releases found for “${item.title}”`, "info");
       }
-      navigate(`/wanted?item=${encodeURIComponent(item.id)}`);
+      navigate(libraryBookPath(item.id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Wanted release search failed");
     }
@@ -328,14 +334,13 @@ export default function LibraryPage() {
   }
 
   function openWantedItem(item: WantedItem) {
-    navigate(`/wanted?item=${encodeURIComponent(item.id)}`);
+    navigate(libraryBookPath(item.id));
   }
 
   function clearFilters() {
     setTextFilter("");
     setFormatFilter("all");
     setMonitorFilter("all");
-    setSelectedAuthorKey("");
   }
 
   const noticeMessages = useMemo(() => {
@@ -352,16 +357,11 @@ export default function LibraryPage() {
 
   const dueBusy = monitorMutation.isPending && monitorMutation.variables === false;
   const forceBusy = monitorMutation.isPending && monitorMutation.variables === true;
-  const authorsLoading = subscriptions.isLoading || wanted.isLoading;
 
-  const booksSubtitle = [
-    shownBooks.length < authorScopedBooks.length
-      ? `Showing ${shownBooks.length} of ${authorScopedBooks.length}`
-      : `${authorScopedBooks.length} shown`,
-    selectedAuthorRow ? `by ${selectedAuthorRow.authorName}` : null
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const booksSubtitle =
+    shownBooks.length < visibleBooks.length
+      ? `Showing ${shownBooks.length} of ${visibleBooks.length}`
+      : `${visibleBooks.length} shown`;
 
   /* ------------------------------ Books views ------------------------------ */
 
@@ -382,7 +382,7 @@ export default function LibraryPage() {
     const searchingThis = searchMutation.isPending && searchMutation.variables?.id === item.id;
     return (
       <div className="cell-actions">
-        <Button size="sm" icon={Pencil} onClick={() => openWantedItem(item)} title="Review this book on the Wanted page">
+        <Button size="sm" icon={Pencil} onClick={() => openWantedItem(item)} title="Open this book's detail page">
           Review
         </Button>
         <Button
@@ -556,50 +556,83 @@ export default function LibraryPage() {
     );
   }
 
+  const tabs = [
+    { label: "Books", to: "/library", active: tab === "books" },
+    { label: "Authors", to: "/library/authors", active: tab === "authors" }
+  ];
+
   return (
     <>
       <PageHeader
         title="Library"
         subtitle={subtitle}
         actions={
-          <>
-            <ToolbarButton
-              icon={RadioTower}
-              label="Due Authors"
-              title="Monitor author subscriptions that are due a refresh"
-              busy={dueBusy}
-              disabled={monitorMutation.isPending}
-              onClick={() => void handleMonitor(false)}
-            />
-            <ToolbarButton
-              icon={RefreshCw}
-              label="Force All"
-              title="Force-monitor every author subscription"
-              busy={forceBusy}
-              disabled={monitorMutation.isPending}
-              onClick={() => void handleMonitor(true)}
-            />
-            <ToolbarButton
-              icon={FolderPen}
-              label="Rename Files"
-              title="Preview and apply file renames against the naming templates"
-              onClick={() => setRenameOpen(true)}
-            />
-            <ToolbarButton
-              icon={Pencil}
-              label={editMode ? "Done" : "Edit Mode"}
-              tone={editMode ? "accent" : undefined}
-              title={editMode ? "Leave the mass editor" : "Select books for bulk monitor/profile/format/delete edits"}
-              onClick={() => {
-                setEditMode((current) => {
-                  if (current) setSelectedBookIDs([]);
-                  return !current;
-                });
-              }}
-            />
-          </>
+          tab === "books" ? (
+            <>
+              <ToolbarButton
+                icon={RadioTower}
+                label="Refresh Monitored"
+                title="Monitor author subscriptions that are due a refresh"
+                busy={dueBusy}
+                disabled={monitorMutation.isPending}
+                onClick={() => void handleMonitor(false)}
+              />
+              <ToolbarButton
+                icon={RefreshCw}
+                label="Update All"
+                title="Force-monitor every author subscription"
+                busy={forceBusy}
+                disabled={monitorMutation.isPending}
+                onClick={() => void handleMonitor(true)}
+              />
+              <ToolbarButton
+                icon={Rss}
+                label="RSS Sync"
+                title="Match indexer feed releases against the wanted queue"
+                busy={feedSyncMutation.isPending}
+                onClick={() => void handleFeedSync()}
+              />
+              <ToolbarButton
+                icon={FolderPen}
+                label="Rename Files"
+                title="Preview and apply file renames against the naming templates"
+                onClick={() => setRenameOpen(true)}
+              />
+              <ToolbarButton
+                icon={Pencil}
+                label={editMode ? "Done" : "Edit Mode"}
+                tone={editMode ? "accent" : undefined}
+                title={editMode ? "Leave the mass editor" : "Select books for bulk monitor/profile/format/delete edits"}
+                onClick={() => {
+                  setEditMode((current) => {
+                    if (current) setSelectedBookIDs([]);
+                    return !current;
+                  });
+                }}
+              />
+            </>
+          ) : undefined
         }
-      />
+      >
+        <div className="library-tab-row">
+          <TabNav
+            tabs={tabs.map(({ label, to }) => ({ label, to }))}
+            render={(navTab) => {
+              const active = tabs.find((entry) => entry.label === navTab.label)?.active;
+              return (
+                <Link key={navTab.label} to={navTab.to} className={active ? "active" : undefined}>
+                  {navTab.label}
+                </Link>
+              );
+            }}
+          />
+        </div>
+      </PageHeader>
+      {tab === "authors" ? (
+        <div className="library-page">
+          <AuthorsTab />
+        </div>
+      ) : (
       <div className="library-page">
         {noticeMessages.map((message) => (
           <InlineNotice key={message} tone={isPersistenceRequiredError(message) ? "warn" : "danger"}>
@@ -735,147 +768,54 @@ export default function LibraryPage() {
           </InlineNotice>
         ) : null}
 
-        <div className="library-layout">
-          <Card
-            title="Authors"
-            subtitle={`${visibleAuthorRows.length} shown`}
-            padded={false}
-            actions={
-              selectedAuthorKey ? (
-                <Button size="sm" variant="ghost" onClick={() => setSelectedAuthorKey("")}>
-                  Show all
-                </Button>
-              ) : undefined
-            }
-          >
-            {authorsLoading ? (
-              <LoadingRow label="Loading authors…" />
-            ) : visibleAuthorRows.length ? (
-              <DataTable className="library-author-table">
-                <tbody>
-                  {visibleAuthorRows.map((row) => {
-                    const badge = authorMonitorBadge(row);
-                    const active = row.key === selectedAuthorKey;
-                    return (
-                      <tr key={row.key} className={active ? "selected" : undefined}>
-                        <td>
-                          <div className="library-author-shell">
-                            <button
-                              type="button"
-                              className="library-author-button"
-                              aria-pressed={active}
-                              title={active ? "Show books by all authors" : `Show books by ${row.authorName}`}
-                              onClick={() => setSelectedAuthorKey(active ? "" : row.key)}
-                            >
-                              <span className="library-author-top">
-                                <span className="cell-primary">{row.authorName}</span>
-                                <Badge tone={badge.tone}>{badge.label}</Badge>
-                              </span>
-                              <span className="cell-muted">
-                                {(row.formats.join(", ") || "any")} · {row.qualityProfiles.join(", ") || "standard"}
-                              </span>
-                              <span className="cell-muted">
-                                {row.missing} missing · {row.downloaded} downloaded · {row.downloading} downloading
-                                {row.cutoffUnmet > 0 ? ` · ${row.cutoffUnmet} cutoff unmet` : ""}
-                              </span>
-                              {row.subscriptionCount > 0 ? (
-                                <span className="cell-muted">
-                                  {row.lastSyncAt ? `Synced ${formatDateTime(row.lastSyncAt)}` : "Never synced"}
-                                </span>
-                              ) : null}
-                            </button>
-                            <IconButton
-                              icon={ArrowUpRight}
-                              size="sm"
-                              label={`Open ${row.authorName} author page`}
-                              onClick={() => navigate(`/library/author/${encodeURIComponent(row.key)}`)}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </DataTable>
+        <Card
+          title="Monitored books"
+          subtitle={booksSubtitle}
+          padded={false}
+          actions={
+            visibleBooks.length > BOOK_ROW_CAP ? (
+              <Button size="sm" variant="ghost" onClick={() => setShowAllBooks((current) => !current)}>
+                {showAllBooks ? `Show first ${BOOK_ROW_CAP}` : `Show all ${visibleBooks.length}`}
+              </Button>
+            ) : undefined
+          }
+        >
+          {wanted.isLoading ? (
+            <LoadingRow label="Loading monitored books…" />
+          ) : shownBooks.length ? (
+            viewMode === "posters" ? (
+              renderPostersView()
+            ) : viewMode === "overview" ? (
+              renderOverviewView()
             ) : (
-              <EmptyState
-                icon={Users}
-                title={filtersActive ? "No authors match this filter" : "No authors yet"}
-                actions={
-                  filtersActive ? (
-                    <Button size="sm" onClick={clearFilters}>
-                      Clear filters
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="primary" onClick={() => navigate("/search")}>
-                      Add an author
-                    </Button>
-                  )
-                }
-              >
-                {filtersActive
-                  ? "Adjust the text or format filter to see monitored authors."
-                  : wanted.isError || subscriptions.isError
-                    ? "Authors are unavailable until the error above is resolved."
-                    : "Search metadata providers and subscribe to authors to start monitoring their books."}
-              </EmptyState>
-            )}
-          </Card>
-
-          <Card
-            title="Monitored books"
-            subtitle={booksSubtitle}
-            padded={false}
-            actions={
-              authorScopedBooks.length > BOOK_ROW_CAP ? (
-                <Button size="sm" variant="ghost" onClick={() => setShowAllBooks((current) => !current)}>
-                  {showAllBooks ? `Show first ${BOOK_ROW_CAP}` : `Show all ${authorScopedBooks.length}`}
-                </Button>
-              ) : undefined
-            }
-          >
-            {wanted.isLoading ? (
-              <LoadingRow label="Loading monitored books…" />
-            ) : shownBooks.length ? (
-              viewMode === "posters" ? (
-                renderPostersView()
-              ) : viewMode === "overview" ? (
-                renderOverviewView()
-              ) : (
-                renderTableView()
-              )
-            ) : (
-              <EmptyState
-                icon={BookOpen}
-                title={
-                  selectedAuthorRow
-                    ? `No books for ${selectedAuthorRow.authorName}`
-                    : filtersActive
-                      ? "No monitored books match this filter"
-                      : "No monitored books yet"
-                }
-                actions={
-                  selectedAuthorKey || filtersActive ? (
-                    <Button size="sm" onClick={clearFilters}>
-                      Clear filters
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="primary" onClick={() => navigate("/search")}>
-                      Add new books
-                    </Button>
-                  )
-                }
-              >
-                {selectedAuthorKey || filtersActive
-                  ? "Adjust the filters or show all authors to see the rest of the library plan."
-                  : wanted.isError
-                    ? "Books are unavailable until the error above is resolved."
-                    : "Search metadata, monitor authors, and mark books wanted to build the library plan."}
-              </EmptyState>
-            )}
-          </Card>
-        </div>
+              renderTableView()
+            )
+          ) : (
+            <EmptyState
+              icon={BookOpen}
+              title={filtersActive ? "No monitored books match this filter" : "No monitored books yet"}
+              actions={
+                filtersActive ? (
+                  <Button size="sm" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="primary" onClick={() => navigate("/search")}>
+                    Add new books
+                  </Button>
+                )
+              }
+            >
+              {filtersActive
+                ? "Adjust the filters to see the rest of the library plan."
+                : wanted.isError
+                  ? "Books are unavailable until the error above is resolved."
+                  : "Search metadata, monitor authors, and mark books wanted to build the library plan."}
+            </EmptyState>
+          )}
+        </Card>
       </div>
+      )}
 
       <Modal
         title="Delete wanted books"

@@ -55,6 +55,23 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 	}
 	defer tx.Rollback()
 
+	rootFolderID := strings.TrimSpace(request.RootFolderID)
+	if rootFolderID != "" {
+		var rootFolderFormat string
+		err := tx.QueryRowContext(ctx, `
+			select media_format from root_folders where id::text = $1
+		`, rootFolderID).Scan(&rootFolderFormat)
+		if errors.Is(err, sql.ErrNoRows) {
+			return WantedItem{}, errors.New("root folder not found")
+		}
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if reason := rootFolderFormatMismatchReason(rootFolderFormat, format); reason != "" {
+			return WantedItem{}, errors.New(reason)
+		}
+	}
+
 	raw, _ := json.Marshal(result)
 	workID, err := s.upsertWork(ctx, tx, result, raw)
 	if err != nil {
@@ -81,8 +98,8 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		insert into wanted_items (
 			work_id, edition_id, wanted_format, quality_profile, status,
 			title, author_name, cover_url, metadata_provider, source_key, tags,
-			series, series_position, first_publish_year, release_date
-		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			series, series_position, first_publish_year, release_date, root_folder_id
+		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, nullif($15, '')::uuid)
 		on conflict (metadata_provider, source_key, wanted_format)
 			where metadata_provider <> '' and source_key <> ''
 		do update set
@@ -128,10 +145,11 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 			series_position = case when excluded.series_position <> '' then excluded.series_position else wanted_items.series_position end,
 			first_publish_year = case when excluded.first_publish_year <> 0 then excluded.first_publish_year else wanted_items.first_publish_year end,
 			release_date = coalesce(excluded.release_date, wanted_items.release_date),
+			root_folder_id = coalesce(excluded.root_folder_id, wanted_items.root_folder_id),
 			updated_at = now()
 		returning id
 	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, tagLabelsString(request.Tags),
-		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result)).Scan(&wantedID)
+		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result), rootFolderID).Scan(&wantedID)
 	if err != nil {
 		return WantedItem{}, err
 	}
@@ -142,6 +160,16 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		return WantedItem{}, err
 	}
 	return s.GetWanted(ctx, wantedID)
+}
+
+// rootFolderFormatMismatchReason explains why a root folder cannot host a
+// wanted item (empty means compatible): the root's media format must match the
+// wanted format.
+func rootFolderFormatMismatchReason(rootFolderFormat string, wantedFormat string) string {
+	if normalizeFormat(rootFolderFormat) == normalizeFormat(wantedFormat) {
+		return ""
+	}
+	return fmt.Sprintf("root folder media format %q is not compatible with wanted format %q", rootFolderFormat, wantedFormat)
 }
 
 // wantedReleaseDate extracts a confident full-precision publication date from
@@ -394,7 +422,8 @@ func (s *Store) ListQualityProfiles(ctx context.Context) ([]QualityProfile, erro
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		select
-			id, name, media_format, min_score, cutoff_score, min_seeders,
+			id, name, media_format, qualities, cutoff_quality,
+			min_score, cutoff_score, min_seeders,
 			max_size_bytes, preferred_terms, required_terms, rejected_terms,
 			preferred_score, upgrade_allowed, created_at, updated_at
 		from quality_profiles
@@ -424,7 +453,8 @@ func (s *Store) GetQualityProfile(ctx context.Context, name string, format strin
 	format = normalizeProfileFormat(format)
 	row := s.db.QueryRowContext(ctx, `
 		select
-			id, name, media_format, min_score, cutoff_score, min_seeders,
+			id, name, media_format, qualities, cutoff_quality,
+			min_score, cutoff_score, min_seeders,
 			max_size_bytes, preferred_terms, required_terms, rejected_terms,
 			preferred_score, upgrade_allowed, created_at, updated_at
 		from quality_profiles
@@ -443,27 +473,35 @@ func (s *Store) UpsertQualityProfile(ctx context.Context, profile QualityProfile
 	if strings.TrimSpace(profile.Name) == "" {
 		return QualityProfile{}, errors.New("quality profile name is required")
 	}
+	qualities, err := json.Marshal(profile.Qualities)
+	if err != nil {
+		return QualityProfile{}, err
+	}
 	if strings.TrimSpace(profile.ID) != "" {
 		row := s.db.QueryRowContext(ctx, `
 			update quality_profiles set
 				name = $2,
 				media_format = $3,
-				min_score = $4,
-				cutoff_score = $5,
-				min_seeders = $6,
-				max_size_bytes = $7,
-				preferred_terms = $8,
-				required_terms = $9,
-				rejected_terms = $10,
-				preferred_score = $11,
-				upgrade_allowed = $12,
+				qualities = $4,
+				cutoff_quality = $5,
+				min_score = $6,
+				cutoff_score = $7,
+				min_seeders = $8,
+				max_size_bytes = $9,
+				preferred_terms = $10,
+				required_terms = $11,
+				rejected_terms = $12,
+				preferred_score = $13,
+				upgrade_allowed = $14,
 				updated_at = now()
 			where id::text = $1
 			returning
-				id, name, media_format, min_score, cutoff_score, min_seeders,
+				id, name, media_format, qualities, cutoff_quality,
+				min_score, cutoff_score, min_seeders,
 				max_size_bytes, preferred_terms, required_terms, rejected_terms,
 				preferred_score, upgrade_allowed, created_at, updated_at
-		`, profile.ID, profile.Name, profile.MediaFormat, profile.MinScore, profile.CutoffScore, profile.MinSeeders, profile.MaxSizeBytes,
+		`, profile.ID, profile.Name, profile.MediaFormat, qualities, profile.Cutoff,
+			profile.MinScore, profile.CutoffScore, profile.MinSeeders, profile.MaxSizeBytes,
 			strings.Join(cleanTerms(profile.PreferredTerms), ","), strings.Join(cleanTerms(profile.RequiredTerms), ","),
 			strings.Join(cleanTerms(profile.RejectedTerms), ","), profile.PreferredScore, profile.UpgradeAllowed)
 		saved, err := scanQualityProfile(row)
@@ -476,13 +514,17 @@ func (s *Store) UpsertQualityProfile(ctx context.Context, profile QualityProfile
 	}
 	row := s.db.QueryRowContext(ctx, `
 		insert into quality_profiles (
-			name, media_format, min_score, cutoff_score, min_seeders, max_size_bytes,
+			name, media_format, qualities, cutoff_quality,
+			min_score, cutoff_score, min_seeders, max_size_bytes,
 			preferred_terms, required_terms, rejected_terms, preferred_score, upgrade_allowed
 		) values (
-			$1, $2, $3, $4, $5, $6,
-			$7, $8, $9, $10, $11
+			$1, $2, $3, $4,
+			$5, $6, $7, $8,
+			$9, $10, $11, $12, $13
 		)
 		on conflict (name, media_format) do update set
+			qualities = excluded.qualities,
+			cutoff_quality = excluded.cutoff_quality,
 			min_score = excluded.min_score,
 			cutoff_score = excluded.cutoff_score,
 			min_seeders = excluded.min_seeders,
@@ -494,10 +536,12 @@ func (s *Store) UpsertQualityProfile(ctx context.Context, profile QualityProfile
 			upgrade_allowed = excluded.upgrade_allowed,
 			updated_at = now()
 		returning
-			id, name, media_format, min_score, cutoff_score, min_seeders,
+			id, name, media_format, qualities, cutoff_quality,
+			min_score, cutoff_score, min_seeders,
 			max_size_bytes, preferred_terms, required_terms, rejected_terms,
 			preferred_score, upgrade_allowed, created_at, updated_at
-	`, profile.Name, profile.MediaFormat, profile.MinScore, profile.CutoffScore, profile.MinSeeders, profile.MaxSizeBytes,
+	`, profile.Name, profile.MediaFormat, qualities, profile.Cutoff,
+		profile.MinScore, profile.CutoffScore, profile.MinSeeders, profile.MaxSizeBytes,
 		strings.Join(cleanTerms(profile.PreferredTerms), ","), strings.Join(cleanTerms(profile.RequiredTerms), ","),
 		strings.Join(cleanTerms(profile.RejectedTerms), ","), profile.PreferredScore, profile.UpgradeAllowed)
 	return scanQualityProfile(row)
@@ -533,6 +577,9 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 	if strings.TrimSpace(subscription.AuthorName) == "" {
 		return AuthorSubscription{}, errors.New("author name is required")
 	}
+	if err := s.ensureMetadataProfileExists(ctx, subscription.MetadataProfileID); err != nil {
+		return AuthorSubscription{}, err
+	}
 	if err := ensureTagLabels(ctx, s.db, subscription.Tags); err != nil {
 		return AuthorSubscription{}, err
 	}
@@ -540,11 +587,13 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 		insert into author_subscriptions (
 			provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
-			allowed_languages, must_not_contain, skip_missing_isbn, min_pages
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			metadata_profile_id
 		) values (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9,
-			$10, $11, $12, $13
+			$10, $11, $12, $13,
+			nullif($14, '')::uuid
 		)
 		on conflict (provider, provider_key, wanted_format)
 			where provider <> '' and provider_key <> ''
@@ -559,15 +608,18 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 			must_not_contain = case when excluded.must_not_contain <> '' then excluded.must_not_contain else author_subscriptions.must_not_contain end,
 			skip_missing_isbn = excluded.skip_missing_isbn or author_subscriptions.skip_missing_isbn,
 			min_pages = case when excluded.min_pages <> 0 then excluded.min_pages else author_subscriptions.min_pages end,
+			metadata_profile_id = coalesce(excluded.metadata_profile_id, author_subscriptions.metadata_profile_id),
 			updated_at = now()
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			coalesce(metadata_profile_id::text, ''),
 			last_sync_at, created_at, updated_at
 	`, subscription.Provider, subscription.ProviderKey, subscription.AuthorName, subscription.Format,
 		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, subscription.MissingBookPolicy, tagLabelsString(subscription.Tags),
-		joinFilterTerms(subscription.AllowedLanguages), joinFilterTerms(subscription.MustNotContain), subscription.SkipMissingISBN, subscription.MinPages)
+		joinFilterTerms(subscription.AllowedLanguages), joinFilterTerms(subscription.MustNotContain), subscription.SkipMissingISBN, subscription.MinPages,
+		subscription.MetadataProfileID)
 	return scanAuthorSubscription(row)
 }
 
@@ -586,6 +638,7 @@ func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]A
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			coalesce(metadata_profile_id::text, ''),
 			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		`+where+`
@@ -674,6 +727,14 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			minPages.Int64 = 0
 		}
 	}
+	metadataProfileID := sql.NullString{}
+	if request.MetadataProfileID != nil {
+		metadataProfileID.Valid = true
+		metadataProfileID.String = strings.TrimSpace(*request.MetadataProfileID)
+		if err := s.ensureMetadataProfileExists(ctx, metadataProfileID.String); err != nil {
+			return AuthorSubscription{}, err
+		}
+	}
 	row := s.db.QueryRowContext(ctx, `
 		update author_subscriptions set
 			author_name = case when $2 = '' then author_name else $2 end,
@@ -686,15 +747,17 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			must_not_contain = coalesce($9, must_not_contain),
 			skip_missing_isbn = coalesce($10, skip_missing_isbn),
 			min_pages = coalesce($11, min_pages),
+			metadata_profile_id = case when $12::text is null then metadata_profile_id else nullif($12::text, '')::uuid end,
 			updated_at = now()
 		where id::text = $1
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			coalesce(metadata_profile_id::text, ''),
 			last_sync_at, created_at, updated_at
 	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags, missingBookPolicy,
-		allowedLanguages, mustNotContain, skipMissingISBN, minPages)
+		allowedLanguages, mustNotContain, skipMissingISBN, minPages, metadataProfileID)
 	return scanAuthorSubscription(row)
 }
 
@@ -745,6 +808,7 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			coalesce(metadata_profile_id::text, ''),
 			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		where status = 'monitored'
@@ -2649,15 +2713,21 @@ func scanRelease(rows *sql.Rows) (ReleaseDecision, error) {
 
 func scanQualityProfile(row wantedScanner) (QualityProfile, error) {
 	var profile QualityProfile
+	var qualities []byte
 	var preferredTerms, requiredTerms, rejectedTerms string
 	if err := row.Scan(
-		&profile.ID, &profile.Name, &profile.MediaFormat, &profile.MinScore,
-		&profile.CutoffScore, &profile.MinSeeders, &profile.MaxSizeBytes,
+		&profile.ID, &profile.Name, &profile.MediaFormat, &qualities, &profile.Cutoff,
+		&profile.MinScore, &profile.CutoffScore, &profile.MinSeeders, &profile.MaxSizeBytes,
 		&preferredTerms, &requiredTerms, &rejectedTerms, &profile.PreferredScore,
 		&profile.UpgradeAllowed, &profile.CreatedAt, &profile.UpdatedAt,
 	); err != nil {
 		return QualityProfile{}, err
 	}
+	if len(qualities) > 0 {
+		_ = json.Unmarshal(qualities, &profile.Qualities)
+	}
+	profile.Qualities = normalizeQualityLadder(profile.Qualities, profile.MediaFormat)
+	profile.Cutoff = normalizeCutoffQuality(profile.Cutoff, profile.Qualities, profile.MediaFormat)
 	profile.PreferredTerms = splitComma(preferredTerms)
 	profile.RequiredTerms = splitComma(requiredTerms)
 	profile.RejectedTerms = splitComma(rejectedTerms)
@@ -2673,6 +2743,7 @@ func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
 		&subscription.AuthorName, &subscription.Format, &subscription.QualityProfile,
 		&subscription.Status, &subscription.MonitorNewItems, &subscription.MissingBookPolicy, &tags,
 		&allowedLanguages, &mustNotContain, &subscription.SkipMissingISBN, &subscription.MinPages,
+		&subscription.MetadataProfileID,
 		&lastSyncAt, &subscription.CreatedAt, &subscription.UpdatedAt,
 	); err != nil {
 		return AuthorSubscription{}, err
@@ -2930,6 +3001,8 @@ func normalizeProfileForStorage(profile QualityProfile) QualityProfile {
 		profile.Name = normalizeQualityProfile(profile.Name)
 	}
 	profile.MediaFormat = normalizeProfileFormat(profile.MediaFormat)
+	profile.Qualities = normalizeQualityLadder(profile.Qualities, profile.MediaFormat)
+	profile.Cutoff = normalizeCutoffQuality(profile.Cutoff, profile.Qualities, profile.MediaFormat)
 	if profile.MinScore <= 0 {
 		profile.MinScore = 60
 	}
@@ -2961,6 +3034,7 @@ func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscrip
 	subscription.Format = normalizeFormat(subscription.Format)
 	subscription.QualityProfile = normalizeQualityProfile(subscription.QualityProfile)
 	subscription.Tags = compactTagLabels(subscription.Tags)
+	subscription.MetadataProfileID = strings.TrimSpace(subscription.MetadataProfileID)
 	subscription.AllowedLanguages = normalizeFilterTerms(subscription.AllowedLanguages)
 	subscription.MustNotContain = normalizeFilterTerms(subscription.MustNotContain)
 	if subscription.MinPages < 0 {

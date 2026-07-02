@@ -61,6 +61,10 @@
   width: 40px;
 }
 
+.library-tab-row {
+  margin-bottom: 14px;
+}
+
 .library-cover {
   display: flex;
   align-items: center;

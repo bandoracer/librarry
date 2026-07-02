@@ -13,7 +13,12 @@ type Config struct {
 	NamingBookFolderTemplate   string
 	NamingFileNameTemplate     string
 	NamingSpaceReplacement     string
-	StandardSearchLanguage     string
+	// RenameBooks controls whether imports apply the naming templates. Nil
+	// means unset and defaults to true (Librarry renames by default; Readarr
+	// defaults off). When false, imports land in the author folder with the
+	// original source basename.
+	RenameBooks            *bool
+	StandardSearchLanguage string
 	// RecycleBin is the folder deleted/replaced library files move into
 	// (empty disables the bin and files are removed outright).
 	RecycleBin          string
@@ -150,6 +155,9 @@ type RenameFilePreview struct {
 	RelativePath    string     `json:"relativePath"`
 	Exists          bool       `json:"exists"`
 	Noop            bool       `json:"noop"`
+	// Reason explains why a file is skipped (e.g. "managed by Calibre" for
+	// files under Calibre-managed roots, which never rename locally).
+	Reason string `json:"reason,omitempty"`
 }
 
 type RenameFileResult struct {

@@ -7,9 +7,16 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 )
 
-type releasePolicy struct {
-	format  string
-	profile QualityProfile
+// releaseEvaluationOptions bundles everything a release decision depends on:
+// the quality-ladder profile, release profiles (required/ignored/preferred
+// terms), quality definitions (size windows), legacy compat restrictions, and
+// the blocklist.
+type releaseEvaluationOptions struct {
+	profile         QualityProfile
+	restrictions    []ReleaseRestriction
+	releaseProfiles []ReleaseProfile
+	definitions     []QualityDefinition
+	blocklist       []BlocklistEntry
 }
 
 func evaluateRelease(item WantedItem, release acquisition.Release) ReleaseDecision {
@@ -25,98 +32,119 @@ func evaluateReleaseWithPolicy(item WantedItem, release acquisition.Release, pro
 }
 
 func evaluateReleaseWithBlocklist(item WantedItem, release acquisition.Release, profile QualityProfile, restrictions []ReleaseRestriction, blocklist []BlocklistEntry) ReleaseDecision {
-	policy := releasePolicy{
-		format:  normalizeFormat(item.Format),
-		profile: profileWithReleaseRestrictions(normalizeProfile(profile, item), restrictions, item.Tags),
-	}
-	score := 20.0
+	return evaluateReleaseWithOptions(item, release, releaseEvaluationOptions{
+		profile:      profile,
+		restrictions: restrictions,
+		definitions:  DefaultQualityDefinitions(),
+		blocklist:    blocklist,
+	})
+}
+
+// evaluateReleaseWithOptions is the arr-model release decision: detect the
+// release quality, reject anything outside the profile ladder, the quality
+// size window, or the required/ignored terms, and score survivors by ladder
+// rank first and summed preferred-word score second (see
+// compositeReleaseScore). Every rejection carries an explainable reason.
+func evaluateReleaseWithOptions(item WantedItem, release acquisition.Release, options releaseEvaluationOptions) ReleaseDecision {
+	format := normalizeFormat(item.Format)
+	profile := normalizeProfile(options.profile, item)
 	var reasons []string
 
 	haystackNorm := normalizeText(release.Title + " " + strings.Join(release.Categories, " "))
 	titleNorm := normalizeText(release.Title)
 	wantedTitle := normalizeText(item.Title)
-	authorName := normalizeText(item.AuthorName)
 	overrides := wantedManualOverrideValues(item)
 	isbnMatched := wantedISBNMatchesRelease(overrides["isbn"], release)
 
-	if blocklistMatchesRelease(blocklist, release) {
+	if blocklistMatchesRelease(options.blocklist, release) {
 		reasons = append(reasons, blocklistRejectionReason)
 	}
 	if release.DownloadURL == "" {
 		reasons = append(reasons, "missing download URL")
 	}
-	if isbnMatched {
-		score += 45
-	}
-	if wantedTitle != "" {
-		if strings.Contains(titleNorm, wantedTitle) {
-			score += 35
-		} else {
-			overlap := tokenOverlap(wantedTitle, titleNorm)
-			score += overlap * 30
-			if overlap < 0.45 && !isbnMatched {
-				reasons = append(reasons, "weak title match")
-			}
+	if wantedTitle != "" && !strings.Contains(titleNorm, wantedTitle) {
+		if tokenOverlap(wantedTitle, titleNorm) < 0.45 && !isbnMatched {
+			reasons = append(reasons, "weak title match")
 		}
-	}
-	if authorName != "" && strings.Contains(titleNorm, authorName) {
-		score += 10
 	}
 	if languageReason := releaseLanguageRejection(overrides["language"], haystackNorm); languageReason != "" {
 		reasons = append(reasons, languageReason)
-	} else if strings.TrimSpace(overrides["language"]) != "" {
-		score += 8
 	}
-	if policy.format == "ebook" && !looksLikeEbook(release) {
+	if format == "ebook" && !looksLikeEbook(release) {
 		reasons = append(reasons, "does not look like an ebook release")
 	}
-	if policy.format == "audiobook" && !looksLikeAudiobook(release) {
+	if format == "audiobook" && !looksLikeAudiobook(release) {
 		reasons = append(reasons, "does not look like an audiobook release")
 	}
-	if strings.EqualFold(release.Protocol, "torrent") && release.Seeders < policy.profile.MinSeeders {
+	if strings.EqualFold(release.Protocol, "torrent") && release.Seeders < profile.MinSeeders {
 		reasons = append(reasons, "below profile minimum seeders")
-	} else if release.Seeders > 0 {
-		score += math.Min(float64(release.Seeders), 50) * 0.5
 	}
 
-	maxSize := policy.profile.MaxSizeBytes
-	if maxSize <= 0 {
-		maxSize = maxSizeFor(policy)
+	quality := detectReleaseQuality(release, profile, format)
+	if !qualityAllowed(profile, quality) {
+		reasons = append(reasons, "quality not allowed: "+quality)
 	}
-	if maxSize > 0 && release.SizeBytes > maxSize {
-		reasons = append(reasons, "release exceeds profile size limit")
-	} else if release.SizeBytes > 0 {
-		score += 5
-	}
-	for _, term := range policy.profile.RequiredTerms {
-		if !containsNormalizedTerm(haystackNorm, term) {
-			reasons = append(reasons, "missing required term: "+term)
+	if definition, ok := definitionForQuality(options.definitions, quality); ok && release.SizeBytes > 0 {
+		if definition.MinSizeMB > 0 && release.SizeBytes < int64(definition.MinSizeMB)*1024*1024 {
+			reasons = append(reasons, "below minimum size for "+quality)
 		}
-	}
-	for _, term := range policy.profile.RejectedTerms {
-		if containsNormalizedTerm(haystackNorm, term) {
-			reasons = append(reasons, "rejected term: "+term)
+		if definition.MaxSizeMB > 0 && release.SizeBytes > int64(definition.MaxSizeMB)*1024*1024 {
+			reasons = append(reasons, "above maximum size for "+quality)
 		}
-	}
-	preferredMatches := 0
-	for _, term := range policy.profile.PreferredTerms {
-		if containsNormalizedTerm(haystackNorm, term) {
-			preferredMatches++
-		}
-	}
-	if preferredMatches > 0 && policy.profile.PreferredScore > 0 {
-		score += math.Min(float64(preferredMatches), 3) * policy.profile.PreferredScore
 	}
 
-	if len(reasons) > 0 && score >= policy.profile.MinScore {
-		score = policy.profile.MinScore - 1
+	preferredScore := 0.0
+	seenReasons := map[string]bool{}
+	appendTermReason := func(reason string) {
+		if seenReasons[reason] {
+			return
+		}
+		seenReasons[reason] = true
+		reasons = append(reasons, reason)
 	}
-	if score > 100 {
-		score = 100
+	for _, releaseProfile := range options.releaseProfiles {
+		if !releaseProfile.Enabled {
+			continue
+		}
+		for _, term := range releaseProfile.Required {
+			if !containsNormalizedTerm(haystackNorm, term) {
+				appendTermReason("missing required term: " + term)
+			}
+		}
+		for _, term := range releaseProfile.Ignored {
+			if containsNormalizedTerm(haystackNorm, term) {
+				appendTermReason("ignored term: " + term)
+			}
+		}
+		for _, preferred := range releaseProfile.Preferred {
+			if containsNormalizedTerm(haystackNorm, preferred.Term) {
+				preferredScore += float64(preferred.Score)
+			}
+		}
 	}
-	if score < 0 {
-		score = 0
+	// Legacy compat restrictions keep working alongside release profiles.
+	for _, restriction := range options.restrictions {
+		if !releaseRestrictionAppliesToLabels(restriction, item.Tags) {
+			continue
+		}
+		for _, term := range restriction.RequiredTerms {
+			if !containsNormalizedTerm(haystackNorm, term) {
+				appendTermReason("missing required term: " + term)
+			}
+		}
+		for _, term := range restriction.IgnoredTerms {
+			if containsNormalizedTerm(haystackNorm, term) {
+				appendTermReason("ignored term: " + term)
+			}
+		}
+		for _, term := range restriction.PreferredTerms {
+			if containsNormalizedTerm(haystackNorm, term) {
+				preferredScore += defaultRestrictionPreferredScore
+			}
+		}
 	}
+
+	score := compositeReleaseScore(profile, quality, preferredScore)
 
 	return ReleaseDecision{
 		SourceID:       release.ID,
@@ -131,7 +159,7 @@ func evaluateReleaseWithBlocklist(item WantedItem, release acquisition.Release, 
 		Leechers:       release.Leechers,
 		Categories:     release.Categories,
 		Score:          math.Round(score*1000) / 1000,
-		Approved:       len(reasons) == 0 && score >= policy.profile.MinScore,
+		Approved:       len(reasons) == 0,
 		RejectedReason: strings.Join(reasons, "; "),
 		PublishedAt:    release.PublishedAt,
 	}
@@ -301,40 +329,6 @@ func ParseReleaseRestrictionTerms(value string) []string {
 	return terms
 }
 
-func profileWithReleaseRestrictions(profile QualityProfile, restrictions []ReleaseRestriction, itemTags []string) QualityProfile {
-	for _, restriction := range restrictions {
-		if !releaseRestrictionAppliesToLabels(restriction, itemTags) {
-			continue
-		}
-		profile.RequiredTerms = appendUniqueTerms(profile.RequiredTerms, restriction.RequiredTerms...)
-		profile.RejectedTerms = appendUniqueTerms(profile.RejectedTerms, restriction.IgnoredTerms...)
-		profile.PreferredTerms = appendUniqueTerms(profile.PreferredTerms, restriction.PreferredTerms...)
-	}
-	return profile
-}
-
-func appendUniqueTerms(base []string, additions ...string) []string {
-	if len(additions) == 0 {
-		return base
-	}
-	seen := make(map[string]bool, len(base)+len(additions))
-	for _, term := range base {
-		if key := normalizeText(term); key != "" {
-			seen[key] = true
-		}
-	}
-	for _, term := range additions {
-		term = strings.TrimSpace(term)
-		key := normalizeText(term)
-		if key == "" || seen[key] {
-			continue
-		}
-		seen[key] = true
-		base = append(base, term)
-	}
-	return base
-}
-
 func compactRestrictionTags(tags []int) []int {
 	if len(tags) == 0 {
 		return nil
@@ -388,33 +382,25 @@ func looksLikeAudiobook(release acquisition.Release) bool {
 	return false
 }
 
-func maxSizeFor(policy releasePolicy) int64 {
-	if policy.format == "audiobook" {
-		if normalizeQualityProfile(policy.profile.Name) == "large" {
-			return 20 * 1024 * 1024 * 1024
-		}
-		return 8 * 1024 * 1024 * 1024
-	}
-	if normalizeQualityProfile(policy.profile.Name) == "large" {
-		return 2 * 1024 * 1024 * 1024
-	}
-	return 750 * 1024 * 1024
-}
-
+// defaultQualityProfile is the migration-shaped default: the format's full
+// quality ladder (all allowed), the format's default cutoff, and legacy
+// score-model fields kept only for compat echo.
 func defaultQualityProfile(name string, format string) QualityProfile {
 	name = normalizeQualityProfile(name)
 	format = normalizeFormat(format)
 	profile := QualityProfile{
 		Name:           name,
 		MediaFormat:    format,
+		Qualities:      defaultQualityLadder(format),
+		Cutoff:         defaultCutoffQuality(format),
+		UpgradeAllowed: true,
+		MinSeeders:     1,
 		MinScore:       60,
 		CutoffScore:    85,
-		MinSeeders:     1,
 		MaxSizeBytes:   750 * 1024 * 1024,
 		PreferredTerms: []string{},
 		RejectedTerms:  []string{"summary", "review"},
 		PreferredScore: 8,
-		UpgradeAllowed: true,
 	}
 	if format == "audiobook" {
 		profile.MaxSizeBytes = 8 * 1024 * 1024 * 1024
@@ -461,14 +447,18 @@ func normalizeProfile(profile QualityProfile, item WantedItem) QualityProfile {
 	if strings.TrimSpace(profile.MediaFormat) == "" || profile.MediaFormat == "any" {
 		profile.MediaFormat = normalizeFormat(item.Format)
 	}
+	profile.Qualities = normalizeQualityLadder(profile.Qualities, profile.MediaFormat)
+	profile.Cutoff = normalizeCutoffQuality(profile.Cutoff, profile.Qualities, profile.MediaFormat)
+	if profile.MinSeeders < 0 {
+		profile.MinSeeders = 0
+	}
+	// Legacy score-model defaults are kept only so compat readers see sane
+	// numbers; they no longer drive evaluation.
 	if profile.MinScore <= 0 {
 		profile.MinScore = 60
 	}
 	if profile.CutoffScore <= 0 {
-		profile.CutoffScore = upgradeCutoffFor(item)
-	}
-	if profile.MinSeeders < 0 {
-		profile.MinSeeders = 0
+		profile.CutoffScore = 85
 	}
 	if profile.PreferredScore <= 0 {
 		profile.PreferredScore = 8

@@ -25,8 +25,13 @@ const (
 
 // BlocklistEntry records a release identity that must never be grabbed again.
 type BlocklistEntry struct {
-	ID              string    `json:"id"`
-	WantedItemID    string    `json:"wantedItemId,omitempty"`
+	ID           string `json:"id"`
+	WantedItemID string `json:"wantedItemId,omitempty"`
+	// WantedID/WantedTitle/WantedAuthor denormalize the linked wanted item for
+	// list consumers (joined via blocklist.wanted_item_id; empty when null).
+	WantedID        string    `json:"wantedId"`
+	WantedTitle     string    `json:"wantedTitle"`
+	WantedAuthor    string    `json:"wantedAuthor"`
 	Title           string    `json:"title"`
 	Indexer         string    `json:"indexer,omitempty"`
 	Protocol        string    `json:"protocol,omitempty"`
@@ -67,10 +72,13 @@ func (s *Store) ListBlocklist(ctx context.Context, limit int) ([]BlocklistEntry,
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		select
-			id, coalesce(wanted_item_id::text, ''), title, indexer, protocol,
-			download_url_hash, infohash, reason, source, coalesce(created_at, now())
-		from blocklist
-		order by created_at desc
+			b.id, coalesce(b.wanted_item_id::text, ''), b.title, b.indexer, b.protocol,
+			b.download_url_hash, b.infohash, b.reason, b.source, coalesce(b.created_at, now()),
+			coalesce(nullif(wi.title, ''), coalesce(w.title, '')), coalesce(wi.author_name, '')
+		from blocklist b
+		left join wanted_items wi on wi.id = b.wanted_item_id
+		left join works w on w.id = wi.work_id
+		order by b.created_at desc
 		limit $1
 	`, limit)
 	if err != nil {
@@ -84,9 +92,11 @@ func (s *Store) ListBlocklist(ctx context.Context, limit int) ([]BlocklistEntry,
 		if err := rows.Scan(
 			&entry.ID, &entry.WantedItemID, &entry.Title, &entry.Indexer, &entry.Protocol,
 			&entry.DownloadURLHash, &entry.InfoHash, &entry.Reason, &entry.Source, &entry.CreatedAt,
+			&entry.WantedTitle, &entry.WantedAuthor,
 		); err != nil {
 			return nil, err
 		}
+		entry.WantedID = entry.WantedItemID
 		entries = append(entries, entry)
 	}
 	return entries, rows.Err()
@@ -118,6 +128,7 @@ func (s *Store) CreateBlocklistEntry(ctx context.Context, entry BlocklistEntry) 
 	); err != nil {
 		return BlocklistEntry{}, err
 	}
+	stored.WantedID = stored.WantedItemID
 	return stored, nil
 }
 
@@ -203,6 +214,7 @@ func (s *Store) MatchBlocklist(ctx context.Context, infohash string, downloadURL
 		}
 		return BlocklistEntry{}, false, err
 	}
+	entry.WantedID = entry.WantedItemID
 	return entry, true, nil
 }
 

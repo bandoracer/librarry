@@ -19,15 +19,91 @@ import {
   updateRootFolder,
   type AuthorMissingBookPolicy,
   type RootFolder,
+  type RootFolderCalibreSettings,
   type RootFolderRequest
 } from "../../lib/api";
 import { keys, useInvalidatingMutation, useQualityProfiles, useRootFolders } from "../../lib/queries";
 import { formatBytes } from "../../lib/format";
 import { authorMissingPolicyLabel, authorMissingPolicyOptions } from "../wanted/lib";
-import { QueryErrorNotice } from "./controls";
+import { QueryErrorNotice, SecretInput } from "./controls";
 import { errorMessage } from "./helpers";
 
-type RootFolderForm = RootFolderRequest & { id?: string };
+/** Editable string form of the per-root Calibre settings (port as text). */
+type CalibreForm = {
+  enabled: boolean;
+  host: string;
+  port: string;
+  urlBase: string;
+  username: string;
+  password: string;
+  library: string;
+  convertFormats: string;
+  outputProfile: string;
+  useSsl: boolean;
+};
+
+type RootFolderForm = Omit<RootFolderRequest, "calibre"> & { id?: string; calibre: CalibreForm };
+
+function emptyCalibreForm(): CalibreForm {
+  return {
+    enabled: false,
+    host: "",
+    port: "8081",
+    urlBase: "",
+    username: "",
+    password: "",
+    library: "",
+    convertFormats: "",
+    outputProfile: "",
+    useSsl: false
+  };
+}
+
+/** Stored settings → form; the password is never echoed back (blank = keep). */
+function calibreToForm(calibre?: RootFolderCalibreSettings): CalibreForm {
+  if (!calibre) return emptyCalibreForm();
+  return {
+    enabled: calibre.enabled,
+    host: calibre.host ?? "",
+    port: calibre.port ? String(calibre.port) : "8081",
+    urlBase: calibre.urlBase ?? "",
+    username: calibre.username ?? "",
+    password: "",
+    library: calibre.library ?? "",
+    convertFormats: calibre.convertFormats ?? "",
+    outputProfile: calibre.outputProfile ?? "",
+    useSsl: Boolean(calibre.useSsl)
+  };
+}
+
+function calibrePayload(form: CalibreForm): RootFolderCalibreSettings {
+  return {
+    enabled: form.enabled,
+    host: form.host.trim(),
+    port: Math.max(0, Math.round(Number(form.port) || 0)),
+    urlBase: form.urlBase.trim(),
+    username: form.username.trim(),
+    // Blank means "keep the stored password" on update (backend contract).
+    password: form.password,
+    library: form.library.trim(),
+    convertFormats: form.convertFormats.trim(),
+    outputProfile: form.outputProfile.trim(),
+    useSsl: form.useSsl
+  };
+}
+
+function rootFolderPayload(form: RootFolderForm): RootFolderRequest {
+  return {
+    name: form.name,
+    path: form.path,
+    mediaFormat: form.mediaFormat,
+    defaultQualityProfile: form.defaultQualityProfile,
+    defaultMissingBookPolicy: form.defaultMissingBookPolicy,
+    defaultTags: form.defaultTags,
+    isDefault: form.isDefault,
+    calibre: calibrePayload(form.calibre)
+  };
+}
 
 function emptyRootFolderForm(): RootFolderForm {
   return {
@@ -37,7 +113,8 @@ function emptyRootFolderForm(): RootFolderForm {
     defaultQualityProfile: "standard",
     defaultMissingBookPolicy: "all",
     defaultTags: "",
-    isDefault: false
+    isDefault: false,
+    calibre: emptyCalibreForm()
   };
 }
 
@@ -58,22 +135,18 @@ export function RootFoldersCard() {
   const save = useInvalidatingMutation(
     (request: RootFolderForm) =>
       request.id
-        ? updateRootFolder(request.id, {
-            name: request.name,
-            path: request.path,
-            mediaFormat: request.mediaFormat,
-            defaultQualityProfile: request.defaultQualityProfile,
-            defaultMissingBookPolicy: request.defaultMissingBookPolicy,
-            defaultTags: request.defaultTags,
-            isDefault: request.isDefault
-          })
-        : createRootFolder(request),
+        ? updateRootFolder(request.id, rootFolderPayload(request))
+        : createRootFolder(rootFolderPayload(request)),
     [keys.rootFolders, keys.readiness]
   );
   const remove = useInvalidatingMutation(deleteRootFolder, [keys.rootFolders, keys.readiness]);
 
   function update(changes: Partial<RootFolderForm>) {
     setForm((current) => (current ? { ...current, ...changes } : current));
+  }
+
+  function updateCalibre(changes: Partial<CalibreForm>) {
+    setForm((current) => (current ? { ...current, calibre: { ...current.calibre, ...changes } } : current));
   }
 
   function openEditor(folder?: RootFolder) {
@@ -87,7 +160,8 @@ export function RootFoldersCard() {
             defaultQualityProfile: folder.defaultQualityProfile || "standard",
             defaultMissingBookPolicy: folder.defaultMissingBookPolicy || "all",
             defaultTags: folder.defaultTags ?? "",
-            isDefault: folder.isDefault
+            isDefault: folder.isDefault,
+            calibre: calibreToForm(folder.calibre)
           }
         : emptyRootFolderForm()
     );
@@ -173,7 +247,8 @@ export function RootFoldersCard() {
                     <span className="cell-muted">
                       {folder.defaultQualityProfile || "standard"} ·{" "}
                       {authorMissingPolicyLabel(folder.defaultMissingBookPolicy || "all")}
-                    </span>
+                    </span>{" "}
+                    {folder.calibre?.enabled ? <Badge tone="info">Calibre</Badge> : null}
                   </td>
                   <td>{formatBytes(folder.freeSpaceBytes)}</td>
                   <td>
@@ -281,6 +356,92 @@ export function RootFoldersCard() {
                 <span>Default root for its format</span>
               </label>
             </div>
+            <div className="settings-field-wide">
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={form.calibre.enabled}
+                  onChange={(event) => updateCalibre({ enabled: event.target.checked })}
+                />
+                <span>Use Calibre content server for this root</span>
+              </label>
+            </div>
+            {form.calibre.enabled ? (
+              <>
+                <Field label="Calibre host" hint="Hostname or IP of the Calibre content server.">
+                  <input
+                    value={form.calibre.host}
+                    onChange={(event) => updateCalibre({ host: event.target.value })}
+                    placeholder="localhost"
+                  />
+                </Field>
+                <Field label="Port">
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.calibre.port}
+                    onChange={(event) => updateCalibre({ port: event.target.value })}
+                    placeholder="8081"
+                  />
+                </Field>
+                <Field label="URL base" hint="Optional path prefix when Calibre sits behind a proxy.">
+                  <input
+                    value={form.calibre.urlBase}
+                    onChange={(event) => updateCalibre({ urlBase: event.target.value })}
+                    placeholder="/calibre"
+                  />
+                </Field>
+                <Field label="Username">
+                  <input
+                    value={form.calibre.username}
+                    onChange={(event) => updateCalibre({ username: event.target.value })}
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field
+                  label="Password"
+                  hint={form.id ? "Leave blank to keep the stored password." : undefined}
+                >
+                  <SecretInput
+                    value={form.calibre.password}
+                    onChange={(value) => updateCalibre({ password: value })}
+                    placeholder={form.id ? "unchanged" : ""}
+                    ariaLabel="Calibre password"
+                  />
+                </Field>
+                <Field label="Library" hint="Calibre library name; blank uses the server default.">
+                  <input
+                    value={form.calibre.library}
+                    onChange={(event) => updateCalibre({ library: event.target.value })}
+                    placeholder="Calibre Library"
+                  />
+                </Field>
+                <Field label="Convert formats" hint="Formats Calibre converts imports to (comma-separated).">
+                  <input
+                    value={form.calibre.convertFormats}
+                    onChange={(event) => updateCalibre({ convertFormats: event.target.value })}
+                    placeholder="epub, azw3"
+                  />
+                </Field>
+                <Field label="Output profile" hint="Calibre conversion output profile.">
+                  <input
+                    value={form.calibre.outputProfile}
+                    onChange={(event) => updateCalibre({ outputProfile: event.target.value })}
+                    placeholder="tablet"
+                  />
+                </Field>
+                <div className="settings-field-wide">
+                  <label className="settings-check">
+                    <input
+                      type="checkbox"
+                      checked={form.calibre.useSsl}
+                      onChange={(event) => updateCalibre({ useSsl: event.target.checked })}
+                    />
+                    <span>Connect over SSL</span>
+                  </label>
+                </div>
+              </>
+            ) : null}
           </FormGrid>
         ) : null}
       </Modal>

@@ -621,6 +621,40 @@ func TestAvailableDestinationAvoidsOverwrite(t *testing.T) {
 	}
 }
 
+func TestImportDestinationPathHonorsRenameToggle(t *testing.T) {
+	renameOff := false
+	service := NewService(nil, Config{
+		EbookRoot:                  "/library/ebooks",
+		NamingAuthorFolderTemplate: "{Author}",
+		NamingBookFolderTemplate:   "{Title}",
+		NamingFileNameTemplate:     "{Author} - {Title}{Ext}",
+		RenameBooks:                &renameOff,
+	}, nil, nil)
+	root := service.importRootPath(context.Background(), "ebook", "")
+	parsed := parsedBook{AuthorName: "Andy Weir", Title: "Project Hail Mary"}
+
+	// Renaming off (arr parity): author folder + original source basename, no
+	// book folder and no file-name template.
+	got := service.importDestinationPath(root, "ebook", parsed, "/downloads/phm.retail.epub")
+	want := filepath.Join("/library/ebooks", "Andy Weir", "phm.retail.epub")
+	if got != want {
+		t.Fatalf("expected rename-off import destination %s, got %s", want, got)
+	}
+
+	// Unset toggle defaults to renaming on with the full templates.
+	renamed := NewService(nil, Config{
+		EbookRoot:                  "/library/ebooks",
+		NamingAuthorFolderTemplate: "{Author}",
+		NamingBookFolderTemplate:   "{Title}",
+		NamingFileNameTemplate:     "{Author} - {Title}{Ext}",
+	}, nil, nil)
+	got = renamed.importDestinationPath(root, "ebook", parsed, "/downloads/phm.retail.epub")
+	want = filepath.Join("/library/ebooks", "Andy Weir", "Project Hail Mary", "Andy Weir - Project Hail Mary.epub")
+	if got != want {
+		t.Fatalf("expected rename-on import destination %s, got %s", want, got)
+	}
+}
+
 func TestPlanImportDestinationConflictActions(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "incoming.epub")
@@ -1158,5 +1192,109 @@ func TestLocateDownloadSourceFindsBestFileInFolder(t *testing.T) {
 	}
 	if got != large || format != "ebook" {
 		t.Fatalf("expected %s ebook, got %s %s", large, got, format)
+	}
+}
+
+func TestCalibreSettingsFromRootFolderMapsConnection(t *testing.T) {
+	settings := calibreSettingsFromRootFolder(RootFolder{
+		Path: "/library/calibre",
+		Calibre: RootFolderCalibre{
+			Enabled:        true,
+			Host:           "calibre.local",
+			Port:           8081,
+			URLBase:        "/calibre",
+			Username:       "reader",
+			Password:       "secret",
+			Library:        "Main",
+			ConvertFormats: "EPUB,AZW3",
+			OutputProfile:  "kindle",
+			UseSSL:         true,
+		},
+	})
+	if settings.Host != "calibre.local" || settings.Port != 8081 || settings.URLBase != "/calibre" ||
+		settings.Username != "reader" || settings.Password != "secret" || settings.Library != "Main" ||
+		settings.OutputFormat != "EPUB,AZW3" || settings.OutputProfile != "kindle" || !settings.UseSSL {
+		t.Fatalf("unexpected settings: %+v", settings)
+	}
+}
+
+func TestCalibreHandoffRecordDispatchesSourceToCalibre(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "Andy Weir - Project Hail Mary.epub")
+	writeTestEPUB(t, source, `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata>
+    <dc:title>Project Hail Mary</dc:title>
+    <dc:creator>Andy Weir</dc:creator>
+  </metadata>
+</package>`)
+	info, err := os.Stat(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	importer := &fakeCalibreImporter{id: 42}
+	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, nil)
+	folder := RootFolder{
+		ID:          "calibre-root",
+		Path:        filepath.Join(dir, "calibre-library"),
+		MediaFormat: "ebook",
+		Calibre: RootFolderCalibre{
+			Enabled:  true,
+			Host:     "calibre.local",
+			Port:     8080,
+			Username: "reader",
+			Password: "secret",
+			Library:  "Main",
+		},
+	}
+
+	record, err := service.calibreHandoffRecord(context.Background(), calibreSettingsFromRootFolder(folder), source,
+		"ebook", parsedBook{Title: "Project Hail Mary", AuthorName: "Andy Weir"}, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The handoff posts the source file to the root's Calibre server instead
+	// of moving it into the naming layout.
+	if importer.request.Path != source || importer.request.Settings.Host != "calibre.local" ||
+		importer.request.Settings.Library != "Main" {
+		t.Fatalf("unexpected calibre add-book request: %+v", importer.request)
+	}
+	// Calibre add-book reports only a book id, so the tracked file keeps the
+	// source path with import status "calibre".
+	if record.Path != source || record.SourcePath != source {
+		t.Fatalf("expected record to keep source path, got %+v", record)
+	}
+	if record.ImportStatus != "calibre" {
+		t.Fatalf("expected calibre import status, got %q", record.ImportStatus)
+	}
+	if record.Metadata["importMode"] != "calibre" || record.Metadata["calibreId"] != 42 {
+		t.Fatalf("expected calibre import metadata, got %#v", record.Metadata)
+	}
+}
+
+func TestCalibreHandoffRecordRequiresCalibreClient(t *testing.T) {
+	service := NewService(nil, Config{}, nil, nil)
+	_, err := service.calibreHandoffRecord(context.Background(), calibre.Settings{}, "/tmp/book.epub", "ebook", parsedBook{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "calibre integration is unavailable") {
+		t.Fatalf("expected calibre unavailable error, got %v", err)
+	}
+}
+
+func TestCalibreManagedRenamePreviewSkipsWithReason(t *testing.T) {
+	file := FileRecord{
+		ID:          "file-1",
+		Path:        "/library/calibre/Andy Weir/Project Hail Mary.epub",
+		MediaFormat: "ebook",
+	}
+	preview := calibreManagedRenamePreview(file)
+	if !preview.Noop {
+		t.Fatal("expected calibre-managed preview to be a noop")
+	}
+	if preview.Reason != "managed by Calibre" {
+		t.Fatalf("expected stable skip reason, got %q", preview.Reason)
+	}
+	if preview.SourcePath != file.Path || preview.DestinationPath != file.Path {
+		t.Fatalf("expected unchanged paths, got %+v", preview)
 	}
 }

@@ -68,7 +68,7 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
   }, [changed]);
 
   // Prefix key: invalidates every per-format library-files query (same
-  // pattern ConnectionsTab uses for ["downloads"]).
+  // pattern DownloadClientsTab uses for ["downloads"]).
   const apply = useInvalidatingMutation((ids: string[]) => renameLibraryFiles({ ids }), [["library-files"]]);
 
   const selectedIDs = useMemo(() => changed.map((item) => item.file.id).filter((id) => selected.has(id)), [changed, selected]);
