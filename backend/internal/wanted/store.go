@@ -81,8 +81,8 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		insert into wanted_items (
 			work_id, edition_id, wanted_format, quality_profile, status,
 			title, author_name, cover_url, metadata_provider, source_key, tags,
-			series, series_position, first_publish_year
-		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			series, series_position, first_publish_year, release_date
+		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		on conflict (metadata_provider, source_key, wanted_format)
 			where metadata_provider <> '' and source_key <> ''
 		do update set
@@ -127,17 +127,114 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 			series = case when excluded.series <> '' then excluded.series else wanted_items.series end,
 			series_position = case when excluded.series_position <> '' then excluded.series_position else wanted_items.series_position end,
 			first_publish_year = case when excluded.first_publish_year <> 0 then excluded.first_publish_year else wanted_items.first_publish_year end,
+			release_date = coalesce(excluded.release_date, wanted_items.release_date),
 			updated_at = now()
 		returning id
-	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, intTagsString(request.Tags),
-		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear).Scan(&wantedID)
+	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, tagLabelsString(request.Tags),
+		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result)).Scan(&wantedID)
 	if err != nil {
+		return WantedItem{}, err
+	}
+	if err := ensureTagLabels(ctx, tx, request.Tags); err != nil {
 		return WantedItem{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return WantedItem{}, err
 	}
 	return s.GetWanted(ctx, wantedID)
+}
+
+// wantedReleaseDate extracts a confident full-precision publication date from
+// the metadata result; year- or month-only dates stay off the calendar.
+func wantedReleaseDate(result metadata.SearchResult) any {
+	published, ok := parsePublicationDate(result.Edition.PublishedDate)
+	if !ok || published.Precision != "day" {
+		return nil
+	}
+	return published.Time.UTC().Format("2006-01-02")
+}
+
+// ensureTagLabels keeps the native tags table in sync with labels written to
+// the comma-separated text columns.
+func ensureTagLabels(ctx context.Context, execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}, labels []string) error {
+	for _, label := range compactTagLabels(labels) {
+		if _, err := execer.ExecContext(ctx, `
+			insert into tags (label) values ($1) on conflict (label) do nothing
+		`, label); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ListCalendarWanted returns wanted items whose confident release date falls
+// inside [start, end] (inclusive), ordered by date.
+func (s *Store) ListCalendarWanted(ctx context.Context, start time.Time, end time.Time, includeUnmonitored bool) ([]WantedItem, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select
+			wi.id, wi.work_id, wi.edition_id, coalesce(nullif(wi.title, ''), w.title),
+			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
+			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
+			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
+			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+		from wanted_items wi
+		left join works w on w.id = wi.work_id
+		where wi.release_date is not null
+			and wi.release_date >= $1::date
+			and wi.release_date <= $2::date
+			and wi.status not in ('removed')
+			and ($3::boolean or wi.monitored = true)
+		order by wi.release_date, wi.title
+		limit 500
+	`, start.UTC().Format("2006-01-02"), end.UTC().Format("2006-01-02"), includeUnmonitored)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []WantedItem
+	for rows.Next() {
+		item, err := scanWanted(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// WantedSourceKeySet returns the provider identity keys (SourceIdentity) of
+// every wanted item that carries provider provenance, so import-list sync can
+// dedupe against books that are already tracked.
+func (s *Store) WantedSourceKeySet(ctx context.Context) (map[string]bool, error) {
+	if !s.Configured() {
+		return nil, errors.New("wanted store is unavailable")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select metadata_provider, source_key, wanted_format
+		from wanted_items
+		where metadata_provider <> '' and source_key <> ''
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	keys := map[string]bool{}
+	for rows.Next() {
+		var provider, sourceKey, format string
+		if err := rows.Scan(&provider, &sourceKey, &format); err != nil {
+			return nil, err
+		}
+		keys[SourceIdentity(provider, sourceKey, format)] = true
+	}
+	return keys, rows.Err()
 }
 
 func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, error) {
@@ -157,7 +254,7 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
-			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		`+where+`
@@ -197,7 +294,7 @@ func (s *Store) ListWantedWithFiles(ctx context.Context) ([]WantedItem, error) {
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
-			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.monitored = true
@@ -406,13 +503,18 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 	if strings.TrimSpace(subscription.AuthorName) == "" {
 		return AuthorSubscription{}, errors.New("author name is required")
 	}
+	if err := ensureTagLabels(ctx, s.db, subscription.Tags); err != nil {
+		return AuthorSubscription{}, err
+	}
 	row := s.db.QueryRowContext(ctx, `
 		insert into author_subscriptions (
 			provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, missing_book_policy, tags
+			status, monitor_new_items, missing_book_policy, tags,
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages
 		) values (
 			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9
+			$6, $7, $8, $9,
+			$10, $11, $12, $13
 		)
 		on conflict (provider, provider_key, wanted_format)
 			where provider <> '' and provider_key <> ''
@@ -423,12 +525,19 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 			monitor_new_items = excluded.monitor_new_items,
 			missing_book_policy = excluded.missing_book_policy,
 			tags = case when excluded.tags <> '' then excluded.tags else author_subscriptions.tags end,
+			allowed_languages = case when excluded.allowed_languages <> '' then excluded.allowed_languages else author_subscriptions.allowed_languages end,
+			must_not_contain = case when excluded.must_not_contain <> '' then excluded.must_not_contain else author_subscriptions.must_not_contain end,
+			skip_missing_isbn = excluded.skip_missing_isbn or author_subscriptions.skip_missing_isbn,
+			min_pages = case when excluded.min_pages <> 0 then excluded.min_pages else author_subscriptions.min_pages end,
 			updated_at = now()
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
+			status, monitor_new_items, missing_book_policy, tags,
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			last_sync_at, created_at, updated_at
 	`, subscription.Provider, subscription.ProviderKey, subscription.AuthorName, subscription.Format,
-		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, subscription.MissingBookPolicy, intTagsString(subscription.Tags))
+		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, subscription.MissingBookPolicy, tagLabelsString(subscription.Tags),
+		joinFilterTerms(subscription.AllowedLanguages), joinFilterTerms(subscription.MustNotContain), subscription.SkipMissingISBN, subscription.MinPages)
 	return scanAuthorSubscription(row)
 }
 
@@ -445,7 +554,9 @@ func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]A
 	rows, err := s.db.QueryContext(ctx, `
 		select
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
+			status, monitor_new_items, missing_book_policy, tags,
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		`+where+`
 		order by author_name, wanted_format
@@ -505,7 +616,33 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 	tags := sql.NullString{}
 	if request.TagsSet {
 		tags.Valid = true
-		tags.String = intTagsString(request.Tags)
+		tags.String = tagLabelsString(request.Tags)
+		if err := ensureTagLabels(ctx, s.db, request.Tags); err != nil {
+			return AuthorSubscription{}, err
+		}
+	}
+	allowedLanguages := sql.NullString{}
+	if request.AllowedLanguagesSet {
+		allowedLanguages.Valid = true
+		allowedLanguages.String = joinFilterTerms(request.AllowedLanguages)
+	}
+	mustNotContain := sql.NullString{}
+	if request.MustNotContainSet {
+		mustNotContain.Valid = true
+		mustNotContain.String = joinFilterTerms(request.MustNotContain)
+	}
+	skipMissingISBN := sql.NullBool{}
+	if request.SkipMissingISBN != nil {
+		skipMissingISBN.Valid = true
+		skipMissingISBN.Bool = *request.SkipMissingISBN
+	}
+	minPages := sql.NullInt64{}
+	if request.MinPages != nil {
+		minPages.Valid = true
+		minPages.Int64 = int64(*request.MinPages)
+		if minPages.Int64 < 0 {
+			minPages.Int64 = 0
+		}
 	}
 	row := s.db.QueryRowContext(ctx, `
 		update author_subscriptions set
@@ -515,12 +652,19 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			monitor_new_items = coalesce($5, monitor_new_items),
 			tags = coalesce($6, tags),
 			missing_book_policy = coalesce($7, missing_book_policy),
+			allowed_languages = coalesce($8, allowed_languages),
+			must_not_contain = coalesce($9, must_not_contain),
+			skip_missing_isbn = coalesce($10, skip_missing_isbn),
+			min_pages = coalesce($11, min_pages),
 			updated_at = now()
 		where id::text = $1
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
-	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags, missingBookPolicy)
+			status, monitor_new_items, missing_book_policy, tags,
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			last_sync_at, created_at, updated_at
+	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags, missingBookPolicy,
+		allowedLanguages, mustNotContain, skipMissingISBN, minPages)
 	return scanAuthorSubscription(row)
 }
 
@@ -569,7 +713,9 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 	rows, err := s.db.QueryContext(ctx, `
 		select
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
-			status, monitor_new_items, missing_book_policy, tags, last_sync_at, created_at, updated_at
+			status, monitor_new_items, missing_book_policy, tags,
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		where status = 'monitored'
 			and monitor_new_items = true
@@ -668,7 +814,7 @@ func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
-			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.id = $1
@@ -711,7 +857,10 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 	tags := sql.NullString{}
 	if request.TagsSet {
 		tags.Valid = true
-		tags.String = intTagsString(request.Tags)
+		tags.String = tagLabelsString(request.Tags)
+		if err := ensureTagLabels(ctx, s.db, request.Tags); err != nil {
+			return WantedItem{}, err
+		}
 	}
 	rootFolderID := sql.NullString{}
 	if request.RootFolderID != nil {
@@ -1732,7 +1881,7 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
-			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where wi.status = 'wanted'
@@ -1793,7 +1942,7 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
 			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
-			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
+			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where `+strings.Join(where, " and ")+`
@@ -1949,7 +2098,7 @@ func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMet
 			status, decision, coalesce(wanted_item_id::text, ''), result,
 			created_at, updated_at, resolved_at
 	`, review.AuthorSubscriptionID, review.Provider, review.CandidateKey, review.Title, review.AuthorName,
-		review.Format, review.QualityProfile, intTagsString(review.Tags), review.Policy, review.Reason,
+		review.Format, review.QualityProfile, tagLabelsString(review.Tags), review.Policy, review.Reason,
 		review.Status, review.Decision, review.WantedID, string(raw))
 	saved, err := scanAuthorMetadataReview(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -2413,14 +2562,14 @@ type wantedScanner interface {
 func scanWanted(row wantedScanner) (WantedItem, error) {
 	var item WantedItem
 	var workID, editionID, coverURL, sourceProvider, sourceKey sql.NullString
-	var lastSearchAt, lastUpgradeSearchAt sql.NullTime
+	var releaseDate, lastSearchAt, lastUpgradeSearchAt sql.NullTime
 	var tags string
 	if err := row.Scan(
 		&item.ID, &workID, &editionID, &item.Title, &item.AuthorName, &coverURL,
 		&item.Format, &item.QualityProfile, &item.Status, &item.Monitored, &sourceProvider,
 		&sourceKey, &item.CurrentReleaseID, &item.CurrentReleaseScore,
 		&item.RootFolderID, &item.Series, &item.SeriesPosition, &item.FirstPublishYear,
-		&tags, &lastSearchAt, &lastUpgradeSearchAt, &item.CreatedAt, &item.UpdatedAt,
+		&tags, &releaseDate, &lastSearchAt, &lastUpgradeSearchAt, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return WantedItem{}, err
 	}
@@ -2429,7 +2578,10 @@ func scanWanted(row wantedScanner) (WantedItem, error) {
 	item.CoverURL = coverURL.String
 	item.SourceProvider = sourceProvider.String
 	item.SourceKey = sourceKey.String
-	item.Tags = splitIntTags(tags)
+	item.Tags = splitTagLabels(tags)
+	if releaseDate.Valid {
+		item.ReleaseDate = releaseDate.Time.UTC().Format("2006-01-02")
+	}
 	if lastSearchAt.Valid {
 		value := lastSearchAt.Time.UTC()
 		item.LastSearchAt = &value
@@ -2481,16 +2633,19 @@ func scanQualityProfile(row wantedScanner) (QualityProfile, error) {
 func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
 	var subscription AuthorSubscription
 	var lastSyncAt sql.NullTime
-	var tags string
+	var tags, allowedLanguages, mustNotContain string
 	if err := row.Scan(
 		&subscription.ID, &subscription.Provider, &subscription.ProviderKey,
 		&subscription.AuthorName, &subscription.Format, &subscription.QualityProfile,
-		&subscription.Status, &subscription.MonitorNewItems, &subscription.MissingBookPolicy, &tags, &lastSyncAt,
-		&subscription.CreatedAt, &subscription.UpdatedAt,
+		&subscription.Status, &subscription.MonitorNewItems, &subscription.MissingBookPolicy, &tags,
+		&allowedLanguages, &mustNotContain, &subscription.SkipMissingISBN, &subscription.MinPages,
+		&lastSyncAt, &subscription.CreatedAt, &subscription.UpdatedAt,
 	); err != nil {
 		return AuthorSubscription{}, err
 	}
-	subscription.Tags = splitIntTags(tags)
+	subscription.Tags = splitTagLabels(tags)
+	subscription.AllowedLanguages = splitFilterTerms(allowedLanguages)
+	subscription.MustNotContain = splitFilterTerms(mustNotContain)
 	subscription.MissingBookPolicy = normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems)
 	if lastSyncAt.Valid {
 		value := lastSyncAt.Time.UTC()
@@ -2515,7 +2670,7 @@ func scanAuthorMetadataReview(row wantedScanner) (AuthorMetadataReview, error) {
 	if len(raw) > 0 {
 		_ = json.Unmarshal(raw, &review.Result)
 	}
-	review.Tags = splitIntTags(tags)
+	review.Tags = splitTagLabels(tags)
 	if resolvedAt.Valid {
 		value := resolvedAt.Time.UTC()
 		review.ResolvedAt = &value
@@ -2771,7 +2926,12 @@ func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscrip
 	subscription.AuthorName = strings.TrimSpace(subscription.AuthorName)
 	subscription.Format = normalizeFormat(subscription.Format)
 	subscription.QualityProfile = normalizeQualityProfile(subscription.QualityProfile)
-	subscription.Tags = compactRestrictionTags(subscription.Tags)
+	subscription.Tags = compactTagLabels(subscription.Tags)
+	subscription.AllowedLanguages = normalizeFilterTerms(subscription.AllowedLanguages)
+	subscription.MustNotContain = normalizeFilterTerms(subscription.MustNotContain)
+	if subscription.MinPages < 0 {
+		subscription.MinPages = 0
+	}
 	subscription.MissingBookPolicy = normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems)
 	subscription.MonitorNewItems = subscription.MissingBookPolicy != "none"
 	if strings.TrimSpace(subscription.Status) == "" {
@@ -2791,7 +2951,7 @@ func normalizeAuthorMetadataReview(review AuthorMetadataReview) AuthorMetadataRe
 	review.AuthorName = strings.TrimSpace(firstNonEmpty(review.AuthorName, firstResultAuthorName(review.Result)))
 	review.Format = normalizeFormat(firstNonEmpty(review.Format, string(review.Result.Edition.Format)))
 	review.QualityProfile = normalizeQualityProfile(review.QualityProfile)
-	review.Tags = compactRestrictionTags(review.Tags)
+	review.Tags = compactTagLabels(review.Tags)
 	review.Policy = normalizeAuthorMissingBookPolicy(review.Policy, true)
 	review.Reason = strings.TrimSpace(review.Reason)
 	if strings.TrimSpace(review.Status) == "" {
@@ -2863,35 +3023,6 @@ func cleanTerms(values []string) []string {
 		out = append(out, value)
 	}
 	return out
-}
-
-func intTagsString(tags []int) string {
-	tags = compactRestrictionTags(tags)
-	if len(tags) == 0 {
-		return ""
-	}
-	values := make([]string, 0, len(tags))
-	for _, tag := range tags {
-		values = append(values, strconv.Itoa(tag))
-	}
-	return strings.Join(values, ",")
-}
-
-func splitIntTags(value string) []int {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	parts := strings.FieldsFunc(value, func(r rune) bool {
-		return r == ',' || r == ';' || r == '|' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
-	})
-	tags := make([]int, 0, len(parts))
-	for _, part := range parts {
-		tag, err := strconv.Atoi(strings.TrimSpace(part))
-		if err == nil {
-			tags = append(tags, tag)
-		}
-	}
-	return compactRestrictionTags(tags)
 }
 
 func sortValue(value string) string {

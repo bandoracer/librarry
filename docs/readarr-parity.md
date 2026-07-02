@@ -1,5 +1,17 @@
 # Readarr Parity Audit
 
+> **v0.2.0 (2026-07-01): all six milestones of [parity-plan.md](parity-plan.md)
+> were implemented** (delay profiles intentionally skipped per owner decision).
+> Closed: blocklist, remove-after-seeding, cutoff-unmet, search-on-add, all
+> seven monitor modes, author/book detail pages, poster/overview views, mass
+> editor, sort/filters, multiple root folders, remote path mappings, recycle
+> bin, series/year naming tokens, rename UI, .cue extras, task scheduler view,
+> native notifications (webhook/ntfy/Discord/Telegram) with worker dispatch,
+> continuous health checks, disk space, calendar + iCal feed, Hardcover import
+> lists + exclusions, author add-filters, native tags, none/basic/forms auth,
+> and pg_dump backups. Auto-grab defaults flipped to arr behavior. The tables
+> below describe the pre-v0.2.0 state and are retained as the audit record.
+
 Last updated: 2026-07-01. Sources: Servarr wiki markdown (Readarr settings,
 library, activity, wanted, calendar, system, quick-start; retired 2025) read
 from `github.com/Servarr/Wiki`, compared against Librarry `main` as of this

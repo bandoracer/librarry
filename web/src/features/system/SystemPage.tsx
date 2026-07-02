@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpenCheck, HardDrive, HardDriveDownload, HeartPulse, ListChecks, Play, RefreshCw, Timer } from "lucide-react";
+import { Archive, BookOpenCheck, HardDrive, HardDriveDownload, HeartPulse, ListChecks, Play, RefreshCw, Timer, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
@@ -11,6 +11,7 @@ import {
   IconButton,
   InlineNotice,
   LoadingRow,
+  Modal,
   PageHeader,
   ProgressBar,
   StatBar,
@@ -20,8 +21,10 @@ import { useToast } from "../../components/toast";
 import { navItems } from "../../app/nav";
 import {
   keys,
+  m6Keys,
   operabilityKeys,
   useAPIState,
+  useBackups,
   useDiskSpace,
   useIntegrationHealth,
   useInvalidatingMutation,
@@ -34,7 +37,16 @@ import {
 } from "../../lib/queries";
 import { demoModeEnabled } from "../../lib/demo";
 import { formatBytes, formatRelativeTime } from "../../lib/format";
-import { runSystemTask, type DiskSpaceEntry, type ReadinessStep, type SystemHealthSeverity, type SystemTask } from "../../lib/api";
+import {
+  createBackup,
+  deleteBackup,
+  runSystemTask,
+  type Backup,
+  type DiskSpaceEntry,
+  type ReadinessStep,
+  type SystemHealthSeverity,
+  type SystemTask
+} from "../../lib/api";
 import "./system.css";
 
 const pageSubtitle = navItems.find((item) => item.id === "providers")?.subtitle;
@@ -117,6 +129,117 @@ function diskUsedFraction(disk: DiskSpaceEntry): number {
 function taskLastRunTitle(task: SystemTask): string | undefined {
   if (task.lastError) return `Error: ${task.lastError}`;
   return task.lastOutcome || undefined;
+}
+
+/* ------------------------------ Backups (M6.6) ----------------------------- */
+
+/**
+ * Scheduled pg_dump archives on the configured backup path. Backup Now on an
+ * install without a backup path answers 501, surfaced as a warning toast with
+ * the backend's message; restore stays a documented-manual operation.
+ */
+function BackupsCard() {
+  const toast = useToast();
+  const backups = useBackups();
+  const [deleting, setDeleting] = React.useState<Backup | null>(null);
+
+  const backupNow = useInvalidatingMutation(createBackup, [m6Keys.backups]);
+  const remove = useInvalidatingMutation(deleteBackup, [m6Keys.backups]);
+
+  async function runBackup() {
+    try {
+      const outcome = await backupNow.mutateAsync(undefined);
+      if (outcome.unavailable) {
+        toast.notify(outcome.message ?? "Backups are not configured on this install.", "warn");
+      } else {
+        toast.success(outcome.backup ? `Backup ${outcome.backup.name} created.` : "Backup created.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Backup failed.");
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    try {
+      await remove.mutateAsync(deleting.name);
+      toast.success(`Backup ${deleting.name} deleted.`);
+      setDeleting(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Backup delete failed.");
+    }
+  }
+
+  return (
+    <Card
+      title="Backups"
+      subtitle="Database archives on the configured backup path; restore is a documented manual step."
+      padded={!backups.data?.length}
+      actions={<ToolbarButton icon={Archive} label="Backup Now" busy={backupNow.isPending} onClick={() => void runBackup()} />}
+    >
+      {backups.isPending ? (
+        <LoadingRow label="Loading backups…" />
+      ) : backups.isError ? (
+        queryFailureNotice(backups.error, "Backups need a live API and are not part of the demo data set.")
+      ) : backups.data.length === 0 ? (
+        <EmptyState icon={Archive} title="No backups yet">
+          Use Backup Now, or configure the backup path and schedule so the API archives the database automatically.
+        </EmptyState>
+      ) : (
+        <DataTable>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Size</th>
+              <th>Created</th>
+              <th aria-label="Actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {backups.data.map((backup) => (
+              <tr key={backup.name}>
+                <td className="cell-primary">
+                  <code>{backup.name}</code>
+                </td>
+                <td>{formatBytes(backup.sizeBytes)}</td>
+                <td title={backup.createdAt}>{formatRelativeTime(backup.createdAt)}</td>
+                <td>
+                  <div className="cell-actions">
+                    <IconButton
+                      icon={Trash2}
+                      size="sm"
+                      tone="danger"
+                      label={`Delete backup ${backup.name}`}
+                      disabled={remove.isPending}
+                      onClick={() => setDeleting(backup)}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </DataTable>
+      )}
+      <Modal
+        title="Delete backup"
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button variant="danger" icon={Trash2} busy={remove.isPending} onClick={() => void confirmDelete()}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Delete backup <strong>{deleting?.name}</strong> ({formatBytes(deleting?.sizeBytes)})? The archive file is
+          removed from the backup path and cannot be restored from afterwards.
+        </p>
+      </Modal>
+    </Card>
+  );
 }
 
 /**
@@ -551,6 +674,8 @@ export default function SystemPage() {
           </DataTable>
         )}
       </Card>
+
+      <BackupsCard />
 
       <Card
         title="Readarr API compatibility"

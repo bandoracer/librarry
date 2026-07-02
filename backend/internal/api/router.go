@@ -15,30 +15,38 @@ import (
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	"github.com/bandoracer/librarry/backend/internal/auth"
+	"github.com/bandoracer/librarry/backend/internal/backups"
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
+	"github.com/bandoracer/librarry/backend/internal/importlists"
 	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/notify"
 	"github.com/bandoracer/librarry/backend/internal/scheduler"
 	"github.com/bandoracer/librarry/backend/internal/settings"
+	"github.com/bandoracer/librarry/backend/internal/tags"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
 const maxGrabUploadBytes = 64 << 20
 
 type Dependencies struct {
-	Logger    *slog.Logger
-	Config    config.Config
-	Metadata  *metadata.Service
-	Acquire   acquisitionService
-	Wanted    wantedService
-	Library   libraryService
-	Compat    compatResourceService
-	Notify    *notify.Service
-	Scheduler *scheduler.Registry
-	Health    *HealthEvaluator
+	Logger      *slog.Logger
+	Config      config.Config
+	Metadata    *metadata.Service
+	Acquire     acquisitionService
+	Wanted      wantedService
+	Library     libraryService
+	Compat      compatResourceService
+	Notify      *notify.Service
+	Scheduler   *scheduler.Registry
+	Health      *HealthEvaluator
+	Auth        *auth.Service
+	ImportLists *importlists.Service
+	Tags        *tags.Store
+	Backups     *backups.Service
 }
 
 type acquisitionService interface {
@@ -91,6 +99,7 @@ type wantedService interface {
 	History(ctx context.Context, query wanted.HistoryQuery) ([]wanted.HistoryEvent, error)
 	AnnotateDownloads(ctx context.Context, downloads []acquisition.DownloadStatus) []acquisition.DownloadStatus
 	ListCutoffUnmet(ctx context.Context) ([]wanted.WantedItem, error)
+	ListCalendar(ctx context.Context, start time.Time, end time.Time, includeUnmonitored bool) ([]wanted.WantedItem, error)
 	BulkUpdateWanted(ctx context.Context, request wanted.WantedBulkRequest) ([]wanted.WantedBulkResult, error)
 	ListBlocklist(ctx context.Context, limit int) ([]wanted.BlocklistEntry, error)
 	BlocklistDownload(ctx context.Context, request wanted.BlocklistDownloadRequest) (wanted.BlocklistEntry, error)
@@ -428,6 +437,27 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/wanted/{id}/search", handler.searchWantedReleases)
 	mux.HandleFunc("GET /api/v1/wanted/releases/{id}", handler.listWantedReleases)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/grab", handler.grabWanted)
+	mux.HandleFunc("GET /api/v1/librarry/calendar", handler.librarryCalendar)
+	mux.HandleFunc("GET /feed/v1/calendar.ics", handler.calendarFeed)
+	mux.HandleFunc("GET /api/v1/auth/status", handler.authStatus)
+	mux.HandleFunc("POST /api/v1/login", handler.login)
+	mux.HandleFunc("POST /api/v1/logout", handler.logout)
+	mux.HandleFunc("PUT /api/v1/auth/config", handler.updateAuthConfig)
+	mux.HandleFunc("GET /api/v1/import-lists", handler.listImportLists)
+	mux.HandleFunc("POST /api/v1/import-lists", handler.createImportList)
+	mux.HandleFunc("GET /api/v1/import-lists/exclusions", handler.listImportListExclusions)
+	mux.HandleFunc("POST /api/v1/import-lists/exclusions", handler.createImportListExclusion)
+	mux.HandleFunc("DELETE /api/v1/import-lists/exclusions/{id}", handler.deleteImportListExclusion)
+	mux.HandleFunc("PUT /api/v1/import-lists/{id}", handler.updateImportList)
+	mux.HandleFunc("DELETE /api/v1/import-lists/{id}", handler.deleteImportList)
+	mux.HandleFunc("POST /api/v1/import-lists/{id}/sync", handler.syncImportList)
+	mux.HandleFunc("GET /api/v1/tags", handler.listTags)
+	mux.HandleFunc("POST /api/v1/tags", handler.createTag)
+	mux.HandleFunc("PUT /api/v1/tags/{id}", handler.updateTag)
+	mux.HandleFunc("DELETE /api/v1/tags/{id}", handler.deleteTag)
+	mux.HandleFunc("GET /api/v1/librarry/backups", handler.listBackups)
+	mux.HandleFunc("POST /api/v1/librarry/backups", handler.createBackup)
+	mux.HandleFunc("DELETE /api/v1/librarry/backups/{name}", handler.deleteBackup)
 	mux.HandleFunc("GET /api/v1/librarry/history", handler.history)
 	mux.HandleFunc("GET /api/v1/librarry/blocklist", handler.blocklist)
 	mux.HandleFunc("POST /api/v1/librarry/blocklist", handler.createBlocklistEntry)
@@ -456,7 +486,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/resolve", handler.resolveImportReview)
 
-	return withCORS(deps.Config.WebOrigin, withAPIKeyAuth(deps.Config.APIKey, mux))
+	return withCORS(deps.Config.WebOrigin, withAuth(deps.Config.APIKey, deps.Auth, mux))
 }
 
 type handler struct {
@@ -1774,16 +1804,39 @@ func (h *handler) updateAuthorSubscription(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author update payload"})
 		return
 	}
-	var request wanted.AuthorUpdateRequest
-	if err := json.Unmarshal(body, &request); err != nil {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author update payload"})
 		return
 	}
-	var raw map[string]any
-	if err := json.Unmarshal(body, &raw); err == nil {
-		if _, ok := raw["tags"]; ok {
-			request.TagsSet = true
+	// Tags accept labels (or legacy integer ids), so they decode separately
+	// from the typed struct.
+	tagsRaw, hasTags := raw["tags"]
+	delete(raw, "tags")
+	stripped, err := json.Marshal(raw)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author update payload"})
+		return
+	}
+	var request wanted.AuthorUpdateRequest
+	if err := json.Unmarshal(stripped, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author update payload"})
+		return
+	}
+	if hasTags {
+		labels, err := decodeTagLabels(tagsRaw)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author update payload"})
+			return
 		}
+		request.Tags = h.resolveTagLabels(r.Context(), labels)
+		request.TagsSet = true
+	}
+	if _, ok := raw["allowedLanguages"]; ok {
+		request.AllowedLanguagesSet = true
+	}
+	if _, ok := raw["mustNotContain"]; ok {
+		request.MustNotContainSet = true
 	}
 	subscription, err := h.deps.Wanted.UpdateAuthorSubscription(r.Context(), r.PathValue("id"), request)
 	if err != nil {
@@ -1966,6 +2019,9 @@ func (h *handler) updateWanted(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted update payload"})
 		return
+	}
+	if request.TagsSet {
+		request.Tags = h.resolveTagLabels(r.Context(), request.Tags)
 	}
 	item, err := h.deps.Wanted.UpdateWanted(r.Context(), id, request)
 	if err != nil {
@@ -2201,9 +2257,11 @@ func decodeWantedUpdateRequest(body io.Reader) (wanted.WantedUpdateRequest, erro
 		request.Monitored = &monitored
 	}
 	if value, ok := raw["tags"]; ok {
-		if err := json.Unmarshal(value, &request.Tags); err != nil {
+		labels, err := decodeTagLabels(value)
+		if err != nil {
 			return wanted.WantedUpdateRequest{}, err
 		}
+		request.Tags = labels
 		request.TagsSet = true
 	}
 	if value, ok := raw["rootFolderId"]; ok {
@@ -3126,31 +3184,6 @@ func withCORS(webOrigin string, next http.Handler) http.Handler {
 		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func withAPIKeyAuth(apiKey string, next http.Handler) http.Handler {
-	apiKey = strings.TrimSpace(apiKey)
-	if apiKey == "" {
-		return next
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if authExemptPath(r.URL.Path) {
-			next.ServeHTTP(w, r)
-			return
-		}
-		if !strings.HasPrefix(r.URL.Path, "/api/") {
-			next.ServeHTTP(w, r)
-			return
-		}
-		if !validAPIKey(r, apiKey) {
-			w.Header().Set("WWW-Authenticate", `X-Api-Key realm="librarry"`)
-			writeJSON(w, http.StatusUnauthorized, map[string]any{
-				"error": "API key is missing or invalid",
-			})
 			return
 		}
 		next.ServeHTTP(w, r)

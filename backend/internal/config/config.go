@@ -73,7 +73,17 @@ type Config struct {
 	CompletedImportLimit      int
 	CompletedImportMode       string
 	CompletedRemoveEnabled    bool
-	WebOrigin                 string
+	// AuthMethod is the arr-style API auth mode: "none" (default), "basic",
+	// or "forms". Empty means "unset by env" so a UI-persisted method can win.
+	AuthMethod             string
+	AuthUsername           string
+	AuthPassword           string
+	ImportListSyncInterval time.Duration
+	BackupEnabled          bool
+	BackupInterval         time.Duration
+	BackupRetention        int
+	BackupDir              string
+	WebOrigin              string
 }
 
 func FromEnv() Config {
@@ -143,6 +153,14 @@ func FromEnv() Config {
 		CompletedImportLimit:      envInt("LIBRARRY_COMPLETED_IMPORT_LIMIT", 50),
 		CompletedImportMode:       env("LIBRARRY_COMPLETED_IMPORT_MODE", "hardlinkOrCopy"),
 		CompletedRemoveEnabled:    envBool("LIBRARRY_COMPLETED_REMOVE_ENABLED", true),
+		AuthMethod:                strings.ToLower(strings.TrimSpace(os.Getenv("LIBRARRY_AUTH_METHOD"))),
+		AuthUsername:              strings.TrimSpace(os.Getenv("LIBRARRY_AUTH_USERNAME")),
+		AuthPassword:              os.Getenv("LIBRARRY_AUTH_PASSWORD"),
+		ImportListSyncInterval:    envDuration("LIBRARRY_IMPORT_LIST_SYNC_INTERVAL", 24*time.Hour),
+		BackupEnabled:             envBool("LIBRARRY_BACKUP_ENABLED", true),
+		BackupInterval:            envDuration("LIBRARRY_BACKUP_INTERVAL", 168*time.Hour),
+		BackupRetention:           envInt("LIBRARRY_BACKUP_RETENTION", 4),
+		BackupDir:                 env("LIBRARRY_BACKUP_DIR", "/config/backups"),
 		WebOrigin:                 env("LIBRARRY_WEB_ORIGIN", "http://127.0.0.1:5173"),
 	}
 }

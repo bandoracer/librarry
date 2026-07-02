@@ -11,7 +11,9 @@ LABEL org.opencontainers.image.title="Librarry API" \
   org.opencontainers.image.description="Go API and worker for Librarry, a self-hosted ebook and audiobook manager." \
   org.opencontainers.image.source="https://github.com/bandoracer/librarry" \
   org.opencontainers.image.licenses="AGPL-3.0"
-RUN apk add --no-cache ca-certificates tzdata \
+# postgresql16-client provides pg_dump for scheduled database backups
+# (matches the postgres:16-alpine compose database).
+RUN apk add --no-cache ca-certificates tzdata postgresql16-client \
   && adduser -D -H -u 1000 librarry
 WORKDIR /app
 COPY --from=build /out/librarry /usr/local/bin/librarry

@@ -1,0 +1,237 @@
+/*
+ * Calendar feature layout. Layout-only rules (grid, gaps, sizing, alignment);
+ * colors, typography, and component chrome come from styles.css primitives.
+ */
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-month-label {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.calendar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Month grid (hidden below 720px in favor of the agenda list) */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendar-weekday {
+  padding: 8px 10px;
+  font-size: 11.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.calendar-day {
+  min-height: 96px;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.calendar-day:nth-child(7n + 1) {
+  border-left: none;
+}
+
+.calendar-day:nth-child(7n) {
+  border-right: none;
+}
+
+.calendar-grid > .calendar-day:nth-last-child(-n + 7) {
+  border-bottom: none;
+}
+
+.calendar-day-outside {
+  background: var(--surface-2);
+}
+
+.calendar-day-outside .calendar-day-number {
+  color: var(--faint);
+}
+
+.calendar-day-number {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.calendar-day-today .calendar-day-number {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+}
+
+.calendar-day-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.calendar-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 1px 3px;
+}
+
+.calendar-item:hover {
+  background: var(--surface-3);
+}
+
+.calendar-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.calendar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* Agenda fallback (shown below 720px) */
+
+.calendar-agenda {
+  display: none;
+  flex-direction: column;
+}
+
+.calendar-agenda-day {
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.calendar-agenda-day:last-child {
+  border-bottom: none;
+}
+
+.calendar-agenda-day h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.calendar-agenda-day h3.calendar-agenda-today {
+  color: var(--accent);
+}
+
+.calendar-agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: var(--text);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.calendar-agenda-cover {
+  width: 26px;
+  height: 38px;
+  flex: none;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.calendar-agenda-cover-empty {
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  color: var(--muted);
+}
+
+.calendar-agenda-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.calendar-agenda-text strong {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-agenda-text small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.calendar-empty {
+  padding: 8px 0;
+}
+
+/* iCal modal: URL + copy button side by side */
+
+.calendar-feed-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.calendar-feed-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 719px) {
+  .calendar-grid {
+    display: none;
+  }
+
+  .calendar-agenda {
+    display: flex;
+  }
+}

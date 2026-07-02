@@ -425,7 +425,7 @@ export type WantedItem = {
   qualityProfile: string;
   status: string;
   monitored: boolean;
-  tags?: number[];
+  tags?: string[];
   sourceProvider?: string;
   sourceKey?: string;
   manualOverrides?: ManualOverride[];
@@ -547,7 +547,7 @@ export type WantedUpdateRequest = {
   qualityProfile?: string;
   status?: string;
   monitored?: boolean;
-  tags?: number[];
+  tags?: string[];
 };
 
 export type QualityProfile = {
@@ -577,7 +577,7 @@ export type AuthorSubscription = {
   status: string;
   monitorNewItems: boolean;
   missingBookPolicy: AuthorMissingBookPolicy;
-  tags?: number[];
+  tags?: string[];
   lastSyncAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -591,7 +591,7 @@ export type AuthorUpdateRequest = {
   status?: string;
   monitorNewItems?: boolean;
   missingBookPolicy?: AuthorMissingBookPolicy;
-  tags?: number[];
+  tags?: string[];
 };
 
 export type AuthorMonitorItemResult = {
@@ -620,7 +620,7 @@ export type AuthorMetadataReview = {
   authorName?: string;
   format: "ebook" | "audiobook";
   qualityProfile: string;
-  tags?: number[];
+  tags?: string[];
   policy: AuthorMissingBookPolicy;
   reason: string;
   status: string;
@@ -1623,7 +1623,7 @@ export async function runAuthorMonitor(options: {
   return (await response.json()) as AuthorMonitorRun;
 }
 
-export async function createWanted(result: SearchResult, format: string, qualityProfile = "standard", tags: number[] = []): Promise<WantedItem> {
+export async function createWanted(result: SearchResult, format: string, qualityProfile = "standard", tags: string[] = []): Promise<WantedItem> {
   const wantedFormat = format === "audiobook" ? "audiobook" : "ebook";
   const response = await fetch(`${apiBase}/api/v1/wanted`, {
     method: "POST",
@@ -2421,4 +2421,354 @@ export async function testNotificationTarget(id: string): Promise<NotificationTe
     throw new Error(await apiError(response, "Notification test failed"));
   }
   return (await response.json()) as NotificationTestOutcome;
+}
+
+/* ----------------------------- Calendar (M6.1) ----------------------------- */
+
+export type CalendarItem = {
+  wantedId: string;
+  title: string;
+  authorName: string;
+  /** ISO release date (date or datetime); UI buckets by the date component. */
+  releaseDate: string;
+  status: string;
+  monitored: boolean;
+  coverUrl?: string;
+};
+
+export async function fetchCalendar(start: string, end: string, unmonitored: boolean): Promise<CalendarItem[]> {
+  const params = new URLSearchParams({ start, end, unmonitored: String(unmonitored) });
+  const response = await fetch(`${apiBase}/api/v1/librarry/calendar?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Calendar refresh failed"));
+  }
+  const payload = (await response.json()) as { items?: CalendarItem[] | null };
+  return arrayPayload(payload.items);
+}
+
+/**
+ * Absolute iCal feed URL for external calendar apps. The feed authenticates
+ * with the apikey query parameter (from this browser's stored key); open
+ * installs get a keyless URL.
+ */
+export function calendarFeedURL(options: { pastDays: number; futureDays: number }): string {
+  const params = new URLSearchParams();
+  const apiKey = getStoredAPIKey();
+  if (apiKey) params.set("apikey", apiKey);
+  params.set("pastDays", String(Math.max(0, Math.round(options.pastDays))));
+  params.set("futureDays", String(Math.max(0, Math.round(options.futureDays))));
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const base = apiBase || origin;
+  return `${base}/feed/v1/calendar.ics?${params.toString()}`;
+}
+
+/* -------------------------- Authentication (M6.6) -------------------------- */
+
+export type AuthMethod = "none" | "basic" | "forms";
+
+export type AuthStatus = {
+  method: AuthMethod;
+  authenticated: boolean;
+  username?: string;
+};
+
+export async function fetchAuthStatus(): Promise<AuthStatus> {
+  const response = await fetch(`${apiBase}/api/v1/auth/status`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Auth status failed"));
+  }
+  return (await response.json()) as AuthStatus;
+}
+
+/** POST /api/v1/login — resolves on 200; a 401 throws the invalid-credentials message. */
+export async function login(request: { username: string; password: string; rememberMe?: boolean }): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (response.status === 401) {
+    throw new Error("Invalid username or password.");
+  }
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Sign in failed"));
+  }
+}
+
+export async function logout(): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/logout`, { method: "POST" });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Sign out failed"));
+  }
+}
+
+/** Update payload: blank password means "keep the stored one" (backend contract). */
+export type AuthConfigRequest = {
+  method: AuthMethod;
+  username?: string;
+  password?: string;
+};
+
+export async function saveAuthConfig(request: AuthConfigRequest): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/auth/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Authentication settings update failed"));
+  }
+}
+
+/* ---------------------------- Import lists (M6.2) -------------------------- */
+
+export type ImportListMonitor = "none" | "all";
+
+export type ImportList = {
+  id: string;
+  name: string;
+  type: "hardcover";
+  enabled: boolean;
+  /** Schema-driven per-type fields (listId for Hardcover lists/shelves). */
+  settings: Record<string, string>;
+  monitor: ImportListMonitor;
+  qualityProfile: string;
+  rootFolderId?: string;
+  searchOnAdd: boolean;
+  lastSyncedAt?: string;
+  createdAt: string;
+};
+
+/** Create/update payload: server owns id, lastSyncedAt, and createdAt. */
+export type ImportListRequest = Omit<ImportList, "id" | "lastSyncedAt" | "createdAt">;
+
+export async function fetchImportLists(): Promise<ImportList[]> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import lists refresh failed"));
+  }
+  const payload = (await response.json()) as { lists?: ImportList[] | null };
+  return arrayPayload(payload.lists);
+}
+
+export async function createImportList(request: ImportListRequest): Promise<ImportList> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import list create failed"));
+  }
+  const payload = (await response.json()) as { list: ImportList };
+  return payload.list;
+}
+
+export async function updateImportList(id: string, request: ImportListRequest): Promise<ImportList> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import list update failed"));
+  }
+  const payload = (await response.json()) as { list: ImportList };
+  return payload.list;
+}
+
+export async function deleteImportList(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import list delete failed"));
+  }
+}
+
+export type ImportListSyncOutcome = {
+  /** True when the server answered 202 — the sync was queued in the background. */
+  accepted: boolean;
+  message?: string;
+};
+
+export async function syncImportList(id: string): Promise<ImportListSyncOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists/${encodeURIComponent(id)}/sync`, {
+    method: "POST"
+  });
+  if (response.status === 202) {
+    return { accepted: true };
+  }
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import list sync failed"));
+  }
+  let message: string | undefined;
+  try {
+    const payload = (await response.json()) as { message?: unknown; status?: unknown };
+    message =
+      typeof payload.message === "string" ? payload.message : typeof payload.status === "string" ? payload.status : undefined;
+  } catch {
+    message = undefined;
+  }
+  return { accepted: false, message };
+}
+
+export type ImportListExclusion = {
+  id: string;
+  title: string;
+  authorName: string;
+  sourceKey: string;
+  createdAt: string;
+};
+
+export type ImportListExclusionRequest = Omit<ImportListExclusion, "id" | "createdAt">;
+
+export async function fetchImportListExclusions(): Promise<ImportListExclusion[]> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists/exclusions`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import list exclusions refresh failed"));
+  }
+  const payload = (await response.json()) as { exclusions?: ImportListExclusion[] | null };
+  return arrayPayload(payload.exclusions);
+}
+
+export async function createImportListExclusion(request: ImportListExclusionRequest): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists/exclusions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import list exclusion create failed"));
+  }
+}
+
+export async function deleteImportListExclusion(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/import-lists/exclusions/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Import list exclusion delete failed"));
+  }
+}
+
+/* -------------------------------- Tags (M6.4) ------------------------------ */
+
+export type Tag = {
+  id: number;
+  label: string;
+  wantedCount: number;
+  authorCount: number;
+};
+
+export async function fetchTags(): Promise<Tag[]> {
+  const response = await fetch(`${apiBase}/api/v1/tags`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Tags refresh failed"));
+  }
+  const payload = (await response.json()) as { tags?: Tag[] | null };
+  return arrayPayload(payload.tags);
+}
+
+export async function createTag(label: string): Promise<Tag> {
+  const response = await fetch(`${apiBase}/api/v1/tags`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label })
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Tag create failed"));
+  }
+  const payload = (await response.json()) as { tag?: Tag } & Partial<Tag>;
+  return payload.tag ?? (payload as Tag);
+}
+
+export async function updateTag(id: number, label: string): Promise<Tag> {
+  const response = await fetch(`${apiBase}/api/v1/tags/${encodeURIComponent(String(id))}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label })
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Tag rename failed"));
+  }
+  const payload = (await response.json()) as { tag?: Tag } & Partial<Tag>;
+  return payload.tag ?? (payload as Tag);
+}
+
+export async function deleteTag(id: number): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/tags/${encodeURIComponent(String(id))}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Tag delete failed"));
+  }
+}
+
+/* ----------------------- Author add filters (M6.3) ------------------------- */
+
+/**
+ * Per-subscription metadata filters applied before the author review queue.
+ * The backend returns these on AuthorSubscription and accepts them in the
+ * existing PATCH payload — appended here as an intersection type so parallel
+ * milestones don't collide editing the base types.
+ */
+export type AuthorFilterFields = {
+  allowedLanguages?: string[];
+  mustNotContain?: string[];
+  skipMissingIsbn?: boolean;
+  minPages?: number;
+};
+
+export type FilteredAuthorSubscription = AuthorSubscription & AuthorFilterFields;
+export type AuthorFilterUpdateRequest = AuthorUpdateRequest & AuthorFilterFields;
+
+/* ------------------------------ Backups (M6.6) ----------------------------- */
+
+export type Backup = {
+  name: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
+export async function fetchBackups(): Promise<Backup[]> {
+  const response = await fetch(`${apiBase}/api/v1/librarry/backups`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Backups refresh failed"));
+  }
+  const payload = (await response.json()) as { backups?: Backup[] | null };
+  return arrayPayload(payload.backups);
+}
+
+export type CreateBackupOutcome = {
+  backup?: Backup;
+  /** True when the server answered 501 — backups are not configured on this install. */
+  unavailable?: boolean;
+  message?: string;
+};
+
+/**
+ * Trigger a backup. A 501 (backup path not configured) is a semi-expected
+ * outcome, so it is returned with the backend's message rather than thrown;
+ * every other failure throws.
+ */
+export async function createBackup(): Promise<CreateBackupOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/librarry/backups`, { method: "POST" });
+  if (response.status === 501) {
+    return { unavailable: true, message: await apiError(response, "Backups are not configured") };
+  }
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Backup failed"));
+  }
+  const payload = (await response.json()) as { backup: Backup };
+  return { backup: payload.backup };
+}
+
+export async function deleteBackup(name: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/librarry/backups/${encodeURIComponent(name)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Backup delete failed"));
+  }
 }

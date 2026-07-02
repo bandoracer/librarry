@@ -153,6 +153,25 @@ individual books wanted without changing the author policy. Use
 or `{"action":"ignore"}` to resolve one. Author monitoring does not grab
 releases.
 
+### Author Add-Filters
+
+Each subscription carries optional metadata filters that run before the
+missing-book policy, so noisy candidates never reach the review queue as
+actionable rows — they become skipped entries with explicit reasons instead
+(`language-filtered`, `term-filtered`, `missing-isbn`, `below-min-pages`):
+
+- `allowedLanguages` (string list): when set, candidates with a known,
+  non-matching edition language are skipped. Unknown languages pass.
+- `mustNotContain` (string list): candidates whose title contains any term are
+  skipped.
+- `skipMissingIsbn` (bool): candidates without an ISBN are skipped.
+- `minPages` (int): candidates whose provider-supplied page count is below the
+  minimum are skipped. Unknown page counts pass.
+
+The fields appear on `AuthorSubscription` JSON and are accepted in both the
+subscribe (`POST /api/v1/authors`) and update (`PATCH /api/v1/authors/{id}`)
+payloads.
+
 ## Feed Sync
 
 The API can also poll Prowlarr-compatible indexer RSS feeds on an interval:
@@ -185,7 +204,34 @@ Librarry supports inline list entries in `books`, `items`, `entries`, `titles`,
 `queries`, `isbns`, or `fields[].value`. Entries are resolved through metadata
 search when providers are configured; otherwise deterministic title/author
 records are created so reruns remain idempotent. Import-list exclusions from
-`/api/v1/importlistexclusion` are respected before wanted items are created.
+`/api/v1/importlistexclusion` are respected before wanted items are created,
+and the native exclusions below apply to compat syncs too.
+
+### Native Import Lists (Hardcover)
+
+Native import lists sync a Hardcover list/shelf into wanted items. They need
+`LIBRARRY_HARDCOVER_TOKEN` and store `settings.listId` (the numeric Hardcover
+list id; optional `settings.format` picks `ebook`/`audiobook`, default ebook).
+Each list carries auto-add options: `monitor` (`all`|`none`), `qualityProfile`,
+`rootFolderId`, and `searchOnAdd` (search only — review-first stays intact,
+nothing is grabbed).
+
+- `GET/POST /api/v1/import-lists`, `PUT/DELETE /api/v1/import-lists/{id}`
+- `POST /api/v1/import-lists/{id}/sync` runs one list now and returns the
+  outcome (created / already tracked / excluded / errors per entry)
+- `GET/POST /api/v1/import-lists/exclusions`,
+  `DELETE /api/v1/import-lists/exclusions/{id}` — exclusions match by source
+  key (`hardcover:<id>`) or title (+ optional author) and suppress entries in
+  both native and compat syncs
+
+The scheduled `import-list-sync` task syncs every enabled list:
+
+```dotenv
+LIBRARRY_IMPORT_LIST_SYNC_INTERVAL=24h
+```
+
+Entries dedupe against already-tracked books by provider identity
+(provider + source key + format), so re-syncs are idempotent.
 
 ## Upgrades
 
@@ -509,3 +555,93 @@ Delivery uses a 10 second timeout and failures are logged, never fatal.
 - `GET /api/v1/system/diskspace` returns
   `{"disks":[{path,label,freeBytes,totalBytes}]}` for every root folder plus
   the book torrent root, deduplicated by backing filesystem.
+
+## Calendar & iCal
+
+Wanted items persist a confident `releaseDate` (yyyy-mm-dd) when the metadata
+result carries a full publication date; year-only books stay off the calendar.
+Existing rows were backfilled from edition publish dates in migration 0024.
+
+- `GET /api/v1/librarry/calendar?start=&end=&unmonitored=true|false` returns
+  `{"items":[{wantedId,title,authorName,releaseDate,status,monitored,coverUrl}]}`.
+  `start`/`end` accept RFC3339 or `yyyy-mm-dd`; the default window is the start
+  of the current month minus 7 days through today plus 60 days. Unmonitored
+  items are excluded unless `unmonitored=true`.
+- `GET /feed/v1/calendar.ics?apikey=&pastDays=&futureDays=` serves all-day
+  VEVENTs (UID = wanted id) for external calendar apps. `/feed/` bypasses
+  session auth but requires the `apikey` query parameter whenever
+  `LIBRARRY_API_KEY` is set (and stays blocked under forms/basic auth without
+  an API key, since calendar apps cannot log in).
+- The Readarr-compatible `GET /api/v1/calendar` serves the same real
+  release-dated items.
+
+## Authentication
+
+Arr-parity in-app auth for the API (`none` default, `basic`, `forms`):
+
+```dotenv
+LIBRARRY_AUTH_METHOD=forms
+LIBRARRY_AUTH_USERNAME=admin
+LIBRARRY_AUTH_PASSWORD=change-me
+```
+
+`LIBRARRY_AUTH_USERNAME`/`LIBRARRY_AUTH_PASSWORD` seed or update the single
+user row (bcrypt) at startup. API keys (`X-Api-Key`, `apikey`, bearer) keep
+working for every method so Readarr-compatible clients never break. With
+`none` + `LIBRARRY_API_KEY`, the pre-M6 behavior is unchanged (key required on
+`/api/*`).
+
+- `GET /api/v1/auth/status` → `{"method","authenticated","username"?}` (always
+  reachable; the web UI gates on it)
+- `POST /api/v1/login` `{"username","password","rememberMe"?}` → sets the
+  HttpOnly `librarry_session` cookie (30 days with `rememberMe`, browser
+  session otherwise); invalid credentials return 401
+- `POST /api/v1/logout` clears the session
+- `PUT /api/v1/auth/config` `{"method","username"?,"password"?}` switches the
+  method at runtime (persisted across restarts; an explicit
+  `LIBRARRY_AUTH_METHOD` env wins at boot). A blank password keeps the stored
+  one.
+
+Only the API enforces auth: the nginx-served static UI bundle remains publicly
+reachable and the UI itself redirects to its sign-in screen based on
+`auth/status`. Front Librarry with a reverse proxy (Cosmos/CF Access) if the
+static assets themselves must be private.
+
+## Tags
+
+Native tags live in the `tags` table; wanted items and author subscriptions
+store comma-separated tag labels. Renaming or deleting a tag rewrites the
+label across both columns in one transaction, and labels written through
+wanted/author endpoints are auto-registered in the tags table.
+
+- `GET /api/v1/tags` → `{"tags":[{id,label,wantedCount,authorCount}]}` (`id`
+  is a stable integer hash; counts aggregate by label)
+- `POST /api/v1/tags` `{"label"}`, `PUT /api/v1/tags/{id}` `{"label"}`,
+  `DELETE /api/v1/tags/{id}`
+- Wanted and author update payloads accept `"tags": ["label", ...]` (legacy
+  integer tag ids from compat clients are mapped back to labels)
+
+## Backups
+
+`pg_dump`-based database backups (custom format, restore with `pg_restore`):
+
+```dotenv
+LIBRARRY_BACKUP_ENABLED=true
+LIBRARRY_BACKUP_INTERVAL=168h
+LIBRARRY_BACKUP_RETENTION=4
+LIBRARRY_BACKUP_DIR=/config/backups
+```
+
+- `POST /api/v1/librarry/backups` runs a backup now and returns
+  `{"backup":{name,sizeBytes,createdAt}}`; installs without a database or
+  without `pg_dump` answer `501`
+- `GET /api/v1/librarry/backups` → `{"backups":[...]}` (also served on the
+  compat `GET /api/v1/system/backup`)
+- `DELETE /api/v1/librarry/backups/{name}` (names are sanitized to
+  `librarry-YYYYMMDD-HHMMSS.dump` basenames)
+
+The scheduled `backup` task creates a dump every interval and prunes to the
+newest `LIBRARRY_BACKUP_RETENTION` files. The API image ships
+`postgresql16-client`; mount `LIBRARRY_BACKUP_DIR` to keep dumps outside the
+container. The database password travels to `pg_dump` via the child process
+environment and is never logged.

@@ -196,14 +196,14 @@ func TestReadarrImportApplyPersistsNativeState(t *testing.T) {
 	if len(wantedCapture.authors) != 1 || wantedCapture.authors[0].AuthorName != "Andy Weir" || wantedCapture.authors[0].QualityProfile != "Ebook Standard" {
 		t.Fatalf("expected imported author subscription, got %+v", wantedCapture.authors)
 	}
-	if got := wantedCapture.authors[0].Tags; len(got) != 1 || got[0] != 12 {
-		t.Fatalf("expected author tags to carry over, got %+v", got)
+	if got := wantedCapture.authors[0].Tags; len(got) != 1 || got[0] != "favorites" {
+		t.Fatalf("expected author tags to carry over as labels, got %+v", got)
 	}
 	if len(wantedCapture.creates) != 1 || wantedCapture.creates[0].Result.Work.Title != "Project Hail Mary" {
 		t.Fatalf("expected imported wanted book, got %+v", wantedCapture.creates)
 	}
-	if got := wantedCapture.creates[0].Tags; len(got) != 1 || got[0] != 12 {
-		t.Fatalf("expected book tags to carry over, got %+v", got)
+	if got := wantedCapture.creates[0].Tags; len(got) != 1 || got[0] != "favorites" {
+		t.Fatalf("expected book tags to carry over as labels, got %+v", got)
 	}
 	if got := wantedCapture.creates[0].Result.Edition.ISBNs; len(got) != 1 || got[0] != "9780593135204" {
 		t.Fatalf("expected edition ISBN to carry over, got %+v", wantedCapture.creates[0].Result.Edition)
@@ -1336,16 +1336,16 @@ func TestCompatRestrictionRecordRoundTripsAliases(t *testing.T) {
 }
 
 func TestCompatTagApplyModes(t *testing.T) {
-	if got := applyCompatTagMode([]int{1, 2}, []int{2, 3}, "add"); len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 3 {
+	if got := applyCompatTagLabelMode([]string{"one", "two"}, []string{"two", "three"}, "add"); len(got) != 3 || got[0] != "one" || got[1] != "two" || got[2] != "three" {
 		t.Fatalf("unexpected add tags: %#v", got)
 	}
-	if got := applyCompatTagMode([]int{1, 2, 3}, []int{2}, "remove"); len(got) != 2 || got[0] != 1 || got[1] != 3 {
+	if got := applyCompatTagLabelMode([]string{"one", "two", "three"}, []string{"two"}, "remove"); len(got) != 2 || got[0] != "one" || got[1] != "three" {
 		t.Fatalf("unexpected remove tags: %#v", got)
 	}
-	if got := applyCompatTagMode([]int{1, 2}, []int{4}, "replace"); len(got) != 1 || got[0] != 4 {
+	if got := applyCompatTagLabelMode([]string{"one", "two"}, []string{"four"}, "replace"); len(got) != 1 || got[0] != "four" {
 		t.Fatalf("unexpected replace tags: %#v", got)
 	}
-	if got := applyCompatTagMode([]int{1, 2}, []int{4}, "none"); len(got) != 2 || got[0] != 1 || got[1] != 2 {
+	if got := applyCompatTagLabelMode([]string{"one", "two"}, []string{"four"}, "none"); len(got) != 2 || got[0] != "one" || got[1] != "two" {
 		t.Fatalf("unexpected none tags: %#v", got)
 	}
 }
@@ -1514,7 +1514,7 @@ func TestCompatImportListSyncCommandCreatesWantedItems(t *testing.T) {
 	if created.QualityProfile != "standard" || created.Format != "ebook" {
 		t.Fatalf("expected list quality/format to propagate, got %+v", created)
 	}
-	if len(created.Tags) != 2 || created.Tags[0] != 7 || created.Tags[1] != 11 {
+	if len(created.Tags) != 2 || created.Tags[0] != "7" || created.Tags[1] != "11" {
 		t.Fatalf("expected merged list and entry tags, got %+v", created.Tags)
 	}
 	if created.Result.Work.Title != "Project Hail Mary" || firstAuthor(created.Result).Name != "Andy Weir" {
@@ -1922,8 +1922,8 @@ func TestCompatAuthorAndBookEditorEndpointsPersist(t *testing.T) {
 		wantedClient.authorUpdates[0].request.QualityProfile != "retail" ||
 		!wantedClient.authorUpdates[0].request.TagsSet ||
 		len(wantedClient.authorUpdates[0].request.Tags) != 2 ||
-		wantedClient.authorUpdates[0].request.Tags[0] != 5 ||
-		wantedClient.authorUpdates[0].request.Tags[1] != 7 {
+		wantedClient.authorUpdates[0].request.Tags[0] != "5" ||
+		wantedClient.authorUpdates[0].request.Tags[1] != "7" {
 		t.Fatalf("expected persisted author editor update, got %+v", wantedClient.authorUpdates)
 	}
 
@@ -3964,8 +3964,8 @@ func TestUpdateWantedEndpointPersistsMetadataCorrections(t *testing.T) {
 		*update.request.Monitored ||
 		!update.request.TagsSet ||
 		len(update.request.Tags) != 2 ||
-		update.request.Tags[0] != 7 ||
-		update.request.Tags[1] != 9 ||
+		update.request.Tags[0] != "7" ||
+		update.request.Tags[1] != "9" ||
 		update.request.RootFolderID == nil ||
 		*update.request.RootFolderID != "root-7" {
 		t.Fatalf("unexpected wanted update request: %+v", update)
@@ -4613,7 +4613,7 @@ func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
 		QualityProfile:      "standard",
 		Status:              "wanted",
 		Monitored:           true,
-		Tags:                []int{9},
+		Tags:                []string{"9"},
 		CurrentReleaseID:    "release-1",
 		CurrentReleaseScore: 70,
 		CreatedAt:           time.Now().UTC(),
@@ -4682,7 +4682,7 @@ func (fakeWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.Aut
 		Status:            "monitored",
 		MonitorNewItems:   true,
 		MissingBookPolicy: "all",
-		Tags:              []int{5},
+		Tags:              []string{"5"},
 		CreatedAt:         time.Now().UTC(),
 		UpdatedAt:         time.Now().UTC(),
 	}}, nil
@@ -5166,6 +5166,21 @@ func (fakeWanted) DeleteAuthorSubscription(context.Context, string) error {
 	return nil
 }
 
+func (fakeWanted) ListCalendar(context.Context, time.Time, time.Time, bool) ([]wanted.WantedItem, error) {
+	return []wanted.WantedItem{{
+		ID:             "wanted-1",
+		Title:          "Project Hail Mary",
+		AuthorName:     "Andy Weir",
+		Format:         "ebook",
+		QualityProfile: "standard",
+		Status:         "wanted",
+		Monitored:      true,
+		ReleaseDate:    time.Now().UTC().Format("2006-01-02"),
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
+	}}, nil
+}
+
 func (fakeWanted) ListCutoffUnmet(context.Context) ([]wanted.WantedItem, error) {
 	return []wanted.WantedItem{{
 		ID:                  "wanted-2",
@@ -5378,7 +5393,7 @@ func fakeAuthorMetadataReview(status string) wanted.AuthorMetadataReview {
 		AuthorName:           "Andy Weir",
 		Format:               "ebook",
 		QualityProfile:       "standard",
-		Tags:                 []int{5},
+		Tags:                 []string{"5"},
 		Policy:               "future",
 		Reason:               "future policy requires a publication date",
 		Status:               status,

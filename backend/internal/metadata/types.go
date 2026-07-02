@@ -53,6 +53,7 @@ type Edition struct {
 	ASIN          string      `json:"asin,omitempty"`
 	Publisher     string      `json:"publisher,omitempty"`
 	PublishedDate string      `json:"publishedDate,omitempty"`
+	Pages         int         `json:"pages,omitempty"`
 	ProviderIDs   []string    `json:"providerIds,omitempty"`
 }
 

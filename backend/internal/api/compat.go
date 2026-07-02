@@ -86,7 +86,7 @@ func (h *handler) compatSystemStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"appName":           "Librarry",
 		"instanceName":      "Librarry",
-		"version":           "0.1.0",
+		"version":           "0.2.0",
 		"buildTime":         now.Format(time.RFC3339),
 		"isDebug":           false,
 		"isProduction":      true,
@@ -284,8 +284,25 @@ func (h *handler) compatSystemDuplicateRoutes(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, []map[string]any{})
 }
 
+// compatSystemBackups serves the real pg_dump backup list (M6.6) in the arr
+// system/backup shape.
 func (h *handler) compatSystemBackups(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, []map[string]any{})
+	records := []map[string]any{}
+	if h.deps.Backups != nil {
+		if rows, err := h.deps.Backups.List(); err == nil {
+			for _, backup := range rows {
+				records = append(records, map[string]any{
+					"id":   stableInt(backup.Name),
+					"name": backup.Name,
+					"path": backup.Name,
+					"type": "scheduled",
+					"size": backup.SizeBytes,
+					"time": backup.CreatedAt,
+				})
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, records)
 }
 
 func (h *handler) compatUpdates(w http.ResponseWriter, r *http.Request) {
@@ -543,26 +560,24 @@ func (h *handler) compatUpdateIndexerConfig(w http.ResponseWriter, r *http.Reque
 	h.writeCompatConfigUpdate(w, r, "config-indexer", "indexer config", h.compatIndexerConfigRecord)
 }
 
+// compatCalendar serves real release-dated wanted items (M6.1); items without
+// a confident release date stay off the calendar.
 func (h *handler) compatCalendar(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
 		return
 	}
-	items, err := h.deps.Wanted.List(r.Context(), "")
+	query := r.URL.Query()
+	start, end := calendarWindow(query.Get("start"), query.Get("end"), time.Now())
+	includeUnmonitored, _ := strconv.ParseBool(query.Get("unmonitored"))
+	items, err := h.deps.Wanted.ListCalendar(r.Context(), start, end, includeUnmonitored)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	start := parseTimeQuery(r.URL.Query().Get("start"))
-	end := parseTimeQuery(r.URL.Query().Get("end"))
 	records := make([]map[string]any, 0, len(items))
 	for _, item := range items {
-		record := compatCalendarRecord(item)
-		airDate := calendarDateForItem(item)
-		if !timeInRange(airDate, start, end) {
-			continue
-		}
-		records = append(records, record)
+		records = append(records, compatCalendarRecord(item))
 	}
 	writeJSON(w, http.StatusOK, records)
 }
@@ -1140,7 +1155,7 @@ func (h *handler) compatCreateAuthor(w http.ResponseWriter, r *http.Request) {
 		Format:            firstNonEmptyString(payloadString(payload, "format"), payloadString(payload, "wantedFormat"), "ebook"),
 		QualityProfile:    firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
 		MissingBookPolicy: compatAuthorMissingBookPolicy(payload),
-		Tags:              compatPayloadIntArray(payload, "tags"),
+		Tags:              h.compatTagLabels(r.Context(), compatPayloadIntArray(payload, "tags")),
 	}
 	monitor := true
 	if monitored, ok := payload["monitored"].(bool); ok {
@@ -1353,7 +1368,7 @@ func (h *handler) compatCreateBook(w http.ResponseWriter, r *http.Request) {
 		},
 		Format:         firstNonEmptyString(payloadString(payload, "format"), "ebook"),
 		QualityProfile: firstNonEmptyString(payloadString(payload, "qualityProfile"), nestedString(payload, "qualityProfile", "name"), "standard"),
-		Tags:           compatPayloadIntArray(payload, "tags"),
+		Tags:           h.compatTagLabels(r.Context(), compatPayloadIntArray(payload, "tags")),
 	}
 	item, err := h.deps.Wanted.Create(r.Context(), request)
 	if err != nil {
@@ -3116,7 +3131,7 @@ func (h *handler) compatRunImportListSyncCommand(ctx context.Context, payload ma
 				Result:         result,
 				Format:         firstNonEmptyString(entry.Format, payloadString(list, "format"), "ebook"),
 				QualityProfile: h.compatImportListQualityProfile(ctx, list, entry),
-				Tags:           mergeCompatIntTags(compatPayloadIntArray(list, "tags"), entry.Tags),
+				Tags:           h.compatTagLabels(ctx, mergeCompatIntTags(compatPayloadIntArray(list, "tags"), entry.Tags)),
 			})
 			if createErr != nil {
 				itemRecord["status"] = "error"
@@ -3171,19 +3186,32 @@ func (h *handler) compatImportListSyncRecords(ctx context.Context, payload map[s
 }
 
 func (h *handler) compatImportListSyncExclusions(ctx context.Context) ([]map[string]any, error) {
-	if h.deps.Compat == nil {
-		return nil, nil
+	var exclusions []map[string]any
+	if h.deps.Compat != nil {
+		resources, err := h.deps.Compat.ListResources(ctx, "import-list-exclusion")
+		if err != nil {
+			return nil, err
+		}
+		for _, resource := range resources {
+			record := compatImportListExclusionRecord(resource.Payload, resource.CompatID)
+			record = mergeCompatPayload(record, resource.Payload)
+			record["id"] = resource.CompatID
+			exclusions = append(exclusions, record)
+		}
 	}
-	resources, err := h.deps.Compat.ListResources(ctx, "import-list-exclusion")
-	if err != nil {
-		return nil, err
-	}
-	exclusions := make([]map[string]any, 0, len(resources))
-	for _, resource := range resources {
-		record := compatImportListExclusionRecord(resource.Payload, resource.CompatID)
-		record = mergeCompatPayload(record, resource.Payload)
-		record["id"] = resource.CompatID
-		exclusions = append(exclusions, record)
+	// Native import-list exclusions (M6.3) apply to compat syncs too.
+	if h.deps.ImportLists != nil && h.deps.ImportLists.Available() {
+		native, err := h.deps.ImportLists.Exclusions(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, exclusion := range native {
+			exclusions = append(exclusions, map[string]any{
+				"foreignId":  exclusion.SourceKey,
+				"bookTitle":  exclusion.Title,
+				"authorName": exclusion.AuthorName,
+			})
+		}
 	}
 	return exclusions, nil
 }
@@ -3700,6 +3728,10 @@ func (h *handler) compatAuthorUpdateRequest(ctx context.Context, payload map[str
 	if request.QualityProfile == "" {
 		request.QualityProfile = h.compatQualityProfileNameFromPayload(ctx, payload)
 	}
+	if payloadHasKey(payload, "tags") {
+		request.Tags = h.compatTagLabels(ctx, compatPayloadIntArray(payload, "tags"))
+		request.TagsSet = true
+	}
 	return request
 }
 
@@ -3707,6 +3739,10 @@ func (h *handler) compatWantedUpdateRequest(ctx context.Context, payload map[str
 	request := compatWantedUpdateRequest(payload)
 	if request.QualityProfile == "" {
 		request.QualityProfile = h.compatQualityProfileNameFromPayload(ctx, payload)
+	}
+	if payloadHasKey(payload, "tags") {
+		request.Tags = h.compatTagLabels(ctx, compatPayloadIntArray(payload, "tags"))
+		request.TagsSet = true
 	}
 	return request
 }
@@ -3755,10 +3791,6 @@ func compatAuthorUpdateRequest(payload map[string]any) wanted.AuthorUpdateReques
 		request.MonitorNewItems = monitorNewItems
 	}
 	request.MissingBookPolicy = compatAuthorMissingBookPolicy(payload)
-	if payloadHasKey(payload, "tags") {
-		request.Tags = compatPayloadIntArray(payload, "tags")
-		request.TagsSet = true
-	}
 	return request
 }
 
@@ -3806,52 +3838,23 @@ func compatWantedUpdateRequest(payload map[string]any) wanted.WantedUpdateReques
 	if monitored, ok := payloadBoolPointer(payload, "monitored"); ok {
 		request.Monitored = monitored
 	}
-	if payloadHasKey(payload, "tags") {
-		request.Tags = compatPayloadIntArray(payload, "tags")
-		request.TagsSet = true
-	}
 	return request
 }
 
-func updateAuthorTagsFromPayload(request *wanted.AuthorUpdateRequest, current []int, payload map[string]any) {
+func updateAuthorTagsFromPayload(request *wanted.AuthorUpdateRequest, current []string, payload map[string]any) {
 	if request == nil || !payloadHasKey(payload, "tags") {
 		return
 	}
-	request.Tags = applyCompatTagMode(current, request.Tags, payloadString(payload, "applyTags"))
+	request.Tags = applyCompatTagLabelMode(current, request.Tags, payloadString(payload, "applyTags"))
 	request.TagsSet = true
 }
 
-func updateWantedTagsFromPayload(request *wanted.WantedUpdateRequest, current []int, payload map[string]any) {
+func updateWantedTagsFromPayload(request *wanted.WantedUpdateRequest, current []string, payload map[string]any) {
 	if request == nil || !payloadHasKey(payload, "tags") {
 		return
 	}
-	request.Tags = applyCompatTagMode(current, request.Tags, payloadString(payload, "applyTags"))
+	request.Tags = applyCompatTagLabelMode(current, request.Tags, payloadString(payload, "applyTags"))
 	request.TagsSet = true
-}
-
-func applyCompatTagMode(current []int, requested []int, mode string) []int {
-	current = compactCompatTags(current)
-	requested = compactCompatTags(requested)
-	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "add":
-		return compactCompatTags(append(append([]int{}, current...), requested...))
-	case "remove":
-		remove := make(map[int]bool, len(requested))
-		for _, tag := range requested {
-			remove[tag] = true
-		}
-		tags := make([]int, 0, len(current))
-		for _, tag := range current {
-			if !remove[tag] {
-				tags = append(tags, tag)
-			}
-		}
-		return tags
-	case "none", "noop":
-		return current
-	default:
-		return requested
-	}
 }
 
 func compactCompatTags(tags []int) []int {
@@ -4870,6 +4873,9 @@ func compatCalendarRecord(item wanted.WantedItem) map[string]any {
 }
 
 func calendarDateForItem(item wanted.WantedItem) time.Time {
+	if parsed, err := time.Parse("2006-01-02", item.ReleaseDate); err == nil {
+		return parsed.UTC()
+	}
 	switch {
 	case item.LastSearchAt != nil:
 		return item.LastSearchAt.UTC()
@@ -6181,7 +6187,7 @@ func compatAuthorRecord(subscription wanted.AuthorSubscription, books []wanted.W
 		"path":                      "",
 		"qualityProfileId":          stableInt(subscription.QualityProfile),
 		"metadataProfileId":         stableInt(subscription.Format),
-		"tags":                      subscription.Tags,
+		"tags":                      compatTagIDs(subscription.Tags),
 		"genres":                    []string{},
 		"ratings":                   map[string]any{"votes": 0, "value": 0},
 		"statistics":                map[string]any{"bookCount": len(bookRecords), "bookFileCount": 0},
@@ -6209,7 +6215,7 @@ func compatAuthorBookRecord(item wanted.WantedItem) map[string]any {
 		"qualityProfile": item.QualityProfile,
 		"releaseDate":    item.CreatedAt,
 		"statistics":     map[string]any{"bookFileCount": boolInt(item.Status == "imported")},
-		"tags":           item.Tags,
+		"tags":           compatTagIDs(item.Tags),
 	}
 }
 
@@ -6234,7 +6240,7 @@ func compatBookRecord(item wanted.WantedItem) map[string]any {
 			"sizeOnDisk":    0,
 		},
 		"images": compatImages(item.CoverURL),
-		"tags":   item.Tags,
+		"tags":   compatTagIDs(item.Tags),
 		"editions": []map[string]any{
 			edition,
 		},

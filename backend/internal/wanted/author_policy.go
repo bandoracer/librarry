@@ -153,3 +153,10 @@ func wantedSourceFileKey(provider string, sourceKey string, format string) strin
 		strings.ToLower(strings.TrimSpace(sourceKey)) + "|" +
 		normalizeFormat(format)
 }
+
+// SourceIdentity is the normalized provider identity key of a wanted item
+// (provider|sourceKey|format); import-list sync uses it to dedupe entries
+// against already-tracked books.
+func SourceIdentity(provider string, sourceKey string, format string) string {
+	return wantedSourceFileKey(provider, sourceKey, format)
+}

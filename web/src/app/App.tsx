@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "./AppLayout";
 import { defaultPath } from "./nav";
-import { queryClient } from "../lib/queries";
+import { queryClient, useAuthStatus } from "../lib/queries";
 import { ToastProvider } from "../components/toast";
 import { LoadingRow } from "../components/ui";
 
@@ -17,12 +17,28 @@ const ActivityPage = lazy(() => import("../features/activity/ActivityPage"));
 const ImportsPage = lazy(() => import("../features/imports/ImportsPage"));
 const SystemPage = lazy(() => import("../features/system/SystemPage"));
 const SettingsPage = lazy(() => import("../features/settings/SettingsPage"));
+const CalendarPage = lazy(() => import("../features/calendar/CalendarPage"));
+const LoginPage = lazy(() => import("../features/auth/LoginPage"));
+
+/**
+ * Forms-auth gate: unauthenticated sessions see the login page. API-key
+ * clients and none/basic installs pass straight through (useAuthStatus
+ * resolves open on any failure so a broken probe can never lock the UI).
+ */
+function AuthGate(props: { children: React.ReactNode }) {
+  const auth = useAuthStatus();
+  if (auth.data && auth.data.method === "forms" && !auth.data.authenticated) {
+    return <LoginPage />;
+  }
+  return <>{props.children}</>;
+}
 
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <Suspense fallback={<div className="page-loading"><LoadingRow /></div>}>
+          <AuthGate>
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<Navigate to={defaultPath} replace />} />
@@ -32,6 +48,7 @@ export function App() {
               <Route path="/library/book/:wantedId" element={<BookPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/wanted" element={<WantedPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/downloads" element={<ActivityPage />} />
               <Route path="/downloads/history" element={<ActivityPage />} />
               <Route path="/downloads/blocklist" element={<ActivityPage />} />
@@ -41,6 +58,7 @@ export function App() {
               <Route path="*" element={<Navigate to={defaultPath} replace />} />
             </Route>
           </Routes>
+          </AuthGate>
         </Suspense>
       </ToastProvider>
     </QueryClientProvider>

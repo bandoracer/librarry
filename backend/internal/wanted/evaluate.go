@@ -301,9 +301,9 @@ func ParseReleaseRestrictionTerms(value string) []string {
 	return terms
 }
 
-func profileWithReleaseRestrictions(profile QualityProfile, restrictions []ReleaseRestriction, itemTags []int) QualityProfile {
+func profileWithReleaseRestrictions(profile QualityProfile, restrictions []ReleaseRestriction, itemTags []string) QualityProfile {
 	for _, restriction := range restrictions {
-		if !releaseRestrictionApplies(restriction, itemTags) {
+		if !releaseRestrictionAppliesToLabels(restriction, itemTags) {
 			continue
 		}
 		profile.RequiredTerms = appendUniqueTerms(profile.RequiredTerms, restriction.RequiredTerms...)
@@ -311,26 +311,6 @@ func profileWithReleaseRestrictions(profile QualityProfile, restrictions []Relea
 		profile.PreferredTerms = appendUniqueTerms(profile.PreferredTerms, restriction.PreferredTerms...)
 	}
 	return profile
-}
-
-func releaseRestrictionApplies(restriction ReleaseRestriction, itemTags []int) bool {
-	if len(restriction.Tags) == 0 {
-		return true
-	}
-	itemTags = compactRestrictionTags(itemTags)
-	if len(itemTags) == 0 {
-		return false
-	}
-	itemTagSet := make(map[int]bool, len(itemTags))
-	for _, tag := range itemTags {
-		itemTagSet[tag] = true
-	}
-	for _, tag := range restriction.Tags {
-		if itemTagSet[tag] {
-			return true
-		}
-	}
-	return false
 }
 
 func appendUniqueTerms(base []string, additions ...string) []string {

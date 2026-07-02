@@ -494,6 +494,7 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 				Authors             []string `json:"authors"`
 				PublishedDate       string   `json:"publishedDate"`
 				Publisher           string   `json:"publisher"`
+				PageCount           int      `json:"pageCount"`
 				IndustryIdentifiers []struct {
 					Type       string `json:"type"`
 					Identifier string `json:"identifier"`
@@ -540,6 +541,7 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 				ISBNs:         compactStrings(isbns),
 				Publisher:     item.VolumeInfo.Publisher,
 				PublishedDate: item.VolumeInfo.PublishedDate,
+				Pages:         item.VolumeInfo.PageCount,
 				ProviderIDs:   []string{workID + ":edition"},
 			},
 			Score:        score,

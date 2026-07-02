@@ -124,6 +124,25 @@ yet ready to replace a production Readarr instance unattended.
   E2E download sitting at `importStatus: ready` should import on its own
   within ~a minute of startup.
 
+- v0.2.0 (2026-07-01) implemented the full Readarr parity plan
+  (docs/parity-plan.md, all six milestones; delay profiles skipped by owner
+  decision): blocklist with evaluation rejection and auto-blocklisting,
+  remove-after-seeding, cutoff-unmet view, search-on-add, seven monitor
+  modes, author/book detail pages, poster/overview library views, mass
+  editor, multiple root folders, remote path mappings, recycle bin,
+  series/year naming tokens, rename UI, task scheduler with run-now, native
+  notifications (webhook/ntfy/Discord/Telegram) dispatched from workers,
+  continuous health checks, disk space, calendar + iCal feed, Hardcover
+  import lists with exclusions, author add-filters, native tags,
+  none/basic/forms authentication, and scheduled pg_dump backups. Auto-grab
+  defaults flipped to arr parity. Verified locally against a disposable
+  Postgres 16 (all 26 migrations, endpoint smoke across the new surface,
+  forms-auth login through the real UI, task run-now with tracked outcomes);
+  `go test ./...`, `go vet`, and the web build pass. Not yet verified live:
+  Hardcover list sync against the real GraphQL schema (no token locally),
+  ICS consumption by a calendar app, backup restore, and the deployed
+  homelab needs the v0.2.0 images.
+
 ## Available But Still Needs Real-World Proving
 
 - Readarr migration preview/import has broad API and UI coverage, but needs a

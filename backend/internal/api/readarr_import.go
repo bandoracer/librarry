@@ -552,7 +552,7 @@ func (h *handler) importReadarrAuthors(ctx context.Context, authors []readarrRem
 			QualityProfile:    item.QualityProfile,
 			MonitorNewItems:   &monitorNewItems,
 			MissingBookPolicy: "all",
-			Tags:              compactCompatTags(author.Tags),
+			Tags:              h.compatTagLabels(ctx, author.Tags),
 		})
 		if err != nil {
 			section.Errors = append(section.Errors, fmt.Sprintf("%s: %v", authorName, err))
@@ -601,7 +601,7 @@ func (h *handler) importReadarrBooks(ctx context.Context, books []readarrRemoteB
 			Result:         readarrBookSearchResult(book, bookFormat),
 			Format:         string(bookFormat),
 			QualityProfile: item.QualityProfile,
-			Tags:           compactCompatTags(book.Tags),
+			Tags:           h.compatTagLabels(ctx, book.Tags),
 		})
 		if err != nil {
 			section.Errors = append(section.Errors, fmt.Sprintf("%s: %v", title, err))

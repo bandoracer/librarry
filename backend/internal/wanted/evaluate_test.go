@@ -272,7 +272,7 @@ func TestEvaluateReleaseIgnoresTaggedRestrictionsUntilItemTagsExist(t *testing.T
 }
 
 func TestEvaluateReleaseAppliesTaggedRestrictionsForMatchingWantedTags(t *testing.T) {
-	item := WantedItem{Title: "Project Hail Mary", AuthorName: "Andy Weir", Format: "ebook", QualityProfile: "standard", Tags: []int{7}}
+	item := WantedItem{Title: "Project Hail Mary", AuthorName: "Andy Weir", Format: "ebook", QualityProfile: "standard", Tags: []string{"7"}}
 	release := acquisition.Release{
 		ID:          "r1",
 		Title:       "Project Hail Mary by Andy Weir EPUB screener",

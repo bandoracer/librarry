@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   BookPlus,
+  CalendarDays,
   Clock3,
   FolderInput,
   LayoutDashboard,
@@ -50,6 +51,13 @@ export const navItems: NavItem[] = [
     label: "Wanted",
     icon: Clock3,
     subtitle: "Missing books, release decisions, and author subscriptions"
+  },
+  {
+    id: "calendar",
+    path: "/calendar",
+    label: "Calendar",
+    icon: CalendarDays,
+    subtitle: "Upcoming and recent releases for monitored books"
   },
   {
     id: "downloads",

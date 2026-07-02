@@ -373,3 +373,92 @@ export function useNotificationTargets() {
     queryFn: withDemoFallback(fetchNotificationTargets, () => [])
   });
 }
+
+/* ------------- M6 long tail: calendar/auth/lists/tags/backups -------------- */
+
+import {
+  fetchAuthStatus,
+  fetchBackups,
+  fetchCalendar,
+  fetchImportListExclusions,
+  fetchImportLists,
+  fetchTags,
+  type AuthStatus
+} from "./api";
+
+/**
+ * Keys for the M6 surface, appended alongside `keys`/`operabilityKeys` (kept
+ * separate so parallel milestones don't collide inside one object).
+ */
+export const m6Keys = {
+  calendar: (start: string, end: string, unmonitored: boolean) => ["calendar", start, end, unmonitored] as const,
+  authStatus: ["auth-status"] as const,
+  importLists: ["import-lists"] as const,
+  importListExclusions: ["import-list-exclusions"] as const,
+  tags: ["tags"] as const,
+  backups: ["backups"] as const
+};
+
+/**
+ * Monitored-release calendar for a date window (inclusive, YYYY-MM-DD).
+ * Demo installs fall back to an empty month per the M5/root-folders convention.
+ */
+export function useCalendar(start: string, end: string, unmonitored: boolean) {
+  return useQuery({
+    queryKey: m6Keys.calendar(start, end, unmonitored),
+    queryFn: withDemoFallback(
+      () => fetchCalendar(start, end, unmonitored),
+      () => []
+    ),
+    refetchInterval: 60_000,
+    enabled: Boolean(start && end)
+  });
+}
+
+/**
+ * Session/auth state, polled every minute. Any fetch failure resolves to an
+ * open install ({method:"none", authenticated:true}) so installs without the
+ * auth endpoints — or with an unreachable API — are never locked out.
+ */
+export function useAuthStatus() {
+  return useQuery<AuthStatus>({
+    queryKey: m6Keys.authStatus,
+    queryFn: async () => {
+      try {
+        return await fetchAuthStatus();
+      } catch {
+        return { method: "none", authenticated: true };
+      }
+    },
+    refetchInterval: 60_000,
+    retry: 0
+  });
+}
+
+export function useImportLists() {
+  return useQuery({
+    queryKey: m6Keys.importLists,
+    queryFn: withDemoFallback(fetchImportLists, () => [])
+  });
+}
+
+export function useImportListExclusions() {
+  return useQuery({
+    queryKey: m6Keys.importListExclusions,
+    queryFn: withDemoFallback(fetchImportListExclusions, () => [])
+  });
+}
+
+export function useTags() {
+  return useQuery({
+    queryKey: m6Keys.tags,
+    queryFn: withDemoFallback(fetchTags, () => [])
+  });
+}
+
+export function useBackups() {
+  return useQuery({
+    queryKey: m6Keys.backups,
+    queryFn: withDemoFallback(fetchBackups, () => [])
+  });
+}

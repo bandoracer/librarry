@@ -14,15 +14,19 @@ import (
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/api"
+	"github.com/bandoracer/librarry/backend/internal/auth"
+	"github.com/bandoracer/librarry/backend/internal/backups"
 	"github.com/bandoracer/librarry/backend/internal/calibre"
 	compatstore "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/database"
+	"github.com/bandoracer/librarry/backend/internal/importlists"
 	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/notify"
 	"github.com/bandoracer/librarry/backend/internal/scheduler"
+	"github.com/bandoracer/librarry/backend/internal/tags"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
@@ -39,6 +43,9 @@ func main() {
 	var libraryStore *library.Store
 	var compatStore *compatstore.Store
 	var notifyStore *notify.Store
+	var authStore *auth.Store
+	var tagsStore *tags.Store
+	var importListStore *importlists.Store
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -57,6 +64,9 @@ func main() {
 		libraryStore = library.NewStore(db)
 		compatStore = compatstore.NewStore(db)
 		notifyStore = notify.NewStore(db)
+		authStore = auth.NewStore(db)
+		tagsStore = tags.NewStore(db)
+		importListStore = importlists.NewStore(db)
 		logger.Info("database migrations applied")
 	} else {
 		logger.Warn("LIBRARRY_DATABASE_URL is not set; starting without database-backed persistence")
@@ -145,6 +155,34 @@ func main() {
 	wantedService.SetDefaultSearchLanguage(libraryConfig.StandardSearchLanguage)
 	notifier := notify.NewService(notifyStore, logger)
 
+	// Auth (M6.2): an explicit LIBRARRY_AUTH_METHOD wins at boot; otherwise a
+	// UI-persisted method (compat resource auth-config) is restored.
+	authService := auth.NewService(authStore, logger)
+	authService.SetMethod(bootAuthMethod(ctx, logger, compatStore, cfg))
+	if cfg.AuthUsername != "" && cfg.AuthPassword != "" && authService.Available() {
+		if err := authService.EnsureUser(ctx, cfg.AuthUsername, cfg.AuthPassword); err != nil {
+			logger.Warn("auth user seed failed", "error", err)
+		}
+	}
+	if authService.Method() != auth.MethodNone {
+		logger.Info("api authentication enabled", "method", authService.Method())
+	}
+
+	// Import lists (M6.3): Hardcover-native list sync.
+	importListService := importlists.NewService(
+		importListStore,
+		wantedService,
+		importlists.NewHardcoverClient(nil, cfg.HardcoverToken),
+		logger,
+	)
+
+	// Backups (M6.6): pg_dump into LIBRARRY_BACKUP_DIR.
+	backupService := backups.NewService(backups.Options{
+		Dir:         cfg.BackupDir,
+		DatabaseURL: cfg.DatabaseURL,
+		Logger:      logger,
+	})
+
 	// Background workers register with the scheduler registry, which owns the
 	// startup-timer/ticker loops and powers the System Tasks view plus manual
 	// run-now triggers.
@@ -175,16 +213,26 @@ func main() {
 	if cfg.CompletedImportEnabled && libraryService.Available() {
 		registerTask(completedDownloadImportTask(logger, libraryService, acquire, notifier, cfg))
 	}
+	if importListService.Available() {
+		registerTask(importListSyncTask(logger, importListService, cfg))
+	}
+	if cfg.BackupEnabled && backupService.Available() {
+		registerTask(backupTask(logger, backupService, cfg))
+	}
 
 	deps := api.Dependencies{
-		Logger:    logger,
-		Config:    cfg,
-		Metadata:  metadataService,
-		Acquire:   acquire,
-		Wanted:    wantedService,
-		Library:   libraryService,
-		Notify:    notifier,
-		Scheduler: registry,
+		Logger:      logger,
+		Config:      cfg,
+		Metadata:    metadataService,
+		Acquire:     acquire,
+		Wanted:      wantedService,
+		Library:     libraryService,
+		Notify:      notifier,
+		Scheduler:   registry,
+		Auth:        authService,
+		ImportLists: importListService,
+		Tags:        tagsStore,
+		Backups:     backupService,
 	}
 	if compatStore != nil {
 		deps.Compat = compatStore
@@ -655,6 +703,100 @@ func calibreConversionRefreshTask(logger *slog.Logger, service calibreConversion
 				"%d checked, %d refreshed, %d skipped, %d errors",
 				outcome.Checked, outcome.Refreshed, outcome.Skipped, outcome.Errored,
 			), nil
+		},
+	}
+}
+
+// bootAuthMethod resolves the auth method at startup: explicit env wins, then
+// the UI-persisted compat resource, then none.
+func bootAuthMethod(ctx context.Context, logger *slog.Logger, compatStore *compatstore.Store, cfg config.Config) string {
+	if method := auth.NormalizeMethod(cfg.AuthMethod); method != "" {
+		return method
+	}
+	if cfg.AuthMethod != "" {
+		logger.Warn("unrecognized LIBRARRY_AUTH_METHOD; falling back to none", "value", cfg.AuthMethod)
+	}
+	if compatStore != nil {
+		if resource, ok, err := compatStore.GetResource(ctx, "auth-config", 1); err != nil {
+			logger.Warn("persisted auth method unavailable", "error", err)
+		} else if ok {
+			if raw, ok := resource.Payload["method"].(string); ok {
+				if method := auth.NormalizeMethod(strings.ToLower(strings.TrimSpace(raw))); method != "" {
+					return method
+				}
+			}
+		}
+	}
+	return auth.MethodNone
+}
+
+// importListSyncTask keeps enabled import lists in sync with their Hardcover
+// lists/shelves. Manual per-list runs go through POST /api/v1/import-lists/{id}/sync.
+func importListSyncTask(logger *slog.Logger, service *importlists.Service, cfg config.Config) scheduler.Task {
+	interval := cfg.ImportListSyncInterval
+	if interval <= 0 {
+		interval = 24 * time.Hour
+	}
+	logger.Info("import list sync enabled", "interval", interval)
+	return scheduler.Task{
+		ID:           "import-list-sync",
+		Name:         "Import List Sync",
+		Interval:     interval,
+		StartupDelay: 90 * time.Second,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+			defer cancel()
+			outcome, err := service.Sync(runCtx, nil, trigger)
+			if err != nil {
+				logger.Warn("import list sync failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			logger.Info(
+				"import list sync completed",
+				"trigger", trigger,
+				"status", outcome.Status,
+				"lists_checked", outcome.ListsChecked,
+				"entries", outcome.EntriesFound,
+				"wanted_created", outcome.WantedCreated,
+				"errors", outcome.ErrorCount,
+			)
+			return fmt.Sprintf(
+				"%d lists checked, %d entries, %d wanted created, %d errors",
+				outcome.ListsChecked, outcome.EntriesFound, outcome.WantedCreated, outcome.ErrorCount,
+			), nil
+		},
+	}
+}
+
+// backupTask runs a scheduled pg_dump and prunes to the retention count.
+func backupTask(logger *slog.Logger, service *backups.Service, cfg config.Config) scheduler.Task {
+	interval := cfg.BackupInterval
+	if interval <= 0 {
+		interval = 168 * time.Hour
+	}
+	retention := cfg.BackupRetention
+	if retention <= 0 {
+		retention = 4
+	}
+	logger.Info("scheduled backups enabled", "interval", interval, "retention", retention, "dir", cfg.BackupDir)
+	return scheduler.Task{
+		ID:           "backup",
+		Name:         "Database Backup",
+		Interval:     interval,
+		StartupDelay: 2 * time.Minute,
+		Run: func(ctx context.Context, trigger string) (string, error) {
+			runCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+			defer cancel()
+			backup, err := service.Create(runCtx)
+			if err != nil {
+				logger.Warn("scheduled backup failed", "trigger", trigger, "error", err)
+				return "", err
+			}
+			pruned, pruneErr := service.Prune(retention)
+			if pruneErr != nil {
+				logger.Warn("backup retention prune failed", "trigger", trigger, "error", pruneErr)
+			}
+			return fmt.Sprintf("%s created (%d bytes), %d pruned", backup.Name, backup.SizeBytes, pruned), nil
 		},
 	}
 }

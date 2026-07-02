@@ -127,6 +127,24 @@ func cutoffUnmet(profile QualityProfile, currentScore float64) bool {
 	return profile.UpgradeAllowed && currentScore < profile.CutoffScore
 }
 
+// ListCalendar returns wanted items with a confident release date inside
+// [start, end]; unmonitored items are included only when asked.
+func (s *Service) ListCalendar(ctx context.Context, start time.Time, end time.Time, includeUnmonitored bool) ([]WantedItem, error) {
+	if !s.Available() {
+		return []WantedItem{}, nil
+	}
+	return s.store.ListCalendarWanted(ctx, start, end, includeUnmonitored)
+}
+
+// WantedSourceKeySet exposes the provider identity keys of tracked wanted
+// items (see SourceIdentity) for import-list dedupe.
+func (s *Service) WantedSourceKeySet(ctx context.Context) (map[string]bool, error) {
+	if !s.Available() {
+		return map[string]bool{}, nil
+	}
+	return s.store.WantedSourceKeySet(ctx)
+}
+
 // BulkUpdateWanted applies a shared patch (or delete) to many wanted items,
 // reporting a per-item outcome. Items are updated one statement at a time so a
 // single conflicting row (for example a format flip that collides with the
@@ -394,7 +412,16 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 		for _, candidate := range matched {
 			result.ResultsFound++
-			if allowed, reason := authorResultAllowedByPolicy(subscription, candidate, policyCtx); !allowed {
+			// Add-filters (language allowlist, must-not-contain, ISBN, page
+			// count) run before the missing-book policy; both paths land in
+			// the review queue as skipped entries with explicit reasons.
+			allowed, reason := true, ""
+			if filterReason := authorResultFilterReason(subscription, candidate); filterReason != "" {
+				allowed, reason = false, filterReason
+			} else {
+				allowed, reason = authorResultAllowedByPolicy(subscription, candidate, policyCtx)
+			}
+			if !allowed {
 				result.SkippedCount++
 				reviewID := ""
 				includeSkippedItem := true
@@ -1797,7 +1824,11 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 		Status:            "monitored",
 		MonitorNewItems:   monitorNewItems,
 		MissingBookPolicy: missingBookPolicy,
-		Tags:              compactRestrictionTags(request.Tags),
+		Tags:              compactTagLabels(request.Tags),
+		AllowedLanguages:  normalizeFilterTerms(request.AllowedLanguages),
+		MustNotContain:    normalizeFilterTerms(request.MustNotContain),
+		SkipMissingISBN:   request.SkipMissingISBN,
+		MinPages:          max(request.MinPages, 0),
 	}
 }
 

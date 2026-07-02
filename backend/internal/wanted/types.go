@@ -24,7 +24,7 @@ type CreateRequest struct {
 	Result         metadata.SearchResult `json:"result"`
 	Format         string                `json:"format,omitempty"`
 	QualityProfile string                `json:"qualityProfile,omitempty"`
-	Tags           []int                 `json:"tags,omitempty"`
+	Tags           []string              `json:"tags,omitempty"`
 }
 
 type QualityProfile struct {
@@ -61,7 +61,11 @@ type AuthorSubscribeRequest struct {
 	QualityProfile    string                `json:"qualityProfile,omitempty"`
 	MonitorNewItems   *bool                 `json:"monitorNewItems,omitempty"`
 	MissingBookPolicy string                `json:"missingBookPolicy,omitempty"`
-	Tags              []int                 `json:"tags,omitempty"`
+	Tags              []string              `json:"tags,omitempty"`
+	AllowedLanguages  []string              `json:"allowedLanguages,omitempty"`
+	MustNotContain    []string              `json:"mustNotContain,omitempty"`
+	SkipMissingISBN   bool                  `json:"skipMissingIsbn,omitempty"`
+	MinPages          int                   `json:"minPages,omitempty"`
 }
 
 type AuthorSubscription struct {
@@ -74,21 +78,33 @@ type AuthorSubscription struct {
 	Status            string     `json:"status"`
 	MonitorNewItems   bool       `json:"monitorNewItems"`
 	MissingBookPolicy string     `json:"missingBookPolicy"`
-	Tags              []int      `json:"tags,omitempty"`
+	Tags              []string   `json:"tags,omitempty"`
+	AllowedLanguages  []string   `json:"allowedLanguages,omitempty"`
+	MustNotContain    []string   `json:"mustNotContain,omitempty"`
+	SkipMissingISBN   bool       `json:"skipMissingIsbn"`
+	MinPages          int        `json:"minPages"`
 	LastSyncAt        *time.Time `json:"lastSyncAt,omitempty"`
 	CreatedAt         time.Time  `json:"createdAt"`
 	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
 type AuthorUpdateRequest struct {
-	AuthorName        string `json:"authorName,omitempty"`
-	QualityProfile    string `json:"qualityProfile,omitempty"`
-	Status            string `json:"status,omitempty"`
-	MonitorNewItems   *bool  `json:"monitorNewItems,omitempty"`
-	MissingBookPolicy string `json:"missingBookPolicy,omitempty"`
-	Monitored         *bool  `json:"monitored,omitempty"`
-	Tags              []int  `json:"tags,omitempty"`
-	TagsSet           bool   `json:"-"`
+	AuthorName        string   `json:"authorName,omitempty"`
+	QualityProfile    string   `json:"qualityProfile,omitempty"`
+	Status            string   `json:"status,omitempty"`
+	MonitorNewItems   *bool    `json:"monitorNewItems,omitempty"`
+	MissingBookPolicy string   `json:"missingBookPolicy,omitempty"`
+	Monitored         *bool    `json:"monitored,omitempty"`
+	Tags              []string `json:"tags,omitempty"`
+	TagsSet           bool     `json:"-"`
+	// Add-filter fields: nil slices/pointers leave the stored value untouched
+	// (the HTTP layer sets the *Set flags when the JSON key is present).
+	AllowedLanguages    []string `json:"allowedLanguages,omitempty"`
+	AllowedLanguagesSet bool     `json:"-"`
+	MustNotContain      []string `json:"mustNotContain,omitempty"`
+	MustNotContainSet   bool     `json:"-"`
+	SkipMissingISBN     *bool    `json:"skipMissingIsbn,omitempty"`
+	MinPages            *int     `json:"minPages,omitempty"`
 }
 
 type SearchReleasesRequest struct {
@@ -191,21 +207,24 @@ type GrabRequest struct {
 }
 
 type WantedItem struct {
-	ID                  string           `json:"id"`
-	WorkID              string           `json:"workId,omitempty"`
-	EditionID           string           `json:"editionId,omitempty"`
-	Title               string           `json:"title"`
-	AuthorName          string           `json:"authorName,omitempty"`
-	CoverURL            string           `json:"coverUrl,omitempty"`
-	Format              string           `json:"format"`
-	QualityProfile      string           `json:"qualityProfile"`
-	Status              string           `json:"status"`
-	Monitored           bool             `json:"monitored"`
-	RootFolderID        string           `json:"rootFolderId,omitempty"`
-	Series              string           `json:"series,omitempty"`
-	SeriesPosition      string           `json:"seriesPosition,omitempty"`
-	FirstPublishYear    int              `json:"firstPublishYear,omitempty"`
-	Tags                []int            `json:"tags,omitempty"`
+	ID               string `json:"id"`
+	WorkID           string `json:"workId,omitempty"`
+	EditionID        string `json:"editionId,omitempty"`
+	Title            string `json:"title"`
+	AuthorName       string `json:"authorName,omitempty"`
+	CoverURL         string `json:"coverUrl,omitempty"`
+	Format           string `json:"format"`
+	QualityProfile   string `json:"qualityProfile"`
+	Status           string `json:"status"`
+	Monitored        bool   `json:"monitored"`
+	RootFolderID     string `json:"rootFolderId,omitempty"`
+	Series           string `json:"series,omitempty"`
+	SeriesPosition   string `json:"seriesPosition,omitempty"`
+	FirstPublishYear int    `json:"firstPublishYear,omitempty"`
+	// ReleaseDate is the confident full-precision publication date
+	// (yyyy-mm-dd); empty when only a year is known.
+	ReleaseDate         string           `json:"releaseDate,omitempty"`
+	Tags                []string         `json:"tags,omitempty"`
 	SourceProvider      string           `json:"sourceProvider,omitempty"`
 	SourceKey           string           `json:"sourceKey,omitempty"`
 	ManualOverrides     []ManualOverride `json:"manualOverrides,omitempty"`
@@ -330,9 +349,9 @@ type WantedUpdateRequest struct {
 	Monitored      *bool  `json:"monitored,omitempty"`
 	// RootFolderID pins the import destination root; nil leaves it
 	// untouched, an empty string clears it back to the format default.
-	RootFolderID *string `json:"rootFolderId,omitempty"`
-	Tags         []int   `json:"tags,omitempty"`
-	TagsSet      bool    `json:"-"`
+	RootFolderID *string  `json:"rootFolderId,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	TagsSet      bool     `json:"-"`
 }
 
 type WantedBulkRequest struct {
@@ -506,7 +525,7 @@ type AuthorMetadataReview struct {
 	AuthorName           string                `json:"authorName,omitempty"`
 	Format               string                `json:"format"`
 	QualityProfile       string                `json:"qualityProfile"`
-	Tags                 []int                 `json:"tags,omitempty"`
+	Tags                 []string              `json:"tags,omitempty"`
 	Policy               string                `json:"policy"`
 	Reason               string                `json:"reason"`
 	Status               string                `json:"status"`

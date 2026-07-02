@@ -1,5 +1,15 @@
 # Readarr Parity Plan
 
+> **Status: executed in v0.2.0 (2026-07-01)** — all six milestones landed in
+> one release (delay profiles skipped by owner decision; CDH-remove and
+> auto-grab defaults set to arr parity). Verified: full Go test suite, web
+> build, and a local integration environment (disposable Postgres 16 + live
+> API + UI) exercising migrations 0001–0026, the scheduler registry, tag CRUD,
+> the forms-auth login flow end to end, health checks, and task run-now.
+> Remaining follow-ups live in docs/status.md (live-deployment verification of
+> Hardcover list sync, ICS consumption by a real calendar app, and backup
+> restore drill).
+
 Last updated: 2026-07-01. Executes the gaps in
 [readarr-parity.md](readarr-parity.md). Six milestones, each independently
 deployable and verified against the live TrueNAS deployment using the
