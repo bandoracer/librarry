@@ -15,6 +15,7 @@ single Community Applications XML template.
 Default paths:
 
 - App data: `/mnt/user/appdata/librarry`
+- Backups/config: `/mnt/user/appdata/librarry/config`
 - Media/download mount: `/mnt/user/media-stack`
 - Web UI: `http://tower.local:30200`
 - Container media mount: `/data`
@@ -40,6 +41,8 @@ If your download client saves completed books somewhere else, change either its
 book category path or these Librarry settings so they describe the same files.
 
 The web container includes Unraid labels for icon, WebUI URL, and shell access.
+Scheduled pg_dump backups are written to `/config/backups`, which maps to
+`$LIBRARRY_APPDATA_PATH/config/backups`.
 
 To update:
 

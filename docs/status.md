@@ -138,10 +138,28 @@ yet ready to replace a production Readarr instance unattended.
   defaults flipped to arr parity. Verified locally against a disposable
   Postgres 16 (all 26 migrations, endpoint smoke across the new surface,
   forms-auth login through the real UI, task run-now with tracked outcomes);
-  `go test ./...`, `go vet`, and the web build pass. Not yet verified live:
-  Hardcover list sync against the real GraphQL schema (no token locally),
-  ICS consumption by a calendar app, backup restore, and the deployed
-  homelab needs the v0.2.0 images.
+  `go test ./...`, `go vet`, and the web build pass. The homelab was deployed
+  to v0.2.0 from local images `librarry-api:local` (`22e241134431`) and
+  `librarry-web:local` (`18ba4ec169e7`) on 2026-07-01. LAN health, the
+  `/calendar` route, qBittorrent download listing, database migrations,
+  completed-download import, and a manual pg_dump backup were verified live.
+  Not yet verified live: Hardcover list sync against the real GraphQL schema
+  (no token locally), ICS consumption by a calendar app, and backup restore.
+- The first v0.2.0 live deploy exposed missing deployment directories. The
+  `media-stack` ebook/audiobook roots were created for the API user, allowing
+  Moby Dick to import to
+  `/mnt/HDD_pool/vault/media-stack/media/books/ebooks/Herman Melville/Moby Dick/Moby Dick.epub`
+  with SHA-256
+  `db359a71d3f57af793cf1906a56da1309fce32e908a846229b1146cd2c32fde5`.
+  The live custom app also now mounts
+  `/mnt/HDD_pool/vault/app-config/librarry/config:/config`; a manual backup
+  created `librarry-20260702-013251.dump`.
+- `https://librarry.borchetta.xyz/healthz` and direct HTML requests return the
+  v0.2.0 deployment through Cosmos, but Chromium/Playwright still reproduced
+  `ERR_ECH_FALLBACK_CERTIFICATE_INVALID` on
+  `https://librarry.borchetta.xyz/calendar`. The LAN URL remains the reliable
+  browser verification path until the Cosmos/Cloudflare certificate path is
+  fixed.
 
 ## Available But Still Needs Real-World Proving
 
@@ -192,6 +210,7 @@ The local homelab deployment, when present, uses:
   `ghcr.io/bandoracer/librarry-api:latest` and
   `ghcr.io/bandoracer/librarry-web:latest`
 - Postgres data: `/mnt/HDD_pool/vault/app-config/librarry/postgres`
+- App config/backups: `/mnt/HDD_pool/vault/app-config/librarry/config:/config`
 - Media mount: `/mnt/HDD_pool/vault/media-stack:/data`
 - Ebook root: `/data/media/books/ebooks`
 - Audiobook root: `/data/media/books/audiobooks`

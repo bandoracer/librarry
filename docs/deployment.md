@@ -80,15 +80,21 @@ into the API container as `/data`:
 
 ```dotenv
 LIBRARRY_MEDIA_STACK_PATH=/srv/media-stack
+LIBRARRY_CONFIG_PATH=/srv/librarry/config
 LIBRARRY_BOOK_TORRENT_ROOT=/data/torrents/books
 LIBRARRY_EBOOK_LIBRARY_ROOT=/data/media/books/ebooks
 LIBRARRY_AUDIOBOOK_LIBRARY_ROOT=/data/media/books/audiobooks
+LIBRARRY_BACKUP_DIR=/config/backups
 ```
 
 If qBittorrent saves a book to `/srv/media-stack/torrents/books` on the host,
 Librarry should see that same file at `/data/torrents/books` inside the API
 container. If these paths do not line up, grabs may succeed but completed import
 will not find the payload.
+
+The API container also mounts persistent app config at `/config`. Scheduled
+database backups default to `/config/backups`; keep that path on durable storage
+or disable backups with `LIBRARRY_BACKUP_ENABLED=false`.
 
 The API image includes a built-in `librarry` user with UID/GID `1000:1000`.
 Change `LIBRARRY_RUN_USER` in generic Compose, `PUID`/`PGID` in Unraid, or the
@@ -144,17 +150,20 @@ App compose template.
 
 Before installing:
 
-1. Create persistent datasets for app data and the shared media/download root.
+1. Create persistent datasets for app data, backups/config, and the shared
+   media/download root.
 2. Grant the API run user access to the media dataset. The template defaults to
    TrueNAS SCALE's common apps UID/GID `568:568`; replace the `user:` value if
    your dataset ACL uses a different owner.
 3. Replace `truenas.local` with your TrueNAS hostname or LAN IP.
 4. Replace `/mnt/tank/apps/librarry/postgres` with your Postgres app dataset.
-5. Replace `/mnt/tank/media-stack` with the dataset mounted into Librarry as
+5. Replace `/mnt/tank/apps/librarry/config` with your persistent app config
+   dataset mounted into Librarry as `/config`.
+6. Replace `/mnt/tank/media-stack` with the dataset mounted into Librarry as
    `/data`.
-6. Replace `change-me` in both `POSTGRES_PASSWORD` and
+7. Replace `change-me` in both `POSTGRES_PASSWORD` and
    `LIBRARRY_DATABASE_URL`.
-7. Add provider, Prowlarr, and download-client credentials as needed.
+8. Add provider, Prowlarr, and download-client credentials as needed.
 
 The template uses published GHCR images and binds the web UI to
 `0.0.0.0:30200`. If you expose it through Cosmos, Cloudflare, or another reverse
@@ -176,6 +185,10 @@ LIBRARRY_WEB_ORIGIN=http://tower.local:30200
 PUID=99
 PGID=100
 ```
+
+The Unraid stack stores Postgres under
+`$LIBRARRY_APPDATA_PATH/postgres` and backups/config under
+`$LIBRARRY_APPDATA_PATH/config`.
 
 Set `PUID` and `PGID` to the same user/group used by your download client and
 book library paths. Unraid's common `nobody:users` mapping is `99:100`.

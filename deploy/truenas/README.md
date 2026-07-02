@@ -14,6 +14,8 @@ Create or choose:
 
 - a persistent app dataset for Postgres, for example
   `/mnt/tank/apps/librarry/postgres`;
+- a persistent app config dataset for backups, for example
+  `/mnt/tank/apps/librarry/config`;
 - a shared media/download dataset that Librarry can see as `/data`, for example
   `/mnt/tank/media-stack`;
 - ACLs that let the API container read scans and read/write completed imports.
@@ -27,6 +29,8 @@ Before installing, replace the generic placeholders with values for your NAS:
 
 - `truenas.local`: your TrueNAS hostname or LAN IP.
 - `/mnt/tank/apps/librarry/postgres`: a persistent app dataset for Postgres.
+- `/mnt/tank/apps/librarry/config`: a persistent app config dataset mounted as
+  `/config`, including scheduled pg_dump backups under `/config/backups`.
 - `/mnt/tank/media-stack`: the host media/download dataset mounted as `/data`.
 - `change-me`: a real Postgres password, and the matching password inside
   `LIBRARRY_DATABASE_URL`.

@@ -643,5 +643,7 @@ LIBRARRY_BACKUP_DIR=/config/backups
 The scheduled `backup` task creates a dump every interval and prunes to the
 newest `LIBRARRY_BACKUP_RETENTION` files. The API image ships
 `postgresql16-client`; mount `LIBRARRY_BACKUP_DIR` to keep dumps outside the
-container. The database password travels to `pg_dump` via the child process
-environment and is never logged.
+container. The Docker Compose examples mount persistent app config at `/config`,
+so the default `/config/backups` path survives container recreation. The
+database password travels to `pg_dump` via the child process environment and is
+never logged.
