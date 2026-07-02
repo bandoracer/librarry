@@ -83,6 +83,8 @@ export type LibrarySettings = {
   namingFileName: string;
   namingSpaceReplacement: string;
   standardSearchLanguage: string;
+  /** Read-only recycle-bin path (env-configured); absent on older backends. */
+  recycleBin?: string;
 };
 
 export type LibrarySettingsResponse = {
@@ -2046,4 +2048,202 @@ export async function bulkUpdateWanted(request: WantedBulkUpdateRequest): Promis
     throw new Error(await apiError(response, "Wanted bulk update failed"));
   }
   return (await response.json()) as WantedBulkOutcome;
+}
+
+/* ------------------------------ Root folders ------------------------------- */
+
+export type RootFolder = {
+  id: string;
+  name: string;
+  path: string;
+  mediaFormat: "ebook" | "audiobook";
+  defaultQualityProfile: string;
+  defaultMissingBookPolicy: AuthorMissingBookPolicy;
+  /** Serialized tag list — the backend stores and echoes a plain string. */
+  defaultTags?: string;
+  isDefault: boolean;
+  accessible: boolean;
+  freeSpaceBytes?: number;
+  createdAt: string;
+};
+
+/** Create/update payload: server owns id, accessibility, free space, createdAt. */
+export type RootFolderRequest = Omit<RootFolder, "id" | "accessible" | "freeSpaceBytes" | "createdAt">;
+
+export async function fetchRootFolders(): Promise<RootFolder[]> {
+  const response = await fetch(`${apiBase}/api/v1/library/root-folders`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Root folders refresh failed"));
+  }
+  const payload = (await response.json()) as { rootFolders?: RootFolder[] | null };
+  return arrayPayload(payload.rootFolders);
+}
+
+export async function createRootFolder(request: RootFolderRequest): Promise<RootFolder> {
+  const response = await fetch(`${apiBase}/api/v1/library/root-folders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Root folder create failed"));
+  }
+  const payload = (await response.json()) as { rootFolder: RootFolder };
+  return payload.rootFolder;
+}
+
+export async function updateRootFolder(id: string, request: RootFolderRequest): Promise<RootFolder> {
+  const response = await fetch(`${apiBase}/api/v1/library/root-folders/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Root folder update failed"));
+  }
+  const payload = (await response.json()) as { rootFolder: RootFolder };
+  return payload.rootFolder;
+}
+
+/** Delete a root folder; a 409 refusal surfaces its {"error"} reason in the thrown message. */
+export async function deleteRootFolder(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/library/root-folders/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Root folder delete failed"));
+  }
+}
+
+/* --------------------------- Remote path mappings -------------------------- */
+
+export type RemotePathMapping = {
+  id: string;
+  host: string;
+  remotePrefix: string;
+  localPrefix: string;
+  createdAt: string;
+};
+
+export type RemotePathMappingRequest = Omit<RemotePathMapping, "id" | "createdAt">;
+
+export async function fetchRemotePathMappings(): Promise<RemotePathMapping[]> {
+  const response = await fetch(`${apiBase}/api/v1/library/remote-path-mappings`);
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Remote path mappings refresh failed"));
+  }
+  const payload = (await response.json()) as { mappings?: RemotePathMapping[] | null };
+  return arrayPayload(payload.mappings);
+}
+
+export async function createRemotePathMapping(request: RemotePathMappingRequest): Promise<RemotePathMapping> {
+  const response = await fetch(`${apiBase}/api/v1/library/remote-path-mappings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Remote path mapping create failed"));
+  }
+  const payload = (await response.json()) as { mapping: RemotePathMapping };
+  return payload.mapping;
+}
+
+export async function updateRemotePathMapping(id: string, request: RemotePathMappingRequest): Promise<RemotePathMapping> {
+  const response = await fetch(`${apiBase}/api/v1/library/remote-path-mappings/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Remote path mapping update failed"));
+  }
+  const payload = (await response.json()) as { mapping: RemotePathMapping };
+  return payload.mapping;
+}
+
+export async function deleteRemotePathMapping(id: string): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/library/remote-path-mappings/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Remote path mapping delete failed"));
+  }
+}
+
+/* ------------------------------ Library rename ----------------------------- */
+
+/*
+ * Mirrors backend/internal/library/types.go (RenameFilesRequest /
+ * RenameFilesOutcome, served by POST /api/v1/library/files/rename[/preview]):
+ * the request selects files by id or path — there is no server-side format
+ * selector — so callers resolve ids via fetchLibraryFiles(format) first.
+ */
+
+export type LibraryRenameRequest = {
+  ids?: string[];
+  paths?: string[];
+  overwrite?: boolean;
+};
+
+export type LibraryRenamePreviewItem = {
+  file: LibraryFile;
+  sourcePath: string;
+  destinationPath: string;
+  relativePath: string;
+  exists: boolean;
+  noop: boolean;
+};
+
+export type LibraryRenameResult = {
+  preview: LibraryRenamePreviewItem;
+  file?: LibraryFile;
+  status: string;
+  message?: string;
+};
+
+export type LibraryRenameOutcome = {
+  requested: number;
+  renamed: number;
+  skipped: number;
+  errored: number;
+  previews: LibraryRenamePreviewItem[];
+  results: LibraryRenameResult[];
+};
+
+type LibraryRenamePayload = Omit<LibraryRenameOutcome, "previews" | "results"> & {
+  previews?: LibraryRenamePreviewItem[] | null;
+  results?: LibraryRenameResult[] | null;
+};
+
+function normalizeLibraryRenameOutcome(payload: LibraryRenamePayload): LibraryRenameOutcome {
+  return {
+    ...payload,
+    previews: arrayPayload(payload.previews),
+    results: arrayPayload(payload.results)
+  };
+}
+
+export async function previewLibraryRename(request: LibraryRenameRequest): Promise<LibraryRenameOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/files/rename/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Rename preview failed"));
+  }
+  return normalizeLibraryRenameOutcome((await response.json()) as LibraryRenamePayload);
+}
+
+export async function renameLibraryFiles(request: LibraryRenameRequest): Promise<LibraryRenameOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/files/rename`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    throw new Error(await apiError(response, "Rename failed"));
+  }
+  return normalizeLibraryRenameOutcome((await response.json()) as LibraryRenamePayload);
 }

@@ -552,7 +552,8 @@ func TestClassifyFile(t *testing.T) {
 
 func TestDestinationPathSanitizesSegments(t *testing.T) {
 	service := NewService(nil, Config{EbookRoot: "/library/ebooks"}, nil, nil)
-	got := service.destinationPath("ebook", parsedBook{AuthorName: `A/B:C`, Title: `Bad*Book?`}, ".EPUB")
+	root := service.importRootPath(context.Background(), "ebook", "")
+	got := service.destinationPathIn(root, "ebook", parsedBook{AuthorName: `A/B:C`, Title: `Bad*Book?`}, ".EPUB")
 	want := filepath.Join("/library/ebooks", "A-B-C", "Bad-Book-", "Bad-Book-.epub")
 	if got != want {
 		t.Fatalf("expected %s, got %s", want, got)
@@ -567,7 +568,8 @@ func TestDestinationPathUsesNamingPolicy(t *testing.T) {
 		NamingFileNameTemplate:     "{Author} - {Title}",
 		NamingSpaceReplacement:     "_",
 	}, nil, nil)
-	got := service.destinationPath("audiobook", parsedBook{AuthorName: "Andy Weir", Title: "Project Hail Mary"}, ".m4b")
+	root := service.importRootPath(context.Background(), "audiobook", "")
+	got := service.destinationPathIn(root, "audiobook", parsedBook{AuthorName: "Andy Weir", Title: "Project Hail Mary"}, ".m4b")
 	want := filepath.Join("/library/audio", "Andy_Weir", "audiobook", "Project_Hail_Mary", "Andy_Weir_-_Project_Hail_Mary.m4b")
 	if got != want {
 		t.Fatalf("expected %s, got %s", want, got)
@@ -588,7 +590,7 @@ func TestRenamePreviewUsesNamingPolicy(t *testing.T) {
 		NamingSpaceReplacement:     "_",
 	}, nil, nil)
 
-	preview, err := service.renamePreviewForFile(FileRecord{
+	preview, err := service.renamePreviewForFile(context.Background(), FileRecord{
 		ID:          "file-1",
 		MediaFormat: "ebook",
 		Path:        source,

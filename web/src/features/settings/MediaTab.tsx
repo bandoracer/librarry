@@ -1,21 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { CheckCircle2, FolderPen, RefreshCw } from "lucide-react";
 import { Button, Card, Field, FormGrid, InlineNotice, LoadingRow } from "../../components/ui";
 import { useToast } from "../../components/toast";
 import { saveLibrarySettings, type LibrarySettings } from "../../lib/api";
 import { keys, useInvalidatingMutation, useLibrarySettings } from "../../lib/queries";
 import { QueryErrorNotice } from "./controls";
+import { RootFoldersCard } from "./RootFoldersCard";
+import { RenameFilesModal } from "./RenameFilesModal";
 import {
   emptyLibrarySettings,
   errorMessage,
   libraryNamingPreviewPath,
+  libraryNamingTokens,
   librarySettingsChanged,
   standardSearchLanguageOptions
 } from "./helpers";
 
+const namingTokensHint = `Tokens: ${libraryNamingTokens.join(", ")}.`;
+
 /**
- * Media Management → library roots, naming templates, search language, and a
- * live preview of the path the naming templates produce.
+ * Media Management → root folders, library roots, naming templates, search
+ * language, a live naming preview, the recycle-bin status, and rename tools.
  */
 export function MediaTab() {
   const toast = useToast();
@@ -25,6 +30,7 @@ export function MediaTab() {
   const persisted = query.data?.persisted ?? false;
 
   const [form, setForm] = useState<LibrarySettings>(defaults);
+  const [renameOpen, setRenameOpen] = useState(false);
   const fetched = query.data?.settings;
   useEffect(() => {
     if (fetched) setForm(fetched);
@@ -79,11 +85,17 @@ export function MediaTab() {
           LIBRARRY_DATABASE_URL to keep them.
         </InlineNotice>
       ) : null}
+      <RootFoldersCard />
       <Card
         title="Library roots and naming"
         subtitle={`${persisted ? "Postgres" : "runtime"} · ebooks ${saved.ebookLibraryRoot || "unset"} · audio ${
           saved.audiobookLibraryRoot || "unset"
         } · search ${saved.standardSearchLanguage || "English"}`}
+        actions={
+          <Button size="sm" icon={FolderPen} onClick={() => setRenameOpen(true)} title="Preview file renames against the naming templates">
+            Preview Rename
+          </Button>
+        }
       >
         {query.isLoading ? (
           <LoadingRow label="Loading library settings…" />
@@ -108,21 +120,21 @@ export function MediaTab() {
                   />
                 </Field>
               </div>
-              <Field label="Author folder" hint="Tokens: {Author}, {Title}, {Format}, {Ext}.">
+              <Field label="Author folder" hint={namingTokensHint}>
                 <input
                   value={form.namingAuthorFolder}
                   onChange={(event) => update({ namingAuthorFolder: event.target.value })}
                   placeholder="{Author}"
                 />
               </Field>
-              <Field label="Book folder" hint="Tokens: {Author}, {Title}, {Format}, {Ext}.">
+              <Field label="Book folder" hint={`${namingTokensHint} Empty tokens collapse without dangling separators.`}>
                 <input
                   value={form.namingBookFolder}
                   onChange={(event) => update({ namingBookFolder: event.target.value })}
                   placeholder="{Title}"
                 />
               </Field>
-              <Field label="File name" hint="The file extension is appended when the template omits {Ext}.">
+              <Field label="File name" hint={`${namingTokensHint} The extension is appended when the template omits {Ext}.`}>
                 <input
                   value={form.namingFileName}
                   onChange={(event) => update({ namingFileName: event.target.value })}
@@ -152,6 +164,14 @@ export function MediaTab() {
                 <span className="field-label">Preview</span>
                 <code title={preview}>{preview}</code>
               </div>
+              <div className="settings-field-wide settings-naming-preview">
+                <span className="field-label">Recycle bin</span>
+                <code>{saved.recycleBin?.trim() || "disabled"}</code>
+                <span className="field-hint">
+                  Deleted and replaced library files move here instead of being removed. Configured via the
+                  LIBRARRY_RECYCLE_BIN environment variable — restart the API to change it.
+                </span>
+              </div>
             </FormGrid>
             <div className="form-actions">
               <Button
@@ -170,6 +190,7 @@ export function MediaTab() {
           </>
         )}
       </Card>
+      <RenameFilesModal open={renameOpen} onClose={() => setRenameOpen(false)} />
     </>
   );
 }

@@ -35,9 +35,12 @@ func parsedBookForPath(path string) parsedBook {
 	parsed := parseBookFilename(path)
 	metadata := localBookMetadataForPath(path)
 	return parsedBook{
-		Title:       firstNonEmpty(metadata.Title, parsed.Title),
-		AuthorName:  firstNonEmpty(metadata.AuthorName, parsed.AuthorName),
-		Identifiers: metadata.Identifiers,
+		Title:          firstNonEmpty(metadata.Title, parsed.Title),
+		AuthorName:     firstNonEmpty(metadata.AuthorName, parsed.AuthorName),
+		Series:         strings.TrimSpace(metadata.Series),
+		SeriesPosition: strings.TrimSpace(metadata.SeriesIndex),
+		Year:           yearFromString(metadata.Year),
+		Identifiers:    metadata.Identifiers,
 	}
 }
 

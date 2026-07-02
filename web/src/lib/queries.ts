@@ -15,6 +15,8 @@ import {
   fetchQualityProfiles,
   fetchReadarrCompatibility,
   fetchReadiness,
+  fetchRemotePathMappings,
+  fetchRootFolders,
   fetchSystemStatus,
   fetchWanted,
   fetchWantedMetadata,
@@ -56,7 +58,9 @@ export const keys = {
   blocklist: (limit?: number) => ["blocklist", limit ?? 100] as const,
   history: (limit?: number) => ["history", limit ?? 50] as const,
   libraryFiles: (format?: string) => ["library-files", format ?? "any"] as const,
-  importReviews: (status?: string) => ["import-reviews", status ?? "pending"] as const
+  importReviews: (status?: string) => ["import-reviews", status ?? "pending"] as const,
+  rootFolders: ["root-folders"] as const,
+  remotePathMappings: ["remote-path-mappings"] as const
 };
 
 export function useProviderHealth() {
@@ -269,6 +273,20 @@ export function useImportReviews(status = "pending") {
       () => []
     ),
     refetchInterval: 30_000
+  });
+}
+
+export function useRootFolders() {
+  return useQuery({
+    queryKey: keys.rootFolders,
+    queryFn: withDemoFallback(fetchRootFolders, () => [])
+  });
+}
+
+export function useRemotePathMappings() {
+  return useQuery({
+    queryKey: keys.remotePathMappings,
+    queryFn: withDemoFallback(fetchRemotePathMappings, () => [])
   });
 }
 

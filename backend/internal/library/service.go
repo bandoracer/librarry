@@ -166,7 +166,7 @@ func (s *Service) DeleteFiles(ctx context.Context, request DeleteFilesRequest) (
 				outcome.Results = append(outcome.Results, DeleteFileResult{File: file, Status: "error", Message: err.Error()})
 				continue
 			}
-			if err := removeLibraryFile(file.Path); err != nil {
+			if err := s.discardFile(file.Path); err != nil {
 				outcome.Errored++
 				outcome.Results = append(outcome.Results, DeleteFileResult{File: file, Status: "error", Message: err.Error()})
 				continue
@@ -324,7 +324,7 @@ func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, a
 		return outcome, nil
 	}
 	for _, file := range files {
-		preview, err := s.renamePreviewForFile(file, request.Overwrite)
+		preview, err := s.renamePreviewForFile(ctx, file, request.Overwrite)
 		if err != nil {
 			outcome.Errored++
 			outcome.Results = append(outcome.Results, RenameFileResult{Preview: RenameFilePreview{File: file, SourcePath: file.Path}, Status: "error", Message: err.Error()})
@@ -368,7 +368,7 @@ func (s *Service) Scan(ctx context.Context, request ScanRequest) (ScanOutcome, e
 	if !s.Available() {
 		return ScanOutcome{}, errors.New("library service requires database persistence")
 	}
-	roots := s.scanRoots(request)
+	roots := s.scanRoots(ctx, request)
 	outcome := ScanOutcome{Roots: roots}
 	limit := request.Limit
 	if limit <= 0 || limit > 5000 {
@@ -441,6 +441,7 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	}
 
 	parsed := parsedBookForPath(source)
+	rootFolderID := ""
 	if strings.TrimSpace(request.WantedID) != "" {
 		item, err := s.lookupWanted(ctx, request.WantedID)
 		if err != nil {
@@ -451,9 +452,16 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 		}
 		parsed.Title = firstNonEmpty(item.Title, parsed.Title)
 		parsed.AuthorName = firstNonEmpty(item.AuthorName, parsed.AuthorName)
+		parsed.Series = firstNonEmpty(wantedOverrideValue(item, "series"), item.Series, parsed.Series)
+		parsed.SeriesPosition = firstNonEmpty(wantedOverrideValue(item, "series_position"), item.SeriesPosition, parsed.SeriesPosition)
+		if item.FirstPublishYear > 0 {
+			parsed.Year = strconv.Itoa(item.FirstPublishYear)
+		}
+		rootFolderID = strings.TrimSpace(item.RootFolderID)
 	}
 
-	destination := s.destinationPath(format, parsed, filepath.Ext(source))
+	root := s.importRootPath(ctx, format, rootFolderID)
+	destination := s.destinationPathIn(root, format, parsed, filepath.Ext(source))
 	if destination == "" {
 		return ImportOutcome{}, errors.New("library root is not configured")
 	}
@@ -477,10 +485,18 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
 		return ImportOutcome{}, err
 	}
-	operation, err := importFile(source, destination, mode, plan.Replaced)
+	if plan.Replaced {
+		// Route the replaced file through the recycle bin when configured
+		// (plain remove otherwise).
+		if err := s.discardFile(destination); err != nil {
+			return ImportOutcome{}, err
+		}
+	}
+	operation, err := importFile(source, destination, mode, false)
 	if err != nil {
 		return ImportOutcome{}, err
 	}
+	s.copyImportExtras(source, destination)
 	destinationInfo, err := os.Stat(destination)
 	if err != nil {
 		return ImportOutcome{}, err
@@ -540,6 +556,7 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 		limit = 50
 	}
 	allowedIDs := stringSet(request.DownloadIDs)
+	mappings := s.remotePathMappings(ctx)
 	outcome := CompletedImportOutcome{}
 	for _, download := range downloads {
 		if outcome.Checked >= limit {
@@ -567,7 +584,7 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
-		sourcePath, format, err := locateDownloadSource(download)
+		sourcePath, format, err := locateDownloadSource(remapDownloadSavePath(download, mappings))
 		if err != nil {
 			result.Status = "error"
 			result.Message = err.Error()
@@ -734,35 +751,40 @@ func (s *Service) ResolveImportReview(ctx context.Context, id string, request Re
 	}
 }
 
-func (s *Service) scanRoots(request ScanRequest) []string {
+func (s *Service) scanRoots(ctx context.Context, request ScanRequest) []string {
 	if strings.TrimSpace(request.Root) != "" {
 		return []string{filepath.Clean(request.Root)}
 	}
+	var formats []string
 	switch normalizeFormat(request.Format) {
 	case "ebook":
-		return []string{s.ebookRoot()}
+		formats = []string{"ebook"}
 	case "audiobook":
-		return []string{s.audiobookRoot()}
+		formats = []string{"audiobook"}
 	default:
-		return []string{s.ebookRoot(), s.audiobookRoot()}
+		formats = []string{"ebook", "audiobook"}
 	}
+	var roots []string
+	seen := map[string]bool{}
+	for _, format := range formats {
+		for _, root := range s.rootsForFormat(ctx, format) {
+			if root == "" || seen[root] {
+				continue
+			}
+			seen[root] = true
+			roots = append(roots, root)
+		}
+	}
+	return roots
 }
 
-func (s *Service) destinationPath(format string, parsed parsedBook, ext string) string {
-	root := s.ebookRoot()
-	if normalizeFormat(format) == "audiobook" {
-		root = s.audiobookRoot()
-	}
-	if strings.TrimSpace(root) == "" {
+func (s *Service) destinationPathIn(root string, format string, parsed parsedBook, ext string) string {
+	root = filepath.Clean(strings.TrimSpace(root))
+	if root == "" || root == "." {
 		return ""
 	}
 	policy := s.namingPolicy()
-	values := map[string]string{
-		"Author": firstNonEmpty(parsed.AuthorName, "Unknown Author"),
-		"Title":  firstNonEmpty(parsed.Title, "Unknown Title"),
-		"Format": normalizeFormat(format),
-		"Ext":    strings.ToLower(ext),
-	}
+	values := namingTokenValues(parsed, format, ext)
 	parts := []string{root}
 	parts = append(parts, renderPathSegments(policy.AuthorFolderTemplate, values, policy.SpaceReplacement)...)
 	parts = append(parts, renderPathSegments(policy.BookFolderTemplate, values, policy.SpaceReplacement)...)
@@ -770,18 +792,23 @@ func (s *Service) destinationPath(format string, parsed parsedBook, ext string) 
 	return filepath.Join(append(parts, fileName)...)
 }
 
-func (s *Service) renamePreviewForFile(file FileRecord, overwrite bool) (RenameFilePreview, error) {
+func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, overwrite bool) (RenameFilePreview, error) {
 	source := filepath.Clean(strings.TrimSpace(file.Path))
 	if source == "" || source == "." {
 		return RenameFilePreview{}, errors.New("file path is required")
 	}
 	parsedFromPath := parseBookFilename(source)
+	local := fileLocalMetadata(file)
 	parsed := parsedBook{
-		Title:      firstNonEmpty(file.Title, parsedFromPath.Title),
-		AuthorName: firstNonEmpty(file.AuthorName, parsedFromPath.AuthorName),
+		Title:          firstNonEmpty(file.Title, parsedFromPath.Title),
+		AuthorName:     firstNonEmpty(file.AuthorName, parsedFromPath.AuthorName),
+		Series:         metadataString(local, "series"),
+		SeriesPosition: metadataString(local, "seriesIndex"),
+		Year:           yearFromString(metadataString(local, "year")),
 	}
 	ext := firstNonEmpty(file.Extension, filepath.Ext(source))
-	destination := s.destinationPath(file.MediaFormat, parsed, ext)
+	root := s.renameRootForFile(ctx, file)
+	destination := s.destinationPathIn(root, file.MediaFormat, parsed, ext)
 	if destination == "" {
 		return RenameFilePreview{}, errors.New("library root is not configured")
 	}
@@ -790,10 +817,6 @@ func (s *Service) renamePreviewForFile(file FileRecord, overwrite bool) (RenameF
 		destination = availableDestination(destination)
 	}
 	relativePath := filepath.Base(destination)
-	root := s.ebookRoot()
-	if normalizeFormat(file.MediaFormat) == "audiobook" {
-		root = s.audiobookRoot()
-	}
 	if root != "" {
 		if rel, err := filepath.Rel(root, destination); err == nil && !strings.HasPrefix(rel, "..") {
 			relativePath = rel
@@ -1930,9 +1953,12 @@ func fileRecordFromPath(path string, format string, info fs.FileInfo, status str
 }
 
 type parsedBook struct {
-	Title       string
-	AuthorName  string
-	Identifiers map[string]string
+	Title          string
+	AuthorName     string
+	Series         string
+	SeriesPosition string
+	Year           string
+	Identifiers    map[string]string
 }
 
 func parseBookFilename(path string) parsedBook {
@@ -2028,15 +2054,6 @@ func renderFileName(template string, values map[string]string, spaceReplacement 
 		fileName += ext
 	}
 	return fileName
-}
-
-func renderTemplate(template string, values map[string]string) string {
-	rendered := template
-	for key, value := range values {
-		rendered = strings.ReplaceAll(rendered, "{"+key+"}", value)
-		rendered = strings.ReplaceAll(rendered, "{"+strings.ToLower(key)+"}", value)
-	}
-	return rendered
 }
 
 func applySpaceReplacement(value string, replacement string) string {
@@ -2228,6 +2245,35 @@ func availableDestination(path string) string {
 		}
 	}
 	return base + " (" + strconv.FormatInt(time.Now().UnixNano(), 10) + ")" + ext
+}
+
+// remapDownloadSavePath applies remote path mappings to the client-reported
+// save path before any filesystem access.
+func remapDownloadSavePath(download acquisition.DownloadStatus, mappings []RemotePathMapping) acquisition.DownloadStatus {
+	if len(mappings) == 0 {
+		return download
+	}
+	download.SavePath = rewriteRemotePath(download.SavePath, download.Client, mappings)
+	return download
+}
+
+func fileLocalMetadata(file FileRecord) map[string]any {
+	if local, ok := file.Metadata["localMetadata"].(map[string]any); ok {
+		return local
+	}
+	return nil
+}
+
+// wantedOverrideValue returns the operator's manual override for a wanted-item
+// field ("" when none exists); manual overrides always win over provider data.
+func wantedOverrideValue(item wanted.WantedItem, field string) string {
+	field = strings.ToLower(strings.TrimSpace(field))
+	for _, override := range item.ManualOverrides {
+		if strings.ToLower(strings.TrimSpace(override.FieldName)) == field {
+			return strings.TrimSpace(override.Value)
+		}
+	}
+	return ""
 }
 
 func locateDownloadSource(download acquisition.DownloadStatus) (string, string, error) {

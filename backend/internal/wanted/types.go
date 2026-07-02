@@ -201,6 +201,10 @@ type WantedItem struct {
 	QualityProfile      string           `json:"qualityProfile"`
 	Status              string           `json:"status"`
 	Monitored           bool             `json:"monitored"`
+	RootFolderID        string           `json:"rootFolderId,omitempty"`
+	Series              string           `json:"series,omitempty"`
+	SeriesPosition      string           `json:"seriesPosition,omitempty"`
+	FirstPublishYear    int              `json:"firstPublishYear,omitempty"`
 	Tags                []int            `json:"tags,omitempty"`
 	SourceProvider      string           `json:"sourceProvider,omitempty"`
 	SourceKey           string           `json:"sourceKey,omitempty"`
@@ -324,8 +328,11 @@ type WantedUpdateRequest struct {
 	Format         string `json:"format,omitempty"`
 	Status         string `json:"status,omitempty"`
 	Monitored      *bool  `json:"monitored,omitempty"`
-	Tags           []int  `json:"tags,omitempty"`
-	TagsSet        bool   `json:"-"`
+	// RootFolderID pins the import destination root; nil leaves it
+	// untouched, an empty string clears it back to the format default.
+	RootFolderID *string `json:"rootFolderId,omitempty"`
+	Tags         []int   `json:"tags,omitempty"`
+	TagsSet      bool    `json:"-"`
 }
 
 type WantedBulkRequest struct {

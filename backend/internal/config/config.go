@@ -36,6 +36,9 @@ type Config struct {
 	NamingFileName            string
 	NamingSpaceReplacement    string
 	StandardSearchLanguage    string
+	RecycleBin                string
+	RecycleBinRetention       time.Duration
+	ImportExtraFiles          string
 	MonitorEnabled            bool
 	MonitorInterval           time.Duration
 	MonitorSearchInterval     time.Duration
@@ -103,6 +106,9 @@ func FromEnv() Config {
 		NamingFileName:            env("LIBRARRY_NAMING_FILE_NAME", "{Title}{Ext}"),
 		NamingSpaceReplacement:    strings.TrimSpace(os.Getenv("LIBRARRY_NAMING_SPACE_REPLACEMENT")),
 		StandardSearchLanguage:    env("LIBRARRY_STANDARD_SEARCH_LANGUAGE", "English"),
+		RecycleBin:                strings.TrimSpace(os.Getenv("LIBRARRY_RECYCLE_BIN")),
+		RecycleBinRetention:       envDuration("LIBRARRY_RECYCLE_BIN_RETENTION", 168*time.Hour),
+		ImportExtraFiles:          env("LIBRARRY_IMPORT_EXTRA_FILES", ".cue"),
 		MonitorEnabled:            envBool("LIBRARRY_MONITOR_ENABLED", true),
 		MonitorInterval:           envDuration("LIBRARRY_MONITOR_INTERVAL", 30*time.Minute),
 		MonitorSearchInterval:     envDuration("LIBRARRY_MONITOR_SEARCH_INTERVAL", 6*time.Hour),

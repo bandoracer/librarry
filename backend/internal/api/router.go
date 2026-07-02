@@ -122,6 +122,21 @@ type configurableLibraryService interface {
 	Reconfigure(config library.Config)
 }
 
+type rootFolderLibraryService interface {
+	ListRootFolders(ctx context.Context) ([]library.RootFolder, error)
+	CreateRootFolder(ctx context.Context, folder library.RootFolder) (library.RootFolder, error)
+	UpdateRootFolder(ctx context.Context, id string, folder library.RootFolder) (library.RootFolder, error)
+	DeleteRootFolder(ctx context.Context, id string) error
+	SyncDefaultRootFolders(ctx context.Context, config library.Config) error
+}
+
+type remotePathMappingLibraryService interface {
+	ListRemotePathMappings(ctx context.Context) ([]library.RemotePathMapping, error)
+	CreateRemotePathMapping(ctx context.Context, mapping library.RemotePathMapping) (library.RemotePathMapping, error)
+	UpdateRemotePathMapping(ctx context.Context, id string, mapping library.RemotePathMapping) (library.RemotePathMapping, error)
+	DeleteRemotePathMapping(ctx context.Context, id string) error
+}
+
 type configurableWantedSearchLanguage interface {
 	SetDefaultSearchLanguage(language string)
 }
@@ -406,6 +421,14 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("DELETE /api/v1/librarry/blocklist/{id}", handler.deleteBlocklistEntry)
 	mux.HandleFunc("GET /api/v1/library/config", handler.libraryConfig)
 	mux.HandleFunc("PUT /api/v1/library/config", handler.updateLibraryConfig)
+	mux.HandleFunc("GET /api/v1/library/root-folders", handler.libraryRootFolders)
+	mux.HandleFunc("POST /api/v1/library/root-folders", handler.createLibraryRootFolder)
+	mux.HandleFunc("PUT /api/v1/library/root-folders/{id}", handler.updateLibraryRootFolder)
+	mux.HandleFunc("DELETE /api/v1/library/root-folders/{id}", handler.deleteLibraryRootFolder)
+	mux.HandleFunc("GET /api/v1/library/remote-path-mappings", handler.libraryRemotePathMappings)
+	mux.HandleFunc("POST /api/v1/library/remote-path-mappings", handler.createLibraryRemotePathMapping)
+	mux.HandleFunc("PUT /api/v1/library/remote-path-mappings/{id}", handler.updateLibraryRemotePathMapping)
+	mux.HandleFunc("DELETE /api/v1/library/remote-path-mappings/{id}", handler.deleteLibraryRemotePathMapping)
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
 	mux.HandleFunc("DELETE /api/v1/library/files/{id}", handler.deleteLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/files/delete", handler.deleteLibraryFiles)
@@ -891,6 +914,9 @@ type libraryConfigSettings struct {
 	NamingFileName         string `json:"namingFileName"`
 	NamingSpaceReplacement string `json:"namingSpaceReplacement"`
 	StandardSearchLanguage string `json:"standardSearchLanguage"`
+	// RecycleBin is read-only surface: it is configured through
+	// LIBRARRY_RECYCLE_BIN, not through this endpoint.
+	RecycleBin string `json:"recycleBin"`
 }
 
 func (h *handler) libraryConfig(w http.ResponseWriter, r *http.Request) {
@@ -928,6 +954,14 @@ func (h *handler) updateLibraryConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := h.saveLibraryNamingConfig(r.Context(), next); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+	}
+	if rootService, ok := h.deps.Library.(rootFolderLibraryService); ok {
+		// The legacy two-root fields map onto the per-format default native
+		// root folders.
+		if err := rootService.SyncDefaultRootFolders(r.Context(), next); err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 			return
 		}
@@ -997,6 +1031,7 @@ func libraryConfigSettingsFromConfig(config library.Config) libraryConfigSetting
 		NamingFileName:         config.NamingFileNameTemplate,
 		NamingSpaceReplacement: config.NamingSpaceReplacement,
 		StandardSearchLanguage: config.StandardSearchLanguage,
+		RecycleBin:             config.RecycleBin,
 	}
 }
 
@@ -2157,6 +2192,13 @@ func decodeWantedUpdateRequest(body io.Reader) (wanted.WantedUpdateRequest, erro
 		}
 		request.TagsSet = true
 	}
+	if value, ok := raw["rootFolderId"]; ok {
+		var rootFolderID string
+		if err := json.Unmarshal(value, &rootFolderID); err != nil {
+			return wanted.WantedUpdateRequest{}, err
+		}
+		request.RootFolderID = &rootFolderID
+	}
 	return request, nil
 }
 
@@ -2412,6 +2454,198 @@ func (h *handler) markDownloadFailed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, outcome)
+}
+
+func (h *handler) rootFolderService(w http.ResponseWriter) (rootFolderLibraryService, bool) {
+	service, ok := h.deps.Library.(rootFolderLibraryService)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library root folder service is unavailable"})
+		return nil, false
+	}
+	return service, true
+}
+
+func (h *handler) libraryRootFolders(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.rootFolderService(w)
+	if !ok {
+		return
+	}
+	folders, err := service.ListRootFolders(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if folders == nil {
+		folders = []library.RootFolder{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rootFolders": folders})
+}
+
+func (h *handler) createLibraryRootFolder(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.rootFolderService(w)
+	if !ok {
+		return
+	}
+	defer r.Body.Close()
+	var folder library.RootFolder
+	if err := json.NewDecoder(r.Body).Decode(&folder); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid root folder payload"})
+		return
+	}
+	if strings.TrimSpace(folder.Path) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "root folder path is required"})
+		return
+	}
+	created, err := service.CreateRootFolder(r.Context(), folder)
+	if err != nil {
+		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rootFolder": created})
+}
+
+func (h *handler) updateLibraryRootFolder(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.rootFolderService(w)
+	if !ok {
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "root folder id is required"})
+		return
+	}
+	defer r.Body.Close()
+	var folder library.RootFolder
+	if err := json.NewDecoder(r.Body).Decode(&folder); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid root folder payload"})
+		return
+	}
+	if strings.TrimSpace(folder.Path) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "root folder path is required"})
+		return
+	}
+	updated, err := service.UpdateRootFolder(r.Context(), id, folder)
+	if err != nil {
+		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rootFolder": updated})
+}
+
+func (h *handler) deleteLibraryRootFolder(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.rootFolderService(w)
+	if !ok {
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "root folder id is required"})
+		return
+	}
+	if err := service.DeleteRootFolder(r.Context(), id); err != nil {
+		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "id": id})
+}
+
+func rootFolderErrorStatus(err error) int {
+	var conflict *library.ConflictError
+	switch {
+	case errors.As(err, &conflict):
+		return http.StatusConflict
+	case errors.Is(err, sql.ErrNoRows):
+		return http.StatusNotFound
+	case strings.Contains(err.Error(), "is required"), strings.Contains(err.Error(), "must be"):
+		return http.StatusBadRequest
+	default:
+		return http.StatusBadGateway
+	}
+}
+
+func (h *handler) remotePathMappingService(w http.ResponseWriter) (remotePathMappingLibraryService, bool) {
+	service, ok := h.deps.Library.(remotePathMappingLibraryService)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "remote path mapping service is unavailable"})
+		return nil, false
+	}
+	return service, true
+}
+
+func (h *handler) libraryRemotePathMappings(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.remotePathMappingService(w)
+	if !ok {
+		return
+	}
+	mappings, err := service.ListRemotePathMappings(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		return
+	}
+	if mappings == nil {
+		mappings = []library.RemotePathMapping{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"mappings": mappings})
+}
+
+func (h *handler) createLibraryRemotePathMapping(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.remotePathMappingService(w)
+	if !ok {
+		return
+	}
+	defer r.Body.Close()
+	var mapping library.RemotePathMapping
+	if err := json.NewDecoder(r.Body).Decode(&mapping); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid remote path mapping payload"})
+		return
+	}
+	created, err := service.CreateRemotePathMapping(r.Context(), mapping)
+	if err != nil {
+		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"mapping": created})
+}
+
+func (h *handler) updateLibraryRemotePathMapping(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.remotePathMappingService(w)
+	if !ok {
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "remote path mapping id is required"})
+		return
+	}
+	defer r.Body.Close()
+	var mapping library.RemotePathMapping
+	if err := json.NewDecoder(r.Body).Decode(&mapping); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid remote path mapping payload"})
+		return
+	}
+	updated, err := service.UpdateRemotePathMapping(r.Context(), id, mapping)
+	if err != nil {
+		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"mapping": updated})
+}
+
+func (h *handler) deleteLibraryRemotePathMapping(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.remotePathMappingService(w)
+	if !ok {
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "remote path mapping id is required"})
+		return
+	}
+	if err := service.DeleteRemotePathMapping(r.Context(), id); err != nil {
+		writeJSON(w, rootFolderErrorStatus(err), map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "id": id})
 }
 
 func (h *handler) libraryFiles(w http.ResponseWriter, r *http.Request) {

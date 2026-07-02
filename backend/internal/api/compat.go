@@ -467,18 +467,38 @@ func (h *handler) compatNamingConfigExamples(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	author := "Andy Weir"
-	title := "Project Hail Mary"
-	format := "ebook"
-	ext := ".epub"
+	seriesExample := compatNamingExampleValues{
+		Author:         "Matt Dinniman",
+		Title:          "Dungeon Crawler Carl",
+		Series:         "Dungeon Crawler Carl",
+		SeriesPosition: "1",
+		Year:           "2020",
+		Format:         "ebook",
+		Ext:            ".epub",
+	}
+	standaloneExample := compatNamingExampleValues{
+		Author: "Andy Weir",
+		Title:  "Project Hail Mary",
+		Format: "ebook",
+		Ext:    ".epub",
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"singleBookExample": renderCompatNamingExample(record, author, title, format, ext),
+		"singleBookExample": renderCompatNamingExample(record, standaloneExample),
 		"examples": []map[string]any{{
-			"author":      author,
-			"title":       title,
-			"mediaFormat": format,
-			"extension":   ext,
-			"path":        renderCompatNamingExample(record, author, title, format, ext),
+			"author":      standaloneExample.Author,
+			"title":       standaloneExample.Title,
+			"mediaFormat": standaloneExample.Format,
+			"extension":   standaloneExample.Ext,
+			"path":        renderCompatNamingExample(record, standaloneExample),
+		}, {
+			"author":         seriesExample.Author,
+			"title":          seriesExample.Title,
+			"series":         seriesExample.Series,
+			"seriesPosition": seriesExample.SeriesPosition,
+			"year":           seriesExample.Year,
+			"mediaFormat":    seriesExample.Format,
+			"extension":      seriesExample.Ext,
+			"path":           renderCompatNamingExample(record, seriesExample),
 		}},
 	})
 }
@@ -7565,12 +7585,25 @@ func (h *handler) compatManualImportReviewID(ctx context.Context, payload map[st
 	return strings.TrimSpace(matches[0].ID), nil
 }
 
-func renderCompatNamingExample(record map[string]any, author string, title string, format string, ext string) string {
+type compatNamingExampleValues struct {
+	Author         string
+	Title          string
+	Series         string
+	SeriesPosition string
+	Year           string
+	Format         string
+	Ext            string
+}
+
+func renderCompatNamingExample(record map[string]any, example compatNamingExampleValues) string {
 	values := map[string]string{
-		"Author": author,
-		"Title":  title,
-		"Format": format,
-		"Ext":    ext,
+		"Author":         example.Author,
+		"Title":          example.Title,
+		"Series":         example.Series,
+		"SeriesPosition": example.SeriesPosition,
+		"Year":           example.Year,
+		"Format":         example.Format,
+		"Ext":            example.Ext,
 	}
 	spaceReplacement := payloadString(record, "replaceSpacesWith")
 	parts := []string{
@@ -7583,14 +7616,13 @@ func renderCompatNamingExample(record map[string]any, author string, title strin
 
 func renderCompatTemplate(template string, values map[string]string, spaceReplacement string) string {
 	template = defaultString(template, "{Title}")
-	for key, value := range values {
-		template = strings.ReplaceAll(template, "{"+key+"}", value)
-		template = strings.ReplaceAll(template, "{"+strings.ToLower(key)+"}", value)
-	}
+	// The shared library renderer keeps the {Series}/{SeriesPosition}/{Year}
+	// preview honest: empty tokens collapse exactly like they do at import.
+	rendered := library.RenderNamingTemplate(template, values)
 	if spaceReplacement != "" {
-		template = strings.ReplaceAll(template, " ", spaceReplacement)
+		rendered = strings.ReplaceAll(rendered, " ", spaceReplacement)
 	}
-	return template
+	return rendered
 }
 
 func compatHistoryEventType(eventType string) string {

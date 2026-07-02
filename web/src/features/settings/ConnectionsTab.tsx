@@ -5,6 +5,7 @@ import { useToast } from "../../components/toast";
 import { saveIntegrationSettings, type IntegrationSettings } from "../../lib/api";
 import { keys, useIntegrationSettings, useInvalidatingMutation } from "../../lib/queries";
 import { QueryErrorNotice, SecretInput } from "./controls";
+import { RemotePathMappingsCard } from "./RemotePathMappingsCard";
 import { emptyIntegrationSettings, errorMessage, integrationSettingsChanged, integrationSettingsForm } from "./helpers";
 
 function secretLabel(base: string, configured: boolean) {
@@ -248,6 +249,7 @@ export function ConnectionsTab() {
           </>
         )}
       </Card>
+      <RemotePathMappingsCard />
     </>
   );
 }

@@ -109,6 +109,9 @@ func main() {
 		NamingFileNameTemplate:     cfg.NamingFileName,
 		NamingSpaceReplacement:     cfg.NamingSpaceReplacement,
 		StandardSearchLanguage:     cfg.StandardSearchLanguage,
+		RecycleBin:                 cfg.RecycleBin,
+		RecycleBinRetention:        cfg.RecycleBinRetention,
+		ImportExtraFiles:           cfg.ImportExtraFiles,
 	}
 	if compatStore != nil {
 		roots, err := compatStore.ListRootFolders(ctx)
@@ -128,6 +131,12 @@ func main() {
 		rootFolders = compatStore
 	}
 	libraryService := library.NewService(libraryStore, libraryConfig, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), rootFolders)
+	if libraryService.Available() {
+		// Native root folders (when present) win over the env/compat roots.
+		if err := libraryService.SyncConfigFromRootFolders(ctx); err != nil {
+			logger.Warn("native root folders unavailable", "error", err)
+		}
+	}
 	wantedService.SetDefaultSearchLanguage(libraryConfig.StandardSearchLanguage)
 	var monitorWG sync.WaitGroup
 	if cfg.MonitorEnabled && wantedService.Available() {
@@ -486,6 +495,10 @@ type completedDownloadClient interface {
 	DownloadAction(ctx context.Context, request acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error)
 }
 
+type recycleBinCleaner interface {
+	CleanupRecycleBin(now time.Time) (int, error)
+}
+
 // runCompletedDownloadImport is Librarry's take on arr "Completed Download
 // Handling": finished librarry-tagged downloads are imported automatically —
 // auto-matched to their wanted item, or queued for review when no match
@@ -510,10 +523,19 @@ func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger 
 				logger.Warn("completed download removal failed", "trigger", trigger, "error", err)
 			}
 		}
+		// Recycle-bin retention cleanup rides the same tick (no-op when
+		// LIBRARRY_RECYCLE_BIN is unset).
+		recycled := 0
+		if cleaner, ok := service.(recycleBinCleaner); ok && strings.TrimSpace(cfg.RecycleBin) != "" {
+			recycled, err = cleaner.CleanupRecycleBin(time.Now().UTC())
+			if err != nil {
+				logger.Warn("recycle bin cleanup failed", "trigger", trigger, "error", err)
+			}
+		}
 		// Unresolved reviews re-count every tick (dedup happens in the store),
 		// so only imports, removals, and errors get Info-level noise.
 		level := slog.LevelDebug
-		if outcome.Imported > 0 || outcome.Errored > 0 || removed > 0 {
+		if outcome.Imported > 0 || outcome.Errored > 0 || removed > 0 || recycled > 0 {
 			level = slog.LevelInfo
 		}
 		logger.Log(
@@ -527,6 +549,7 @@ func runCompletedDownloadImport(ctx context.Context, wg *sync.WaitGroup, logger 
 			"review_queued", outcome.ReviewQueued,
 			"skipped", outcome.Skipped,
 			"removed", removed,
+			"recycle_bin_purged", recycled,
 			"errors", outcome.Errored,
 		)
 	}

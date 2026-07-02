@@ -14,6 +14,13 @@ type Config struct {
 	NamingFileNameTemplate     string
 	NamingSpaceReplacement     string
 	StandardSearchLanguage     string
+	// RecycleBin is the folder deleted/replaced library files move into
+	// (empty disables the bin and files are removed outright).
+	RecycleBin          string
+	RecycleBinRetention time.Duration
+	// ImportExtraFiles is a comma-separated extension list (".cue") of
+	// sibling files copied alongside imports.
+	ImportExtraFiles string
 }
 
 type FileRecord struct {

@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   FileSearch,
+  FolderPen,
   Pencil,
   RadioTower,
   RefreshCw,
@@ -49,6 +50,9 @@ import {
 } from "../../lib/api";
 import { formatDateTime } from "../../lib/format";
 import { navItems } from "../../app/nav";
+// Shared with Settings → Media Management; the rename tooling lives in the
+// settings feature and this cross-feature import is intentional.
+import { RenameFilesModal } from "../settings/RenameFilesModal";
 import {
   authorMonitorBadge,
   buildLibraryAuthorRows,
@@ -121,6 +125,7 @@ export default function LibraryPage() {
   const [showAllBooks, setShowAllBooks] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [selectedBookIDs, setSelectedBookIDs] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<"" | BulkAction>("");
   const [bulkProfile, setBulkProfile] = useState("");
@@ -575,6 +580,12 @@ export default function LibraryPage() {
               onClick={() => void handleMonitor(true)}
             />
             <ToolbarButton
+              icon={FolderPen}
+              label="Rename Files"
+              title="Preview and apply file renames against the naming templates"
+              onClick={() => setRenameOpen(true)}
+            />
+            <ToolbarButton
               icon={Pencil}
               label={editMode ? "Done" : "Edit Mode"}
               tone={editMode ? "accent" : undefined}
@@ -884,6 +895,8 @@ export default function LibraryPage() {
           disk.
         </p>
       </Modal>
+
+      <RenameFilesModal open={renameOpen} onClose={() => setRenameOpen(false)} />
     </>
   );
 }

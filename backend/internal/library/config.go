@@ -3,9 +3,12 @@ package library
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 )
+
+const defaultRecycleBinRetention = 168 * time.Hour
 
 func NormalizeConfig(config Config) Config {
 	config.EbookRoot = firstNonEmpty(strings.TrimSpace(config.EbookRoot), "/data/media/books/ebooks")
@@ -15,6 +18,11 @@ func NormalizeConfig(config Config) Config {
 	config.NamingFileNameTemplate = firstNonEmpty(strings.TrimSpace(config.NamingFileNameTemplate), "{Title}{Ext}")
 	config.NamingSpaceReplacement = strings.TrimSpace(config.NamingSpaceReplacement)
 	config.StandardSearchLanguage = firstNonEmpty(strings.TrimSpace(config.StandardSearchLanguage), "English")
+	config.RecycleBin = strings.TrimSpace(config.RecycleBin)
+	if config.RecycleBinRetention <= 0 {
+		config.RecycleBinRetention = defaultRecycleBinRetention
+	}
+	config.ImportExtraFiles = firstNonEmpty(strings.TrimSpace(config.ImportExtraFiles), ".cue")
 	return config
 }
 

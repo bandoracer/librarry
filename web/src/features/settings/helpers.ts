@@ -175,10 +175,16 @@ export function integrationSettingsChanged(form: IntegrationSettings, saved: Int
 
 /* ------------------------------ Naming preview ----------------------------- */
 
+/** Tokens supported by the backend naming renderer, in hint order. */
+export const libraryNamingTokens = ["{Author}", "{Title}", "{Series}", "{SeriesPosition}", "{Year}", "{Format}", "{Ext}"];
+
 export function libraryNamingPreviewPath(settings: LibrarySettings) {
   const values = {
     Author: "Andy Weir",
     Title: "Project Hail Mary",
+    Series: "The Long Way",
+    SeriesPosition: "1",
+    Year: "2016",
     Format: "ebook",
     Ext: ".epub"
   };
@@ -204,9 +210,26 @@ export function renderLibraryTemplate(template: string, values: Record<string, s
   for (const [key, value] of Object.entries(values)) {
     rendered = rendered.split(`{${key}}`).join(value).split(`{${key.toLowerCase()}}`).join(value);
   }
+  rendered = collapseEmptyTemplateSeparators(rendered);
   rendered = rendered.replace(/[<>:"|?*\x00-\x1f]/g, "-").replace(/\s+/g, " ").trim();
   if (replacement) rendered = rendered.split(" ").join(replacement);
   return rendered || "Unknown";
+}
+
+/**
+ * Cleans up the residue empty token values leave behind so a template like
+ * "{Series} - {Title} ({Year})" degrades to "Title" instead of " - Title ()"
+ * when a book has no series or year (mirrors the backend renderer).
+ */
+export function collapseEmptyTemplateSeparators(value: string) {
+  let result = value;
+  // Empty bracket groups (optionally holding only separators): "()", "[ - ]".
+  result = result.replace(/\(\s*[-–—._]*\s*\)/g, " ").replace(/\[\s*[-–—._]*\s*\]/g, " ");
+  // Runs of separators collapsed to the first: "Title - - Name" → "Title - Name".
+  result = result.replace(/(\s*[-–—_]\s*)(?:[-–—_]\s*)+/g, "$1");
+  // Dangling separators at either end: " - Title", "Title -".
+  result = result.replace(/^\s*[-–—_]+\s*/, "").replace(/\s*[-–—_]+\s*$/, "");
+  return result;
 }
 
 /* ----------------------------- Quality profiles ---------------------------- */

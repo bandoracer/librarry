@@ -158,9 +158,78 @@
   white-space: nowrap;
 }
 
+/* Root folder rows. */
+.settings-root-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-root-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--faint);
+}
+
+.settings-root-dot.ok {
+  background: var(--success);
+}
+
+.settings-root-dot.bad {
+  background: var(--danger);
+}
+
+.settings-root-path {
+  overflow-wrap: anywhere;
+}
+
+/* Remote path mapping add-row. */
+.settings-mapping-add {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.4fr) minmax(140px, 1.4fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+/* Rename preview modal. */
+.settings-rename-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.settings-rename-check {
+  width: 28px;
+}
+
+.settings-rename-path {
+  overflow-wrap: anywhere;
+}
+
+.settings-rename-dest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-rename-noop {
+  opacity: 0.55;
+}
+
 @media (max-width: 720px) {
   .settings-profile-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .settings-mapping-add {
+    grid-template-columns: 1fr;
   }
 }

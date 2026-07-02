@@ -80,8 +80,9 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 	err = tx.QueryRowContext(ctx, `
 		insert into wanted_items (
 			work_id, edition_id, wanted_format, quality_profile, status,
-			title, author_name, cover_url, metadata_provider, source_key, tags
-		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10)
+			title, author_name, cover_url, metadata_provider, source_key, tags,
+			series, series_position, first_publish_year
+		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		on conflict (metadata_provider, source_key, wanted_format)
 			where metadata_provider <> '' and source_key <> ''
 		do update set
@@ -123,9 +124,13 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 				else excluded.cover_url
 			end,
 			tags = case when excluded.tags <> '' then excluded.tags else wanted_items.tags end,
+			series = case when excluded.series <> '' then excluded.series else wanted_items.series end,
+			series_position = case when excluded.series_position <> '' then excluded.series_position else wanted_items.series_position end,
+			first_publish_year = case when excluded.first_publish_year <> 0 then excluded.first_publish_year else wanted_items.first_publish_year end,
 			updated_at = now()
 		returning id
-	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, intTagsString(request.Tags)).Scan(&wantedID)
+	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, intTagsString(request.Tags),
+		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear).Scan(&wantedID)
 	if err != nil {
 		return WantedItem{}, err
 	}
@@ -151,6 +156,7 @@ func (s *Store) ListWanted(ctx context.Context, status string) ([]WantedItem, er
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
 			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
@@ -190,6 +196,7 @@ func (s *Store) ListWantedWithFiles(ctx context.Context) ([]WantedItem, error) {
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
 			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
@@ -660,6 +667,7 @@ func (s *Store) GetWanted(ctx context.Context, id string) (WantedItem, error) {
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
 			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
@@ -705,6 +713,11 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 		tags.Valid = true
 		tags.String = intTagsString(request.Tags)
 	}
+	rootFolderID := sql.NullString{}
+	if request.RootFolderID != nil {
+		rootFolderID.Valid = true
+		rootFolderID.String = strings.TrimSpace(*request.RootFolderID)
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return WantedItem{}, err
@@ -725,10 +738,11 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 			end,
 			tags = coalesce($8, tags),
 			wanted_format = case when $9 = '' then wanted_format else $9 end,
+			root_folder_id = case when $10::text is null then root_folder_id else nullif($10::text, '')::uuid end,
 			updated_at = now()
 		where id::text = $1
 	`, id, strings.TrimSpace(request.Title), strings.TrimSpace(request.AuthorName), strings.TrimSpace(request.CoverURL),
-		qualityProfile, monitored, strings.TrimSpace(request.Status), tags, format)
+		qualityProfile, monitored, strings.TrimSpace(request.Status), tags, format, rootFolderID)
 	if err != nil {
 		return WantedItem{}, err
 	}
@@ -1717,6 +1731,7 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
 			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
@@ -1777,6 +1792,7 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 			coalesce(nullif(wi.author_name, ''), ''), coalesce(nullif(wi.cover_url, ''), w.cover_url),
 			wi.wanted_format, wi.quality_profile, wi.status, wi.monitored, wi.metadata_provider,
 			wi.source_key, coalesce(wi.current_release_id::text, ''), wi.current_release_score,
+			coalesce(wi.root_folder_id::text, ''), wi.series, wi.series_position, wi.first_publish_year,
 			wi.tags, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
@@ -2403,6 +2419,7 @@ func scanWanted(row wantedScanner) (WantedItem, error) {
 		&item.ID, &workID, &editionID, &item.Title, &item.AuthorName, &coverURL,
 		&item.Format, &item.QualityProfile, &item.Status, &item.Monitored, &sourceProvider,
 		&sourceKey, &item.CurrentReleaseID, &item.CurrentReleaseScore,
+		&item.RootFolderID, &item.Series, &item.SeriesPosition, &item.FirstPublishYear,
 		&tags, &lastSearchAt, &lastUpgradeSearchAt, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return WantedItem{}, err
