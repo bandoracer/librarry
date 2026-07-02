@@ -45,7 +45,7 @@ export const wantedViewFilters: WantedViewFilter[] = ["missing", "review", "want
 export const releaseDecisionFilters: ReleaseDecisionFilter[] = ["all", "approved", "rejected"];
 
 export function wantedViewFilterLabel(filter: WantedViewFilter) {
-  return filter === "cutoff-unmet" ? "Cutoff Unmet" : filter;
+  return filter === "cutoff-unmet" ? "cutoff unmet" : filter;
 }
 
 /* ------------------------------ Form helpers ------------------------------ */

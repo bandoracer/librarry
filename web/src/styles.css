@@ -355,8 +355,10 @@ code {
   padding: 18px 22px 40px;
 }
 
+/* Capped content centers on wide screens instead of pinning left. */
 .workspace > * {
   max-width: var(--content-max);
+  margin-inline: auto;
 }
 
 .page-loading {
@@ -716,10 +718,23 @@ code {
   background: var(--accent-soft);
 }
 
+/*
+ * Row-action cells right-align their buttons. Kept as a real table-cell
+ * (display:flex on a td detaches its border from the row height and draws
+ * stray mid-row dividers next to taller cells).
+ */
 .data-table .cell-actions {
-  display: flex;
-  gap: 2px;
-  justify-content: flex-end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-table .cell-actions > * {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.data-table .cell-actions > * + * {
+  margin-left: 2px;
 }
 
 .data-table .cell-primary {

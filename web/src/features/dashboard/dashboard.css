@@ -50,6 +50,29 @@
   }
 }
 
+/*
+ * Auto table layout lets unbreakable tokens (env-var names in provider
+ * messages) push these half-card tables wider than their grid column, which
+ * clipped the status badges. Fixed layout + wrap keeps everything inside.
+ */
+.dashboard-health .data-table {
+  table-layout: fixed;
+}
+
+.dashboard-health .data-table td:last-child,
+.dashboard-health .data-table th:last-child {
+  width: 104px;
+}
+
+.dashboard-health .cell-muted {
+  overflow-wrap: anywhere;
+}
+
+.dashboard-health .badge {
+  white-space: normal;
+  text-align: right;
+}
+
 /* Recent activity: keep timestamps and badges from wrapping. */
 .dashboard-activity-time,
 .dashboard-activity-type {
