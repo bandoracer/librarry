@@ -161,6 +161,28 @@ yet ready to replace a production Readarr instance unattended.
   browser verification path until the Cosmos/Cloudflare certificate path is
   fixed.
 
+- The deployed v0.2.0 instance passed a live E2E of the parity surface on
+  2026-07-01/02: completed-download handling ran autonomously on deploy —
+  Moby Dick auto-imported to
+  `/data/media/books/ebooks/Herman Melville/Moby Dick/Moby Dick.epub`
+  (wanted status `imported`) and its seeded torrent was auto-removed from
+  qBittorrent; the unmatched CC0 fixture correctly queued an import review;
+  failed-download recovery auto-grabbed a paused replacement for the old
+  failed download (auto-grab defaults working live); search-on-add ran a
+  release search during a real add (11 found · 3 approved · 8 rejected);
+  queue-remove with "Blocklist release" produced a blocklist entry (infohash,
+  reason, source) in the Blocklist tab; all 8 health checks passed; the task
+  registry showed real last/next runs; disk space read the NAS filesystem;
+  and Backup Now produced a real pg_dump in the deployed container alongside
+  the scheduled dumps. Test artifacts were cleaned up (temporary wanted item
+  deleted before the monitor tick, blocklist cleared, fixture removed with
+  data). Wide-breakpoint layout fixes shipped as v0.2.1.
+- Known deployment bug found during the E2E, fixed in-repo: nginx did not
+  proxy `/feed/`, so the deployed iCal URL returned the SPA shell; the
+  `/feed/` proxy block is now in deploy/nginx.conf and ships with the next
+  web image. The live calendar is empty because existing wanted rows have
+  year-only publish dates (full-date items will populate it).
+
 ## Available But Still Needs Real-World Proving
 
 - Readarr migration preview/import has broad API and UI coverage, but needs a
