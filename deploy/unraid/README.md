@@ -7,10 +7,26 @@ single Community Applications XML template.
 ## Install
 
 1. Install the Unraid Docker Compose Manager plugin if it is not already present.
-2. Create a new stack named `librarry`.
-3. Copy [docker-compose.yml](docker-compose.yml) into the stack.
-4. Copy [.env.example](.env.example) to `.env` beside the stack and edit it.
-5. Start the stack.
+2. Create a new stack named `librarry` and copy both
+   [docker-compose.yml](docker-compose.yml) and
+   [.env.example](.env.example) into the stack directory.
+3. Rename `.env.example` to `.env` and replace every `replace-with-...` value.
+   Use a URL-safe Postgres password, for example `openssl rand -hex 24`, and
+   use that same value in the database URL.
+4. Set `LIBRARRY_WEB_ORIGIN` to the exact URL opened in a browser. If you
+   change `LIBRARRY_WEB_PORT`, update this value too.
+5. Keep `LIBRARRY_AUTH_METHOD=forms` and set a unique browser username and
+   password. This is the supported UI protection for a remote or
+   reverse-proxied install. `LIBRARRY_API_KEY` is optional and is for Arr API
+   clients and calendar feeds, not interactive browser sign-in.
+6. Validate and start the stack from its directory:
+
+   ```bash
+   docker compose --env-file .env config -q
+   docker compose pull
+   docker compose up -d
+   docker compose ps
+   ```
 
 Default paths:
 
@@ -22,8 +38,9 @@ Default paths:
 - API run user: `PUID=99`, `PGID=100`
 
 Set `LIBRARRY_WEB_ORIGIN` to the hostname you actually use for the web UI, such
-as `http://tower.local:30200` or a reverse-proxy URL. Set `LIBRARRY_API_KEY`
-before exposing Librarry outside trusted LAN access.
+as `http://tower.local:30200` or a reverse-proxy URL. `LIBRARRY_WEB_BIND`
+defaults to `0.0.0.0`; set it to the Unraid LAN address when a reverse proxy is
+the only intended entry point.
 
 Set `PUID` and `PGID` to the same user/group used by qBittorrent, Transmission,
 SABnzbd, and the book library share. The API container needs read access for
@@ -42,7 +59,8 @@ book category path or these Librarry settings so they describe the same files.
 
 The web container includes Unraid labels for icon, WebUI URL, and shell access.
 Scheduled pg_dump backups are written to `/config/backups`, which maps to
-`$LIBRARRY_APPDATA_PATH/config/backups`.
+`$LIBRARRY_APPDATA_PATH/config/backups`. Keep the `appdata` share on a local
+cache pool; do not place Postgres on a network-mounted share.
 
 To update:
 
@@ -51,7 +69,9 @@ docker compose pull
 docker compose up -d
 ```
 
-To pin a release, replace `:latest` in `.env` with a published version tag.
+The defaults pull public multi-architecture GHCR images. To pin a release,
+replace `:latest` in `.env` with the same published version tag for both API
+and web images.
 
 Smoke test after start:
 
@@ -66,6 +86,6 @@ imports:
 docker exec librarry-postgres pg_dump -U librarry librarry > librarry.sql
 ```
 
-After the first GHCR publish, verify the `librarry-api` and `librarry-web`
-packages are public in GitHub's package settings before installing on an Unraid
-host that does not authenticate to GHCR.
+Both `librarry-api` and `librarry-web` GHCR packages are public, so Unraid can
+pull them without a GitHub login. The stack supports the normal Unraid x86_64
+servers and ARM64 Docker hosts.

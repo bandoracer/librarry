@@ -44,6 +44,40 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
+func TestFreshInstallListEndpointsSerializeEmptyArrays(t *testing.T) {
+	router := NewRouter(Dependencies{
+		Logger:   slog.Default(),
+		Config:   config.Config{WebOrigin: "*"},
+		Metadata: metadata.NewService(nil),
+		Wanted:   emptyListWanted{fakeWanted: fakeWanted{}},
+		Library:  fakeMissingLibrary{},
+	})
+
+	for _, check := range []struct {
+		path string
+		key  string
+	}{
+		{path: "/api/v1/wanted", key: "wanted"},
+		{path: "/api/v1/authors?status=monitored", key: "authors"},
+		{path: "/api/v1/library/files", key: "files"},
+	} {
+		t.Run(check.key, func(t *testing.T) {
+			res := httptest.NewRecorder()
+			router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, check.path, nil))
+			if res.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+			}
+			var payload map[string]json.RawMessage
+			if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if got := string(payload[check.key]); got != "[]" {
+				t.Fatalf("expected %s to serialize as [], got %s", check.key, got)
+			}
+		})
+	}
+}
+
 func TestReadinessEndpointReportsReadarrWorkflowSetup(t *testing.T) {
 	router := NewRouter(Dependencies{
 		Logger:   slog.Default(),
@@ -4877,6 +4911,18 @@ func (fakeWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.Aut
 		CreatedAt:         time.Now().UTC(),
 		UpdatedAt:         time.Now().UTC(),
 	}}, nil
+}
+
+type emptyListWanted struct {
+	fakeWanted
+}
+
+func (emptyListWanted) List(context.Context, string) ([]wanted.WantedItem, error) {
+	return nil, nil
+}
+
+func (emptyListWanted) ListAuthorSubscriptions(context.Context, string) ([]wanted.AuthorSubscription, error) {
+	return nil, nil
 }
 
 type recordingWanted struct {

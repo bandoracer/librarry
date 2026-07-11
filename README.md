@@ -697,10 +697,12 @@ The default Compose stack pulls:
 - `ghcr.io/bandoracer/librarry-web:latest`
 - `postgres:16-alpine`
 
-Edit `deploy/.env` before production use. At minimum, set a real Postgres
+Edit `deploy/.env` before production use. At minimum, set a URL-safe Postgres
 password, update `LIBRARRY_DATABASE_URL` to match it, choose persistent host
-paths, and set `LIBRARRY_API_KEY` before exposing the app outside trusted local
-access.
+paths, and enable forms authentication with a unique browser username and
+password before exposing the app outside trusted local access. Use
+`LIBRARRY_API_KEY` separately for Readarr-compatible API clients and calendar
+feeds.
 
 NAS installers:
 
@@ -805,10 +807,13 @@ LIBRARRY_CALIBRE_REFRESH_LIMIT=200
 LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS=1
 ```
 
-`LIBRARRY_API_KEY` is optional for local development. When it is set, all
-`/api/` routes require a Readarr-compatible key through `X-Api-Key`, `apikey`,
-`apiKey`, or `Authorization: Bearer ...`; `/healthz` and `/ping` stay open for
-service probes. The web UI can store the key per browser from Settings.
+`LIBRARRY_API_KEY` is optional for local development and external
+Readarr-compatible clients. When it is set with no forms/basic authentication,
+all `/api/` routes require a Readarr-compatible key through `X-Api-Key`,
+`apikey`, `apiKey`, or `Authorization: Bearer ...`; `/healthz` and `/ping` stay
+open for service probes. For browser access, prefer
+`LIBRARRY_AUTH_METHOD=forms` with `LIBRARRY_AUTH_USERNAME` and
+`LIBRARRY_AUTH_PASSWORD`; API keys continue to work for external clients.
 `LIBRARRY_STANDARD_SEARCH_LANGUAGE` defaults metadata and release searches to
 English. Set it to `Any` only when you intentionally want unfiltered language
 results.

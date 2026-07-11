@@ -1929,6 +1929,9 @@ func (h *handler) authorSubscriptions(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
+	if subscriptions == nil {
+		subscriptions = []wanted.AuthorSubscription{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"authors": subscriptions})
 }
 
@@ -2907,6 +2910,9 @@ func (h *handler) libraryFiles(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
+	}
+	if files == nil {
+		files = []library.FileRecord{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"files": files})
 }

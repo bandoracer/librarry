@@ -34,6 +34,9 @@ services:
       LIBRARRY_DATABASE_URL: postgres://librarry:change-me@postgres:5432/librarry?sslmode=disable
       LIBRARRY_MIGRATIONS_DIR: /app/backend/migrations
       LIBRARRY_WEB_ORIGIN: http://truenas.local:30200
+      LIBRARRY_AUTH_METHOD:
+      LIBRARRY_AUTH_USERNAME:
+      LIBRARRY_AUTH_PASSWORD:
       LIBRARRY_HARDCOVER_TOKEN:
       LIBRARRY_GOOGLE_BOOKS_API_KEY:
       LIBRARRY_PROWLARR_URL:

@@ -174,13 +174,15 @@ proxy, proxy the web service and set `LIBRARRY_WEB_ORIGIN` to the public URL.
 Use [deploy/unraid/docker-compose.yml](../deploy/unraid/docker-compose.yml) with
 the Unraid Docker Compose Manager plugin. Copy
 [deploy/unraid/.env.example](../deploy/unraid/.env.example) to `.env` in the
-stack directory and edit it before starting.
+stack directory and edit it before starting. The stack fails early when the
+database password or database URL has not been configured.
 
 Default Unraid paths:
 
 ```dotenv
 LIBRARRY_APPDATA_PATH=/mnt/user/appdata/librarry
 LIBRARRY_MEDIA_STACK_PATH=/mnt/user/media-stack
+LIBRARRY_WEB_BIND=0.0.0.0
 LIBRARRY_WEB_ORIGIN=http://tower.local:30200
 PUID=99
 PGID=100
@@ -191,7 +193,21 @@ The Unraid stack stores Postgres under
 `$LIBRARRY_APPDATA_PATH/config`.
 
 Set `PUID` and `PGID` to the same user/group used by your download client and
-book library paths. Unraid's common `nobody:users` mapping is `99:100`.
+book library paths. Unraid's common `nobody:users` mapping is `99:100`. Keep
+the appdata share on a local cache pool; Postgres should not run on a
+network-mounted share.
+
+For a remotely accessible installation, use forms authentication:
+
+```dotenv
+LIBRARRY_AUTH_METHOD=forms
+LIBRARRY_AUTH_USERNAME=admin
+LIBRARRY_AUTH_PASSWORD=<unique-password>
+```
+
+This gives the web UI a normal browser sign-in. `LIBRARRY_API_KEY` is optional
+and intended for Readarr-compatible clients and calendar feeds; it is not a
+replacement for the browser sign-in configuration.
 
 Librarry does not ship a single Community Applications XML template because the
 app is a three-service stack. Installing only one container would leave either
