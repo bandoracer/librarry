@@ -162,8 +162,8 @@ func TestProwlarrSearchTriesISBNBeforeTitleAndDeduplicates(t *testing.T) {
 			t.Fatalf("expected api key header, got %q", r.Header.Get("X-Api-Key"))
 		}
 		queries = append(queries, r.URL.Query().Get("query"))
-		if r.URL.Query().Get("categories") != "7000" {
-			t.Fatalf("expected ebook category, got %q", r.URL.Query().Get("categories"))
+		if got := r.URL.Query()["categories"]; strings.Join(got, "|") != "7000" {
+			t.Fatalf("expected ebook category, got %#v", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Query().Get("query") {
@@ -209,5 +209,33 @@ func TestCategoriesForAnyFormatIncludeAudiobooks(t *testing.T) {
 	}
 	if got := categoriesForFormat(""); got != "7000,3030" {
 		t.Fatalf("expected empty format to include book and audiobook categories, got %q", got)
+	}
+}
+
+func TestProwlarrSearchSendsRepeatedCategoryParamsForAudiobooks(t *testing.T) {
+	var categories []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prowlarr binds categories as an array of int; a comma-joined value
+		// fails model binding with 400 Bad Request, so each category must be
+		// sent as its own query parameter.
+		if raw := r.URL.RawQuery; strings.Contains(raw, "categories=7000%2C3030") {
+			t.Fatalf("categories were comma-joined into one parameter: %s", raw)
+		}
+		categories = r.URL.Query()["categories"]
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	client := NewProwlarrClient(server.URL, "test-key", server.Client())
+	if _, err := client.Search(context.Background(), ReleaseSearchQuery{
+		Query:  "The Hobbit",
+		Format: "audiobook",
+		Limit:  10,
+	}); err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if strings.Join(categories, "|") != "7000|3030" {
+		t.Fatalf("expected separate audiobook categories, got %#v", categories)
 	}
 }

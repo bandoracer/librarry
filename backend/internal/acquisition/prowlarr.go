@@ -122,7 +122,9 @@ func (c *ProwlarrClient) searchOnce(ctx context.Context, queryText string, forma
 	values := url.Values{}
 	values.Set("query", strings.TrimSpace(queryText))
 	values.Set("type", "search")
-	values.Set("categories", categoriesForFormat(format))
+	for _, category := range categoryListForFormat(format) {
+		values.Add("categories", category)
+	}
 
 	endpoint := "/api/v1/search?" + values.Encode()
 	req, err := c.request(ctx, http.MethodGet, endpoint, nil)
@@ -678,6 +680,20 @@ func categoriesForFormat(format string) string {
 	default:
 		return "7000"
 	}
+}
+
+// categoryListForFormat returns the same categories as categoriesForFormat, but
+// split for use with url.Values.Add. Prowlarr's /api/v1/search binds categories
+// as an array of int, which requires a repeated query parameter
+// (categories=7000&categories=3030). A single comma-joined value fails model
+// binding with 400 Bad Request. The Newznab feed endpoint still wants the
+// comma-joined "cat" form, so categoriesForFormat is kept for that caller.
+func categoryListForFormat(format string) []string {
+	categories := categoriesForFormat(format)
+	if categories == "" {
+		return nil
+	}
+	return strings.Split(categories, ",")
 }
 
 func releaseID(values ...string) string {
