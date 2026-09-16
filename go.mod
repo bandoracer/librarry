@@ -3,6 +3,7 @@ module github.com/bandoracer/librarry
 go 1.26.8
 
 require (
+	github.com/icholy/digest v1.2.0
 	github.com/jackc/pgx/v5 v5.11.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/text v0.42.0

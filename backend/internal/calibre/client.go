@@ -136,40 +136,54 @@ func (c *Client) AddBook(ctx context.Context, request AddBookRequest) (AddBookRe
 	if filePath == "" || filePath == "." {
 		return AddBookResult{}, errors.New("calibre import path is required")
 	}
-	body, err := os.ReadFile(filePath)
+	file, err := os.Open(filePath)
 	if err != nil {
 		return AddBookResult{}, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return AddBookResult{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return AddBookResult{}, errors.New("calibre upload source must be a regular file")
 	}
 	endpoint, err := addBookURL(settings, c.jobID(), filepath.Ext(filePath))
 	if err != nil {
 		return AddBookResult{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, io.NewSectionReader(file, 0, info.Size()))
 	if err != nil {
 		return AddBookResult{}, err
 	}
+	req.ContentLength = info.Size()
+	req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(io.NewSectionReader(file, 0, info.Size())), nil }
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/octet-stream")
-	if settings.Username != "" {
-		req.SetBasicAuth(settings.Username, settings.Password)
-	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, settings)
 	if err != nil {
 		return AddBookResult{}, err
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return AddBookResult{}, fmt.Errorf("calibre add-book returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
+		return AddBookResult{}, fmt.Errorf("calibre add-book returned HTTP %d; upload outcome requires review", resp.StatusCode)
 	}
-	var result AddBookResult
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return AddBookResult{}, err
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
+	if err != nil || len(respBody) > 1<<20 {
+		return AddBookResult{}, errors.New("calibre add-book response could not be read completely; upload outcome requires review")
 	}
-	if result.ID <= 0 {
-		return AddBookResult{}, errors.New("calibre rejected duplicate or untracked book")
+	// Calibre echoes the upload job in "id" (usually a string). Only book_id
+	// identifies the library book for metadata, conversion and later deletion.
+	var response struct {
+		BookID int `json:"book_id"`
 	}
-	return result, nil
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return AddBookResult{}, errors.New("calibre returned an invalid add-book response; upload outcome requires review")
+	}
+	if response.BookID <= 0 {
+		return AddBookResult{}, errors.New("calibre returned no library book ID; duplicate or upload outcome requires review")
+	}
+	return AddBookResult{ID: response.BookID}, nil
 }
 
 func (c *Client) DeleteBooks(ctx context.Context, request DeleteBooksRequest) error {
@@ -193,10 +207,7 @@ func (c *Client) DeleteBooks(ctx context.Context, request DeleteBooksRequest) er
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
-	if settings.Username != "" {
-		req.SetBasicAuth(settings.Username, settings.Password)
-	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, settings)
 	if err != nil {
 		return err
 	}
@@ -237,10 +248,7 @@ func (c *Client) SetFields(ctx context.Context, request SetFieldsRequest) error 
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	if settings.Username != "" {
-		req.SetBasicAuth(settings.Username, settings.Password)
-	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, settings)
 	if err != nil {
 		return err
 	}
@@ -440,12 +448,12 @@ func conversionStartURL(settings Settings, id int) (string, error) {
 }
 
 func conversionStatusURL(settings Settings, jobID int64) (string, error) {
+	if jobID < 0 {
+		return "", errors.New("calibre conversion job ID must be non-negative")
+	}
 	base, err := baseURL(settings)
 	if err != nil {
 		return "", err
-	}
-	if jobID <= 0 {
-		jobID = 1
 	}
 	base.Path = joinURLPath(strings.Trim(base.Path, "/"), "conversion", "status", strconv.FormatInt(jobID, 10))
 	values := base.Query()
@@ -470,13 +478,10 @@ func baseURL(settings Settings) (*url.URL, error) {
 	}
 	parsed, err := url.Parse(host)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid Calibre host URL")
 	}
-	if parsed.Scheme == "" {
-		parsed.Scheme = "http"
-		if settings.UseSSL {
-			parsed.Scheme = "https"
-		}
+	if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return nil, errors.New("Calibre host must be an HTTP(S) URL without embedded credentials, query or fragment")
 	}
 	if parsed.Host == "" {
 		return nil, errors.New("calibre host is required")
@@ -511,10 +516,7 @@ func (c *Client) conversionBookData(ctx context.Context, settings Settings, id i
 		return conversionBookData{}, err
 	}
 	req.Header.Set("Accept", "application/json")
-	if settings.Username != "" {
-		req.SetBasicAuth(settings.Username, settings.Password)
-	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, settings)
 	if err != nil {
 		return conversionBookData{}, err
 	}
@@ -526,6 +528,9 @@ func (c *Client) conversionBookData(ctx context.Context, settings Settings, id i
 	var data conversionBookData
 	if err := json.Unmarshal(respBody, &data); err != nil {
 		return conversionBookData{}, err
+	}
+	if data.BookID != id {
+		return conversionBookData{}, errors.New("calibre conversion response does not identify the requested book")
 	}
 	return data, nil
 }
@@ -545,10 +550,7 @@ func (c *Client) startConversion(ctx context.Context, settings Settings, id int,
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	if settings.Username != "" {
-		req.SetBasicAuth(settings.Username, settings.Password)
-	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, settings)
 	if err != nil {
 		return 0, err
 	}
@@ -557,11 +559,11 @@ func (c *Client) startConversion(ctx context.Context, settings Settings, id int,
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return 0, fmt.Errorf("calibre conversion start returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
 	}
-	var jobID int64
-	if err := json.Unmarshal(respBody, &jobID); err != nil {
-		return 0, err
+	var jobID *int64
+	if err := json.Unmarshal(respBody, &jobID); err != nil || jobID == nil || *jobID < 0 {
+		return 0, errors.New("calibre returned an invalid conversion job ID; outcome requires review")
 	}
-	return jobID, nil
+	return *jobID, nil
 }
 
 func (c *Client) conversionStatus(ctx context.Context, settings Settings, job ConvertJob) (ConversionStatus, error) {
@@ -574,10 +576,7 @@ func (c *Client) conversionStatus(ctx context.Context, settings Settings, job Co
 		return ConversionStatus{}, err
 	}
 	req.Header.Set("Accept", "application/json")
-	if settings.Username != "" {
-		req.SetBasicAuth(settings.Username, settings.Password)
-	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req, settings)
 	if err != nil {
 		return ConversionStatus{}, err
 	}
@@ -590,11 +589,15 @@ func (c *Client) conversionStatus(ctx context.Context, settings Settings, job Co
 	if err := json.Unmarshal(respBody, &status); err != nil {
 		return ConversionStatus{}, err
 	}
+	if status.Running == nil || (!*status.Running && status.OK == nil) {
+		return ConversionStatus{}, errors.New("calibre returned incomplete conversion status; outcome requires review")
+	}
+	ok := status.OK != nil && *status.OK
 	return ConversionStatus{
 		OutputFormat: job.OutputFormat,
 		JobID:        job.JobID,
-		Running:      status.Running,
-		OK:           status.OK,
+		Running:      *status.Running,
+		OK:           ok,
 		WasAborted:   status.WasAborted,
 		Traceback:    strings.TrimSpace(status.Traceback),
 		Log:          strings.TrimSpace(status.Log),
@@ -618,7 +621,7 @@ func compactConversionJobs(jobs []ConvertJob) []ConvertJob {
 	result := make([]ConvertJob, 0, len(jobs))
 	seen := map[int64]bool{}
 	for _, job := range jobs {
-		if job.JobID <= 0 || seen[job.JobID] {
+		if job.JobID < 0 || seen[job.JobID] {
 			continue
 		}
 		seen[job.JobID] = true
@@ -761,8 +764,8 @@ type conversionOptionSettings struct {
 }
 
 type conversionStatusResponse struct {
-	Running    bool   `json:"running"`
-	OK         bool   `json:"ok"`
+	Running    *bool  `json:"running"`
+	OK         *bool  `json:"ok"`
 	WasAborted bool   `json:"was_aborted"`
 	Traceback  string `json:"traceback"`
 	Log        string `json:"log"`

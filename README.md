@@ -119,6 +119,11 @@ book links survive. Book details also offer a complete recorded folder move that
 preserves chapter names, disc directories and verified relative companion
 references. Unproven sets remain for review.
 
+Calibre client qualification now includes a disposable real Content Server with
+Digest and Basic authentication, verified library book IDs, metadata updates,
+conversion job zero, and deletion readback. Interrupted handoff recovery remains
+unfinished; these checks do not certify unattended Calibre imports.
+
 ## Documentation
 
 - [Stabilization plan](docs/stabilization-plan.md): phased execution and release gates.

@@ -54,3 +54,18 @@ jobs:
           name: browser-evidence
           path: output/playwright
           if-no-files-found: ignore
+  calibre:
+    name: Disposable Calibre contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build isolated Calibre fixture
+        run: docker build -f scripts/fixtures/calibre/Dockerfile -t librarry-calibre:fixture .
+      - name: Verify Digest and Basic upload, metadata, conversion and deletion
+        run: |
+          python3 scripts/test-calibre.py
+          LIBRARRY_CALIBRE_AUTH_MODE=basic python3 scripts/test-calibre.py

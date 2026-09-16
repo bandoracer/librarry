@@ -23,12 +23,18 @@ func TestAddBookPostsCalibreContentServerPayload(t *testing.T) {
 	var gotAuthUser string
 	var gotAuthPass string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		gotPath = r.URL.EscapedPath()
 		body, _ := io.ReadAll(r.Body)
 		gotBody = string(body)
 		gotAuthUser, gotAuthPass, _ = r.BasicAuth()
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":321}`))
+		_, _ = w.Write([]byte(`{"id":"12345","book_id":321,"title":"Fixture","authors":["Fixture author"]}`))
 	}))
 	defer server.Close()
 
@@ -69,8 +75,14 @@ func TestAddBookRejectsZeroCalibreID(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":0}`))
+		_, _ = w.Write([]byte(`{"id":"12345","duplicates":[{"title":"Book","authors":["Author"]}]}`))
 	}))
 	defer server.Close()
 
@@ -78,7 +90,7 @@ func TestAddBookRejectsZeroCalibreID(t *testing.T) {
 		Path:     bookPath,
 		Settings: Settings{Host: strings.TrimPrefix(server.URL, "http://")},
 	})
-	if err == nil || !strings.Contains(err.Error(), "rejected") {
+	if err == nil || !strings.Contains(err.Error(), "no library book ID") {
 		t.Fatalf("expected rejected duplicate error, got %v", err)
 	}
 }
@@ -89,6 +101,12 @@ func TestDeleteBooksPostsCalibreDeleteEndpoint(t *testing.T) {
 	var gotAuthUser string
 	var gotAuthPass string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		gotPath = r.URL.EscapedPath()
 		gotMethod = r.Method
 		gotAuthUser, gotAuthPass, _ = r.BasicAuth()
@@ -123,6 +141,12 @@ func TestDeleteBooksPostsCalibreDeleteEndpoint(t *testing.T) {
 func TestDeleteBooksNoopsWithoutPositiveIDs(t *testing.T) {
 	called := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		called = true
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -148,6 +172,12 @@ func TestSetFieldsPostsCalibreMetadataPayload(t *testing.T) {
 	var gotAuthPass string
 	var gotPayload map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		gotPath = r.URL.EscapedPath()
 		gotMethod = r.Method
 		gotContentType = r.Header.Get("Content-Type")
@@ -222,6 +252,12 @@ func TestSetFieldsPostsCalibreMetadataPayload(t *testing.T) {
 func TestSetFieldsNoopsWithoutMetadataChanges(t *testing.T) {
 	called := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		called = true
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -247,6 +283,12 @@ func TestConvertStartsConfiguredOutputFormats(t *testing.T) {
 	var gotAuthUser string
 	var gotAuthPass string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		gotAuthUser, gotAuthPass, _ = r.BasicAuth()
 		switch {
 		case r.Method == http.MethodGet && r.URL.EscapedPath() == "/calibre/conversion/book-data/99":
@@ -318,6 +360,12 @@ func TestConvertStartsConfiguredOutputFormats(t *testing.T) {
 func TestConvertNoopsWithoutOutputFormats(t *testing.T) {
 	called := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		called = true
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -344,6 +392,12 @@ func TestPollConversionsPollsUntilJobStopsRunning(t *testing.T) {
 	var gotAuthUser string
 	var gotAuthPass string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		gotPaths = append(gotPaths, r.URL.EscapedPath()+"?"+r.URL.RawQuery)
 		gotAuthUser, gotAuthPass, _ = r.BasicAuth()
 		attempts++
@@ -385,6 +439,12 @@ func TestPollConversionsPollsUntilJobStopsRunning(t *testing.T) {
 
 func TestPollConversionsReturnsFailedStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"running":false,"ok":false,"was_aborted":true,"traceback":"boom","log":"failed"}`))
 	}))
@@ -400,5 +460,121 @@ func TestPollConversionsReturnsFailedStatus(t *testing.T) {
 	if len(statuses) != 1 || statuses[0].OK || !statuses[0].WasAborted ||
 		statuses[0].Traceback != "boom" || statuses[0].Log != "failed" {
 		t.Fatalf("unexpected failed status: %+v", statuses)
+	}
+}
+
+func TestAddBookNeverUsesEchoedJobIDAsBookID(t *testing.T) {
+	for _, response := range []string{
+		`{"id":321}`, `{"id":"321"}`, `{"id":"321","book_id":0}`,
+		`{"id":"321","book_id":-1}`, `{"id":"321","book_id":"7"}`,
+		`{"id":"321","duplicates":[{"title":"Fixture"}]}`, `{`,
+		`{"book_id":7}` + strings.Repeat(" ", 1<<20),
+	} {
+		t.Run(response[:min(len(response), 45)], func(t *testing.T) {
+			book := filepath.Join(t.TempDir(), "book.epub")
+			if err := os.WriteFile(book, []byte("fixture"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+					w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+					w.WriteHeader(401)
+					return
+				}
+				_, _ = w.Write([]byte(response))
+			}))
+			defer server.Close()
+			result, err := NewClient(server.Client()).AddBook(context.Background(), AddBookRequest{Path: book, Settings: Settings{Host: server.URL}})
+			if err == nil || result.ID != 0 {
+				t.Fatal("unproven book identity accepted", result, err)
+			}
+		})
+	}
+}
+
+func TestAddBookDoesNotExposeServerErrorBody(t *testing.T) {
+	book := filepath.Join(t.TempDir(), "book.epub")
+	if err := os.WriteFile(book, []byte("fixture"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
+		if r.ContentLength != 7 {
+			t.Errorf("missing upload length: %d", r.ContentLength)
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("credential-bearing remote body"))
+	}))
+	defer server.Close()
+	_, err := NewClient(server.Client()).AddBook(context.Background(), AddBookRequest{Path: book, Settings: Settings{Host: server.URL}})
+	if err == nil || strings.Contains(err.Error(), "credential-bearing") || !strings.Contains(err.Error(), "401") {
+		t.Fatal(err)
+	}
+}
+
+func TestConversionJobZeroIsPolled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+			w.WriteHeader(401)
+			return
+		}
+
+		if r.URL.Path != "/conversion/status/0" {
+			t.Errorf("wrong conversion identity: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"running":false,"ok":true}`))
+	}))
+	defer server.Close()
+	statuses, err := NewClient(server.Client()).PollConversions(context.Background(), PollConversionsRequest{Settings: Settings{Host: server.URL}, Jobs: []ConvertJob{{JobID: 0, OutputFormat: "TXT"}}})
+	if err != nil || len(statuses) != 1 || statuses[0].JobID != 0 || !statuses[0].OK {
+		t.Fatal(statuses, err)
+	}
+}
+
+func TestConversionRejectsUnprovenResponseIdentityAndState(t *testing.T) {
+	for _, tc := range []struct{ name, path, body string }{
+		{"wrong book", "/conversion/book-data/9", `{"book_id":8}`},
+		{"missing book", "/conversion/book-data/9", `{}`},
+		{"negative job", "/conversion/start/9", `-1`},
+		{"null job", "/conversion/start/9", `null`},
+		{"missing status", "/conversion/status/0", `{}`},
+		{"null status", "/conversion/status/0", `null`},
+		{"missing terminal outcome", "/conversion/status/0", `{"running":false}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/ajax/library-info") {
+					w.Header().Set("WWW-Authenticate", `Basic realm="fixture"`)
+					w.WriteHeader(401)
+					return
+				}
+
+				if r.URL.Path != tc.path {
+					t.Errorf("unexpected path: %s", r.URL.Path)
+				}
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+			c := NewClient(server.Client())
+			settings := Settings{Host: server.URL}
+			var err error
+			switch {
+			case strings.Contains(tc.path, "book-data"):
+				_, err = c.conversionBookData(context.Background(), settings, 9)
+			case strings.Contains(tc.path, "start"):
+				_, err = c.startConversion(context.Background(), settings, 9, conversionOptions{})
+			default:
+				_, err = c.conversionStatus(context.Background(), settings, ConvertJob{JobID: 0, OutputFormat: "TXT"})
+			}
+			if err == nil {
+				t.Fatal("unproven remote response accepted")
+			}
+		})
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -957,7 +958,7 @@ func TestCalibreConversionMetadataParsesJSONShapes(t *testing.T) {
 		"calibreConversionJobs": []any{
 			map[string]any{"outputFormat": "AZW3", "jobId": float64(901)},
 			map[string]any{"outputFormat": "MOBI", "jobId": "902"},
-			map[string]any{"outputFormat": "ignored", "jobId": float64(0)},
+			map[string]any{"outputFormat": "ignored", "jobId": float64(-1)},
 		},
 		"calibreConversionStatuses": []any{
 			map[string]any{"outputFormat": "AZW3", "jobId": float64(901), "running": true, "ok": false, "wasAborted": false, "log": "working"},
@@ -1294,5 +1295,27 @@ func TestCalibreManagedRenamePreviewSkipsWithReason(t *testing.T) {
 	}
 	if preview.SourcePath != file.Path || preview.DestinationPath != file.Path {
 		t.Fatalf("expected unchanged paths, got %+v", preview)
+	}
+}
+
+func TestCalibreJobZeroSurvivesMetadataRoundTrip(t *testing.T) {
+	jobs := []calibre.ConvertJob{{JobID: 0, OutputFormat: "TXT"}}
+	statuses := []calibre.ConversionStatus{{JobID: 0, OutputFormat: "TXT", Running: false, OK: true}}
+	metadata := map[string]any{"calibreConversionJobs": calibreConversionJobMetadata(jobs), "calibreConversionStatuses": calibreConversionStatusMetadata(statuses)}
+	raw, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &metadata); err != nil {
+		t.Fatal(err)
+	}
+	parsedJobs, parsedStatuses := calibreConversionJobsFromMetadata(metadata), calibreConversionStatusesFromMetadata(metadata)
+	if len(parsedJobs) != 1 || parsedJobs[0].JobID != 0 || len(parsedStatuses) != 1 || !parsedStatuses[0].OK || calibreConversionNeedsRefresh(parsedJobs, parsedStatuses) {
+		t.Fatal(parsedJobs, parsedStatuses)
+	}
+	for _, invalid := range []map[string]any{{}, {"jobId": nil}, {"jobId": "bad"}, {"jobId": 1.5}, {"jobId": -1}} {
+		if _, ok := calibreJobID(invalid); ok {
+			t.Fatal("invalid ID accepted", invalid)
+		}
 	}
 }

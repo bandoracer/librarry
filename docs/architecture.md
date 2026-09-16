@@ -1439,3 +1439,31 @@ This supports original receipt replay and download cleanup without rewriting
 historical manifests. Actual destination hashes and ordinary client/source gates
 remain required. Book plans outside proven current folder layouts, changed chapter
 sets and Calibre-managed roots still need operator review or later recovery work.
+
+
+### Calibre protocol identities and authentication
+
+The Content Server add-book response uses `book_id` for subsequent metadata,
+conversion and deletion calls. Its `id` field is only an echoed upload identifier
+and may be a string. Librarry rejects responses without a positive `book_id`.
+Conversion job identities are non-negative: zero is preserved through JSON
+metadata and status URLs, while missing/malformed/negative IDs remain invalid.
+Conversion book-data must name the requested book; terminal responses must
+explicitly include an outcome.
+
+Authentication is negotiated against the read-only `/ajax/library-info` route
+using the configured URL prefix. The actual request receives Basic credentials
+only after a Basic challenge, or Digest credentials calculated for its own method
+and URI using `github.com/icholy/digest`. The client has no shared challenge cache
+that could mix roots or retain rotated credentials. Uploads use section readers
+over the same open file for streaming and Digest body hashing. Authentication
+probes never call mutation routes, writes are not automatically replayed, and
+redirects are not followed. Host URLs cannot embed credentials/query/fragment.
+
+These contracts are derived from upstream
+[add-book source](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/srv/cdb.py),
+[conversion source](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/srv/convert.py)
+and [server authentication documentation](https://manual.calibre-ebook.com/generated/en/calibre-server.html),
+and exercised against a disposable real Calibre 8.5 server. Durable upload
+acknowledgement, one-time terminal status consumption and local commit recovery
+remain a separate required handoff state machine.

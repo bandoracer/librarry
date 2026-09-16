@@ -45,8 +45,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [metadata review PR #29](https://github.com/bandoracer/librarry/pull/29),
 [author review PR #30](https://github.com/bandoracer/librarry/pull/30),
 [file paging PR #31](https://github.com/bandoracer/librarry/pull/31),
-[durable rename PR #32](https://github.com/bandoracer/librarry/pull/32), and
-the `codex/book-set-renames` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[durable rename PR #32](https://github.com/bandoracer/librarry/pull/32),
+[book folder PR #33](https://github.com/bandoracer/librarry/pull/33), and
+the `codex/calibre-client-contracts` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -601,3 +602,29 @@ references and Calibre layouts stay for review. General chapter/reference
 rewriting, whole-book replacement/retirement, Calibre recovery, broader disk
 faults and live NAS qualification remain open under S09. These are unreleased
 source/fixture changes, not a production rollout.
+
+
+### Calibre client contract qualification
+
+Source review and a real disposable Calibre 8.5 Content Server exposed two false
+assumptions in the old HTTP fixtures: add-book returns its actual identity in
+`book_id`, while `id` echoes the upload job; conversion job `0` is valid. The
+client now uses the library ID and preserves job zero through metadata storage.
+Malformed identities and incomplete conversion outcomes remain errors. Uploads
+stream from the open source file, with bounded acknowledgement parsing.
+
+The client negotiates default Digest or explicit Basic authentication through a
+read-only library-info probe before transmitting a mutation. It sends the payload
+once, does not replay an ambiguous write and does not follow redirects with the
+integration credentials. Local ARM64 qualification covers both authentication
+modes, metadata readback, EPUB-to-TXT conversion, deletion and an empty-library
+readback; the original legal fixture stays unchanged. CI now runs the same
+isolated server contract. This is a real disposable integration, not a homelab
+or current-latest-Calibre certification.
+
+Accepted uploads can still be repeated after later metadata/conversion or local
+persistence failure. A controlled fixture reproduced two adds after one metadata
+failure. Durable handoff receipts, uncertain-outcome reconciliation, terminal
+conversion polling across failures/restarts, source-path/root resolution and
+fair background conversion traversal remain open. Existing Calibre IDs are not
+guessed or repaired automatically. S09 and the overall release gates remain open.

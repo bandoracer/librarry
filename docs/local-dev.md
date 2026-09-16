@@ -1301,3 +1301,30 @@ Recovery keeps the captured destination even after naming settings change. All
 media paths become visible in one database commit; originals remain until then.
 Partial source cleanup can resume after restart. Existing file IDs, manual
 metadata, book/download associations and monitoring remain unchanged.
+
+
+### Qualify the Calibre HTTP client against a real server
+
+The client supports Calibre's default Digest authentication on HTTP and explicit
+Basic authentication. Configure the root's username/password normally; the client
+first reads the server's authentication challenge from library-info. Redirects
+are rejected, so configure the final server URL and prefix. Credentials belong
+in the root fields, not in the host URL or query string.
+
+The following fixture creates a new authenticated Calibre library in a disposable
+container, uploads the repository's legal EPUB, updates metadata, converts to TXT,
+deletes the created book and verifies that the library is empty. It does not use
+homelab paths, accounts or media. `DOCKER_CONTEXT` is optional and scopes this
+script without changing the global Docker context.
+
+```sh
+docker build -f scripts/fixtures/calibre/Dockerfile -t librarry-calibre:fixture .
+python3 scripts/test-calibre.py
+LIBRARRY_CALIBRE_AUTH_MODE=basic python3 scripts/test-calibre.py
+```
+
+The fixture prints its actual Calibre version. September local qualification used
+Debian's Calibre 8.5 on ARM64. Ordinary Go test runs skip the disposable-server
+case; CI builds the fixture and tests both modes. The contract verifies protocol
+identities and actual remote effects. It does not yet qualify interrupted
+handoff recovery or make Calibre-managed sources eligible for download cleanup.

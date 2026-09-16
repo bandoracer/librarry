@@ -1132,7 +1132,7 @@ func calibreIdentifiers(record FileRecord) map[string]string {
 func calibreConversionJobMetadata(jobs []calibre.ConvertJob) []map[string]any {
 	result := make([]map[string]any, 0, len(jobs))
 	for _, job := range jobs {
-		if strings.TrimSpace(job.OutputFormat) == "" || job.JobID <= 0 {
+		if strings.TrimSpace(job.OutputFormat) == "" || job.JobID < 0 {
 			continue
 		}
 		result = append(result, map[string]any{
@@ -1146,7 +1146,7 @@ func calibreConversionJobMetadata(jobs []calibre.ConvertJob) []map[string]any {
 func calibreConversionStatusMetadata(statuses []calibre.ConversionStatus) []map[string]any {
 	result := make([]map[string]any, 0, len(statuses))
 	for _, status := range statuses {
-		if status.JobID <= 0 {
+		if status.JobID < 0 {
 			continue
 		}
 		record := map[string]any{
@@ -1174,8 +1174,8 @@ func calibreConversionJobsFromMetadata(metadata map[string]any) []calibre.Conver
 	}
 	var result []calibre.ConvertJob
 	appendJob := func(record map[string]any) {
-		jobID := metadataMapInt64(record, "jobId")
-		if jobID <= 0 {
+		jobID, valid := calibreJobID(record)
+		if !valid {
 			return
 		}
 		result = append(result, calibre.ConvertJob{
@@ -1205,8 +1205,8 @@ func calibreConversionStatusesFromMetadata(metadata map[string]any) []calibre.Co
 	}
 	var result []calibre.ConversionStatus
 	appendStatus := func(record map[string]any) {
-		jobID := metadataMapInt64(record, "jobId")
-		if jobID <= 0 {
+		jobID, valid := calibreJobID(record)
+		if !valid {
 			return
 		}
 		result = append(result, calibre.ConversionStatus{
@@ -2519,4 +2519,34 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// Calibre's first conversion job is 0. Missing/malformed values must remain
+// distinguishable from that valid ID when JSON metadata is loaded after restart.
+func calibreJobID(record map[string]any) (int64, bool) {
+	value, exists := record["jobId"]
+	if !exists || value == nil {
+		return 0, false
+	}
+	var id int64
+	switch v := value.(type) {
+	case int:
+		id = int64(v)
+	case int64:
+		id = v
+	case float64:
+		id = int64(v)
+		if float64(id) != v {
+			return 0, false
+		}
+	case string:
+		var err error
+		id, err = strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		if err != nil {
+			return 0, false
+		}
+	default:
+		return 0, false
+	}
+	return id, id >= 0
 }

@@ -1610,3 +1610,54 @@ qualification remain outstanding. Final Go suite results follow below.
 Final Postgres `go test -race ./...` and `go test ./...` passed after the verified
 scan-receipt regression update. The added ownership/layout and 151-chapter checks
 also passed a focused race run. Final vet and diff checks passed.
+
+## Real Calibre client contracts (2026-09-16)
+
+PR #33 CI run `35104697263` passed verification, packaged qualification and both
+builds on `79ab5f40f131c5e59cb9dc618582b5629be7c902`.
+
+Started Calibre handoff recovery and reproduced a duplicate accepted upload:
+a controlled metadata failure after AddBook success causes the current retry to
+send AddBook again. Before persisting that acknowledgement, upstream source
+review exposed that the client was reading the wrong field. The old HTTP test
+invented a numeric `id` book response; real Calibre echoes a string upload job in
+`id` and supplies the library ID separately as `book_id`. This prerequisite was
+split onto `codex/calibre-client-contracts`, stacked on #33.
+
+AddBook now requires a positive `book_id`, streams the open source file and bounds
+acknowledgement reads. A disposable Debian/Calibre 8.5 server then exposed another
+bug: the first conversion job is `0`, which both polling and stored metadata
+silently discarded. Zero now survives request URLs, JSON metadata and restart
+parsing; absent, negative and malformed IDs remain invalid. Conversion data must
+identify the requested book, and terminal status must carry an explicit outcome.
+
+The server's default HTTP authentication is Digest; the previous client sent only
+Basic. The new request helper probes the read-only library-info route without
+credentials or an upload body, then authenticates the intended request with the
+advertised Basic or Digest scheme. It never probes a write route, follows a
+redirect or automatically replays a mutation. Digest uses pinned dependency
+`github.com/icholy/digest v1.2.0`; credentials and challenge state are scoped to
+each request. Protocol tests cover invalid/echo-only IDs, oversized upload
+acknowledgements, job zero, incomplete status, authentication negotiation,
+unsupported challenges and redirects without forwarded credentials.
+
+`scripts/test-calibre.py` creates and removes an isolated authenticated library.
+The real client uploads the legal EPUB with upload job 424242 and receives book 1,
+updates and reads metadata, starts and finishes TXT conversion job 0, deletes the
+created book and verifies zero remaining books through read-only database access.
+The original EPUB is unchanged. This passed with both default Digest and explicit
+Basic on local ARM64; CI now includes the same fixture for both modes. Initial
+fixture failures exposed the zero-job defect; harness path and readback checks
+were corrected separately. No live homelab credentials, media or server were used.
+
+The durable handoff itself remains outstanding. Current accepted-upload replay,
+partial conversion startup, consumed terminal statuses, source-path/root lookup,
+concurrent owner changes and background batch fairness still require recovery
+work. Legacy stored IDs are not automatically rewritten. This prerequisite does
+not mark S09, S21 or the stabilization goal complete. Final gate results follow.
+
+Final full Postgres Go and race suites passed. Focused Calibre race tests and both
+real authentication-mode runs passed again after the request helper cleanup.
+Vet, the web production build, deployment configuration contracts and diff checks
+passed. The fixture-server image is local test infrastructure only; no Librarry
+image was published and no production or homelab state changed.

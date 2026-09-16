@@ -146,7 +146,9 @@ a separate book action moves complete recorded folders while preserving names,
 disc paths and verified relative CUE/M3U/OPF references. General chapter/reference
 rewriting remains unsupported. Whole-book
 retirement, Calibre recovery, broader disk fault injection and live qualification
-remain open. This does not mark S09 complete.
+remain open. Calibre API identity/authentication now has real disposable-server
+qualification; accepted-upload and conversion recovery still need durable state.
+This does not mark S09 complete.
 
 ### S10 — Acquisition deduplication and recovery
 
