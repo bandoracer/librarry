@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1526,17 +1527,64 @@ func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID stri
 }
 
 func (s *Store) attachWantedManualOverrides(ctx context.Context, items []WantedItem) ([]WantedItem, error) {
+	return attachWantedDetails(ctx, s.db, items)
+}
+
+type wantedDetailReader interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func attachWantedDetails(ctx context.Context, reader wantedDetailReader, items []WantedItem) ([]WantedItem, error) {
 	if len(items) == 0 {
 		return items, nil
 	}
-	for index := range items {
-		overrides, err := s.ListWantedManualOverrides(ctx, items[index].ID)
-		if err != nil {
+	ids := make([]string, len(items))
+	positions := make(map[string]int, len(items))
+	for i := range items {
+		ids[i], positions[items[i].ID] = items[i].ID, i
+		items[i].ManualOverrides = nil
+		items[i].Authors = nil
+	}
+	rows, err := reader.QueryContext(ctx, `select entity_id::text,field_name,value,coalesce(reason,''),created_at,updated_at
+		from manual_overrides where entity_type='wanted_item' and entity_id=any($1::uuid[]) order by entity_id,field_name`, ids)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id string
+		var override ManualOverride
+		var raw []byte
+		if err := rows.Scan(&id, &override.FieldName, &raw, &override.Reason, &override.CreatedAt, &override.UpdatedAt); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		items[index].ManualOverrides = overrides
+		override.Value = manualOverrideValueString(raw)
+		i := positions[id]
+		items[i].ManualOverrides = append(items[i].ManualOverrides, override)
 	}
-	return items, nil
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	rows, err = reader.QueryContext(ctx, `select distinct wi.id::text,a.id::text,a.canonical_name from wanted_items wi
+		join work_authors wa on wa.work_id=wi.work_id join authors a on a.id=wa.author_id
+		where wi.id=any($1::uuid[]) and lower(wa.role) in ('author','writer') and not `+authorManualOverrideSQL+`
+		order by wi.id::text,a.canonical_name,a.id::text`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var author AuthorIdentity
+		if err := rows.Scan(&id, &author.ID, &author.Name); err != nil {
+			return nil, err
+		}
+		i := positions[id]
+		items[i].Authors = append(items[i].Authors, author)
+	}
+	return items, rows.Err()
 }
 
 func metadataValuesFromProviderRaw(raw []byte) MetadataRecordValues {
@@ -2683,37 +2731,60 @@ func (s *Store) upsertWork(ctx context.Context, tx *sql.Tx, result metadata.Sear
 }
 
 func (s *Store) upsertPrimaryAuthor(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, workID string, raw []byte) (string, error) {
-	if len(result.Work.Authors) == 0 || strings.TrimSpace(result.Work.Authors[0].Name) == "" {
-		return "", nil
+	// Different works can share contributors. Lock every alias in stable order
+	// before resolving IDs, so concurrent adds cannot split one stored identity.
+	locks := []string{}
+	for _, author := range result.Work.Authors {
+		if strings.TrimSpace(author.Name) == "" {
+			continue
+		}
+		for _, alias := range authorProviderAliases(result, author) {
+			locks = append(locks, "wanted-author:"+strings.ToLower(alias.Provider)+"|"+strings.ToLower(alias.Key))
+		}
 	}
-	author := result.Work.Authors[0]
-	aliases := authorProviderAliases(result, author)
-	id, ok, err := lookupProviderEntityAliases(ctx, tx, aliases)
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		if err := tx.QueryRowContext(ctx, `
-			insert into authors(canonical_name, sort_name)
-			values ($1, $2)
-			returning id
-		`, author.Name, sortValue(author.Name)).Scan(&id); err != nil {
+	sort.Strings(locks)
+	for _, key := range compactStrings(locks) {
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, key); err != nil {
 			return "", err
 		}
-	} else {
-		_, _ = tx.ExecContext(ctx, `update authors set canonical_name = $1, sort_name = $2, updated_at = now() where id = $3`, author.Name, sortValue(author.Name), id)
 	}
-	if err := insertProviderAliases(ctx, tx, aliases, "author", id, raw, result.Score); err != nil {
-		return "", err
+	primary := ""
+	primaryWriter := false
+	for _, author := range result.Work.Authors {
+		if strings.TrimSpace(author.Name) == "" {
+			continue
+		}
+		role := strings.ToLower(strings.TrimSpace(author.Role))
+		if role == "" {
+			role = "author"
+		}
+		writer := role == "author" || role == "writer"
+		if primary == "" || (writer && !primaryWriter) {
+			primary = author.Name
+			primaryWriter = writer
+		}
+		aliases := authorProviderAliases(result, author)
+		id, ok, err := lookupProviderEntityAliases(ctx, tx, aliases)
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			if err := tx.QueryRowContext(ctx, `insert into authors(canonical_name,sort_name) values($1,$2) returning id`, author.Name, sortValue(author.Name)).Scan(&id); err != nil {
+				return "", err
+			}
+		} else {
+			if _, err := tx.ExecContext(ctx, `update authors set canonical_name=$1,sort_name=$2,updated_at=now() where id=$3`, author.Name, sortValue(author.Name), id); err != nil {
+				return "", err
+			}
+		}
+		if err := insertProviderAliases(ctx, tx, aliases, "author", id, raw, result.Score); err != nil {
+			return "", err
+		}
+		if _, err := tx.ExecContext(ctx, `insert into work_authors(work_id,author_id,role) values($1,$2,$3) on conflict do nothing`, workID, id, role); err != nil {
+			return "", err
+		}
 	}
-	if _, err := tx.ExecContext(ctx, `
-		insert into work_authors(work_id, author_id, role)
-		values ($1, $2, 'author')
-		on conflict do nothing
-	`, workID, id); err != nil {
-		return "", err
-	}
-	return author.Name, nil
+	return primary, nil
 }
 
 func (s *Store) upsertEdition(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, workID string, format string, raw []byte) (string, error) {

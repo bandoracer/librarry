@@ -33,8 +33,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [provider request budget PR #17](https://github.com/bandoracer/librarry/pull/17),
 [complete list PR #18](https://github.com/bandoracer/librarry/pull/18),
 [Hardcover edition PR #19](https://github.com/bandoracer/librarry/pull/19),
-[author policy PR #20](https://github.com/bandoracer/librarry/pull/20), and the
-`codex/author-destination-inheritance` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[author policy PR #20](https://github.com/bandoracer/librarry/pull/20),
+[author destination PR #21](https://github.com/bandoracer/librarry/pull/21), and the
+`codex/direct-author-details` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -178,6 +179,18 @@ without resetting it. Author settings can change or clear the root for future
 additions. Migration 0041 adds the references without guessing destinations for
 legacy subscriptions/reviews. Readarr root mapping remains S16 work; this does
 not qualify live storage paths or provider access.
+
+Author details now use direct server lookup and bounded title/ID pagination,
+including imported and unmonitored books beyond old collection caps. Same-name
+identities are kept separate; old name links offer explicit choices. Manual
+author-name overrides take precedence over stored associations. New wanted
+writes retain coauthors and contributor roles with concurrent alias locking.
+Existing omitted coauthors, incorrect historical roles and conflated legacy
+identities require repair rather than a guessed backfill. The detail page
+distinguishes outage from absence and scopes bulk search to its visible page.
+Global library counts/caps, verified file-presence semantics and broader S15
+performance/compatibility qualification remain open. Current derived-state
+annotation still uses the existing service and may query a download client.
 
 ## Historical verified milestones
 

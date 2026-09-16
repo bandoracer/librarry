@@ -355,8 +355,14 @@ export function compareLibraryBooks(
 /* -------------------------------- Routes ----------------------------------- */
 
 /** Route to the author detail page for an author name (wanted-only or subscribed). */
-export function libraryAuthorPath(authorName?: string): string {
-  return `/library/author/${encodeURIComponent(libraryAuthorKey(authorName))}`;
+export function libraryAuthorPath(authorName?: string, identityID?: string): string {
+  return `/library/author/${encodeURIComponent(identityID || libraryAuthorKey(authorName))}`;
+}
+
+/** Match the visible primary credit before falling back to another recorded writer. */
+export function libraryWantedAuthorPath(item: WantedItem): string {
+  const author = item.authors?.find(author => author.name === item.authorName) ?? item.authors?.[0];
+  return libraryAuthorPath(item.authorName, author?.id);
 }
 
 /** Route to the book detail page for a wanted item. */

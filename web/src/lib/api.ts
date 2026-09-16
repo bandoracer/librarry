@@ -428,6 +428,7 @@ export type DownloadRebalancePlan = {
 };
 
 export type WantedItem = {
+  authors?: AuthorIdentity[];
   id: string;
   workId?: string;
   editionId?: string;
@@ -608,6 +609,27 @@ export function knownQualityIds(mediaFormat: QualityProfile["mediaFormat"]): str
   if (mediaFormat === "ebook") return [...ebookQualityIds];
   if (mediaFormat === "audiobook") return [...audiobookQualityIds];
   return [...ebookQualityIds, ...audiobookQualityIds];
+}
+
+export type AuthorIdentity = { id: string; name: string; provider?: string; providerKey?: string; nameOnly?: boolean };
+export type AuthorDetail = {
+  author: AuthorIdentity;
+  subscriptions: AuthorSubscription[];
+  books: WantedItem[];
+  totalBooks: number;
+  nextCursor?: string;
+  choices: AuthorIdentity[];
+  choicesTruncated?: boolean;
+};
+
+export async function fetchAuthorDetail(key: string, cursor = ""): Promise<AuthorDetail | null> {
+  const params = new URLSearchParams({ limit: "100" });
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(`${apiBase}/api/v1/library/authors/${encodeURIComponent(key)}?${params}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(await apiError(response, "Author could not be loaded"));
+  const detail = await response.json() as AuthorDetail;
+  return { ...detail, books: arrayPayload(detail.books), subscriptions: arrayPayload(detail.subscriptions), choices: arrayPayload(detail.choices) };
 }
 
 export type AuthorSubscription = {

@@ -8,6 +8,23 @@ the destination from their latest evaluation when explicitly marked wanted.
 Changing author defaults does not migrate existing books. Root deletion clears
 these references in the same way as wanted-book destinations.
 
+`GET /api/v1/library/authors/{key}` resolves a subscription UUID, canonical author
+UUID, or historical normalized name key. It returns an author, subscriptions,
+book page, total count, next cursor and explicit identity choices for ambiguous
+name links. Book pages are bounded to 100 rows and ordered by lowercase title
+with UUID as the tie-breaker. Membership, counts, manual overrides and author
+links share a read snapshot. Cursors bind to the resolved lookup key; paging
+guarantees apply to stable data, not a frozen snapshot across multiple requests.
+
+Wanted payloads expose recorded writer identities in `authors`. A manual
+author-name override suppresses those links and moves that book into the
+explicitly unidentified name group until the override is cleared. New writes
+persist all supplied work contributors with their roles; author pages include
+author/writer relationships and do not treat narrator credits as authorship.
+Author alias locks prevent concurrent additions from splitting one stored
+identity. Existing legacy roles/omitted coauthors are not silently backfilled.
+Manual overrides and author links load in batches rather than one query per book.
+
 Librarry is split into a Go backend, a React frontend, and Postgres.
 
 The frontend is a modular Vite + React + TanStack Query SPA; its structure,

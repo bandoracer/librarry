@@ -278,6 +278,21 @@ re-saving form defaults. Library → Authors → Edit author settings changes th
 root and quality profile for future additions. Readarr root-path/ID mapping and
 migration inheritance remain separate compatibility qualification work under S16.
 
+Author details use `GET /api/v1/library/authors/{key}?limit=100&cursor=...`.
+Use a subscription or canonical author UUID for a direct link. Old normalized
+name links remain supported; multiple matching identities return `choices`
+instead of combining books. An explicit `name:` group contains records without
+a usable author association or with a manual author-name override. Every response
+has array-valued `books`, `subscriptions` and `choices`. Missing records return
+404, invalid page arguments 400, and unavailable persistence 503.
+
+The web page distinguishes unavailable from missing authors, shows total books
+separately from current-page status counts, and provides Previous/Next controls.
+Search Page searches only monitored books on the displayed page. Imported and
+unmonitored books are included; removed/ignored books are excluded. Stable-data
+paging reaches older records beyond prior collection caps. Concurrent title or
+membership edits can change subsequent pages; refresh to restart the view.
+
 ### Author Add-Filters
 
 Each subscription carries optional metadata filters that run before the

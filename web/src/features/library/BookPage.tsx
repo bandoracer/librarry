@@ -10,7 +10,7 @@ import { WantedEditForm } from "../wanted/components/WantedEditForm";
 import { ProvenancePanel } from "../wanted/components/ProvenancePanel";
 import { ReleasesPanel } from "../wanted/components/ReleasesPanel";
 import {
-  libraryAuthorPath,
+  libraryWantedAuthorPath,
   libraryBookOverviewLine,
   libraryErrorMessage,
   presenceLabel,
@@ -41,7 +41,7 @@ export default function BookPage() {
 
   const [isTogglingMonitored, setIsTogglingMonitored] = useState(false);
 
-  const authorPath = item ? libraryAuthorPath(item.authorName) : "/library";
+  const authorPath = item ? libraryWantedAuthorPath(item) : "/library";
 
   async function toggleMonitored() {
     if (!item) return;

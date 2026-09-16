@@ -58,7 +58,7 @@ import {
   buildLibraryAuthorRows,
   compareLibraryBooks,
   isPersistenceRequiredError,
-  libraryAuthorPath,
+  libraryWantedAuthorPath,
   libraryBookMatchesMonitorFilter,
   libraryBookOverviewLine,
   libraryBookPath,
@@ -444,7 +444,7 @@ export default function LibraryPage() {
                   </div>
                 </td>
                 <td>
-                  <Link className="library-author-link" to={libraryAuthorPath(item.authorName)}>
+                  <Link className="library-author-link" to={libraryWantedAuthorPath(item)}>
                     {item.authorName || "Unknown author"}
                   </Link>
                 </td>
@@ -497,7 +497,7 @@ export default function LibraryPage() {
                 <Link className="library-poster-title" to={libraryBookPath(item.id)}>
                   {item.title}
                 </Link>
-                <Link className="library-poster-author" to={libraryAuthorPath(item.authorName)}>
+                <Link className="library-poster-author" to={libraryWantedAuthorPath(item)}>
                   {item.authorName || "Unknown author"}
                 </Link>
               </div>
@@ -543,7 +543,7 @@ export default function LibraryPage() {
                   <Badge tone={presenceTone(state)}>{presenceLabel(state)}</Badge>
                   <Badge>{item.format}</Badge>
                 </div>
-                <Link className="library-overview-author" to={libraryAuthorPath(item.authorName)}>
+                <Link className="library-overview-author" to={libraryWantedAuthorPath(item)}>
                   {item.authorName || "Unknown author"}
                 </Link>
                 <p className="library-overview-line">{libraryBookOverviewLine(item)}</p>

@@ -240,6 +240,7 @@ type GrabRequest struct {
 func (item WantedItem) WasAlreadyTracked() bool { return item.alreadyTracked }
 
 type WantedItem struct {
+	Authors          []AuthorIdentity `json:"authors,omitempty"`
 	alreadyTracked   bool
 	ID               string `json:"id"`
 	WorkID           string `json:"workId,omitempty"`

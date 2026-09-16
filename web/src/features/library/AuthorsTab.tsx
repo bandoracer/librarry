@@ -370,7 +370,7 @@ export function AuthorsTab() {
                   <React.Fragment key={monitorKey}>
                     <article className="wanted-author-row">
                       <div className="wanted-author-main">
-                        <Link className="cell-primary" to={libraryAuthorPath(subscription.authorName)}>
+                        <Link className="cell-primary" to={libraryAuthorPath(subscription.authorName, subscription.id)}>
                           <strong>{subscription.authorName}</strong>
                         </Link>
                         <span>
@@ -417,7 +417,7 @@ export function AuthorsTab() {
                           <IconButton
                             icon={ArrowUpRight}
                             label={`Open ${subscription.authorName} author page`}
-                            onClick={() => navigate(libraryAuthorPath(subscription.authorName))}
+                            onClick={() => navigate(libraryAuthorPath(subscription.authorName, subscription.id))}
                           />
                           <IconButton
                             icon={RefreshCw}

@@ -922,3 +922,52 @@ qualification. Selected author root/profile/tags survived an API restart; the
 406,472-byte backup restored with author destinations and existing receipt/file
 evidence intact. Author monitoring was disabled in that smoke fixture, so no real
 provider or acquisition request occurred. No production deployment or release.
+
+## Continuation: direct author details and identity paging (S14/S15)
+
+Branch: `codex/direct-author-details`, based on destination PR #21. Author pages
+previously resolved from capped subscription/book lists and grouped by display
+name. They now request a direct subscription/canonical identity or resolve a
+legacy name key into explicit choices. Identified people sharing a name are never
+combined by this lookup. Manual author-name overrides suppress inherited identity
+links and enter a clearly labeled name-only group. Unknown/non-Latin legacy name
+keys retain their historical normalization behavior.
+
+Book membership includes imported/unmonitored rows and excludes removed/ignored
+rows. Pages contain at most 100 books with lowercase-title/UUID ordering and an
+author-bound cursor. Count, page membership, manual overrides and recorded writer
+links share a database snapshot. Subsequent pages reflect later edits; there is
+no claim of a frozen multi-request snapshot. A 10,001-book fixture traverses 101
+pages with title ties/non-ASCII titles and no stable-data gaps/duplicates. A
+subscription beyond the former 500-row cap resolves directly. Legacy name choices
+are bounded and explicitly report truncation instead of silently picking an ID.
+
+New wanted writes persist all supplied contributors/roles and serialize author
+alias resolution across concurrent books. Writer/coauthor relations contribute to
+author pages; narrator-only roles do not. Existing omitted coauthors, conflated
+identities and incorrect legacy roles remain explicit repair work. No schema
+migration or guessed relationship backfill is included.
+
+Wanted payloads now carry recorded writer IDs, which book/subscription links use.
+Detail pages distinguish outage from missing records, show total books separately
+from page status counts, and scope Search Page to the displayed books. Override
+and writer-link hydration uses batch reads rather than one query per book.
+Global library counts/caps, complete verified-presence semantics, live NAS checks
+and broader S15 performance qualification remain open. Derived-state annotation
+still uses the existing service and may query the configured download client.
+
+Destination PR #21 at `3710690e57e82c7cfda707d28eed1cd645e69038` passed
+[CI run 35078169189](https://github.com/bandoracer/librarry/actions/runs/35078169189),
+including source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+No images were published or deployed.
+
+Final author-detail qualification: the full Go race/Postgres suite, vet, nine web
+unit checks and the production web build passed. All 47 applicable desktop/mobile
+browser checks passed (one desktop-only case skipped on mobile). The strengthened
+author fixture reaches the imported book on page three of 201 books without
+reading capped global collections. Mobile paging and desktop identity-choice
+screenshots were inspected. Newly built local ARM64 API and web images passed
+packaged restart/import/acquisition/scan/replacement/authentication qualification;
+direct author links retained imported books after restart. The 406,610-byte dump
+restored successfully at schema 41. No real provider or acquisition request,
+production deployment, release or image publication occurred.

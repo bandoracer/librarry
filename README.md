@@ -227,6 +227,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   new books. Changing those defaults leaves existing books untouched; review
   candidates retain the destination from their last evaluation. Add New's Refresh
   Author action runs a targeted refresh using saved settings.
+  Author detail links use stored identities and server-side book pages. Legacy
+  name links offer a choice when multiple records match; they no longer combine
+  same-name people. Imported and unmonitored books remain visible on these pages.
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.

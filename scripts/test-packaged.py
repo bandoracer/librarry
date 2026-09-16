@@ -445,6 +445,13 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         saved_author = next(item for item in request("/api/v1/authors?status=all")["authors"] if item["id"] == author["id"])
         assert saved_author["rootFolderId"] == author_root["id"] and saved_author["tags"] == ["fixture-author"], saved_author
         print("Packaged author defaults: selected root/profile/tags survive process restart; monitoring disabled and no provider request")
+        empty_author = request("/api/v1/library/authors/" + author["id"])
+        assert empty_author["books"] == [] and empty_author["subscriptions"][0]["id"] == author["id"], empty_author
+        linked_author = request("/api/v1/wanted/" + wanted_id)["authors"][0]
+        author_page = request("/api/v1/library/authors/" + linked_author["id"] + "?limit=100")
+        assert wanted_id in {book["id"] for book in author_page["books"]}, author_page
+        assert author_page["choices"] == [] and author_page["totalBooks"] >= 1, author_page
+        print("Packaged author detail: direct subscription and recorded-author links retain imported books after restart")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

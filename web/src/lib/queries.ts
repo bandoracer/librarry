@@ -3,6 +3,7 @@ import {
   fetchAcquisitionQueue,
   fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
+  fetchAuthorDetail,
   fetchBlocklist,
   fetchDiskSpace,
   fetchDownloads,
@@ -194,6 +195,14 @@ export function useAcquisitionQueue() {
       })
     ),
     refetchInterval: 30_000
+  });
+}
+
+export function useAuthorDetail(key: string, cursor = "") {
+  return useQuery({
+    queryKey: [...keys.wanted, "author", key, cursor],
+    queryFn: () => fetchAuthorDetail(key, cursor),
+    enabled: Boolean(key)
   });
 }
 
