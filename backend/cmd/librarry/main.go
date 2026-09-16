@@ -674,6 +674,11 @@ func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownlo
 			err = verifier.VerifyCompletedDownload(runCtx, download, details.Files)
 		}
 		if err != nil {
+			if recorder, ok := service.(completedCleanupRecorder); ok {
+				if persistErr := recorder.RecordCompletedCleanup(runCtx, download, err); persistErr != nil && firstErr == nil {
+					firstErr = fmt.Errorf("persist cleanup failure: %w", persistErr)
+				}
+			}
 			if firstErr == nil {
 				firstErr = fmt.Errorf("cleanup retained %s: %w", download.ID, err)
 			}
@@ -685,12 +690,11 @@ func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownlo
 			IDs:         []string{download.ID},
 			DeleteFiles: true,
 		})
+		if err == nil && !result.Applied {
+			err = fmt.Errorf("download client did not apply cleanup")
+		}
 		if recorder, ok := service.(completedCleanupRecorder); ok {
-			cleanupErr := err
-			if cleanupErr == nil && !result.Applied {
-				cleanupErr = fmt.Errorf("download client did not apply cleanup")
-			}
-			if persistErr := recorder.RecordCompletedCleanup(runCtx, download, cleanupErr); persistErr != nil && firstErr == nil {
+			if persistErr := recorder.RecordCompletedCleanup(runCtx, download, err); persistErr != nil && firstErr == nil {
 				firstErr = fmt.Errorf("persist remote cleanup outcome: %w", persistErr)
 			}
 		}

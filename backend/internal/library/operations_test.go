@@ -92,7 +92,7 @@ func TestPublishedImportRecoversAfterDatabaseFailureAndStaysHidden(t *testing.T)
 	if _, err := os.Stat(op.Files[0].DestinationPath); err != nil {
 		t.Fatal("publication did not occur", err)
 	}
-	scan, err := service.Scan(ctx, ScanRequest{Root: op.DestinationRoot})
+	scan, err := service.Scan(ctx, ScanRequest{Root: service.Config().EbookRoot})
 	if err != nil || scan.Upserted != 0 || scan.Skipped != 1 {
 		t.Fatalf("partial file exposed: %+v %v", scan, err)
 	}

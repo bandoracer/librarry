@@ -25,7 +25,7 @@ export default function ImportRecovery() {
             <span>{operation.metadata?.title || operation.downloadId}</span>
             <Badge tone={operation.state === "committed" ? "success" : operation.state === "failed" ? "danger" : "warn"}>{operation.state}</Badge>
           </summary>
-          <p className="field-hint">{operation.client} · {operation.attempts} {operation.attempts === 1 ? "attempt" : "attempts"} · Cleanup: {operation.cleanupState}</p>
+          <p className="field-hint">{operation.client} · {operation.attempts} {operation.attempts === 1 ? "attempt" : "attempts"} · Cleanup: {operation.cleanupState === "cleaned" ? "source removed" : operation.cleanupState === "eligible" ? "verified" : "source retained"}</p>
           <Link to={`/library/book/${encodeURIComponent(operation.wantedId)}`}>View book</Link>
           {operation.lastError || operation.cleanupError ? <InlineNotice tone="warn">{operation.lastError || operation.cleanupError}</InlineNotice> : null}
           <ul>{operation.files.map(file => <li key={file.id}>

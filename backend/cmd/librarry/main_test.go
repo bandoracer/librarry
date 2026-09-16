@@ -228,3 +228,43 @@ func TestBootAuthenticationRejectsUnknownMode(t *testing.T) {
 		}
 	}
 }
+
+type cleanupFailureClient struct {
+	fakeCompletedDownloadLister
+	inventoryErr error
+	apply        bool
+}
+
+func (f *cleanupFailureClient) DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error) {
+	return acquisition.DownloadDetails{}, f.inventoryErr
+}
+func (f *cleanupFailureClient) DownloadAction(_ context.Context, r acquisition.DownloadActionRequest) (acquisition.DownloadActionResult, error) {
+	f.actions = append(f.actions, r)
+	return acquisition.DownloadActionResult{Applied: f.apply}, nil
+}
+
+type cleanupRecordingVerifier struct {
+	fakeCompletedVerifier
+	errors []error
+}
+
+func (f *cleanupRecordingVerifier) RecordCompletedCleanup(_ context.Context, _ acquisition.DownloadStatus, err error) error {
+	f.errors = append(f.errors, err)
+	return nil
+}
+func TestCleanupFailuresArePersistedAndReported(t *testing.T) {
+	for _, inventoryFailure := range []bool{false, true} {
+		client := &cleanupFailureClient{fakeCompletedDownloadLister: fakeCompletedDownloadLister{rows: []acquisition.DownloadStatus{{Client: "qBittorrent", ID: "fixture", State: "stoppedUP", ImportStatus: "imported", Progress: 1, SeedGoalMet: true}}}}
+		if inventoryFailure {
+			client.inventoryErr = io.ErrUnexpectedEOF
+		}
+		service := &cleanupRecordingVerifier{}
+		count, err := runCompletedDownloadRemovalOnce(context.Background(), client, service)
+		if count != 0 || err == nil || len(service.errors) != 1 || service.errors[0] == nil {
+			t.Fatalf("failure lost: %d %v %+v", count, err, service.errors)
+		}
+		if inventoryFailure && len(client.actions) != 0 {
+			t.Fatal("inventory failure allowed deletion")
+		}
+	}
+}

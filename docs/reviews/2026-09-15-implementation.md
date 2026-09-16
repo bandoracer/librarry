@@ -163,3 +163,13 @@ homelab gates remain separate from this local/CI evidence.
 Continuation verification: the full Go race suite passed with disposable Postgres,
 Go vet passed, six frontend tests passed, and the production web build passed.
 Desktop/mobile browser checks: 15 passed, one inapplicable desktop test skipped.
+
+The locally built c62268f API/web pair passed the expanded packaged harness on
+schema 31: a forced final database-write failure rolled back all library/book
+records after filesystem publication; a real API container restart resumed the
+same plan. Rescans, committed retry, source retention, multipart rejection and
+authentication checks passed. A 111,639-byte isolated dump restored matching
+operation IDs/states, manifests/hashes/file links, relational links, legacy
+receipts and entity counts. This remains fixture evidence, not a live restore.
+Inventory lookup and unapplied remote-deletion failures are also persisted and
+reported by the cleanup worker instead of appearing as successful task runs.
