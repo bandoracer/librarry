@@ -207,8 +207,8 @@ export function WantedEditForm(props: { item: WantedItem; onDeleted?: () => void
         }
       >
         <p>
-          Remove <strong>{item.title}</strong> from the wanted queue? Stored release decisions and metadata provenance
-          for it are discarded.
+          Remove <strong>{item.title}</strong> from the Library and wanted queue? Files, metadata overrides,
+          history and saved settings are retained. You can restore this book from Library → Removed.
         </p>
       </Modal>
     </>
