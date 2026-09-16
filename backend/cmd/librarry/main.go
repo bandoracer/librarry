@@ -35,6 +35,10 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 
+	if err := config.ValidateEnvironment(); err != nil {
+		logger.Error("invalid environment configuration", "error", err)
+		os.Exit(1)
+	}
 	cfg := config.FromEnv()
 	ctx, cancelApp := context.WithCancel(context.Background())
 	defer cancelApp()

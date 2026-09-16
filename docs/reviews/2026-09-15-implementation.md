@@ -30,6 +30,7 @@ progress record, not a claim that the full stabilization plan is complete.
   cannot silently switch the method. Method and credential updates now commit together, with rollback coverage for
   a deliberately failed second write. Changed credentials revoke sessions; stale
   concurrent logins cannot recreate them. Env-owned fields are locked in Settings.
+- Invalid typed environment settings now fail startup before database/worker work. Legacy integer-minute durations remain accepted; invalid completed import modes are rejected.
 - Every advertised runtime env key reaches every installer. Defaults agree with
   the owner's auto-grab/removal decision; nondefault completed settings are tested
   through actual Compose rendering.
@@ -80,11 +81,11 @@ progress record, not a claim that the full stabilization plan is complete.
 | Work | State | Remaining gate or scope |
 |---|---|---|
 | S01 | Substantially implemented | Live predeployment file/database inventory and backup-copy restore |
-| S02 | Implemented locally | Initial remote verification passed; expanded packaged/scanning CI gate pending readback |
+| S02 | Implemented locally | Verification, packaged safety/auth/restore tests and scan gates implemented; latest run linked on PR #3 |
 | S03 | Partial | Unified effective configuration/source/precedence view for settings beyond auth |
 | S04 | Implemented safety guard | Packaged safety regressions passed; controlled live qualification and multipart review UI remain |
 | S05 | Implemented | Read-only live audiobook search against the candidate |
-| S06 | Partial | Latest multi-platform CI readback, upgrade/rollback, candidate deployment |
+| S06 | Partial | Latest multi-platform checks linked on PR #3; upgrade/rollback and candidate deployment remain |
 | S07 | Partial | Client isolation implemented; relational file/import-operation migrations not yet written |
 | S08–S11 | Not complete | Multipart sets, durable recovery/leases, resumable scans and legacy repair |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
@@ -118,8 +119,15 @@ scope for subsequent implementation; this ledger must not be used to mark it don
 - The first expanded Linux CI qualification passed every application/restore
   assertion, then failed fixture cleanup because the runner uid differed from
   container uid 1000. The harness now returns only its unique fixture tree to
-  the runner owner before cleanup. Remote rerun remains required.
+  the runner owner before cleanup. A later CI TypeScript check also caught an
+  obsolete error branch after the new early-return error state; it was removed.
+  Final verification is recorded by the checks on [PR #3](https://github.com/bandoracer/librarry/pull/3).
 - `scripts/test-packaged.py` is the maintained reproduction; it does not connect
   to production clients or use provider credentials.
 - Trivy usage follows its [container image documentation](https://trivy.dev/docs/dev/guide/target/container_image/).
   CI pins the scanner image digest and rejects fixable high/critical findings.
+
+The packaged auth matrix passes forms enforcement, login cookie persistence,
+restart with persisted configuration/session, Basic credentials, and restoring
+explicit none. This uses fixture credentials only. All real-provider and live
+homelab gates remain separate from this local/CI evidence.

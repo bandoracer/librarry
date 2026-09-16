@@ -4,7 +4,9 @@
 DOCKER_CONTEXT=... python3 scripts/test-packaged.py [api-image] [web-image]
 Images default to librarry-api:stabilization and librarry-web:stabilization.
 """
+import base64
 import hashlib
+import http.cookiejar
 import json
 import os
 from pathlib import Path
@@ -14,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 import uuid
 
@@ -26,6 +29,7 @@ WEB_IMAGE = sys.argv[2] if len(sys.argv) > 2 else "librarry-web:stabilization"
 PREFIX = "librarry-qualification-" + uuid.uuid4().hex[:12]
 PG, API, WEB = [PREFIX + suffix for suffix in ("-pg", "-api", "-web")]
 CONTAINERS = []
+OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
 
 def docker(*args, binary=False, input=None):
@@ -43,11 +47,11 @@ def sql(query, db="librarry_test"):
                   "-v", "ON_ERROR_STOP=1", "-Atc", query).strip()
 
 
-def request(path, body=None):
+def request(path, body=None, method=None, headers=None):
     data = None if body is None else json.dumps(body).encode()
     req = urllib.request.Request(BASE + path, data=data,
-                                 headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=15) as response:
+                                 headers={"Content-Type": "application/json", **(headers or {})}, method=method)
+    with OPENER.open(req, timeout=15) as response:
         raw = response.read()
         return json.loads(raw) if "application/json" in response.headers.get("Content-Type", "") else raw
 
@@ -80,7 +84,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         wait_for(lambda: docker("exec", PG, "pg_isready", "-U", "postgres"))
         env = {
             "LIBRARRY_DATABASE_URL": f"postgres://postgres:fixture-only@{PG}:5432/librarry_test?sslmode=disable",
-            "LIBRARRY_AUTH_METHOD": "none", "LIBRARRY_EBOOK_LIBRARY_ROOT": "/fixture/ebooks",
+            "LIBRARRY_EBOOK_LIBRARY_ROOT": "/fixture/ebooks",
             "LIBRARRY_AUDIOBOOK_LIBRARY_ROOT": "/fixture/audiobooks",
         }
         for worker in ("MONITOR", "AUTHOR_MONITOR", "FEED_SYNC", "FAILED_DOWNLOAD", "UPGRADE_SEARCH",
@@ -143,6 +147,26 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                       "select metadata->'verifiedDownload' from files"):
             assert sql(query) == sql(query, "librarry_restore"), query
         print("Isolated database restore verified:", len(dump), "bytes; file/download/wanted counts and receipt preserved")
+        # Exercise real persistence, cookies, restart and Basic auth in the image.
+        request("/api/v1/auth/config", {"method": "forms", "username": "fixture", "password": "fixture-password"}, method="PUT")
+        assert request("/api/v1/auth/status")["authenticated"] is False
+        try:
+            request("/api/v1/wanted?view=library")
+            raise AssertionError("forms allowed an unauthenticated request")
+        except urllib.error.HTTPError as error:
+            assert error.code == 401
+        assert request("/api/v1/login", {"username": "fixture", "password": "fixture-password"})["authenticated"] is True
+        assert request("/api/v1/auth/status")["authenticated"] is True
+        docker("restart", API)
+        assert wait_for(lambda: request("/api/v1/auth/status"))["method"] == "forms"
+        assert request("/api/v1/auth/status")["authenticated"] is True
+        request("/api/v1/auth/config", {"method": "basic"}, method="PUT")
+        assert request("/api/v1/auth/status")["authenticated"] is False
+        basic = "Basic " + base64.b64encode(b"fixture:fixture-password").decode()
+        assert request("/api/v1/auth/status", headers={"Authorization": basic})["authenticated"] is True
+        request("/api/v1/auth/config", {"method": "none"}, method="PUT", headers={"Authorization": basic})
+        assert request("/api/v1/auth/status")["method"] == "none"
+        print("Packaged authentication: forms enforced, cookie/restart persisted, Basic enforced, explicit none restored")
     except Exception:
         for name in (API, WEB):
             if name in CONTAINERS:

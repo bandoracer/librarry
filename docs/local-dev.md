@@ -56,10 +56,16 @@ and optionally `EXPECTED_COMMIT` to assert the packaged source SHA. The script
 creates a unique network, Postgres database container, app containers and media
 fixture directory. It verifies the web proxy, exact import, sibling/multipart
 rejection, source retention, scan identity, retry and isolated database restore,
+also exercises forms login, cookie/restart persistence and Basic authentication,
 then removes only those resources. This is a fixture restore, not a backup of
 production media. CI runs this qualification and scans candidate images before
 allowing multi-platform publication. Fixable high/critical image findings fail
 the qualification job; lower severity and module-only findings need separate review.
+
+Malformed boolean, numeric and duration environment settings fail startup before
+database/client work; an invalid auto-grab flag cannot silently become the default
+`true`. Durations accept unit strings or the legacy integer-minute format and
+must be positive. Completed import mode accepts hardlinkOrCopy, hardlink or copy.
 
 Configured forms/basic authentication requires Postgres and a usable user at
 startup. Unknown methods or an unavailable persisted auth setting are errors;

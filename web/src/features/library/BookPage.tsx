@@ -122,8 +122,6 @@ export default function BookPage() {
         }
       />
       <div className="library-page">
-        {wanted.error ? <InlineNotice tone="danger">{libraryErrorMessage(wanted.error)}</InlineNotice> : null}
-
         <Card padded>
           <div className="library-book-header">
             {item.coverUrl ? (
