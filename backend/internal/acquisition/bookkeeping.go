@@ -59,7 +59,7 @@ func (s *SQLDownloadStore) FinalizeAcquisition(ctx context.Context, id string) e
 	if i.Selection.Forced {
 		message = "Manually selected release accepted by " + i.Client
 	}
-	data, err := json.Marshal(map[string]any{"acquisitionId": i.ID, "downloadRecordId": downloadID, "downloadId": i.ExternalID, "client": i.Client, "releaseId": i.Selection.ReleaseID, "score": i.Selection.Score, "sourceId": i.Selection.SourceID, "title": i.Title, "trigger": i.Selection.Trigger, "forced": i.Selection.Forced, "paused": i.Selection.Paused, "rejectedReason": i.Selection.RejectedReason})
+	data, err := json.Marshal(map[string]any{"currentScore": i.Selection.CurrentScore, "cutoffScore": i.Selection.CutoffScore, "acquisitionId": i.ID, "downloadRecordId": downloadID, "downloadId": i.ExternalID, "client": i.Client, "releaseId": i.Selection.ReleaseID, "score": i.Selection.Score, "sourceId": i.Selection.SourceID, "title": i.Title, "trigger": i.Selection.Trigger, "forced": i.Selection.Forced, "paused": i.Selection.Paused, "rejectedReason": i.Selection.RejectedReason})
 	if err != nil {
 		return err
 	}

@@ -49,8 +49,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [book folder PR #33](https://github.com/bandoracer/librarry/pull/33),
 [Calibre client PR #34](https://github.com/bandoracer/librarry/pull/34),
 [Calibre recovery PR #35](https://github.com/bandoracer/librarry/pull/35),
-[worker coordination PR #36](https://github.com/bandoracer/librarry/pull/36), and the
-`codex/durable-notification-outbox` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[worker coordination PR #36](https://github.com/bandoracer/librarry/pull/36),
+[native notification PR #37](https://github.com/bandoracer/librarry/pull/37), and the
+`codex/durable-compat-webhooks` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -107,8 +108,8 @@ whose local bookkeeping failed remain visible and retryable, with one grab-histo
 entry after recovery. Native import commits installed-release state and import
 history with the complete file set. Failed upgrades preserve imported status;
 blocklisting uses the failed download's identity. API/worker notifications skip
-replayed results. New native notifications now use a transactional outbox; legacy Readarr-compatible
-webhooks still use best-effort delivery. Legacy history/current-release repair and
+replayed results. Native and Readarr-compatible webhook notifications now use a transactional
+outbox for newly committed events. Legacy history/current-release repair and
 broader scheduled-worker qualification remain open under S10/S21.
 
 Library scans now persist their path queue and progress, resume through the
@@ -684,7 +685,7 @@ their acquisition/import journals. Notification outbox delivery, broader worker
 side-effect qualification, full S23 operational diagnostics and live soak remain
 open. No production or homelab rollout is implied by these container fixtures.
 
-## Native notification recovery (unreleased)
+## Notification recovery (unreleased)
 
 Migration 0048 captures new grab/upgrade and import history, download-failure
 transitions, and persisted health transitions together with their native target
@@ -704,8 +705,12 @@ response bodies are not copied into the delivery ledger or returned by its API.
 Settings → Connect shows paginated status with confirmed retry, acceptance and
 cancellation decisions. A stable delivery header lets a cooperating receiver
 deduplicate, but does not establish exactly-once third-party delivery. Explicit
-connection tests remain synchronous. Legacy `/api/v1/notification` resources
-remain on their previous best-effort path; they are not covered by this outbox.
+connection tests remain synchronous. Migration 0049 extends capture to enabled
+Readarr-compatible webhook resources, including scheduled work and recovery.
+Book, download, release and complete imported-file details are saved at commit,
+so later edits/deletion do not rewrite the message. Methods, Basic/Bearer settings
+and trigger aliases are retained; raw provider URLs and arbitrary file metadata
+are excluded. Health messages require explicit opt-in for compatibility targets.
 Terminal delivery/attempt records currently remain until backup/maintenance policy
-is defined; bounded retention, legacy webhook migration and live qualification
+is defined; bounded retention, support diagnostics and live qualification
 remain open. No production notifications were sent during qualification.

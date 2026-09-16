@@ -323,8 +323,9 @@ and live platform/soak qualification is still required.
 
 ### Notification state and restored databases
 
-Migration 0048 includes native event, target-delivery, attempt, operator-decision
-and health-transition records in ordinary Postgres backups. New history is
+Migrations 0048–0049 include native and compatibility events, immutable domain
+snapshots, target deliveries, attempts, operator decisions and health transitions
+in ordinary Postgres backups. New history is
 captured transactionally; applying the migration does not resend old history.
 The outbox worker starts automatically with database persistence. It uses the same
 direct/session-pooled connection requirement as other shared workers.

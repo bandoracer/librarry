@@ -165,9 +165,10 @@ When a client request times out after possibly succeeding, reconcile using clien
 passes now share Postgres session ownership and persisted due times. Two packaged
 API processes verify peer busy refusal, process-kill interruption and recovery.
 Domain acquisition/import journals still protect individual remote effects;
-native notification outbox delivery now has transaction, failure, concurrent-send,
-process-kill and operator-review fixtures. Legacy compatibility webhook delivery,
-retention policy and broader worker/live qualification remain open.
+native and Readarr-compatible notification delivery now has transaction, failure,
+concurrent-send, process-kill and operator-review fixtures, including preserved
+commit-time payloads. Retention policy, support diagnostics and broader worker/live
+qualification remain open.
 
 ### S11 — Scans, missing files, and legacy reconciliation
 

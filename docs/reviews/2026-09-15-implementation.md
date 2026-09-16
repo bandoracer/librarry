@@ -1871,3 +1871,59 @@ require isolated receiver review before enabling notification egress. Terminal
 outbox retention is currently unbounded. Legacy compatibility webhook migration,
 retention/support diagnostics, broader worker qualification and the live soak
 remain open under S10/S23. This does not mark either stage complete.
+
+## Durable Readarr-compatible webhooks (2026-09-16 continuation)
+
+PR #37 is fully green in GitHub run 35115735291, including verification, the real
+disposable Calibre contract, packaged qualification and both platform image builds.
+This continuation extends the notification outbox to compatibility resources with
+append-only migration 0049. No old events gain new recipients.
+
+Compatibility targets now participate in commit-time fan-out with their own target
+namespace, current settings revision, enable and event flags. The legacy
+`onDownload` flag is honored when `onReleaseImport` is absent; its API readback
+previously invented an enabled import trigger, which is now fixed. Health messages
+require explicit compatibility opt-in. Unsupported implementations are excluded.
+
+Each new event saves allow-listed book, exact client/download, selected-release
+and ordered imported-file details. Later edits, file deletion or service restart
+cannot replace the event's original content. Unknown import release identity does
+not borrow an unrelated release from its download. Upgrade acquisition receipts
+now retain the original current/cutoff scores through interrupted bookkeeping.
+Provider download/info URLs, arbitrary file metadata and target credentials are
+not copied into snapshots. The existing book/author/download/import/bookFile
+payload shapes remain; `bookFiles` now contains the complete committed file set.
+
+The API installs the compatibility adapter before workers start. Current target
+settings retain URL/field aliases, custom methods, Authorization and Basic auth.
+The shared sender applies revision checks, HTTP classification, review and
+stable IDs/timestamps to both target kinds. Implicit transport replay is disabled
+for custom GET/PUT bodies as well as POST. The old API callback sends and their
+callback-only tests were replaced by committed-state tests. Explicit connection
+test/test-all remains synchronous. Delivery history identifies Readarr webhooks;
+resource editing remains available through `/api/v1/notification`.
+
+Verification passed:
+
+- Full Postgres race suite: API 19.407s, library 165.977s, wanted 186.579s; ordinary
+  suite: library 149.101s, wanted 108.106s. Final compatibility race tests passed
+  after the legacy-trigger readback and unproven-release checks (3.166s).
+- Actual acquisition/import rollback and recovery now assert one native and one
+  compatibility delivery. Receiver tests cover immutable post-edit payloads,
+  complete multipart files, upgrade scores, authentication/methods, target edits,
+  deletion, flags, health opt-in, shared UUIDs and repeated failure suppression.
+- 95 desktop/mobile browser tests with one expected skip, 14 unit tests, web build,
+  vet, deployment contracts and whitespace checks.
+- The packaged notification fixture now creates a Readarr webhook through its
+  API, verifies PUT/Basic plus saved book details after an edit/restart, kills the
+  API after receipt and proves uncertainty/cancellation without another send.
+  Native recovery still passes in the same fixture.
+- Full schema-49 packaged regressions and a 459,349-byte isolated restore preserve
+  both target namespaces and committed payload snapshots. Local image tags are
+  `librarry-api:compat-outbox` and `librarry-web:compat-outbox`, with API commit marker
+  `working-tree-compat-outbox`.
+
+All receiver traffic stayed inside disposable fixtures. No third-party consumer,
+production library or homelab rollout was qualified or changed. Retention policy,
+last-success/support diagnostics, broader platform checks and the live soak remain
+open; S10/S23 are not marked complete.

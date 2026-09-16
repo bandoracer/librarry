@@ -880,7 +880,7 @@ separate review rather than being guessed from historical searches.
 
 Worker grab counts and compatibility producers exclude receipt replays. Native
 notifications are now captured by the committing transaction, as described below.
-Legacy compatibility webhooks still use best-effort delivery. No exactly-once
+Compatibility webhooks now share that durable delivery path. No exactly-once
 remote-delivery guarantee is made.
 Broader worker/live-client and legacy qualification remain S10/S21 work.
 
@@ -1558,5 +1558,39 @@ one repeatable-read page/count without settings; `POST
 /api/v1/notification-deliveries/{id}/resolve` accepts retry/accepted/cancel plus
 confirmation and expected revisions. The latest send state is shown in Settings
 → Connect; attempt and resolution records remain in Postgres and backups. Explicit
-connection tests do not enter the queue. Legacy Readarr compatibility webhooks
-retain their existing rich payload and synchronous path pending separate migration.
+connection tests do not enter the queue. Migration 0049 extends this mechanism to Readarr-compatible webhooks, as described
+below.
+
+### Readarr-compatible webhook delivery
+
+Migration 0049 namespaces delivery targets as `native` or `compat`; identical UUIDs
+in the two resource tables cannot collide. New notification events capture enabled,
+matching `compat_resources` webhook targets. The migration never adds recipients
+to older events. `onReleaseImport` takes precedence over the legacy `onDownload`
+alias, including settings readback; health notifications are opt-in through
+`onHealthIssue`. Unsupported implementations are not treated as webhooks.
+
+Before an event is inserted, a trigger saves an allow-listed `compat_context`
+snapshot of the relevant wanted book, exact client/download, selected release and
+ordered imported file set. UUID lookups retain index use and tolerate missing or
+non-UUID legacy identifiers. Unknown import release identity never borrows another
+release from the download. Provider download/info URLs, arbitrary file metadata
+and target settings are excluded. Upgrade acquisition receipts now persist their
+original current/cutoff scores so post-crash history repair retains those values.
+
+The API installs the payload adapter before starting workers. It reconstructs the
+existing book/author/download/release/import/bookFile shapes from the saved
+snapshot, includes every imported file in `bookFiles`, and keeps the original
+event ID/time. Source describes the persisted trigger, not the API request that
+happened to finish recovery. Compatibility settings are loaded from the current
+resource under revision/enable/trigger checks; its existing field aliases, method,
+Authorization and Basic authentication remain supported. Bodies cannot be replayed
+implicitly by Go's transport, including custom GET/PUT methods. Redirects and
+secret-bearing network errors are handled the same way as native delivery.
+
+API callback sends are removed. Manual API actions, scheduled work and domain
+recovery now reach the same commit-time capture. Compatibility test/test-all remain
+explicit synchronous requests. Delivery history identifies Readarr webhooks;
+configuration remains under `/api/v1/notification`. Attempt and resolution state
+uses the same session ownership, review controls and backup guarantees as native
+connections. This qualifies generated fixtures, not live third-party consumers.

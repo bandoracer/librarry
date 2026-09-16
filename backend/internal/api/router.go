@@ -179,6 +179,9 @@ type compatResourceService interface {
 func NewRouter(deps Dependencies) http.Handler {
 	mux := http.NewServeMux()
 	handler := &handler{deps: deps}
+	if deps.Notify != nil {
+		deps.Notify.WithCompatibilityAdapter(buildCompatOutboxRequest)
+	}
 
 	mux.HandleFunc("GET /ping", handler.compatPing)
 	mux.HandleFunc("HEAD /ping", handler.compatPing)
@@ -1380,7 +1383,6 @@ func (h *handler) grab(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyDownloadGrab(r.Context(), "native-grab", status, "")
 	writeJSON(w, http.StatusOK, status)
 }
 
@@ -1802,7 +1804,6 @@ func (h *handler) recoverFailedDownloads(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyFailedDownloads(r.Context(), "failed-download-recovery", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -2612,7 +2613,6 @@ func (h *handler) grabWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyDownloadGrab(r.Context(), "wanted-grab", status, r.PathValue("id"))
 	writeJSON(w, http.StatusOK, status)
 }
 
@@ -2634,7 +2634,6 @@ func (h *handler) monitorWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyMonitorGrabs(r.Context(), "wanted-monitor", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -2656,7 +2655,6 @@ func (h *handler) feedSyncWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyFeedGrabs(r.Context(), "feed-sync", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -2701,7 +2699,6 @@ func (h *handler) upgradeWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, status, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyUpgradeGrabs(r.Context(), "upgrade-search", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -3190,9 +3187,6 @@ func (h *handler) importLibraryFile(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	if outcome.Imported {
-		h.notifyReleaseImport(r.Context(), "library-import", outcome)
-	}
 	writeJSON(w, http.StatusOK, outcome)
 }
 
@@ -3223,7 +3217,6 @@ func (h *handler) importCompletedDownloads(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyCompletedImports(r.Context(), "completed-download-import", outcome)
 	writeJSON(w, http.StatusOK, outcome)
 }
 
@@ -3251,9 +3244,6 @@ func (h *handler) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
-	}
-	if outcome.Import != nil && outcome.Import.Imported {
-		h.notifyReviewImport(r.Context(), "import-review", outcome)
 	}
 	writeJSON(w, http.StatusOK, outcome)
 }
@@ -3308,9 +3298,6 @@ func (h *handler) resolveImportReviewsBulk(w http.ResponseWriter, r *http.Reques
 			outcome.Skipped++
 		case "rejected":
 			outcome.Rejected++
-		}
-		if reviewOutcome.Import != nil && reviewOutcome.Import.Imported {
-			h.notifyReviewImport(r.Context(), "import-review-bulk", reviewOutcome)
 		}
 		outcome.Results = append(outcome.Results, result)
 	}

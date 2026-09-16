@@ -17,14 +17,16 @@ var ErrAcquisitionPersistence = errors.New("acquisition recovery requires databa
 // AcquisitionSelection is a sanitized snapshot of the decision actually submitted.
 // It deliberately excludes provider URLs, client credentials and payload bodies.
 type AcquisitionSelection struct {
-	ReleaseID      string  `json:"releaseId"`
-	Score          float64 `json:"score"`
-	SourceID       string  `json:"sourceId"`
-	Title          string  `json:"title"`
-	Trigger        string  `json:"trigger"`
-	Forced         bool    `json:"forced"`
-	Paused         bool    `json:"paused"`
-	RejectedReason string  `json:"rejectedReason"`
+	CurrentScore   *float64 `json:"currentScore,omitempty"`
+	CutoffScore    *float64 `json:"cutoffScore,omitempty"`
+	ReleaseID      string   `json:"releaseId"`
+	Score          float64  `json:"score"`
+	SourceID       string   `json:"sourceId"`
+	Title          string   `json:"title"`
+	Trigger        string   `json:"trigger"`
+	Forced         bool     `json:"forced"`
+	Paused         bool     `json:"paused"`
+	RejectedReason string   `json:"rejectedReason"`
 }
 
 type AcquisitionIntent struct {

@@ -285,9 +285,9 @@ func main() {
 	deps.Health = healthEvaluator
 	registerTask(healthCheckTask(healthEvaluator))
 
+	router := api.NewRouter(deps)
 	var monitorWG sync.WaitGroup
 	registry.Start(ctx, &monitorWG)
-	router := api.NewRouter(deps)
 
 	server := &http.Server{
 		Addr:              cfg.ListenAddr,

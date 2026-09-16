@@ -2619,7 +2619,6 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 				return
 			}
-			h.notifyDownloadGrab(r.Context(), "compat-release-grab", status, wantedID)
 			writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
 			return
 		}
@@ -2654,7 +2653,6 @@ func (h *handler) compatGrabRelease(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyDownloadGrab(r.Context(), "compat-release-grab", status, wantedID)
 	writeJSON(w, http.StatusOK, compatGrabbedReleaseRecord(status, wantedID))
 }
 
@@ -2745,9 +2743,6 @@ func (h *handler) compatCreateManualImport(w http.ResponseWriter, r *http.Reques
 				writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "reviewId": reviewID, "path": sourcePath})
 				return
 			}
-			if outcome.Import != nil && outcome.Import.Imported {
-				h.notifyReviewImport(r.Context(), "compat-manual-import-review", outcome)
-			}
 			records = append(records, compatManualImportReviewOutcomeRecord(outcome, request))
 			continue
 		}
@@ -2765,9 +2760,6 @@ func (h *handler) compatCreateManualImport(w http.ResponseWriter, r *http.Reques
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "path": sourcePath})
 			return
-		}
-		if outcome.Imported {
-			h.notifyReleaseImport(r.Context(), "compat-manual-import", outcome)
 		}
 		records = append(records, compatManualImportOutcomeRecord(outcome, request))
 	}
@@ -6739,7 +6731,7 @@ func compatNotificationRecord(payload map[string]any, id int) map[string]any {
 		"url":                       payloadString(payload, "url"),
 		"method":                    firstNonEmptyString(payloadString(payload, "method"), "POST"),
 		"onGrab":                    payloadBoolDefault(payload, "onGrab", true),
-		"onReleaseImport":           payloadBoolDefault(payload, "onReleaseImport", true),
+		"onReleaseImport":           payloadBoolDefault(payload, "onReleaseImport", payloadBoolDefault(payload, "onDownload", true)),
 		"onUpgrade":                 payloadBoolDefault(payload, "onUpgrade", true),
 		"onDownloadFailure":         payloadBoolDefault(payload, "onDownloadFailure", true),
 		"supportsOnGrab":            true,

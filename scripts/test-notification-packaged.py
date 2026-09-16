@@ -22,9 +22,10 @@ class Receiver(BaseHTTPRequestHandler):
   body=json.dumps(messages).encode(); self.send_response(200); self.end_headers(); self.wfile.write(body)
  def do_POST(self):
   body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-  messages.append({'id':self.headers.get('X-Librarry-Delivery-ID'),'event':body,'path':self.path})
+  messages.append({'id':self.headers.get('X-Librarry-Delivery-ID'),'event':body,'path':self.path,'method':self.command,'authorization':self.headers.get('Authorization')})
   if self.path=='/slow': time.sleep(30)
   self.send_response(204); self.end_headers()
+ do_PUT=do_POST
  def log_message(self,*args): pass
 ThreadingHTTPServer(('0.0.0.0',8080),Receiver).serve_forever()
 '''
@@ -110,7 +111,33 @@ try:
     assert sql("select count(*) from notification_deliveries where state='accepted'") == "2"
     assert len(request(receiver,"/")) == 2
     assert len({m['id'] for m in request(receiver,'/')}) == 2
-    print("Packaged native outbox: pending delivery survives restart; SIGKILL after receipt becomes uncertain without resend; confirmed acceptance sends nothing")
+    print("Packaged native outbox: pending restart, SIGKILL uncertainty and confirmed acceptance without resend verified")
+    sql(f"update notification_targets set enabled=false,updated_at=clock_timestamp() where id='{target['id']}'")
+    compat = request(base,"/api/v1/notification",{"name":"Disposable Readarr receiver","implementation":"Webhook","enable":True,"url":f"http://{RECEIVER}:8080/compat","method":"PUT","username":"fixture-user","password":"fixture-password"})
+    compat_id = int(compat["id"])
+    docker("stop",API)
+    wanted = sql("insert into wanted_items(wanted_format,title,author_name) values('ebook','Walden fixture','Fixture author') returning id").splitlines()[0]
+    download = sql("insert into downloads(client,external_id,name,category,save_path,state) values('qBittorrent','compat-fixture','Walden release','books','/fixture/downloads','paused') returning id").splitlines()[0]
+    history = f"insert into history_events(event_type,entity_type,entity_id,message,data) values('release_grabbed','wanted_item','{wanted}','Fixture acquired',jsonb_build_object('downloadRecordId','{download}','title','Walden release'))"
+    sql(history)
+    sql(f"update wanted_items set title='Changed after capture' where id='{wanted}'")
+    base=restart(); trigger(base)
+    wait(lambda: sql("select count(*) from notification_deliveries where target_kind='compat' and state='accepted'")=="1")
+    messages=request(receiver,"/"); assert len(messages)==3,messages
+    saved=messages[-1]
+    assert saved["method"]=="PUT" and saved["path"]=="/compat" and saved["authorization"].startswith("Basic "),saved
+    assert saved["event"]["book"]["title"]=="Walden fixture" and saved["event"]["downloadId"]=="compat-fixture",saved
+    sql(f"update compat_resources set payload=payload||jsonb_build_object('url','http://{RECEIVER}:8080/slow'),updated_at=clock_timestamp() where resource_type='notification' and compat_id={compat_id}")
+    sql(history); trigger(base)
+    wait(lambda: len(request(receiver,"/"))==4)
+    docker("kill",API); base=restart(); trigger(base)
+    wait(lambda: sql("select count(*) from notification_deliveries where target_kind='compat' and state='uncertain'")=="1")
+    settle(base); assert len(request(receiver,"/"))==4
+    pending=next(d for d in request(base,"/api/v1/notification-deliveries")["items"] if d["targetKind"]=="compat" and d["state"]=="uncertain")
+    request(base,f"/api/v1/notification-deliveries/{pending['id']}/resolve",{"action":"cancel","confirm":True,"expectedUpdatedAt":pending["updatedAt"]})
+    assert sql("select count(*) from notification_deliveries where target_kind='compat' and state='cancelled'")=="1"
+    print("Packaged Readarr webhooks: API-created target, PUT/Basic, immutable book snapshot, restart recovery, SIGKILL uncertainty and cancellation without resend verified")
+
 finally:
     for container in reversed(containers):
         subprocess.run(DOCKER+["rm","-f",container],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

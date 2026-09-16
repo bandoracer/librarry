@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const fixture = {
-  id: "delivery-1", eventId: "event-1", event: { type: "import", title: "Book imported: Walden", message: "/library/Walden.epub", fields: {} },
+  targetKind: "compat", id: "delivery-1", eventId: "event-1", event: { type: "import", title: "Book imported: Walden", message: "/library/Walden.epub", fields: {} },
   targetId: "target-1", targetName: "Fixture receiver", targetType: "webhook", targetRevision: "2026-09-16T12:00:00Z", currentTargetRevision: "2026-09-16T13:00:00Z", targetAvailable: true,
   state: "uncertain", attempts: 1, statusCode: null, message: "Sender stopped before acceptance was recorded; inspect the receiver before retrying", nextAttemptAt: "2026-09-16T12:30:00Z", createdAt: "2026-09-16T12:30:00Z", updatedAt: "2026-09-16T12:31:00Z"
 };
@@ -20,6 +20,7 @@ test("notification recovery requires a reviewed decision and exposes stale state
   await expect(page.getByText("Notification history is unavailable", { exact: false })).toBeVisible();
   unavailable = false; await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByText(fixture.event.title, { exact: true })).toBeVisible();
+  await expect(page.getByText(/Fixture receiver \(Readarr webhook\)/)).toBeVisible();
   await page.getByRole("button", { name: /Review retry for/ }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("retrying can create a duplicate");

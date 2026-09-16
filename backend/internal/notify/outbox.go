@@ -23,6 +23,7 @@ type Delivery struct {
 	ID                    string     `json:"id"`
 	EventID               string     `json:"eventId"`
 	Event                 Event      `json:"event"`
+	TargetKind            string     `json:"targetKind"`
 	TargetID              string     `json:"targetId"`
 	TargetName            string     `json:"targetName"`
 	TargetType            string     `json:"targetType"`
@@ -60,14 +61,14 @@ func (s *Service) Deliveries(ctx context.Context, limit, offset int) (DeliveryPa
 	if err = tx.QueryRowContext(ctx, `select count(*) from notification_deliveries`).Scan(&page.Total); err != nil {
 		return page, err
 	}
-	rows, err := tx.QueryContext(ctx, `select d.id::text,d.event_id::text,e.event,d.target_id::text,d.target_name,d.target_type,d.target_revision,t.updated_at,coalesce(t.enabled,false),d.state,d.attempts,d.status_code,d.message,d.next_attempt_at,d.created_at,d.updated_at from notification_deliveries d join notification_events e on e.id=d.event_id left join notification_targets t on t.id=d.target_id order by d.created_at desc,d.id desc limit $1 offset $2`, limit, offset)
+	rows, err := tx.QueryContext(ctx, `select d.id::text,d.event_id::text,e.event,d.target_kind,d.target_id::text,d.target_name,d.target_type,d.target_revision,case when d.target_kind='native' then t.updated_at else c.updated_at end,case when d.target_kind='native' then coalesce(t.enabled,false) else coalesce(notification_compat_matches(c.payload,e.event->>'type'),false) end,d.state,d.attempts,d.status_code,d.message,d.next_attempt_at,d.created_at,d.updated_at from notification_deliveries d join notification_events e on e.id=d.event_id left join notification_targets t on d.target_kind='native' and t.id=d.target_id left join compat_resources c on d.target_kind='compat' and c.id=d.target_id and c.resource_type='notification' and c.deleted_at is null order by d.created_at desc,d.id desc limit $1 offset $2`, limit, offset)
 	if err != nil {
 		return page, err
 	}
 	for rows.Next() {
 		var d Delivery
 		var raw []byte
-		err = rows.Scan(&d.ID, &d.EventID, &raw, &d.TargetID, &d.TargetName, &d.TargetType, &d.TargetRevision, &d.CurrentTargetRevision, &d.TargetAvailable, &d.State, &d.Attempts, &d.StatusCode, &d.Message, &d.NextAttemptAt, &d.CreatedAt, &d.UpdatedAt)
+		err = rows.Scan(&d.ID, &d.EventID, &raw, &d.TargetKind, &d.TargetID, &d.TargetName, &d.TargetType, &d.TargetRevision, &d.CurrentTargetRevision, &d.TargetAvailable, &d.State, &d.Attempts, &d.StatusCode, &d.Message, &d.NextAttemptAt, &d.CreatedAt, &d.UpdatedAt)
 		if err != nil {
 			rows.Close()
 			return page, err
@@ -161,11 +162,11 @@ func (s *Service) processDelivery(ctx context.Context, id string) error {
 		return err
 	}
 	defer tx.Rollback()
-	var state, targetID, eventID string
+	var state, targetID, eventID, targetKind string
 	var revision, occurredAt time.Time
 	var due bool
-	var raw []byte
-	err = tx.QueryRowContext(ctx, `select d.state,d.target_id::text,d.target_revision,d.next_attempt_at<=now(),e.event,e.id::text,e.created_at from notification_deliveries d join notification_events e on e.id=d.event_id where d.id::text=$1 for update of d`, id).Scan(&state, &targetID, &revision, &due, &raw, &eventID, &occurredAt)
+	var raw, snapshot []byte
+	err = tx.QueryRowContext(ctx, `select d.state,d.target_id::text,d.target_revision,d.next_attempt_at<=now(),e.event,e.id::text,e.created_at,d.target_kind,e.compat_context from notification_deliveries d join notification_events e on e.id=d.event_id where d.id::text=$1 for update of d`, id).Scan(&state, &targetID, &revision, &due, &raw, &eventID, &occurredAt, &targetKind, &snapshot)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrDeliveryNotFound
 	}
@@ -184,12 +185,12 @@ func (s *Service) processDelivery(ctx context.Context, id string) error {
 	if (state != "pending" && state != "retry") || !due {
 		return nil
 	}
-	target, err := scanTarget(tx.QueryRowContext(ctx, `select `+targetColumns+` from notification_targets where id=$1 for share`, targetID))
 	var event Event
 	if jsonErr := json.Unmarshal(raw, &event); jsonErr != nil {
 		return jsonErr
 	}
 	event.ID, event.OccurredAt = eventID, occurredAt
+	target, settings, err := loadDeliveryTarget(ctx, tx, targetKind, targetID, event.Type)
 	problem := ""
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -208,7 +209,7 @@ func (s *Service) processDelivery(ctx context.Context, id string) error {
 		}
 		return tx.Commit()
 	}
-	req, err := s.buildRequest(ctx, target, event)
+	req, err := s.buildDeliveryRequest(ctx, targetKind, target, settings, event, snapshot)
 	if err != nil {
 		_, err = tx.ExecContext(ctx, `update notification_deliveries set state='failed',message='Notification request settings are invalid',updated_at=clock_timestamp() where id=$1`, id)
 		if err != nil {
@@ -316,10 +317,10 @@ func (s *Service) ResolveDelivery(ctx context.Context, id string, request Delive
 		return err
 	}
 	defer tx.Rollback()
-	var state, targetID string
+	var state, targetID, targetKind string
 	var updated, revision time.Time
 	var raw []byte
-	err = tx.QueryRowContext(ctx, `select d.state,d.target_id::text,d.updated_at,d.target_revision,e.event from notification_deliveries d join notification_events e on e.id=d.event_id where d.id::text=$1 for update of d`, id).Scan(&state, &targetID, &updated, &revision, &raw)
+	err = tx.QueryRowContext(ctx, `select d.state,d.target_id::text,d.updated_at,d.target_revision,e.event,d.target_kind from notification_deliveries d join notification_events e on e.id=d.event_id where d.id::text=$1 for update of d`, id).Scan(&state, &targetID, &updated, &revision, &raw, &targetKind)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrDeliveryNotFound
 	}
@@ -340,15 +341,15 @@ func (s *Service) ResolveDelivery(ctx context.Context, id string, request Delive
 		if state != "failed" && state != "uncertain" && state != "cancelled" {
 			return ErrDeliveryConflict
 		}
-		target, err := scanTarget(tx.QueryRowContext(ctx, `select `+targetColumns+` from notification_targets where id=$1 for share`, targetID))
+		var event Event
+		if err = json.Unmarshal(raw, &event); err != nil {
+			return err
+		}
+		target, _, err := loadDeliveryTarget(ctx, tx, targetKind, targetID, event.Type)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrDeliveryConflict
 		}
 		if err != nil {
-			return err
-		}
-		var event Event
-		if err = json.Unmarshal(raw, &event); err != nil {
 			return err
 		}
 		if request.ExpectedTargetRevision == nil || !target.UpdatedAt.Equal(*request.ExpectedTargetRevision) || !target.Enabled || !target.Triggers.Matches(event.Type) {

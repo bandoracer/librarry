@@ -3358,6 +3358,7 @@ export async function fetchTaskRuns(id: string): Promise<TaskRun[]> {
 }
 
 export type NotificationDelivery = {
+  targetKind: "native" | "compat";
   id: string;
   eventId: string;
   event: { type: string; title: string; message: string; fields: Record<string, string> };

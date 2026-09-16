@@ -1380,7 +1380,7 @@ Run history is diagnostic and bounded; it does not replace durable acquisition
 or import receipts. Native notifications use the durable outbox described below. These fixtures do
 not establish a live multi-instance deployment.
 
-### Review native notification delivery
+### Review notification delivery
 
 Settings → Connect → Notification delivery lists new queued messages and their
 outcomes. **Accepted** records HTTP acceptance, not a read receipt. **Uncertain**
@@ -1393,8 +1393,11 @@ Changed/deleted/disabled connections stop pending messages. New connections do n
 receive old events. HTTP 429 uses bounded retries; other ambiguous failures wait
 for review. Explicit connection tests remain immediate.
 
-Only native connections are covered. Migrated Readarr-compatible notification
-resources retain their prior delivery behavior. Use a disposable local receiver
+Native and migrated Readarr-compatible webhook connections are covered. History
+marks compatibility targets as **Readarr webhook**; their configuration remains
+under `/api/v1/notification`. The legacy `onDownload` import flag is honored unless
+`onReleaseImport` is explicitly set. Compatibility health messages require
+`onHealthIssue: true`. New events retain book/file details from commit time. Use a disposable local receiver
 for qualification; do not point test notifications at real people.
 
 ```sh
@@ -1402,7 +1405,9 @@ DOCKER_CONTEXT=your-test-context python3 scripts/test-notification-packaged.py l
 ```
 
 This fixture creates its own Postgres, API and Python HTTP receiver containers,
-verifies pending recovery after restart, kills the API after the receiver records
-a request, and verifies uncertainty plus confirmation without a second send.
+verifies pending recovery after restart for both target kinds, kills the API after
+the receiver records a request, and verifies uncertainty plus confirmation or
+cancellation without a second send. Readarr fixtures also check PUT/Basic settings
+and immutable book details after an intervening edit.
 It removes the containers/network on exit. The packaged backup fixture also
 compares event, delivery, attempt, action and health-state records after restore.

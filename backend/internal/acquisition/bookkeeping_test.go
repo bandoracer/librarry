@@ -22,7 +22,13 @@ func addSelectedRelease(t *testing.T, db *sql.DB, request *DownloadRequest, scor
 func TestAcceptedAcquisitionRepairsHistoryAfterRestartWithoutRegressingInstalledRelease(t *testing.T) {
 	s, db, f, request := intentTestService(t)
 	selected := addSelectedRelease(t, db, &request, 82.5)
+	currentScore, cutoffScore := 25.0, 90.0
+	request.Selection.CurrentScore = &currentScore
+	request.Selection.CutoffScore = &cutoffScore
 	if _, err := db.Exec(`insert into notification_targets(name,type,settings) values('Fixture','webhook','{"url":"http://127.0.0.1:1/unused"}')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`insert into compat_resources(resource_type,compat_id,name,payload) values('notification',782,'Compat fixture','{"implementation":"Webhook","enable":true,"url":"http://127.0.0.1:1/unused"}')`); err != nil {
 		t.Fatal(err)
 	}
 	wantedID := strings.TrimPrefix(request.Tags[1], "wanted:")
@@ -72,10 +78,11 @@ func TestAcceptedAcquisitionRepairsHistoryAfterRestartWithoutRegressingInstalled
 	}
 	wg.Wait()
 	for query, want := range map[string]int{
-		`select count(*) from history_events where event_type='release_grabbed' and (data->>'score')::numeric=82.5`: 1,
-		`select count(*) from notification_deliveries`:                                                              1,
-		`select count(*) from acquisition_intents where bookkeeping_at is not null`:                                 1,
-		`select count(*) from downloads where release_id is not null and acquisition_intent_id is not null`:         1,
+		`select count(*) from history_events where event_type='release_grabbed' and (data->>'score')::numeric=82.5 and (data->>'currentScore')::numeric=25 and (data->>'cutoffScore')::numeric=90`: 1,
+		`select count(*) from notification_deliveries where target_kind='native'`:                           1,
+		`select count(*) from notification_deliveries where target_kind='compat'`:                           1,
+		`select count(*) from acquisition_intents where bookkeeping_at is not null`:                         1,
+		`select count(*) from downloads where release_id is not null and acquisition_intent_id is not null`: 1,
 	} {
 		if err := db.QueryRow(query).Scan(&n); err != nil || n != want {
 			t.Fatalf("%s: %d %v", query, n, err)

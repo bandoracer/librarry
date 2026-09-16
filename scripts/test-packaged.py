@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 48, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 49, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -701,6 +701,8 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         sql(f"insert into notification_delivery_attempts(id,delivery_id,state,finished_at) values(gen_random_uuid(),'{notification_delivery}','uncertain',now())")
         sql(f"insert into notification_delivery_actions(delivery_id,action,previous_state,target_revision) values('{notification_delivery}','accepted','uncertain',now())")
         sql("insert into notification_health_states(check_id,severity) values('restore-fixture','warning')")
+        compat_target = sql("insert into compat_resources(resource_type,compat_id,name,payload) values('notification',99881,'Restore webhook','{\"enable\":false}') returning id").splitlines()[0]
+        sql(f"insert into notification_deliveries(event_id,target_kind,target_id,target_name,target_type,target_revision,state) values('{notification_event}','compat','{compat_target}','Restore webhook','readarrWebhook',now(),'cancelled')")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

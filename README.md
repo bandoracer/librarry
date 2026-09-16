@@ -999,12 +999,12 @@ The test suite currently covers provider normalization, matching confidence,
 settings validation, and API handlers. Fixtures and broader acquisition tests
 will grow as the automation path stabilizes.
 
-Native connections in Settings → Connect now retain new notification events and
+Native connections and Readarr-compatible webhooks now retain new notification events and
 send attempts across restart. Delivery review distinguishes receiver acceptance,
 rate-limit retries and uncertain sends, and requires confirmation before replaying
-an uncertain request. This unreleased outbox covers native connections; legacy
-Readarr-compatible webhook resources retain their previous delivery behavior.
-See [notification recovery](docs/local-dev.md#review-native-notification-delivery).
+an uncertain request. Settings → Connect identifies both connection types;
+Readarr webhook settings remain available through the compatibility API.
+See [notification recovery](docs/local-dev.md#review-notification-delivery).
 
 ## Roadmap
 

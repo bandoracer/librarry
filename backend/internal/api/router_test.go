@@ -2913,39 +2913,6 @@ func TestDownloadRebalanceEndpointDryRunStopsOverflow(t *testing.T) {
 	}
 }
 
-func TestNotificationWebhookFiresOnGrab(t *testing.T) {
-	var delivered map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Readarr-EventType") != notificationEventGrab {
-			t.Fatalf("expected grab event header, got %s", r.Header.Get("X-Readarr-EventType"))
-		}
-		if err := json.NewDecoder(r.Body).Decode(&delivered); err != nil {
-			t.Fatal(err)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	router := NewRouter(Dependencies{
-		Logger:   slog.Default(),
-		Config:   config.Config{WebOrigin: "*"},
-		Metadata: metadata.NewService(nil),
-		Acquire:  fakeAcquire{},
-		Compat:   fakeNotificationCompat(server.URL, map[string]any{"onReleaseImport": false}),
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/grabs", strings.NewReader(`{"releaseUrl":"magnet:?xt=urn:btih:abc123","title":"Project Hail Mary EPUB","paused":true}`))
-	res := httptest.NewRecorder()
-
-	router.ServeHTTP(res, req)
-
-	if res.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
-	}
-	if delivered["eventType"] != notificationEventGrab || delivered["downloadId"] != "download-1" || delivered["releaseTitle"] != "Project Hail Mary EPUB" {
-		t.Fatalf("unexpected webhook payload: %+v", delivered)
-	}
-}
-
 func TestGrabAcceptsMultipartTorrentUpload(t *testing.T) {
 	acquire := &captureGrabAcquire{}
 	var body bytes.Buffer
@@ -2999,40 +2966,6 @@ func TestGrabAcceptsMultipartTorrentUpload(t *testing.T) {
 	}
 	if strings.Join(acquire.request.Tags, ",") != "librarry,manual" || acquire.request.Protocol != "torrent" {
 		t.Fatalf("unexpected tags/protocol: %+v", acquire.request)
-	}
-}
-
-func TestNotificationWebhookFiresOnLibraryImport(t *testing.T) {
-	var delivered map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := json.NewDecoder(r.Body).Decode(&delivered); err != nil {
-			t.Fatal(err)
-		}
-		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer server.Close()
-
-	router := NewRouter(Dependencies{
-		Logger:   slog.Default(),
-		Config:   config.Config{WebOrigin: "*"},
-		Metadata: metadata.NewService(nil),
-		Library:  fakeLibrary{},
-		Compat:   fakeNotificationCompat(server.URL, map[string]any{"onGrab": false}),
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/library/import", strings.NewReader(`{"sourcePath":"/downloads/Project Hail Mary.epub","format":"ebook"}`))
-	res := httptest.NewRecorder()
-
-	router.ServeHTTP(res, req)
-
-	if res.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
-	}
-	if delivered["eventType"] != notificationEventReleaseImport || delivered["destinationPath"] != "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" {
-		t.Fatalf("unexpected import webhook payload: %+v", delivered)
-	}
-	bookFile, ok := delivered["bookFile"].(map[string]any)
-	if !ok || bookFile["path"] != "/library/ebooks/Andy Weir/Project Hail Mary/Project Hail Mary.epub" {
-		t.Fatalf("expected bookFile payload, got %+v", delivered["bookFile"])
 	}
 }
 

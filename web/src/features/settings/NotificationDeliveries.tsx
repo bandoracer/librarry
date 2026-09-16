@@ -26,13 +26,13 @@ export default function NotificationDeliveries() {
     finally { setBusy(false); }
   }
   return <>
-    <Card title="Notification delivery" subtitle="Native connections only. Accepted means the receiver accepted the request; it does not prove someone read it.">
+    <Card title="Notification delivery" subtitle="Accepted means the receiver accepted the request; it does not prove someone read it.">
       {query.isPending ? <LoadingRow label="Loading notification delivery…" /> : null}
       {query.isError ? <InlineNotice tone="danger">{query.error.message} <Button size="sm" onClick={() => void query.refetch()}>Try again</Button></InlineNotice> : null}
       {query.data?.items.length === 0 ? <p>No recorded deliveries on this page. New events use the connections enabled when they occur.</p> : null}
       {query.data?.items.map(delivery => <article key={delivery.id} className="notification-delivery-entry">
         <p><strong>{delivery.event.title}</strong></p>
-        <p><Badge tone={delivery.state === "accepted" ? "success" : ["pending", "sending", "retry"].includes(delivery.state) ? "info" : "warn"}>{delivery.state}</Badge> · {delivery.targetName} · {formatRelativeTime(delivery.createdAt)} · {delivery.attempts} attempts</p>
+        <p><Badge tone={delivery.state === "accepted" ? "success" : ["pending", "sending", "retry"].includes(delivery.state) ? "info" : "warn"}>{delivery.state}</Badge> · {delivery.targetName}{delivery.targetKind === "compat" ? " (Readarr webhook)" : ""} · {formatRelativeTime(delivery.createdAt)} · {delivery.attempts} attempts</p>
         {delivery.message ? <p>{delivery.message}</p> : null}
         {delivery.state === "retry" ? <p>Next attempt: {new Date(delivery.nextAttemptAt).toLocaleString()}</p> : null}
         {delivery.currentTargetRevision !== delivery.targetRevision ? <p>Connection settings have changed or the connection was deleted.</p> : null}

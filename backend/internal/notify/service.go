@@ -10,11 +10,12 @@ import (
 	"time"
 )
 
-// Service delivers the durable native outbox and explicit connection tests.
+// Service delivers the durable notification outbox and explicit connection tests.
 type Service struct {
-	store  *Store
-	logger *slog.Logger
-	client *http.Client
+	compatibilityAdapter CompatibilityAdapter
+	store                *Store
+	logger               *slog.Logger
+	client               *http.Client
 	// telegramAPIBase is overridable in tests; production uses the public
 	// Telegram Bot API.
 	telegramAPIBase string

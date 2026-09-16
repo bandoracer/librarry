@@ -1634,7 +1634,7 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 				},
 			})
 			if request.AutoGrab {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "upgrade", false)
+				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "upgrade", false, acquisition.AcquisitionSelection{CurrentScore: &currentScore, CutoffScore: &cutoff})
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -1700,15 +1700,20 @@ func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEve
 	return s.store.ListHistory(ctx, query)
 }
 
-func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string, forced bool) (acquisition.DownloadStatus, error) {
+func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string, forced bool, details ...acquisition.AcquisitionSelection) (acquisition.DownloadStatus, error) {
 	if trigger != "manual" {
 		if err := s.validateAutomaticGrab(ctx, item, release, trigger); err != nil {
 			return acquisition.DownloadStatus{}, err
 		}
 	}
 
+	selection := &acquisition.AcquisitionSelection{ReleaseID: release.ID, Trigger: trigger, Forced: forced, Paused: paused}
+	if len(details) > 0 {
+		selection.CurrentScore = details[0].CurrentScore
+		selection.CutoffScore = details[0].CutoffScore
+	}
 	status, err := s.acquire.Grab(ctx, acquisition.DownloadRequest{
-		Selection:  &acquisition.AcquisitionSelection{ReleaseID: release.ID, Trigger: trigger, Forced: forced, Paused: paused},
+		Selection:  selection,
 		Client:     client,
 		ReleaseURL: release.DownloadURL,
 		InfoHash:   release.InfoHash,
