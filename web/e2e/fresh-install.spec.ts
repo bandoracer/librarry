@@ -86,3 +86,21 @@ test("direct book links distinguish an outage from a missing book", async ({ pag
   await page.goto(`/library/book/${id}`);
   await expect(page.getByRole("heading", { name: "Book not found", exact: true })).toBeVisible();
 });
+
+test("import recovery shows the saved plan and retains failures", async ({ page }, testInfo) => {
+  const id = "00000000-0000-0000-0000-000000000002";
+  const report = { unfinished: 1, unresolved: 1, limit: 100, operations: [{ id, wantedId: id, client: "qBittorrent", downloadId: "fixture", state: "failed", cleanupState: "blocked", attempts: 1, metadata: { title: "Interrupted fixture" }, lastError: "Database unavailable after publication", files: [{ id: "file", sourcePath: "/downloads/fixture.epub", destinationPath: "/library/Fixture/fixture.epub", sizeBytes: 1024, state: "verified", sha256: "a".repeat(64) }] }], issues: [{ fileId: "legacy", path: "/library/legacy.epub", kind: "download", reason: "download identifier is ambiguous across clients" }] };
+  await page.route("**/api/v1/library/import-recovery", route => route.fulfill({ contentType: "application/json", body: JSON.stringify(report) }));
+  await page.route(`**/api/v1/library/import-operations/${id}/retry`, route => route.fulfill({ status: 409, contentType: "application/json", body: '{"error":"Source checksum changed; review required"}' }));
+  await page.goto("/imports");
+  await page.getByText("Interrupted fixture", { exact: true }).click();
+  await expect(page.getByText("/downloads/fixture.epub", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View book", exact: true })).toHaveAttribute("href", `/library/book/${id}`);
+  await page.getByRole("button", { name: "Retry import", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Source checksum changed; review required");
+  await expect(page.getByText("Import verified and committed.", { exact: true })).toHaveCount(0);
+  await page.getByText("Legacy links needing review (1)", { exact: true }).click();
+  await expect(page.getByText("download identifier is ambiguous across clients", { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: `../output/playwright/import-recovery-${testInfo.project.name}.png`, fullPage: true });
+});

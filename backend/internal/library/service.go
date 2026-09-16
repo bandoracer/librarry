@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -403,6 +404,10 @@ func (s *Service) Scan(ctx context.Context, request ScanRequest) (ScanOutcome, e
 			if entry.IsDir() {
 				return nil
 			}
+			if !entry.Type().IsRegular() {
+				outcome.Skipped++
+				return nil
+			}
 			if outcome.Scanned >= limit {
 				return filepath.SkipAll
 			}
@@ -416,7 +421,37 @@ func (s *Service) Scan(ctx context.Context, request ScanRequest) (ScanOutcome, e
 				outcome.Errors = append(outcome.Errors, err.Error())
 				return nil
 			}
-			record := fileRecordFromPath(path, format, info, "available")
+			canonical, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				outcome.Errors = append(outcome.Errors, err.Error())
+				return nil
+			}
+			canonical, err = filepath.Abs(canonical)
+			if err != nil {
+				outcome.Errors = append(outcome.Errors, err.Error())
+				return nil
+			}
+			var pending bool
+			if err := s.store.db.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and o.state<>'committed')`, canonical).Scan(&pending); err != nil {
+				return err
+			}
+			if pending {
+				outcome.Skipped++
+				return nil
+			}
+			observedPath := canonical
+			existing, err := s.store.FindFiles(ctx, nil, []string{path, canonical})
+			if err != nil {
+				return err
+			}
+			if len(existing) > 1 {
+				outcome.Errors = append(outcome.Errors, "multiple records identify the same scan path: "+path)
+				return nil
+			}
+			if len(existing) == 1 {
+				observedPath = existing[0].Path
+			}
+			record := fileRecordFromPath(observedPath, format, info, "available")
 			stored, err := s.store.ObserveFile(ctx, record)
 			if err != nil {
 				outcome.Errors = append(outcome.Errors, err.Error())
@@ -629,6 +664,26 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
+		existing, operationErr := s.store.operationForDownload(ctx, download.Client, download.ID)
+		if operationErr == nil {
+			imported, err := s.runImportOperation(ctx, existing)
+			result.WantedID = existing.WantedID
+			if err != nil {
+				result.Status, result.Message = "error", err.Error()
+				outcome.Errored++
+			} else if imported.Skipped {
+				result.Status, result.Message, result.Import = "skipped", imported.Message, &imported
+				outcome.Skipped++
+			} else {
+				result.Status, result.Import = "imported", &imported
+				outcome.Imported++
+			}
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		if !errors.Is(operationErr, sql.ErrNoRows) {
+			return outcome, operationErr
+		}
 		sourcePath, format, err := locateDownloadSource(remapDownloadSavePath(download, mappings))
 		if err != nil {
 			result.Status = "error"
@@ -681,19 +736,9 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
-		sourceHash, err := contentHash(sourcePath)
-		if err != nil {
-			return outcome, fmt.Errorf("checksum completed payload: %w", err)
-		}
-		imported, err := s.Import(ctx, ImportRequest{
-			SourcePath:     sourcePath,
-			WantedID:       result.WantedID,
-			DownloadID:     download.ID,
-			Format:         format,
-			Move:           request.Move,
-			ImportMode:     request.ImportMode,
-			ConflictAction: request.ConflictAction,
-			Overwrite:      request.Overwrite,
+		imported, err := s.importCompletedFile(ctx, remapDownloadSavePath(download, mappings), ImportRequest{
+			SourcePath: sourcePath, WantedID: result.WantedID, DownloadID: download.ID,
+			Format: format, ImportMode: request.ImportMode, ConflictAction: request.ConflictAction, Overwrite: request.Overwrite,
 		})
 		if err != nil {
 			result.Status = "error"
@@ -712,20 +757,6 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			outcome.Skipped++
 			outcome.Results = append(outcome.Results, result)
 			continue
-		}
-		destinationHash, err := contentHash(imported.File.Path)
-		if err != nil || destinationHash != sourceHash {
-			return outcome, errors.New("import destination could not be verified; source cleanup is blocked")
-		}
-		imported.File.Metadata["verifiedDownload"] = map[string]any{"client": download.Client, "id": download.ID, "sha256": sourceHash}
-		imported.File, err = s.store.UpsertFile(ctx, imported.File)
-		if err != nil {
-			return outcome, fmt.Errorf("persist import verification: %w", err)
-		}
-		if s.downloads != nil {
-			if err := s.downloads.MarkDownloadImported(ctx, download.ID, imported.File.ID); err != nil {
-				return outcome, fmt.Errorf("persist completed import: %w", err)
-			}
 		}
 		result.Status = "imported"
 		if result.AutoMatched && result.Message == "" {

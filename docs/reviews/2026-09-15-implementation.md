@@ -20,7 +20,7 @@ progress record, not a claim that the full stabilization plan is complete.
 - Copies stage and sync data before atomic, non-overwriting publication. Failed
   replacement transfer keeps the original. Replacement originals remain at a
   recovery path until persistence succeeds; manual moves remove sources only
-  after record persistence. Full crash/retry idempotency remains S09 work.
+  after record persistence. Native completed-import recovery is described below; manual/replacement crash recovery remains S09 work.
 - New completed imports store a client/ID/content-hash receipt. Cleanup rechecks
   exact client inventory, file count/progress/size, source and destination hashes,
   destination separation, and seed-goal evidence. Old imports do not inherit
@@ -57,10 +57,10 @@ progress record, not a claim that the full stabilization plan is complete.
 - Full Go suite passed with `-race` and disposable Postgres on Go 1.26.8.
 - Go vet and deployment render checks passed. Frontend unit tests and production
   build passed; the expanding browser suite is rerun after UI changes.
-- Final local browser run: 13 passed, one desktop-only inapplicable mobile test
+- Latest local browser run: 15 passed, one desktop-only inapplicable mobile test
   skipped, at 1440 and 390 pixels. Covered fresh persisted lists, eight core
   routes, no console/page errors, no page overflow, outage recovery, dialog focus
-  containment/restoration, environment-owned auth controls, direct-book outage recovery, and mobile navigation accessibility.
+  containment/restoration, environment-owned auth controls, direct-book outage recovery, mobile navigation accessibility, and import-recovery failures/plans at both sizes.
 - `govulncheck` on Go 1.26.8 reported zero reachable vulnerabilities, zero affected
   imported packages. The remaining module-only advisory, GO-2026-5932, concerns
   unmaintained `golang.org/x/crypto/openpgp`, which this project does not import.
@@ -86,8 +86,10 @@ progress record, not a claim that the full stabilization plan is complete.
 | S04 | Implemented safety guard | Packaged safety regressions passed; controlled live qualification and multipart review UI remain |
 | S05 | Implemented | Read-only live audiobook search against the candidate |
 | S06 | Partial | Latest multi-platform checks linked on PR #3; upgrade/rollback and candidate deployment remain |
-| S07 | Partial | Client isolation implemented; relational file/import-operation migrations not yet written |
-| S08–S11 | Not complete | Multipart sets, durable recovery/leases, resumable scans and legacy repair |
+| S07 | Implemented with fixture qualification | Relational links, manifest/operation records and reconciliation report; live database-copy migration still pending |
+| S08 | Not complete | Multipart grouping, client-inventory selection and manual mapping |
+| S09 | Partial | Durable native single-file plans, leases, atomic record commit, retry and cleanup status; manual/Calibre/replacement recovery and temporary-stage reclamation remain |
+| S10–S11 | Not complete | Acquisition intents, resumable scans and missing-file reconciliation |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
@@ -131,3 +133,33 @@ The packaged auth matrix passes forms enforcement, login cookie persistence,
 restart with persisted configuration/session, Basic credentials, and restoring
 explicit none. This uses fixture credentials only. All real-provider and live
 homelab gates remain separate from this local/CI evidence.
+
+
+## Continuation: relational links and durable import recovery
+
+- Append-only migrations 0030–0031 preserve unambiguous legacy relationships,
+  report unresolved links, and add import/file manifests. Re-running migration is
+  idempotent and does not grant old rows cleanup eligibility.
+- Native completed imports persist immutable paths, size/hash evidence, source
+  identity, and mode before copying. Expiring renewable leases fence stale workers;
+  retries reuse verified publications rather than create a renamed duplicate.
+- One transaction commits all file records/links, wanted status, download
+  projection, and operation state. A database trigger blocks premature visibility
+  from scans and compatibility writes. Scans preserve historical path aliases.
+- Configured same-basename sidecars in a dedicated payload directory are required
+  manifest members. Removing one blocks retry. Multipart book sets remain blocked.
+- Recovery API and Imports controls show saved plans, attempts, failure reason,
+  cleanup status and unresolved legacy links. Retry accepts only an operation ID.
+- Cleanup verifies relational ownership and every manifested file again, and stores
+  client deletion failures separately from the committed import. Manual and remote
+  Calibre imports remain outside the native durable engine; automatic replacement
+  requires review and keeps the existing file intact.
+- Fault tests inject a failure in the final download write after publication and
+  preceding file/book writes. The transaction rolls back, a scan cannot expose the
+  copied file, and a new service resumes the original destination. Other tests cover
+  expired/stale leases, changed bytes, missing sidecars, migration ambiguity,
+  missing ownership, and cleanup client failure.
+
+Continuation verification: the full Go race suite passed with disposable Postgres,
+Go vet passed, six frontend tests passed, and the production web build passed.
+Desktop/mobile browser checks: 15 passed, one inapplicable desktop test skipped.

@@ -80,17 +80,19 @@ type ImportRequest struct {
 }
 
 type ImportOutcome struct {
-	File            FileRecord `json:"file"`
-	DestinationPath string     `json:"destinationPath"`
-	Moved           bool       `json:"moved"`
-	Imported        bool       `json:"imported"`
-	Skipped         bool       `json:"skipped,omitempty"`
-	Replaced        bool       `json:"replaced,omitempty"`
-	Hardlinked      bool       `json:"hardlinked,omitempty"`
-	ImportMode      string     `json:"importMode,omitempty"`
-	ConflictAction  string     `json:"conflictAction,omitempty"`
-	ConflictPath    string     `json:"conflictPath,omitempty"`
-	Message         string     `json:"message,omitempty"`
+	OperationID     string       `json:"operationId,omitempty"`
+	Files           []FileRecord `json:"files,omitempty"`
+	File            FileRecord   `json:"file"`
+	DestinationPath string       `json:"destinationPath"`
+	Moved           bool         `json:"moved"`
+	Imported        bool         `json:"imported"`
+	Skipped         bool         `json:"skipped,omitempty"`
+	Replaced        bool         `json:"replaced,omitempty"`
+	Hardlinked      bool         `json:"hardlinked,omitempty"`
+	ImportMode      string       `json:"importMode,omitempty"`
+	ConflictAction  string       `json:"conflictAction,omitempty"`
+	ConflictPath    string       `json:"conflictPath,omitempty"`
+	Message         string       `json:"message,omitempty"`
 }
 
 type CompletedImportRequest struct {

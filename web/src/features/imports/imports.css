@@ -94,3 +94,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.imports-recovery-list { display: grid; gap: var(--space-2, 8px); }
+.imports-recovery-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 0; }
+.imports-recovery-item summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: pointer; overflow-wrap: anywhere; }
+.imports-recovery-item ul { padding-left: 20px; }
+.imports-recovery-item li { margin: 10px 0; }
+.imports-recovery-path { overflow-wrap: anywhere; font-size: 0.85rem; }
+.imports-recovery-item summary::before { content: "▸"; }
+.imports-recovery-item[open] > summary::before { content: "▾"; }
+.imports-recovery-item summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }

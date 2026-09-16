@@ -329,7 +329,7 @@ func (s *Store) ListWantedWithFiles(ctx context.Context) ([]WantedItem, error) {
 			and wi.status not in ('removed', 'ignored')
 			and exists (
 				select 1 from files f
-				where f.metadata->>'wantedId' = wi.id::text
+				where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
 			)
 		order by wi.created_at desc
 		limit 200
@@ -364,7 +364,7 @@ func (s *Store) WantedIDsWithFiles(ctx context.Context) (map[string]bool, error)
 		from wanted_items wi
 		where exists (
 			select 1 from files f
-			where f.metadata->>'wantedId' = wi.id::text
+			where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
 		)
 	`)
 	if err != nil {
@@ -397,7 +397,7 @@ func (s *Store) WantedSourceKeysWithFiles(ctx context.Context) (map[string]bool,
 			and wi.source_key <> ''
 			and exists (
 				select 1 from files f
-				where f.metadata->>'wantedId' = wi.id::text
+				where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
 			)
 	`)
 	if err != nil {
@@ -1982,7 +1982,7 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			and wi.monitored = true
 			and not exists (
 				select 1 from files f
-				where f.metadata->>'wantedId' = wi.id::text
+				where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
 			)
 			and ($1::boolean or wi.last_search_at is null or wi.last_search_at <= $2)
 		order by coalesce(wi.last_search_at, 'epoch'::timestamptz), wi.created_at

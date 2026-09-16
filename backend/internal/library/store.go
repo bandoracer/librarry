@@ -38,6 +38,14 @@ func (s *Store) upsertFile(ctx context.Context, file FileRecord, observation boo
 	if !s.Configured() {
 		return FileRecord{}, errors.New("library store is unavailable")
 	}
+	return persistFile(ctx, s.db, file, observation)
+}
+
+type fileWriter interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func persistFile(ctx context.Context, db fileWriter, file FileRecord, observation bool) (FileRecord, error) {
 	if strings.TrimSpace(file.Path) == "" {
 		return FileRecord{}, errors.New("file path is required")
 	}
@@ -54,7 +62,7 @@ func (s *Store) upsertFile(ctx context.Context, file FileRecord, observation boo
 	if err != nil {
 		return FileRecord{}, err
 	}
-	row := s.db.QueryRowContext(ctx, `
+	row := db.QueryRowContext(ctx, `
 		insert into files (
 			edition_id, media_format, path, source_path, title, author_name,
 			extension, size_bytes, checksum, import_status, metadata, modified_at
@@ -96,7 +104,7 @@ func (s *Store) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecor
 	where := []string{}
 	if strings.TrimSpace(query.WantedID) != "" {
 		args = append(args, strings.TrimSpace(query.WantedID))
-		where = append(where, "metadata->>'wantedId' = $"+strconv.Itoa(len(args)))
+		where = append(where, "exists (select 1 from file_wanted_links fl where fl.file_id=files.id and fl.wanted_item_id::text = $"+strconv.Itoa(len(args))+")")
 	}
 	if strings.TrimSpace(query.Format) != "" && strings.TrimSpace(query.Format) != "any" {
 		args = append(args, strings.TrimSpace(query.Format))

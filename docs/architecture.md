@@ -683,3 +683,44 @@ associations before the result limit. Book routes use these queries and preserve
 the distinction between missing data and a retryable service failure. General
 collection pagination, author details and full presence reconciliation remain
 separate stabilization work.
+
+## Durable completed-import operations (unreleased)
+
+Migrations 0030–0031 add `file_wanted_links`, `file_download_links`,
+`import_operations`, `import_operation_files`, and reconciliation reports.
+Legacy JSON identifiers backfill only unambiguous relationships. Invalid or
+ambiguous identifiers remain in `import_reconciliation_issues`; migration does
+not manufacture verified receipts. Existing JSON and `downloads.imported_file_id`
+remain compatibility projections. Book presence and book-scoped file queries
+read the relational links.
+
+Native completed imports persist source/destination paths, sizes, SHA-256 hashes,
+mode, and book/download identity before file transfer. A per-download operation
+and expiring, renewable lease fence concurrent workers. Retries use the original
+plan and verify already-published bytes. Publication is exclusive and never
+truncates a concurrent file. Files, relationships, wanted status, download status,
+and committed operation state become visible in one Postgres transaction. A
+trigger prevents scanners and compatibility writers from registering unfinished
+manifest destinations. This is recoverable coordination across the filesystem
+and database, not a shared filesystem/database transaction.
+
+`GET /api/v1/library/import-recovery` returns up to 100 recent operations
+(unfinished first), up to 100 unresolved legacy link issues, and total unfinished
+and unresolved counts. `POST /api/v1/library/import-operations/{id}/retry` resumes
+only that saved plan; it accepts no path or identity overrides. These routes use
+the same authentication boundary as other library APIs. The Imports page exposes
+plans, failures, attempts, cleanup state, and retry.
+
+Cleanup separately records blocked/eligible/cleaned state. It rechecks current
+client inventory, all saved file hashes (including manifested sidecars), relational
+links, and source/destination separation. Remote deletion failure leaves the
+committed import intact and records its error. The singular imported-file field
+continues serving older clients.
+
+Current limits: the automatic selector still rejects multiple book files;
+chapter grouping and multi-book mapping remain S08 work. Same-basename configured
+sidecars are manifested only inside a dedicated payload directory. Completed
+imports cannot replace an existing destination or move seeding sources; use keep
+both. Manual/review imports and remote Calibre handoff remain outside this durable
+engine. Abandoned temporary staging files after process death, resumable scans,
+and crash-safe replacement remain open S09/S11 work.

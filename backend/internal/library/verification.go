@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -30,6 +31,20 @@ func contentHash(path string) (string, error) {
 // inventory, and current byte-for-byte verification outside the deletion tree.
 // Legacy imported flags cannot authorize automatic removal.
 func (s *Service) VerifyCompletedDownload(ctx context.Context, download acquisition.DownloadStatus, inventory []acquisition.DownloadFile) error {
+	if !s.Available() {
+		return errors.New("no durable import receipt")
+	}
+	op, err := s.store.operationForDownload(ctx, download.Client, download.ID)
+	if err == nil {
+		return s.verifyOperationCleanup(ctx, op, download, inventory)
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	return s.verifySingleFileReceipt(ctx, download, inventory)
+}
+
+func (s *Service) verifySingleFileReceipt(ctx context.Context, download acquisition.DownloadStatus, inventory []acquisition.DownloadFile) error {
 	if !s.Available() || download.ImportedFileID == "" {
 		return errors.New("no durable import receipt")
 	}

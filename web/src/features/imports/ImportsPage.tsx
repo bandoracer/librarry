@@ -60,6 +60,7 @@ import {
   stringMetadataValue
 } from "./lib";
 import "./imports.css";
+import ImportRecovery from "./ImportRecovery";
 
 type ScanFormat = "ebook" | "audiobook" | "any";
 type ImportMode = "copy" | "move" | "hardlink" | "hardlinkOrCopy";
@@ -72,7 +73,7 @@ const pageSubtitle = navItems.find((item) => item.id === "imports")?.subtitle;
 
 const fileKeys = [keys.libraryFiles("any"), keys.libraryFiles("ebook"), keys.libraryFiles("audiobook")] as const;
 const reviewKeys = [keys.importReviews("pending"), keys.importReviews("resolved"), keys.importReviews("all")] as const;
-const downstreamKeys = [keys.downloads(), keys.history(), keys.wanted] as const;
+const downstreamKeys = [keys.importRecovery, keys.downloads(), keys.history(), keys.wanted] as const;
 
 const TRACKED_FILE_ROW_CAP = 100;
 
@@ -391,9 +392,11 @@ export default function ImportsPage() {
         }
       />
 
+      <ImportRecovery />
+
       <Card
         title="Scan & import"
-        subtitle="Scan a custom root or import a single file. Mode and conflict settings also apply to completed-download and review imports."
+        subtitle="Scan a custom root or import a single file. Completed downloads retain their source; replacing an existing book requires review. Saved recovery plans retain their original settings."
       >
         <div className="imports-scan-grid">
           <div className="imports-block">

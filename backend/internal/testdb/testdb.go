@@ -17,7 +17,10 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/database"
 )
 
-func Open(t *testing.T) *sql.DB {
+func Open(t *testing.T) *sql.DB { return OpenThrough(t, "") }
+
+// OpenThrough builds an old-schema fixture for append-only upgrade tests.
+func OpenThrough(t *testing.T, lastMigration string) *sql.DB {
 	t.Helper()
 	raw := os.Getenv("LIBRARRY_TEST_DATABASE_URL")
 	if raw == "" {
@@ -52,7 +55,27 @@ func Open(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { db.Close() })
 	_, file, _, _ := runtime.Caller(0)
-	if err := database.ApplyMigrations(context.Background(), db, filepath.Join(filepath.Dir(file), "../../migrations")); err != nil {
+	migrationsDir := filepath.Join(filepath.Dir(file), "../../migrations")
+	if lastMigration != "" {
+		staged := t.TempDir()
+		entries, err := os.ReadDir(migrationsDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() && entry.Name() <= lastMigration {
+				raw, err := os.ReadFile(filepath.Join(migrationsDir, entry.Name()))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(staged, entry.Name()), raw, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		migrationsDir = staged
+	}
+	if err := database.ApplyMigrations(context.Background(), db, migrationsDir); err != nil {
 		t.Fatal(err)
 	}
 	return db

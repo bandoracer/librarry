@@ -44,6 +44,7 @@ export const queryClient = new QueryClient({
 
 /** Query keys shared across features; invalidate through these, not string literals. */
 export const keys = {
+ importRecovery: ["import-recovery"] as const,
   providerHealth: ["provider-health"] as const,
   integrationHealth: ["integration-health"] as const,
   integrationSettings: ["integration-settings"] as const,

@@ -3015,3 +3015,35 @@ export async function deleteMetadataProfile(id: string): Promise<void> {
     throw new Error(await apiError(response, "Metadata profile delete failed"));
   }
 }
+
+export type ImportOperation = {
+  id: string;
+  client: string;
+  downloadId: string;
+  wantedId: string;
+  state: string;
+  cleanupState: string;
+  lastError?: string;
+  cleanupError?: string;
+  attempts: number;
+  metadata: { title?: string; author?: string };
+  files: { id: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
+};
+export type ImportRecoveryReport = {
+  operations: ImportOperation[];
+  issues: { fileId: string; path: string; kind: string; reason: string }[];
+  unfinished: number;
+  unresolved: number;
+  limit: number;
+};
+export async function fetchImportRecovery(): Promise<ImportRecoveryReport> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-recovery`);
+  if (!response.ok) throw new Error(await apiError(response, "Import recovery could not be loaded"));
+  const payload = await response.json() as ImportRecoveryReport;
+  return { ...payload, operations: arrayPayload(payload.operations), issues: arrayPayload(payload.issues) };
+}
+export async function retryImportOperation(id: string): Promise<LibraryImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-operations/${encodeURIComponent(id)}/retry`, { method: "POST" });
+  if (!response.ok) throw new Error(await apiError(response, "Import retry failed"));
+  return response.json();
+}

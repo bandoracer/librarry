@@ -793,3 +793,21 @@ container. The Docker Compose examples mount persistent app config at `/config`,
 so the default `/config/backups` path survives container recreation. The
 database password travels to `pg_dump` via the child process environment and is
 never logged.
+
+### Inspecting interrupted imports
+
+On the stabilization branch, Library Import → Import recovery shows saved native
+completed-download plans, their source/destination files, attempts, failure reason,
+and cleanup state. Retry import resumes that exact plan. Changing naming or mode
+settings does not rewrite an in-flight plan. Changed bytes, missing sidecars, or a
+removed book stop the retry and retain the original download.
+
+The recovery API is `GET /api/v1/library/import-recovery`; retry is
+`POST /api/v1/library/import-operations/{id}/retry`. Legacy link issues are visible
+but require an explicit metadata correction; they never gain verification merely
+from migration. Lists are capped at 100 with total outstanding counts.
+
+Completed imports support copy, hardlink and hardlinkOrCopy. For destination
+conflicts use keep both; automatic replacement requires further recovery work.
+Multipart chapter sets remain rejected. Manual imports and Calibre handoff do not
+yet share the native completed-import recovery guarantee.

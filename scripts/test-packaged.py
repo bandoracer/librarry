@@ -121,13 +121,34 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         for external in ("missing", "chapters"):
             result = request("/api/v1/library/import-completed", {"downloadIds": [external], "importMode": "copy"})
             assert result["imported"] == 0 and result["errored"] == 1, result
+        sql("alter table downloads add constraint inject_commit_failure check(import_status <> 'imported')")
+        failed = request("/api/v1/library/import-completed", {"downloadIds": ["single"], "importMode": "copy"})
+        assert failed["errored"] == 1 and failed["imported"] == 0, failed
+        pending = request("/api/v1/library/import-recovery")
+        assert pending["unfinished"] == 1 and pending["operations"][0]["state"] == "failed", pending
+        assert request("/api/v1/library/files")["files"] == []
+        assert request("/api/v1/library/scan", {"format": "ebook"})["upserted"] == 0
+        planned_destination = pending["operations"][0]["files"][0]["destinationPath"]
+        assert (media / Path(planned_destination).relative_to("/fixture")).exists()
+        sql("alter table downloads drop constraint inject_commit_failure")
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
         result = request("/api/v1/library/import-completed", {"downloadIds": ["single"], "importMode": "copy"})
         assert result["imported"] == 1 and result["errored"] == 0, result
         record = result["results"][0]["import"]["file"]
+        operation_id = result["results"][0]["import"]["operationId"]
+        recovery = request("/api/v1/library/import-recovery")
+        assert recovery["unfinished"] == 0 and len(recovery["operations"]) == 1, recovery
+        assert recovery["operations"][0]["id"] == operation_id
+        assert recovery["operations"][0]["state"] == "committed"
+        assert recovery["operations"][0]["cleanupState"] == "blocked"
+        assert request(f"/api/v1/library/import-operations/{operation_id}/retry", {}, method="POST")["skipped"] is True
+
         destination = media / Path(record["path"]).relative_to("/fixture")
         digest = hashlib.sha256(source.read_bytes()).hexdigest()
         assert hashlib.sha256(destination.read_bytes()).hexdigest() == digest
         assert record["metadata"]["verifiedDownload"]["sha256"] == digest
+        assert record["path"] == planned_destination
         for _ in range(2):
             scan = request("/api/v1/library/scan", {"format": "ebook"})
             assert scan["upserted"] == 1, scan
@@ -138,12 +159,14 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert source.exists() and all((chapters / name).exists() for name in ("01.mp3", "02.mp3"))
         repeat = request("/api/v1/library/import-completed", {"downloadIds": ["single"], "importMode": "copy"})
         assert repeat["imported"] == 0 and repeat["skipped"] == 1, repeat
-        print("Packaged imports: exact file verified, shared sibling/multipart rejected, source retained, rescans preserve links")
+        print("Packaged imports: database failure rolled back, unfinished publication hidden, process restart resumed exact plan, sibling/multipart rejected, source retained, rescans preserve links")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
+                      "select count(*) from file_wanted_links", "select count(*) from file_download_links",
+                      "select id,state,cleanup_state from import_operations", "select operation_id,sha256,file_id from import_operation_files",
                       "select metadata->'verifiedDownload' from files"):
             assert sql(query) == sql(query, "librarry_restore"), query
         print("Isolated database restore verified:", len(dump), "bytes; file/download/wanted counts and receipt preserved")

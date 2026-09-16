@@ -641,6 +641,9 @@ func runCompletedDownloadImportOnce(ctx context.Context, service completedDownlo
 type completedDownloadVerifier interface {
 	VerifyCompletedDownload(context.Context, acquisition.DownloadStatus, []acquisition.DownloadFile) error
 }
+type completedCleanupRecorder interface {
+	RecordCompletedCleanup(context.Context, acquisition.DownloadStatus, error) error
+}
 type completedDownloadInspector interface {
 	DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error)
 }
@@ -682,6 +685,15 @@ func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownlo
 			IDs:         []string{download.ID},
 			DeleteFiles: true,
 		})
+		if recorder, ok := service.(completedCleanupRecorder); ok {
+			cleanupErr := err
+			if cleanupErr == nil && !result.Applied {
+				cleanupErr = fmt.Errorf("download client did not apply cleanup")
+			}
+			if persistErr := recorder.RecordCompletedCleanup(runCtx, download, cleanupErr); persistErr != nil && firstErr == nil {
+				firstErr = fmt.Errorf("persist remote cleanup outcome: %w", persistErr)
+			}
+		}
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err

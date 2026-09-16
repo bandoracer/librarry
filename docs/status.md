@@ -11,7 +11,8 @@ yet ready to replace a production Readarr instance unattended.
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation
 branch adds exact single-file payload selection, protected scan observations,
-verified cleanup, scoped download mutations, authentication failure handling,
+verified cleanup, relational file/book/download links, durable single-file import
+plans and recovery controls, scoped download mutations, authentication failure handling,
 configuration snapshots, repeated Prowlarr categories, CI tests, and UI recovery.
 See the [implementation ledger](reviews/2026-09-15-implementation.md) for evidence.
 
@@ -27,6 +28,15 @@ Automatic removal requires a new verified import receipt, complete client file
 inventory, current matching source/destination hashes, a destination outside the
 download root, and positive seed-goal evidence. Old `imported` rows alone are not
 eligible. Completed import rejects move mode; use hardlinkOrCopy, hardlink, or copy.
+
+Native completed imports now save immutable manifests and use expiring worker
+leases. A failed database commit can resume without duplicating a published file;
+uncommitted destinations remain hidden from scans. Configured same-basename
+sidecars inside a dedicated payload directory join the manifest. Imports displays
+operation/reconciliation reports and retry controls. Completed replacement of an
+existing destination is retained for review; use keep both. Manual/review imports,
+Calibre handoff, multipart grouping, temporary-stage reclamation, and live upgrade
+qualification remain outside these verified recovery guarantees.
 
 Hardcover tokens currently establish configured state, not proven authentication.
 Book search handles Typesense result documents and GraphQL failures. Rich
