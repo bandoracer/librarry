@@ -166,7 +166,7 @@ func TestWorkerPanicReleasesOwnershipAndHistoryIsBounded(t *testing.T) {
 		t.Fatal(e)
 	}
 	var count int
-	if e = db.QueryRow(`select count(*) from worker_task_runs`).Scan(&count); e != nil || count != 100 {
+	if e = db.QueryRow(`select count(*) from worker_task_runs`).Scan(&count); e != nil || count != 101 {
 		t.Fatalf("%d %v", count, e)
 	}
 }

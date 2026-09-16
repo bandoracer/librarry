@@ -22,8 +22,8 @@ def docker(*args):
 def sql(query):
     return docker("exec", PG, "psql", "-U", "postgres", "-d", "fixture", "-At", "-v", "ON_ERROR_STOP=1", "-c", query)
 
-def request(base, path, post=False):
-    with urllib.request.urlopen(urllib.request.Request(base + path, data=b"{}" if post else None, headers={"Content-Type": "application/json"}), timeout=10) as response:
+def request(base, path, post=False, body=None):
+    with urllib.request.urlopen(urllib.request.Request(base + path, data=json.dumps(body or {}).encode() if post else None, headers={"Content-Type": "application/json"}), timeout=10) as response:
         return json.load(response)
 
 def wait(check):
@@ -82,11 +82,30 @@ try:
     wait(lambda: request(second, route + "/runs")["runs"][0]["state"] == "completed")
     history = request(second, route + "/runs")["runs"]
     assert next(r for r in history if r["id"] == first_run)["state"] == "interrupted", history
+    interrupted = next(r for r in history if r["id"] == first_run)
+    assert "finishedAt" not in interrupted and "durationMs" not in interrupted, interrupted
     completed = history[0]["id"]
+    status = next(t for t in request(second, "/api/v1/system/tasks")["tasks"] if t["id"] == task)
+    assert status["lastSuccessRunId"] == completed and status["lastSuccessAt"] and status["unreviewedFailures"] == 1, status
+    assert history[0]["durationMs"] >= 0, history
+    failures = request(second, route + "/runs?view=unreviewed&limit=1&offset=0")
+    assert failures["total"] == 1 and failures["runs"][0]["id"] == first_run, failures
+    assert request(second, route + "/runs/" + first_run + "/review", True, {"reviewed": True, "expectedState": "interrupted"})["ok"]
+    assert request(second, route + "/runs?view=unreviewed")["total"] == 0
+    health = "/api/v1/system/tasks/health-check"
+    wait(lambda: not next(t for t in request(second, "/api/v1/system/tasks")["tasks"] if t["id"] == "health-check")["running"])
+    assert request(second, health + "/run", True)["started"]
+    wait(lambda: request(second, health + "/runs")["runs"][0]["state"] == "degraded")
+    unhealthy = request(second, health + "/runs")["runs"][0]
+    assert unhealthy["details"]["errors"] > 0 and unhealthy["details"]["counts"]["checked"] > 0, unhealthy
     docker("start", FIRST)
     first = "http://127.0.0.1:" + docker("port", FIRST, "8080/tcp").rsplit(":", 1)[1]
     wait(lambda: request(first, "/healthz"))
     assert any(r["id"] == completed and r["state"] == "completed" for r in request(first, route + "/runs")["runs"])
+    status = next(t for t in request(first, "/api/v1/system/tasks")["tasks"] if t["id"] == task)
+    assert status["lastSuccessRunId"] == completed and status["unreviewedFailures"] == 0, status
+    assert next(r for r in request(first, route + "/runs")["runs"] if r["id"] == first_run)["reviewedAt"]
+    print("Diagnostic counts, degraded health, review, last success and restart readback verified")
     print("Two packaged APIs: shared running status, peer 409, SIGKILL interruption, peer recovery and persistent history verified")
 except Exception:
     for name in (FIRST, SECOND):

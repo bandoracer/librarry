@@ -225,8 +225,9 @@ func main() {
 	}
 	if notifier.Available() {
 		registerTask(scheduler.Task{ID: "notification-delivery", Name: "Notification Delivery", Interval: 15 * time.Second, StartupDelay: 3 * time.Second, Run: func(runCtx context.Context, trigger string) (string, error) {
-			count, err := notifier.RunPending(runCtx)
-			return fmt.Sprintf("Processed %d notification deliveries", count), err
+			report, err := notifier.RunPendingDetailed(runCtx)
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"processed": report.Processed, "accepted": report.Accepted, "retry": report.Retry, "failed": report.Failed, "uncertain": report.Uncertain, "cancelled": report.Cancelled}, Errors: report.Failed + report.Uncertain, NextAction: "Review notification delivery in Settings Connect."})
+			return fmt.Sprintf("Processed %d notification deliveries", report.Processed), err
 		}})
 	}
 	if libraryService.Available() {
@@ -338,6 +339,7 @@ func feedSyncTask(logger *slog.Logger, service *wanted.Service, cfg config.Confi
 				// arr parity: automated grabs start immediately; blocklist backstops failures.
 				Paused: false,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"releasesSeen": outcome.ReleasesSeen, "matched": outcome.MatchedCount, "grabbed": outcome.GrabbedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review feed history and provider health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("feed sync failed", "trigger", trigger, "error", err)
 				return "", err
@@ -388,6 +390,7 @@ func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, cf
 				RemoveFailed:      cfg.FailedDownloadRemove,
 				DeleteFailedFiles: cfg.FailedDownloadDeleteFiles,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.DownloadsChecked, "failed": outcome.FailedCount, "grabbed": outcome.GrabbedCount, "removed": outcome.RemovedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review Activity recovery and client health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("failed download recovery failed", "trigger", trigger, "error", err)
 				return "", err
@@ -438,6 +441,7 @@ func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, cfg config.
 				AutoGrab:                 cfg.UpgradeSearchAutoGrab,
 				Paused:                   false,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.WantedChecked, "upgrades": outcome.UpgradeCount, "grabbed": outcome.GrabbedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review upgrade history and provider health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("upgrade search failed", "trigger", trigger, "error", err)
 				return "", err
@@ -484,6 +488,7 @@ func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, cfg config.
 				AutoGrab:                 cfg.MonitorAutoGrab,
 				MinSearchIntervalMinutes: searchIntervalMinutes,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.WantedChecked, "approved": outcome.ApprovedCount, "grabbed": outcome.GrabbedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review wanted history and provider health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("wanted monitor run failed", "trigger", trigger, "error", err)
 				return "", err
@@ -529,6 +534,7 @@ func authorMonitorTask(logger *slog.Logger, service *wanted.Service, cfg config.
 				SearchLimit:            20,
 				MinSyncIntervalMinutes: syncIntervalMinutes,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.AuthorsChecked, "found": outcome.ItemsFound, "created": outcome.WantedCreated, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review author monitoring history.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("author monitor run failed", "trigger", trigger, "error", err)
 				return "", err
@@ -588,30 +594,41 @@ func completedDownloadImportTask(logger *slog.Logger, service completedDownloadI
 		StartupDelay: 45 * time.Second,
 		Run: func(ctx context.Context, trigger string) (string, error) {
 			outcome, err := runCompletedDownloadImportOnce(ctx, service, downloads, cfg)
+			removed, recycled, cleanupErrors := 0, 0, 0
+			defer func() {
+				operationIDs := []string{}
+				for _, item := range outcome.Results {
+					if item.Import != nil {
+						operationIDs = append(operationIDs, item.Import.OperationID, item.Import.CalibreHandoffID)
+					}
+				}
+				scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.Checked, "imported": outcome.Imported, "reviewQueued": outcome.ReviewQueued, "removed": removed, "recycled": recycled, "errors": outcome.Errored + cleanupErrors}, Errors: outcome.Errored + cleanupErrors, OperationIDs: operationIDs, NextAction: "Review Imports recovery and download-client status."})
+			}()
 			if err != nil {
 				logger.Warn("completed download import failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			removed := 0
 			if cfg.CompletedRemoveEnabled {
 				removed, err = runCompletedDownloadRemovalOnce(ctx, downloads, service)
 				if err != nil {
+					cleanupErrors++
 					logger.Warn("completed download removal failed", "trigger", trigger, "error", err)
 				}
 			}
 			// Recycle-bin retention cleanup rides the same tick (no-op when
 			// LIBRARRY_RECYCLE_BIN is unset).
-			recycled := 0
 			if cleaner, ok := service.(recycleBinCleaner); ok && strings.TrimSpace(cfg.RecycleBin) != "" {
 				recycled, err = cleaner.CleanupRecycleBin(time.Now().UTC())
 				if err != nil {
+					cleanupErrors++
 					logger.Warn("recycle bin cleanup failed", "trigger", trigger, "error", err)
 				}
 			}
+
 			// Unresolved reviews re-count every tick (dedup happens in the store),
 			// so only imports, removals, and errors get Info-level noise.
 			level := slog.LevelDebug
-			if outcome.Imported > 0 || outcome.Errored > 0 || removed > 0 || recycled > 0 {
+			if outcome.Imported > 0 || outcome.Errored+cleanupErrors > 0 || removed > 0 || recycled > 0 {
 				level = slog.LevelInfo
 			}
 			logger.Log(
@@ -626,11 +643,11 @@ func completedDownloadImportTask(logger *slog.Logger, service completedDownloadI
 				"skipped", outcome.Skipped,
 				"removed", removed,
 				"recycle_bin_purged", recycled,
-				"errors", outcome.Errored,
+				"errors", outcome.Errored+cleanupErrors,
 			)
 			return fmt.Sprintf(
 				"%d checked, %d imported, %d review queued, %d removed, %d errors",
-				outcome.Checked, outcome.Imported, outcome.ReviewQueued, removed, outcome.Errored,
+				outcome.Checked, outcome.Imported, outcome.ReviewQueued, removed, outcome.Errored+cleanupErrors,
 			), nil
 		},
 	}
@@ -767,6 +784,7 @@ func calibreConversionRefreshTask(logger *slog.Logger, service calibreConversion
 		StartupDelay: 75 * time.Second,
 		Run: func(ctx context.Context, trigger string) (string, error) {
 			outcome, err := runCalibreConversionRefreshOnce(ctx, logger, service, cfg, trigger)
+			scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.Checked, "refreshed": outcome.Refreshed, "skipped": outcome.Skipped, "errors": outcome.Errored}, Errors: outcome.Errored, NextAction: "Review Calibre handoffs in Imports."})
 			if err != nil {
 				logger.Warn("calibre conversion refresh failed", "trigger", trigger, "error", err)
 				return "", err
@@ -829,6 +847,7 @@ func importListSyncTask(logger *slog.Logger, service *importlists.Service, cfg c
 			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 			defer cancel()
 			outcome, err := service.Sync(runCtx, nil, trigger)
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.ListsChecked, "found": outcome.EntriesFound, "created": outcome.WantedCreated, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review import-list history and provider health."})
 			if err != nil {
 				logger.Warn("import list sync failed", "trigger", trigger, "error", err)
 				return "", err
@@ -882,6 +901,11 @@ func backupTask(logger *slog.Logger, service *backups.Service, cfg config.Config
 			if pruneErr != nil {
 				logger.Warn("backup retention prune failed", "trigger", trigger, "error", pruneErr)
 			}
+			errors := 0
+			if pruneErr != nil {
+				errors = 1
+			}
+			scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"created": 1, "bytes": int(backup.SizeBytes), "pruned": pruned, "errors": errors}, Errors: errors, NextAction: "Review backup storage and retention permissions."})
 			return fmt.Sprintf("%s created (%d bytes), %d pruned", backup.Name, backup.SizeBytes, pruned), nil
 		},
 	}
@@ -907,6 +931,7 @@ func healthCheckTask(evaluator *api.HealthEvaluator) scheduler.Task {
 					errored++
 				}
 			}
+			scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"checked": len(checks), "warnings": warnings, "errors": errored}, Errors: errored, NextAction: "Review System health checks."})
 			return fmt.Sprintf("%d checks, %d warnings, %d errors", len(checks), warnings, errored), nil
 		},
 	}

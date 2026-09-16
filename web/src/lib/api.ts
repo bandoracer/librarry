@@ -2451,6 +2451,7 @@ export async function renameLibraryFiles(request: LibraryRenameRequest): Promise
 
 /** One scheduler-registered worker: interval cadence plus last/next run facts. */
 export type SystemTask = {
+  lastSuccessAt?: string; lastSuccessRunId?: string; unreviewedFailures?: number; durationMs?: number; details?: TaskRunDetails;
   runState?: string;
   id: string;
   name: string;
@@ -3349,12 +3350,23 @@ export async function resolveCalibreHandoff(request: { id: string; action: strin
   return response.json();
 }
 
-export type TaskRun = { id: string; taskId: string; trigger: string; state: string; startedAt: string; heartbeatAt: string; finishedAt?: string; outcome?: string; error?: string };
-export async function fetchTaskRuns(id: string): Promise<TaskRun[]> {
-  const response = await fetch(`${apiBase}/api/v1/system/tasks/${encodeURIComponent(id)}/runs`);
+export type TaskRunDetails = { counts?: Record<string, number>; operationIds?: string[]; errors?: number; nextAction?: string };
+export type TaskRun = { id: string; taskId: string; trigger: string; state: string; startedAt: string; heartbeatAt: string; finishedAt?: string; outcome?: string; error?: string; reviewedAt?: string; durationMs?: number; details?: TaskRunDetails };
+export type TaskRunPage = { runs: TaskRun[]; total: number; limit: number; offset: number };
+export async function fetchTaskRuns(id: string, view = "all", offset = 0): Promise<TaskRunPage> {
+  const query = view === "all" && offset === 0 ? "" : `?view=${encodeURIComponent(view)}&offset=${offset}&limit=100`;
+  const response = await fetch(`${apiBase}/api/v1/system/tasks/${encodeURIComponent(id)}/runs${query}`);
   if (!response.ok) throw new Error(await apiError(response, "Task history could not be loaded"));
-  const payload = await response.json() as { runs?: TaskRun[] | null };
-  return arrayPayload(payload.runs);
+  const payload = await response.json() as Partial<TaskRunPage>;
+  const runs = arrayPayload(payload.runs);
+  return { runs, total: payload.total ?? runs.length, limit: payload.limit ?? 100, offset: payload.offset ?? offset };
+}
+export async function reviewTaskRun(taskId: string, run: TaskRun, reviewed: boolean): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/system/tasks/${encodeURIComponent(taskId)}/runs/${encodeURIComponent(run.id)}/review`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewed, expectedState: run.state, expectedReviewedAt: run.reviewedAt ?? null })
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Task review failed"));
 }
 
 export type NotificationDelivery = {

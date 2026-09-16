@@ -386,6 +386,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/system/task", handler.compatSystemTasks)
 	mux.HandleFunc("GET /api/v1/system/task/{id}", handler.compatSystemTask)
 	mux.HandleFunc("GET /api/v1/system/tasks/{id}/runs", handler.systemTaskRuns)
+	mux.HandleFunc("POST /api/v1/system/tasks/{id}/runs/{runId}/review", handler.reviewSystemTaskRun)
 	mux.HandleFunc("GET /api/v1/system/tasks", handler.systemTasks)
 	mux.HandleFunc("POST /api/v1/system/tasks/{id}/run", handler.runSystemTask)
 	mux.HandleFunc("GET /api/v1/system/health", handler.systemHealth)

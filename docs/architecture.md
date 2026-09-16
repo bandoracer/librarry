@@ -1512,13 +1512,29 @@ This is shared scheduler ownership, not an exactly-once external delivery claim.
 Use a direct or session-pooled Postgres connection, not transaction pooling.
 
 Manual registry runs join application shutdown alongside scheduled runs. Panics
-are recorded as unverified failures without exposing panic payloads. The latest
-100 finished diagnostic runs per task are retained, along with active runs;
-import/acquisition recovery journals are not pruned by this maintenance.
+are recorded as unverified failures without exposing panic payloads. Migration
+0050 adds structured counts, bounded operation UUIDs, next action, review timestamp,
+and a separate last-success identity/time. Reports with errors become `degraded`
+even if the worker returns no top-level error. Last success advances only on a
+clean completion. Import cleanup, backup pruning and notification delivery outcomes
+contribute to the report. Historic completed states remain historical evidence,
+not reconstructed per-item qualification.
+
+Retention keeps 100 successes, protecting current/last-success identities even
+with skewed timestamps. Unreviewed failures are never routine deletion candidates.
+Up to 500 failures reviewed more than 90 days ago are pruned during each completion;
+the current run and domain recovery journals remain. Disabled task maintenance
+is deferred. Lock-based interruption requires the current owner identity as well
+as its PostgreSQL session lock; a recycled PID cannot make an old row active.
+An abandoned run has no invented completion timestamp/duration.
 `GET /api/v1/system/tasks` reads shared state and returns an unavailable response
 when that state cannot be read. `GET /api/v1/system/tasks/{id}/runs` exposes the
-latest 100 runs for a registered task. System Tasks offers run history, including
-interruption and failure details, through an accessible dialog. Direct business
+retained runs for a registered task with `view=all|unreviewed`, `limit` (1–100)
+and `offset`. Count and page use one materialized effective-state snapshot.
+`POST /api/v1/system/tasks/{id}/runs/{runId}/review` accepts `reviewed`,
+`expectedState` and `expectedReviewedAt`; only inactive failures can be reviewed,
+and stale state/review timestamps return 409. System Tasks offers paginated
+history and review in an accessible dialog. Direct business
 API/compatibility operations still use their domain-level coordination rather
 than becoming scheduler jobs.
 

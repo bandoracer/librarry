@@ -425,3 +425,34 @@ func TestNotificationRetryAfterDoesNotSendBeforeLongServerBackoff(t *testing.T) 
 		t.Fatal(delay)
 	}
 }
+
+func TestDetailedDeliveryRunReportsPersistedOutcomes(t *testing.T) {
+	for _, code := range []int{204, 400, 429, 500} {
+		t.Run(http.StatusText(code), func(t *testing.T) {
+			s, db, _ := outboxFixture(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(code) })
+			fixtureHistory(t, db, "book_imported")
+			report, err := s.RunPendingDetailed(context.Background())
+			if err != nil || report.Processed != 1 {
+				t.Fatal(report, err)
+			}
+			expected := DeliveryRun{Processed: 1}
+			switch code {
+			case 204:
+				expected.Accepted = 1
+			case 400:
+				expected.Failed = 1
+			case 429:
+				expected.Retry = 1
+			case 500:
+				expected.Uncertain = 1
+			}
+			if report != expected {
+				t.Fatalf("got %+v want %+v", report, expected)
+			}
+			report, err = s.RunPendingDetailed(context.Background())
+			if err != nil || report != (DeliveryRun{}) {
+				t.Fatal("recounted a prior outcome", report, err)
+			}
+		})
+	}
+}

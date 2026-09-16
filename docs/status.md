@@ -50,10 +50,21 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [Calibre client PR #34](https://github.com/bandoracer/librarry/pull/34),
 [Calibre recovery PR #35](https://github.com/bandoracer/librarry/pull/35),
 [worker coordination PR #36](https://github.com/bandoracer/librarry/pull/36),
-[native notification PR #37](https://github.com/bandoracer/librarry/pull/37), and the
-`codex/durable-compat-webhooks` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[native notification PR #37](https://github.com/bandoracer/librarry/pull/37),
+[compatibility notification PR #38](https://github.com/bandoracer/librarry/pull/38), and
+the `codex/worker-diagnostics-retention` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
+
+Worker history now preserves unreviewed failures beyond the 100-success retention
+window. Task history has pagination, reversible review, counts, available operation
+IDs and measured duration. Per-item errors, cleanup failures and backup-pruning
+failures produce a degraded run and do not advance the separate last-success
+record. Reviewed failures become eligible after 90 days, in bounded batches on
+the task's next completion. Unknown interrupted finish times stay unknown.
+Historical successes cannot recover missing older per-item error counts. This
+is local qualification; terminal outbox retention, support diagnostics and live
+readiness/freshness qualification remain open under S23.
 
 Automatic native import now accepts single books and identifiable audiobook
 chapter sets from complete client inventories. All required chapters and relevant
@@ -671,8 +682,9 @@ Postgres session ownership and a shared due time. Another API process cannot
 claim a currently owned job or repeat a not-yet-due scheduled pass. Run state
 survives restart. Lost sessions appear as interrupted; heartbeats cancel the old
 worker context on coordination failure. Expired heartbeat age alone never steals
-a live session lock. Manual jobs participate in shutdown, and the latest 100
-finished diagnostic runs per task remain available in System → Tasks → History.
+a live session lock. Manual jobs participate in shutdown. System → Tasks → History
+retains 100 successes plus unreviewed failures, with paginated review and a separate
+last-success record. Reviewed failures are eligible for cleanup after 90 days.
 
 Two disposable packaged API processes were qualified against the same database:
 the peer observed the active run, refused a concurrent trigger, detected SIGKILL,

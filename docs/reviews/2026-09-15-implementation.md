@@ -1927,3 +1927,68 @@ All receiver traffic stayed inside disposable fixtures. No third-party consumer,
 production library or homelab rollout was qualified or changed. Retention policy,
 last-success/support diagnostics, broader platform checks and the live soak remain
 open; S10/S23 are not marked complete.
+
+
+## Worker diagnostic truth and failure-preserving retention (2026-09-16 continuation)
+
+PR #38 is fully green in GitHub run 35117948943 across all five jobs. This
+continuation adds append-only migration 0050 and addresses two operational gaps:
+retention could erase unreviewed failures, and workers returning nil after per-item
+errors or cleanup failures appeared successful.
+
+Worker reports now retain bounded counts, up to 100 operation UUIDs, next action,
+and measured duration when completion is known. Per-item errors produce a
+`degraded` state. Monitoring, feed, upgrade, failed-download, import-list, completed
+import, Calibre refresh, backup, health and notification tasks supply their
+available outcomes. Completed-import removal/recycle errors and backup-pruning
+errors now contribute. Notification passes report accepted/retry/failed/uncertain/
+cancelled counts; old terminal deliveries are not counted again on later ticks.
+These are per-pass observations, not delivery guarantees or a replacement for
+individual operation journals.
+
+Each task stores last successful completion independently from its latest run.
+Degraded, failed and interrupted runs cannot advance it. Backfill uses historical
+completed states; missing old per-item diagnostics cannot be reconstructed. A
+stopped owner has no invented completion timestamp/duration. Owner identity joins
+the backend PID/lock check so a recycled PID cannot make a historic row active.
+
+Routine retention keeps 100 successful runs, protecting current/last-success
+identities even with clock-skewed timestamps. Unreviewed failures survive. Review
+is reversible and requires current state/review timestamp; active or stale reviews
+are rejected. At each task completion, up to 500 failures reviewed over 90 days
+ago can expire, excluding the current run. Disabled tasks do not perform cleanup.
+Domain import/acquisition journals are untouched.
+
+The API exposes exact count/offset paging and an unreviewed filter using one
+materialized effective-state snapshot. System Tasks displays last success and
+unreviewed counts; the history dialog shows diagnostics and review controls.
+Desktop/mobile tests cover older pages, stale decisions, reopen, empty filtered
+results, refresh of task counts, outages, focus and navigation. The 390px screenshot
+was visually inspected and pagination spacing corrected.
+
+Verification evidence:
+
+- PostgreSQL race tests cover retention after 200 successes, protected current
+  identities, last-success preservation, interrupted ownership, active/stale review
+  rejection, reopening, aged review cleanup, restart readback, pagination and API
+  validation. The initial new API fixture lacked its required parent row; corrected
+  and rerun. The final full race suite passes (API 14.100s; library 179.523s and
+  wanted 190.472s from the preceding unchanged-package run). The ordinary suite
+  passes (library 143.727s, wanted 104.400s). An additional session/PID-reuse
+  regression proves an old row cannot borrow the active owner's lock.
+- 97 browser tests pass with one expected skip; final focused desktop/mobile history
+  tests pass after spacing polish. All 14 web unit tests, production build, vet,
+  deployment contracts and whitespace checks pass.
+- Two packaged APIs verify SIGKILL interruption without a fabricated duration,
+  shared last success, filter/review persistence across restart, and a real health
+  task's degraded counts. Native and compatibility notification restart/uncertainty
+  fixtures also pass without contacting real recipients.
+- Schema-50 packaged regressions and isolated 460,916-byte database restore preserve
+  worker reports, review timestamps and last-success identity alongside domain
+  receipts. Local candidate images are `librarry-api:worker-diagnostics` and
+  `librarry-web:worker-diagnostics`, marker `working-tree-worker-diagnostics`.
+
+No release or homelab deployment occurred. S23 remains open for terminal outbox
+retention, disabled-worker maintenance/status, redacted support diagnostics and the
+full readiness/freshness qualification matrix. The broader plan and live soak are
+not marked complete.

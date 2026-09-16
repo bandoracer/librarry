@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/scheduler"
+	"github.com/bandoracer/librarry/backend/internal/testdb"
 )
 
 func TestSystemTasksEndpointListsRegisteredTasks(t *testing.T) {
@@ -210,4 +212,49 @@ func TestTaskRunHistoryRouteDoesNotReturnTaskList(t *testing.T) {
 	if res.Code != 404 {
 		t.Fatal(res.Code)
 	}
+}
+
+func TestTaskHistoryPaginationAndReviewAPI(t *testing.T) {
+	db := testdb.Open(t)
+	registry := scheduler.NewRegistry(slog.Default()).WithDatabase(db)
+	if err := registry.Register(scheduler.Task{ID: "history", Interval: time.Hour, Run: func(context.Context, string) (string, error) { return "ok", nil }}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`insert into worker_tasks(task_id) values('history')`); err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	if err := db.QueryRow(`insert into worker_task_runs(task_id,trigger,backend_pid,state,error) values('history','fixture',0,'failed','fixture failure') returning id::text`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*"}, Scheduler: registry})
+	call := func(method, path, body string, code int) *httptest.ResponseRecorder {
+		t.Helper()
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(method, path, strings.NewReader(body)))
+		if w.Code != code {
+			t.Fatalf("%s %s: %d %s", method, path, w.Code, w.Body.String())
+		}
+		return w
+	}
+	base := "/api/v1/system/tasks/history/runs"
+	for _, query := range []string{"?view=invalid", "?limit=101", "?limit=bad", "?offset=-1", "?offset=bad"} {
+		call("GET", base+query, "", 400)
+	}
+	w := call("GET", base+"?view=unreviewed&limit=1&offset=1", "", 200)
+	var page scheduler.RunPage
+	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil || page.Total != 1 || page.Offset != 1 || page.Limit != 1 || page.Runs == nil || len(page.Runs) != 0 {
+		t.Fatal(w.Body.String(), err)
+	}
+	review := base + "/" + id + "/review"
+	call("POST", review, `{"reviewed":true}`, 400)
+	call("POST", review, `{"reviewed":true,"expectedState":"completed"}`, 409)
+	call("POST", review, `{"reviewed":true,"expectedState":"failed"}`, 200)
+	call("POST", review, `{"reviewed":true,"expectedState":"failed"}`, 409)
+	w = call("GET", base+"?view=unreviewed", "", 200)
+	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil || page.Total != 0 || len(page.Runs) != 0 {
+		t.Fatal(w.Body.String(), err)
+	}
+	call("POST", base+"/not-a-run/review", `{"reviewed":true,"expectedState":"failed"}`, 404)
+	call("POST", "/api/v1/system/tasks/missing/runs/"+id+"/review", `{"reviewed":true,"expectedState":"failed"}`, 404)
 }

@@ -117,38 +117,61 @@ func releaseDelivery(conn *sql.Conn, id string) {
 
 // RunPending is bounded and fair by due time. A disconnected sender is never
 // silently replayed: reclaiming its lock changes sending to uncertain.
+type DeliveryRun struct{ Processed, Accepted, Retry, Failed, Uncertain, Cancelled int }
+
 func (s *Service) RunPending(ctx context.Context) (int, error) {
+	report, err := s.RunPendingDetailed(ctx)
+	return report.Processed, err
+}
+func (s *Service) RunPendingDetailed(ctx context.Context) (DeliveryRun, error) {
+	report := DeliveryRun{}
 	if !s.Available() {
-		return 0, errors.New("notification service is unavailable")
+		return report, errors.New("notification service is unavailable")
 	}
 	rows, err := s.store.db.QueryContext(ctx, `select id::text from notification_deliveries where state in ('pending','retry','sending') and next_attempt_at<=now() order by next_attempt_at,id limit 25`)
 	if err != nil {
-		return 0, err
+		return report, err
 	}
 	ids := []string{}
 	for rows.Next() {
 		var id string
 		if err = rows.Scan(&id); err != nil {
 			rows.Close()
-			return 0, err
+			return report, err
 		}
 		ids = append(ids, id)
 	}
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
-		return 0, err
+		return report, err
 	}
-	processed := 0
+
 	for _, id := range ids {
 		if err = s.processDelivery(ctx, id); errors.Is(err, ErrDeliveryConflict) {
 			continue
 		} else if err != nil {
-			return processed, err
+			return report, err
 		}
-		processed++
+		report.Processed++
+		var state string
+		if err = s.store.db.QueryRowContext(ctx, `select state from notification_deliveries where id=$1`, id).Scan(&state); err != nil {
+			return report, err
+		}
+		switch state {
+		case "accepted":
+			report.Accepted++
+		case "retry":
+			report.Retry++
+		case "failed":
+			report.Failed++
+		case "uncertain":
+			report.Uncertain++
+		case "cancelled":
+			report.Cancelled++
+		}
 	}
-	return processed, nil
+	return report, nil
 }
 
 func (s *Service) processDelivery(ctx context.Context, id string) error {

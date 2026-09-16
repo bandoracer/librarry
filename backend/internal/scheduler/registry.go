@@ -39,25 +39,33 @@ type Task struct {
 
 // TaskStatus is the API-facing snapshot of a registered task.
 type TaskStatus struct {
-	RunState    string     `json:"runState,omitempty"`
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Interval    string     `json:"interval"`
-	LastRunAt   *time.Time `json:"lastRunAt,omitempty"`
-	LastOutcome string     `json:"lastOutcome,omitempty"`
-	LastError   string     `json:"lastError,omitempty"`
-	NextRunAt   *time.Time `json:"nextRunAt,omitempty"`
-	Running     bool       `json:"running"`
+	Details            RunDetails `json:"details"`
+	DurationMS         *int64     `json:"durationMs,omitempty"`
+	LastSuccessAt      *time.Time `json:"lastSuccessAt,omitempty"`
+	LastSuccessRunID   string     `json:"lastSuccessRunId,omitempty"`
+	UnreviewedFailures int        `json:"unreviewedFailures"`
+	RunState           string     `json:"runState,omitempty"`
+	ID                 string     `json:"id"`
+	Name               string     `json:"name"`
+	Interval           string     `json:"interval"`
+	LastRunAt          *time.Time `json:"lastRunAt,omitempty"`
+	LastOutcome        string     `json:"lastOutcome,omitempty"`
+	LastError          string     `json:"lastError,omitempty"`
+	NextRunAt          *time.Time `json:"nextRunAt,omitempty"`
+	Running            bool       `json:"running"`
 }
 
 type taskState struct {
-	wake        chan struct{}
-	task        Task
-	running     bool
-	lastRunAt   *time.Time
-	lastOutcome string
-	lastError   string
-	nextRunAt   *time.Time
+	wake          chan struct{}
+	task          Task
+	running       bool
+	lastRunAt     *time.Time
+	lastOutcome   string
+	details       RunDetails
+	durationMS    *int64
+	lastSuccessAt *time.Time
+	lastError     string
+	nextRunAt     *time.Time
 }
 
 // Registry wraps every background worker with scheduling and run-status
@@ -147,8 +155,9 @@ func (r *Registry) Tasks() []TaskStatus {
 			Name:        state.task.Name,
 			Interval:    FormatInterval(state.task.Interval),
 			LastOutcome: state.lastOutcome,
-			LastError:   state.lastError,
-			Running:     state.running,
+			Details:     normalizeDetails(state.details), DurationMS: state.durationMS, LastSuccessAt: state.lastSuccessAt,
+			LastError: state.lastError,
+			Running:   state.running,
 		}
 		if state.lastRunAt != nil {
 			at := *state.lastRunAt
@@ -334,7 +343,10 @@ func (r *Registry) runClaimed(ctx context.Context, state *taskState, trigger str
 	} else {
 		close(heartbeatDone)
 	}
+	collector := &detailsCollector{}
+	runCtx = context.WithValue(runCtx, detailsKey{}, collector)
 	outcome, err := invokeTask(runCtx, state.task, trigger)
+	details := collector.snapshot()
 	// A function returning success after cancellation cannot certify completion.
 	if err == nil && runCtx.Err() != nil {
 		err = runCtx.Err()
@@ -345,16 +357,26 @@ func (r *Registry) runClaimed(ctx context.Context, state *taskState, trigger str
 		outcome = "completed"
 	}
 	if claim != nil {
-		if e := claim.finish(outcome, err); e != nil {
+		if e := claim.finish(outcome, err, details); e != nil {
 			err = e
 		}
 	}
 	r.mu.Lock()
 	state.running = false
 	state.lastRunAt = &startedAt
+	state.details = details
+	duration := max(int64(0), time.Since(startedAt).Milliseconds())
+	state.durationMS = &duration
+	if err == nil && details.Errors == 0 {
+		finished := time.Now().UTC()
+		state.lastSuccessAt = &finished
+	}
 	if err != nil {
 		state.lastError = err.Error()
 		state.lastOutcome = "failed"
+	} else if details.Errors > 0 {
+		state.lastError = "Worker completed with reported errors"
+		state.lastOutcome = "degraded"
 	} else {
 		state.lastError = ""
 		state.lastOutcome = strings.TrimSpace(outcome)

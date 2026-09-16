@@ -693,8 +693,9 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         print("Packaged Calibre recovery: uncertain handoff survives process restart and is visible without credentials")
         sql("insert into worker_tasks(task_id) values('restore-fixture')")
         worker_run = sql("insert into worker_task_runs(task_id,trigger,backend_pid,state,outcome,finished_at) values('restore-fixture','fixture',0,'completed','Fixture completed',now()) returning id").splitlines()[0]
-        sql(f"update worker_tasks set run_id='{worker_run}' where task_id='restore-fixture'")
+        sql(f"update worker_tasks set run_id='{worker_run}',last_success_at=now(),last_success_run_id='{worker_run}' where task_id='restore-fixture'")
         # Retain a terminal outbox fixture without contacting any receiver.
+        sql("insert into worker_task_runs(task_id,trigger,backend_pid,state,details,reviewed_at) values('restore-fixture','fixture',0,'degraded','{\"counts\":{\"checked\":5},\"errors\":1}',now())")
         notification_target = sql("insert into notification_targets(name,type,enabled) values('Restore fixture','webhook',false) returning id").splitlines()[0]
         notification_event = sql("insert into notification_events(source_key,event) values('restore-fixture','{\"type\":\"import\",\"title\":\"Fixture\"}') returning id").splitlines()[0]
         notification_delivery = sql(f"insert into notification_deliveries(event_id,target_id,target_name,target_type,target_revision,state,attempts) values('{notification_event}','{notification_target}','Restore fixture','webhook',now(),'accepted',1) returning id").splitlines()[0]

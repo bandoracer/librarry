@@ -1357,8 +1357,10 @@ handoffs; old IDs and external Calibre file moves are not automatically repaired
 
 ### Qualify and inspect shared background workers
 
-System → Tasks reads shared database status. **History** shows up to 100 recent
-runs with trigger, start, completion state and error/outcome. A stopped owner is
+System → Tasks reads shared database status and the last recorded success.
+**History** pages through retained runs, including counts, available operation IDs,
+measured duration, completion state and next action. A pass that reports individual
+errors is **degraded** and does not advance last success. Warnings are separate. A stopped owner is
 shown as interrupted; an old heartbeat does not permit stealing a still-held
 worker lock. **Run now** works before the next due time but returns busy while any
 API process owns that task. During a database outage, workers refuse new claims
@@ -1376,8 +1378,17 @@ DOCKER_CONTEXT=your-test-context python3 scripts/test-worker-packaged.py librarr
 
 Task ownership uses a session advisory lock. Configure a direct/session-pooled
 Postgres connection; transaction-pooling proxies are not supported for workers.
-Run history is diagnostic and bounded; it does not replace durable acquisition
-or import receipts. Native notifications use the durable outbox described below. These fixtures do
+History keeps 100 successful runs per task. Unreviewed failed, degraded and
+interrupted runs are preserved until reviewed. **Mark reviewed** acknowledges
+the diagnostic only; it does not retry or repair work. **Mark unreviewed** reopens
+it. Reviews bind the current state and review timestamp; stale decisions return
+409. Use the **Unreviewed failures** filter to find older failures beyond page one.
+Reviewed failures become eligible for cleanup after 90 days. Each task completion
+removes at most 500 eligible failures, retaining its current run. Disabled tasks
+do not run this cleanup. Import/acquisition receipts are not pruned. Historical
+last success is backfilled from recorded completed runs; older per-item error
+counts cannot be reconstructed. Interrupted owners with unknown finish time have
+no fabricated duration. Native notifications use the durable outbox described below. These fixtures do
 not establish a live multi-instance deployment.
 
 ### Review notification delivery

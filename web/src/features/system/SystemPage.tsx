@@ -378,6 +378,7 @@ export default function SystemPage() {
               <th>Name</th>
               <th>Interval</th>
               <th>Last Run</th>
+              <th>Last Success</th>
               <th>Next Run</th>
               <th aria-label="Actions" />
             </tr>
@@ -388,7 +389,8 @@ export default function SystemPage() {
                 <td className="cell-primary">
                   <span className="system-task-name">
                     {task.name}
-                    {task.running ? <Badge tone="info">Running</Badge> : task.runState === "interrupted" ? <Badge tone="warn">Interrupted</Badge> : null}
+                    {task.running ? <Badge tone="info">Running</Badge> : task.runState === "interrupted" ? <Badge tone="warn">Interrupted</Badge> : task.runState === "degraded" ? <Badge tone="warn">Degraded</Badge> : null}
+                    {task.unreviewedFailures ? <Badge tone="warn">{task.unreviewedFailures} unreviewed</Badge> : null}
                   </span>
                 </td>
                 <td className="cell-muted">{task.interval}</td>
@@ -398,6 +400,7 @@ export default function SystemPage() {
                     {task.lastError ? <StatusDot tone="danger" /> : null}
                   </span>
                 </td>
+                <td>{task.lastSuccessAt ? formatRelativeTime(task.lastSuccessAt) : "Not recorded"}</td>
                 <td>{formatRelativeTime(task.nextRunAt)}</td>
                 <td>
                   <div className="cell-actions">

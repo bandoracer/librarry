@@ -374,6 +374,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Readarr-compatible retag preview/apply flows, including `/api/v1/retag` and
   `RetagFiles` command compatibility, that persist desired title, author,
   language, and quality tag state on tracked file records.
+- Shared worker status and paginated run history with counts, available operation
+  IDs, measured durations, and last recorded success. Partial failures appear as
+  degraded. Unreviewed failures are preserved until reviewed; review is reversible
+  and does not retry or repair the underlying work.
 - Readarr-compatible calendar, history, and parse endpoints mapped from wanted
   items and Librarry history events.
 - Configurable library naming templates for author folder, book folder, file

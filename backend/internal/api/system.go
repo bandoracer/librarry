@@ -1,9 +1,12 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/scheduler"
@@ -70,7 +73,32 @@ func (h *handler) systemTaskRuns(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 503, map[string]any{"error": "task scheduler is unavailable"})
 		return
 	}
-	runs, err := h.deps.Scheduler.RunHistory(r.Context(), strings.TrimSpace(r.PathValue("id")))
+	view := r.URL.Query().Get("view")
+	if view == "" {
+		view = "all"
+	}
+	limit, offset := 100, 0
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			writeJSON(w, 400, map[string]any{"error": "invalid history limit"})
+			return
+		}
+		limit = n
+	}
+	if raw := r.URL.Query().Get("offset"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			writeJSON(w, 400, map[string]any{"error": "invalid history offset"})
+			return
+		}
+		offset = n
+	}
+	if (view != "all" && view != "unreviewed") || limit < 1 || limit > 100 || offset < 0 {
+		writeJSON(w, 400, map[string]any{"error": "invalid task history page"})
+		return
+	}
+	page, err := h.deps.Scheduler.RunHistoryPage(r.Context(), strings.TrimSpace(r.PathValue("id")), view, limit, offset)
 	if errors.Is(err, scheduler.ErrTaskUnknown) {
 		writeJSON(w, 404, map[string]any{"error": "task not found"})
 		return
@@ -79,5 +107,33 @@ func (h *handler) systemTaskRuns(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 503, map[string]any{"error": "task history is unavailable"})
 		return
 	}
-	writeJSON(w, 200, map[string]any{"runs": runs, "limit": 100})
+	writeJSON(w, 200, page)
+}
+
+func (h *handler) reviewSystemTaskRun(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Scheduler == nil {
+		writeJSON(w, 503, map[string]any{"error": "task scheduler is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var body struct {
+		Reviewed           *bool      `json:"reviewed"`
+		ExpectedState      string     `json:"expectedState"`
+		ExpectedReviewedAt *time.Time `json:"expectedReviewedAt"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil || body.Reviewed == nil || strings.TrimSpace(body.ExpectedState) == "" {
+		writeJSON(w, 400, map[string]any{"error": "reviewed and a current run state are required"})
+		return
+	}
+	err := h.deps.Scheduler.ReviewRun(r.Context(), r.PathValue("id"), r.PathValue("runId"), scheduler.RunReview{Reviewed: *body.Reviewed, ExpectedState: body.ExpectedState, ExpectedReviewedAt: body.ExpectedReviewedAt})
+	switch {
+	case errors.Is(err, scheduler.ErrRunNotFound) || errors.Is(err, scheduler.ErrTaskUnknown):
+		writeJSON(w, 404, map[string]any{"error": err.Error()})
+	case errors.Is(err, scheduler.ErrRunConflict):
+		writeJSON(w, 409, map[string]any{"error": err.Error()})
+	case err != nil:
+		writeJSON(w, 503, map[string]any{"error": "task review is unavailable"})
+	default:
+		writeJSON(w, 200, map[string]any{"ok": true})
+	}
 }

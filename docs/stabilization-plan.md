@@ -305,6 +305,12 @@ Exercise auth/session expiry/logout/password-change revocation, login throttling
 
 ### S23 — Operational truth and bounded maintenance
 
+**In progress:** migration 0050 adds failure-preserving worker history, paginated
+review, structured outcome counts/operation IDs/duration, and persistent last
+success. Partial failures now report degraded; reviewed failures can expire after
+90 days. Support export, terminal outbox retention, disabled-worker maintenance
+and the full freshness/readiness acceptance matrix remain open.
+
 **Scope:** reliable task history with operation IDs, counts, durations, failures, last success, and next action. Persist enough history for restart diagnosis without unbounded per-minute growth. Add retention for routine history while preserving unresolved failures and important import/acquisition evidence.
 
 Provide redacted support diagnostics with build/digest, schema, effective configuration, provider/client versions where discoverable, roots, and task status. Separate liveness from readiness and degraded external integrations. Avoid aggressive health probes that consume provider quotas.
