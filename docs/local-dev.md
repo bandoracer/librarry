@@ -865,3 +865,38 @@ first. POST `/api/v1/acquisition-recovery/{id}` accepts `action: check`, or
 `action: attach` with `downloadId` and `confirmed: true`, or `action: release`
 with `confirmed: true`. These routes use normal application authentication.
 No-database development mode does not provide durable acquisition guarantees.
+
+## Resumable library scans
+
+The UI starts a job promptly with POST `/api/v1/library/scans` (202 Accepted),
+then polls saved progress while the scheduler performs all file work.
+
+POST `/api/v1/library/scan` still accepts `root`, `format`, and `limit`. Its response
+now includes `jobId`, `state`, `phase`, `hasMore`, and `missing`. `limit` controls
+only the first batch (default 1,000, maximum 5,000); it no longer truncates the
+entire scan. A persisted scheduler task advances user-created jobs in 500-entry
+batches every five seconds. It does not initiate new scans on its own. Closing the
+browser does not stop a saved job; use **Cancel scan** in Imports.
+
+GET `/api/v1/library/scans` returns up to 100 jobs, with unfinished/failed jobs
+first. POST `/api/v1/library/scans/{id}` accepts `action: cancel` or `action: retry`.
+Retry resumes the saved path queue; cancelled jobs require a new scan. Files added
+or deleted while walking are reconciled conservatively, and interruptions retain
+progress. Missing observations are staged until successful completion and checked
+again before publication. No failed/cancelled scan publishes partial missing-file
+changes. Finished jobs retain summary/root evidence and discard their path queues.
+
+Root directory device/inode identity is checked across batches and successful
+scans. If a root has changed, first verify the intended library is actually mounted.
+The custom-root form exposes a replacement-folder acknowledgement after that
+error; the equivalent API field is `acceptRootChange: true`. A root changing during
+a running job cannot be accepted in that job. Start a new scan after inspection.
+Nested device mismatches block missing-file conclusions. Root identity is currently
+implemented on Unix (qualified on macOS/Linux); unsupported platforms fail clearly.
+
+File `presenceState` is `unknown`, `present`, or `missing`, separate from import
+history. Older records begin unknown; a scan must first observe a file before a
+later scan can mark it missing. Native verified imports mark their destinations
+present. Imports displays missing local files explicitly. Broader wanted/library/
+compatible-API presence semantics, moved-file reattachment and legacy repair
+previews remain outstanding; scans never fuzzy-reassign a file automatically.

@@ -19,8 +19,9 @@ See the [implementation ledger](reviews/2026-09-15-implementation.md) for eviden
 These changes are **unreleased work**: [safety/recovery PR #3](https://github.com/bandoracer/librarry/pull/3),
 [multipart PR #4](https://github.com/bandoracer/librarry/pull/4),
 [staging recovery PR #5](https://github.com/bandoracer/librarry/pull/5),
-[manual recovery PR #6](https://github.com/bandoracer/librarry/pull/6), and the
-`codex/acquisition-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[manual recovery PR #6](https://github.com/bandoracer/librarry/pull/6),
+[acquisition recovery PR #7](https://github.com/bandoracer/librarry/pull/7), and the
+`codex/resumable-scans` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -69,6 +70,16 @@ client-ID selection. Attach/release decisions require operator confirmation.
 This is contract-fixture and packaged restart qualification, not live-client proof.
 Legacy history/current-release repair and broader scheduled-worker qualification
 remain open under S10/S21.
+
+Library scans now persist their path queue and progress, resume through the
+scheduler after restart, and support cancellation/retry in Imports. The old file
+limit is a batch size, not a total scan cap. A 10,001-file fixture completes and
+rescans without duplicate records. Files expose separate local presence evidence;
+missing observations apply only after all roots complete successfully and are
+rechecked before commit. Unavailable/changed roots and lost nested-device evidence
+retain previous presence. Legacy records are not declared missing until a scan
+has positively observed them. Automatic moved-file reattachment, legacy repair
+previews and unified book/presence projections remain S11/S14 work.
 
 Hardcover tokens currently establish configured state, not proven authentication.
 Book search handles Typesense result documents and GraphQL failures. Rich

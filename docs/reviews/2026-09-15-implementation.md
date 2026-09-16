@@ -91,7 +91,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
 | S09 | Partial | Durable native/manual plans, staging journals, move and manual replacement recovery; Calibre, completed-download replacement and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation and Activity recovery implemented with fixtures; full worker, history/current-release and live-client qualification remain |
-| S11 | Not complete | Resumable scans and missing-file reconciliation |
+| S11 | Partial | Persisted scans, cancellation/retry and guarded local presence implemented; moved-file reattachment and legacy repair previews remain |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
@@ -337,3 +337,38 @@ Manual recovery PR #6 at `8dcd0c1042811161ba343f9a74c70cee4f1a9fb2` passed
 [CI run 35056853220](https://github.com/bandoracer/librarry/actions/runs/35056853220),
 including source/browser/race verification, packaged restart/restore/auth checks,
 image scans and AMD64/ARM64 builds. No PR images were published.
+
+
+## Continuation: persisted scans and local presence (S11)
+
+Branch: `codex/resumable-scans`, based on acquisition recovery. Migration 0037
+replaces the scan's total-file cap with a persisted directory/file queue and
+batch progress. A scheduler task resumes jobs, including after process restart;
+Imports shows progress, failures, cancellation and retry. Root device/inode and
+per-file device evidence guard against unavailable/replaced/nested mounts.
+
+Missing observations are staged across batches and rechecked before atomic final
+publication. Cancelling or failing leaves prior presence intact. File changes
+between batches, source alias paths, stale claims, and final database failure are
+covered. Manual names, original source paths and relational/import provenance
+survive observations. Native files now expose separate local presence evidence.
+Automatic moved-file reattachment, legacy repair previews, and shared book-state
+projections are still outstanding; S11 is not complete.
+
+The full Go race/Postgres suite passed, including 10,001 physical fixture files
+continued by a new service instance and rescanned without duplicates. Focused
+fault tests cover staged absence cancellation, reappearing files, unavailable
+roots, changed root identity, lost nested-device evidence, failed final database
+writes, and expired worker cancellation. Frontend build and 27 applicable browser
+checks passed (one desktop case is inapplicable); mobile progress was inspected.
+
+A schema-37 ARM64 packaged API resumed 1,201 files through the scheduler after
+SIGKILL/restart (the test advances the expired lease instead of idling two minutes).
+A completed second scan confirmed one deleted file; making the root unavailable
+preserved the remaining presence. Existing import/acquisition/auth checks passed;
+a 295,892-byte dump restored scan, presence, intent and import records. This is
+isolated fixture evidence, not a live media-root or NAS-mount qualification.
+
+Acquisition PR #7 at `7443a908f16005806016ad36094866b6521a3d95` passed
+[CI run 35058040266](https://github.com/bandoracer/librarry/actions/runs/35058040266),
+including packaged qualification, image scans and AMD64/ARM64 builds.

@@ -2,6 +2,8 @@
 
 package library
 
+import "errors"
+
 // freeSpaceBytes is unsupported on this platform.
 func freeSpaceBytes(string) (int64, bool) {
 	return 0, false
@@ -10,4 +12,12 @@ func freeSpaceBytes(string) (int64, bool) {
 // probeDisk is unsupported on this platform.
 func probeDisk(string) diskProbe {
 	return diskProbe{}
+}
+
+func scanRootIdentity(path string) (string, error) {
+	return "", errors.New("durable scan root identity is unavailable on this platform")
+}
+
+func scanFileDevice(path string) (string, error) {
+	return "", errors.New("scan device identity unavailable on this platform")
 }

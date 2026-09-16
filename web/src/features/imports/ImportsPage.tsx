@@ -62,6 +62,7 @@ import {
 } from "./lib";
 import "./imports.css";
 import ImportRecovery from "./ImportRecovery";
+import ScanJobs, { scanJobsKey, useLibraryScanJobs } from "./ScanJobs";
 import PayloadReview from "./PayloadReview";
 
 type ScanFormat = "ebook" | "audiobook" | "any";
@@ -106,6 +107,8 @@ export default function ImportsPage() {
 
   /* ------------------------------ Form state ------------------------------ */
   const [scanRoot, setScanRoot] = useState("");
+ const [acceptRootChange, setAcceptRootChange] = useState(false);
+ const [scanRootReviewRequired, setScanRootReviewRequired] = useState(false);
   const [importPath, setImportPath] = useState("");
   const [importFormat, setImportFormat] = useState<"ebook" | "audiobook">("ebook");
   const [importMode, setImportMode] = useState<ImportMode>("copy");
@@ -121,7 +124,10 @@ export default function ImportsPage() {
 
   /* ------------------------------ Last outcomes ---------------------------- */
   const [scanActionID, setScanActionID] = useState("");
-  const [lastScan, setLastScan] = useState<LibraryScanOutcome | null>(null);
+  const scanJobs = useLibraryScanJobs();
+  const [lastScanResult, setLastScan] = useState<LibraryScanOutcome | null>(null);
+  const savedScan = scanJobs.data?.scans.find(scan => scan.id === lastScanResult?.jobId);
+  const lastScan = lastScanResult && savedScan ? { ...lastScanResult, ...savedScan, hasMore: savedScan.state === "queued" || savedScan.state === "running", errors: savedScan.lastError ? [savedScan.lastError] : [] } : lastScanResult;
   const [lastImport, setLastImport] = useState<LibraryImportOutcome | null>(null);
   const [lastCompleted, setLastCompleted] = useState<CompletedImportOutcome | null>(null);
   const [lastBulk, setLastBulk] = useState<ReviewBulkDecisionOutcome | null>(null);
@@ -143,8 +149,8 @@ export default function ImportsPage() {
 
   /* -------------------------------- Mutations ------------------------------ */
   const scanMutation = useInvalidatingMutation(
-    (args: { format: ScanFormat; root?: string }) => scanLibrary(args.format, { root: args.root }),
-    [...fileKeys]
+    (args: { format: ScanFormat; root?: string; acceptRootChange?: boolean }) => scanLibrary(args.format, { root: args.root, acceptRootChange: args.acceptRootChange }),
+    [...fileKeys, scanJobsKey]
   );
   const importMutation = useInvalidatingMutation(importLibraryFile, [...fileKeys, keys.wanted, keys.importRecovery]);
   const completedMutation = useInvalidatingMutation(importCompletedDownloads, [...fileKeys, ...reviewKeys, ...downstreamKeys]);
@@ -210,17 +216,22 @@ export default function ImportsPage() {
   async function runScan(actionID: string, format: ScanFormat, root?: string) {
     setScanActionID(actionID);
     try {
-      const outcome = await scanMutation.mutateAsync({ format, root });
+      const outcome = await scanMutation.mutateAsync({ format, root, acceptRootChange: !!root && acceptRootChange });
       setLastScan(outcome);
-      const message = `Scanned ${plural(outcome.roots.length, "root")}, ${plural(outcome.upserted, "new file")} (${outcome.scanned} seen, ${outcome.skipped} skipped)`;
+      setScanRootReviewRequired(false);
+      const message = outcome.hasMore ? `Scan continues in the background: ${outcome.scanned} files checked so far.` : `Scan complete: ${outcome.scanned} files checked, ${outcome.missing ?? 0} missing.`;
       if (outcome.errors?.length) {
         toast.notify(`${message}; ${plural(outcome.errors.length, "error")}`, "warn");
       } else {
         toast.success(message);
       }
     } catch (error) {
-      toast.error(errorText(error, "Library scan failed"));
+      const message = errorText(error, "Library scan failed");
+      if (root && message.includes("identity changed")) setScanRootReviewRequired(true);
+      toast.error(message);
     } finally {
+      void queryClient.invalidateQueries({ queryKey: scanJobsKey });
+      setAcceptRootChange(false);
       setScanActionID("");
     }
   }
@@ -400,6 +411,7 @@ export default function ImportsPage() {
 
       {payloadReviews.map(review => <PayloadReview key={`${review.id}:${review.updatedAt}`} review={review} />)}
       <ImportRecovery />
+      <ScanJobs query={scanJobs} />
 
       <Card
         title="Scan & import"
@@ -412,7 +424,7 @@ export default function ImportsPage() {
               <Field label="Root" hint="Absolute path to scan outside the configured library roots.">
                 <input
                   value={scanRoot}
-                  onChange={(event) => setScanRoot(event.target.value)}
+                  onChange={(event) => { setScanRoot(event.target.value); setAcceptRootChange(false); setScanRootReviewRequired(false); }}
                   placeholder="/data/media/books/ebooks"
                 />
               </Field>
@@ -443,6 +455,7 @@ export default function ImportsPage() {
                 </Button>
               </div>
             </div>
+            {scanRootReviewRequired ? <label className="imports-root-confirm"><input type="checkbox" checked={acceptRootChange} onChange={event => setAcceptRootChange(event.target.checked)} />I verified the library is mounted correctly; use this replacement folder.</label> : null}
             {lastScan ? (
               <div className="imports-outcome" aria-label="Last scanned roots">
                 <span className="field-label">{isScanning ? "Scanning" : "Last scan"}</span>
@@ -845,7 +858,7 @@ export default function ImportsPage() {
                         <Badge tone={mediaFormatTone(file.mediaFormat)}>{file.mediaFormat}</Badge>
                       </td>
                       <td>
-                        <Badge tone={importStatusTone(file.importStatus)}>{file.importStatus || "available"}</Badge>
+                        <Badge tone={file.presenceState === "missing" ? "danger" : importStatusTone(file.importStatus)}>{file.presenceState === "missing" ? "Missing locally" : file.importStatus || "available"}</Badge>
                       </td>
                       <td>{formatBytes(file.sizeBytes ?? 0)}</td>
                       <td>

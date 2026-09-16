@@ -507,6 +507,9 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/resolve-bulk", handler.resolveImportReviewsBulk)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
+	mux.HandleFunc("GET /api/v1/library/scans", handler.listLibraryScans)
+	mux.HandleFunc("POST /api/v1/library/scans", handler.startLibraryScan)
+	mux.HandleFunc("POST /api/v1/library/scans/{id}", handler.controlLibraryScan)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/preview", handler.previewPayloadReview)
@@ -3090,7 +3093,10 @@ func (h *handler) scanLibrary(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var request library.ScanRequest
 	if r.Body != http.NoBody {
-		_ = json.NewDecoder(r.Body).Decode(&request)
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid scan request"})
+			return
+		}
 	}
 	outcome, err := h.deps.Library.Scan(r.Context(), request)
 	if err != nil {

@@ -70,6 +70,11 @@ Current gaps:
 See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.
 
+Unreleased scans now save their progress, resume after restart, and expose
+cancellation/retry in Imports. File limits apply per batch. A failed scan or
+unavailable root cannot publish partial missing-file results; automatic moved-file
+reattachment and broader book-state reconciliation remain open.
+
 With Postgres, acquisitions also keep a durable submission receipt. Activity can
 recover ambiguous client responses without blindly submitting another download,
 or attach an explicitly selected existing download. These stabilization changes

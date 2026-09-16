@@ -266,6 +266,10 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 		if err != nil {
 			return nil, err
 		}
+		if _, err := tx.ExecContext(ctx, `update files set presence_state='present' where id=$1`, file.ID); err != nil {
+			return nil, err
+		}
+		file.PresenceState = "present"
 		result, err := tx.ExecContext(ctx, `update import_operation_files set file_id=$3,state='committed',updated_at=now() where operation_id=$1 and destination_path=$2 and media_format<>'sidecar' and coalesce(wanted_item_id::text,'')=$4`, op.ID, file.Path, file.ID, wantedID)
 		if err != nil {
 			return nil, err

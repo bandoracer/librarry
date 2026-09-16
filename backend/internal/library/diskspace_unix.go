@@ -2,7 +2,10 @@
 
 package library
 
-import "syscall"
+import (
+	"fmt"
+	"syscall"
+)
 
 // freeSpaceBytes reports the bytes available to unprivileged users on the
 // filesystem containing path.
@@ -32,4 +35,23 @@ func probeDisk(path string) diskProbe {
 		device: uint64(fileStat.Dev),
 		ok:     true,
 	}
+}
+
+func scanRootIdentity(path string) (string, error) {
+	var stat syscall.Stat_t
+	if err := syscall.Stat(path, &stat); err != nil {
+		return "", err
+	}
+	if stat.Mode&syscall.S_IFMT != syscall.S_IFDIR {
+		return "", fmt.Errorf("scan root is not a directory: %s", path)
+	}
+	return fmt.Sprintf("%d:%d", stat.Dev, stat.Ino), nil
+}
+
+func scanFileDevice(path string) (string, error) {
+	var stat syscall.Stat_t
+	if err := syscall.Stat(path, &stat); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d", stat.Dev), nil
 }

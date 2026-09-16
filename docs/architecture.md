@@ -809,3 +809,30 @@ imports can reserve a different upgrade, while replay of the original is a no-op
 The ledger coordinates all production paths through `acquisition.Service.Grab`.
 Wanted history/current-release transactions and legacy adoption are separate
 reconciliation concerns; this does not claim complete S10 or live-client validation.
+
+### Persisted scan execution and local presence
+
+Migration 0037 adds scan jobs, per-job root identities, a durable directory/file
+queue, staged absence evidence, and file presence/root/device/last-seen fields.
+Directory enumeration streams pages into the queue with idempotent inserts.
+Per-entry observation and progress acknowledgement share a short ownership-fenced
+transaction. Hashing and metadata extraction occur outside it, with lease renewal
+and mutation checks. The scanner shares import destination locks and excludes
+unfinished publications. Existing canonical/original-root aliases preserve proven
+file identity and manual metadata instead of creating another record.
+
+The scheduler advances queued/expired jobs. A cancelled active worker stops at its
+next acknowledgement boundary; expired cancellation is finalized after restart.
+Failed jobs retain the queue for explicit retry. After full discovery, keyset
+reconciliation checks previously observed files. Root identity and per-file device
+evidence distinguish missing files from unavailable roots/nested filesystems.
+Absences remain staged until completion, are checked again after any batch pause,
+and apply atomically only if file identity/version and import visibility still
+match. A failed final write rolls back presence changes and remains retryable.
+Successful jobs discard queues while retaining summaries and root evidence.
+
+`presence_state` is local filesystem evidence, separate from `import_status`.
+New verified imports are present; historical records are unknown until observed.
+This stage exposes presence through native file responses and Imports. It does not
+yet implement moved-file reattachment, legacy repair previews or the shared domain
+projection required by S11/S14/S16.

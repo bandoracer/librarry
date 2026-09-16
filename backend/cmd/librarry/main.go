@@ -216,6 +216,12 @@ func main() {
 			logger.Error("task registration failed", "task", task.ID, "error", err)
 		}
 	}
+	if libraryService.Available() {
+		registerTask(scheduler.Task{ID: "library-scan", Name: "Library Scan Progress", Interval: 5 * time.Second, StartupDelay: 2 * time.Second, Run: func(runCtx context.Context, trigger string) (string, error) {
+			err := libraryService.RunPendingScans(runCtx)
+			return "Advanced pending library scans", err
+		}})
+	}
 	if cfg.MonitorEnabled && wantedService.Available() {
 		registerTask(wantedMonitorTask(logger, wantedService, notifier, cfg))
 	}

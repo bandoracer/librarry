@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 36, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 37, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -279,6 +279,42 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert stats["adds"] == 1, stats
         assert request("/api/v1/acquisition-recovery")["intents"] == []
         print("Packaged acquisition: accepted-then-error retained; process restart reconciles exact download; duplicate request does not add again")
+        scan_root = media / "scan-library"
+        scan_root.mkdir()
+        for index in range(1201):
+            (scan_root / f"Book-{index:05}.mp3").write_bytes(f"controlled scan fixture {index}".encode())
+        scan = request("/api/v1/library/scan", {"root": "/fixture/scan-library", "limit": 10})
+        scan_id = str(uuid.UUID(scan["jobId"]))
+        assert scan["hasMore"] and scan["scanned"] < 1201, scan
+        docker("kill", "--signal", "KILL", API)
+        # Model the lease expiry after a crash without spending two minutes idle.
+        sql(f"update library_scan_jobs set lease_expires_at=now()-interval '1 second' where id='{scan_id}'")
+        docker("start", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        def completed_scan(scan_job_id):
+            job = next(row for row in request("/api/v1/library/scans")["scans"] if row["id"] == scan_job_id)
+            if job["state"] == "failed":
+                raise AssertionError(job)
+            if job["state"] != "completed":
+                raise OSError("scan still running")
+            return job
+        scan = wait_for(lambda: completed_scan(scan_id))
+        assert scan["scanned"] == 1201 and scan["missing"] == 0, scan
+        (scan_root / "Book-00000.mp3").unlink()
+        second = request("/api/v1/library/scans", {"root": "/fixture/scan-library"})
+        second_id = str(uuid.UUID(second["id"]))
+        second = wait_for(lambda: completed_scan(second_id))
+        assert second["missing"] == 1, second
+        assert sql("select count(*) from files where scan_root='/fixture/scan-library'") == "1201"
+        assert sql("select count(*) from files where scan_root='/fixture/scan-library' and presence_state='missing'") == "1"
+        scan_root.rename(media / "scan-offline")
+        try:
+            request("/api/v1/library/scan", {"root": "/fixture/scan-library"})
+            raise AssertionError("unavailable scan root reported success")
+        except urllib.error.HTTPError as error:
+            assert error.code == 502, error.code
+        assert sql("select count(*) from files where scan_root='/fixture/scan-library' and presence_state='missing'") == "1"
+        print("Packaged scans: 1,201 files resume through scheduler after process kill; missing file confirmed only after completion; unavailable root retains prior presence")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
@@ -287,7 +323,10 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
                       "select id,state,cleanup_state,source_kind,request_key from import_operations", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files",
                       "select metadata->'verifiedDownload' from files",
-                      "select id,scope_key,request_key,state,external_id,result from acquisition_intents order by id"):
+                      "select id,scope_key,request_key,state,external_id,result from acquisition_intents order by id",
+                      "select id,state,phase,scanned,missing from library_scan_jobs order by id",
+                      "select path,identity,completed_job_id from library_scan_roots order by path",
+                      "select id,presence_state,scan_root,last_seen_scan_id from files order by id"):
             assert sql(query) == sql(query, "librarry_restore"), query
         print("Isolated database restore verified:", len(dump), "bytes; file/download/wanted counts and receipt preserved")
         # Exercise real persistence, cookies, restart and Basic auth in the image.

@@ -78,7 +78,7 @@ func persistFile(ctx context.Context, db fileWriter, file FileRecord, observatio
 			author_name = case when $13 then files.author_name else excluded.author_name end,
 			extension = excluded.extension,
 			size_bytes = excluded.size_bytes,
-			checksum = excluded.checksum,
+			checksum = case when $13 and excluded.checksum='' then files.checksum else excluded.checksum end,
 			import_status = case when $13 then files.import_status else excluded.import_status end,
 			metadata = case when $13 then files.metadata || jsonb_build_object('scanEvidence', excluded.metadata) else excluded.metadata end,
 			modified_at = excluded.modified_at,
@@ -86,7 +86,7 @@ func persistFile(ctx context.Context, db fileWriter, file FileRecord, observatio
 		returning
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 	`, file.EditionID, file.MediaFormat, file.Path, file.SourcePath, file.Title, file.AuthorName,
 		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, file.ImportStatus, string(raw), file.ModifiedAt, observation)
 	return scanFile(row)
@@ -119,7 +119,7 @@ func (s *Store) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecor
 		select
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 		from files
 	`
 	if len(where) > 0 {
@@ -156,7 +156,7 @@ func (s *Store) FindFiles(ctx context.Context, ids []string, paths []string) ([]
 		select
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 		from files
 		where (` + strings.Join(where, " or ") + `) and not exists(select 1 from import_operation_files pending_file join import_operations pending_op on pending_op.id=pending_file.operation_id where pending_file.destination_path=files.path and pending_op.state<>'committed')
 		order by updated_at desc
@@ -183,7 +183,7 @@ func (s *Store) DeleteFiles(ctx context.Context, ids []string, paths []string) (
 		returning
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 	`
 	rows, err := s.db.QueryContext(ctx, sqlText, args...)
 	if err != nil {
@@ -227,7 +227,7 @@ func (s *Store) UpdateFile(ctx context.Context, file FileRecord) (FileRecord, er
 		returning
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 	`, strings.TrimSpace(file.ID), strings.TrimSpace(file.Path), file.SourcePath, file.Title, file.AuthorName,
 		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, firstNonEmpty(file.ImportStatus, "imported"), string(raw), file.ModifiedAt)
 	return scanFile(row)
@@ -413,7 +413,7 @@ func scanFile(row fileScanner) (FileRecord, error) {
 	if err := row.Scan(
 		&file.ID, &file.EditionID, &file.MediaFormat, &file.Path, &file.SourcePath,
 		&file.Title, &file.AuthorName, &file.Extension, &file.SizeBytes, &file.Checksum,
-		&file.ImportStatus, &raw, &modifiedAt, &file.CreatedAt, &file.UpdatedAt,
+		&file.ImportStatus, &raw, &modifiedAt, &file.CreatedAt, &file.UpdatedAt, &file.PresenceState,
 	); err != nil {
 		return FileRecord{}, err
 	}

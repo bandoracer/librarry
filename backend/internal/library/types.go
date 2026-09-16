@@ -29,21 +29,22 @@ type Config struct {
 }
 
 type FileRecord struct {
-	ID           string         `json:"id,omitempty"`
-	EditionID    string         `json:"editionId,omitempty"`
-	MediaFormat  string         `json:"mediaFormat"`
-	Path         string         `json:"path"`
-	SourcePath   string         `json:"sourcePath,omitempty"`
-	Title        string         `json:"title,omitempty"`
-	AuthorName   string         `json:"authorName,omitempty"`
-	Extension    string         `json:"extension,omitempty"`
-	SizeBytes    int64          `json:"sizeBytes,omitempty"`
-	Checksum     string         `json:"checksum,omitempty"`
-	ImportStatus string         `json:"importStatus"`
-	Metadata     map[string]any `json:"metadata,omitempty"`
-	ModifiedAt   *time.Time     `json:"modifiedAt,omitempty"`
-	CreatedAt    time.Time      `json:"createdAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
+	PresenceState string         `json:"presenceState"`
+	ID            string         `json:"id,omitempty"`
+	EditionID     string         `json:"editionId,omitempty"`
+	MediaFormat   string         `json:"mediaFormat"`
+	Path          string         `json:"path"`
+	SourcePath    string         `json:"sourcePath,omitempty"`
+	Title         string         `json:"title,omitempty"`
+	AuthorName    string         `json:"authorName,omitempty"`
+	Extension     string         `json:"extension,omitempty"`
+	SizeBytes     int64          `json:"sizeBytes,omitempty"`
+	Checksum      string         `json:"checksum,omitempty"`
+	ImportStatus  string         `json:"importStatus"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	ModifiedAt    *time.Time     `json:"modifiedAt,omitempty"`
+	CreatedAt     time.Time      `json:"createdAt"`
+	UpdatedAt     time.Time      `json:"updatedAt"`
 }
 
 type FileListQuery struct {
@@ -54,12 +55,18 @@ type FileListQuery struct {
 }
 
 type ScanRequest struct {
-	Format string `json:"format,omitempty"`
-	Root   string `json:"root,omitempty"`
-	Limit  int    `json:"limit,omitempty"`
+	AcceptRootChange bool   `json:"acceptRootChange,omitempty"`
+	Format           string `json:"format,omitempty"`
+	Root             string `json:"root,omitempty"`
+	Limit            int    `json:"limit,omitempty"`
 }
 
 type ScanOutcome struct {
+	JobID    string       `json:"jobId"`
+	State    string       `json:"state"`
+	Phase    string       `json:"phase"`
+	HasMore  bool         `json:"hasMore"`
+	Missing  int          `json:"missing"`
 	Roots    []string     `json:"roots"`
 	Scanned  int          `json:"scanned"`
 	Upserted int          `json:"upserted"`

@@ -858,6 +858,7 @@ export type HistoryEvent = {
 };
 
 export type LibraryFile = {
+ presenceState?: "unknown" | "present" | "missing";
   id: string;
   editionId?: string;
   mediaFormat: "ebook" | "audiobook";
@@ -876,6 +877,11 @@ export type LibraryFile = {
 };
 
 export type LibraryScanOutcome = {
+ jobId?: string;
+ state?: string;
+ phase?: string;
+ hasMore?: boolean;
+ missing?: number;
   roots: string[];
   scanned: number;
   upserted: number;
@@ -1930,14 +1936,15 @@ export async function fetchLibraryImportReviews(status = "pending", limit = 100)
   return arrayPayload(payload.reviews);
 }
 
-export async function scanLibrary(format = "any", options: { root?: string; limit?: number } = {}): Promise<LibraryScanOutcome> {
+export async function scanLibrary(format = "any", options: { root?: string; limit?: number; acceptRootChange?: boolean } = {}): Promise<LibraryScanOutcome> {
   const root = options.root?.trim();
-  const body: { format: string; limit: number; root?: string } = {
+  const body: { format: string; limit: number; root?: string; acceptRootChange?: boolean } = {
+    acceptRootChange: options.acceptRootChange,
     format,
     limit: options.limit ?? 1000
   };
   if (root) body.root = root;
-  const response = await fetch(`${apiBase}/api/v1/library/scan`, {
+  const response = await fetch(`${apiBase}/api/v1/library/scans`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -1945,7 +1952,8 @@ export async function scanLibrary(format = "any", options: { root?: string; limi
   if (!response.ok) {
     throw new Error(await apiError(response, "Library scan failed"));
   }
-  return (await response.json()) as LibraryScanOutcome;
+  const job = await response.json() as LibraryScanJob;
+  return { ...job, jobId: job.id, hasMore: job.state === "queued" || job.state === "running", files: [] };
 }
 
 export async function importLibraryFile(options: {
@@ -3101,4 +3109,23 @@ export async function resolveAcquisition(request: { id: string; action: "check" 
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
   });
   if (!response.ok) throw new Error(await apiError(response, "Acquisition still needs review"));
+}
+
+export type LibraryScanJob = {
+ id: string; format: string; roots: string[];
+ state: "queued" | "running" | "failed" | "cancelled" | "completed";
+ phase: "discover" | "reconcile" | "complete";
+ cancelRequested: boolean; scanned: number; upserted: number; skipped: number; missing: number;
+ lastError?: string;
+};
+export async function fetchLibraryScans(): Promise<{ scans: LibraryScanJob[]; limit: number }> {
+ const response = await fetch(`${apiBase}/api/v1/library/scans`);
+ if (!response.ok) throw new Error(await apiError(response,"Scan progress unavailable"));
+ const data = await response.json();
+ return { scans: arrayPayload(data.scans), limit: data.limit ?? 100 };
+}
+export async function controlLibraryScan(options: { id: string; action: "cancel" | "retry" }): Promise<LibraryScanJob> {
+ const response = await fetch(`${apiBase}/api/v1/library/scans/${encodeURIComponent(options.id)}`, { method:"POST", headers:{"Content-Type":"application/json"},body:JSON.stringify({action:options.action}) });
+ if (!response.ok) throw new Error(await apiError(response,"Scan action failed"));
+ return response.json();
 }

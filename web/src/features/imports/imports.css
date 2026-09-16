@@ -114,3 +114,6 @@
 .imports-payload-preview { margin-top: 16px; }
 .imports-payload-preview ol { padding-left: 24px; }
 .imports-payload-preview li { margin: 8px 0; }
+
+.imports-root-confirm { display: flex; align-items: flex-start; gap: .5rem; font-size: .8rem; line-height: 1.5; }
+.imports-root-confirm input { flex: 0 0 auto; margin-top: .2rem; }
