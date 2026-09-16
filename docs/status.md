@@ -51,8 +51,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [Calibre recovery PR #35](https://github.com/bandoracer/librarry/pull/35),
 [worker coordination PR #36](https://github.com/bandoracer/librarry/pull/36),
 [native notification PR #37](https://github.com/bandoracer/librarry/pull/37),
-[compatibility notification PR #38](https://github.com/bandoracer/librarry/pull/38), and
-the `codex/worker-diagnostics-retention` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[compatibility notification PR #38](https://github.com/bandoracer/librarry/pull/38),
+[worker diagnostics PR #39](https://github.com/bandoracer/librarry/pull/39), and
+the `codex/notification-history-retention` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -63,8 +64,12 @@ failures produce a degraded run and do not advance the separate last-success
 record. Reviewed failures become eligible after 90 days, in bounded batches on
 the task's next completion. Unknown interrupted finish times stay unknown.
 Historical successes cannot recover missing older per-item error counts. This
-is local qualification; terminal outbox retention, support diagnostics and live
-readiness/freshness qualification remain open under S23.
+is local qualification. Hourly History Maintenance now compacts notification
+details only after every recipient has been resolved for 90 days, preserving
+unreviewed stopped deliveries and permanent compact source-event records against
+replay. The same task prunes old reviewed failures for disabled workers. Support
+diagnostics, disabled-worker status and live readiness/freshness qualification
+remain open under S23.
 
 Automatic native import now accepts single books and identifiable audiobook
 chapter sets from complete client inventories. All required chapters and relevant

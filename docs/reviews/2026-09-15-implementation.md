@@ -1992,3 +1992,66 @@ No release or homelab deployment occurred. S23 remains open for terminal outbox
 retention, disabled-worker maintenance/status, redacted support diagnostics and the
 full readiness/freshness qualification matrix. The broader plan and live soak are
 not marked complete.
+
+## Notification retention and disabled-worker history maintenance (2026-09-16 continuation)
+
+This continuation adds append-only migration 0051. Resolved notification payloads,
+delivery attempts and review actions previously accumulated indefinitely; disabled
+workers also never ran their old-reviewed-failure cleanup.
+
+Hourly History Maintenance now considers up to 100 events per pass, with a
+30-second notification deadline. An event must be at least 90 days old, and every
+recipient must have been accepted or explicitly cancelled for at least 90 days.
+Pending, retrying, sending, failed, uncertain and automatically stopped deliveries
+remain intact. Empty-recipient events use creation time. Retrying clears resolution;
+closing the delivery again starts a new window. Migration backfills accepted rows
+from their saved update time and leaves legacy cancellations unreviewed.
+
+Each event compacts in one transaction. An event row lock prevents new FK
+references; the same delivery advisory keys protect concurrent sends/reviews/retries.
+Busy events are skipped. Resolution is rechecked under ownership before deleting
+delivery/attempt/action detail and clearing native/compatibility snapshots. A DB
+failure rolls back the whole event; previously committed event counts survive in
+the maintenance task report.
+
+The permanent compact record retains event UUID, unique source key, occurrence and
+compaction timestamps, and bounded outcome counts. Re-enqueuing an archived source
+cannot create new recipients or sends. Compact identities still grow with distinct
+events: this bounds resolved detail, not all storage. Domain history, import and
+acquisition receipts, health-transition state, settings and media are untouched.
+Backups must preserve compact records as well as active outbox rows. Restoring an
+older backup still requires receiver reconciliation for later acceptance.
+
+The same hourly task removes up to 500 worker failures reviewed over 90 days ago,
+including workers no longer enabled/registered. Current-run and last-success
+identities are protected. Unreviewed failures stay available. This closes the
+disabled-worker cleanup gap, not the separate disabled-worker status display gap.
+
+Settings Connect explains retention and offers confirmed cancellation for deliveries
+automatically stopped by changed/deleted connections. Recent or reopened decisions
+retain their full review window. Mobile/desktop tests cover confirmation, stale
+state, pagination and modal bounds; the 390px screenshot was visually inspected.
+
+Qualification evidence:
+
+- Full PostgreSQL race suite passes: API 22.949s, library 181.168s, notify 25.362s,
+  scheduler 24.015s, wanted 196.847s. The ordinary suite also passes (library
+  145.273s, notify 20.356s, wanted 108.197s). Focused tests cover old-schema acceptance
+  backfill, unresolved states, mixed native/compat recipients, recent review,
+  retry races, held session/row locks, concurrent compaction, transaction rollback,
+  100-event batches, permanent replay barriers and 500-run maintenance batches.
+- 99 browser tests pass with one expected skip; six focused notification checks
+  pass after final copy/spacing polish. All 14 web unit tests, production builds,
+  vet, deployment contracts and whitespace checks pass.
+- The packaged notification fixture now resolves native and compatibility messages,
+  ages only disposable rows, preserves an old uncertain delivery, prunes a disabled
+  worker's eligible prior run, restarts the API and attempts to enqueue archived
+  source keys. Receiver count remains four with no resend.
+- Schema-51 packaged regressions and an isolated 461,228-byte database restore
+  preserve both active notifications and compact event records. Local candidate
+  images are `librarry-api:notification-retention` and
+  `librarry-web:notification-retention`, marker `working-tree-notification-retention`.
+
+No production service, real receiver or media library changed. S23 stays open for
+redacted support diagnostics, disabled-worker status and readiness/freshness
+qualification; the full stabilization plan and live soak remain incomplete.

@@ -334,6 +334,9 @@ A database backup cannot roll back a remote receiver. Restore into an isolated
 network, inspect pending/uncertain deliveries and verify their receiver state
 before allowing notification egress. An older backup may predate acceptance
 that happened after the backup. Confirm acceptance or cancel such entries instead
-of blindly replaying them. Delivery/attempt retention is currently unbounded;
-include this ledger when estimating backup/storage size. The disposable restore
+of blindly replaying them. Resolved delivery/attempt/action details can be compacted after 90 days by hourly
+History Maintenance. Unresolved deliveries and permanent compact source-event
+records remain; backups must retain both. Compact records prevent replay of an
+archived event, but cannot record acceptances that happened after a restored backup.
+Include this ledger when estimating backup/storage size. The disposable restore
 fixture verifies row preservation, not live recipient or homelab restoration.

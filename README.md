@@ -377,7 +377,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - Shared worker status and paginated run history with counts, available operation
   IDs, measured durations, and last recorded success. Partial failures appear as
   degraded. Unreviewed failures are preserved until reviewed; review is reversible
-  and does not retry or repair the underlying work.
+  and does not retry or repair the underlying work. Hourly maintenance compacts
+  notification detail after all recipients have been resolved for 90 days, while
+  retaining unresolved deliveries and compact event identities to prevent replay.
 - Readarr-compatible calendar, history, and parse endpoints mapped from wanted
   items and Librarry history events.
 - Configurable library naming templates for author folder, book folder, file

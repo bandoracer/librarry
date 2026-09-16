@@ -100,3 +100,19 @@ func (r *Registry) ReviewRun(ctx context.Context, taskID, runID string, request 
 	}
 	return tx.Commit()
 }
+
+// PruneReviewedHistory also reaches workers no longer registered/enabled in this
+// process. Keep the current run so status readback cannot lose its last outcome.
+func (r *Registry) PruneReviewedHistory(ctx context.Context) (int, error) {
+	if r.db == nil {
+		return 0, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	result, err := r.db.ExecContext(ctx, `delete from worker_task_runs where id in(select r.id from worker_task_runs r join worker_tasks t on t.task_id=r.task_id where r.id is distinct from t.run_id and r.id is distinct from t.last_success_run_id and r.state in ('degraded','failed','interrupted') and r.reviewed_at<now()-interval '90 days' order by r.reviewed_at,r.id limit 500 for update of r skip locked)`)
+	if err != nil {
+		return 0, err
+	}
+	count, err := result.RowsAffected()
+	return int(count), err
+}

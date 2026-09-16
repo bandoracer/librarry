@@ -3370,6 +3370,7 @@ export async function reviewTaskRun(taskId: string, run: TaskRun, reviewed: bool
 }
 
 export type NotificationDelivery = {
+  resolvedAt?: string;
   targetKind: "native" | "compat";
   id: string;
   eventId: string;

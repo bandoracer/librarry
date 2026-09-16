@@ -211,3 +211,33 @@ func TestHistoricalRunCannotBorrowCurrentOwnersSessionLock(t *testing.T) {
 		t.Fatal(statuses, err)
 	}
 }
+
+func TestMaintenanceReachesDisabledWorkersAndPreservesCurrentEvidence(t *testing.T) {
+	db := testdb.Open(t)
+	r := NewRegistry(testLogger()).WithDatabase(db)
+	if _, err := db.Exec(`insert into worker_tasks(task_id) values('disabled');insert into worker_task_runs(task_id,trigger,backend_pid,state,reviewed_at) select 'disabled','fixture',0,'failed',now()-interval '91 days' from generate_series(1,505);insert into worker_task_runs(task_id,trigger,backend_pid,state) values('disabled','fixture',0,'failed')`); err != nil {
+		t.Fatal(err)
+	}
+	var current string
+	if err := db.QueryRow(`insert into worker_task_runs(task_id,trigger,backend_pid,state,reviewed_at) values('disabled','fixture',0,'failed',now()-interval '100 days') returning id::text`).Scan(&current); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`update worker_tasks set run_id=$1 where task_id='disabled'`, current); err != nil {
+		t.Fatal(err)
+	}
+	n, err := r.PruneReviewedHistory(context.Background())
+	if err != nil || n != 500 {
+		t.Fatal(n, err)
+	}
+	n, err = r.PruneReviewedHistory(context.Background())
+	if err != nil || n != 5 {
+		t.Fatal(n, err)
+	}
+	var retained int
+	if err = db.QueryRow(`select count(*) from worker_task_runs where task_id='disabled'`).Scan(&retained); err != nil || retained != 2 {
+		t.Fatal(retained, err)
+	}
+	if err = db.QueryRow(`select count(*) from worker_task_runs where id=$1`, current).Scan(&retained); err != nil || retained != 1 {
+		t.Fatal("current evidence removed", retained, err)
+	}
+}

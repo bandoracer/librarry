@@ -96,3 +96,11 @@ eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client
 Back up both Postgres and library/download data before upgrading. The local
 fixture restore check does not qualify restoration of the live homelab backup.
 No September candidate release or production rollback rehearsal is complete yet.
+
+
+Hourly History Maintenance compacts notification detail only after all recipients
+have been resolved for 90 days. Unresolved deliveries and compact event identities
+remain in Postgres; include both in backups. Restore with notification egress
+isolated until later receiver acceptance is reconciled. Compaction cannot protect
+against acceptance that happened after the backup. See the
+[retention policy](../../docs/local-dev.md#notification-history-retention).

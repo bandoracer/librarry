@@ -138,6 +138,39 @@ try:
     assert sql("select count(*) from notification_deliveries where target_kind='compat' and state='cancelled'")=="1"
     print("Packaged Readarr webhooks: API-created target, PUT/Basic, immutable book snapshot, restart recovery, SIGKILL uncertainty and cancellation without resend verified")
 
+    # Compact resolved native + compatibility history, retaining one unresolved
+    # old message, all event/source identities, and current worker diagnostics.
+    docker("stop",API)
+    sources = sql("select source_key from notification_events where id in(select event_id from notification_deliveries where resolved_at is not null) order by source_key").splitlines()
+    sql(history)
+    sql("update notification_deliveries set state='uncertain' where resolved_at is null")
+    sql("update notification_events set created_at=now()-interval '100 days'")
+    sql("update notification_deliveries set resolved_at=now()-interval '91 days' where resolved_at is not null")
+    sql("insert into worker_tasks(task_id) values('disabled-fixture')")
+    current = sql("insert into worker_task_runs(task_id,trigger,backend_pid,state,reviewed_at) values('disabled-fixture','fixture',0,'failed',now()-interval '100 days') returning id").splitlines()[0]
+    sql(f"update worker_tasks set run_id='{current}' where task_id='disabled-fixture'")
+    sql("insert into worker_task_runs(task_id,trigger,backend_pid,state,reviewed_at) values('disabled-fixture','fixture',0,'failed',now()-interval '100 days')")
+    base=restart()
+    request(base,"/api/v1/system/tasks/history-maintenance/run",{})
+    def maintenance_finished():
+        task=next(t for t in request(base,"/api/v1/system/tasks")["tasks"] if t["id"]=="history-maintenance")
+        return task if task.get("runState")=="completed" else None
+    maintenance=wait(maintenance_finished)
+    assert maintenance["details"]["counts"]["deliveriesPruned"]==4,maintenance
+    assert maintenance["details"]["counts"]["reviewedRunsPruned"]==1,maintenance
+    assert sql("select count(*) from notification_deliveries")=="1"
+    assert sql("select state from notification_deliveries")=="uncertain"
+    assert sql("select count(*) from worker_task_runs where task_id='disabled-fixture'")=="1"
+    archived_before=sql("select count(*) from notification_events where archived_at is not null")
+    for source in sources:
+        assert sql(f"select event='{{}}'::jsonb and compat_context='{{}}'::jsonb and archived_at is not null from notification_events where source_key='{source}'")=="t"
+        sql(f"select enqueue_native_notification('{source}','{{\"type\":\"import\",\"title\":\"Old event replay\"}}')")
+    docker("stop",API);base=restart();trigger(base);settle(base)
+    assert sql("select count(*) from notification_deliveries")=="1"
+    assert sql("select count(*) from notification_events where archived_at is not null")==archived_before
+    assert len(request(receiver,"/"))==4
+    print("Packaged retention: native/compat resolution, 90-day window, unresolved preservation, disabled-worker cleanup, restart and archived-event replay barriers verified")
+
 finally:
     for container in reversed(containers):
         subprocess.run(DOCKER+["rm","-f",container],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

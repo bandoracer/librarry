@@ -54,3 +54,31 @@ test("notification delivery history traverses all pages", async ({ page }) => {
   await page.getByRole("button", { name: "Previous deliveries" }).click();
   await expect(page.getByText("Fixture message 0", { exact: true })).toBeVisible();
 });
+
+test("stopped deliveries need an explicit cancellation before retention", async ({ page }, testInfo) => {
+  let resolvedAt: string | undefined;
+  await page.route("**/api/v1/notifications", route => route.fulfill({ json: { targets: [] } }));
+  await page.route("**/api/v1/notification-deliveries?*", route => route.fulfill({ json: { items: [{ ...fixture, state: "cancelled", targetAvailable: false, resolvedAt, message: "Connection was deleted; this delivery was not sent" }], total: 1, limit: 25, offset: 0 } }));
+  await page.route("**/api/v1/notification-deliveries/delivery-1/resolve", async route => {
+    expect(route.request().postDataJSON()).toMatchObject({ action: "cancel", confirm: true, expectedUpdatedAt: fixture.updatedAt });
+    resolvedAt = "2026-09-16T14:00:00Z";
+    await route.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/settings/connect");
+  await expect(page.getByText("This stopped delivery still needs review.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Detailed history can expire 90 days/)).toBeVisible();
+  await page.getByRole("button", { name: "Confirm cancellation", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Save decision" })).toBeDisabled();
+  await dialog.getByRole("checkbox").check();
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
+  await page.screenshot({ path: `../output/playwright/notification-retention-${testInfo.project.name}.png` });
+  await dialog.getByRole("button", { name: "Save decision" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("This stopped delivery still needs review.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Confirm cancellation", exact: true })).toHaveCount(0);
+});

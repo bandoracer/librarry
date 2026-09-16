@@ -1523,8 +1523,9 @@ not reconstructed per-item qualification.
 Retention keeps 100 successes, protecting current/last-success identities even
 with skewed timestamps. Unreviewed failures are never routine deletion candidates.
 Up to 500 failures reviewed more than 90 days ago are pruned during each completion;
-the current run and domain recovery journals remain. Disabled task maintenance
-is deferred. Lock-based interruption requires the current owner identity as well
+the current run and domain recovery journals remain. Hourly History Maintenance
+also prunes up to 500 eligible reviewed failures across all persisted workers,
+including disabled workers, while preserving their current run. Lock-based interruption requires the current owner identity as well
 as its PostgreSQL session lock; a recycled PID cannot make an old row active.
 An abandoned run has no invented completion timestamp/duration.
 `GET /api/v1/system/tasks` reads shared state and returns an unavailable response
@@ -1610,3 +1611,30 @@ explicit synchronous requests. Delivery history identifies Readarr webhooks;
 configuration remains under `/api/v1/notification`. Attempt and resolution state
 uses the same session ownership, review controls and backup guarantees as native
 connections. This qualifies generated fixtures, not live third-party consumers.
+
+
+### Resolved notification history compaction
+
+Migration 0051 introduces `notification_deliveries.resolved_at` and event
+`archived_at`/`retention_summary`. HTTP acceptance and confirmed acceptance/cancel
+start the resolution window; retry clears it. Automated connection-change
+cancellations are unresolved. Legacy accepted rows inherit `updated_at`; legacy
+cancellations are conservatively left unresolved.
+
+Hourly `history-maintenance` selects at most 100 events older than 90 days whose
+entire recipient set has been resolved for 90 days. Empty-recipient events use
+creation time. Each event has its own transaction: lock the event with SKIP LOCKED,
+try the existing delivery advisory keys with transaction locks, recheck resolution,
+delete delivery/attempt/action detail, and replace both payload snapshots with a
+bounded count summary. Holding the event row prevents new foreign-key references;
+nonblocking delivery locks protect concurrent send/review/retry. A failure rolls
+back that event; prior committed counts remain in the task report. The notification
+pass has a 30-second deadline.
+
+The event UUID, unique source key and timestamps survive forever. Compaction never
+removes this replay barrier, recreates recipients, or changes health episode state.
+Re-enqueuing an archived source key still does nothing. Detailed history is bounded
+by the resolved retention window; unresolved records and compact event identities
+are intentionally retained. Import/acquisition journals and domain history are
+outside this policy. Restore must include compact records as well as active outbox
+rows; deleting them manually can permit replay of the same source event.

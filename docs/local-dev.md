@@ -1384,8 +1384,10 @@ the diagnostic only; it does not retry or repair work. **Mark unreviewed** reope
 it. Reviews bind the current state and review timestamp; stale decisions return
 409. Use the **Unreviewed failures** filter to find older failures beyond page one.
 Reviewed failures become eligible for cleanup after 90 days. Each task completion
-removes at most 500 eligible failures, retaining its current run. Disabled tasks
-do not run this cleanup. Import/acquisition receipts are not pruned. Historical
+removes at most 500 eligible failures, retaining its current run. Hourly
+**History Maintenance** also removes up to 500 eligible reviewed failures across
+all persisted workers, including workers now disabled. Their current run remains
+available for diagnostic readback. Import/acquisition receipts are not pruned. Historical
 last success is backfilled from recorded completed runs; older per-item error
 counts cannot be reconstructed. Interrupted owners with unknown finish time have
 no fabricated duration. Native notifications use the durable outbox described below. These fixtures do
@@ -1422,3 +1424,28 @@ cancellation without a second send. Readarr fixtures also check PUT/Basic settin
 and immutable book details after an intervening edit.
 It removes the containers/network on exit. The packaged backup fixture also
 compares event, delivery, attempt, action and health-state records after restore.
+
+
+### Notification history retention
+
+**History Maintenance** runs hourly (or through System → Tasks → Run now).
+It examines up to 100 eligible notification events per pass. Detailed history can
+expire only after the event is at least 90 days old and every delivery has been
+accepted or explicitly cancelled for at least 90 days. Pending, retrying, sending,
+failed and uncertain deliveries are preserved. A delivery automatically stopped
+because its connection changed or disappeared is also preserved until reviewed.
+Settings → Connect offers **Confirm cancellation** for those stopped deliveries.
+A retry clears the resolution time; accepting/cancelling it again starts a fresh
+90-day window. Legacy accepted messages inherit their saved acceptance update
+time; legacy cancellations remain unreviewed until explicitly confirmed.
+
+Compaction removes resolved delivery/attempt/action detail and native/Readarr
+payload snapshots together in a transaction. One compact event record retains its
+UUID, source key, occurrence/compaction timestamps and outcome counts. These
+identities are retained indefinitely to prevent an old source event from creating
+new deliveries; compact-record count still grows with distinct events. Maintenance
+does not delete import/acquisition receipts, domain history, health-transition
+state, settings or files, and does not contact receivers. Busy delivery/review
+sessions are skipped and retried on a later pass. Maintenance has a 30-second
+notification deadline, records actual committed counts, and rolls back any event
+whose compaction cannot finish. A later batch resumes the remaining history.

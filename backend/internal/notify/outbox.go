@@ -20,6 +20,7 @@ var ErrDeliveryConfirmation = errors.New("confirm this notification delivery dec
 const deliveryLock = `hashtextextended('librarry-notification:'||$1,0)`
 
 type Delivery struct {
+	ResolvedAt            *time.Time `json:"resolvedAt,omitempty"`
 	ID                    string     `json:"id"`
 	EventID               string     `json:"eventId"`
 	Event                 Event      `json:"event"`
@@ -61,14 +62,14 @@ func (s *Service) Deliveries(ctx context.Context, limit, offset int) (DeliveryPa
 	if err = tx.QueryRowContext(ctx, `select count(*) from notification_deliveries`).Scan(&page.Total); err != nil {
 		return page, err
 	}
-	rows, err := tx.QueryContext(ctx, `select d.id::text,d.event_id::text,e.event,d.target_kind,d.target_id::text,d.target_name,d.target_type,d.target_revision,case when d.target_kind='native' then t.updated_at else c.updated_at end,case when d.target_kind='native' then coalesce(t.enabled,false) else coalesce(notification_compat_matches(c.payload,e.event->>'type'),false) end,d.state,d.attempts,d.status_code,d.message,d.next_attempt_at,d.created_at,d.updated_at from notification_deliveries d join notification_events e on e.id=d.event_id left join notification_targets t on d.target_kind='native' and t.id=d.target_id left join compat_resources c on d.target_kind='compat' and c.id=d.target_id and c.resource_type='notification' and c.deleted_at is null order by d.created_at desc,d.id desc limit $1 offset $2`, limit, offset)
+	rows, err := tx.QueryContext(ctx, `select d.id::text,d.event_id::text,e.event,d.target_kind,d.target_id::text,d.target_name,d.target_type,d.target_revision,case when d.target_kind='native' then t.updated_at else c.updated_at end,case when d.target_kind='native' then coalesce(t.enabled,false) else coalesce(notification_compat_matches(c.payload,e.event->>'type'),false) end,d.state,d.attempts,d.status_code,d.message,d.next_attempt_at,d.created_at,d.updated_at,d.resolved_at from notification_deliveries d join notification_events e on e.id=d.event_id left join notification_targets t on d.target_kind='native' and t.id=d.target_id left join compat_resources c on d.target_kind='compat' and c.id=d.target_id and c.resource_type='notification' and c.deleted_at is null order by d.created_at desc,d.id desc limit $1 offset $2`, limit, offset)
 	if err != nil {
 		return page, err
 	}
 	for rows.Next() {
 		var d Delivery
 		var raw []byte
-		err = rows.Scan(&d.ID, &d.EventID, &raw, &d.TargetKind, &d.TargetID, &d.TargetName, &d.TargetType, &d.TargetRevision, &d.CurrentTargetRevision, &d.TargetAvailable, &d.State, &d.Attempts, &d.StatusCode, &d.Message, &d.NextAttemptAt, &d.CreatedAt, &d.UpdatedAt)
+		err = rows.Scan(&d.ID, &d.EventID, &raw, &d.TargetKind, &d.TargetID, &d.TargetName, &d.TargetType, &d.TargetRevision, &d.CurrentTargetRevision, &d.TargetAvailable, &d.State, &d.Attempts, &d.StatusCode, &d.Message, &d.NextAttemptAt, &d.CreatedAt, &d.UpdatedAt, &d.ResolvedAt)
 		if err != nil {
 			rows.Close()
 			return page, err
@@ -242,7 +243,7 @@ func (s *Service) processDelivery(ctx context.Context, id string) error {
 	}
 	var token string
 	var attempts int
-	err = tx.QueryRowContext(ctx, `update notification_deliveries set state='sending',attempts=attempts+1,run_token=gen_random_uuid(),status_code=null,message='',updated_at=clock_timestamp() where id=$1 returning run_token::text,attempts`, id).Scan(&token, &attempts)
+	err = tx.QueryRowContext(ctx, `update notification_deliveries set state='sending',resolved_at=null,attempts=attempts+1,run_token=gen_random_uuid(),status_code=null,message='',updated_at=clock_timestamp() where id=$1 returning run_token::text,attempts`, id).Scan(&token, &attempts)
 	if err != nil {
 		return err
 	}
@@ -288,7 +289,7 @@ func (s *Service) processDelivery(ctx context.Context, id string) error {
 		return errors.New("notification attempt finished but its result could not be saved")
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(saveCtx, `update notification_deliveries set state=$3,message=$4,status_code=nullif($5,0),next_attempt_at=now()+($6*interval '1 millisecond'),updated_at=clock_timestamp() where id=$1 and run_token=$2 and state='sending'`, id, token, outcome, message, code, delay.Milliseconds())
+	result, err := tx.ExecContext(saveCtx, `update notification_deliveries set state=$3,resolved_at=case when $3='accepted' then clock_timestamp() else null end,message=$4,status_code=nullif($5,0),next_attempt_at=now()+($6*interval '1 millisecond'),updated_at=clock_timestamp() where id=$1 and run_token=$2 and state='sending'`, id, token, outcome, message, code, delay.Milliseconds())
 	if err != nil {
 		return errors.New("notification result could not be saved")
 	}
@@ -384,7 +385,7 @@ func (s *Service) ResolveDelivery(ctx context.Context, id string, request Delive
 	if _, err = tx.ExecContext(ctx, `insert into notification_delivery_actions(delivery_id,action,previous_state,target_revision) values($1,$2,$3,$4)`, id, request.Action, state, revision); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `update notification_deliveries set state=$2,message=$3,target_revision=$4,next_attempt_at=now(),updated_at=clock_timestamp() where id=$1`, id, next, message, revision); err != nil {
+	if _, err = tx.ExecContext(ctx, `update notification_deliveries set state=$2,resolved_at=case when $2 in ('accepted','cancelled') then clock_timestamp() else null end,message=$3,target_revision=$4,next_attempt_at=now(),updated_at=clock_timestamp() where id=$1`, id, next, message, revision); err != nil {
 		return err
 	}
 	return tx.Commit()

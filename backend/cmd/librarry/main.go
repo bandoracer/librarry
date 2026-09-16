@@ -224,6 +224,15 @@ func main() {
 		}
 	}
 	if notifier.Available() {
+		registerTask(scheduler.Task{ID: "history-maintenance", Name: "History Maintenance", Interval: time.Hour, StartupDelay: time.Minute, Run: func(runCtx context.Context, trigger string) (string, error) {
+			report, err := notifier.PruneHistory(runCtx)
+			reviewedRuns := 0
+			if err == nil {
+				reviewedRuns, err = registry.PruneReviewedHistory(runCtx)
+			}
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"eventsCompacted": report.Events, "deliveriesPruned": report.Deliveries, "attemptsPruned": report.Attempts, "actionsPruned": report.Actions, "busySkipped": report.Skipped, "reviewedRunsPruned": reviewedRuns}, NextAction: "Review database availability and history maintenance logs."})
+			return fmt.Sprintf("Compacted %d notification events, %d deliveries and %d reviewed worker runs", report.Events, report.Deliveries, reviewedRuns), err
+		}})
 		registerTask(scheduler.Task{ID: "notification-delivery", Name: "Notification Delivery", Interval: 15 * time.Second, StartupDelay: 3 * time.Second, Run: func(runCtx context.Context, trigger string) (string, error) {
 			report, err := notifier.RunPendingDetailed(runCtx)
 			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"processed": report.Processed, "accepted": report.Accepted, "retry": report.Retry, "failed": report.Failed, "uncertain": report.Uncertain, "cancelled": report.Cancelled}, Errors: report.Failed + report.Uncertain, NextAction: "Review notification delivery in Settings Connect."})
