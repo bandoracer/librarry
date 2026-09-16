@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -102,7 +103,12 @@ func TestHardcoverDoesNotHideProviderErrors(t *testing.T) {
 }
 
 func TestHardcoverDecodesTypesenseDocuments(t *testing.T) {
-	provider := NewHardcoverProvider(&http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+	provider := NewHardcoverProvider(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		var body struct{ Query string }
+		json.NewDecoder(req.Body).Decode(&body)
+		if strings.Contains(body.Query, "SearchBookDetails") {
+			return jsonResponse(`{"data":{"books":[{"id":1,"title":"Moby Dick","contributions":[{"contribution":"Author","author":{"id":7,"name":"Herman Melville"}}]}]}}`), nil
+		}
 		return jsonResponse(`{"data":{"search":{"results":{"hits":[{"document":{"id":1,"title":"Moby Dick","author_names":["Herman Melville"]}}]}}}}`), nil
 	})}, "fixture-token")
 	results, err := provider.Search(context.Background(), Query{Query: "Moby Dick"})

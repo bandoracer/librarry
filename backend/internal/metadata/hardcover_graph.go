@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -49,8 +50,9 @@ func (p *HardcoverProvider) graphQL(ctx Context, query string, variables map[str
 		Data   json.RawMessage         `json:"data"`
 		Errors []hardcoverGraphQLError `json:"errors"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		return err
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, (4<<20)+1))
+	if err != nil || len(responseBody) > 4<<20 || json.Unmarshal(responseBody, &envelope) != nil {
+		return providerValidationError("Hardcover response could not be decoded within its size limit")
 	}
 	if err := hardcoverErrors(envelope.Errors); err != nil {
 		return err
@@ -116,13 +118,9 @@ type hardcoverGraphBook struct {
 	Image       struct {
 		URL string `json:"url"`
 	} `json:"image"`
-	Contributions []struct {
-		Contribution string `json:"contribution"`
-		Author       struct {
-			ID   int64  `json:"id"`
-			Name string `json:"name"`
-		} `json:"author"`
-	} `json:"contributions"`
+	Contributions []hardcoverContribution `json:"contributions"`
+	DefaultEbook  *hardcoverGraphEdition  `json:"default_ebook_edition"`
+	DefaultAudio  *hardcoverGraphEdition  `json:"default_audio_edition"`
 }
 
 func (p *HardcoverProvider) Bibliography(ctx Context, query Query) ([]SearchResult, error) {
@@ -158,8 +156,7 @@ func (p *HardcoverProvider) Bibliography(ctx Context, query Query) ([]SearchResu
 		}
 		err := p.graphQL(ctx, `query AuthorBooks($author:Int!, $after:Int!, $limit:Int!) {
 			books(where:{id:{_gt:$after},contributions:{author_id:{_eq:$author},contributable_type:{_eq:"Book"}}},order_by:{id:asc},limit:$limit) {
-				id title description release_year release_date image { url }
-				contributions(where:{contributable_type:{_eq:"Book"}}) { contribution author { id name } }
+				`+hardcoverWorkFields+hardcoverDefaultEditions+`
 			}
 		}`, map[string]any{"author": id, "after": after, "limit": bibliographyPageSize}, &data, func() error {
 			if data.Books == nil {
@@ -170,24 +167,23 @@ func (p *HardcoverProvider) Bibliography(ctx Context, query Query) ([]SearchResu
 					return providerValidationError("Hardcover bibliography returned invalid or nonadvancing book identities")
 				}
 				after = book.ID
-				authors := []Author{}
 				matched := false
 				for _, credit := range book.Contributions {
-					if credit.Author.ID <= 0 || strings.TrimSpace(credit.Author.Name) == "" {
-						return providerValidationError("Hardcover bibliography returned an invalid contributor")
-					}
-					key := fmt.Sprintf("hardcover-author:%d", credit.Author.ID)
-					authors = append(authors, Author{ID: key, Name: credit.Author.Name, ProviderIDs: []string{key}, Role: firstNonEmpty(credit.Contribution, "unknown")})
 					matched = matched || credit.Author.ID == id
 				}
 				if !matched {
 					return providerValidationError("Hardcover bibliography returned a book without the selected author")
 				}
-				key := fmt.Sprintf("hardcover:%d", book.ID)
-				results = append(results, SearchResult{Provider: p.Name(), Kind: SearchTypeBook,
-					Work:    Work{ID: key, Title: book.Title, Description: book.Description, FirstPublishYear: book.ReleaseYear, FirstPublishDate: book.ReleaseDate, CoverURL: book.Image.URL, Authors: authors, ProviderIDs: []string{key}},
-					Edition: Edition{Title: book.Title, WorkID: key, Format: FormatAny},
-					Score:   0.95, Confidence: "high", MatchedOn: []string{"hardcover author identity"}, RawSourceKey: strconv.FormatInt(book.ID, 10)})
+				rows, err := hardcoverResults(book, query)
+				if err != nil {
+					return err
+				}
+				// Bibliography policy operates on works, with one preferred edition
+				// for the requested format. Ordinary Any-format search exposes both.
+				result := rows[0]
+				result.Score, result.Confidence = 0.95, "high"
+				result.MatchedOn = append(result.MatchedOn, "hardcover author identity")
+				results = append(results, result)
 				if len(results) > bibliographyMaxRecords {
 					return providerValidationError("Hardcover bibliography exceeds the traversal safety limit; no partial bibliography was applied")
 				}

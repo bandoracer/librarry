@@ -26,11 +26,11 @@ func TestMetadataAndListsShareQuotaWithoutInventingRequestEvidence(t *testing.T)
 		if req.Header.Get("Authorization") != "Bearer fixture-token" {
 			t.Fatal("incorrect token normalization")
 		}
-		return budgetResponse(`{"data":{"search":{"results":[{"id":1,"title":"Dune"}]}}}`), nil
+		return budgetResponse(`{"data":{"search":{"results":[{"id":1,"name":"Dune"}]}}}`), nil
 	}))}
 	p := metadata.NewHardcoverProvider(client, "fixture-token")
 	s := metadata.NewService([]metadata.Provider{p})
-	q := metadata.Query{Query: "Dune"}
+	q := metadata.Query{Query: "Dune", Type: metadata.SearchTypeAuthor}
 	initial := s.SearchDetailed(context.Background(), q)
 	if len(initial.Results) != 1 || len(initial.ProviderErrors) != 0 {
 		t.Fatal(initial)

@@ -91,6 +91,9 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchRe
 	if query.Type == SearchTypeSeries {
 		return nil, nil
 	}
+	if lookup, ok := exactBookLookup(query); ok && lookup.isbn != "" {
+		return p.searchISBN(ctx, query, lookup.isbn)
+	}
 	var decoded struct {
 		Search struct {
 			Results json.RawMessage `json:"results"`
@@ -105,6 +108,9 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchRe
 		if parseErr != nil {
 			return parseErr
 		}
+		if len(rawResults) > clampLimit(query.Limit) {
+			return providerValidationError("Hardcover search exceeded its requested result bound")
+		}
 		for _, doc := range rawResults {
 			if hardcoverDocumentID(doc["id"]) == 0 || strings.TrimSpace(stringValue(doc["title"])) == "" {
 				return providerValidationError("Hardcover book result lacks a stable identity or title")
@@ -115,46 +121,16 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchRe
 		return nil, err
 	}
 
-	results = make([]SearchResult, 0, len(rawResults))
+	ids := []int64{}
+	seen := map[int64]bool{}
 	for _, raw := range rawResults {
-		title := stringValue(raw["title"])
-		if title == "" {
-			continue
+		id := hardcoverDocumentID(raw["id"])
+		if !seen[id] {
+			ids = append(ids, id)
+			seen[id] = true
 		}
-		authorName := ""
-		if contributors, ok := raw["contributions"].([]any); ok && len(contributors) > 0 {
-			if first, ok := contributors[0].(map[string]any); ok {
-				authorName = stringValue(first["author_name"])
-			}
-		}
-		if names, ok := raw["author_names"].([]any); authorName == "" && ok && len(names) > 0 {
-			authorName = stringValue(names[0])
-		}
-
-		id := fmt.Sprintf("hardcover:%d", hardcoverDocumentID(raw["id"]))
-		result := SearchResult{
-			Provider: p.Name(),
-			Kind:     SearchTypeBook,
-			Work: Work{
-				ID:    id,
-				Title: title,
-				Authors: []Author{{
-					ID:   stableID("hardcover-author", authorName),
-					Name: authorName,
-				}},
-				CoverURL: stringValue(raw["image_url"]),
-				ProviderIDs: []string{
-					id,
-				},
-			},
-			Score:        scoreResult(query, title, authorName, nil),
-			Confidence:   confidence(scoreResult(query, title, authorName, nil)),
-			MatchedOn:    []string{"hardcover search"},
-			RawSourceKey: id,
-		}
-		results = append(results, result)
 	}
-	return results, nil
+	return p.enrichBookSearch(ctx, query, ids)
 }
 
 type OpenLibraryProvider struct {

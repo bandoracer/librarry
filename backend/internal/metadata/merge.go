@@ -21,7 +21,11 @@ func mergeEquivalentResults(query Query, results []SearchResult) []SearchResult 
 
 		merged := false
 		for i := range clusters {
-			if !resultsCanMerge(query, clusters[i].results[0], result) {
+			compatible := true
+			for _, existing := range clusters[i].results {
+				compatible = compatible && resultsCanMerge(query, existing, result)
+			}
+			if !compatible {
 				continue
 			}
 			clusters[i].results = append(clusters[i].results, result)
@@ -88,10 +92,19 @@ func resultsCanMerge(query Query, left SearchResult, right SearchResult) bool {
 		}
 		return false
 	}
+	if !formatsCompatible(query, left.Edition.Format, right.Edition.Format) {
+		return false
+	}
+	if left.Edition.Language != "" && right.Edition.Language != "" && normalizeLanguageName(left.Edition.Language) != normalizeLanguageName(right.Edition.Language) {
+		return false
+	}
+	if left.Provider == right.Provider && left.Edition.ID != "" && right.Edition.ID != "" && left.Edition.ID != right.Edition.ID {
+		return false
+	}
 	if firstSharedNormalizedISBN(left.Edition.ISBNs, right.Edition.ISBNs) != "" {
 		return true
 	}
-	if !formatsCompatible(query, left.Edition.Format, right.Edition.Format) {
+	if firstNormalizedISBN(left.Edition.ISBNs) != "" && firstNormalizedISBN(right.Edition.ISBNs) != "" {
 		return false
 	}
 	leftYear := resultYear(left)
@@ -104,9 +117,6 @@ func resultsCanMerge(query Query, left SearchResult, right SearchResult) bool {
 }
 
 func formatsCompatible(query Query, left MediaFormat, right MediaFormat) bool {
-	if query.Format == FormatEbook || query.Format == FormatAudiobook {
-		return true
-	}
 	left = concreteFormat(left)
 	right = concreteFormat(right)
 	return left == FormatAny || right == FormatAny || left == right
@@ -256,9 +266,12 @@ func mergeAuthors(base []Author, candidates []Author) []Author {
 		}
 		merged := false
 		for i := range base {
-			if normalize(base[i].Name) == normalize(candidate.Name) || base[i].Name == "" || candidate.Name == "" {
-				if base[i].ID == "" {
+			if authorsCanMerge(base[i], candidate) {
+				if base[i].ID == "" || CanonicalAuthorKey(base[i].ID) == "" && CanonicalAuthorKey(candidate.ID) != "" {
 					base[i].ID = candidate.ID
+				}
+				if base[i].Role == "" || strings.EqualFold(base[i].Role, "unknown") {
+					base[i].Role = candidate.Role
 				}
 				if base[i].Name == "" {
 					base[i].Name = candidate.Name
@@ -275,7 +288,40 @@ func mergeAuthors(base []Author, candidates []Author) []Author {
 	return base
 }
 
+// Preserve distinct known identities and contributor roles even when names match.
+func authorsCanMerge(left, right Author) bool {
+	lr, rr := strings.ToLower(left.Role), strings.ToLower(right.Role)
+	if lr != "" && rr != "" && lr != "unknown" && rr != "unknown" && lr != rr {
+		return false
+	}
+	lk, rk := CanonicalAuthorKey(left.ID), CanonicalAuthorKey(right.ID)
+	if lk != "" && rk != "" {
+		if lk == rk {
+			return true
+		}
+		lp, _, _ := strings.Cut(lk, ":")
+		rp, _, _ := strings.Cut(rk, ":")
+		if lp == rp {
+			return false
+		}
+	}
+	if left.ID != "" && left.ID == right.ID {
+		return true
+	}
+	return normalize(left.Name) != "" && normalize(left.Name) == normalize(right.Name)
+}
+
 func mergeEdition(base Edition, candidate Edition) Edition {
+	if base.CoverURL == "" {
+		base.CoverURL = candidate.CoverURL
+	}
+	if base.AudioSeconds == 0 {
+		base.AudioSeconds = candidate.AudioSeconds
+	}
+	if base.Pages == 0 {
+		base.Pages = candidate.Pages
+	}
+	base.Contributors = mergeAuthors(base.Contributors, candidate.Contributors)
 	if base.ID == "" {
 		base.ID = candidate.ID
 	}
@@ -351,12 +397,12 @@ func firstNormalizedISBN(values []string) string {
 func firstSharedNormalizedISBN(left []string, right []string) string {
 	seen := map[string]bool{}
 	for _, value := range left {
-		if normalized := normalizeISBN(value); normalized != "" {
+		if normalized := canonicalISBN(value); normalized != "" {
 			seen[normalized] = true
 		}
 	}
 	for _, value := range right {
-		if normalized := normalizeISBN(value); normalized != "" && seen[normalized] {
+		if normalized := canonicalISBN(value); normalized != "" && seen[normalized] {
 			return normalized
 		}
 	}

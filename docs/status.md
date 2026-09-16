@@ -30,8 +30,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [exact fallback PR #14](https://github.com/bandoracer/librarry/pull/14),
 [metadata cache PR #15](https://github.com/bandoracer/librarry/pull/15),
 [author bibliography PR #16](https://github.com/bandoracer/librarry/pull/16),
-[provider request budget PR #17](https://github.com/bandoracer/librarry/pull/17), and the
-`codex/complete-import-lists` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[provider request budget PR #17](https://github.com/bandoracer/librarry/pull/17),
+[complete list PR #18](https://github.com/bandoracer/librarry/pull/18), and the
+`codex/hardcover-edition-metadata` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -136,8 +137,17 @@ requests in September qualification. Hardcover traversal is fixture-qualified on
 Metadata and Hardcover lists now share a per-host request budget with one-second
 spacing and header-driven daily/burst backoff. Unsent requests do not invent health
 evidence; valid cached data survives rate limiting. The paced Open Library probe
-was rerun through this production transport. Real-token qualification, rich
-editions/series and persistent raw records remain outstanding under S12.
+was rerun through this production transport.
+
+Hardcover title searches now enrich work identities with separate default ebook
+and audiobook editions. Exact ISBN queries look up actual editions directly.
+Responses retain stable contributor roles, edition ISBN/language/publisher/date,
+cover and duration evidence; original work dates stay separate. Unsupported or
+missing edition formats remain unknown. Conflicting formats/languages/edition
+identities no longer collapse during merging, and concrete editions no longer
+share the generic work/format placeholder in persistence. This is fixture and
+database qualification. Real tokens, broader edition discovery, series and
+persistent raw provider snapshots remain outstanding under S12.
 Hardcover list sync now verifies a visible list and traverses all pages before
 adding entries. Failed/inconsistent traversal leaves existing tracking and the
 success timestamp unchanged. Existing tracked books survive add-only list sync;

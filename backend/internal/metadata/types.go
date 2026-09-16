@@ -46,6 +46,9 @@ type Work struct {
 }
 
 type Edition struct {
+	CoverURL      string      `json:"coverUrl,omitempty"`
+	AudioSeconds  int         `json:"audioSeconds,omitempty"`
+	Contributors  []Author    `json:"contributors,omitempty"`
 	ID            string      `json:"id"`
 	WorkID        string      `json:"workId,omitempty"`
 	Title         string      `json:"title"`

@@ -92,8 +92,8 @@ progress record, not a claim that the full stabilization plan is complete.
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
-| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; stable-ID author traversal implemented with fixtures and read-only Open Library proof; shared request pacing/quota backoff and complete import-list traversal implemented; rich editions/series, persistent raw records and live Hardcover/Google credentials remain |
-| S13 | Partial | Add-only bibliography/list sync preserves existing tracking; complete list traversal, atomic list defaults and full exclusions implemented; matching corpus and full author monitoring policy qualification remain |
+| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; stable-ID author traversal implemented with fixtures and read-only Open Library proof; shared request pacing/quota backoff and complete import-list traversal implemented; default edition enrichment/exact ISBN lookup implemented; broader edition/series discovery, persistent raw records and live Hardcover/Google credentials remain |
+| S13 | Partial | Add-only bibliography/list sync preserves existing tracking; complete list traversal, atomic list defaults and full exclusions implemented; format/language/edition merge checks and concrete edition aliases implemented; matching corpus and full author monitoring policy qualification remain |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
 | S17–S19 | Not complete | Setup, search/add, activity/import-review redesign and workflow qualification |
@@ -798,3 +798,45 @@ checks; a 404,518-byte dump restored with counts and receipt intact. The package
 web remains the older multipart snapshot, with current web source separately
 built and browser-tested. No live Hardcover request, production change or release
 occurred.
+
+
+## Continuation: Hardcover edition evidence (S12/S13)
+
+Branch: `codex/hardcover-edition-metadata`, based on complete-list PR #18. Book
+searches previously exposed thin work hits with synthetic name-based authors and
+no real edition identity. Search now batches work details and separate default
+ebook/audio editions; ISBN lookup queries exact editions, checks returned ISBNs
+and parent-work identity, and supports equivalent ISBN-10/13. Original publication
+and edition release dates remain separate. Stable author/credit IDs, publisher,
+language, cover, pages, audio duration and narrator evidence survive normalization.
+A default relationship cannot invent an ebook/audio format; unsupported/missing
+defaults return work-level unknown evidence. Broader edition/language enumeration,
+series discovery and original raw provider snapshots remain open.
+
+Merge checks reject conflicting formats/languages, distinct edition IDs within a
+provider and nonoverlapping ISBN evidence. Every cluster member must agree,
+preventing an unknown work from bridging incompatible editions. Contributor roles
+and distinct same-name provider identities survive. Concrete edition persistence
+no longer aliases every edition to one work/format placeholder; existing legacy
+aliases are not rewritten. Add-only monitoring still preserves prior tracking.
+
+Contract and database tests cover the new evidence, failures and identity rules.
+Hardcover queries remain fixture-qualified because no live token is available.
+
+Complete-list PR #18 at `85ebf93923dc7e4ea4dcd50fcc4474b001755c91` passed
+[CI run 35073516756](https://github.com/bandoracer/librarry/actions/runs/35073516756),
+including source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+No images were published or deployed.
+
+The Add New flow now also keeps a displayed ebook's known format when the user
+changes the filter while another search is pending; a tracked audiobook cannot
+masquerade as that ebook. Unknown-format results still use the requested target.
+A regression covers this transition.
+
+Final edition qualification: full Go race/Postgres suite and vet passed. All seven
+web unit checks, web production build and 39 applicable desktop/mobile browser
+cases passed (one desktop-only case skipped on mobile). The final schema-40 local
+ARM64 API passed packaged restart/import/acquisition/scan/replacement/authentication
+checks; its 405,178-byte dump restored with counts and receipt intact. Packaged web
+remains the older multipart snapshot; current web source was separately built and
+browser-tested. No live Hardcover request, production deployment or release.

@@ -2990,8 +2990,12 @@ func authorProviderAliases(result metadata.SearchResult, author metadata.Author)
 }
 
 func editionProviderAliases(result metadata.SearchResult, format string) []providerAlias {
-	fallbackKey := result.Provider + ":edition:" + result.Work.ID + ":" + format
-	return providerAliases(result.Provider, append([]string{result.Edition.ID, fallbackKey}, result.Edition.ProviderIDs...))
+	keys := append([]string{result.Edition.ID}, result.Edition.ProviderIDs...)
+	if len(compactStrings(keys)) == 0 {
+		keys = []string{result.Provider + ":edition:" + result.Work.ID + ":" + format}
+	}
+	// A work/format placeholder is not an alias for every concrete edition.
+	return providerAliases(result.Provider, keys)
 }
 
 func providerAliases(fallbackProvider string, keys []string) []providerAlias {
@@ -3015,7 +3019,7 @@ func providerAliases(fallbackProvider string, keys []string) []providerAlias {
 func providerNameFromMetadataKey(key string, fallbackProvider string) string {
 	value := strings.ToLower(strings.TrimSpace(key))
 	switch {
-	case strings.HasPrefix(value, "hardcover:") || strings.HasPrefix(value, "hardcover-author:"):
+	case strings.HasPrefix(value, "hardcover:") || strings.HasPrefix(value, "hardcover-author:") || strings.HasPrefix(value, "hardcover-edition:"):
 		return "Hardcover"
 	case strings.HasPrefix(value, "openlibrary:") || strings.HasPrefix(value, "/authors/") || strings.HasPrefix(value, "/works/"):
 		return "Open Library"

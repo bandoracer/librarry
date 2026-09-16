@@ -1041,3 +1041,13 @@ commit initial root/monitoring settings, retry failed additions, and converge
 concurrent syncs. Run `go test -race ./backend/internal/importlists` with
 `LIBRARRY_TEST_DATABASE_URL` set as above for the database checks. No real Hardcover
 token is used and no release is grabbed.
+
+
+Rich Hardcover fixtures cover batched title enrichment, distinct ebook/audio IDs,
+exact ISBN-10/13 lookup, ISBN-979 without blank-identifier broadening, work versus
+edition dates, narrators, languages, covers, duration, missing/physical defaults,
+invalid relationships/ISBN conflicts, interrupted enrichment and cache isolation.
+Database checks prove that concrete editions do not reuse a work/format
+placeholder, retain normalized edition evidence, and preserve add-only monitoring.
+Run the metadata and wanted packages with the disposable Postgres configuration;
+no live provider token is used.

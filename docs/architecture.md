@@ -1058,3 +1058,22 @@ commits make a retry idempotent without holding one transaction over network IO.
 Search-on-add retains its existing best-effort behavior pending durable follow-up
 work. Manual runs remain synchronous; long lists may exceed an upstream proxy's
 request timeout, while scheduled runs have a ten-minute job budget.
+
+
+Hardcover search now resolves work search hits into a bounded batch of work and
+default ebook/audio edition records. Exact ISBN requests query edition records
+directly with locally verified ISBN equivalence. Bibliographies retain one
+preferred edition for the requested format per work; Any-format ordinary search
+may expose both ebook and audiobook results. Provider errors/invalid relationships
+fail the lookup, while missing supported defaults preserve unknown work evidence.
+Each GraphQL response has a 4 MiB body bound.
+
+Native edition evidence includes cover, duration and contributor roles in the
+normalized response and stored provider-record JSON. Those stored records still
+contain normalized search results; durable original response snapshots remain
+separate S12 work. Concrete edition IDs use their own provider aliases and never
+acquire the work/format placeholder alias. Previously conflated legacy aliases
+are retained for review, not silently rewritten. Add-only monitoring continues to
+reuse the existing tracked work/format regardless of a newly selected default.
+Merge clusters require compatibility with every member so a work-only candidate
+cannot join incompatible ebook/audio editions indirectly.

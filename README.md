@@ -419,7 +419,8 @@ Provider priority:
    from author bibliography crawling: author lookup uses `/search/authors.json`,
    while monitoring verifies the selected author and traverses every works page.
    Hardcover author search and paginated bibliographies have fixture coverage;
-   real-token qualification and rich edition selection remain pending.
+   default ebook/audio edition enrichment and exact ISBN edition lookup are also
+   fixture-qualified; real-token validation and broader edition discovery remain pending.
 3. Google Books is an API-keyed fallback when primary providers lack a suitable
    exact ISBN or full-title match. Returned identifiers/titles are checked locally;
    author and series discovery never use Google.

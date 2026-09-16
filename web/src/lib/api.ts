@@ -28,6 +28,11 @@ export type SearchResult = {
   };
   edition?: {
     id: string;
+    workId?: string;
+    pages?: number;
+    coverUrl?: string;
+    audioSeconds?: number;
+    contributors?: Array<{ id: string; name: string; role?: string; providerIds?: string[] }>;
     title: string;
     format: "any" | "ebook" | "audiobook";
     language?: string;

@@ -178,3 +178,31 @@ search-on-add is still best effort and does not have durable retry delivery.
 These behaviors are fixture-qualified against the documented
 [Hardcover list schema](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/GraphQL/Schemas/Lists.mdx);
 a real token/private-list check remains pending.
+
+
+Hardcover book discovery uses the Typesense work IDs to request a bounded batch
+of work details and default ebook/audio editions. A requested format selects its
+matching default; an Any-format search can return both distinct editions. Missing,
+physical or ambiguous defaults retain work-only evidence with unknown format.
+This does not enumerate every edition or find every alternative language; Open
+Library remains the backbone and exact ISBN is the route to a specific edition.
+
+ISBN queries bypass fuzzy work discovery and query edition identifiers directly,
+including equivalent ISBN-10/978 ISBN-13 values. ISBN-979 queries never broaden to
+blank ISBN-10 records. Returned IDs, parent work and ISBN evidence are validated;
+known physical editions are not offered as ebook acquisitions. A failed detail
+request returns a provider error rather than incomplete rich results. Successful
+searches use the shared bounded cache and request budget.
+
+Work IDs, stable contributor IDs/roles and original publication dates remain
+separate from edition IDs, languages, ISBNs, publishers, release dates, covers,
+pages, ASINs and audiobook duration/narrators. ASINs come from the provider API;
+no retail scraping is added. Search merges reject known format/language conflicts,
+different edition IDs within one provider and disjoint nonempty ISBN evidence.
+Unknown work evidence cannot bridge otherwise incompatible edition candidates.
+
+The implementation follows the documented
+[book](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/GraphQL/Schemas/Books.mdx)
+and [edition](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/GraphQL/Schemas/Editions.mdx)
+fields. Contract tests cover these shapes; a live Hardcover token is still needed
+before claiming provider qualification.

@@ -52,6 +52,7 @@ export function wantedFormat(format: string): "ebook" | "audiobook" {
 
 export function searchResultWantedFormat(result: SearchResult, currentFormat: string) {
   if (result.edition?.format === "audiobook") return "audiobook";
+  if (result.edition?.format === "ebook") return "ebook";
   return wantedFormat(currentFormat);
 }
 
