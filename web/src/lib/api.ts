@@ -3240,3 +3240,32 @@ export async function fetchBookCollection(options: BookCollectionOptions = {}, s
   const page = await response.json() as BookCollection;
   return { ...page, books: arrayPayload(page.books) };
 }
+
+export type AuthorCollectionOptions = {
+  q?: string;
+  format?: "all" | "ebook" | "audiobook";
+  status?: "all" | "monitored" | "unmonitored";
+  cursor?: string;
+  limit?: number;
+};
+export type AuthorCollectionItem = AuthorSubscription & {
+  counts: Record<string, number>;
+  totalBooks: number;
+  identityLinked: boolean;
+};
+export type AuthorCollection = {
+  authors: AuthorCollectionItem[];
+  total: number;
+  filtered: number;
+  nextCursor?: string;
+  downloads: string;
+  observedAt: string;
+};
+export async function fetchAuthorCollection(options: AuthorCollectionOptions = {}, signal?: AbortSignal): Promise<AuthorCollection> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/authors?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Author subscriptions could not be loaded"));
+  const page = await response.json() as AuthorCollection;
+  return { ...page, authors: arrayPayload(page.authors) };
+}

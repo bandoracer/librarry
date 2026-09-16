@@ -109,66 +109,14 @@ func (s *Service) BookCollection(ctx context.Context, query BookCollectionQuery)
 	if !s.Available() {
 		return page, errors.New("book collection requires database persistence")
 	}
-	downloads := s.liveBookDownloads(ctx)
-	switch downloads.Status {
-	case "fresh", "notConfigured", "partial", "unavailable":
-	default:
-		downloads.Status = "unavailable"
-	}
-	page.Downloads = downloads.Status
-	var inFlight []string
-	for id, items := range groupDownloadsByWantedID(downloads.Downloads) {
-		var parsed pgtype.UUID
-		if parsed.Scan(id) != nil || !parsed.Valid {
-			continue
-		}
-		for _, item := range items {
-			if downloadSupportsInFlight(item) {
-				inFlight = append(inFlight, id)
-				break
-			}
-		}
-	}
-	tx, err := s.store.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	tx, evidenceArgs, err := s.collectionSnapshot(ctx)
 	if err != nil {
 		return page, err
 	}
 	defer tx.Rollback()
-	// These bounded interactive reads spend more time compiling the inlined
-	// evidence expression than executing it (over 500 ms of JIT in the 10k
-	// fixture). Keep this local to the read transaction, not the database/session.
-	if _, err = tx.ExecContext(ctx, `set local jit=off`); err != nil {
-		return page, err
-	}
-	// Cursor/filter selectivity varies between pages; avoid the generic prepared
-	// plan that rescans the evidence set through nested loops.
-	if _, err = tx.ExecContext(ctx, `set local plan_cache_mode=force_custom_plan`); err != nil {
-		return page, err
-	}
+	page.Downloads = evidenceArgs[2].(string)
 	page.ObservedAt = time.Now().UTC()
-	profiles, err := listQualityProfiles(ctx, tx)
-	if err != nil {
-		return page, err
-	}
-	names := map[string]bool{"": true}
-	for _, p := range profiles {
-		names[normalizeQualityProfile(p.Name)] = true
-	}
-	var cutoffs []collectionProfile
-	for name := range names {
-		for _, format := range []string{"ebook", "audiobook"} {
-			p := defaultQualityProfile(name, format)
-			if name != "" {
-				p = profileFromList(profiles, WantedItem{QualityProfile: name, Format: format})
-			}
-			cutoffs = append(cutoffs, collectionProfile{Name: name, Format: format, Cutoff: p.CutoffCompositeScore(), Upgrade: p.UpgradeAllowed})
-		}
-	}
-	profileJSON, err := json.Marshal(cutoffs)
-	if err != nil {
-		return page, err
-	}
-	args := []any{string(profileJSON), inFlight, page.Downloads, query.Search, query.Format, query.Monitor, query.State}
+	args := append(evidenceArgs, query.Search, query.Format, query.Monitor, query.State)
 	rows, err := tx.QueryContext(ctx, bookCollectionSQL+`select derived_state,count(*),count(*) filter(where `+bookFilterSQL+`) from stateful group by derived_state`, args...)
 	if err != nil {
 		return page, err
@@ -292,3 +240,72 @@ const bookCollectionSQL = `with profiles as (
  when file_state in ('unknown','unavailable') or $3 in ('partial','unavailable') then 'unknown'
  when not monitored then 'unmonitored' else 'missing' end as derived_state from base
 ) `
+
+// collectionSnapshot shares quality and client evidence across native collection reads.
+func (s *Service) collectionSnapshot(ctx context.Context) (*sql.Tx, []any, error) {
+	downloads := s.liveBookDownloads(ctx)
+	switch downloads.Status {
+	case "fresh", "notConfigured", "partial", "unavailable":
+	default:
+		downloads.Status = "unavailable"
+	}
+
+	var inFlight []string
+	for id, items := range groupDownloadsByWantedID(downloads.Downloads) {
+		var parsed pgtype.UUID
+		if parsed.Scan(id) != nil || !parsed.Valid {
+			continue
+		}
+		for _, item := range items {
+			if downloadSupportsInFlight(item) {
+				inFlight = append(inFlight, id)
+				break
+			}
+		}
+	}
+	tx, err := s.store.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	completed := false
+	defer func() {
+		if !completed {
+			tx.Rollback()
+		}
+	}()
+	// These bounded interactive reads spend more time compiling the inlined
+	// evidence expression than executing it (over 500 ms of JIT in the 10k
+	// fixture). Keep this local to the read transaction, not the database/session.
+	if _, err = tx.ExecContext(ctx, `set local jit=off`); err != nil {
+		return nil, nil, err
+	}
+	// Cursor/filter selectivity varies between pages; avoid the generic prepared
+	// plan that rescans the evidence set through nested loops.
+	if _, err = tx.ExecContext(ctx, `set local plan_cache_mode=force_custom_plan`); err != nil {
+		return nil, nil, err
+	}
+	profiles, err := listQualityProfiles(ctx, tx)
+	if err != nil {
+		return nil, nil, err
+	}
+	names := map[string]bool{"": true}
+	for _, p := range profiles {
+		names[normalizeQualityProfile(p.Name)] = true
+	}
+	var cutoffs []collectionProfile
+	for name := range names {
+		for _, format := range []string{"ebook", "audiobook"} {
+			p := defaultQualityProfile(name, format)
+			if name != "" {
+				p = profileFromList(profiles, WantedItem{QualityProfile: name, Format: format})
+			}
+			cutoffs = append(cutoffs, collectionProfile{Name: name, Format: format, Cutoff: p.CutoffCompositeScore(), Upgrade: p.UpgradeAllowed})
+		}
+	}
+	profileJSON, err := json.Marshal(cutoffs)
+	if err != nil {
+		return nil, nil, err
+	}
+	completed = true
+	return tx, []any{string(profileJSON), inFlight, downloads.Status}, nil
+}

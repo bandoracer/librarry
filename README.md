@@ -38,8 +38,9 @@ feed matching traverses older monitored books as well as recent additions.
 
 Unreleased Library and Wanted gap views now page through the full tracked book
 collection with server filtering, sorting and counts. Bulk edits apply to selected
-books on the current page. Author lists, metadata review and collection-wide bulk
-jobs still have separate scaling work outstanding.
+books on the current page. Author subscriptions also have server pages, full
+identity-based book counts, and format/status filters. Metadata review and
+collection-wide bulk jobs still have separate scaling work outstanding.
 
 ## Project Status
 

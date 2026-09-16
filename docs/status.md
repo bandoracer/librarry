@@ -39,8 +39,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [book presence PR #23](https://github.com/bandoracer/librarry/pull/23),
 [worker fairness PR #24](https://github.com/bandoracer/librarry/pull/24),
 [explicit upgrade selection PR #25](https://github.com/bandoracer/librarry/pull/25),
-[collection projection PR #26](https://github.com/bandoracer/librarry/pull/26), and
-the `codex/paged-book-collection` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[collection projection PR #26](https://github.com/bandoracer/librarry/pull/26),
+[book paging PR #27](https://github.com/bandoracer/librarry/pull/27), and
+the `codex/paged-author-subscriptions` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -550,5 +551,8 @@ through `/api/v1/library/books`, with current-page bulk selection. A 10,001-book
 10,003-file fixture traverses all four sorts and preserves imported/unmonitored
 membership while excluding removed/ignored books. Client/quality/file evidence
 matches book details; outages remain explicit. This is source and isolated
-fixture qualification. Author lists, metadata review, other legacy readers,
+fixture qualification. Native author subscriptions now also page across the full
+collection with provider-identity/format book counts. Ambiguous or unresolved
+identities remain explicit; manual author overrides are excluded from recorded
+author membership. Metadata review, other legacy readers,
 compatibility and durable all-matching jobs remain unfinished under S14/S15.

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, RadioTower, RefreshCw, SlidersHorizontal, Trash2, UserRoundSearch } from "lucide-react";
@@ -10,6 +10,7 @@ import {
   updateAuthorSubscription
 } from "../../lib/api";
 import type {
+  AuthorCollectionOptions,
   AuthorFilterFields,
   AuthorFilterUpdateRequest,
   AuthorMetadataReview,
@@ -22,13 +23,10 @@ import type {
 import {
   keys,
   useAuthorMetadataReviews,
-  useAuthorSubscriptions,
-  useLibraryFiles,
+  useAuthorCollection,
   useMetadataProfiles,
   useRootFolders,
-  useQualityProfiles,
-  useWanted,
-  useWantedMetadataReview
+  useQualityProfiles
 } from "../../lib/queries";
 import { formatDateTime } from "../../lib/format";
 import { useToast } from "../../components/toast";
@@ -59,12 +57,9 @@ import {
   authorSubscriptionMonitorOptions,
   authorSubscriptionStatsBadges,
   authorSubscriptionStatsSummary,
-  buildAuthorSubscriptionStatsMap,
   emptyAuthorSubscriptionStats,
   errorMessage,
-  firstAuthorName,
-  metadataReviewMap,
-  wantedPresenceMap
+  firstAuthorName
 } from "../wanted/lib";
 import { libraryAuthorPath } from "./lib";
 import "../wanted/wanted.css";
@@ -150,27 +145,21 @@ export function AuthorsTab() {
   const toast = useToast();
   const client = useQueryClient();
 
-  const subscriptionsQuery = useAuthorSubscriptions();
+  const [search, setSearch] = useState("");
+  const [querySearch, setQuerySearch] = useState("");
+  const [format, setFormat] = useState<AuthorCollectionOptions["format"]>("all");
+  const [status, setStatus] = useState<AuthorCollectionOptions["status"]>("monitored");
+  const [cursors, setCursors] = useState<string[]>([""]);
+  useEffect(() => { const timer = setTimeout(() => { setQuerySearch(search); setCursors([""]); }, 250); return () => clearTimeout(timer); }, [search]);
+  const subscriptionsQuery = useAuthorCollection({ q: querySearch, format, status, cursor: cursors[cursors.length - 1], limit: 100 });
   const reviewsQuery = useAuthorMetadataReviews();
-  const wantedQuery = useWanted();
-  const wantedReviewQuery = useWantedMetadataReview();
-  const filesQuery = useLibraryFiles("any");
   const metadataProfilesQuery = useMetadataProfiles();
   const rootsQuery = useRootFolders();
   const profilesQuery = useQualityProfiles();
-
-  const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data]);
+  const collection = subscriptionsQuery.data;
+  const subscriptions = collection?.authors ?? [];
   const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
-  const wantedItems = useMemo(() => wantedQuery.data ?? [], [wantedQuery.data]);
-  const libraryFiles = useMemo(() => filesQuery.data ?? [], [filesQuery.data]);
   const metadataProfiles = metadataProfilesQuery.data ?? [];
-
-  const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
-  const reviewByID = useMemo(() => metadataReviewMap(wantedReviewQuery.data), [wantedReviewQuery.data]);
-  const statsByKey = useMemo(
-    () => buildAuthorSubscriptionStatsMap(subscriptions, wantedItems, presence, reviewByID),
-    [subscriptions, wantedItems, presence, reviewByID]
-  );
 
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [monitorTargetKey, setMonitorTargetKey] = useState("");
@@ -324,17 +313,17 @@ export function AuthorsTab() {
       <Toolbar align="start">
         <ToolbarButton
           icon={RadioTower}
-          label={isRunningMonitor ? "Running authors" : "Author Monitor"}
+          label={isRunningMonitor ? "Running authors" : "Check Author Batch"}
           busy={isRunningMonitor && !monitorTargetKey}
           disabled={isRunningMonitor}
-          title="Check due author subscriptions for new or missing books"
+          title="Check up to 50 due author subscriptions for new or missing books"
           onClick={() => void runMonitor({ force: false })}
         />
         <ToolbarButton
           icon={RefreshCw}
-          label="Force"
+          label="Force Author Batch"
           disabled={isRunningMonitor}
-          title="Force-refresh all author subscriptions"
+          title="Force-refresh up to 50 author subscriptions"
           onClick={() => void runMonitor({ force: true })}
         />
       </Toolbar>
@@ -345,24 +334,37 @@ export function AuthorsTab() {
         </InlineNotice>
       ))}
 
+      <div className="library-pagination">
+        <input aria-label="Filter author subscriptions" placeholder="Filter author subscriptions" value={search} onChange={event => setSearch(event.target.value)} />
+        <select aria-label="Author subscription format" value={format} onChange={event => { setFormat(event.target.value as AuthorCollectionOptions["format"]); setCursors([""]); }}>
+          <option value="all">All formats</option><option value="ebook">Ebooks</option><option value="audiobook">Audiobooks</option>
+        </select>
+        <select aria-label="Author subscription status" value={status} onChange={event => { setStatus(event.target.value as AuthorCollectionOptions["status"]); setCursors([""]); }}>
+          <option value="monitored">Monitored</option><option value="unmonitored">Unmonitored</option><option value="all">All subscriptions</option>
+        </select>
+        <Button disabled={cursors.length === 1 || subscriptionsQuery.isFetching} onClick={() => setCursors(value => value.slice(0, -1))}>Previous</Button>
+        <Button disabled={!collection?.nextCursor || subscriptionsQuery.isFetching} onClick={() => { if (collection?.nextCursor) setCursors(value => [...value, collection.nextCursor!]); }}>Next</Button>
+        <Button onClick={() => void subscriptionsQuery.refetch()} disabled={subscriptionsQuery.isFetching}>Refresh page</Button>
+      </div>
+      {(collection?.downloads === "partial" || collection?.downloads === "unavailable") && <InlineNotice tone="info">Download-client evidence is incomplete. Some book counts are unknown.</InlineNotice>}
       <div className="wanted-author-grid">
         <Card
           title="Author subscriptions"
-          subtitle={
-            subscriptions.length
-              ? `${subscriptions.length} monitored author${subscriptions.length === 1 ? "" : "s"} can create wanted items from metadata search.`
-              : "Monitor authors for new or missing books before release acquisition."
-          }
+          subtitle={collection ? `${subscriptions.length} shown · ${collection.filtered} matching · ${collection.total} total subscriptions` : "Monitor authors for new or missing books."}
           padded={false}
         >
           {subscriptionsQuery.isLoading ? (
             <LoadingRow label="Loading author subscriptions…" />
+          ) : subscriptionsQuery.isError ? (
+            <EmptyState icon={UserRoundSearch} title="Author subscriptions could not be loaded">
+              <Button onClick={() => void subscriptionsQuery.refetch()}>Retry</Button>
+            </EmptyState>
           ) : subscriptions.length ? (
             <div className="wanted-author-list">
               {subscriptions.map((subscription) => {
                 const monitorKey = authorSubscriptionKey(subscription);
                 const refreshingAuthor = monitorTargetKey === monitorKey;
-                const stats = statsByKey.get(monitorKey) ?? emptyAuthorSubscriptionStats();
+                const stats = { ...emptyAuthorSubscriptionStats(), ...subscription.counts, total: subscription.totalBooks };
                 const filterCount = activeFilterCount(subscription);
                 const filtersOpen = filtersOpenKey === monitorKey;
                 const activeProfile = metadataProfiles.find((profile) => profile.id === subscription.metadataProfileId);
@@ -377,17 +379,17 @@ export function AuthorsTab() {
                           {subscription.provider} · {subscription.format} · {subscription.qualityProfile}
                           {activeProfile ? ` · ${activeProfile.name}` : ""}
                         </span>
-                        <small className="wanted-author-stats">{authorSubscriptionStatsSummary(stats)}</small>
+                        <small className="wanted-author-stats">{subscription.identityLinked ? authorSubscriptionStatsSummary(stats) : "Provider identity is not linked. Book counts are unavailable."}</small>
                         <div className="wanted-author-counts" aria-label={`${subscription.authorName} wanted book status`}>
-                          <Badge tone={subscription.monitorNewItems ? "success" : "neutral"}>
-                            {subscription.monitorNewItems ? "Monitored" : "Not monitoring new"}
+                          <Badge tone={subscription.status === "monitored" && subscription.monitorNewItems ? "success" : "neutral"}>
+                            {subscription.status !== "monitored" ? "Unmonitored" : subscription.monitorNewItems ? "Monitored" : "Not monitoring new"}
                           </Badge>
                           {filterCount > 0 ? (
                             <Badge tone="info" title={`${filterCount} add filter${filterCount === 1 ? "" : "s"} active`}>
                               {filterCount} filter{filterCount === 1 ? "" : "s"}
                             </Badge>
                           ) : null}
-                          {authorSubscriptionStatsBadges(stats).map(([label, value]) => (
+                          {subscription.identityLinked && authorSubscriptionStatsBadges(stats).map(([label, value]) => (
                             <Badge key={label}>
                               {value} {label}
                             </Badge>
@@ -543,8 +545,9 @@ export function AuthorsTab() {
               })}
             </div>
           ) : (
-            <EmptyState icon={UserRoundSearch} title="No author subscriptions">
-              Subscribe to an author from metadata search to monitor for new or missing books.
+            <EmptyState icon={UserRoundSearch} title={collection?.total ? "No matching subscriptions on this page" : "No author subscriptions"}>
+              {collection?.total ? "Change the filters or return to the first page." : "Subscribe to an author from metadata search to monitor for new or missing books."}
+              {cursors.length > 1 && <Button onClick={() => setCursors([""])}>First page</Button>}
             </EmptyState>
           )}
         </Card>

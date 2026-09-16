@@ -452,6 +452,26 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert wanted_id in {book["id"] for book in author_page["books"]}, author_page
         assert author_page["choices"] == [] and author_page["totalBooks"] >= 1, author_page
         print("Packaged author detail: direct subscription and recorded-author links retain imported books after restart")
+        # Native collection counts are based on the recorded writer identity.
+        linked_author_id = str(uuid.UUID(linked_author["id"]))
+        linked_subscription_id = sql(f"insert into author_subscriptions(provider,provider_key,author_name,wanted_format,status,monitor_new_items,missing_book_policy) select provider,provider_key,'Packaged linked author','ebook','unmonitored',false,'none' from provider_records where entity_type='author' and entity_id='{linked_author_id}' limit 1 returning id").splitlines()[0]
+        author_first = request("/api/v1/library/authors?status=all&limit=1")
+        author_collection = author_first
+        author_ids = set()
+        while True:
+            assert author_collection["total"] == 2 and author_collection["filtered"] == 2, author_collection
+            for item in author_collection["authors"]:
+                assert item["id"] not in author_ids, item
+                author_ids.add(item["id"])
+                if item["id"] == linked_subscription_id:
+                    assert item["identityLinked"] and item["totalBooks"] == author_page["totalBooks"], item
+                    assert sum(item["counts"].values()) == item["totalBooks"], item
+                else:
+                    assert item["id"] == author["id"] and not item["identityLinked"] and item["totalBooks"] == 0, item
+            if not author_collection.get("nextCursor"):
+                break
+            author_collection = request("/api/v1/library/authors?status=all&limit=1&cursor=" + author_collection["nextCursor"])
+        assert author_ids == {author["id"], linked_subscription_id}, author_ids
         # Prove native presence against real packaged import/scan observations.
         imported_book = request("/api/v1/wanted/" + wanted_id)
         assert imported_book["stateEvidence"]["files"]["state"] == "present", imported_book
@@ -507,6 +527,9 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert after_restart["total"] == expected_books and after_restart["books"], after_restart
             assert after_restart["books"][0]["id"] != native_first["books"][0]["id"], after_restart
         print("Packaged book collection: exact counts, complete keyset traversal, incomplete-audio filtering and cursor continuation after restart verified")
+        author_after_restart = request("/api/v1/library/authors?status=all&limit=1&cursor=" + author_first["nextCursor"])
+        assert author_after_restart["total"] == 2 and author_after_restart["authors"][0]["id"] != author_first["authors"][0]["id"], author_after_restart
+        print("Packaged author collection: identity counts, unlinked identities, complete traversal and cursor continuation after restart verified")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

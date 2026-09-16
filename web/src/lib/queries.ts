@@ -3,6 +3,8 @@ import {
   fetchAcquisitionQueue,
   fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
+  fetchAuthorCollection,
+  type AuthorCollectionOptions,
   fetchAuthorDetail,
   fetchBlocklist,
   fetchDiskSpace,
@@ -529,4 +531,8 @@ export function useMetadataProfiles() {
 
 export function useBookCollection(options: BookCollectionOptions = {}, enabled = true) {
   return useQuery({ queryKey: keys.bookCollection(options), queryFn: ({ signal }) => withDemoFallback(() => fetchBookCollection(options, signal), () => demoBookCollection(options))(), enabled, refetchInterval: 30_000 });
+}
+
+export function useAuthorCollection(options: AuthorCollectionOptions = {}) {
+  return useQuery({ queryKey: [...keys.authorSubscriptions, "collection", options], queryFn: ({ signal }) => withDemoFallback(() => fetchAuthorCollection(options, signal), () => ({ authors: [], total: 0, filtered: 0, downloads: "notConfigured", observedAt: new Date().toISOString(), nextCursor: undefined }))(), refetchInterval: 30_000 });
 }

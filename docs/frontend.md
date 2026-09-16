@@ -124,3 +124,11 @@ the server and remain distinct from the number of displayed rows. Database error
 render retry states, not empty-library success. Metadata review remains a legacy
 loaded collection and is labelled accordingly. Explicit demo builds keep seeded
 book filtering/paging through `demoBookCollection`; production failures propagate.
+
+
+The Authors tab now uses `useAuthorCollection`, under the author-subscription
+invalidation key. It displays server totals and per-subscription native book
+counts, pages 100 subscriptions at a time, and filters the entire subscription
+collection. It does not fetch capped wanted/file/review lists to infer ownership
+by name. Unlinked identities, client uncertainty and retryable collection errors
+are explicit. The separate author review panel retains its existing reader.

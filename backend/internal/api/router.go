@@ -438,6 +438,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PATCH /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("GET /api/v1/library/authors/{key}", handler.libraryAuthorDetail)
 	mux.HandleFunc("GET /api/v1/library/books", handler.libraryBookCollection)
+	mux.HandleFunc("GET /api/v1/library/authors", handler.libraryAuthorCollection)
 	mux.HandleFunc("PUT /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("DELETE /api/v1/authors/{id}", handler.deleteAuthorSubscription)
 	mux.HandleFunc("POST /api/v1/authors/monitor", handler.monitorAuthors)

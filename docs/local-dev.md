@@ -1177,5 +1177,21 @@ books, so return to the first page to restart a traversal after edits.
 Selections clear on page/filter/tab changes. Select shown, mass edits, selected
 search and selected upgrade actions affect only the current selected page.
 Scheduled batch buttons remain separate 50-book actions. Review's count is marked
-as loaded because review pagination is still unfinished; author list, file list,
+as loaded because review pagination is still unfinished; file list,
 compatibility and other legacy collection readers retain separate scaling work.
+
+
+### Author subscription browsing
+
+Library → Authors pages up to 100 subscriptions, with full name/provider search,
+format and monitored/unmonitored filters. Counts include every tracked book of
+that subscription's format linked to its recorded author identity. Same-name
+people do not share counts. An unresolved or conflicting provider identity is
+shown as unavailable, not guessed by display name. Manual author corrections
+continue to take precedence. Client outages leave uncertain book counts Unknown.
+
+Previous/Next and Refresh page work independently of metadata refresh. Check
+Author Batch and Force Author Batch check at most 50 subscriptions; each row's
+refresh targets that subscription only. These are subscription settings rows,
+not a deduplicated catalog of every writer in the library. The separate author
+review queue still uses its existing bounded reader.

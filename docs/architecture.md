@@ -1244,3 +1244,30 @@ locally; they do not change database-wide or pooled-session settings. The 10,001
 counts/hydration and excluding external client IO, on Apple M5 Max/ARM64 with
 Colima Postgres 16.15. Author/review collections, compatibility surfaces and durable
 all-matching bulk jobs are not covered by this endpoint.
+
+
+### Native author subscription collection
+
+`GET /api/v1/library/authors` returns `authors`, `total`, `filtered`, `downloads`,
+`observedAt` and optional `nextCursor`. Each row embeds the subscription settings
+plus `identityLinked`, `totalBooks` and state `counts`. It accepts `q` (literal
+case-insensitive name/provider/key substring, maximum 256 UTF-8 bytes), `format`
+(all/ebook/audiobook), `status` (monitored default, unmonitored or all), `limit`
+(1–100, default 100) and `cursor`. Removed subscriptions are excluded even from
+all. Unknown/duplicate/invalid filters return 400; read failures return 503.
+
+Subscriptions sort by lowercase name, format and UUID with C collation. Cursors
+bind filters, have a distinct namespace from book cursors, and survive restart.
+A traversal is not frozen across requests. Counts and page settings share the
+book collection's repeatable-read snapshot, quality projection and one bounded
+client observation. Book counts are computed for identities on the current page
+against all active tracked books; no capped wanted/file arrays or per-author
+client requests are used. Duplicate writer roles cannot double-count a book.
+
+Membership requires a unique canonical provider-record author identity and a
+recorded author/writer link, with the subscription's format. Narrator-only,
+removed/ignored and manually overridden author assignments are excluded.
+Ambiguous legacy provider mappings remain unresolved. Aliases and ebook/audio
+subscriptions retain independent settings rows; these are not unique-person
+counts or an all-authors catalog. Author metadata review and compatibility
+collection readers remain separate work.

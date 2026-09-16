@@ -612,7 +612,6 @@ export type AuthorSubscriptionStats = {
   cutoffUnmet: number;
   unmonitored: number;
   review: number;
-  firstWantedItem?: WantedItem;
 };
 
 export function authorSubscriptionKey(subscription: AuthorSubscription) {
@@ -683,53 +682,6 @@ export function emptyAuthorSubscriptionStats(): AuthorSubscriptionStats {
     unmonitored: 0,
     review: 0
   };
-}
-
-export function buildAuthorSubscriptionStatsMap(
-  subscriptions: AuthorSubscription[],
-  items: WantedItem[],
-  presence: Map<string, WantedPresence>,
-  reviews: Map<string, MetadataReviewItem>
-) {
-  const statsByKey = new Map<string, AuthorSubscriptionStats>();
-
-  subscriptions.forEach((subscription) => {
-    const authorName = normalizedWantedText(subscription.authorName);
-    const stats = emptyAuthorSubscriptionStats();
-    items.forEach((item) => {
-      if (item.format !== subscription.format) return;
-      if (normalizedWantedText(item.authorName) !== authorName) return;
-      stats.total += 1;
-      stats.firstWantedItem ??= item;
-      if (reviews.has(item.id)) stats.review += 1;
-      switch (presence.get(item.id) ?? "missing") {
-        case "downloaded":
-          stats.downloaded += 1;
-          break;
-        case "downloading":
-          stats.downloading += 1;
-          break;
-        case "cutoffUnmet":
-          stats.cutoffUnmet += 1;
-          break;
-        case "incomplete":
-          stats.incomplete += 1;
-          break;
-        case "unknown":
-          stats.unknown += 1;
-          break;
-        case "unmonitored":
-          stats.unmonitored += 1;
-          break;
-        default:
-          stats.missing += 1;
-          break;
-      }
-    });
-    statsByKey.set(authorSubscriptionKey(subscription), stats);
-  });
-
-  return statsByKey;
 }
 
 export function authorSubscriptionStatsSummary(stats: AuthorSubscriptionStats) {

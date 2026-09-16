@@ -1221,3 +1221,59 @@ The final `go test ./...` run also passed after the installed-quality fixture wa
 added. The next audited gap is AuthorsTab: its 500-subscription response and
 counts derived from capped wanted/file/review lists still need native collection
 membership, accurate statistics and pagination.
+
+
+Book paging PR #27 at `e468d4bb9ee9cced97e4cc21e01e2bda0a6837be` passed
+[CI 35088661629](https://github.com/bandoracer/librarry/actions/runs/35088661629),
+including source/race/browser, packaged restore and platform image gates.
+
+## Continuation: native author subscription collection (S14/S15)
+
+Branch `codex/paged-author-subscriptions` follows PR #27. AuthorsTab previously
+stopped at 500 subscriptions and calculated book counts from capped wanted/file
+arrays by matching names. The new `/api/v1/library/authors` pages subscriptions
+with name/provider, format and status filters. Full book counts use unique
+recorded provider identity, writer membership, subscription format and the native
+book evidence projection. Same-name people stay separate; manual author overrides
+win; duplicate writer roles count once, narrator-only and removed books count
+zero. Unresolved or conflicting identities remain explicit. Settings and counts
+share a database snapshot and one client observation. Cursors bind filters and
+survive restart without claiming a frozen traversal.
+
+The UI replaces the capped source arrays, adds Previous/Next and retry states,
+keeps row actions targeted, and labels the default 50-author monitor work as a
+batch. Desktop/mobile coverage verifies older pages, global filters, exact refresh
+IDs, settings persistence and errors distinct from empty results. Mobile toolbar
+spacing and card padding were also corrected. Subscription rows retain separate
+provider/format settings; this does not introduce an all-writers catalog or
+complete author metadata-review pagination.
+
+The scale fixture traversed 1,002 subscriptions with 10,001 tracked books and no
+gaps/duplicates. The first non-race run's slowest local page was 343.047 ms; the
+final focused race run measured 412.793 ms (Apple M5 Max/ARM64, Colima Postgres
+16.15; no external client IO). The added contracts cover same-name identities,
+manual overrides, duplicate writer roles, narrator-only links, format separation,
+removed books, ambiguous provider records and live-client outage states.
+
+
+Full Go race/Postgres checks and vet passed, as did the focused race run after
+adding narrator/duplicate-role/removed-book coverage. Fourteen web unit checks,
+the production build and all 63 applicable desktop/mobile browser cases passed
+(one expected mobile skip). The eight author paging/settings cases also passed
+after the mobile spacing correction; the 390x844 capture was visually inspected.
+
+
+The local ARM64 API/web pair (`librarry-api:paged-authors` and
+`librarry-web:paged-authors`) passed schema-43 packaged qualification. The new
+checks verify linked/unlinked identity counts, complete subscription traversal,
+and cursor continuation after process restart. The 413,054-byte database backup
+restored with author settings, book/file/download records, native evidence and
+receipts intact. No real provider request, acquisition, deployment, image
+publication, tag or release occurred. Author review, all-writers catalog discovery,
+file/legacy collections, compatibility and durable all-matching bulk jobs remain
+open. S14/S15 and the full stabilization goal remain in progress.
+
+The final `go test ./...` run also passed. Next audited gap: the metadata Review
+queue calls the 200-row `ListWanted` reader, performs per-book provenance reads,
+and explicitly skips imported books. Selected canonical-confirmation also depends
+on that truncated queue. These remain the next S14/S15 continuation.

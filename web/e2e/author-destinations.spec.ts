@@ -59,7 +59,7 @@ test("author additions keep selected format, destination and profile; refresh us
 test("author settings can change and clear the destination without rewriting the quality profile", async ({ page }) => {
   let author = { id: "fixture-author", provider: "Hardcover", providerKey: "hardcover-author:7", authorName: "Fixture author", format: "ebook", status: "monitored", missingBookPolicy: "all", monitorNewItems: true, qualityProfile: "custom", rootFolderId: "root-a", tags: [] };
   const updates: Record<string, unknown>[] = [];
-  await page.route("**/api/v1/authors?**", route => route.fulfill({ json: { authors: [author] } }));
+  await page.route("**/api/v1/library/authors?**", route => route.fulfill({ json: { authors: [{ ...author, counts: {}, totalBooks: 0, identityLinked: false }], total: 1, filtered: 1, downloads: "fresh" } }));
   await page.route("**/api/v1/authors/fixture-author", route => {
     const body = route.request().postDataJSON();
     updates.push(body);
