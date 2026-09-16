@@ -8,7 +8,8 @@ import (
 )
 
 type Service struct {
-	providers []Provider
+	providers    []Provider
+	searchCaches []*providerSearchCache
 }
 
 type ProviderError struct {
@@ -23,7 +24,11 @@ type SearchOutcome struct {
 }
 
 func NewService(providers []Provider) *Service {
-	return &Service{providers: providers}
+	s := &Service{providers: append([]Provider(nil), providers...)}
+	for range providers {
+		s.searchCaches = append(s.searchCaches, newProviderSearchCache())
+	}
+	return s
 }
 
 func (s *Service) Providers() []Provider {
@@ -70,14 +75,15 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 
 	merged := []SearchResult{}
 	var providerErrors []ProviderError
-	fallback := []Provider{}
+	fallback := []int{}
 	requestQuery := query
 	lookup, lookupEligible := exactBookLookup(query)
 	if lookupEligible && lookup.isbn != "" {
 		requestQuery.Query = lookup.isbn
 	}
-	collect := func(provider Provider, exactOnly bool) {
-		results, err := provider.Search(ctx, requestQuery)
+	collect := func(index int, exactOnly bool) {
+		provider := s.providers[index]
+		results, err := s.searchCaches[index].search(ctx, requestQuery, provider)
 		if err != nil {
 			providerErrors = append(providerErrors, ProviderError{Provider: provider.Name(), Message: err.Error()})
 			return
@@ -90,12 +96,12 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 		}
 	}
 	// Fallback ordering is policy, independent of constructor/provider order.
-	for _, provider := range s.providers {
+	for index, provider := range s.providers {
 		if provider.Name() == "Google Books" {
-			fallback = append(fallback, provider)
+			fallback = append(fallback, index)
 			continue
 		}
-		collect(provider, false)
+		collect(index, false)
 	}
 	if lookupEligible && !hasExactPrimaryMatch(query, merged) {
 		for _, provider := range fallback {

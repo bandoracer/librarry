@@ -250,12 +250,16 @@ func hardcoverErrors(failures []hardcoverGraphQLError) error {
 // CheckProvider is explicit, read-only remote verification. Snapshot endpoints
 // only call Health and never spend provider quota.
 func (s *Service) CheckProvider(ctx context.Context, name string) (ProviderHealth, error) {
-	for _, p := range s.providers {
+	for index, p := range s.providers {
 		if !strings.EqualFold(strings.TrimSpace(name), p.Name()) {
 			continue
 		}
 		if checker, ok := p.(interface{ Check(Context) ProviderHealth }); ok {
-			return checker.Check(ctx), nil
+			health := checker.Check(ctx)
+			if health.Status != "ready" && ctx.Err() == nil {
+				s.searchCaches[index].invalidate()
+			}
+			return health, nil
 		}
 		return p.Health(ctx), nil
 	}

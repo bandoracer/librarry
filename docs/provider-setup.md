@@ -78,3 +78,22 @@ Connection checks do not certify rich metadata coverage or author/list traversal
 Real Hardcover and Google credential qualification remains pending. The probe
 contracts follow [Hardcover's getting-started example](https://docs.hardcover.app/api/getting-started/)
 and [Google Books volumes search](https://developers.google.com/books/docs/v1/using#PerformingSearch).
+
+
+## Search result caching
+
+Repeated identical queries reuse successful provider results for five minutes;
+valid empty results expire after 30 seconds. Hits do not extend those lifetimes
+or change provider request/success timestamps. Query text, type, format, language,
+limit and provider identity are separate cache keys, including author IDs. Errors
+are never cached. A failed search or explicit health check clears the affected
+provider's cached results, so known outages or rejected credentials remain visible.
+Other providers keep their independent cache entries. Concurrent identical misses
+share a successful fetch; canceled requests do not clear earlier successes.
+
+Caches are process-local and tied to one provider configuration. Restarting or
+replacing the metadata service clears them. Each provider retains at most 128
+entries and 2 MiB of serialized results/query keys; responses over 256 KiB and
+query keys over 4 KiB are returned normally without caching. Least-recently-used
+entries are evicted. This is short-lived search reuse, not a persistent raw record
+or bibliography store, and does not establish complete author coverage.

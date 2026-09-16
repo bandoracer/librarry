@@ -92,7 +92,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
-| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff and exact Google fallback implemented; rich traversal, result caching and live credentials remain |
+| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; rich traversal, persistent raw records and live credentials remain |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
@@ -643,3 +643,30 @@ mobile). The local ARM64 schema-40 API passed packaged import/restart/replacemen
 acquisition bookkeeping, scan/move/repair and authentication regressions; an
 isolated 403,593-byte database dump restored with counts and receipt intact. The
 packaged web is the older multipart snapshot; current UI was tested from source.
+
+
+## Continuation: bounded metadata search caching (S12)
+
+Branch: `codex/metadata-cache`, based on exact fallback PR #14. Repeated successful
+provider queries now reuse immutable serialized snapshots for five minutes; valid
+empty searches expire after 30 seconds. Cache keys include all query dimensions.
+Entries are bounded by count, result/key bytes and per-entry size, with LRU eviction.
+Large results still return in full without storage. One provider slot rechecks
+after waiting so simultaneous identical misses share a successful request. Caller
+cancellation cannot leave detached work or clear earlier successes.
+
+Errors are never cached, and failed requests/checks clear only the affected
+provider's entries. A generation fence rejects repopulation by an older in-flight
+fetch. A cache hit cannot advance actual request/health evidence. Service/provider
+configuration changes reset caches and the constructor copies the provider list.
+No persistent schema or deployment settings changed. Rich traversal, durable raw
+records and real credentials remain open under S12.
+
+Validation: cache contracts passed under the race detector, including expiration,
+all query dimensions, nested response isolation, count/byte eviction, concurrent
+misses, canceled callers, provider-scoped failures, health timestamp preservation
+and in-flight invalidation. Full Go race/Postgres suite and vet passed. The local
+ARM64 schema-40 packaged API passed import/acquisition/scan/restart/replacement,
+repair, move and authentication regressions; a 404,789-byte database dump restored
+with counts and receipt intact. Packaged web remains the older multipart snapshot;
+this continuation changes no UI. No image was published or deployed.

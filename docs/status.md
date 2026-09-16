@@ -26,8 +26,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [move reconciliation PR #10](https://github.com/bandoracer/librarry/pull/10),
 [reviewed replacement PR #11](https://github.com/bandoracer/librarry/pull/11),
 [acquisition bookkeeping PR #12](https://github.com/bandoracer/librarry/pull/12),
-[provider health PR #13](https://github.com/bandoracer/librarry/pull/13), and the
-`codex/exact-metadata-fallback` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[provider health PR #13](https://github.com/bandoracer/librarry/pull/13),
+[exact fallback PR #14](https://github.com/bandoracer/librarry/pull/14), and the
+`codex/metadata-cache` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -118,8 +119,11 @@ concurrency and malformed/empty-response cases. Google fallback now runs only wh
 primary providers have no suitable exact ISBN/full-title match. Returned matches
 are checked for ISBN checksum/equivalence or literal title/subtitle and known
 language/format conflicts. Author and series queries never use Google; unknown
-format stays unknown. Real-token qualification, rich edition/author/list traversal
-and result caching remain outstanding under S12.
+format stays unknown. Bounded process-local provider caches reuse successful
+searches for five minutes and empty results for 30 seconds. Cache reads do not
+invent fresh request evidence; failures invalidate the affected provider's entries.
+Real-token qualification, rich edition/author/list traversal and persistent raw
+records remain outstanding under S12.
 
 ## Historical verified milestones
 

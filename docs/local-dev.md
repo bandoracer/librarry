@@ -998,3 +998,11 @@ They cover primary-first routing, ISBN checksums/equivalence, literal titles and
 subtitles, Unicode, languages/formats, partial errors, and author/series exclusion.
 No provider key is needed for these fixtures; they do not qualify a real key.
 See [provider setup](provider-setup.md) for search behavior.
+
+
+Metadata cache tests use an injected clock and controlled providers to verify
+positive/empty expiry, query dimensions, LRU/byte limits, nested-value isolation,
+concurrent misses, cancellation and failure invalidation without live quota.
+`go test -race ./backend/internal/metadata` runs them. Cached reads keep the
+provider's actual request timestamps; use System's explicit check for current
+connection evidence. Caches reset on process restart.

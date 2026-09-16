@@ -946,8 +946,7 @@ and searches. Snapshot reads and unavailable credentials perform no remote IO;
 caller cancellation does not become an outage. Error classifications exclude raw
 response bodies and credential-bearing URLs. Missing response lists/counts are
 errors, while valid empty lists remain valid responses. This state is process-local
-and resets with provider instances; search-result caching and richer traversal
-remain separate S12 work.
+and resets with provider instances. Richer traversal remains separate S12 work.
 
 
 ### Exact metadata fallback
@@ -968,3 +967,24 @@ and volume/source IDs are retained; `saleInfo.isEbook` is the only concrete form
 evidence used. Unknown format is not assigned from the requested format. Empty
 results remain arrays. Broader work/edition matching and persisted raw records
 remain separate S12/S13 work.
+
+
+### Provider result cache
+
+Each immutable metadata service owns an independent bounded cache per provider.
+Keys include every query field after service normalization; equivalent validated
+ISBNs use the canonical provider query. Values are serialized snapshots, so
+merging a result or mutating a returned nested slice cannot corrupt later hits.
+Successful nonempty/empty responses expire five minutes/30 seconds after fetch,
+without sliding expiration. LRU eviction caps each provider at 128 entries and
+2 MiB of serialized result/key data (plus bounded map/object overhead); oversized
+responses/keys bypass storage. The complete response still reaches the caller.
+
+A cancellable provider slot rechecks the cache after waiting, preventing duplicate
+successful fetches for concurrent identical misses. Waits are bounded at 15 seconds;
+provider request timeouts/backoff still apply. No detached fetch outlives its
+caller. Errors invalidate only that provider's entries and are not cached; caller
+cancellation preserves other successful keys. A generation fence prevents an
+in-flight success from repopulating entries invalidated by an explicit failed
+health check. Cached reads never advance observed request/success timestamps.
+Credentials are not cache keys or values; replacing the service resets all caches.

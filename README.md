@@ -426,6 +426,10 @@ Provider priority:
    are high-confidence import evidence.
 5. Manual overrides always win.
 
+Successful provider searches are cached in memory for up to five minutes (empty
+results for 30 seconds), with bounded storage and independent provider failures.
+Cache hits preserve the actual request timestamps shown in System.
+
 Goodreads, Amazon, and Audible scraping are intentionally not part of core.
 
 ## Architecture
