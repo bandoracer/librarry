@@ -30,7 +30,7 @@ func (s *Service) verifyOperationInventory(ctx context.Context, op ImportOperati
 		if cleanup {
 			return errors.New("manual file import does not authorize download deletion")
 		}
-		return nil
+		return verifyBookRenameInventory(op)
 	}
 	payload, err := s.inspectDownloadPayload(ctx, acquisition.DownloadStatus{Client: op.Client, ID: op.DownloadID})
 	if err != nil {

@@ -39,24 +39,25 @@ type ImportOperation struct {
 }
 
 type ImportOperationFile struct {
-	PreviousPath      string `json:"previousPath,omitempty"`
-	PreviousSHA256    string `json:"previousSha256,omitempty"`
-	PreviousSizeBytes int64  `json:"previousSizeBytes,omitempty"`
-	SourceRemoved     bool   `json:"sourceRemoved,omitempty"`
-	StagePath         string `json:"stagePath,omitempty"`
-	StageLeaseToken   string `json:"-"`
-	WantedID          string `json:"wantedId,omitempty"`
-	ID                string `json:"id"`
-	Order             int    `json:"order"`
-	RelativePath      string `json:"relativePath"`
-	SourcePath        string `json:"sourcePath"`
-	DestinationPath   string `json:"destinationPath"`
-	SizeBytes         int64  `json:"sizeBytes"`
-	SHA256            string `json:"sha256"`
-	Format            string `json:"format"`
-	Required          bool   `json:"required"`
-	State             string `json:"state"`
-	FileID            string `json:"fileId,omitempty"`
+	RenameOriginFileID string `json:"renameOriginFileId,omitempty"`
+	PreviousPath       string `json:"previousPath,omitempty"`
+	PreviousSHA256     string `json:"previousSha256,omitempty"`
+	PreviousSizeBytes  int64  `json:"previousSizeBytes,omitempty"`
+	SourceRemoved      bool   `json:"sourceRemoved,omitempty"`
+	StagePath          string `json:"stagePath,omitempty"`
+	StageLeaseToken    string `json:"-"`
+	WantedID           string `json:"wantedId,omitempty"`
+	ID                 string `json:"id"`
+	Order              int    `json:"order"`
+	RelativePath       string `json:"relativePath"`
+	SourcePath         string `json:"sourcePath"`
+	DestinationPath    string `json:"destinationPath"`
+	SizeBytes          int64  `json:"sizeBytes"`
+	SHA256             string `json:"sha256"`
+	Format             string `json:"format"`
+	Required           bool   `json:"required"`
+	State              string `json:"state"`
+	FileID             string `json:"fileId,omitempty"`
 }
 
 func (s *Store) operationForDownload(ctx context.Context, client, externalID string) (ImportOperation, error) {
@@ -86,7 +87,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	if err = json.Unmarshal(raw, &op.Metadata); err != nil {
 		return op, err
 	}
-	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,''),stage_path,coalesce(stage_lease_token::text,''),previous_path,previous_sha256,previous_size_bytes,source_removed from import_operation_files where operation_id=$1 order by file_order,id`, id)
+	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,''),stage_path,coalesce(stage_lease_token::text,''),previous_path,previous_sha256,previous_size_bytes,source_removed,coalesce(rename_origin_file_id::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
 	if err != nil {
 		return op, err
 	}
@@ -94,7 +95,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	op.Files = []ImportOperationFile{}
 	for rows.Next() {
 		var f ImportOperationFile
-		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID, &f.WantedID, &f.StagePath, &f.StageLeaseToken, &f.PreviousPath, &f.PreviousSHA256, &f.PreviousSizeBytes, &f.SourceRemoved); err != nil {
+		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID, &f.WantedID, &f.StagePath, &f.StageLeaseToken, &f.PreviousPath, &f.PreviousSHA256, &f.PreviousSizeBytes, &f.SourceRemoved, &f.RenameOriginFileID); err != nil {
 			return op, err
 		}
 		op.Files = append(op.Files, f)
@@ -166,10 +167,12 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 	// contenders acquire locks in sorted order to avoid multi-file deadlocks.
 	paths := make([]string, 0, len(op.Files))
 	manifestByPath := map[string]ImportOperationFile{}
+	renameSources := map[string]ImportOperationFile{}
 	for _, f := range op.Files {
 		paths = append(paths, f.DestinationPath)
 		if op.isRename() {
 			paths = append(paths, f.SourcePath)
+			renameSources[f.SourcePath] = f
 		}
 		manifestByPath[f.DestinationPath] = f
 	}
@@ -178,11 +181,20 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,1))`, path); err != nil {
 			return op, err
 		}
-		if op.isRename() && path == op.Files[0].SourcePath {
+		if source, ok := renameSources[path]; op.isRename() && ok {
+			if source.Format == "sidecar" {
+				var tracked bool
+				if err := tx.QueryRowContext(ctx, `select exists(select 1 from files where path=$1)`, path).Scan(&tracked); err != nil {
+					return op, err
+				}
+				if tracked {
+					return op, errors.New("rename companion became a tracked file; retain it for review")
+				}
+			}
 			continue
 		}
 		var occupied bool
-		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and (o.state<>'committed' or not $2) and not($3<>'' and f.file_id=nullif($3,'')::uuid and o.state='committed' and (o.source_kind<>'manual' or o.cleanup_state='cleaned') and o.replacement_cleanup_state<>'pending')) or (not $2 and exists(select 1 from files where path=$1)) or exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.source_path=$1 and o.source_kind='manual' and o.metadata ? 'renameFileId' and (o.state<>'committed' or o.cleanup_state<>'cleaned'))`, path, (op.SourceKind != "manual" && op.Metadata["conflictAction"] == "replace") || manifestByPath[path].PreviousPath != "" || (op.SourceKind == "manual" && manifestByPath[path].SourcePath == path), metadataString(op.Metadata, "renameFileId")).Scan(&occupied); err != nil {
+		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and (o.state<>'committed' or not $2) and not((($3<>'' and f.file_id=nullif($3,'')::uuid) or ($4<>'' and (f.id=nullif($4,'')::uuid or f.rename_origin_file_id=nullif($4,'')::uuid))) and o.state='committed' and (o.source_kind<>'manual' or o.cleanup_state='cleaned') and o.replacement_cleanup_state<>'pending')) or (not $2 and exists(select 1 from files where path=$1)) or exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.source_path=$1 and o.source_kind='manual' and o.metadata ? 'renameFileId' and (o.state<>'committed' or o.cleanup_state<>'cleaned'))`, path, (op.SourceKind != "manual" && op.Metadata["conflictAction"] == "replace") || manifestByPath[path].PreviousPath != "" || (op.SourceKind == "manual" && manifestByPath[path].SourcePath == path), renameDestinationFileID(op, manifestByPath[path]), renameDestinationOriginID(op, manifestByPath[path])).Scan(&occupied); err != nil {
 			return op, err
 		}
 		if occupied {
@@ -207,9 +219,18 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 		return op, err
 	}
 	for _, f := range op.Files {
-		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,wanted_item_id,previous_path,previous_sha256,previous_size_bytes,file_id)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,nullif($10,'')::uuid,$11,$12,$13,nullif($14,'')::uuid)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required, f.WantedID, f.PreviousPath, f.PreviousSHA256, f.PreviousSizeBytes, f.FileID); err != nil {
+		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,wanted_item_id,previous_path,previous_sha256,previous_size_bytes,file_id,rename_origin_file_id)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,nullif($10,'')::uuid,$11,$12,$13,nullif($14,'')::uuid,nullif($15,'')::uuid)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required, f.WantedID, f.PreviousPath, f.PreviousSHA256, f.PreviousSizeBytes, f.FileID, f.RenameOriginFileID); err != nil {
 			return op, err
+		}
+	}
+	if op.isRename() {
+		for _, f := range op.Files {
+			if f.FileID != "" {
+				if _, err := tx.ExecContext(ctx, `insert into file_rename_claims(file_id,operation_id) values($1,$2)`, f.FileID, op.ID); err != nil {
+					return op, err
+				}
+			}
 		}
 	}
 	if err := tx.Commit(); err != nil {

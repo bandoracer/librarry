@@ -71,9 +71,28 @@ func TestScanMoveRetainsImportedIdentityLinksOverridesAndHistory(t *testing.T) {
 	if err != nil || after.Files[0].DestinationPath != op.Files[0].DestinationPath || after.Files[0].FileID != file.ID || after.Files[0].SHA256 != op.Files[0].SHA256 {
 		t.Fatal(after, err)
 	}
-	// Original cleanup receipts cannot follow a moved file implicitly.
+	// Receipts now follow a verified scan relocation, but never a current path
+	// alone or a relocation event for different bytes. The manifest stays immutable.
+	if err := s.VerifyCompletedDownload(ctx, download, nil); err != nil {
+		t.Fatal("verified move stranded the original receipt", err)
+	}
+	if _, err := db.Exec(`update library_scan_moves set sha256=repeat('0',64) where file_id=$1`, file.ID); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.VerifyCompletedDownload(ctx, download, nil); err == nil {
-		t.Fatal("move silently authorized old-destination cleanup")
+		t.Fatal("mismatched move evidence authorized cleanup")
+	}
+	if _, err := db.Exec(`update library_scan_moves set sha256=$2 where file_id=$1`, file.ID, op.Files[0].SHA256); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`update files set path=$2 where id=$1`, file.ID, canonical+".unverified"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.VerifyCompletedDownload(ctx, download, nil); err == nil {
+		t.Fatal("unrecorded path edit authorized cleanup")
+	}
+	if _, err := db.Exec(`update files set path=$2 where id=$1`, file.ID, canonical); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(download.SavePath, download.Name)); err != nil {
 		t.Fatal("download source lost", err)

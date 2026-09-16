@@ -140,6 +140,9 @@ func (s *Service) finishOperationCleanup(ctx context.Context, op ImportOperation
 }
 
 func (s *Service) cleanupManualFiles(ctx context.Context, op ImportOperation) error {
+	if err := verifyBookRenameSourceLayout(op, false); err != nil {
+		return err
+	}
 	// Verify the complete set before deleting any original or backup.
 	for _, file := range op.Files {
 		if err := verifyManifestPath(file.DestinationPath, file); err != nil {
@@ -152,17 +155,30 @@ func (s *Service) cleanupManualFiles(ctx context.Context, op ImportOperation) er
 				if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,1))`, file.SourcePath); err != nil {
 					return err
 				}
-				var path, hash string
-				var size int64
-				if err := tx.QueryRowContext(ctx, `select path,coalesce(checksum,''),coalesce(size_bytes,0) from files where id=$1 for update`, metadataString(op.Metadata, "renameFileId")).Scan(&path, &hash, &size); err != nil {
-					return err
-				}
 				var sourceOwned bool
 				if err := tx.QueryRowContext(ctx, `select exists(select 1 from files where path=$1)`, file.SourcePath).Scan(&sourceOwned); err != nil {
 					return err
 				}
-				if path != file.DestinationPath || hash != file.SHA256 || size != file.SizeBytes || sourceOwned {
-					return errors.New("renamed file ownership changed; retain the source for review")
+				if sourceOwned {
+					return errors.New("rename source was claimed by a file record; retain it for review")
+				}
+				if file.Format != "sidecar" {
+					var path, hash string
+					var size int64
+					if err := tx.QueryRowContext(ctx, `select path,coalesce(checksum,''),coalesce(size_bytes,0) from files where id=$1 for update`, file.FileID).Scan(&path, &hash, &size); err != nil {
+						return err
+					}
+					if path != file.DestinationPath || hash != file.SHA256 || size != file.SizeBytes {
+						return errors.New("renamed file ownership changed; retain the source for review")
+					}
+				} else {
+					var destinationOwned bool
+					if err := tx.QueryRowContext(ctx, `select exists(select 1 from files where path=$1)`, file.DestinationPath).Scan(&destinationOwned); err != nil {
+						return err
+					}
+					if destinationOwned {
+						return errors.New("rename companion became a tracked file; retain the source for review")
+					}
 				}
 			}
 			if err := verifyManifestPath(file.DestinationPath, file); err != nil {

@@ -115,8 +115,9 @@ access, and provider outages retain their prior success history.
 
 Standalone native file renames retain the original until the new path is verified
 and committed, with interrupted work recoverable in Imports. File identity and
-book links survive. Chapter sets and companion layouts are retained with an
-explanation; complete-set renaming is still unfinished.
+book links survive. Book details also offer a complete recorded folder move that
+preserves chapter names, disc directories and verified relative companion
+references. Unproven sets remain for review.
 
 ## Documentation
 
@@ -752,6 +753,8 @@ Important API surfaces:
   - `GET /api/v1/library/files`
   - `DELETE /api/v1/library/files/{id}`
   - `POST /api/v1/library/files/delete`
+  - `POST /api/v1/library/books/{id}/rename/preview`
+  - `POST /api/v1/library/books/{id}/rename`
   - `POST /api/v1/library/files/rename/preview`
   - `POST /api/v1/library/files/rename`
   - `POST /api/v1/library/calibre/conversions/refresh`

@@ -142,7 +142,9 @@ verified staging, file identity reservations, atomic path/history commit and
 post-commit source cleanup. Fault fixtures cover database rollback, cleanup retry,
 concurrent owner corrections, destination conflicts and original receipt replay
 through repeated renames. Per-file selection retains chapter/companion layouts;
-complete-set rename and sidecar reference handling are still required. Whole-book
+a separate book action moves complete recorded folders while preserving names,
+disc paths and verified relative CUE/M3U/OPF references. General chapter/reference
+rewriting remains unsupported. Whole-book
 retirement, Calibre recovery, broader disk fault injection and live qualification
 remain open. This does not mark S09 complete.
 

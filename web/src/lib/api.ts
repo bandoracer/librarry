@@ -2348,6 +2348,23 @@ export async function deleteRemotePathMapping(id: string): Promise<void> {
   }
 }
 
+export type BookRenamePreview = {
+  wantedId: string; title: string; revision: string; sourceFolder: string; destinationFolder: string;
+  mediaFiles: number; companionFiles: number; noop: boolean; operationId?: string;
+  files: { relativePath: string; sourcePath: string; destinationPath: string; sizeBytes: number; format: string; fileId?: string }[];
+};
+export async function previewBookRename(id: string): Promise<BookRenamePreview> {
+  const response = await fetch(`${apiBase}/api/v1/library/books/${encodeURIComponent(id)}/rename/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  if (!response.ok) throw new Error(await apiError(response, "Book folder preview failed"));
+  const result = await response.json() as BookRenamePreview;
+  return { ...result, files: result.files ?? [] };
+}
+export async function renameBookFolder(id: string, revision: string): Promise<LibraryImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/books/${encodeURIComponent(id)}/rename`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision }) });
+  if (!response.ok) throw new Error(await apiError(response, "Book folder rename failed; check Imports for recovery"));
+  return response.json() as Promise<LibraryImportOutcome>;
+}
+
 /* ------------------------------ Library rename ----------------------------- */
 
 /*
@@ -3133,7 +3150,7 @@ export type ImportOperation = {
   lastError?: string;
   cleanupError?: string;
   attempts: number;
-  metadata: { title?: string; author?: string; renameFileId?: string };
+  metadata: { title?: string; author?: string; renameFileId?: string; renameWantedId?: string };
   files: { id: string; previousPath?: string; previousSizeBytes?: number; previousSha256?: string; sourceRemoved?: boolean; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
 };
 export type ImportRecoveryReport = {

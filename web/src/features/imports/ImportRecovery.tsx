@@ -20,13 +20,13 @@ export default function ImportRecovery() {
       <p className="field-hint">{report.unfinished} unfinished operations · {report.unresolved} unresolved legacy links. Showing up to {report.limit} operations and link issues.</p>
       {!report.operations.length ? <p className="field-hint">New imports and file renames will appear here.</p> : null}
       <div className="imports-recovery-list">
-        {report.operations.map(operation => <details key={operation.id} className="imports-recovery-item">
+        {report.operations.map(operation => { const bookId = operation.wantedId || operation.metadata?.renameWantedId; return <details key={operation.id} className="imports-recovery-item">
           <summary>
             <span>{operation.metadata?.title || operation.downloadId}</span>
             <Badge tone={operation.state === "committed" ? "success" : operation.state === "failed" ? "danger" : "warn"}>{operation.state}</Badge>
           </summary>
-          <p className="field-hint">{operation.metadata?.renameFileId ? "Saved file rename" : operation.sourceKind === "manual" ? "Manual file import" : operation.client} · {operation.attempts} {operation.attempts === 1 ? "attempt" : "attempts"} · Cleanup: {operation.sourceKind === "manual" ? (operation.cleanupState === "cleaned" ? (operation.files.some(file => file.sourceRemoved) ? "move completed" : "complete; source retained") : "pending") : operation.cleanupState === "cleaned" ? "source removed" : operation.cleanupState === "eligible" ? "verified" : "source retained"}</p>
-          {operation.wantedId ? <Link to={`/library/book/${encodeURIComponent(operation.wantedId)}`}>View book</Link> : <span className="field-hint">{operation.metadata?.renameFileId ? "Existing book links are preserved" : "No book assigned"}</span>}
+          <p className="field-hint">{operation.metadata?.renameWantedId ? "Saved book folder rename" : operation.metadata?.renameFileId ? "Saved file rename" : operation.sourceKind === "manual" ? "Manual file import" : operation.client} · {operation.attempts} {operation.attempts === 1 ? "attempt" : "attempts"} · Cleanup: {operation.sourceKind === "manual" ? (operation.cleanupState === "cleaned" ? (operation.files.some(file => file.sourceRemoved) ? "move completed" : "complete; source retained") : "pending") : operation.cleanupState === "cleaned" ? "source removed" : operation.cleanupState === "eligible" ? "verified" : "source retained"}</p>
+          {bookId ? <Link to={`/library/book/${encodeURIComponent(bookId)}`}>View book</Link> : <span className="field-hint">{operation.metadata?.renameFileId ? "Existing book links are preserved" : "No book assigned"}</span>}
           {operation.replacementCleanupState && operation.replacementCleanupState !== "none" ? <p className="field-hint">Replacement backups: {operation.replacementCleanupState === "cleaned" ? "cleanup complete" : "cleanup pending"}</p> : null}
           {operation.replacementCleanupError ? <InlineNotice tone="warn">{operation.replacementCleanupError}</InlineNotice> : null}
           {operation.lastError || operation.cleanupError ? <InlineNotice tone="warn">{operation.lastError || operation.cleanupError}</InlineNotice> : null}
@@ -38,7 +38,7 @@ export default function ImportRecovery() {
             {file.stagePath ? <div className="field-hint imports-recovery-path">Temporary copy recorded for recovery: {file.stagePath}</div> : null}
           </li>)}</ul>
           {operation.state !== "committed" || operation.replacementCleanupState === "pending" || (operation.sourceKind === "manual" && operation.cleanupState !== "cleaned") ? <Button size="sm" icon={RefreshCw} busy={retry.isPending && retry.variables === operation.id} disabled={retry.isPending} onClick={() => retry.mutate(operation.id)}>{operation.state === "committed" ? "Retry cleanup" : operation.metadata?.renameFileId ? "Retry rename" : "Retry import"}</Button> : null}
-        </details>)}
+        </details>; })}
       </div>
       {report.issues.length ? <details className="imports-recovery-item">
         <summary>Legacy links needing review ({report.unresolved})</summary>

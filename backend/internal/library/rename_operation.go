@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -20,7 +21,7 @@ func (op ImportOperation) isRename() bool {
 
 func (s *Store) activeRename(ctx context.Context, fileID string) (ImportOperation, error) {
 	var id string
-	err := s.db.QueryRowContext(ctx, `select id::text from import_operations where source_kind='manual' and metadata ? 'renameFileId' and metadata->>'renameFileId'=$1 and (state<>'committed' or cleanup_state<>'cleaned') order by created_at,id limit 1`, fileID).Scan(&id)
+	err := s.db.QueryRowContext(ctx, `select operation_id::text from file_rename_claims where file_id=$1`, fileID).Scan(&id)
 	if err != nil {
 		return ImportOperation{}, err
 	}
@@ -48,7 +49,9 @@ func (s *Service) resumeRenamePreview(ctx context.Context, file FileRecord) (Ren
 		return RenameFilePreview{}, false, err
 	}
 	if len(op.Files) != 1 {
-		return RenameFilePreview{}, true, errors.New("rename manifest needs review")
+		p := RenameFilePreview{File: file, SourcePath: file.Path, DestinationPath: file.Path, RelativePath: filepath.Base(file.Path), Noop: true, Reason: "This file belongs to a saved complete-book rename. Resume its full plan in Imports."}
+		p.Revision = renameRevision(p)
+		return p, true, nil
 	}
 	f := op.Files[0]
 	p := RenameFilePreview{File: file, OperationID: op.ID, SourcePath: f.SourcePath, DestinationPath: f.DestinationPath, RelativePath: f.RelativePath, Reason: "Resume saved rename"}
@@ -102,70 +105,185 @@ func (s *Service) applyRename(ctx context.Context, preview RenameFilePreview) (F
 // commit. Update only file location/evidence; never replay stale JSON links or
 // overwrite current names, notes, source provenance, book status or monitoring.
 func commitRenameFile(ctx context.Context, tx *sql.Tx, op ImportOperation) ([]FileRecord, error) {
-	if len(op.Files) != 1 {
-		return nil, errors.New("rename manifest must contain one recorded file")
+	if len(op.Files) == 0 {
+		return nil, errors.New("rename manifest is empty")
 	}
-	f := op.Files[0]
-	id := metadataString(op.Metadata, "renameFileId")
-	var currentPath, format string
-	if err := tx.QueryRowContext(ctx, `select path,media_format from files where id=$1 for update`, id).Scan(&currentPath, &format); err != nil {
+	// Lock media identities before their associations, matching ordinary file
+	// edits and avoiding a file/link lock inversion during owner corrections.
+	ids := []string{}
+	for _, f := range op.Files {
+		if f.Format != "sidecar" {
+			ids = append(ids, f.FileID)
+		}
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		var locked string
+		if err := tx.QueryRowContext(ctx, `select id::text from files where id=$1 for update`, id).Scan(&locked); err != nil {
+			return nil, err
+		}
+	}
+	if err := fenceBookRenameMembers(ctx, tx, op); err != nil {
 		return nil, err
 	}
-	if currentPath != f.SourcePath || format != f.Format || f.FileID != id {
-		return nil, errors.New("file location or format changed; saved rename requires review")
+	stored := []FileRecord{}
+	for _, f := range op.Files {
+		if f.Format == "sidecar" {
+			continue
+		}
+		id := f.FileID
+		var currentPath, format string
+		if err := tx.QueryRowContext(ctx, `select path,media_format from files where id=$1 for update`, id).Scan(&currentPath, &format); err != nil {
+			return nil, err
+		}
+		if currentPath != f.SourcePath || format != f.Format {
+			return nil, errors.New("file location or format changed; saved rename requires review")
+		}
+		if bookID := metadataString(op.Metadata, "renameWantedId"); bookID != "" {
+			var foreign bool
+			if err := tx.QueryRowContext(ctx, `select exists(select 1 from file_wanted_links where file_id=$1 and wanted_item_id<>$2)`, id, bookID).Scan(&foreign); err != nil {
+				return nil, err
+			}
+			if foreign {
+				return nil, errors.New("a book file was assigned to another book; retain the saved rename for review")
+			}
+		}
+		info, err := os.Stat(f.DestinationPath)
+		if err != nil {
+			return nil, err
+		}
+		file, err := scanFile(tx.QueryRowContext(ctx, `update files set path=$2,size_bytes=$3,checksum=$4,modified_at=$5,presence_state='present',extension=$6,updated_at=now() where id=$1 returning id,coalesce(edition_id::text,''),media_format,path,source_path,title,author_name,extension,coalesce(size_bytes,0),coalesce(checksum,''),import_status,metadata,modified_at,created_at,updated_at,presence_state`, id, f.DestinationPath, f.SizeBytes, f.SHA256, info.ModTime().UTC(), strings.ToLower(filepath.Ext(f.DestinationPath))))
+		if err != nil {
+			return nil, err
+		}
+		data, _ := json.Marshal(map[string]any{"operationId": op.ID, "sourcePath": f.SourcePath, "destinationPath": f.DestinationPath, "sha256": f.SHA256})
+		if _, err = tx.ExecContext(ctx, `insert into history_events(event_type,entity_type,entity_id,severity,message,data) values('file_renamed','file',$1,'info',$2,$3::jsonb)`, id, "Renamed "+filepath.Base(f.SourcePath), string(data)); err != nil {
+			return nil, err
+		}
+		stored = append(stored, file)
 	}
-	info, err := os.Stat(f.DestinationPath)
-	if err != nil {
+	if len(stored) == 0 {
+		return nil, errors.New("rename manifest has no recorded media files")
+	}
+	if _, err := tx.ExecContext(ctx, `update import_operation_files set state='committed',updated_at=now() where operation_id=$1`, op.ID); err != nil {
 		return nil, err
 	}
-	file, err := scanFile(tx.QueryRowContext(ctx, `update files set path=$2,size_bytes=$3,checksum=$4,modified_at=$5,presence_state='present',extension=$6,updated_at=now() where id=$1 returning id,coalesce(edition_id::text,''),media_format,path,source_path,title,author_name,extension,coalesce(size_bytes,0),coalesce(checksum,''),import_status,metadata,modified_at,created_at,updated_at,presence_state`, id, f.DestinationPath, f.SizeBytes, f.SHA256, info.ModTime().UTC(), strings.ToLower(filepath.Ext(f.DestinationPath))))
-	if err != nil {
+	if _, err := tx.ExecContext(ctx, `update import_operations set state='committed',committed_at=now(),lease_token=null,lease_expires_at=null,last_error='',updated_at=now() where id=$1`, op.ID); err != nil {
 		return nil, err
 	}
-	data, _ := json.Marshal(map[string]any{"operationId": op.ID, "sourcePath": f.SourcePath, "destinationPath": f.DestinationPath, "sha256": f.SHA256})
-	if _, err = tx.ExecContext(ctx, `insert into history_events(event_type,entity_type,entity_id,severity,message,data) values('file_renamed','file',$1,'info',$2,$3::jsonb)`, id, "Renamed "+filepath.Base(f.SourcePath), string(data)); err != nil {
-		return nil, err
+	return stored, nil
+}
+
+func renameDestinationFileID(op ImportOperation, f ImportOperationFile) string {
+	if op.isRename() {
+		return f.FileID
 	}
-	if _, err = tx.ExecContext(ctx, `update import_operation_files set state='committed',file_id=$2,updated_at=now() where operation_id=$1`, op.ID, id); err != nil {
-		return nil, err
-	}
-	if _, err = tx.ExecContext(ctx, `update import_operations set state='committed',committed_at=now(),lease_token=null,lease_expires_at=null,last_error='',updated_at=now() where id=$1`, op.ID); err != nil {
-		return nil, err
-	}
-	return []FileRecord{file}, nil
+	return ""
 }
 
 // Serialize planning by the original file ID, including requests using another
 // destination. An unfinished plan wins; a retry never invents another target.
 func reserveRenameFile(ctx context.Context, tx *sql.Tx, op ImportOperation) (string, error) {
-	id := metadataString(op.Metadata, "renameFileId")
-	if len(op.Files) != 1 || op.Files[0].FileID != id || !repairUUID.MatchString(id) {
-		return "", errors.New("invalid rename file identity")
+	primary := metadataString(op.Metadata, "renameFileId")
+	files := map[string]ImportOperationFile{}
+	ids := []string{}
+	for _, f := range op.Files {
+		if f.Format == "sidecar" {
+			if f.FileID != "" {
+				return "", errors.New("sidecar cannot claim a media identity")
+			}
+			continue
+		}
+		if !repairUUID.MatchString(f.FileID) {
+			return "", errors.New("invalid rename file identity")
+		}
+		if _, ok := files[f.FileID]; ok {
+			return "", errors.New("duplicate rename file identity")
+		}
+		ids = append(ids, f.FileID)
+		files[f.FileID] = f
 	}
-	if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,2))`, "rename-file:"+id); err != nil {
-		return "", err
+	if _, ok := files[primary]; !ok {
+		return "", errors.New("rename primary file is missing")
 	}
-	var existing string
-	err := tx.QueryRowContext(ctx, `select id::text from import_operations where source_kind='manual' and metadata ? 'renameFileId' and metadata->>'renameFileId'=$1 and (state<>'committed' or cleanup_state<>'cleaned') limit 1`, id).Scan(&existing)
-	if err == nil {
-		return existing, nil
+	sort.Strings(ids)
+	for _, id := range ids {
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,2))`, "rename-file:"+id); err != nil {
+			return "", err
+		}
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return "", err
-	}
-	var path, format string
-	if err = tx.QueryRowContext(ctx, `select path,media_format from files where id=$1`, id).Scan(&path, &format); err != nil {
-		return "", err
-	}
-	if path != op.Files[0].SourcePath || format != op.Format {
-		return "", errors.New("selected file changed before rename planning")
-	}
-	var pending bool
-	if err = tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where (f.destination_path=$1 or f.file_id=$2) and (o.state<>'committed' or (o.source_kind='manual' and o.cleanup_state<>'cleaned') or o.replacement_cleanup_state='pending'))`, path, id).Scan(&pending); err != nil {
-		return "", err
-	}
-	if pending {
-		return "", errors.New("file belongs to an unfinished import; recover it before renaming")
+	for _, id := range ids {
+		var existing, key string
+		err := tx.QueryRowContext(ctx, `select o.id::text,o.request_key from file_rename_claims c join import_operations o on o.id=c.operation_id where c.file_id=$1`, id).Scan(&existing, &key)
+		if err == nil {
+			if key == op.RequestKey {
+				return existing, nil
+			}
+			return "", errors.New("a selected file belongs to another saved rename; recover it in Imports")
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return "", err
+		}
+		var path, format string
+		if err = tx.QueryRowContext(ctx, `select path,media_format from files where id=$1`, id).Scan(&path, &format); err != nil {
+			return "", err
+		}
+		if path != files[id].SourcePath || format != files[id].Format {
+			return "", errors.New("selected file changed before rename planning")
+		}
+		var pending bool
+		if err = tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where (f.destination_path=$1 or f.file_id=$2) and (o.state<>'committed' or (o.source_kind='manual' and o.cleanup_state<>'cleaned') or o.replacement_cleanup_state='pending'))`, path, id).Scan(&pending); err != nil {
+			return "", err
+		}
+		if pending {
+			return "", errors.New("file belongs to an unfinished import; recover it before renaming")
+		}
 	}
 	return "", nil
+}
+
+func renameDestinationOriginID(op ImportOperation, f ImportOperationFile) string {
+	if op.isRename() {
+		return f.RenameOriginFileID
+	}
+	return ""
+}
+
+func fenceBookRenameMembers(ctx context.Context, tx *sql.Tx, op ImportOperation) error {
+	bookID := metadataString(op.Metadata, "renameWantedId")
+	if bookID == "" {
+		return nil
+	}
+	var locked string
+	if err := tx.QueryRowContext(ctx, `select id::text from wanted_items where id=$1 for update`, bookID).Scan(&locked); err != nil {
+		return err
+	}
+	expected := map[string]bool{}
+	for _, f := range op.Files {
+		if f.Format != "sidecar" {
+			expected[f.FileID] = true
+		}
+	}
+	rows, err := tx.QueryContext(ctx, `select file_id::text from file_wanted_links where wanted_item_id=$1 order by file_id for update`, bookID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		if !expected[id] {
+			return errors.New("book membership changed; review the saved rename")
+		}
+		delete(expected, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(expected) > 0 {
+		return errors.New("a selected file is no longer assigned to this book")
+	}
+	return nil
 }

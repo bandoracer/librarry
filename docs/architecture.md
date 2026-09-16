@@ -296,6 +296,8 @@ Initial API surface:
   - `GET /api/v1/library/files`
   - `DELETE /api/v1/library/files/{id}`
   - `POST /api/v1/library/files/delete`
+  - `POST /api/v1/library/books/{id}/rename/preview`
+  - `POST /api/v1/library/books/{id}/rename`
   - `POST /api/v1/library/files/rename/preview`
   - `POST /api/v1/library/files/rename`
   - `POST /api/v1/library/calibre/conversions/refresh`
@@ -1404,5 +1406,36 @@ Ordinary download identity, inventory and seeding gates still apply.
 
 Known multipart/companion layouts are retained by the per-file rename action.
 It detects persisted sets and linked audio chapters, chapter/disc naming and
-nearby companion/audio files. This is a conservative guard, not complete-set
-renaming: moving a book directory and updating sidecar references remain S09 work.
+nearby companion/audio files. Complete-set folder moves use the separate book
+action below. Rewriting individual chapter names and sidecar references remains
+unsupported.
+
+
+### Complete recorded book folder renames
+
+`POST /api/v1/library/books/{id}/rename/preview` captures every member of a complete
+current non-rename import for that wanted book. Apply at the matching `/rename`
+route requires its revision. The group must account for all linked media with
+exclusive ownership, matching format/hash/size, and no pending original cleanup.
+The target is the book directory from current naming and root settings. Every
+current basename and relative disc path is preserved; CUE/M3U/OPF references and
+both folder inventories are checked before publication and visibility commit.
+Unrecorded files, symlinks, unsupported references and overlapping roots fail.
+
+Migration 0045 adds `file_rename_claims` to reserve every media identity, backfills
+active standalone renames, and releases claims only when cleanup finishes. It
+adds `rename_origin_file_id` for sidecars, which have no tracked file row. Group
+metadata retains `renameWantedId`, `renameOriginOperationId` and the destination
+folder; per-member wanted IDs remain unset so rename operations do not replace
+original completeness evidence. Commit locks media rows and current book links,
+checks exact membership, updates existing paths/history in one transaction, and
+then performs lease-fenced source cleanup. Saved plans resume without reinterpreting
+naming settings. A per-file request cannot silently expand to a saved book plan.
+
+Immutable original receipts follow ordered committed rename and verified scan-move
+edges for the same file identity and bytes. Sidecars follow their original manifest
+identity through committed folder moves. Arbitrary path edits remain insufficient.
+This supports original receipt replay and download cleanup without rewriting
+historical manifests. Actual destination hashes and ordinary client/source gates
+remain required. Book plans outside proven current folder layouts, changed chapter
+sets and Calibre-managed roots still need operator review or later recovery work.

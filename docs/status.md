@@ -44,8 +44,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [author paging PR #28](https://github.com/bandoracer/librarry/pull/28),
 [metadata review PR #29](https://github.com/bandoracer/librarry/pull/29),
 [author review PR #30](https://github.com/bandoracer/librarry/pull/30),
-[file paging PR #31](https://github.com/bandoracer/librarry/pull/31), and
-the `codex/durable-file-renames` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[file paging PR #31](https://github.com/bandoracer/librarry/pull/31),
+[durable rename PR #32](https://github.com/bandoracer/librarry/pull/32), and
+the `codex/book-set-renames` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -590,8 +591,13 @@ when checking their current destination, so a rename does not strand cleanup.
 Migration 0044 reserves each active file rename and its old path until cleanup.
 
 The file-by-file action retains known chapter sets and companion files with an
-explicit explanation. It does not yet provide complete-set renaming or rewrite
-CUE/playlist references. Calibre still owns its own paths. Full chapter-set rename,
-whole-book replacement/retirement, Calibre recovery, broader disk faults and live
-NAS qualification remain open under S09. These are unreleased source/fixture
-changes, not a production rollout.
+explicit explanation. The separate book action previews and moves a complete
+recorded folder, preserving current basenames, disc paths and verified relative
+CUE/M3U/OPF references. Migration 0045 reserves every media identity and retains
+sidecar provenance. Atomic path commits and retryable cleanup preserve file IDs,
+associations and monitoring through restart. Original receipts also follow
+verified scan moves of the same bytes. Unproven sets, unknown files, unsafe
+references and Calibre layouts stay for review. General chapter/reference
+rewriting, whole-book replacement/retirement, Calibre recovery, broader disk
+faults and live NAS qualification remain open under S09. These are unreleased
+source/fixture changes, not a production rollout.

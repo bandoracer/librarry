@@ -81,7 +81,7 @@ test("Rename preview reaches older files and applies only the selected page", as
 });
 
 test("Rename explains retained chapter sets and preview failures", async ({ page }) => {
- const reason = "Keep this file with its chapter set or companion files. Renaming a complete book set is not supported yet.";
+ const reason = "Keep this file with its chapter set or companion files. Use Rename book folder on the book page to preview a complete recorded set.";
  await page.route("**/api/v1/library/files/collection?**", route => route.fulfill({ json: { files: [file("0001"), file("0002")], total: 2, filtered: 2, counts: {} } }));
  await page.route("**/api/v1/library/files/rename/preview", route => route.fulfill({ json: { requested: 2, renamed: 0, skipped: 1, errored: 1, previews: [{ file: file("0001"), sourcePath: file("0001").path, destinationPath: file("0001").path, noop: true, reason, revision: "retained" }], results: [{ preview: { file: file("0002"), sourcePath: file("0002").path }, status: "error", message: "Source is unavailable; restore the mount before renaming" }] } }));
  await page.goto("/library");

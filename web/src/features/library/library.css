@@ -449,3 +449,5 @@
 
 .library-file-name { display: grid; gap: 0.35rem; min-width: 14rem; max-width: 32rem; }
 .library-file-name code { overflow-wrap: anywhere; white-space: normal; font-size: 0.75rem; }
+
+.book-rename-path { overflow-wrap: anywhere; white-space: normal; }

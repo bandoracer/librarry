@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
+import { ArrowLeft, BookOpen, ExternalLink, FolderPen } from "lucide-react";
 import { updateWanted } from "../../lib/api";
 import { keys, useWantedItem } from "../../lib/queries";
 import { useToast } from "../../components/toast";
@@ -18,6 +18,7 @@ import {
 } from "./lib";
 import "./library.css";
 import { BookFiles } from "./FileBrowser";
+import { RenameBookFolder } from "./RenameBookFolder";
 
 /**
  * Book detail page (route: /library/book/:wantedId): a routable version of
@@ -35,6 +36,7 @@ export default function BookPage() {
   const item = wanted.data;
 
   const [isTogglingMonitored, setIsTogglingMonitored] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
 
   const authorPath = item ? libraryWantedAuthorPath(item) : "/library";
 
@@ -107,6 +109,7 @@ export default function BookPage() {
               title="Back to the author page"
               onClick={() => navigate(authorPath)}
             />
+            <ToolbarButton icon={FolderPen} label="Rename book folder" title="Preview a complete book folder move while preserving chapter names" onClick={() => setRenameOpen(true)} />
             <ToolbarButton
               icon={ExternalLink}
               label="Wanted Queue"
@@ -164,6 +167,7 @@ export default function BookPage() {
           </div>
         </Card>
 
+        <RenameBookFolder wantedId={item.id} open={renameOpen} onClose={() => setRenameOpen(false)} />
         <BookFiles key={item.id} wantedId={item.id} />
         <WantedEditForm item={item} onDeleted={() => navigate(authorPath)} />
         <ProvenancePanel key={`provenance-${item.id}`} item={item} />

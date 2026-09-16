@@ -1273,7 +1273,31 @@ are preserved. An old import retry can return the verified renamed location.
 Missing files, changed bytes, a conflicting destination or an ownership change
 remain errors requiring review; a retry does not overwrite unrelated bytes.
 
-Chapter sets and companion files show **Retained** with a reason. Complete-set
-renaming, including CUE/playlist references, is not implemented. Calibre-managed
-files remain under Calibre's control. Selection applies only to the displayed
-page; there is no unattended collection-wide rename job.
+Chapter sets and companion files show **Retained** with a reason directing you
+to the book's **Rename book folder** action. Calibre-managed files remain under
+Calibre's control. Per-file selection applies only to the displayed page; there
+is no unattended collection-wide rename job.
+
+
+### Rename a complete recorded book folder
+
+Open a book and choose **Rename book folder**. Preview checks its latest complete
+committed import against every linked file, current bytes, companion references
+and naming settings. It shows the source and destination folders and pages through
+the entire captured set. Apply moves **every file in this plan**, including rows
+on other preview pages. The target folder follows the book's current metadata and
+selected library root; basenames and relative disc paths stay unchanged.
+
+CUE, M3U/M3U8 and local OPF references must resolve to recorded members within the
+book folder. Unsupported encodings, absolute/escaping or missing file references,
+unrecorded files, shared ownership and incomplete/legacy sets retain the folder
+for review. This action does not rewrite chapters or playlists to new names.
+Calibre owns its own layout. A verified scan move within the recorded book folder
+can be retained, provided the current companion references are still valid.
+
+Apply requires the current preview revision. If interrupted, refresh and choose
+**Resume complete book rename**, or find **Saved book folder rename** in Imports.
+Recovery keeps the captured destination even after naming settings change. All
+media paths become visible in one database commit; originals remain until then.
+Partial source cleanup can resume after restart. Existing file IDs, manual
+metadata, book/download associations and monitoring remain unchanged.

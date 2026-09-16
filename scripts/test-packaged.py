@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 44, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 45, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -521,6 +521,44 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         restored_book = request("/api/v1/wanted/" + audio_book_id)
         assert restored_book["stateEvidence"]["files"]["state"] == "present", restored_book
         print("Packaged book evidence: complete import, missing chapter after scan, and restored complete audiobook verified through native book API")
+        # Move the complete current audiobook, including its reconciled chapter
+        # name and companion, using the saved plan across a process restart.
+        sql(f"update wanted_items set title='Packaged renamed audiobook',monitored=false,updated_at=now() where id='{audio_book_id}'")
+        folder_preview = request(f"/api/v1/library/books/{audio_book_id}/rename/preview", {})
+        assert folder_preview["mediaFiles"] == 3 and folder_preview["companionFiles"] == 1 and not folder_preview["noop"], folder_preview
+        assert any(f["relativePath"].endswith("renamed-chapter.mp3") for f in folder_preview["files"])
+        sql("alter table import_operations add constraint inject_book_rename_failure check(not(metadata ? 'renameWantedId') or state<>'committed')")
+        try:
+            request(f"/api/v1/library/books/{audio_book_id}/rename", {"revision": folder_preview["revision"]})
+            raise AssertionError("book folder commit failure concealed")
+        except urllib.error.HTTPError as error:
+            assert error.code == 409, error.code
+        for member in folder_preview["files"]:
+            old = media / Path(member["sourcePath"]).relative_to("/fixture")
+            assert hashlib.sha256(old.read_bytes()).hexdigest() == member["sha256"]
+        assert sql("select count(*) from file_rename_claims") == "3"
+        folder_scan = request("/api/v1/library/scan", {"format": "audiobook"})
+        assert folder_scan["skipped"] >= 6, folder_scan
+        assert sql(f"select count(*) from files where path like '{folder_preview['destinationFolder']}/%'") == "0"
+        sql("alter table import_operations drop constraint inject_book_rename_failure")
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        saved_folder = request(f"/api/v1/library/books/{audio_book_id}/rename/preview", {})
+        assert saved_folder["operationId"] and saved_folder["destinationFolder"] == folder_preview["destinationFolder"], saved_folder
+        folder_result = request(f"/api/v1/library/books/{audio_book_id}/rename", {"revision": saved_folder["revision"]})
+        assert {f["id"] for f in folder_result["files"]} == {f["id"] for f in audio_files}, folder_result
+        for member in saved_folder["files"]:
+            old = media / Path(member["sourcePath"]).relative_to("/fixture")
+            new = media / Path(member["destinationPath"]).relative_to("/fixture")
+            assert not old.exists() and hashlib.sha256(new.read_bytes()).hexdigest() == member["sha256"]
+        assert sql("select count(*) from file_rename_claims") == "0"
+        folder_book = request("/api/v1/wanted/" + audio_book_id)
+        assert folder_book["stateEvidence"]["files"]["state"] == "present" and not folder_book["monitored"], folder_book
+        replay_folder = request(f"/api/v1/library/import-operations/{completed_replacement['id']}/retry", {})
+        assert {f["path"] for f in replay_folder["files"]} == {f["path"] for f in folder_result["files"]}, replay_folder
+        print("Packaged book folder rename: complete chapter/companion set survives failed commit and restart; scan move, identities, unmonitored state and original replacement receipt preserved")
+        # Restore the fixture's earlier monitoring choice for the fairness checks below.
+        sql(f"update wanted_items set monitored={str(restored_book['monitored']).lower()} where id='{audio_book_id}'")
         expected_books = int(sql("select count(*) from wanted_items where status not in ('removed','ignored')"))
         native_first = request("/api/v1/library/books?limit=1&sort=title")
         native_page = native_first
@@ -647,6 +685,8 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
+                      "select * from file_rename_claims order by file_id",
+                      "select id,rename_origin_file_id from import_operation_files order by id",
                       "select * from librarry_book_file_evidence(null) order by wanted_id",
                       "select id,root_folder_id,quality_profile,tags from author_subscriptions order by id",
                       "select id,root_folder_id,status,decision,wanted_item_id,result from author_metadata_reviews order by id",

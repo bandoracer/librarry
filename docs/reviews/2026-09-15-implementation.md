@@ -1544,3 +1544,69 @@ The rebuilt schema-44 API/web pair passed the full packaged suite and restored a
 417,058-byte backup with file/book/download counts and prior receipts preserved,
 superseding the earlier 416,899- and 417,103-byte runs. Source and destination
 scan suppression during a failed rename is included in this final package test.
+
+## Complete recorded book folder renames (2026-09-16)
+
+Continued S09 on `codex/book-set-renames`, stacked on durable rename PR #32.
+PR #32 CI run `35100257329` passed all four jobs on
+`e3ce314ae4361a5ea12d2a9b89aa128ba64ec23d`.
+
+Book details now offer a separate **Rename book folder** preview and apply action.
+The plan must account for every linked media file through a complete committed
+native import, with matching current bytes and exclusive ownership. Naming and
+root settings choose the destination folder; current basenames, chapter order,
+disc directories and companion paths remain unchanged. This avoids splitting a
+chapter set through per-file selection. Preview pages are presentation only:
+Apply authorizes the complete captured set and requires its current revision.
+
+Migration 0045 reserves every media identity and retains original sidecar manifest
+IDs. A single visibility transaction updates paths/history on the existing rows,
+then verified cleanup removes sources. Failed commits retain originals; saved
+plans survive restart and settings changes. Interrupted cleanup resumes even when
+some originals were already removed. Claims release only after all cleanup
+finishes. Exact membership fences reject changed/foreign book links; no wanted
+lifecycle or monitoring state is rewritten.
+
+CUE/M3U/M3U8/local OPF references must remain inside the complete recorded set.
+Absolute/escaping/missing references, unsupported encoding/size, unrecorded files,
+symlinks, collisions, shared ownership and Calibre-managed files retain the folder
+for review. General chapter renaming or companion rewriting is not implemented.
+Original receipts now follow ordered verified scan moves as well as explicit
+renames of the same file ID/hash/size. Arbitrary path edits or inconsistent move
+history still fail; sidecars follow their original manifest identity. Historical
+manifests stay immutable.
+
+Fault fixtures cover full commit rollback, changed membership, partial cleanup
+bookkeeping failure, repeated A/B folder moves, stale preview, scan reconciliation,
+source/target inventory changes and ownership conflicts. A real 151-chapter import
+and move preserves all chapter IDs/order and both companions beyond a display
+page. Companion fixtures cover CUE directives, namespaced OPF, BOM/CRLF playlists,
+Windows separators, traversal, missing members, malformed XML and invalid/large
+text. Browser fixtures preview 1,501 chapters plus a cover over 16 pages, submit
+the whole revision, recover a failed apply and retain unproven folders.
+
+Visual inspection found the wide modal could extend offscreen on mobile despite
+passing the document-width check. Shared grid sizing and wrapping footer controls
+now constrain the dialog itself; browser checks assert its visible bounds. The
+corrected 390px mobile preview was inspected. All 87 desktop/mobile cases passed
+with one expected skip, along with 14 web units, production build and vet.
+
+The schema-45 local ARM64 images `librarry-api:book-renames` and
+`librarry-web:book-renames` passed the full packaged restart/recovery suite and
+restored a 422,439-byte isolated backup, including sidecar identities and claims.
+The new packaged case keeps a scan-renamed chapter, forces a whole-book commit
+failure, confirms scan suppression, restarts, resumes the captured plan, preserves
+monitoring and replays the original replacement receipt. An initial later fairness
+fixture failed because the new case intentionally unmonitored its book; restoring
+that fixture's prior setting after the rename assertions fixed the test isolation.
+The older scan test's blanket rejection of moved-file receipts was updated to the
+new verified-chain contract, adding mismatched-hash and arbitrary-path rejection.
+
+No production deployment, image publication, real acquisition, live NAS restore
+or unattended soak occurred. S09 and the full goal remain active: changed chapter
+layout retirement, Calibre handoff recovery, broader disk faults and live
+qualification remain outstanding. Final Go suite results follow below.
+
+Final Postgres `go test -race ./...` and `go test ./...` passed after the verified
+scan-receipt regression update. The added ownership/layout and 151-chapter checks
+also passed a focused race run. Final vet and diff checks passed.

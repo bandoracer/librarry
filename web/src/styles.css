@@ -970,6 +970,8 @@ code {
 /* Modal */
 
 .modal-overlay {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   position: fixed;
   inset: 0;
   background: rgba(10, 14, 22, 0.55);
@@ -980,6 +982,8 @@ code {
 }
 
 .modal {
+  min-width: 0;
+  max-width: 100%;
   width: min(520px, 100%);
   max-height: min(80vh, 720px);
   display: flex;
@@ -1015,6 +1019,7 @@ code {
 
 .modal-foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 16px;

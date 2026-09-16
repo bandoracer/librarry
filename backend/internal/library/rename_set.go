@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const renameSetReason = "Keep this file with its chapter set or companion files. Renaming a complete book set is not supported yet."
+const renameSetReason = "Keep this file with its chapter set or companion files. Use Rename book folder on the book page to preview a complete recorded set."
 
 // Per-file selection cannot authorize moving unselected chapters or rewriting
 // playlist references. Preserve these layouts until a complete-set rename can
