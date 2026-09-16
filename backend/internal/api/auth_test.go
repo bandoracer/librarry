@@ -273,3 +273,33 @@ func TestUnavailablePersistenceDoesNotDisableAuthentication(t *testing.T) {
 		}
 	}
 }
+
+func TestEnvironmentOwnedCredentialsCannotBeOverwritten(t *testing.T) {
+	store := newMemoryAuthStore()
+	service := auth.NewService(store, slog.Default())
+	if err := service.EnsureUser(context.Background(), "fixture", "environment-password"); err != nil {
+		t.Fatal(err)
+	}
+	router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*", AuthUsername: "fixture", AuthMethod: "none"}, Metadata: metadata.NewService(nil), Auth: service})
+	for _, payload := range []string{`{"method":"forms"}`, `{"method":"none","username":"replacement","password":"new-password"}`, `{"method":"none","username":"fixture","password":"new-password"}`} {
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/config", strings.NewReader(payload))
+		if got := requestStatus(t, router, req); got != http.StatusConflict {
+			t.Fatalf("expected conflict, got %d", got)
+		}
+	}
+	if _, ok := service.VerifyPassword(context.Background(), "fixture", "environment-password"); !ok {
+		t.Fatal("environment credential changed")
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/auth/status", nil))
+	var status map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if status["methodLocked"] != true || status["credentialsLocked"] != true {
+		t.Fatalf("missing ownership flags: %+v", status)
+	}
+	if strings.Contains(response.Body.String(), "environment-password") {
+		t.Fatal("credential leaked")
+	}
+}

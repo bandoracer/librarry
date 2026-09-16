@@ -2538,6 +2538,8 @@ export function calendarFeedURL(options: { pastDays: number; futureDays: number 
 export type AuthMethod = "none" | "basic" | "forms";
 
 export type AuthStatus = {
+  methodLocked?: boolean;
+  credentialsLocked?: boolean;
   method: AuthMethod;
   authenticated: boolean;
   username?: string;

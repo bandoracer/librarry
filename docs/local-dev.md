@@ -50,11 +50,24 @@ It applies migrations to the supplied disposable database. Browser artifacts go
 under `output/playwright/`. CI runs Go vet/race/Postgres tests, frontend tests and
 build, browser checks, and deployment configuration checks before building images.
 
+After building `librarry-api:stabilization` and `librarry-web:stabilization`, run
+`python3 scripts/test-packaged.py`. Set `DOCKER_CONTEXT` to select a test engine
+and optionally `EXPECTED_COMMIT` to assert the packaged source SHA. The script
+creates a unique network, Postgres database container, app containers and media
+fixture directory. It verifies the web proxy, exact import, sibling/multipart
+rejection, source retention, scan identity, retry and isolated database restore,
+then removes only those resources. This is a fixture restore, not a backup of
+production media. CI runs this qualification and scans candidate images before
+allowing multi-platform publication. Fixable high/critical image findings fail
+the qualification job; lower severity and module-only findings need separate review.
+
 Configured forms/basic authentication requires Postgres and a usable user at
 startup. Unknown methods or an unavailable persisted auth setting are errors;
-only explicit/default `none` starts open. UI auth changes must persist before
-changing the active method. An environment-owned auth method cannot be changed
-through the UI. Other settings still have their existing persisted precedence;
+only explicit/default `none` starts open. UI auth changes commit credentials, session revocation, and method in one
+transaction before changing enforcement. Credential changes revoke old sessions;
+a login racing a password change cannot create a session using the old password.
+Environment-owned auth methods and credentials are marked in Settings and cannot
+be overwritten through the UI. Other settings still have their existing persisted precedence;
 a unified source/precedence UI remains part of the stabilization plan.
 
 ## Frontend

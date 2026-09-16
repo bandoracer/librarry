@@ -15,7 +15,7 @@ verified cleanup, scoped download mutations, authentication failure handling,
 configuration snapshots, repeated Prowlarr categories, CI tests, and UI recovery.
 See the [implementation ledger](reviews/2026-09-15-implementation.md) for evidence.
 
-These changes are **local, unreleased work**, not a certification of the current
+These changes are **unreleased work in [draft PR #3](https://github.com/bandoracer/librarry/pull/3)**, not a certification of the current
 homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.

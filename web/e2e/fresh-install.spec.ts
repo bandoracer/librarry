@@ -62,3 +62,12 @@ test("mobile navigation is hidden from keyboard users until opened", async ({ pa
   await expect(menu).toBeHidden();
   await expect(trigger).toBeFocused();
 });
+
+test("environment-owned authentication is visible and cannot be edited", async ({ page }) => {
+  await page.route("**/api/v1/auth/status", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ method: "forms", authenticated: true, username: "fixture", methodLocked: true, credentialsLocked: true }) }));
+  await page.goto("/settings");
+  await expect(page.getByLabel("Authentication method", { exact: true })).toBeDisabled();
+  await expect(page.getByText("Authentication method is set by the server environment.", { exact: false })).toBeVisible();
+  await expect(page.getByLabel("Authentication username", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save authentication", exact: true })).toBeDisabled();
+});

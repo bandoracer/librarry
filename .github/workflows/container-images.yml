@@ -26,8 +26,36 @@ permissions:
 jobs:
   verify:
     uses: ./.github/workflows/checks.yml
-  build:
+  qualify:
     needs: verify
+    name: Qualify packaged application
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native candidate images
+        run: |
+          docker build --build-arg COMMIT="$GITHUB_SHA" --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" -f deploy/Dockerfile.api -t librarry-api:stabilization .
+          docker build -f deploy/Dockerfile.web -t librarry-web:stabilization .
+      - name: Verify packaged imports and isolated restore
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: python3 scripts/test-packaged.py
+      - name: Scan candidate images
+        run: |
+          mkdir -p output/security
+          for component in api web; do
+            docker save "librarry-$component:stabilization" -o "output/security/$component-image.tar"
+            docker run --rm -v "$PWD/output/security:/scan" aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image --input "/scan/$component-image.tar" --scanners vuln --quiet --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 --format json --output "/scan/$component-scan.json"
+          done
+      - name: Upload image scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-vulnerability-reports
+          path: output/security/*-scan.json
+          if-no-files-found: ignore
+  build:
+    needs: [verify, qualify]
     name: Build ${{ matrix.image.name }}
     runs-on: ubuntu-latest
     strategy:

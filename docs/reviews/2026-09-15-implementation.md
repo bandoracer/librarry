@@ -27,7 +27,9 @@ progress record, not a claim that the full stabilization plan is complete.
   eligibility. Calibre-only remote files cannot satisfy local verification yet.
 - Forms/basic startup fails without persistence or a usable user; invalid auth
   modes and unreadable persisted auth settings fail. Failed settings persistence
-  cannot silently switch the method. An explicit auth env value owns that field.
+  cannot silently switch the method. Method and credential updates now commit together, with rollback coverage for
+  a deliberately failed second write. Changed credentials revoke sessions; stale
+  concurrent logins cannot recreate them. Env-owned fields are locked in Settings.
 - Every advertised runtime env key reaches every installer. Defaults agree with
   the owner's auto-grab/removal decision; nondefault completed settings are tested
   through actual Compose rendering.
@@ -61,10 +63,11 @@ progress record, not a claim that the full stabilization plan is complete.
   imported packages. The remaining module-only advisory, GO-2026-5932, concerns
   unmaintained `golang.org/x/crypto/openpgp`, which this project does not import.
   npm audit after the router
-  update reported zero vulnerabilities. Image OS scanning remains outstanding.
+  update reported zero vulnerabilities. Initial OS scans found fixable OpenSSL/libuuid findings; package refresh and rescan are in progress.
 - An ARM64 API candidate image built and started. It reported Go 1.26.8, schema
   29, the injected commit/build timestamp, and auth `none`. Configured forms with
   no database exited with code 1 before listening.
+- The API+web image pair passed exact imports, sibling/multipart rejection, source retention, repeat-import skipping and two scans through nginx. A subsequent isolated dump/restore preserved wanted/download/file counts and the verification receipt (89,577-byte dump).
 - An isolated Postgres custom-format dump restored 29 migrations and a file's
   fixture provenance (88,021-byte dump). This is fixture evidence, not a restore
   of the live September backup or a complete media rollback drill.
@@ -76,9 +79,9 @@ progress record, not a claim that the full stabilization plan is complete.
 | Work | State | Remaining gate or scope |
 |---|---|---|
 | S01 | Substantially implemented | Live predeployment file/database inventory and backup-copy restore |
-| S02 | Implemented locally | Remote CI success and image publication gating readback |
-| S03 | Partial | Unified effective configuration/source/precedence view and atomic credential/settings updates |
-| S04 | Implemented safety guard | Packaged regression coverage and controlled live qualification; multipart review UI remains limited |
+| S02 | Implemented locally | Initial remote verification passed; expanded packaged/scanning CI gate pending readback |
+| S03 | Partial | Unified effective configuration/source/precedence view for settings beyond auth |
+| S04 | Implemented safety guard | Packaged safety regressions passed; controlled live qualification and multipart review UI remain |
 | S05 | Implemented | Read-only live audiobook search against the candidate |
 | S06 | Partial | Both packaged architectures, OS image scan, upgrade/rollback, candidate deployment |
 | S07 | Partial | Client isolation implemented; relational file/import-operation migrations not yet written |

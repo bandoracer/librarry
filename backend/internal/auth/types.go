@@ -32,6 +32,8 @@ const (
 var ErrInvalidCredentials = errors.New("invalid username or password")
 
 // ErrUnavailable marks auth operations without database persistence.
+var ErrInvalidConfig = errors.New("invalid authentication configuration")
+
 var ErrUnavailable = errors.New("authentication requires database persistence")
 
 type User struct {
@@ -43,10 +45,12 @@ type User struct {
 }
 
 type Session struct {
-	TokenHash string
-	UserID    string
-	ExpiresAt time.Time
-	CreatedAt time.Time
+	// CredentialHash binds creation to the credentials verified by Login. Never serialized.
+	CredentialHash string `json:"-"`
+	TokenHash      string
+	UserID         string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
 }
 
 // UserStore persists the single-user credential row and its sessions. It is

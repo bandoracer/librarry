@@ -94,10 +94,31 @@ func (s *Store) CreateSession(ctx context.Context, session Session) error {
 	if !s.Configured() {
 		return ErrUnavailable
 	}
-	_, err := s.db.ExecContext(ctx, `
-		insert into sessions (token_hash, user_id, expires_at) values ($1, $2, $3)
-	`, session.TokenHash, session.UserID, session.ExpiresAt.UTC())
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Share the configuration lock: a login racing a password change either
+	// commits first and is revoked, or fails against the new credential hash.
+	if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(761906101)`); err != nil {
+		return err
+	}
+	result, err := tx.ExecContext(ctx, `
+		insert into sessions (token_hash, user_id, expires_at)
+		select $1, id, $3 from users where id=$2 and password_hash=$4
+	`, session.TokenHash, session.UserID, session.ExpiresAt.UTC(), session.CredentialHash)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return ErrInvalidCredentials
+	}
+	return tx.Commit()
 }
 
 func (s *Store) GetSession(ctx context.Context, tokenHash string) (Session, bool, error) {

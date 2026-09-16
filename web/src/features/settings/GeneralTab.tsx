@@ -130,9 +130,11 @@ function AuthenticationCard() {
 
   const savedMethod = status.data?.method ?? "none";
   const needsCredentials = method !== "none";
+  const methodLocked = status.data?.methodLocked === true;
+  const credentialsLocked = status.data?.credentialsLocked === true;
   // Enabling auth for the first time requires a password; editing may keep it blank.
   const passwordRequired = needsCredentials && savedMethod === "none" && !password;
-  const valid = !needsCredentials || (Boolean(username.trim()) && !passwordRequired);
+  const valid = !needsCredentials || credentialsLocked || (Boolean(username.trim()) && !passwordRequired);
   const hasChanges =
     method !== savedMethod ||
     (needsCredentials && (normalizedFormText(username) !== normalizedFormText(status.data?.username) || Boolean(password)));
@@ -143,11 +145,11 @@ function AuthenticationCard() {
     try {
       await saveAuthConfig({
         method,
-        username: needsCredentials ? username.trim() : undefined,
-        password: needsCredentials && password ? password : undefined
+        username: needsCredentials && !credentialsLocked ? username.trim() : undefined,
+        password: needsCredentials && !credentialsLocked && password ? password : undefined
       });
       toast.success(
-        method === "none" ? "Authentication disabled — the UI is open again." : `Authentication set to ${authMethodBadge[method]}.`
+        method === "none" ? "Username and password authentication disabled. A configured API key still applies." : `Authentication set to ${authMethodBadge[method]}.`
       );
       setPassword("");
       setHydratedFor("");
@@ -170,7 +172,7 @@ function AuthenticationCard() {
           label="Method"
           hint="Basic uses the browser's credential popup; Forms shows a Librarry login page."
         >
-          <select value={method} onChange={(event) => setMethod(event.target.value as AuthMethod)} aria-label="Authentication method">
+          <select value={method} onChange={(event) => setMethod(event.target.value as AuthMethod)} aria-label="Authentication method" disabled={methodLocked}>
             {authMethodOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -178,7 +180,7 @@ function AuthenticationCard() {
             ))}
           </select>
         </Field>
-        {needsCredentials ? (
+        {needsCredentials && !credentialsLocked ? (
           <>
             <Field label="Username">
               <input
@@ -194,7 +196,10 @@ function AuthenticationCard() {
           </>
         ) : null}
       </FormGrid>
-      {needsCredentials ? (
+      {methodLocked || credentialsLocked ? (
+        <InlineNotice tone="neutral">{methodLocked ? "Authentication method is set by the server environment. " : ""}{credentialsLocked ? "Credentials are set by the server environment." : ""}</InlineNotice>
+      ) : null}
+      {needsCredentials && !credentialsLocked ? (
         <div style={{ marginTop: 12 }}>
           <InlineNotice tone="warn">
             Don't lock yourself out: make sure the username and password are correct before saving — every browser

@@ -1,4 +1,4 @@
-FROM golang:1.26.8-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine AS build
 
 WORKDIR /src
 COPY go.mod go.sum* ./
@@ -7,7 +7,9 @@ COPY backend ./backend
 ARG VERSION=0.4.2-dev
 ARG COMMIT=unknown
 ARG BUILD_TIME
-RUN go build -trimpath -ldflags "-X github.com/bandoracer/librarry/backend/internal/buildinfo.Version=${VERSION} -X github.com/bandoracer/librarry/backend/internal/buildinfo.Commit=${COMMIT} -X github.com/bandoracer/librarry/backend/internal/buildinfo.BuildTime=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" -o /out/librarry ./backend/cmd/librarry
+ARG TARGETOS
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags "-X github.com/bandoracer/librarry/backend/internal/buildinfo.Version=${VERSION} -X github.com/bandoracer/librarry/backend/internal/buildinfo.Commit=${COMMIT} -X github.com/bandoracer/librarry/backend/internal/buildinfo.BuildTime=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" -o /out/librarry ./backend/cmd/librarry
 
 FROM alpine:3.23
 LABEL org.opencontainers.image.title="Librarry API" \
@@ -16,7 +18,8 @@ LABEL org.opencontainers.image.title="Librarry API" \
   org.opencontainers.image.licenses="AGPL-3.0"
 # postgresql16-client provides pg_dump for scheduled database backups
 # (matches the postgres:16-alpine compose database).
-RUN apk add --no-cache ca-certificates tzdata postgresql16-client \
+RUN apk upgrade --no-cache \
+  && apk add --no-cache ca-certificates tzdata postgresql16-client \
   && adduser -D -H -u 1000 librarry
 WORKDIR /app
 COPY --from=build /out/librarry /usr/local/bin/librarry

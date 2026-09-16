@@ -663,3 +663,13 @@ Unknown views return 400. Collection pagination and direct detail lookup remain
 planned. System status reports build version/commit/time, active authentication,
 and the applied migration filename/number. Local builds without an injected build
 timestamp report `unknown` rather than the request time.
+
+### Authentication configuration transactions
+
+The auth store commits the single-user credentials, session revocation and
+`auth-config` resource together. In-memory enforcement changes only after commit.
+A database advisory lock serializes configuration and session creation; a session
+must still match the credential hash verified at login. Credential updates revoke
+existing sessions, and session validation verifies the stored user identity.
+Environment-owned method/credentials are exposed as lock flags in auth status;
+the web settings form disables those controls and the API rejects overwrite attempts.
