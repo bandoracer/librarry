@@ -1,12 +1,29 @@
 # Current Status
 
-Last updated: 2026-07-01.
+Last updated: 2026-09-16.
 
 Librarry is an early alpha Readarr replacement. It is useful for validating the
 metadata-first workflow and exercising acquisition integrations, but it is not
 yet ready to replace a production Readarr instance unattended.
 
-## Verified Working
+## September release review
+
+Feature expansion is frozen while the existing stabilization stack is reviewed
+and qualified. The safety fixes and UI improvements in draft PRs #3–50 are not
+part of the July baseline documented below. PR #3 alone is not an approved
+release boundary; a fault-injection review reproduced a rename/database
+consistency failure subsequently addressed in PR #32. See the
+[boundary review](reviews/2026-09-16-release-boundary.md) and
+[short release checklist](release-checklist.md).
+
+The revised image workflow separates validation from explicit candidate
+publication and does not advance `latest` or version aliases. This repository
+change does not itself publish, promote, or deploy an image. Candidate builds,
+live qualification, upgrade/rollback, and a controlled rollout are separate gates.
+The September audit recorded LAN version 0.4.0 and a Cosmos 502; no new live
+check is claimed here. The earlier successful checks below are historical.
+
+## Previously verified working (July baseline)
 
 - The Go API, React web UI, Postgres migrations, and Docker/TrueNAS custom-app
   shape build and run together.
