@@ -50,7 +50,8 @@ test("task failures paginate, reject stale reviews, and refresh task counts", as
     await route.fulfill({ json: { runs, total: unreviewed ? runs.length : 101, offset, limit: 100 } });
   });
   await page.goto("/providers/tasks");
-  await expect(page.getByRole("columnheader", { name: "Last Success", exact: true })).toBeVisible();
+  if (testInfo.project.name === "desktop") await expect(page.getByRole("columnheader", { name: "Last Success", exact: true })).toBeVisible();
+  else await expect(page.locator(".system-task-cell-label").filter({ hasText: /^Last Success$/ })).toBeVisible();
   await expect(page.getByText("1 unreviewed", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "View Wanted Monitor run history" }).click();
   const dialog = page.getByRole("dialog");
@@ -70,4 +71,36 @@ test("task failures paginate, reject stale reviews, and refresh task counts", as
   await page.screenshot({ path: `../output/playwright/task-diagnostics-${testInfo.project.name}.png`, fullPage: true });
   await dialog.getByRole("button", { name: "Mark reviewed", exact: true }).click();
   await expect(dialog.getByText("No matching runs on this page.", { exact: true })).toBeVisible();
+});
+
+test("disabled and unavailable workers stay inspectable and cannot run", async ({ page }, testInfo) => {
+  let enabled = false;
+  let triggers = 0;
+  await page.route("**/api/v1/system/tasks", route => route.fulfill({ json: { tasks: [
+    { id: "wanted-monitor", name: "Wanted Monitor", interval: "30m", enabled, available: true, running: false, disabledReason: enabled ? undefined : "LIBRARRY_MONITOR_ENABLED is false. Enable it and restart this API instance to resume scheduling.", runState: "failed", lastRunAt: "2026-09-16T12:00:00Z", unreviewedFailures: 1 },
+    { id: "backup", name: "Database Backup", interval: "168h", enabled: true, available: false, running: false, unavailableReason: "Database persistence and a backup directory are required." }
+  ] } }));
+  await page.route("**/api/v1/system/tasks/wanted-monitor/runs", route => route.fulfill({ json: { runs: [{ id: "old-failure", state: "failed", trigger: "scheduled", startedAt: "2026-09-16T12:00:00Z", error: "Preserved failure from an earlier enabled run" }], total: 1, limit: 100, offset: 0 } }));
+  await page.route("**/api/v1/system/tasks/wanted-monitor/run", route => { triggers++; return route.fulfill({ status: 202, json: { started: true } }); });
+  await page.goto("/providers/tasks");
+  await expect(page.getByText("Disabled here", { exact: true })).toBeVisible();
+  await expect(page.getByText("Unavailable here", { exact: true })).toBeVisible();
+  const run = page.getByRole("button", { name: "Run Wanted Monitor now", exact: true });
+  await expect(run).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Run Database Backup now", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "View Wanted Monitor run history" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Preserved failure from an earlier enabled run");
+  await page.keyboard.press("Escape");
+  expect(triggers).toBe(0);
+  if (testInfo.project.name === "mobile") {
+    await expect(page.getByText("Wanted Monitor", { exact: true })).toBeInViewport();
+    await expect(page.getByText("Disabled here", { exact: true })).toBeInViewport();
+  }
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: `../output/playwright/worker-availability-${testInfo.project.name}.png` });
+  enabled = true;
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(run).toBeEnabled();
+  await run.click();
+  await expect.poll(() => triggers).toBe(1);
 });

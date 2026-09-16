@@ -37,11 +37,11 @@ def wait(check):
         time.sleep(0.2)
     raise RuntimeError("disposable worker condition did not become true")
 
-def start_api(name):
+def start_api(name, monitor=False):
     containers.append(name)
     flags = ["-e", f"LIBRARRY_DATABASE_URL=postgres://postgres:fixture-only@{PG}:5432/fixture?sslmode=disable"]
     for worker in ("MONITOR", "AUTHOR_MONITOR", "FEED_SYNC", "FAILED_DOWNLOAD", "UPGRADE_SEARCH", "CALIBRE_REFRESH", "COMPLETED_IMPORT", "COMPLETED_REMOVE", "BACKUP", "IMPORT_LIST_SYNC"):
-        flags += ["-e", f"LIBRARRY_{worker}_ENABLED=false"]
+        flags += ["-e", f"LIBRARRY_{worker}_ENABLED={str(worker == 'MONITOR' and monitor).lower()}"]
     docker("run", "-d", "--name", name, "--network", PREFIX, "-p", "127.0.0.1::8080", *flags, IMAGE)
     port = docker("port", name, "8080/tcp").rsplit(":", 1)[1]
     base = "http://127.0.0.1:" + port
@@ -53,7 +53,7 @@ try:
     containers.append(PG)
     docker("run", "-d", "--name", PG, "--network", PREFIX, "-e", "POSTGRES_PASSWORD=fixture-only", "-e", "POSTGRES_DB=fixture", "postgres:16-alpine")
     wait(lambda: docker("exec", PG, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"))
-    first = start_api(FIRST)
+    first = start_api(FIRST, monitor=True)
     second = start_api(SECOND)  # Schema is already migrated; this tests worker ownership.
     task = "library-scan"
     route = "/api/v1/system/tasks/" + task
@@ -105,6 +105,45 @@ try:
     status = next(t for t in request(first, "/api/v1/system/tasks")["tasks"] if t["id"] == task)
     assert status["lastSuccessRunId"] == completed and status["unreviewedFailures"] == 0, status
     assert next(r for r in request(first, route + "/runs")["runs"] if r["id"] == first_run)["reviewedAt"]
+    # Local scheduling is distinct from the shared history: the disabled peer
+    # can inspect the enabled peer's completion, but cannot trigger it here.
+    disabled = next(t for t in request(second,"/api/v1/system/tasks")["tasks"] if t["id"]=="wanted-monitor")
+    assert disabled["enabled"] is False and disabled["available"] is True and "nextRunAt" not in disabled,disabled
+    assert "LIBRARRY_MONITOR_ENABLED" in disabled["disabledReason"]
+    try:
+        request(second,"/api/v1/system/tasks/wanted-monitor/run",True)
+        raise AssertionError("disabled peer accepted a manual run")
+    except urllib.error.HTTPError as error:
+        assert error.code==409,error.code
+    assert sql("select count(*) from wanted_items")=="0"  # no provider/search work
+    request(first,"/api/v1/system/tasks/wanted-monitor/run",True)
+    wait(lambda: next(t for t in request(second,"/api/v1/system/tasks")["tasks"] if t["id"]=="wanted-monitor").get("lastSuccessAt"))
+    disabled = next(t for t in request(second,"/api/v1/system/tasks")["tasks"] if t["id"]=="wanted-monitor")
+    assert disabled["enabled"] is False and disabled["lastFinishedAt"] and "nextRunAt" not in disabled,disabled
+    compat = request(second,"/api/v1/system/task/2")
+    assert compat["enabled"] is False and compat["lastExecution"]==disabled["lastFinishedAt"] and compat["nextExecution"]=="0001-01-01T00:00:00Z" and compat["librarryNextExecutionKnown"] is False and compat["librarryLastExecutionKnown"] is True,compat
+    import_task = next(t for t in request(second,"/api/v1/system/tasks")["tasks"] if t["id"]=="import-list-sync")
+    assert import_task["enabled"] is False and "IMPORT_LIST_SYNC_ENABLED" in import_task["disabledReason"],import_task
+    # A fresh API without persistence lists unavailable workers instead of hiding
+    # them or creating successful task timestamps.
+    no_db = PREFIX + "-no-db"
+    containers.append(no_db)
+    docker("run","-d","--name",no_db,"--network",PREFIX,"-p","127.0.0.1::8080",IMAGE)
+    empty = "http://127.0.0.1:"+docker("port",no_db,"8080/tcp").rsplit(":",1)[1]
+    wait(lambda: request(empty,"/healthz"))
+    tasks = request(empty,"/api/v1/system/tasks")["tasks"]
+    assert len(tasks)==13,tasks
+    for task_status in tasks:
+        if task_status["id"]!="health-check":
+            assert task_status["available"] is False and not task_status["running"] and "nextRunAt" not in task_status and "lastRunAt" not in task_status,task_status
+    try:
+        request(empty,"/api/v1/system/tasks/wanted-monitor/run",True)
+        raise AssertionError("unavailable task ran without persistence")
+    except urllib.error.HTTPError as error:
+        assert error.code==503,error.code
+    unknown = request(empty,"/api/v1/system/task/2")
+    assert unknown["lastExecution"]=="0001-01-01T00:00:00Z" and unknown["librarryLastExecutionKnown"] is False and unknown["librarryLastDurationKnown"] is False,unknown
+    print("Worker availability: disabled peer preserves history and refuses runs, import-list flag honored, database-free worker inventory and truthful compatibility timestamps verified")
     print("Diagnostic counts, degraded health, review, last success and restart readback verified")
     print("Two packaged APIs: shared running status, peer 409, SIGKILL interruption, peer recovery and persistent history verified")
 except Exception:

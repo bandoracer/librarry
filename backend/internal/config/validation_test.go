@@ -49,3 +49,19 @@ func TestInvalidAutomationEnvironmentFailsBeforeDefaultsApply(t *testing.T) {
 		t.Fatal("explicit false was ignored")
 	}
 }
+
+func TestImportListSchedulingHasItsOwnEnableFlag(t *testing.T) {
+	t.Setenv("LIBRARRY_FEED_SYNC_ENABLED", "false")
+	t.Setenv("LIBRARRY_IMPORT_LIST_SYNC_ENABLED", "")
+	if !FromEnv().ImportListSyncEnabled {
+		t.Fatal("import lists must remain enabled by default independently of feed sync")
+	}
+	t.Setenv("LIBRARRY_IMPORT_LIST_SYNC_ENABLED", "false")
+	if FromEnv().ImportListSyncEnabled {
+		t.Fatal("import-list disable flag ignored")
+	}
+	t.Setenv("LIBRARRY_IMPORT_LIST_SYNC_ENABLED", "flase")
+	if err := ValidateEnvironment(); err == nil {
+		t.Fatal("invalid import-list flag accepted")
+	}
+}

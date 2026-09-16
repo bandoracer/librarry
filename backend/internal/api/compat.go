@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/fnv"
 	"io"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
+	"github.com/bandoracer/librarry/backend/internal/scheduler"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
 )
 
@@ -3545,12 +3547,22 @@ func compatCommandRecordWithID(id int, name string, body any) map[string]any {
 }
 
 func (h *handler) compatSystemTasks(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.compatSystemTaskRecords())
+	records, err := h.compatSystemTaskRecords(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "shared task status is unavailable"})
+		return
+	}
+	writeJSON(w, http.StatusOK, records)
 }
 
 func (h *handler) compatSystemTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	for _, task := range h.compatSystemTaskRecords() {
+	records, err := h.compatSystemTaskRecords(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "shared task status is unavailable"})
+		return
+	}
+	for _, task := range records {
 		if compatIDMatches(id, payloadString(task, "name"), payloadString(task, "taskName")) || payloadString(task, "id") == id {
 			writeJSON(w, http.StatusOK, task)
 			return
@@ -4690,17 +4702,74 @@ func (h *handler) compatIndexerConfigRecord(overrides map[string]any) map[string
 	}
 }
 
-func (h *handler) compatSystemTaskRecords() []map[string]any {
-	now := time.Now().UTC()
-	return []map[string]any{
-		compatSystemTaskRecord(1, "RssSync", "Prowlarr feed sync", h.deps.Config.FeedSyncInterval, h.deps.Config.FeedSyncEnabled, now),
-		compatSystemTaskRecord(2, "MissingBookSearch", "Wanted item monitor", h.deps.Config.MonitorInterval, h.deps.Config.MonitorEnabled, now),
-		compatSystemTaskRecord(3, "RefreshAuthor", "Author metadata monitor", h.deps.Config.AuthorMonitorInterval, h.deps.Config.AuthorMonitorEnabled, now),
-		compatSystemTaskRecord(4, "FailedDownloadCheck", "Failed download recovery", h.deps.Config.FailedDownloadInterval, h.deps.Config.FailedDownloadEnabled, now),
-		compatSystemTaskRecord(5, "UpgradeSearch", "Wanted upgrade search", h.deps.Config.UpgradeSearchInterval, h.deps.Config.UpgradeSearchEnabled, now),
-		compatSystemTaskRecord(6, "ImportListSync", "Import list sync", h.deps.Config.FeedSyncInterval, h.deps.Config.FeedSyncEnabled, now),
-		compatSystemTaskRecord(7, "RefreshCalibreConversions", "Calibre conversion status refresh", h.deps.Config.CalibreRefreshInterval, h.deps.Config.CalibreRefreshEnabled, now),
+func (h *handler) compatSystemTaskRecords(ctx context.Context) ([]map[string]any, error) {
+	specs := []struct {
+		native, name, description string
+		interval                  time.Duration
+		enabled                   bool
+	}{
+		{"feed-sync", "RssSync", "Prowlarr feed sync", h.deps.Config.FeedSyncInterval, h.deps.Config.FeedSyncEnabled},
+		{"wanted-monitor", "MissingBookSearch", "Wanted item monitor", h.deps.Config.MonitorInterval, h.deps.Config.MonitorEnabled},
+		{"author-monitor", "RefreshAuthor", "Author metadata monitor", h.deps.Config.AuthorMonitorInterval, h.deps.Config.AuthorMonitorEnabled},
+		{"failed-download-recovery", "FailedDownloadCheck", "Failed download recovery", h.deps.Config.FailedDownloadInterval, h.deps.Config.FailedDownloadEnabled},
+		{"upgrade-search", "UpgradeSearch", "Wanted upgrade search", h.deps.Config.UpgradeSearchInterval, h.deps.Config.UpgradeSearchEnabled},
+		{"import-list-sync", "ImportListSync", "Import list sync", h.deps.Config.ImportListSyncInterval, h.deps.Config.ImportListSyncEnabled},
+		{"calibre-refresh", "RefreshCalibreConversions", "Calibre conversion status refresh", h.deps.Config.CalibreRefreshInterval, h.deps.Config.CalibreRefreshEnabled},
 	}
+	statuses := map[string]scheduler.TaskStatus{}
+	if h.deps.Scheduler != nil {
+		tasks, err := h.deps.Scheduler.TasksContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, task := range tasks {
+			statuses[task.ID] = task
+		}
+	}
+	records := make([]map[string]any, 0, len(specs))
+	for i, spec := range specs {
+		record := compatSystemTaskRecord(i+1, spec.name, spec.description, spec.interval, spec.enabled)
+		if task, ok := statuses[spec.native]; ok {
+			record["enabled"] = task.Enabled
+			record["librarryAvailable"] = task.Available
+			record["librarryDisabledReason"] = task.DisabledReason
+			record["librarryUnavailableReason"] = task.UnavailableReason
+			record["librarryRunState"] = task.RunState
+			record["librarryLastSuccess"] = task.LastSuccessAt
+			if task.LastFinishedAt != nil {
+				record["lastExecution"] = task.LastFinishedAt
+				record["librarryLastExecutionKnown"] = true
+			}
+			if task.LastRunAt != nil {
+				record["lastStartTime"] = task.LastRunAt
+				record["librarryLastStartTimeKnown"] = true
+			}
+			if task.NextRunAt != nil {
+				record["nextExecution"] = task.NextRunAt
+				record["librarryNextExecutionKnown"] = true
+			}
+			record["started"] = task.Running
+			if interval, err := time.ParseDuration(task.Interval); err == nil {
+				record["interval"] = durationMinutes(interval, 0)
+			}
+			if task.DurationMS != nil {
+				record["lastDuration"] = compatTaskDuration(*task.DurationMS)
+				record["librarryLastDurationKnown"] = true
+			}
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func compatTaskDuration(ms int64) string {
+	ms = max(0, ms)
+	seconds := ms / 1000
+	result := fmt.Sprintf("%02d:%02d:%02d.%03d", (seconds/3600)%24, (seconds/60)%60, seconds%60, ms%1000)
+	if seconds >= 86400 {
+		result = fmt.Sprintf("%d.%s", seconds/86400, result)
+	}
+	return result
 }
 
 func compatRootFolderRecord(id int, name string, path string) map[string]any {
@@ -6806,28 +6875,13 @@ func compatRemotePathMappingRecord(payload map[string]any, id int) map[string]an
 	}
 }
 
-func compatSystemTaskRecord(id int, name string, description string, interval time.Duration, enabled bool, now time.Time) map[string]any {
-	intervalMinutes := durationMinutes(interval, 0)
-	lastExecution := now.Add(-time.Duration(intervalMinutes) * time.Minute)
-	nextExecution := now.Add(time.Duration(intervalMinutes) * time.Minute)
-	if intervalMinutes <= 0 {
-		lastExecution = time.Time{}
-		nextExecution = time.Time{}
-	}
-	return map[string]any{
-		"id":            id,
-		"name":          name,
-		"taskName":      name,
-		"interval":      intervalMinutes,
-		"lastExecution": nullableTaskTime(lastExecution),
-		"nextExecution": nullableTaskTime(nextExecution),
-		"lastStartTime": nullableTaskTime(lastExecution),
-		"lastDuration":  "00:00:00",
-		"queued":        false,
-		"started":       false,
-		"enabled":       enabled,
-		"description":   description,
-	}
+// Readarr TaskResource uses non-null DateTime/TimeSpan fields. Preserve those
+// types with their zero values, while explicitly marking unknown evidence.
+// https://github.com/Readarr/Readarr/blob/develop/src/Readarr.Api.V1/System/Tasks/TaskResource.cs
+const compatUnknownTaskTime = "0001-01-01T00:00:00Z"
+
+func compatSystemTaskRecord(id int, name, description string, interval time.Duration, enabled bool) map[string]any {
+	return map[string]any{"id": id, "name": name, "taskName": name, "interval": durationMinutes(interval, 0), "lastExecution": compatUnknownTaskTime, "nextExecution": compatUnknownTaskTime, "lastStartTime": compatUnknownTaskTime, "lastDuration": "00:00:00", "librarryLastExecutionKnown": false, "librarryLastStartTimeKnown": false, "librarryNextExecutionKnown": false, "librarryLastDurationKnown": false, "queued": false, "started": false, "enabled": enabled, "description": description, "librarryAvailable": false, "librarryUnavailableReason": "Scheduler task is not registered on this API instance.", "librarryScheduleScope": "instance", "librarryHistoryScope": "database"}
 }
 
 func (h *handler) compatFilesystemRoots(ctx context.Context) []map[string]any {

@@ -385,9 +385,12 @@ nothing is grabbed).
   key (`hardcover:<id>`) or title (+ optional author) and suppress entries in
   both native and compat syncs
 
-The scheduled `import-list-sync` task syncs every enabled list:
+The scheduled `import-list-sync` task syncs every enabled list. Its enable flag
+defaults to true and is independent of feed sync. Disabling scheduling does not
+remove the explicit per-list or compatibility sync commands:
 
 ```dotenv
+LIBRARRY_IMPORT_LIST_SYNC_ENABLED=true
 LIBRARRY_IMPORT_LIST_SYNC_INTERVAL=24h
 ```
 
@@ -1358,6 +1361,28 @@ handoffs; old IDs and external Calibre file moves are not automatically repaired
 ### Qualify and inspect shared background workers
 
 System → Tasks reads shared database status and the last recorded success.
+Every built-in worker remains listed when disabled or missing dependencies.
+**Disabled here** reflects this API instance's startup flags; **Unavailable here**
+means required configuration/services are absent. Reasons explain what to restore.
+Dependency availability does not prove provider reachability: actual failures remain
+in run/health evidence. Blocked workers have no local scheduling loop or next-run
+time. Manual System Tasks runs return 409 when disabled and 503 when unavailable;
+history and review remain accessible. Enable/fix configuration and restart this
+API instance to resume scheduling. A peer with different flags may still be running
+that worker; shared running state and history remain visible. Stopping automation
+across a deployment requires changing every instance.
+
+The Readarr `/api/v1/system/task` routes use the same recorded state. Unknown
+native start/finish/duration values are omitted. The Readarr fields retain their
+non-null date/time types: unknown dates use `0001-01-01T00:00:00Z` and unknown
+duration uses `00:00:00`, with the corresponding `librarryLastStartTimeKnown`,
+`librarryLastExecutionKnown`, `librarryNextExecutionKnown` and
+`librarryLastDurationKnown` flags false. These are placeholders, not run evidence;
+polling never fabricates current-clock executions.
+Schedules/dependency reasons describe the responding instance. Database read
+failures return 503 instead of a synthetic schedule. Direct domain commands retain
+their existing explicit operator scope outside the scheduler.
+
 **History** pages through retained runs, including counts, available operation IDs,
 measured duration, completion state and next action. A pass that reports individual
 errors is **degraded** and does not advance last success. Warnings are separate. A stopped owner is
@@ -1367,9 +1392,11 @@ API process owns that task. During a database outage, workers refuse new claims
 and status reports an outage instead of an empty or healthy task list.
 
 The standalone fixture below runs two API containers with one disposable
-Postgres database. It blocks a harmless scan query, checks shared running status
+Postgres database and a third API without persistence. It blocks a harmless scan query, checks shared running status
 and duplicate-trigger refusal, kills the owning API, checks interruption, and
-recovers through the peer before restarting the original process. It never
+recovers through the peer before restarting the original process. It also checks
+disabled-peer history/manual refusal, the separate import-list flag and unavailable
+workers without persistence. It never
 contacts a live download client or metadata provider.
 
 ```sh

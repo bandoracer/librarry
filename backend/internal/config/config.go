@@ -82,6 +82,7 @@ type Config struct {
 	AuthMethod             string        `env:"LIBRARRY_AUTH_METHOD"`
 	AuthUsername           string        `env:"LIBRARRY_AUTH_USERNAME"`
 	AuthPassword           string        `env:"LIBRARRY_AUTH_PASSWORD"`
+	ImportListSyncEnabled  bool          `env:"LIBRARRY_IMPORT_LIST_SYNC_ENABLED"`
 	ImportListSyncInterval time.Duration `env:"LIBRARRY_IMPORT_LIST_SYNC_INTERVAL"`
 	BackupEnabled          bool          `env:"LIBRARRY_BACKUP_ENABLED"`
 	BackupInterval         time.Duration `env:"LIBRARRY_BACKUP_INTERVAL"`
@@ -161,6 +162,7 @@ func FromEnv() Config {
 		AuthMethod:                strings.ToLower(strings.TrimSpace(os.Getenv("LIBRARRY_AUTH_METHOD"))),
 		AuthUsername:              strings.TrimSpace(os.Getenv("LIBRARRY_AUTH_USERNAME")),
 		AuthPassword:              os.Getenv("LIBRARRY_AUTH_PASSWORD"),
+		ImportListSyncEnabled:     envBool("LIBRARRY_IMPORT_LIST_SYNC_ENABLED", true),
 		ImportListSyncInterval:    envDuration("LIBRARRY_IMPORT_LIST_SYNC_INTERVAL", 24*time.Hour),
 		BackupEnabled:             envBool("LIBRARRY_BACKUP_ENABLED", true),
 		BackupInterval:            envDuration("LIBRARRY_BACKUP_INTERVAL", 168*time.Hour),

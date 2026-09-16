@@ -31,7 +31,7 @@ upgrade commands, backups, reverse proxy guidance, and NAS-specific notes.
 ## Stabilization candidate configuration
 
 All deployment variants now pass completed import/removal controls, import mode,
-rename/recycle/extra-file settings, and import-list sync interval to the API.
+rename/recycle/extra-file settings, and import-list sync enable/interval settings to the API.
 Automatic grabbing and removal remain enabled by default. To retain all completed
 downloads, set `LIBRARRY_COMPLETED_REMOVE_ENABLED=false`; source Compose and image
 Compose now honor it. Use `hardlinkOrCopy`, `hardlink`, or `copy` for
@@ -42,3 +42,11 @@ eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client
 Back up both Postgres and library/download data before upgrading. The local
 fixture restore check does not qualify restoration of the live homelab backup.
 No September candidate release or production rollback rehearsal is complete yet.
+
+
+`LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults to `true`. Set it to `false` and
+recreate the API container to pause scheduled list sync; explicit list-sync
+commands remain available. It is independent of feed sync. System → Tasks keeps
+disabled/unavailable workers visible with reasons and retained shared history.
+Flags apply to each API instance; update every instance to stop scheduled work
+across a deployment.

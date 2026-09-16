@@ -43,6 +43,10 @@ func (h *handler) runSystemTask(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, scheduler.ErrTaskUnknown):
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "task not found"})
+	case errors.Is(err, scheduler.ErrTaskDisabled):
+		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
+	case errors.Is(err, scheduler.ErrTaskUnavailable):
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
 	case errors.Is(err, scheduler.ErrTaskBusy):
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "task is running"})
 	case err != nil:

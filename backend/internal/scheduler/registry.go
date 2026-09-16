@@ -20,7 +20,9 @@ var (
 	// already running (HTTP handlers map it to 409).
 	ErrTaskBusy = errors.New("task is running")
 	// ErrTaskUnknown is returned for unregistered task ids.
-	ErrTaskUnknown = errors.New("task not found")
+	ErrTaskUnknown     = errors.New("task not found")
+	ErrTaskDisabled    = errors.New("task is disabled on this API instance")
+	ErrTaskUnavailable = errors.New("task dependencies are unavailable on this API instance")
 )
 
 // RunFunc executes one pass of a background worker and returns a one-line
@@ -30,15 +32,22 @@ type RunFunc func(ctx context.Context, trigger string) (string, error)
 
 // Task describes a background worker managed by the registry.
 type Task struct {
-	ID           string
-	Name         string
-	Interval     time.Duration
-	StartupDelay time.Duration
-	Run          RunFunc
+	DisabledReason    string
+	UnavailableReason string
+	ID                string
+	Name              string
+	Interval          time.Duration
+	StartupDelay      time.Duration
+	Run               RunFunc
 }
 
 // TaskStatus is the API-facing snapshot of a registered task.
 type TaskStatus struct {
+	Enabled            bool       `json:"enabled"`
+	Available          bool       `json:"available"`
+	DisabledReason     string     `json:"disabledReason,omitempty"`
+	UnavailableReason  string     `json:"unavailableReason,omitempty"`
+	LastFinishedAt     *time.Time `json:"lastFinishedAt,omitempty"`
 	Details            RunDetails `json:"details"`
 	DurationMS         *int64     `json:"durationMs,omitempty"`
 	LastSuccessAt      *time.Time `json:"lastSuccessAt,omitempty"`
@@ -56,16 +65,17 @@ type TaskStatus struct {
 }
 
 type taskState struct {
-	wake          chan struct{}
-	task          Task
-	running       bool
-	lastRunAt     *time.Time
-	lastOutcome   string
-	details       RunDetails
-	durationMS    *int64
-	lastSuccessAt *time.Time
-	lastError     string
-	nextRunAt     *time.Time
+	lastFinishedAt *time.Time
+	wake           chan struct{}
+	task           Task
+	running        bool
+	lastRunAt      *time.Time
+	lastOutcome    string
+	details        RunDetails
+	durationMS     *int64
+	lastSuccessAt  *time.Time
+	lastError      string
+	nextRunAt      *time.Time
 }
 
 // Registry wraps every background worker with scheduling and run-status
@@ -96,6 +106,8 @@ func NewRegistry(logger *slog.Logger) *Registry {
 func (r *Registry) Register(task Task) error {
 	task.ID = strings.TrimSpace(task.ID)
 	task.Name = strings.TrimSpace(task.Name)
+	task.DisabledReason = strings.TrimSpace(task.DisabledReason)
+	task.UnavailableReason = strings.TrimSpace(task.UnavailableReason)
 	if task.ID == "" {
 		return errors.New("task id is required")
 	}
@@ -105,7 +117,7 @@ func (r *Registry) Register(task Task) error {
 	if task.Interval <= 0 {
 		return errors.New("task interval must be positive")
 	}
-	if task.Run == nil {
+	if task.Run == nil && task.executionError() == nil {
 		return errors.New("task run function is required")
 	}
 	r.mu.Lock()
@@ -138,6 +150,9 @@ func (r *Registry) Start(ctx context.Context, wg *sync.WaitGroup) {
 	}
 	r.mu.Unlock()
 	for _, state := range states {
+		if state.task.executionError() != nil {
+			continue
+		}
 		wg.Add(1)
 		go r.runLoop(ctx, wg, state)
 	}
@@ -151,6 +166,7 @@ func (r *Registry) Tasks() []TaskStatus {
 	for _, id := range r.order {
 		state := r.tasks[id]
 		status := TaskStatus{
+			Enabled: state.task.DisabledReason == "", Available: state.task.UnavailableReason == "", DisabledReason: state.task.DisabledReason, UnavailableReason: state.task.UnavailableReason, LastFinishedAt: state.lastFinishedAt,
 			ID:          state.task.ID,
 			Name:        state.task.Name,
 			Interval:    FormatInterval(state.task.Interval),
@@ -183,6 +199,10 @@ func (r *Registry) TriggerContext(requestCtx context.Context, id string) error {
 	if !ok {
 		r.mu.Unlock()
 		return ErrTaskUnknown
+	}
+	if err := state.task.executionError(); err != nil {
+		r.mu.Unlock()
+		return err
 	}
 	if state.running {
 		r.mu.Unlock()
@@ -299,7 +319,7 @@ func wakeTask(state *taskState) {
 func (r *Registry) tryBegin(state *taskState) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if state.running {
+	if state.running || state.task.executionError() != nil {
 		return false
 	}
 	state.running = true
@@ -323,6 +343,9 @@ func (r *Registry) run(ctx context.Context, state *taskState, trigger string) {
 	r.runClaimed(ctx, state, trigger, claim)
 }
 func invokeTask(ctx context.Context, task Task, trigger string) (outcome string, err error) {
+	if err := task.executionError(); err != nil {
+		return "", err
+	}
 	defer func() {
 		if recover() != nil {
 			outcome = ""
@@ -365,6 +388,8 @@ func (r *Registry) runClaimed(ctx context.Context, state *taskState, trigger str
 	state.running = false
 	state.lastRunAt = &startedAt
 	state.details = details
+	finishedAt := time.Now().UTC()
+	state.lastFinishedAt = &finishedAt
 	duration := max(int64(0), time.Since(startedAt).Milliseconds())
 	state.durationMS = &duration
 	if err == nil && details.Errors == 0 {
@@ -410,4 +435,16 @@ func FormatInterval(d time.Duration) string {
 		s = strings.TrimSuffix(s, "0m")
 	}
 	return s
+}
+
+// Reasons describe this process's configuration, not another API instance or
+// provider reachability. Disabled/unavailable tasks remain inspectable.
+func (t Task) executionError() error {
+	if t.DisabledReason != "" {
+		return ErrTaskDisabled
+	}
+	if t.UnavailableReason != "" {
+		return ErrTaskUnavailable
+	}
+	return nil
 }

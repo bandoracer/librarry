@@ -360,7 +360,7 @@ export default function SystemPage() {
   const tasksCard = (
     <Card
       title="Scheduled Tasks"
-      subtitle="Background workers: cadence, last outcome, and manual run-now."
+      subtitle="Schedule and dependencies describe this API instance. Run history is shared across instances."
       padded={!tasks.data?.length}
     >
       {tasks.isPending ? (
@@ -369,17 +369,17 @@ export default function SystemPage() {
         queryFailureNotice(tasks.error, "Scheduled tasks need a live API and are not part of the demo data set.")
       ) : tasks.data.length === 0 ? (
         <EmptyState icon={Timer} title="No scheduled tasks">
-          The scheduler registry reported no tasks. Workers appear here once the API runs with scheduling enabled.
+          The API has not exposed a worker registry. Registered workers appear here even when disabled.
         </EmptyState>
       ) : (
-        <DataTable>
+        <DataTable className="system-tasks-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Interval</th>
               <th>Last Run</th>
               <th>Last Success</th>
-              <th>Next Run</th>
+              <th>Next Run Here</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -388,20 +388,25 @@ export default function SystemPage() {
               <tr key={task.id}>
                 <td className="cell-primary">
                   <span className="system-task-name">
-                    {task.name}
+                    <span>{task.name}</span>
                     {task.running ? <Badge tone="info">Running</Badge> : task.runState === "interrupted" ? <Badge tone="warn">Interrupted</Badge> : task.runState === "degraded" ? <Badge tone="warn">Degraded</Badge> : null}
+                    {task.enabled === false ? <Badge tone="warn">Disabled here</Badge> : null}
+                    {task.available === false ? <Badge tone="warn">Unavailable here</Badge> : null}
                     {task.unreviewedFailures ? <Badge tone="warn">{task.unreviewedFailures} unreviewed</Badge> : null}
                   </span>
+                  {task.disabledReason ? <span className="system-task-reason">{task.disabledReason}</span> : null}
+                  {task.unavailableReason ? <span className="system-task-reason">{task.unavailableReason}</span> : null}
                 </td>
-                <td className="cell-muted">{task.interval}</td>
+                <td className="cell-muted"><span className="system-task-cell-label">Interval</span>{task.interval}</td>
                 <td>
+                  <span className="system-task-cell-label">Last Run</span>
                   <span className="system-task-lastrun" title={taskLastRunTitle(task)}>
                     {formatRelativeTime(task.lastRunAt)}
                     {task.lastError ? <StatusDot tone="danger" /> : null}
                   </span>
                 </td>
-                <td>{task.lastSuccessAt ? formatRelativeTime(task.lastSuccessAt) : "Not recorded"}</td>
-                <td>{formatRelativeTime(task.nextRunAt)}</td>
+                <td><span className="system-task-cell-label">Last Success</span>{task.lastSuccessAt ? formatRelativeTime(task.lastSuccessAt) : "Not recorded"}</td>
+                <td><span className="system-task-cell-label">Next Run Here</span>{formatRelativeTime(task.nextRunAt)}</td>
                 <td>
                   <div className="cell-actions">
                     <TaskRunHistory id={task.id} name={task.name} />
@@ -410,7 +415,7 @@ export default function SystemPage() {
                       size="sm"
                       label={`Run ${task.name} now`}
                       busy={task.running || (runTask.isPending && runTask.variables === task.id)}
-                      disabled={runTask.isPending}
+                      disabled={runTask.isPending || task.enabled === false || task.available === false}
                       onClick={() => void triggerTask(task)}
                     />
                   </div>

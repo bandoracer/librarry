@@ -85,7 +85,7 @@ does not authenticate to GHCR.
 ## Stabilization candidate configuration
 
 All deployment variants now pass completed import/removal controls, import mode,
-rename/recycle/extra-file settings, and import-list sync interval to the API.
+rename/recycle/extra-file settings, and import-list sync enable/interval settings to the API.
 Automatic grabbing and removal remain enabled by default. To retain all completed
 downloads, set `LIBRARRY_COMPLETED_REMOVE_ENABLED=false`; source Compose and image
 Compose now honor it. Use `hardlinkOrCopy`, `hardlink`, or `copy` for
@@ -104,3 +104,11 @@ remain in Postgres; include both in backups. Restore with notification egress
 isolated until later receiver acceptance is reconciled. Compaction cannot protect
 against acceptance that happened after the backup. See the
 [retention policy](../../docs/local-dev.md#notification-history-retention).
+
+
+`LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults to `true`. Set it to `false` and
+recreate the API container to pause scheduled list sync; explicit list-sync
+commands remain available. It is independent of feed sync. System → Tasks keeps
+disabled/unavailable workers visible with reasons and retained shared history.
+Flags apply to each API instance; update every instance to stop scheduled work
+across a deployment.

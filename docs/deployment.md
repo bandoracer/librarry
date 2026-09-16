@@ -340,3 +340,15 @@ records remain; backups must retain both. Compact records prevent replay of an
 archived event, but cannot record acceptances that happened after a restored backup.
 Include this ledger when estimating backup/storage size. The disposable restore
 fixture verifies row preservation, not live recipient or homelab restoration.
+
+
+### Worker scheduling flags
+
+System → Tasks distinguishes instance configuration from shared execution history.
+Disabled workers remain inspectable and cannot be manually run through that
+instance's System Tasks endpoint. Unavailable dependencies appear with reasons.
+Changing environment flags requires recreating/restarting the API; configure every
+API instance when pausing automation across a shared database.
+`LIBRARRY_IMPORT_LIST_SYNC_ENABLED=true` is now explicitly forwarded by generic,
+source-build, TrueNAS and Unraid templates. Set it false to pause list scheduling
+without changing feed sync or removing explicit per-list/compatibility commands.

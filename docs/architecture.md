@@ -488,9 +488,9 @@ persist compatible PUT updates in `compat_resources` as singleton records.
 These records preserve Readarr-shaped fields that Librarry does not natively
 interpret yet, while the active scheduler/task behavior remains derived from
 native Librarry config. Delay profiles and system tasks are exposed in the same
-compatibility layer; tasks are derived from Librarry scheduler intervals for
-feed sync, missing-book monitoring, author refresh, failed-download recovery,
-and upgrade search.
+compatibility layer; tasks use the real scheduler definition and persisted run
+evidence for feed sync, missing-book monitoring, author refresh, failed-download
+recovery, upgrade search, import-list sync and Calibre refresh.
 
 Wanted items are stored in Postgres from normalized metadata results. Native
 `PUT`/`PATCH /api/v1/wanted/{id}` updates title, author, cover URL,
@@ -1638,3 +1638,36 @@ by the resolved retention window; unresolved records and compact event identitie
 are intentionally retained. Import/acquisition journals and domain history are
 outside this policy. Restore must include compact records as well as active outbox
 rows; deleting them manually can permit replay of the same source event.
+
+
+### Worker availability and compatibility status
+
+All 13 built-in workers register their definitions even when disabled or missing
+configured dependencies. `Task.DisabledReason` and `UnavailableReason` separately
+describe this instance's startup policy and prerequisites. Blank reasons preserve
+the previous enabled/available default for registry callers. Blocked definitions
+may omit a body; active definitions still require one. Startup skips their loops,
+and manual/internal claim paths refuse them. Native manual requests return 409 for
+disabled tasks and 503 for unavailable dependencies. History/review continue to use
+the registered identity and shared database records.
+
+`TaskStatus.enabled`/`available` and their reasons describe the responding instance.
+Shared running/outcome/history/last-success evidence remains visible even when a
+peer runs a locally disabled task. `nextRunAt` is omitted for local blocked tasks;
+`lastFinishedAt` is only present when completion is recorded. A missing database
+configuration produces an unavailable inventory; loss of configured persistence
+returns 503 instead of invented status. Dependency availability means configured
+prerequisites, not successful provider checks.
+
+Readarr task names/IDs remain stable. The compatibility routes now map the registry
+statuses and saved start/finish/duration/due times instead of deriving fake runs
+from `now`. Native unknown times are omitted. Readarr's
+[TaskResource](https://github.com/Readarr/Readarr/blob/develop/src/Readarr.Api.V1/System/Tasks/TaskResource.cs)
+uses non-null DateTime/TimeSpan fields, so compatibility dates use the year-1 zero
+value and duration uses zero when unknown. Four `librarry*Known` booleans explicitly
+separate these placeholders from recorded start/finish/due/duration evidence.
+Database failures propagate as 503.
+ImportListSync uses its own actual interval and enable flag rather than feed-sync
+settings. `LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults true and is forwarded by
+all deployment variants. Explicit native/compatibility sync commands remain
+separate from scheduled execution. No schema migration is needed for this change.

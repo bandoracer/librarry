@@ -48,6 +48,9 @@ func releaseWorkerConnection(conn *sql.Conn, id string) {
 	_ = conn.Close()
 }
 func (r *Registry) claim(ctx context.Context, task Task, trigger string) (*taskClaim, error) {
+	if err := task.executionError(); err != nil {
+		return nil, err
+	}
 	if r.db == nil {
 		return nil, nil
 	}
@@ -214,7 +217,14 @@ func (r *Registry) TasksContext(ctx context.Context) ([]TaskStatus, error) {
 			ms := max(int64(0), finished.Time.Sub(started.Time).Milliseconds())
 			s.DurationMS = &ms
 		}
-		s.NextRunAt = &next
+		s.NextRunAt = nil
+		if s.Enabled && s.Available {
+			s.NextRunAt = &next
+		}
+		s.LastFinishedAt = nil
+		if finished.Valid {
+			s.LastFinishedAt = &finished.Time
+		}
 		s.Running = state == "running" && live
 		s.LastError = message
 		s.LastOutcome = outcome

@@ -258,3 +258,77 @@ func TestTaskHistoryPaginationAndReviewAPI(t *testing.T) {
 	call("POST", base+"/not-a-run/review", `{"reviewed":true,"expectedState":"failed"}`, 404)
 	call("POST", "/api/v1/system/tasks/missing/runs/"+id+"/review", `{"reviewed":true,"expectedState":"failed"}`, 404)
 }
+
+func TestTaskAvailabilityRefusesManualRunAndCompatDoesNotInventTimes(t *testing.T) {
+	registry := scheduler.NewRegistry(slog.Default())
+	for _, task := range []scheduler.Task{{ID: "feed-sync", Interval: time.Minute, DisabledReason: "Disabled by fixture."}, {ID: "wanted-monitor", Interval: time.Hour, UnavailableReason: "Database required."}} {
+		if err := registry.Register(task); err != nil {
+			t.Fatal(err)
+		}
+	}
+	router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*", ImportListSyncInterval: 24 * time.Hour, ImportListSyncEnabled: true, FeedSyncInterval: 15 * time.Minute}, Scheduler: registry})
+	for path, code := range map[string]int{"/api/v1/system/tasks/feed-sync/run": 409, "/api/v1/system/tasks/wanted-monitor/run": 503} {
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest("POST", path, nil))
+		if w.Code != code {
+			t.Fatal(path, w.Code, w.Body.String())
+		}
+	}
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/system/task", nil))
+	var rows []map[string]any
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &rows) != nil {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	for _, row := range rows {
+		if row["lastExecution"] != compatUnknownTaskTime || row["lastStartTime"] != compatUnknownTaskTime || row["nextExecution"] != compatUnknownTaskTime || row["lastDuration"] != "00:00:00" || row["librarryLastExecutionKnown"] != false || row["librarryLastStartTimeKnown"] != false || row["librarryNextExecutionKnown"] != false || row["librarryLastDurationKnown"] != false || row["started"] != false {
+			t.Fatal("invented run evidence", row)
+		}
+		if row["name"] == "ImportListSync" && (row["enabled"] != true || row["interval"] != float64(1440)) {
+			t.Fatal("import list borrowed feed settings", row)
+		}
+		if row["name"] == "RssSync" && (row["enabled"] != false || row["librarryAvailable"] != true) {
+			t.Fatal(row)
+		}
+		if row["name"] == "MissingBookSearch" && (row["enabled"] != true || row["librarryAvailable"] != false) {
+			t.Fatal(row)
+		}
+	}
+}
+
+func TestCompatTaskReadsSavedTimesAndRefusesDatabaseOutage(t *testing.T) {
+	db := testdb.Open(t)
+	registry := scheduler.NewRegistry(slog.Default()).WithDatabase(db)
+	if err := registry.Register(scheduler.Task{ID: "failed-download-recovery", Interval: time.Minute, DisabledReason: "Disabled in this process."}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`insert into worker_tasks(task_id) values('failed-download-recovery');with run as(insert into worker_task_runs(task_id,trigger,backend_pid,state,started_at,finished_at) values('failed-download-recovery','fixture',0,'completed','2026-01-01T00:00:00Z','2026-01-01T00:00:01.125Z') returning id) update worker_tasks set run_id=(select id from run),last_success_run_id=(select id from run),last_success_at='2026-01-01T00:00:01.125Z',next_run_at=now()+interval '1 hour' where task_id='failed-download-recovery'`); err != nil {
+		t.Fatal(err)
+	}
+	router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*"}, Scheduler: registry})
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/system/task/4", nil))
+	var row map[string]any
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &row) != nil || row["lastDuration"] != "00:00:01.125" || row["nextExecution"] != compatUnknownTaskTime || row["librarryNextExecutionKnown"] != false || row["librarryLastExecutionKnown"] != true || row["librarryLastStartTimeKnown"] != true || row["librarryLastDurationKnown"] != true {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	for field, want := range map[string]string{"lastStartTime": "2026-01-01T00:00:00Z", "lastExecution": "2026-01-01T00:00:01.125Z"} {
+		raw, ok := row[field].(string)
+		if !ok {
+			t.Fatal(row)
+		}
+		actual, err := time.Parse(time.RFC3339Nano, raw)
+		expected, _ := time.Parse(time.RFC3339Nano, want)
+		if err != nil || !actual.Equal(expected) {
+			t.Fatal(field, raw, err)
+		}
+	}
+	db.Close()
+	for _, path := range []string{"/api/v1/system/tasks", "/api/v1/system/task", "/api/v1/system/task/4"} {
+		w = httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != 503 {
+			t.Fatal(path, w.Code, w.Body.String())
+		}
+	}
+}

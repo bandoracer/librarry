@@ -2055,3 +2055,68 @@ Qualification evidence:
 No production service, real receiver or media library changed. S23 stays open for
 redacted support diagnostics, disabled-worker status and readiness/freshness
 qualification; the full stabilization plan and live soak remain incomplete.
+
+## Disabled-worker visibility and truthful task status (2026-09-16 continuation)
+
+PR #39 is fully green in GitHub run 35120616550; PR #40 is fully green in run
+35122135386. Each passed all five jobs, including packaged qualification, the
+real disposable Calibre contract and both image builds.
+
+All 13 built-in worker definitions now remain registered when disabled or missing
+configured dependencies. The registry exposes independent enabled/available flags
+and reasons, skips blocked scheduling loops and refuses both manual and internal
+claims. Native manual requests return 409 for disabled tasks and 503 for unavailable
+dependencies. History/review remains accessible. Registration logs report actual
+policy instead of saying every constructed task is enabled.
+
+Configuration describes the responding API instance. Shared running state, saved
+history and last success still show a peer's work, while local blocked tasks expose
+no next-run time. Restarting an enabled instance preserves the shared due time.
+Missing persistence produces a visible unavailable inventory; losing a configured
+database returns an outage rather than a synthetic healthy list. Availability
+means required configuration exists, not that provider calls have been verified.
+
+The compatibility task routes previously invented past/future execution times from
+the current clock and used feed-sync settings for ImportListSync. They now map the
+actual registry interval/policy and saved start/finish/duration/due evidence. The
+upstream Readarr TaskResource uses non-null date/time fields; compatible zero-value
+placeholders remain for unknown evidence, explicitly marked by four `librarry*Known`
+flags. No current-clock executions are invented, and database failures return 503.
+The source contract is linked in architecture docs. Native unknown values stay
+omitted, and known timestamps are compared as instants across time zones in tests.
+
+`LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults true independently of feed sync. It is
+forwarded by every installer and included in both environment examples. Disabling
+scheduling retains explicit per-list and compatibility commands. Environment changes
+require API restart/recreation and apply separately to every instance.
+
+System Tasks keeps blocked reasons, previous outcomes and history visible while
+turning off Run now. The initial mobile table review showed names disappearing
+outside the horizontal viewport. Narrow screens now stack each task's name,
+reasons, timing and actions together; desktop keeps the table. The final 390px
+screenshot was visually inspected and viewport assertions pass.
+
+Verification:
+
+- Full PostgreSQL race and ordinary suites pass; final API race check after the
+  upstream type-contract review passes (14.903s). Registry tests prove blocked
+  loops/claims do not execute, disabled instances retain review/history and observe
+  enabled peers, unknown finishes stay unknown, and re-enabling preserves due time.
+- API checks cover manual refusal, real failed-download task identity, saved times,
+  unknown markers, independent import-list configuration and database outages.
+  Config validation and installer forwarding tests include the new flag.
+- 101 desktop/mobile browser tests pass with one expected skip; all six focused
+  task-history checks pass after the responsive layout. All 14 web unit tests,
+  production build, vet, deployment checks and whitespace checks pass.
+- The packaged worker fixture uses two APIs with different monitor flags plus a
+  third API without a database. Disabled history/refusal, actual peer completion,
+  compatibility timestamps, import-list disablement and all 13 worker definitions
+  are verified. Existing shared ownership, SIGKILL and review checks still pass.
+- Final schema-51 packaged regressions and a 461,140-byte isolated restore pass.
+  Local candidate tags are `librarry-api:worker-availability` and
+  `librarry-web:worker-availability`, marker `working-tree-worker-availability`.
+
+No schema migration is required; the database remains at schema 51. No production
+rollout, real-provider mutation or live-library change occurred. Support diagnostics
+and the full readiness/freshness matrix remain open under S23; the full plan and
+live soak are not marked complete.

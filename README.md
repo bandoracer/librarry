@@ -376,7 +376,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   language, and quality tag state on tracked file records.
 - Shared worker status and paginated run history with counts, available operation
   IDs, measured durations, and last recorded success. Partial failures appear as
-  degraded. Unreviewed failures are preserved until reviewed; review is reversible
+  degraded. Disabled/unavailable workers remain visible with reasons and retained
+  history; scheduling flags describe the current API instance. Unreviewed failures
+  are preserved until reviewed; review is reversible
   and does not retry or repair the underlying work. Hourly maintenance compacts
   notification detail after all recipients have been resolved for 90 days, while
   retaining unresolved deliveries and compact event identities to prevent replay.

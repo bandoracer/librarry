@@ -2451,6 +2451,7 @@ export async function renameLibraryFiles(request: LibraryRenameRequest): Promise
 
 /** One scheduler-registered worker: interval cadence plus last/next run facts. */
 export type SystemTask = {
+  enabled?: boolean; available?: boolean; disabledReason?: string; unavailableReason?: string; lastFinishedAt?: string;
   lastSuccessAt?: string; lastSuccessRunId?: string; unreviewedFailures?: number; durationMs?: number; details?: TaskRunDetails;
   runState?: string;
   id: string;
