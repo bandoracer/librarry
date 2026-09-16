@@ -15,10 +15,8 @@ func TestFileCollectionTenThousandFiles(t *testing.T) {
 	db := testdb.Open(t)
 	store := NewStore(db)
 	ctx := context.Background()
-	_, err := db.Exec(`insert into files(media_format,path,title,author_name,import_status,presence_state,updated_at) select case when i<=1500 then 'audiobook' else 'ebook' end,'/collection/'||lpad(i::text,6,'0'),'Title '||(i%5),'Writer',case when i<=1500 then 'imported' else 'available' end,case when i=10000 then 'missing' when i=10001 then 'unknown' else 'present' end,'2026-01-01'::timestamptz from generate_series(1,10001) i`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	testdb.SeedRange(t, db, 10001, `insert into files(media_format,path,title,author_name,import_status,presence_state,updated_at) select case when i<=1500 then 'audiobook' else 'ebook' end,'/collection/'||lpad(i::text,6,'0'),'Title '||(i%5),'Writer',case when i<=1500 then 'imported' else 'available' end,case when i=10000 then 'missing' when i=10001 then 'unknown' else 'present' end,'2026-01-01'::timestamptz from generate_series($1::integer,$2::integer) i`)
+	var err error
 	var audioID, ebookID string
 	if err = db.QueryRow(`insert into wanted_items(wanted_format,title,status) values('audiobook','Large chapter set','imported') returning id::text`).Scan(&audioID); err != nil {
 		t.Fatal(err)

@@ -21,13 +21,16 @@ func TestRecoveryPagesTraverseLargeCollections(t *testing.T) {
 		`insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,state) select id,n,'file-'||n,'/fixture/source/file-'||n,'/fixture/library/'||id||'/file-'||n,1,repeat('a',64),'ebook','verified' from import_operations cross join generate_series(1,2) n`,
 		`insert into root_folders(name,path,media_format) values('Fixture','/fixture/calibre','ebook')`,
 		`insert into calibre_handoffs(source_path,root_folder_id,phase,plan,created_at) select '/fixture/'||i,(select id from root_folders limit 1),case when i%2=0 then 'committed' else 'uploading' end,'{}','2026-01-01' from generate_series(1,10001) i`,
-		`insert into files(media_format,path) select 'ebook','/fixture/legacy-'||i from generate_series(1,5001) i`,
-		`insert into import_reconciliation_issues(file_id,kind,reason,created_at) select id,k,'Fixture unresolved link','2026-01-01' from files cross join (values('wanted'),('download')) kinds(k)`,
 	} {
 		if _, err := db.Exec(query); err != nil {
 			t.Fatal(err)
 		}
 	}
+	testdb.SeedRange(t, db, 5001, `insert into files(media_format,path) select 'ebook','/fixture/legacy-'||i from generate_series($1::integer,$2::integer) i`)
+	if _, err := db.Exec(`insert into import_reconciliation_issues(file_id,kind,reason,created_at) select id,k,'Fixture unresolved link','2026-01-01' from files cross join (values('wanted'),('download')) kinds(k)`); err != nil {
+		t.Fatal(err)
+	}
+
 	seenOps, seenCalibre, seenIssues := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	q := ImportRecoveryQuery{Limit: 100}
 	durations := []time.Duration{}

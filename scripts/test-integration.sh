@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Full scale/import fixtures can exceed Go's default ten-minute package limit on CI.
+# Keep all fixtures and an explicit upper bound.
 if [[ -n "${LIBRARRY_TEST_DATABASE_URL:-}" ]]; then
-  exec go test -race ./...
+  exec go test -race -timeout 20m ./...
 fi
 # A unique disposable container; never touches an existing database or volume.
 container="librarry-test-$(date +%s)-$$"
@@ -16,4 +18,4 @@ for attempt in {1..60}; do
 done
 port=$(docker port "$container" 5432/tcp | awk -F: '{print $NF}')
 export LIBRARRY_TEST_DATABASE_URL="postgres://postgres:librarry-test@127.0.0.1:${port}/librarry_test?sslmode=disable"
-go test -race ./...
+go test -race -timeout 20m ./...

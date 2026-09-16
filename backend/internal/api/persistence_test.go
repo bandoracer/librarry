@@ -85,10 +85,7 @@ func TestDirectBookAndFileLookupBeyondCollectionCaps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Exec(`insert into files(media_format,path,title) select 'ebook','/fixture/other-'||n||'.epub','Other book' from generate_series(1,10000) n`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	testdb.SeedRange(t, db, 10000, `insert into files(media_format,path,title) select 'ebook','/fixture/other-'||n||'.epub','Other book' from generate_series($1::integer,$2::integer) n`)
 	ws := wanted.NewStore(db)
 	items, err := ws.ListWanted(context.Background(), "")
 	if err != nil {

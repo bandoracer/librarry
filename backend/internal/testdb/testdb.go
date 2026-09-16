@@ -80,3 +80,20 @@ func OpenThrough(t *testing.T, lastMigration string) *sql.DB {
 	}
 	return db
 }
+
+// SeedRange builds large fixtures in bounded transactions. File path guards take
+// transaction-scoped advisory locks; seeding 10k paths in one statement can exhaust
+// the shared lock pool while other test packages use the same disposable server.
+// The query accepts inclusive integer range bounds as $1 and $2.
+func SeedRange(t *testing.T, db *sql.DB, total int, query string) {
+	t.Helper()
+	for first := 1; first <= total; first += 500 {
+		last := first + 499
+		if last > total {
+			last = total
+		}
+		if _, err := db.Exec(query, first, last); err != nil {
+			t.Fatalf("seed rows %d–%d: %v", first, last, err)
+		}
+	}
+}

@@ -31,12 +31,15 @@ func TestFileProjectionUpgradePreservesExistingManifestEvidence(t *testing.T) {
 
 func TestFileProjectionCollectionCountsAndStablePaging(t *testing.T) {
 	db := testdb.Open(t)
-	if _, err := db.Exec(`insert into wanted_items(id,wanted_format,title) select md5(n::text)::uuid,'ebook','Tied title' from generate_series(1,10001)n;
-	 insert into files(media_format,path,size_bytes,presence_state,import_status,metadata)
-	 select 'ebook','/library/'||n||'.epub',10,case n%3 when 0 then 'present' when 1 then 'missing' else 'unknown' end,'imported',jsonb_build_object('wantedId',(md5(n::text)::uuid)::text) from generate_series(1,10001)n;
-	 analyze wanted_items; analyze files; analyze file_wanted_links;`); err != nil {
+	if _, err := db.Exec(`insert into wanted_items(id,wanted_format,title) select md5(n::text)::uuid,'ebook','Tied title' from generate_series(1,10001)n`); err != nil {
 		t.Fatal(err)
 	}
+	testdb.SeedRange(t, db, 10001, `insert into files(media_format,path,size_bytes,presence_state,import_status,metadata)
+ select 'ebook','/library/'||n||'.epub',10,case n%3 when 0 then 'present' when 1 then 'missing' else 'unknown' end,'imported',jsonb_build_object('wantedId',(md5(n::text)::uuid)::text) from generate_series($1::integer,$2::integer)n`)
+	if _, err := db.Exec(`analyze wanted_items; analyze files; analyze file_wanted_links;`); err != nil {
+		t.Fatal(err)
+	}
+
 	var present, missing, unknown, total int
 	if err := db.QueryRow(`select count(*) filter(where file_state='present'),count(*) filter(where file_state='missing'),count(*) filter(where file_state='unknown'),count(*) from librarry_book_file_evidence(null)`).Scan(&present, &missing, &unknown, &total); err != nil || total != 10001 || present != 3333 || missing != 3334 || unknown != 3334 {
 		t.Fatal(present, missing, unknown, total, err)

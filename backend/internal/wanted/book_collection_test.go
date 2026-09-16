@@ -20,11 +20,13 @@ func TestBookCollectionWholeCollectionCountsFilteringAndPaging(t *testing.T) {
  select md5(n::text)::uuid,case when n%2=0 then 'ebook' else 'audiobook' end,'Tied title','Same Author',case when n=10002 then 'removed' when n=10003 then 'ignored' when n%3=0 then 'imported' else 'wanted' end,n%5<>0,'2020-01-01' from generate_series(1,10003)n`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`insert into files(media_format,path,size_bytes,presence_state,import_status,metadata)
- select wanted_format,'/library/'||id||'.book',10,'missing','imported',jsonb_build_object('wantedId',id::text) from wanted_items;
- analyze wanted_items; analyze files; analyze file_wanted_links;`); err != nil {
+	testdb.SeedRange(t, db, 10003, `insert into files(media_format,path,size_bytes,presence_state,import_status,metadata)
+ select wanted_format,'/library/'||id||'.book',10,'missing','imported',jsonb_build_object('wantedId',id::text) from wanted_items
+ where id in (select md5(n::text)::uuid from generate_series($1::integer,$2::integer)n)`)
+	if _, err := db.Exec(`analyze wanted_items; analyze files; analyze file_wanted_links;`); err != nil {
 		t.Fatal(err)
 	}
+
 	durations := []time.Duration{}
 	for _, order := range []string{"title", "author", "status", "added"} {
 		cursor := ""
