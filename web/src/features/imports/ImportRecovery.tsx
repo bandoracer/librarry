@@ -32,6 +32,7 @@ export default function ImportRecovery() {
             <div className="imports-recovery-path">{file.sourcePath}</div>
             <div className="imports-recovery-path">→ {file.destinationPath}</div>
             <span className="field-hint">{formatBytes(file.sizeBytes)} · {file.state}</span>
+            {file.stagePath ? <div className="field-hint imports-recovery-path">Temporary copy recorded for recovery: {file.stagePath}</div> : null}
           </li>)}</ul>
           {operation.state !== "committed" ? <Button size="sm" icon={RefreshCw} busy={retry.isPending && retry.variables === operation.id} disabled={retry.isPending} onClick={() => retry.mutate(operation.id)}>Retry import</Button> : null}
         </details>)}

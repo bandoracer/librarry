@@ -231,3 +231,33 @@ S08 references: [SABnzbd API](https://sabnzbd.org/wiki/configuration/5.0/api)
 [Transmission RPC specification](https://github.com/transmission/transmission/blob/4.0.6/docs/rpc-spec.md)
 (per-file wanted/progress metadata). These contract fixtures do not replace
 version-specific real-client qualification in S21.
+
+
+## Continuation: journaled temporary copies (S09, in progress)
+
+Branch: `codex/import-stage-recovery`, stacked on multipart imports.
+Migration 0033 journals native temporary paths with their file and worker-lease
+identity before creation. Copies verify expected manifest bytes before publication;
+lease renewal after copying prevents an expired worker from publishing. Restart
+reloads the journal and reclaims only a validated recorded stage, synchronizes the
+directory, and clears the journal. Unrelated temporary files and older unrecorded
+stages remain untouched. The recovery panel exposes pending stage paths.
+
+Fault tests cover interrupted copies, interruption after publication, stale caller
+snapshots across worker takeover, expired-worker staging, changed source bytes,
+forged journal paths, symlink stages and preservation of unrelated files. These
+checks extend native completed-import recovery; S09 still includes manual/Calibre
+operations, recoverable replacement and broader filesystem fault qualification.
+
+
+Multipart PR #4 at `96d4f8444430118d450345a79c314a90a1ec8209` passed
+[Linux CI run 35054048047](https://github.com/bandoracer/librarry/actions/runs/35054048047):
+source/race/browser verification, packaged API/restore qualification, image scans,
+and API/web AMD64/ARM64 builds. No PR images were published.
+
+Local staging recovery qualification passed the full Go race/Postgres suite,
+Go vet, frontend build, and 17 desktop/mobile browser checks (one inapplicable
+desktop case skipped). The schema-33 ARM64 API container restarted with a seeded
+journaled interrupted copy, reclaimed that exact file, preserved an unrelated
+file, resumed its original destination and completed the broader import/auth
+suite. A 116,148-byte isolated dump restored matching staging/manifest/link state.

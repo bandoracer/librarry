@@ -820,3 +820,10 @@ Skip/Reject stop automatic import of that client/download without deleting files
 Use Resolved → Reopen review to reconsider. Reopening returns to manual review;
 the next worker run does not silently import it. Manual-path imports and Calibre
 handoff do not yet share the native completed-import recovery guarantee.
+
+
+Native completed-import recovery records temporary copies before writing them.
+Retry reclaims an interrupted operation's recorded stage before resuming its
+manifest. The recovery panel shows these temporary paths when present. Files
+without journal ownership are retained, including older `.librarry-copy-*` and
+`.librarry-import-*` leftovers; no directory-wide cleanup is performed.

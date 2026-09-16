@@ -38,11 +38,11 @@ hardlinkOrCopy, hardlink, or copy.
 
 Native completed imports save immutable manifests and use expiring worker leases.
 A failed database commit can resume without duplicating published chapters;
-uncommitted destinations remain hidden from scans. Imports displays operation and
-reconciliation reports with retry controls. Replacement of existing destinations
-is retained for review; use keep both. Manual-path imports, Calibre handoff,
-temporary-stage reclamation and live upgrade qualification remain outside these
-verified recovery guarantees. Existing single-book Calibre handoff is preserved;
+uncommitted destinations remain hidden from scans. New native staging files are
+journaled and reclaimed on retry; unrecorded older stages remain untouched.
+Imports displays operation and reconciliation reports with retry controls. Replacement of existing destinations
+is retained for review; use keep both. Manual-path imports, Calibre handoff and
+live upgrade qualification remain outside these verified recovery guarantees. Existing single-book Calibre handoff is preserved;
 multipart imports into Calibre roots require review.
 
 Multipart qualification uses generated local fixtures, adapter contract tests and

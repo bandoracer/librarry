@@ -58,6 +58,12 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 	if err != nil {
 		return outcome, err
 	}
+	// Read the file journal after claiming. A prior worker may have recorded its
+	// stage between the caller's snapshot and this successful claim.
+	op, err = s.store.getOperation(ctx, op.ID)
+	if err != nil {
+		return outcome, err
+	}
 	op.LeaseToken = token
 	runCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
@@ -107,30 +113,17 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		if err != nil || parent != filepath.Dir(f.DestinationPath) {
 			return outcome, errors.New("destination directory contains a symlink")
 		}
+		if err := s.reclaimImportStage(runCtx, op, f); err != nil {
+			return outcome, err
+		}
 		if _, err := os.Lstat(f.DestinationPath); errors.Is(err, os.ErrNotExist) {
-			// Exclusive publication never overwrites another file. If the process dies
-			// after publication, the next attempt verifies and reuses these exact bytes.
-			if err := s.store.renewOperation(runCtx, op.ID, token); err != nil {
+			if err := s.transferOperationFile(runCtx, op, f); err != nil {
 				return outcome, err
-			}
-			if _, err := importFile(f.SourcePath, f.DestinationPath, op.Mode, false); err != nil {
-				return outcome, err
-			}
-			dir, err := os.Open(filepath.Dir(f.DestinationPath))
-			if err != nil {
-				return outcome, err
-			}
-			syncErr := dir.Sync()
-			closeErr := dir.Close()
-			if syncErr != nil {
-				return outcome, syncErr
-			}
-			if closeErr != nil {
-				return outcome, closeErr
 			}
 		} else if err != nil {
 			return outcome, err
 		}
+
 		if err := verifyManifestPath(f.DestinationPath, f); err != nil {
 			return outcome, err
 		}

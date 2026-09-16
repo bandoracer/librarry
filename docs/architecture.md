@@ -735,6 +735,18 @@ are scoped to the client/download and persist across polling. Resolving with
 `action: "reopen"` returns a skipped/rejected payload review to pending.
 
 This engine covers native completed imports and reviewed completed payloads.
-Manual-path imports, Calibre handoff, replacement and orphaned temporary-stage
-reclamation remain S09 work. Existing single-book Calibre imports retain their
+Manual-path imports, Calibre handoff and replacement remain S09 work. Existing single-book Calibre imports retain their
 previous behavior and cannot claim a native verified-cleanup receipt.
+
+
+### Journaled native import staging
+
+Migration 0033 records each file's lease-specific staging path before transfer.
+Native copies write exclusively to that path, check manifest size/hash, sync, and
+renew the operation lease before exclusive publication. Recovery reloads the
+journal after claiming the operation and reclaims only its recorded regular file
+inside the destination parent. It never sweeps directories by prefix. Missing
+stages are safe to retry; symlinks or forged journal paths require review.
+Directory synchronization precedes clearing the journal. Imports displays pending
+temporary paths alongside their manifest files. Unrecorded stages from older
+versions and manual/Calibre operations require separate operator investigation.

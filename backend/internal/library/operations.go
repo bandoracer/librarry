@@ -35,6 +35,8 @@ type ImportOperation struct {
 }
 
 type ImportOperationFile struct {
+	StagePath       string `json:"stagePath,omitempty"`
+	StageLeaseToken string `json:"-"`
 	WantedID        string `json:"wantedId,omitempty"`
 	ID              string `json:"id"`
 	Order           int    `json:"order"`
@@ -76,7 +78,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	if err = json.Unmarshal(raw, &op.Metadata); err != nil {
 		return op, err
 	}
-	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
+	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,''),stage_path,coalesce(stage_lease_token::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
 	if err != nil {
 		return op, err
 	}
@@ -84,7 +86,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	op.Files = []ImportOperationFile{}
 	for rows.Next() {
 		var f ImportOperationFile
-		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID, &f.WantedID); err != nil {
+		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID, &f.WantedID, &f.StagePath, &f.StageLeaseToken); err != nil {
 			return op, err
 		}
 		op.Files = append(op.Files, f)
@@ -221,7 +223,7 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 		return nil, ErrImportBusy
 	}
 	var outstanding int
-	if err := tx.QueryRowContext(ctx, `select count(*) from import_operation_files where operation_id=$1 and state<>'verified'`, op.ID).Scan(&outstanding); err != nil {
+	if err := tx.QueryRowContext(ctx, `select count(*) from import_operation_files where operation_id=$1 and (state<>'verified' or stage_path<>'')`, op.ID).Scan(&outstanding); err != nil {
 		return nil, err
 	}
 	if outstanding != 0 || len(records) == 0 {

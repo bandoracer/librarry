@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 32, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 33, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -155,6 +155,17 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         planned_destination = pending["operations"][0]["files"][0]["destinationPath"]
         assert (media / Path(planned_destination).relative_to("/fixture")).exists()
         sql("alter table downloads drop constraint inject_commit_failure")
+        # Model a process dying with a journaled temporary copy. The new process
+        # must reclaim that exact stage and preserve unrelated temporary files.
+        manifest_file = pending["operations"][0]["files"][0]
+        file_id = str(uuid.UUID(manifest_file["id"]))
+        stage_token = str(uuid.uuid4())
+        stage_path = str(Path(planned_destination).parent / f".librarry-stage-{file_id}-{stage_token}")
+        local_stage = media / Path(stage_path).relative_to("/fixture")
+        local_stage.write_bytes(b"interrupted staged copy")
+        unrelated_stage = local_stage.parent / ".librarry-stage-unowned"
+        unrelated_stage.write_bytes(b"retain unowned bytes")
+        sql(f"update import_operation_files set stage_path='{stage_path}',stage_lease_token='{stage_token}' where id='{file_id}'")
         docker("restart", API)
         wait_for(lambda: request("/api/v1/system/status"))
         result = request("/api/v1/library/import-completed", {"downloadIds": ["single"], "importMode": "copy"})
@@ -165,6 +176,8 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert recovery["unfinished"] == 0 and len(recovery["operations"]) == 1, recovery
         assert recovery["operations"][0]["id"] == operation_id
         assert recovery["operations"][0]["state"] == "committed"
+        assert not local_stage.exists() and unrelated_stage.read_bytes() == b"retain unowned bytes"
+        assert "stagePath" not in recovery["operations"][0]["files"][0]
         assert recovery["operations"][0]["cleanupState"] == "blocked"
         assert request(f"/api/v1/library/import-operations/{operation_id}/retry", {}, method="POST")["skipped"] is True
 
@@ -193,7 +206,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert src.exists() and hashlib.sha256(src.read_bytes()).digest() == hashlib.sha256(dest.read_bytes()).digest()
         assert (Path(audio_files[0]["path"]).parent.name == "Disc 1")
         assert (media / Path(audio_files[0]["path"]).relative_to("/fixture").parent.parent / "cover.jpg").exists()
-        print("Packaged imports: database failure rolled back, unfinished publication hidden, process restart resumed exact plan, missing payload reviewed, multi-disc chapters and cover imported, source retained, rescans preserve links")
+        print("Packaged imports: database failure rolled back, unfinished publication hidden, process restart reclaimed journaled stage and resumed exact plan, unowned stage retained, missing payload reviewed, multi-disc chapters and cover imported, source retained, rescans preserve links")
         # Complete the missing-file review through the real HTTP preview/resolve
         # contract once the client and filesystem both prove the file is present.
         missing_source = media / "downloads" / "Missing.epub"
@@ -223,7 +236,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
-                      "select id,state,cleanup_state from import_operations", "select operation_id,sha256,file_id from import_operation_files",
+                      "select id,state,cleanup_state from import_operations", "select operation_id,sha256,file_id,stage_path,stage_lease_token from import_operation_files",
                       "select metadata->'verifiedDownload' from files"):
             assert sql(query) == sql(query, "librarry_restore"), query
         print("Isolated database restore verified:", len(dump), "bytes; file/download/wanted counts and receipt preserved")
