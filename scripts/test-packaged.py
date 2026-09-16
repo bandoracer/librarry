@@ -587,6 +587,35 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert request("/api/v1/authors/metadata/review?status=wanted")["filtered"] == 1
         assert request("/api/v1/authors/metadata/review")["filtered"] == 6
         print("Packaged author review: all candidates reachable, restart cursor, saved destination/profile/tags, replay receipt and exactly one history event verified")
+        file_first = request("/api/v1/library/files/collection?limit=1")
+        file_page = file_first
+        visible_file_ids = set()
+        while True:
+            assert file_page["total"] == file_first["total"] and file_page["filtered"] == file_first["total"], file_page
+            for recorded in file_page["files"]:
+                assert recorded["id"] not in visible_file_ids and isinstance(recorded["wantedIds"], list), recorded
+                visible_file_ids.add(recorded["id"])
+            if not file_page.get("nextCursor"):
+                break
+            file_page = request("/api/v1/library/files/collection?limit=1&cursor=" + file_page["nextCursor"])
+        assert len(visible_file_ids) == file_first["total"] and len(visible_file_ids) > 2
+        book_file_ids = set()
+        book_file_page = request("/api/v1/library/files/collection?wantedId=" + audio_book_id + "&limit=1")
+        chapter_count = book_file_page["total"]
+        while True:
+            for recorded in book_file_page["files"]:
+                assert audio_book_id in recorded["wantedIds"], recorded
+                assert recorded["id"] not in book_file_ids, recorded
+                book_file_ids.add(recorded["id"])
+            if not book_file_page.get("nextCursor"):
+                break
+            book_file_page = request("/api/v1/library/files/collection?wantedId=" + audio_book_id + "&limit=1&cursor=" + book_file_page["nextCursor"])
+        assert len(book_file_ids) == chapter_count and {f["id"] for f in audio_files}.issubset(book_file_ids), book_file_ids
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        file_after_restart = request("/api/v1/library/files/collection?limit=1&cursor=" + file_first["nextCursor"])
+        assert file_after_restart["total"] == file_first["total"] and file_after_restart["files"][0]["id"] != file_first["files"][0]["id"], file_after_restart
+        print("Packaged file collection: full traversal, exact totals, chapter membership, relational links and restart cursor verified")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
@@ -615,6 +644,11 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         try:
             request("/api/v1/wanted?view=library")
             raise AssertionError("forms allowed an unauthenticated request")
+        except urllib.error.HTTPError as error:
+            assert error.code == 401
+        try:
+            request("/api/v1/library/files/collection")
+            raise AssertionError("file collection bypassed forms authentication")
         except urllib.error.HTTPError as error:
             assert error.code == 401
         try:

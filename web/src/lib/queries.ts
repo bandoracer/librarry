@@ -1,4 +1,4 @@
-import { fetchAuthorReviewCollection, type AuthorReviewOptions } from "./api";
+import { fetchFileCollection, type FileCollectionOptions, fetchAuthorReviewCollection, type AuthorReviewOptions } from "./api";
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAcquisitionQueue,
@@ -297,6 +297,12 @@ export function useHistory(limit = 50) {
     ),
     refetchInterval: 30_000
   });
+}
+
+export function useFileCollection(options: FileCollectionOptions) {
+  return useQuery({ queryKey: [...keys.libraryFiles("any"), "collection", options], queryFn: withDemoFallback(
+    () => fetchFileCollection(options), () => ({ files: [], total: 0, filtered: 0, counts: {} })
+  ) });
 }
 
 export function useLibraryFiles(format = "any", wantedId?: string) {

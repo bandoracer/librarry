@@ -4,7 +4,7 @@ import { FolderPen } from "lucide-react";
 import { Badge, Button, DataTable, EmptyState, LoadingRow, Modal, Segmented } from "../../components/ui";
 import { useToast } from "../../components/toast";
 import {
-  fetchLibraryFiles,
+  fetchFileCollection,
   previewLibraryRename,
   renameLibraryFiles,
   type LibraryRenameOutcome
@@ -33,13 +33,13 @@ const emptyOutcome: LibraryRenameOutcome = {
 
 /*
  * The rename endpoints select files by id/path (no server-side format
- * filter), so the preview resolves ids through the files list first.
+ * filter), so each preview resolves the exact IDs on one collection page.
  */
-async function fetchRenamePreview(format: RenameFormat): Promise<LibraryRenameOutcome> {
-  const files = await fetchLibraryFiles(format, 500);
-  const ids = files.map((file) => file.id).filter(Boolean);
-  if (!ids.length) return emptyOutcome;
-  return previewLibraryRename({ ids });
+async function fetchRenamePreview(format: RenameFormat, cursor: string, q: string) {
+  const page = await fetchFileCollection({ format, cursor, q, sort: "path", limit: 100 });
+  const ids = page.files.map(file => file.id);
+  const outcome = ids.length ? await previewLibraryRename({ ids }) : emptyOutcome;
+  return { ...outcome, total: page.total, filtered: page.filtered, nextCursor: page.nextCursor };
 }
 
 /**
@@ -51,11 +51,15 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
   const toast = useToast();
   const client = useQueryClient();
   const [format, setFormat] = useState<RenameFormat>("any");
+  const [cursors, setCursors] = useState<string[]>([""]);
+  const [search, setSearch] = useState("");
+  const [querySearch, setQuerySearch] = useState("");
+  useEffect(() => { if (search === querySearch) return; const timer = setTimeout(() => { setQuerySearch(search); setCursors([""]); }, 250); return () => clearTimeout(timer); }, [search, querySearch]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
   const preview = useQuery({
-    queryKey: ["rename-preview", format],
-    queryFn: withDemoFallback(() => fetchRenamePreview(format), () => emptyOutcome),
+    queryKey: ["rename-preview", format, cursors[cursors.length - 1], querySearch],
+    queryFn: withDemoFallback(() => fetchRenamePreview(format, cursors[cursors.length - 1], querySearch), () => ({ ...emptyOutcome, total: 0, filtered: 0, nextCursor: undefined })),
     enabled: props.open
   });
 
@@ -123,7 +127,7 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
             variant="primary"
             icon={FolderPen}
             busy={apply.isPending}
-            disabled={!selectedIDs.length || apply.isPending || preview.isFetching}
+            disabled={!selectedIDs.length || apply.isPending || preview.isFetching || preview.isError}
             onClick={() => void execute()}
           >
             Apply {selectedIDs.length} Rename{selectedIDs.length === 1 ? "" : "s"}
@@ -132,15 +136,24 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
       }
     >
       <div className="settings-rename-head">
-        <Segmented options={formatOptions} value={format} onChange={setFormat} ariaLabel="Rename format" />
+        <Segmented options={formatOptions} value={format} onChange={value => { if (!apply.isPending) { setFormat(value); setCursors([""]); setSelected(new Set()); } }} ariaLabel="Rename format" />
         <span className="cell-muted">
           {preview.isFetching
             ? "Building preview…"
             : `${changed.length} of ${previews.length} file${previews.length === 1 ? "" : "s"} would be renamed to match the naming templates.`}
         </span>
       </div>
+      <div className="library-pagination">
+        <input aria-label="Search rename files" placeholder="Search paths, titles or authors" disabled={apply.isPending} value={search} onChange={event => setSearch(event.target.value)} />
+        <span>{previews.length} shown · {preview.data?.filtered ?? 0} matching · {preview.data?.total ?? 0} total files</span>
+        <Button disabled={cursors.length === 1 || preview.isFetching || apply.isPending} onClick={() => { setSelected(new Set()); setCursors(value => value.slice(0, -1)); }}>Previous preview</Button>
+        <span>Page {cursors.length}</span>
+        <Button disabled={!preview.data?.nextCursor || preview.isFetching || apply.isPending} onClick={() => { if (preview.data?.nextCursor) { setSelected(new Set()); setCursors(value => [...value, preview.data!.nextCursor!]); } }}>Next preview</Button>
+        <Button disabled={preview.isFetching || apply.isPending} onClick={() => void preview.refetch()}>Refresh preview</Button>
+      </div>
+      <p className="field-hint">Selection and Apply cover only the files shown on this page.</p>
       {preview.isError ? <QueryErrorNotice error={preview.error} fallback="Rename preview failed" /> : null}
-      {preview.isLoading ? (
+      {preview.isError ? <Button onClick={() => void preview.refetch()}>Retry preview</Button> : preview.isLoading ? (
         <LoadingRow label="Building rename preview…" />
       ) : previews.length ? (
         <DataTable className="settings-rename-table">
@@ -152,7 +165,7 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
                   checked={allChangedSelected}
                   disabled={!changed.length}
                   onChange={toggleAll}
-                  aria-label="Select all changed files"
+                  aria-label="Select changed files on this page"
                 />
               </th>
               <th>Current path</th>

@@ -585,6 +585,8 @@ export default function LibraryPage() {
                 }}
               />
             </>
+          ) : tab === "books" ? (
+            <ToolbarButton icon={FolderPen} label="Rename Files" title="Preview file renames, including unassigned files" onClick={() => setRenameOpen(true)} />
           ) : undefined
         }
       >

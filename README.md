@@ -247,6 +247,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
 - **Author review queue:** page/search all candidate reviews, inspect saved
   decisions, and mark wanted or ignore with retry-safe decisions. Already tracked
   books retain their existing destination, profile and monitoring choices.
+- **Library files:** browse every recorded file or audiobook chapter with search,
+  presence filters and book links. Imports shows full collection counts; rename
+  previews reach older files and apply only the selected page.
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.

@@ -1231,3 +1231,28 @@ review decision without changing a tracked book. New candidate evidence requires
 a refresh before deciding. The book, decision and history commit together;
 retrying the same saved action returns its receipt, while a conflicting action
 returns 409. No provider lookup or download is triggered by review resolution.
+
+
+### Browsing library files
+
+Imports and each book detail show Tracked files with up to 100 rows per page.
+Search covers paths, titles and authors across the full collection. Format,
+recorded presence and path/title/recent-update sort filters reset to page one.
+Previous files, Next files and Refresh files navigate the collection. Counters
+cover the full collection, or all files linked to the current book; they do not
+shrink to the loaded page. An unavailable collection offers Retry files and
+retains no misleading empty-list claim or stale Imports totals.
+
+Presence means the last recorded scan/import observation, not a fresh disk
+check. Unknown is explicit. Import status is separate: an imported file can be
+missing locally. Book completeness still uses the full native import/file evidence,
+not whichever chapter page is displayed. Open book follows recorded relational
+associations; stale JSON hints do not define membership. Unassigned files remain
+browsable. Destinations belonging to unfinished imports stay hidden until commit.
+
+Rename Files remains available when the book list is empty. Its preview uses the
+same file collection, with search, format and previous/next controls. Selection
+and Apply cover only shown files. Changed files are initially selected on each
+page; review the paths and uncheck any to exclude before applying. Collection-wide
+resumable rename/bulk jobs remain separate work. Concurrent changes can affect
+subsequent pages; Refresh preview reloads the current page.

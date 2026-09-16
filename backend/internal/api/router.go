@@ -501,6 +501,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/library/remote-path-mappings/{id}", handler.updateLibraryRemotePathMapping)
 	mux.HandleFunc("DELETE /api/v1/library/remote-path-mappings/{id}", handler.deleteLibraryRemotePathMapping)
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
+	mux.HandleFunc("GET /api/v1/library/files/collection", handler.libraryFileCollection)
 	mux.HandleFunc("DELETE /api/v1/library/files/{id}", handler.deleteLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/files/delete", handler.deleteLibraryFiles)
 	mux.HandleFunc("POST /api/v1/library/files/rename/preview", handler.previewRenameLibraryFiles)

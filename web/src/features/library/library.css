@@ -446,3 +446,6 @@
 
 .library-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .library-pagination > span { font-size: 0.8rem; color: var(--muted); }
+
+.library-file-name { display: grid; gap: 0.35rem; min-width: 14rem; max-width: 32rem; }
+.library-file-name code { overflow-wrap: anywhere; white-space: normal; font-size: 0.75rem; }

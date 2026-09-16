@@ -1,11 +1,11 @@
+import { FileBrowser, useFileBrowser } from "../library/FileBrowser";
+import "../library/library.css";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   CheckSquare,
-  FileCheck2,
-  FolderInput,
   FolderSearch,
   HardDriveDownload,
   Inbox,
@@ -31,7 +31,7 @@ import {
   ToolbarButton
 } from "../../components/ui";
 import { useToast } from "../../components/toast";
-import { keys, useImportReviews, useInvalidatingMutation, useLibraryFiles, useWanted } from "../../lib/queries";
+import { keys, useImportReviews, useInvalidatingMutation, useWanted } from "../../lib/queries";
 import {
   importCompletedDownloads,
   importLibraryFile,
@@ -71,7 +71,6 @@ type ImportMode = "copy" | "move" | "hardlink" | "hardlinkOrCopy";
 type ConflictAction = "rename" | "replace" | "skip" | "fail";
 type ReviewAction = "import" | "skip" | "reject";
 type ReviewStatusFilter = "pending" | "resolved" | "all";
-type FileFormatFilter = "any" | "ebook" | "audiobook";
 
 const pageSubtitle = navItems.find((item) => item.id === "imports")?.subtitle;
 
@@ -79,7 +78,6 @@ const fileKeys = [keys.libraryFiles("any"), keys.libraryFiles("ebook"), keys.lib
 const reviewKeys = [keys.importReviews("pending"), keys.importReviews("resolved"), keys.importReviews("all")] as const;
 const downstreamKeys = [keys.importRecovery, keys.downloads(), keys.history(), keys.wanted] as const;
 
-const TRACKED_FILE_ROW_CAP = 100;
 
 function plural(count: number, singular: string, pluralWord = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralWord}`;
@@ -134,19 +132,16 @@ export default function ImportsPage() {
   const [lastBulk, setLastBulk] = useState<ReviewBulkDecisionOutcome | null>(null);
 
   /* ------------------------------ Tracked files ---------------------------- */
-  const [fileFormat, setFileFormat] = useState<FileFormatFilter>("any");
+  const fileBrowser = useFileBrowser();
 
   /* --------------------------------- Queries ------------------------------- */
   const reviewsQuery = useImportReviews(reviewStatus);
   const pendingReviewsQuery = useImportReviews("pending");
-  const filesQuery = useLibraryFiles(fileFormat);
-  const allFilesQuery = useLibraryFiles("any");
+  const fileCollection = fileBrowser.query.isError ? undefined : fileBrowser.query.data;
 
   const payloadReviews = (reviewsQuery.data ?? []).filter(review => review.status === "pending" && review.metadata?.payloadReview === true);
   const reviews = useMemo(() => (reviewsQuery.data ?? []).filter(review => review.status !== "pending" || review.metadata?.payloadReview !== true), [reviewsQuery.data]);
   const pendingReviews = pendingReviewsQuery.data ?? [];
-  const files = filesQuery.data ?? [];
-  const allFiles = allFilesQuery.data ?? [];
 
   /* -------------------------------- Mutations ------------------------------ */
   const scanMutation = useInvalidatingMutation(
@@ -355,7 +350,6 @@ export default function ImportsPage() {
   /* ------------------------------ Render helpers --------------------------- */
 
   const reviewsError = reviewsQuery.error ? libraryErrorMessage(reviewsQuery.error.message) : "";
-  const filesError = filesQuery.error ? libraryErrorMessage(filesQuery.error.message) : "";
 
   const bulkFailures = lastBulk ? lastBulk.results.filter((result) => result.status === "error") : [];
   const reviewTitleByID = useMemo(() => {
@@ -365,11 +359,6 @@ export default function ImportsPage() {
     }
     return map;
   }, [reviews]);
-
-  const visibleFiles = files.slice(0, TRACKED_FILE_ROW_CAP);
-  const trackedSubtitle = lastScan
-    ? `${lastScan.upserted} files indexed from ${plural(lastScan.roots.length, "root")} on the last scan.`
-    : `${plural(allFiles.length, "tracked file")} from library scans and imports.`;
 
   return (
     <>
@@ -579,15 +568,15 @@ export default function ImportsPage() {
         <div className="imports-statbar-wrap">
           <StatBar
             stats={[
-              { label: "Tracked", value: allFiles.length },
+              { label: "Tracked", value: fileCollection?.total ?? "—" },
               {
                 label: "Imported",
-                value: allFiles.filter((file) => file.importStatus === "imported").length,
+                value: fileCollection?.counts.imported ?? "—",
                 tone: "success"
               },
               { label: "Review", value: pendingReviews.length, tone: pendingReviews.length ? "warn" : "neutral" },
-              { label: "Ebooks", value: allFiles.filter((file) => file.mediaFormat === "ebook").length },
-              { label: "Audiobooks", value: allFiles.filter((file) => file.mediaFormat === "audiobook").length },
+              { label: "Ebooks", value: fileCollection?.counts.ebook ?? "—" },
+              { label: "Audiobooks", value: fileCollection?.counts.audiobook ?? "—" },
               { label: "Scanned", value: lastScan?.scanned ?? 0 },
               { label: "Skipped", value: lastScan?.skipped ?? 0 }
             ]}
@@ -786,107 +775,7 @@ export default function ImportsPage() {
         )}
       </Card>
 
-      <Card
-        title="Tracked files"
-        subtitle={trackedSubtitle}
-        actions={
-          <Segmented<FileFormatFilter>
-            ariaLabel="Tracked file format filter"
-            options={[
-              { value: "any", label: "All" },
-              { value: "ebook", label: "Ebooks" },
-              { value: "audiobook", label: "Audiobooks" }
-            ]}
-            value={fileFormat}
-            onChange={setFileFormat}
-          />
-        }
-      >
-        {filesError ? (
-          <InlineNotice tone={isPersistenceRequiredError(filesQuery.error?.message ?? "") ? "info" : "danger"}>
-            {filesError}
-          </InlineNotice>
-        ) : null}
-
-        {filesQuery.isLoading ? (
-          <LoadingRow label="Loading tracked files…" />
-        ) : visibleFiles.length === 0 ? (
-          <EmptyState
-            icon={FolderInput}
-            title="No tracked files"
-            actions={
-              <Button
-                icon={FolderSearch}
-                disabled={isScanning}
-                busy={scanActionID === "empty:any"}
-                onClick={() => runScan("empty:any", "any")}
-              >
-                Scan all roots
-              </Button>
-            }
-          >
-            Run a library scan or import a completed download to start tracking files.
-          </EmptyState>
-        ) : (
-          <>
-            <DataTable>
-              <thead>
-                <tr>
-                  <th>File</th>
-                  <th>Author</th>
-                  <th>Format</th>
-                  <th>Status</th>
-                  <th>Size</th>
-                  <th>Type</th>
-                  <th>Wanted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleFiles.map((file) => {
-                  const wantedID =
-                    stringMetadataValue(file.metadata?.wantedId) || stringMetadataValue(file.metadata?.librarryWantedId);
-                  return (
-                    <tr key={file.id || file.path}>
-                      <td>
-                        <div className="imports-review-file">
-                          <span className="cell-primary">{file.title || fileName(file.path)}</span>
-                          <span className="cell-muted" title={file.path}>
-                            {truncateMiddle(file.path, 64)}
-                          </span>
-                        </div>
-                      </td>
-                      <td>{file.authorName || "Unknown author"}</td>
-                      <td>
-                        <Badge tone={mediaFormatTone(file.mediaFormat)}>{file.mediaFormat}</Badge>
-                      </td>
-                      <td>
-                        <Badge tone={file.presenceState === "missing" ? "danger" : importStatusTone(file.importStatus)}>{file.presenceState === "missing" ? "Missing locally" : file.importStatus || "available"}</Badge>
-                      </td>
-                      <td>{formatBytes(file.sizeBytes ?? 0)}</td>
-                      <td>
-                        <span className="cell-muted">{file.extension || "file"}</span>
-                      </td>
-                      <td>
-                        {wantedID ? (
-                          <Link to="/wanted" title={`Bound to wanted item ${wantedID}`}>
-                            <FileCheck2 size={13} aria-hidden /> Wanted
-                          </Link>
-                        ) : (
-                          <span className="cell-muted">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </DataTable>
-            <span className="field-hint imports-table-caption">
-              Showing {visibleFiles.length} of {files.length} tracked files
-              {files.length >= TRACKED_FILE_ROW_CAP ? " (most recent first, capped at 100)" : ""}.
-            </span>
-          </>
-        )}
-      </Card>
+      <FileBrowser model={fileBrowser} />
 
       <Modal
         title="Resolve selected reviews"

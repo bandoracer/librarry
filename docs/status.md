@@ -42,8 +42,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [collection projection PR #26](https://github.com/bandoracer/librarry/pull/26),
 [book paging PR #27](https://github.com/bandoracer/librarry/pull/27),
 [author paging PR #28](https://github.com/bandoracer/librarry/pull/28),
-[metadata review PR #29](https://github.com/bandoracer/librarry/pull/29), and
-the `codex/paged-author-review` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[metadata review PR #29](https://github.com/bandoracer/librarry/pull/29),
+[author review PR #30](https://github.com/bandoracer/librarry/pull/30), and
+the `codex/paged-library-files` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -563,5 +564,17 @@ author candidate review queue now pages all stored candidates and resolves each
 decision atomically with book creation and history. Existing books retain owner
 settings, and retries replay the saved decision. A 10,001-candidate fixture
 traversed 101 pages without gaps or duplicates (local p95 approximately 7 ms).
-File/legacy readers, search badges, compatibility, removed-book browsing and
+Legacy readers, search badges, compatibility, removed-book browsing and
 durable all-matching jobs remain unfinished under S14/S15.
+
+
+Native file browsing now pages the full recorded collection in Imports and book
+details. The new file table shows recorded presence separately from import status,
+uses relational book links, preserves unassigned files, and hides destinations
+belonging to unfinished imports. Imports counters cover the full collection.
+Rename preview pages across files and applies only selected rows on the current
+page; it remains accessible even when no tracked books are listed. A fixture with
+10,001 linked files traverses 303 pages across path/title/updated sorts without
+gaps, and a 1,500-chapter book is fully reachable. This is local fixture
+qualification; legacy/compatible list endpoints and Calibre batch processing
+retain separate scaling work. Durable collection-wide jobs remain unfinished.

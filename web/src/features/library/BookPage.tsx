@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
 import { updateWanted } from "../../lib/api";
-import { keys, useLibraryFiles, useWantedItem } from "../../lib/queries";
+import { keys, useWantedItem } from "../../lib/queries";
 import { useToast } from "../../components/toast";
 import { Badge, Button, Card, EmptyState, InlineNotice, LoadingRow, PageHeader, ToolbarButton } from "../../components/ui";
 import { WantedEditForm } from "../wanted/components/WantedEditForm";
@@ -15,9 +15,9 @@ import {
   libraryErrorMessage,
   presenceLabel,
   presenceTone,
-  wantedPresenceMap
 } from "./lib";
 import "./library.css";
+import { BookFiles } from "./FileBrowser";
 
 /**
  * Book detail page (route: /library/book/:wantedId): a routable version of
@@ -32,12 +32,7 @@ export default function BookPage() {
   const client = useQueryClient();
 
   const wanted = useWantedItem(wantedId);
-  const files = useLibraryFiles("any", wantedId);
-
   const item = wanted.data;
-  const wantedItems = useMemo(() => item ? [item] : [], [item]);
-  const libraryFiles = useMemo(() => files.data ?? [], [files.data]);
-  const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
 
   const [isTogglingMonitored, setIsTogglingMonitored] = useState(false);
 
@@ -97,7 +92,7 @@ export default function BookPage() {
     );
   }
 
-  const state = presence.get(item.id) ?? "missing";
+  const state = item.derivedState ?? "unknown";
 
   return (
     <>
@@ -169,6 +164,7 @@ export default function BookPage() {
           </div>
         </Card>
 
+        <BookFiles key={item.id} wantedId={item.id} />
         <WantedEditForm item={item} onDeleted={() => navigate(authorPath)} />
         <ProvenancePanel key={`provenance-${item.id}`} item={item} />
         <ReleasesPanel key={`releases-${item.id}`} item={item} />

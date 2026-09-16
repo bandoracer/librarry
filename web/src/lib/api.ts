@@ -1988,6 +1988,17 @@ export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
   return arrayPayload(payload.events);
 }
 
+export type FileCollectionOptions = { q?: string; wantedId?: string; format?: "all" | "any" | "ebook" | "audiobook"; presence?: "all" | "present" | "missing" | "unknown"; sort?: "path" | "title" | "updated"; cursor?: string; limit?: number };
+export type FileCollection = { files: (LibraryFile & { wantedIds: string[] })[]; total: number; filtered: number; counts: Record<string, number>; nextCursor?: string; observedAt?: string };
+export async function fetchFileCollection(options: FileCollectionOptions): Promise<FileCollection> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "") params.set(key, String(value));
+  const response = await fetch(`${apiBase}/api/v1/library/files/collection?${params}`);
+  if (!response.ok) throw new Error(await apiError(response, "Files could not be loaded"));
+  const payload = await response.json() as FileCollection;
+  return { ...payload, files: arrayPayload(payload.files).map(file => ({ ...file, wantedIds: arrayPayload(file.wantedIds) })), counts: payload.counts ?? {} };
+}
+
 export async function fetchLibraryFiles(format = "any", limit = 100, wantedId?: string): Promise<LibraryFile[]> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (wantedId) params.set("wantedId", wantedId);

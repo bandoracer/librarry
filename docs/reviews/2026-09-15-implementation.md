@@ -1410,3 +1410,63 @@ only 100 files; the store has a hard 500-row maximum and no cursor. Large chapte
 sets can therefore be truncated even though native completeness evidence counts
 the full manifest. Next work should add a bounded paged file contract and update
 book/file readers without weakening pending-publication exclusion or book links.
+
+
+## Full file collection and paged rename preview (2026-09-16)
+
+Continued S14/S15 on `codex/paged-library-files`, stacked on author review PR #30.
+PR #30 completed all CI jobs in run 35095085699. Imports previously read 100
+files for its table and whole-library counters; book details fetched the same
+bounded list for fallback state but showed no file table. Rename preview fetched
+at most 500 files and had no continuation. These native consumers now use
+`GET /api/v1/library/files/collection`.
+
+The collection returns bounded files plus full scoped total/filtered counts and
+presence/format/import counters. Search, format, recorded presence and three
+stable sorts bind the cursor. Repeatable-read snapshots keep counts and rows
+consistent per response. Metadata and relational book links load only after page
+selection. Stale JSON hints do not replace `file_wanted_links`; multiple links
+remain explicit. Unassigned files remain visible; every path claimed by an
+uncommitted import operation stays excluded. Read failures are explicit, empty
+arrays remain arrays, and listing never probes bytes or calls providers.
+
+Book details now show every chapter through paging while retaining the native
+whole-book completeness result. Imports uses full counts and suppresses stale
+counts after refresh failures. The shared table shows the filename first,
+retains recorded title/path, and places presence near the filename for mobile.
+Rename preview uses exact current-page file IDs, resets selection with page/filter
+changes and explains that Apply affects only shown selections. Rename Files is
+also available when no books are listed, so unassigned files remain accessible.
+This changes browsing/selection, not the underlying rename durability contract.
+
+A 10,001-file fixture with relational links traversed 303 pages across path,
+title and updated sorts without gaps/duplicates; local p95 was 27.977 ms while
+browser qualification also ran (Apple M5 Max/ARM64, Colima Postgres 16.15).
+A single 1,500-chapter book traversed every scoped page. Additional tests cover
+literal search, global counts, invalid/filter-mismatched cursors, stale JSON vs
+relational membership, multiple links and every uncommitted operation state.
+Full Go race/Postgres tests, vet, final `go test ./...`, 14 web unit checks and
+production build passed. The complete browser suite passed 77 cases with one
+expected skip. Six focused desktop/mobile file tests passed again after the final
+presentation and stale-count changes. Initial browser failures exposed the hidden
+rename action on an empty book list and unscoped status assertions matching new
+filter options; the UI and targeted assertions were corrected. Mobile file
+presentation was visually inspected at 390x844.
+
+The local ARM64 API/web pair (`librarry-api:paged-files`,
+`librarry-web:paged-files`) passed schema-43 packaged traversal, totals, relational
+chapter membership, restart-cursor and authentication checks, plus isolated
+backup/restore. The final rebuilt web image passed the full packaged script and
+a 414,543-byte backup restored successfully, superseding the earlier 414,260-byte
+run. No migration,
+published image, release, real acquisition or production deployment occurred.
+Legacy/compatible lists, Calibre batch fairness, search badges, dashboard counts,
+removed-book browsing and durable all-matching jobs remain open. The stabilization
+goal and S14/S15 are not complete.
+
+Next safety gap found during source review: `applyRename` moves bytes before
+`Store.UpdateFile` saves the new path. A DB failure between those steps has no
+rename journal. Chapter rename destinations also use the general book template
+and need file-set qualification. Next work should reproduce interrupted rename,
+then provide durable recovery and preserve chapter/disc layout and associations;
+current paging qualification does not certify those mutation guarantees.

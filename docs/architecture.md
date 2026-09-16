@@ -1349,3 +1349,27 @@ Ignore changes no book. The existing create helper now supports a caller-owned
 transaction and hydrates the response before commit. No schema migration or
 external provider/acquisition request is required. Legacy dashboard summaries
 still use a bounded reader; they do not determine mutation membership.
+
+
+### Native file collection
+
+`GET /api/v1/library/files/collection` accepts `q` (up to 256 bytes), optional
+`wantedId` UUID, `format` (all/any/ebook/audiobook), `presence`
+(all/present/missing/unknown), `sort` (path default, title, updated), `cursor` and
+`limit` (1–100, default 100). It returns `files`, `total`, `filtered`, `counts`,
+`nextCursor` and `observedAt`. Counts are unfiltered within the optional book
+scope; the filtered count applies search/format/presence. Each file includes
+`wantedIds` from `file_wanted_links`, including multiple associations, independently
+of legacy metadata hints. Empty arrays and maps are normalized at the boundary.
+Invalid/duplicate filters return 400; unavailable persistence returns 503.
+
+Read-only repeatable-read transactions bind counts, page membership and file
+records within each response. Cursors bind normalized filters and sort, with
+UUID tie-breakers and C collation for text keys; later page requests are not a
+frozen collection. Scope queries exclude any path claimed by an uncommitted
+import operation. Sorting/counting omit file metadata until the bounded page has
+been selected. Reads perform no filesystem probes, provider calls or mutations.
+No new schema migration is needed. The old `/api/v1/library/files` and compatible
+readers retain their existing bounded contracts; native browsing and rename
+preview now use the complete collection. Calibre refresh batching, broader
+compatibility and durable all-matching jobs remain open.
