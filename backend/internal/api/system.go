@@ -14,7 +14,12 @@ import (
 func (h *handler) systemTasks(w http.ResponseWriter, r *http.Request) {
 	tasks := []scheduler.TaskStatus{}
 	if h.deps.Scheduler != nil {
-		tasks = h.deps.Scheduler.Tasks()
+		var err error
+		tasks, err = h.deps.Scheduler.TasksContext(r.Context())
+		if err != nil {
+			writeJSON(w, 503, map[string]any{"error": err.Error()})
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"tasks": tasks})
 }
@@ -31,7 +36,7 @@ func (h *handler) runSystemTask(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "task id is required"})
 		return
 	}
-	err := h.deps.Scheduler.Trigger(id)
+	err := h.deps.Scheduler.TriggerContext(r.Context(), id)
 	switch {
 	case errors.Is(err, scheduler.ErrTaskUnknown):
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "task not found"})
@@ -58,4 +63,21 @@ func (h *handler) systemDiskspace(w http.ResponseWriter, r *http.Request) {
 		disks = []library.DiskSpace{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"disks": disks})
+}
+
+func (h *handler) systemTaskRuns(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Scheduler == nil {
+		writeJSON(w, 503, map[string]any{"error": "task scheduler is unavailable"})
+		return
+	}
+	runs, err := h.deps.Scheduler.RunHistory(r.Context(), strings.TrimSpace(r.PathValue("id")))
+	if errors.Is(err, scheduler.ErrTaskUnknown) {
+		writeJSON(w, 404, map[string]any{"error": "task not found"})
+		return
+	}
+	if err != nil {
+		writeJSON(w, 503, map[string]any{"error": "task history is unavailable"})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"runs": runs, "limit": 100})
 }

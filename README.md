@@ -128,6 +128,12 @@ metadata sync resumes without uploading again; uncertain sends require explicit
 review in Imports. This is disposable-server qualification, not unattended
 homelab certification.
 
+Registered background workers now share database ownership and schedule due times
+across API processes. System Tasks retains bounded run history across restarts
+and identifies interrupted owners. Two disposable API containers have exercised
+concurrent-trigger refusal and recovery after a process kill. Notification
+recovery and live multi-instance qualification remain open.
+
 ## Documentation
 
 - [Stabilization plan](docs/stabilization-plan.md): phased execution and release gates.

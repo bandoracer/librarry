@@ -1,4 +1,5 @@
 import React from "react";
+import TaskRunHistory from "./TaskRunHistory";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Archive, BookOpenCheck, HardDrive, HardDriveDownload, HeartPulse, ListChecks, Play, RefreshCw, Timer, Trash2 } from "lucide-react";
@@ -387,7 +388,7 @@ export default function SystemPage() {
                 <td className="cell-primary">
                   <span className="system-task-name">
                     {task.name}
-                    {task.running ? <Badge tone="info">Running</Badge> : null}
+                    {task.running ? <Badge tone="info">Running</Badge> : task.runState === "interrupted" ? <Badge tone="warn">Interrupted</Badge> : null}
                   </span>
                 </td>
                 <td className="cell-muted">{task.interval}</td>
@@ -400,6 +401,7 @@ export default function SystemPage() {
                 <td>{formatRelativeTime(task.nextRunAt)}</td>
                 <td>
                   <div className="cell-actions">
+                    <TaskRunHistory id={task.id} name={task.name} />
                     <IconButton
                       icon={Play}
                       size="sm"

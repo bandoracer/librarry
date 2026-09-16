@@ -2451,6 +2451,7 @@ export async function renameLibraryFiles(request: LibraryRenameRequest): Promise
 
 /** One scheduler-registered worker: interval cadence plus last/next run facts. */
 export type SystemTask = {
+  runState?: string;
   id: string;
   name: string;
   interval: string;
@@ -3346,4 +3347,12 @@ export async function resolveCalibreHandoff(request: { id: string; action: strin
   });
   if (!response.ok) throw new Error(await apiError(response, "Calibre recovery decision failed"));
   return response.json();
+}
+
+export type TaskRun = { id: string; taskId: string; trigger: string; state: string; startedAt: string; heartbeatAt: string; finishedAt?: string; outcome?: string; error?: string };
+export async function fetchTaskRuns(id: string): Promise<TaskRun[]> {
+  const response = await fetch(`${apiBase}/api/v1/system/tasks/${encodeURIComponent(id)}/runs`);
+  if (!response.ok) throw new Error(await apiError(response, "Task history could not be loaded"));
+  const payload = await response.json() as { runs?: TaskRun[] | null };
+  return arrayPayload(payload.runs);
 }

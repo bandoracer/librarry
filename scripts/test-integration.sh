@@ -11,7 +11,7 @@ trap cleanup EXIT
 
 docker run -d --name "$container" -e POSTGRES_PASSWORD=librarry-test -e POSTGRES_DB=librarry_test -p 127.0.0.1::5432 postgres:16-alpine >/dev/null
 for attempt in {1..60}; do
-  if docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+  if docker exec "$container" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
   sleep 1
 done
 port=$(docker port "$container" 5432/tcp | awk -F: '{print $NF}')

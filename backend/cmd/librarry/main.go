@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -53,6 +54,7 @@ func main() {
 	var tagsStore *tags.Store
 	var importListStore *importlists.Store
 	var schemaMigration string
+	var schedulerDB *sql.DB
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -61,6 +63,7 @@ func main() {
 			os.Exit(1)
 		}
 		defer db.Close()
+		schedulerDB = db
 
 		if err := database.ApplyMigrations(ctx, db, cfg.MigrationsDir); err != nil {
 			logger.Error("database migrations failed", "error", err)
@@ -214,7 +217,7 @@ func main() {
 	// Background workers register with the scheduler registry, which owns the
 	// startup-timer/ticker loops and powers the System Tasks view plus manual
 	// run-now triggers.
-	registry := scheduler.NewRegistry(logger)
+	registry := scheduler.NewRegistry(logger).WithDatabase(schedulerDB)
 	registerTask := func(task scheduler.Task) {
 		if err := registry.Register(task); err != nil {
 			logger.Error("task registration failed", "task", task.ID, "error", err)

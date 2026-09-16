@@ -161,6 +161,12 @@ When a client request times out after possibly succeeding, reconcile using clien
 
 **Done:** concurrent worker/manual requests converge to one logical acquisition, ambiguous client responses do not cause duplicate grabs, and one unreachable client does not incorrectly prove a book absent. Repeat for two clients and verify mutation isolation.
 
+**Additional worker qualification:** registered scheduled/manual System Tasks
+passes now share Postgres session ownership and persisted due times. Two packaged
+API processes verify peer busy refusal, process-kill interruption and recovery.
+Domain acquisition/import journals still protect individual remote effects;
+notification outbox delivery and broader worker/live qualification remain open.
+
 ### S11 — Scans, missing files, and legacy reconciliation
 
 **Scope:** create persisted, resumable scan jobs with progress and cancellation. Apply paged batches; resume beyond the old 1,000/5,000 limits. Separate local metadata evidence from authoritative identity.

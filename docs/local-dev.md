@@ -1354,3 +1354,28 @@ the original root configuration if the target has changed; password rotation is
 allowed. Changes to the wanted destination or file associations require resolving
 those owner settings before retry. These controls apply to new journal-backed
 handoffs; old IDs and external Calibre file moves are not automatically repaired.
+
+### Qualify and inspect shared background workers
+
+System → Tasks reads shared database status. **History** shows up to 100 recent
+runs with trigger, start, completion state and error/outcome. A stopped owner is
+shown as interrupted; an old heartbeat does not permit stealing a still-held
+worker lock. **Run now** works before the next due time but returns busy while any
+API process owns that task. During a database outage, workers refuse new claims
+and status reports an outage instead of an empty or healthy task list.
+
+The standalone fixture below runs two API containers with one disposable
+Postgres database. It blocks a harmless scan query, checks shared running status
+and duplicate-trigger refusal, kills the owning API, checks interruption, and
+recovers through the peer before restarting the original process. It never
+contacts a live download client or metadata provider.
+
+```sh
+DOCKER_CONTEXT=your-test-context python3 scripts/test-worker-packaged.py librarry-api:your-candidate
+```
+
+Task ownership uses a session advisory lock. Configure a direct/session-pooled
+Postgres connection; transaction-pooling proxies are not supported for workers.
+Run history is diagnostic and bounded; it does not replace durable acquisition
+or import receipts. Notification delivery is still best effort pending outbox
+work, and these fixtures do not establish a live multi-instance deployment.

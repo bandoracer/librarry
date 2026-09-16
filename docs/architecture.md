@@ -1489,3 +1489,34 @@ and [server authentication documentation](https://manual.calibre-ebook.com/gener
 and exercised against a disposable real Calibre 8.5 server. Durable upload
 acknowledgement, one-time terminal status consumption and local commit recovery
 remain a separate required handoff state machine.
+
+### Shared scheduled-worker ownership and history
+
+With database persistence, the scheduler claims a task-specific Postgres session
+advisory lock before invoking a registered worker. Manual System Tasks requests
+claim synchronously, so another API process returns 409 while the owner runs.
+Scheduled claims additionally check `worker_tasks.next_run_at`; starting another
+API or restarting one cannot immediately repeat a recently completed scheduled
+pass. Manual triggers can override the due time but not active ownership.
+
+Migration 0047 stores the current run/due time in `worker_tasks` and diagnostic
+runs in `worker_task_runs`. An active lock, not heartbeat age, establishes running
+status. The owner refreshes its heartbeat every ten seconds and cancels its worker
+context when coordination fails. A lost session is shown as interrupted, and a
+successor marks the abandoned run interrupted before claiming. Completion is
+bound to the same run ID and connection. Jobs must honor cancellation; remote
+requests already accepted cannot be rolled back by scheduler coordination. The
+acquisition/import journals remain responsible for individual side-effect safety.
+This is shared scheduler ownership, not an exactly-once external delivery claim.
+Use a direct or session-pooled Postgres connection, not transaction pooling.
+
+Manual registry runs join application shutdown alongside scheduled runs. Panics
+are recorded as unverified failures without exposing panic payloads. The latest
+100 finished diagnostic runs per task are retained, along with active runs;
+import/acquisition recovery journals are not pruned by this maintenance.
+`GET /api/v1/system/tasks` reads shared state and returns an unavailable response
+when that state cannot be read. `GET /api/v1/system/tasks/{id}/runs` exposes the
+latest 100 runs for a registered task. System Tasks offers run history, including
+interruption and failure details, through an accessible dialog. Direct business
+API/compatibility operations still use their domain-level coordination rather
+than becoming scheduler jobs.

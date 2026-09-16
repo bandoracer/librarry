@@ -307,3 +307,16 @@ and destination may still be on different filesystems. Unsupported filesystems
 return an import error and retain the original. SMB/NFS mounts and interrupted
 multi-file recovery are not yet qualified. Run the packaged fixture tests on
 the intended storage before promoting this candidate.
+
+### Database sessions for background workers
+
+The stabilization candidate coordinates registered workers using Postgres session
+advisory locks and persisted schedule/run records (migration 0047). Use a direct
+Postgres connection or a session-pooling proxy. Transaction pooling cannot
+preserve worker ownership and is not supported. A database outage prevents new
+worker claims; a lost owner session is shown as interrupted in System Tasks.
+
+Two disposable API processes have verified shared ownership and process-kill
+recovery. This does not certify running multiple production API instances against
+a shared NAS. Acquisition/import journals remain the authority for side effects,
+and live platform/soak qualification is still required.

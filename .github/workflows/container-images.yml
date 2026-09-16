@@ -39,7 +39,9 @@ jobs:
       - name: Verify packaged imports and isolated restore
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
-        run: python3 scripts/test-packaged.py
+        run: |
+          python3 scripts/test-packaged.py
+          python3 scripts/test-worker-packaged.py
       - name: Scan candidate images
         run: |
           mkdir -p output/security

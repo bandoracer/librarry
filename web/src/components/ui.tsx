@@ -76,6 +76,7 @@ export function Button(props: {
   busy?: boolean;
   icon?: LucideIcon;
   title?: string;
+  "aria-label"?: string;
 }) {
   const { variant = "secondary", size = "md" } = props;
   const Icon = props.busy ? Loader2 : props.icon;
@@ -86,6 +87,7 @@ export function Button(props: {
       onClick={props.onClick}
       disabled={props.disabled || props.busy}
       title={props.title}
+      aria-label={props["aria-label"]}
     >
       {Icon ? <Icon size={size === "sm" ? 13 : 15} className={props.busy ? "spin" : undefined} aria-hidden /> : null}
       {props.children}

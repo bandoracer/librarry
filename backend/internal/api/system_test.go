@@ -192,3 +192,22 @@ func TestSystemDiskspaceEndpointReportsRoots(t *testing.T) {
 		t.Fatalf("unexpected disk record: %+v", disk)
 	}
 }
+
+func TestTaskRunHistoryRouteDoesNotReturnTaskList(t *testing.T) {
+	registry := scheduler.NewRegistry(slog.Default())
+	if err := registry.Register(scheduler.Task{ID: "history", Interval: time.Hour, Run: func(context.Context, string) (string, error) { return "ok", nil }}); err != nil {
+		t.Fatal(err)
+	}
+	router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*"}, Scheduler: registry})
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/v1/system/tasks/history/runs", nil))
+	var payload map[string]json.RawMessage
+	if res.Code != 200 || json.Unmarshal(res.Body.Bytes(), &payload) != nil || string(payload["runs"]) != "[]" || payload["tasks"] != nil {
+		t.Fatalf("%d %s", res.Code, res.Body.String())
+	}
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/v1/system/tasks/missing/runs", nil))
+	if res.Code != 404 {
+		t.Fatal(res.Code)
+	}
+}

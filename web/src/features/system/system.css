@@ -168,3 +168,5 @@
     grid-template-columns: 1fr;
   }
 }
+
+.task-history-entry { overflow-wrap: anywhere; padding-block: 0.5rem; border-bottom: 1px solid var(--border); }

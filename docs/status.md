@@ -46,9 +46,10 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [author review PR #30](https://github.com/bandoracer/librarry/pull/30),
 [file paging PR #31](https://github.com/bandoracer/librarry/pull/31),
 [durable rename PR #32](https://github.com/bandoracer/librarry/pull/32),
-[book folder PR #33](https://github.com/bandoracer/librarry/pull/33), and
-[Calibre client PR #34](https://github.com/bandoracer/librarry/pull/34) and the
-`codex/calibre-handoff-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[book folder PR #33](https://github.com/bandoracer/librarry/pull/33),
+[Calibre client PR #34](https://github.com/bandoracer/librarry/pull/34),
+[Calibre recovery PR #35](https://github.com/bandoracer/librarry/pull/35), and the
+`codex/persisted-worker-coordination` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -659,3 +660,24 @@ atomic bookkeeping, concurrent retry, target changes, owner edits, cross-client
 identity, changed source bytes and background recovery. These are local fixtures;
 Calibre-side path refresh, richer editions, legacy refresh fairness, live NAS
 qualification and the unattended soak remain open.
+
+### Shared worker coordination qualification
+
+Registered background jobs and manual System Tasks runs now coordinate through
+Postgres session ownership and a shared due time. Another API process cannot
+claim a currently owned job or repeat a not-yet-due scheduled pass. Run state
+survives restart. Lost sessions appear as interrupted; heartbeats cancel the old
+worker context on coordination failure. Expired heartbeat age alone never steals
+a live session lock. Manual jobs participate in shutdown, and the latest 100
+finished diagnostic runs per task remain available in System → Tasks → History.
+
+Two disposable packaged API processes were qualified against the same database:
+the peer observed the active run, refused a concurrent trigger, detected SIGKILL,
+recovered the task, and served the same history after the former owner restarted.
+Postgres tests cover schedule persistence, stale heartbeats, lost connections,
+stale completion, panic cleanup, bounded history, outage refusal and shutdown.
+Desktop/mobile history testing includes errors, retry, focus restoration,
+navigation and visual inspection. Direct business API operations still rely on
+their acquisition/import journals. Notification outbox delivery, broader worker
+side-effect qualification, full S23 operational diagnostics and live soak remain
+open. No production or homelab rollout is implied by these container fixtures.

@@ -1,12 +1,13 @@
 // Package scheduler owns the background-worker loops. Each worker registers a
 // Task (id, name, interval, run function); the registry runs the
-// startup-timer/ticker loop, tracks last/next run status for the System Tasks
+// due-time timer loop, tracks last/next run status for the System Tasks
 // view, and serializes manual triggers against scheduled runs with a per-task
-// busy flag.
+// busy flag and optional shared Postgres ownership.
 package scheduler
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"strings"
@@ -38,6 +39,7 @@ type Task struct {
 
 // TaskStatus is the API-facing snapshot of a registered task.
 type TaskStatus struct {
+	RunState    string     `json:"runState,omitempty"`
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
 	Interval    string     `json:"interval"`
@@ -49,6 +51,7 @@ type TaskStatus struct {
 }
 
 type taskState struct {
+	wake        chan struct{}
 	task        Task
 	running     bool
 	lastRunAt   *time.Time
@@ -60,6 +63,8 @@ type taskState struct {
 // Registry wraps every background worker with scheduling and run-status
 // bookkeeping.
 type Registry struct {
+	db     *sql.DB
+	wg     *sync.WaitGroup
 	logger *slog.Logger
 
 	mu      sync.Mutex
@@ -103,7 +108,7 @@ func (r *Registry) Register(task Task) error {
 	if _, exists := r.tasks[task.ID]; exists {
 		return errors.New("task " + task.ID + " is already registered")
 	}
-	r.tasks[task.ID] = &taskState{task: task}
+	r.tasks[task.ID] = &taskState{task: task, wake: make(chan struct{}, 1)}
 	r.order = append(r.order, task.ID)
 	return nil
 }
@@ -112,7 +117,12 @@ func (r *Registry) Register(task Task) error {
 // ctx is cancelled; wg tracks them for shutdown.
 func (r *Registry) Start(ctx context.Context, wg *sync.WaitGroup) {
 	r.mu.Lock()
+	if r.started {
+		r.mu.Unlock()
+		return
+	}
 	r.baseCtx = ctx
+	r.wg = wg
 	r.started = true
 	states := make([]*taskState, 0, len(r.order))
 	for _, id := range r.order {
@@ -156,7 +166,9 @@ func (r *Registry) Tasks() []TaskStatus {
 // Trigger starts a manual run of the task in the background. It returns
 // ErrTaskUnknown for unregistered ids and ErrTaskBusy while a run is in
 // flight.
-func (r *Registry) Trigger(id string) error {
+func (r *Registry) Trigger(id string) error { return r.TriggerContext(context.Background(), id) }
+
+func (r *Registry) TriggerContext(requestCtx context.Context, id string) error {
 	r.mu.Lock()
 	state, ok := r.tasks[strings.TrimSpace(id)]
 	if !ok {
@@ -167,53 +179,109 @@ func (r *Registry) Trigger(id string) error {
 		r.mu.Unlock()
 		return ErrTaskBusy
 	}
-	state.running = true
 	ctx := r.baseCtx
-	r.mu.Unlock()
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	go r.run(ctx, state, "manual")
+	if ctx.Err() != nil {
+		r.mu.Unlock()
+		return errors.New("task scheduler is shutting down")
+	}
+	state.running = true
+	wg := r.wg
+	if wg != nil {
+		wg.Add(1)
+	}
+	r.mu.Unlock()
+	claimCtx, cancel := context.WithTimeout(requestCtx, 5*time.Second)
+	claim, err := r.claim(claimCtx, state.task, "manual")
+	cancel()
+	if err != nil {
+		r.mu.Lock()
+		state.running = false
+		r.mu.Unlock()
+		if wg != nil {
+			wg.Done()
+		}
+		return err
+	}
+	wakeTask(state)
+	go func() {
+		if wg != nil {
+			defer wg.Done()
+		}
+		r.runClaimed(ctx, state, "manual", claim)
+	}()
 	return nil
 }
 
 func (r *Registry) runLoop(ctx context.Context, wg *sync.WaitGroup, state *taskState) {
 	defer wg.Done()
-	interval := state.task.Interval
 	delay := state.task.StartupDelay
 	if delay <= 0 {
 		delay = 15 * time.Second
 	}
-	startup := time.NewTimer(delay)
-	ticker := time.NewTicker(interval)
-	defer startup.Stop()
-	defer ticker.Stop()
-
-	nextTick := time.Now().UTC().Add(interval)
-	startupAt := time.Now().UTC().Add(delay)
-	if startupAt.Before(nextTick) {
-		r.setNextRun(state, startupAt)
-	} else {
-		r.setNextRun(state, nextTick)
+	if state.task.Interval < delay {
+		delay = state.task.Interval
 	}
-	r.logger.Info("task scheduled", "task", state.task.ID, "interval", interval)
-
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	r.setNextRun(state, time.Now().UTC().Add(delay))
+	first := true
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-startup.C:
-			if r.tryBegin(state) {
-				r.run(ctx, state, "scheduled-startup")
+		case <-timer.C:
+			trigger := "scheduled"
+			if first {
+				trigger = "scheduled-startup"
+				first = false
 			}
-			r.setNextRun(state, nextTick)
-		case <-ticker.C:
-			nextTick = time.Now().UTC().Add(interval)
 			if r.tryBegin(state) {
-				r.run(ctx, state, "scheduled")
+				r.run(ctx, state, trigger)
 			}
-			r.setNextRun(state, nextTick)
+		case <-state.wake:
 		}
+		if ctx.Err() != nil {
+			return
+		}
+		next := r.nextTaskRun(ctx, state)
+		r.setNextRun(state, next)
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+		wait := time.Until(next)
+		if wait <= 0 {
+			wait = time.Second
+		}
+		timer.Reset(wait)
+	}
+}
+func (r *Registry) nextTaskRun(ctx context.Context, state *taskState) time.Time {
+	if r.db != nil {
+		queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		var next time.Time
+		if err := r.db.QueryRowContext(queryCtx, `select next_run_at from worker_tasks where task_id=$1`, state.task.ID).Scan(&next); err == nil {
+			return next
+		}
+		return time.Now().UTC().Add(5 * time.Second)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if state.lastRunAt != nil {
+		return state.lastRunAt.Add(state.task.Interval)
+	}
+	return time.Now().UTC().Add(state.task.Interval)
+}
+func wakeTask(state *taskState) {
+	select {
+	case state.wake <- struct{}{}:
+	default:
 	}
 }
 
@@ -231,8 +299,56 @@ func (r *Registry) tryBegin(state *taskState) bool {
 
 // run executes the task body; the caller must already hold the busy flag.
 func (r *Registry) run(ctx context.Context, state *taskState, trigger string) {
+	claimCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	claim, err := r.claim(claimCtx, state.task, trigger)
+	cancel()
+	if err != nil {
+		r.mu.Lock()
+		state.running = false
+		if !errors.Is(err, ErrTaskBusy) && !errors.Is(err, errNotDue) {
+			state.lastError = err.Error()
+		}
+		r.mu.Unlock()
+		return
+	}
+	r.runClaimed(ctx, state, trigger, claim)
+}
+func invokeTask(ctx context.Context, task Task, trigger string) (outcome string, err error) {
+	defer func() {
+		if recover() != nil {
+			outcome = ""
+			err = errors.New("task panicked; completion is unverified")
+		}
+	}()
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	return task.Run(ctx, trigger)
+}
+func (r *Registry) runClaimed(ctx context.Context, state *taskState, trigger string, claim *taskClaim) {
 	startedAt := time.Now().UTC()
-	outcome, err := state.task.Run(ctx, trigger)
+	runCtx, cancel := context.WithCancel(ctx)
+	heartbeatDone := make(chan struct{})
+	if claim != nil {
+		go claim.heartbeat(runCtx, cancel, heartbeatDone)
+	} else {
+		close(heartbeatDone)
+	}
+	outcome, err := invokeTask(runCtx, state.task, trigger)
+	// A function returning success after cancellation cannot certify completion.
+	if err == nil && runCtx.Err() != nil {
+		err = runCtx.Err()
+	}
+	cancel()
+	<-heartbeatDone
+	if strings.TrimSpace(outcome) == "" && err == nil {
+		outcome = "completed"
+	}
+	if claim != nil {
+		if e := claim.finish(outcome, err); e != nil {
+			err = e
+		}
+	}
 	r.mu.Lock()
 	state.running = false
 	state.lastRunAt = &startedAt
@@ -242,11 +358,11 @@ func (r *Registry) run(ctx context.Context, state *taskState, trigger string) {
 	} else {
 		state.lastError = ""
 		state.lastOutcome = strings.TrimSpace(outcome)
-		if state.lastOutcome == "" {
-			state.lastOutcome = "completed"
-		}
 	}
 	r.mu.Unlock()
+	if trigger == "manual" {
+		wakeTask(state)
+	}
 	if err != nil && ctx.Err() == nil {
 		r.logger.Warn("task run failed", "task", state.task.ID, "trigger", trigger, "error", err)
 	}

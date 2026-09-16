@@ -1736,3 +1736,80 @@ also bound remote deletion to the committed handoff's exact file ID; metadata on
 an unrelated file cannot authorize deleting that handoff's Calibre book. Focused
 race coverage verifies both refusal and the original-target deletion. The local
 packaged run preceded this final identity guard; PR CI qualifies the final commit.
+
+### September 16 — Shared worker coordination and persisted run history
+
+Continued on `codex/persisted-worker-coordination`, stacked on #35. The preceding
+Calibre recovery PR #35 completed all five CI jobs successfully in run
+35110023548, including real Calibre and the final packaged commit qualification.
+
+Migration 0047 adds shared scheduled due times and run records. Each registered
+worker claims a task-specific Postgres session advisory lock before invoking its
+body. Manual System Tasks requests claim synchronously and return busy when a
+peer owns the task. Scheduled startup/ticker calls also check the saved due time,
+so restarting or adding a second API cannot repeat a recently completed scheduled
+pass. An old heartbeat never steals a live lock. Heartbeats cancel a worker's
+context on coordination failure; a lost session is shown as interrupted and a
+successor preserves that interruption before claiming. Completion is bound to
+the original connection/run ID. In-flight external effects still require the
+existing acquisition/import journals; this is not an exactly-once delivery claim.
+
+Manual registry runs now join shutdown. Worker panics become unverified failures
+without exposing panic payloads. The latest 100 finished diagnostic runs per task
+are kept, with the current run retained even if historical timestamps are ahead
+of it. Task status reads shared database evidence and returns unavailable when
+that evidence cannot be read. History is available through
+`GET /api/v1/system/tasks/{id}/runs` and System Tasks → History. This maintenance
+does not delete import/acquisition receipts. Database connections must preserve
+sessions; transaction pooling is explicitly unsupported.
+
+Postgres race tests cover two registries, synchronous manual busy refusal,
+persisted scheduled due times, stale heartbeats with a live lock, connection
+termination, stale completion refusal, cancellation after heartbeat failure,
+shutdown waiting for manual work, panic release, bounded history and database
+outage refusal. The full race suite passed (library 170.013s; wanted 187.574s).
+The API history route has an explicit regression check: an initial packaged test
+caught its accidental wiring to the task-list handler, and that was corrected.
+
+`scripts/test-worker-packaged.py` runs two real API containers sharing a disposable
+Postgres database. It blocks a harmless scan query, proves shared running status
+and peer 409, kills the owner with SIGKILL, observes interruption, recovers through
+the peer, and verifies history after restarting the original owner. This passed.
+The harness rereads Docker's dynamically allocated port after restart. CI now
+runs this fixture alongside the existing packaged application qualification.
+No live clients, provider accounts or library storage are used.
+
+Desktop/mobile history tests cover read failures, retry, navigation, keyboard
+focus restoration and width. Visual inspection caught table-cell nowrap styles
+clipping the modal body; rendering this dialog into the document body fixed the
+inheritance, and a body-overflow assertion now covers it. The shared Button now
+forwards its explicit aria-label. The full browser suite passed 91 tests with one
+expected skip; 14 web unit tests, web build, vet, deployment contracts and diff
+checks passed.
+
+Local API/web images `librarry-api:worker-coordination` and
+`librarry-web:worker-coordination` report schema 47 with commit marker
+`working-tree-worker-coordination`. Full packaged regressions, restart recovery
+and a final 431,169-byte isolated backup restore passed, including persisted
+worker schedule/history fixtures. Both packaged suites were rerun after the final
+clock-skew retention and due-time timer changes. No images were published and no production or homelab state changed.
+
+S10/S23 remain partial: direct business APIs retain domain coordination, notification
+delivery remains best effort, and broader side-effect/live-worker qualification,
+last-success/support diagnostics, important-failure retention policy and the
+unattended soak remain open. Next is notification recovery from durable domain
+history so a crash after a successful import/grab does not lose its notification.
+
+The ordinary full Postgres suite also passed (library 143.951s; scheduler 14.498s).
+Final focused scheduler race tests passed after the clock-skew retention check
+(12.912s). API routing regression, final build, vet and diff checks passed.
+
+
+Final review found that an anchored ticker could skip a due time moved by a manual
+run and delay the next pass by nearly an extra interval. The timer now follows
+the saved due time and wakes after manual claims/completion; a real scheduling
+regression verifies that the next pass arrives at its saved cadence. The full
+Postgres race suite passed again (scheduler 17.173s), and both packaged suites
+passed on the rebuilt candidate. A disposable PostgreSQL readiness race was also
+fixed: the harness now checks TCP readiness rather than accepting the temporary
+Unix-socket server used during initialization.
