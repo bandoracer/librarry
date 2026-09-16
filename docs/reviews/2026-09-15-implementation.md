@@ -882,3 +882,43 @@ packaged restart/import/acquisition/scan/replacement/authentication checks; a
 404,854-byte dump restored with counts and receipt intact. Packaged web remains
 the older multipart snapshot; this change has no web source edits. No live provider
 request, production deployment or release occurred.
+
+## Continuation: native author destination inheritance (S13)
+
+Branch: `codex/author-destination-inheritance`, based on author-policy PR #20.
+Native author subscriptions previously had no root-folder field, and Add New
+submitted the standard quality profile regardless of its form. Migration 0041
+adds optional roots to subscriptions and review candidates. Roots must exist and
+match the format; validation and subscription writes share a transaction/row
+lock. New wanted additions inherit author root/profile/tags together. Existing
+tracking retains its settings. Pending review decisions use the root from their
+latest evaluation, which is displayed alongside the quality profile.
+
+Root updates distinguish omission from explicit clearing. Root deletion clears
+references consistently with existing wanted-book behavior. Existing records are
+left unassigned rather than guessing historical destinations. No earlier
+migration was modified. Readarr root-path/ID mapping remains S16 work.
+
+Add New now passes selected creation defaults and respects audiobook targets
+when provider author records have unknown edition format. Its former Refresh
+Author button merely re-saved form values; it now runs a targeted refresh using
+the saved subscription. Save success followed by refresh failure retains visible
+tracking and reports the failure. Stable IDs take precedence over same-name
+selection. Library author settings can change/clear root and quality defaults for
+future additions; metadata-profile precedence copy now matches actual behavior.
+
+Author-policy PR #20 at `d984f4b7e9d1256f38ca8d5ddbec259a4c48c5ad` passed
+[CI run 35076757236](https://github.com/bandoracer/librarry/actions/runs/35076757236),
+including source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+No images were published or deployed.
+
+Final destination qualification: full Go race/Postgres suite, vet, seven web unit
+checks and the production web build passed. All 43 applicable desktop/mobile
+browser checks passed (one desktop-only case skipped on mobile), including four
+new author destination/save-failure/refresh cases. Desktop and mobile form
+screenshots were inspected. Newly built local ARM64 API and web images passed
+schema-41 packaged restart/import/acquisition/scan/replacement/authentication
+qualification. Selected author root/profile/tags survived an API restart; the
+406,472-byte backup restored with author destinations and existing receipt/file
+evidence intact. Author monitoring was disabled in that smoke fixture, so no real
+provider or acquisition request occurred. No production deployment or release.

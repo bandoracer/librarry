@@ -25,6 +25,8 @@ import {
   useAuthorSubscriptions,
   useLibraryFiles,
   useMetadataProfiles,
+  useRootFolders,
+  useQualityProfiles,
   useWanted,
   useWantedMetadataReview
 } from "../../lib/queries";
@@ -78,6 +80,8 @@ type AuthorMonitorOptions = {
 
 /** Editable string form of the metadata filters (comma inputs, number text). */
 type AuthorFiltersForm = {
+  rootFolderId: string;
+  qualityProfile: string;
   metadataProfileId: string;
   allowedLanguages: string;
   mustNotContain: string;
@@ -104,6 +108,8 @@ function activeFilterCount(subscription: AuthorSubscription): number {
 function filtersToForm(subscription: AuthorSubscription): AuthorFiltersForm {
   const filters = subscriptionFilters(subscription);
   return {
+    rootFolderId: subscription.rootFolderId ?? "",
+    qualityProfile: subscription.qualityProfile,
     metadataProfileId: subscription.metadataProfileId ?? "",
     allowedLanguages: (filters.allowedLanguages ?? []).join(", "),
     mustNotContain: (filters.mustNotContain ?? []).join(", "),
@@ -122,6 +128,8 @@ function splitCommaTerms(value: string): string[] {
 /** Empty inputs clear the corresponding filter (empty lists / 0 / "" = disabled). */
 function filtersFormPayload(form: AuthorFiltersForm): AuthorFilterUpdateRequest {
   return {
+    rootFolderId: form.rootFolderId,
+    qualityProfile: form.qualityProfile,
     metadataProfileId: form.metadataProfileId,
     allowedLanguages: splitCommaTerms(form.allowedLanguages),
     mustNotContain: splitCommaTerms(form.mustNotContain),
@@ -148,6 +156,8 @@ export function AuthorsTab() {
   const wantedReviewQuery = useWantedMetadataReview();
   const filesQuery = useLibraryFiles("any");
   const metadataProfilesQuery = useMetadataProfiles();
+  const rootsQuery = useRootFolders();
+  const profilesQuery = useQualityProfiles();
 
   const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data]);
   const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
@@ -238,12 +248,12 @@ export function AuthorsTab() {
     setSavingFiltersID(subscription.id);
     try {
       await updateAuthorSubscription(subscription.id, filtersFormPayload(filtersForm));
-      toast.success(`${subscription.authorName}: add filters updated`);
+      toast.success(`${subscription.authorName}: author settings updated`);
       setFiltersOpenKey("");
       setFiltersForm(null);
       await invalidate(keys.authorSubscriptions);
     } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Author filters update failed")));
+      toast.error(appErrorMessage(errorMessage(error, "Author settings update failed")));
     } finally {
       setSavingFiltersID("");
     }
@@ -273,7 +283,7 @@ export function AuthorsTab() {
         toast.success(`Marked “${outcome.wantedItem?.title ?? skipped.result.work.title}” wanted`);
       } else {
         const wantedFormat = skipped.result.edition?.format === "audiobook" ? "audiobook" : subscription.format;
-        const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? []);
+        const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? [], subscription.rootFolderId);
         toast.success(`Marked “${item.title}” wanted`);
       }
       await invalidate(keys.wanted, keys.authorMetadataReviews, keys.acquisitionQueue, keys.history());
@@ -401,7 +411,7 @@ export function AuthorsTab() {
                           <IconButton
                             icon={SlidersHorizontal}
                             tone={filtersOpen ? "accent" : filterCount > 0 ? "info" : "neutral"}
-                            label={`${filtersOpen ? "Hide" : "Edit"} add filters for ${subscription.authorName}`}
+                            label={`${filtersOpen ? "Hide" : "Edit"} author settings for ${subscription.authorName}`}
                             onClick={() => toggleFilters(subscription, monitorKey)}
                           />
                           <IconButton
@@ -430,10 +440,25 @@ export function AuthorsTab() {
                     {filtersOpen && filtersForm ? (
                       <div style={{ padding: "2px 0 14px", borderBottom: "1px solid var(--border)" }}>
                         <FormGrid columns={2}>
+                          <Field label="Root folder" hint="Applies to future additions; existing books keep their destination.">
+                            <select value={filtersForm.rootFolderId} aria-label={`${subscription.authorName} root folder`}
+                              onChange={event => updateFiltersForm({ rootFolderId: event.target.value })}>
+                              <option value="">Format default</option>
+                              {filtersForm.rootFolderId && !(rootsQuery.data ?? []).some(root => root.id === filtersForm.rootFolderId && root.mediaFormat === subscription.format) ? <option value={filtersForm.rootFolderId}>Saved root unavailable or incompatible</option> : null}
+                              {(rootsQuery.data ?? []).filter(root => root.mediaFormat === subscription.format).map(root => <option key={root.id} value={root.id}>{root.name || root.path}</option>)}
+                            </select>
+                          </Field>
+                          <Field label="Quality profile" hint="Applies to newly added books.">
+                            <select value={filtersForm.qualityProfile} aria-label={`${subscription.authorName} quality profile`}
+                              onChange={event => updateFiltersForm({ qualityProfile: event.target.value })}>
+                              {!(profilesQuery.data ?? []).some(profile => profile.name === filtersForm.qualityProfile && (profile.mediaFormat === "any" || profile.mediaFormat === subscription.format)) ? <option value={filtersForm.qualityProfile}>{filtersForm.qualityProfile}</option> : null}
+                              {(profilesQuery.data ?? []).filter(profile => profile.mediaFormat === "any" || profile.mediaFormat === subscription.format).map(profile => <option key={profile.name} value={profile.name}>{profile.name}</option>)}
+                            </select>
+                          </Field>
                           <div className="settings-field-wide">
                             <Field
                               label="Metadata profile"
-                              hint="Primary filter set; the fields below override it per author."
+                              hint="When selected, this profile supplies the filters instead of the per-author fields below."
                             >
                               <select
                                 value={filtersForm.metadataProfileId}
@@ -498,7 +523,7 @@ export function AuthorsTab() {
                             disabled={!subscription.id || Boolean(savingFiltersID)}
                             onClick={() => void saveFilters(subscription)}
                           >
-                            Save filters
+                            Save author settings
                           </Button>
                           <Button
                             size="sm"
@@ -625,6 +650,11 @@ export function AuthorsTab() {
                       <span>
                         {review.authorName || firstAuthorName(review.result)} · {authorSkippedDateLabel(review.result)} ·{" "}
                         {review.reason}
+                      </span>
+                      <span>
+                        {review.qualityProfile} · {review.rootFolderId
+                          ? (rootsQuery.data ?? []).find(root => root.id === review.rootFolderId)?.path ?? "Saved destination"
+                          : "Format default destination"}
                       </span>
                     </div>
                     <div className="wanted-review-queue-actions">

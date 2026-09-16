@@ -1987,7 +1987,7 @@ func (h *handler) subscribeAuthor(w http.ResponseWriter, r *http.Request) {
 	subscription, err := h.deps.Wanted.SubscribeAuthor(r.Context(), request)
 	if err != nil {
 		status := http.StatusBadGateway
-		if strings.Contains(err.Error(), "metadata profile") {
+		if strings.Contains(err.Error(), "metadata profile") || strings.Contains(err.Error(), "root folder") {
 			status = http.StatusBadRequest
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
@@ -2047,7 +2047,7 @@ func (h *handler) updateAuthorSubscription(w http.ResponseWriter, r *http.Reques
 		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
 		}
-		if strings.Contains(err.Error(), "metadata profile") {
+		if strings.Contains(err.Error(), "metadata profile") || strings.Contains(err.Error(), "root folder") {
 			status = http.StatusBadRequest
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})

@@ -261,6 +261,23 @@ Changes during the subsequent candidate-write loop are not yet serialized with
 every insertion. File-based policies still use recorded associations rather than
 the complete verified-presence projection planned under S14.
 
+Native author subscriptions accept `rootFolderId` on create and update. A root
+must exist and match the subscription's ebook/audiobook format. Updates omit this
+field to preserve it, or send `""` to return to the format default. A repeated
+create without a root preserves a previously saved destination. Automatic new
+books inherit the author root, quality profile and tags together; already tracked
+books keep their own settings. Pending reviews store the root from their latest
+evaluation and use that root when marked wanted, even if the author defaults
+subsequently change. The review queue displays this destination. Deleting a root
+clears these references, matching existing wanted-book root behavior.
+
+Add New allows choosing these defaults for an author and immediately runs a
+targeted refresh after saving. A failed refresh keeps the subscription visible
+and reports the failure. Refresh Author uses the stored subscription without
+re-saving form defaults. Library → Authors → Edit author settings changes the
+root and quality profile for future additions. Readarr root-path/ID mapping and
+migration inheritance remain separate compatibility qualification work under S16.
+
 ### Author Add-Filters
 
 Each subscription carries optional metadata filters that run before the

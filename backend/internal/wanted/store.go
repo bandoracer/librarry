@@ -621,17 +621,25 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 	if err := ensureTagLabels(ctx, s.db, subscription.Tags); err != nil {
 		return AuthorSubscription{}, err
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	defer tx.Rollback()
+	if err := validateAuthorRoot(ctx, tx, subscription.RootFolderID, subscription.Format); err != nil {
+		return AuthorSubscription{}, err
+	}
+	row := tx.QueryRowContext(ctx, `
 		insert into author_subscriptions (
 			provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			metadata_profile_id
+			metadata_profile_id, root_folder_id
 		) values (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9,
 			$10, $11, $12, $13,
-			nullif($14, '')::uuid
+			nullif($14, '')::uuid, nullif($15, '')::uuid
 		)
 		on conflict (provider, provider_key, wanted_format)
 			where provider <> '' and provider_key <> ''
@@ -647,18 +655,26 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 			skip_missing_isbn = excluded.skip_missing_isbn or author_subscriptions.skip_missing_isbn,
 			min_pages = case when excluded.min_pages <> 0 then excluded.min_pages else author_subscriptions.min_pages end,
 			metadata_profile_id = coalesce(excluded.metadata_profile_id, author_subscriptions.metadata_profile_id),
+			root_folder_id = coalesce(excluded.root_folder_id, author_subscriptions.root_folder_id),
 			updated_at = now()
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 	`, subscription.Provider, subscription.ProviderKey, subscription.AuthorName, subscription.Format,
 		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, subscription.MissingBookPolicy, tagLabelsString(subscription.Tags),
 		joinFilterTerms(subscription.AllowedLanguages), joinFilterTerms(subscription.MustNotContain), subscription.SkipMissingISBN, subscription.MinPages,
-		subscription.MetadataProfileID)
-	return scanAuthorSubscription(row)
+		subscription.MetadataProfileID, subscription.RootFolderID)
+	saved, err := scanAuthorSubscription(row)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AuthorSubscription{}, err
+	}
+	return saved, nil
 }
 
 func (s *Store) GetAuthorSubscription(ctx context.Context, id string) (AuthorSubscription, error) {
@@ -669,7 +685,7 @@ func (s *Store) GetAuthorSubscription(ctx context.Context, id string) (AuthorSub
 		select id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''), last_sync_at, created_at, updated_at
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''), last_sync_at, created_at, updated_at
 		from author_subscriptions where id::text = $1
 	`, strings.TrimSpace(id)))
 }
@@ -689,7 +705,7 @@ func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]A
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		`+where+`
@@ -786,7 +802,24 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			return AuthorSubscription{}, err
 		}
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	defer tx.Rollback()
+	var format string
+	if err := tx.QueryRowContext(ctx, `select wanted_format from author_subscriptions where id::text=$1 for update`, id).Scan(&format); err != nil {
+		return AuthorSubscription{}, err
+	}
+	rootFolderID := sql.NullString{}
+	if request.RootFolderID != nil {
+		rootFolderID.Valid = true
+		rootFolderID.String = strings.TrimSpace(*request.RootFolderID)
+		if err := validateAuthorRoot(ctx, tx, rootFolderID.String, format); err != nil {
+			return AuthorSubscription{}, err
+		}
+	}
+	row := tx.QueryRowContext(ctx, `
 		update author_subscriptions set
 			author_name = case when $2 = '' then author_name else $2 end,
 			quality_profile = case when $3 = '' then quality_profile else $3 end,
@@ -799,17 +832,25 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			skip_missing_isbn = coalesce($10, skip_missing_isbn),
 			min_pages = coalesce($11, min_pages),
 			metadata_profile_id = case when $12::text is null then metadata_profile_id else nullif($12::text, '')::uuid end,
+			root_folder_id = case when $13::text is null then root_folder_id else nullif($13::text, '')::uuid end,
 			updated_at = now()
 		where id::text = $1
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags, missingBookPolicy,
-		allowedLanguages, mustNotContain, skipMissingISBN, minPages, metadataProfileID)
-	return scanAuthorSubscription(row)
+		allowedLanguages, mustNotContain, skipMissingISBN, minPages, metadataProfileID, rootFolderID)
+	saved, err := scanAuthorSubscription(row)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AuthorSubscription{}, err
+	}
+	return saved, nil
 }
 
 func (s *Store) DeleteAuthorSubscription(ctx context.Context, id string) error {
@@ -859,7 +900,7 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		where status = 'monitored'
@@ -2236,11 +2277,11 @@ func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMet
 		insert into author_metadata_reviews (
 			author_subscription_id, provider, candidate_key, title, author_name,
 			wanted_format, quality_profile, tags, policy, reason, status, decision,
-			wanted_item_id, result
+			wanted_item_id, result, root_folder_id
 		) values (
 			nullif($1, '')::uuid, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10, $11, $12,
-			nullif($13, '')::uuid, $14::jsonb
+			nullif($13, '')::uuid, $14::jsonb, nullif($15, '')::uuid
 		)
 		on conflict (author_subscription_id, candidate_key, wanted_format)
 		do update set
@@ -2248,6 +2289,7 @@ func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMet
 			title = excluded.title,
 			author_name = excluded.author_name,
 			quality_profile = excluded.quality_profile,
+			root_folder_id = excluded.root_folder_id,
 			tags = excluded.tags,
 			policy = excluded.policy,
 			reason = excluded.reason,
@@ -2258,10 +2300,10 @@ func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMet
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 	`, review.AuthorSubscriptionID, review.Provider, review.CandidateKey, review.Title, review.AuthorName,
 		review.Format, review.QualityProfile, tagLabelsString(review.Tags), review.Policy, review.Reason,
-		review.Status, review.Decision, review.WantedID, string(raw))
+		review.Status, review.Decision, review.WantedID, string(raw), strings.TrimSpace(review.RootFolderID))
 	saved, err := scanAuthorMetadataReview(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return s.findAuthorMetadataReviewByCandidate(ctx, review.AuthorSubscriptionID, review.CandidateKey, review.Format)
@@ -2275,7 +2317,7 @@ func (s *Store) findAuthorMetadataReviewByCandidate(ctx context.Context, authorS
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 		from author_metadata_reviews
 		where author_subscription_id = nullif($1, '')::uuid
 			and candidate_key = $2
@@ -2308,7 +2350,7 @@ func (s *Store) ListAuthorMetadataReviews(ctx context.Context, query AuthorMetad
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 		from author_metadata_reviews
 	`
 	if len(where) > 0 {
@@ -2344,7 +2386,7 @@ func (s *Store) GetAuthorMetadataReview(ctx context.Context, id string) (AuthorM
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 		from author_metadata_reviews
 		where id::text = $1
 	`, strings.TrimSpace(id))
@@ -2370,7 +2412,7 @@ func (s *Store) ResolveAuthorMetadataReview(ctx context.Context, id string, stat
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 	`, strings.TrimSpace(id), strings.TrimSpace(status), strings.TrimSpace(decision), strings.TrimSpace(wantedID))
 	return scanAuthorMetadataReview(row)
 }
@@ -2807,7 +2849,7 @@ func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
 		&subscription.AuthorName, &subscription.Format, &subscription.QualityProfile,
 		&subscription.Status, &subscription.MonitorNewItems, &subscription.MissingBookPolicy, &tags,
 		&allowedLanguages, &mustNotContain, &subscription.SkipMissingISBN, &subscription.MinPages,
-		&subscription.MetadataProfileID,
+		&subscription.MetadataProfileID, &subscription.RootFolderID,
 		&lastSyncAt, &subscription.CreatedAt, &subscription.UpdatedAt,
 	); err != nil {
 		return AuthorSubscription{}, err
@@ -2832,7 +2874,7 @@ func scanAuthorMetadataReview(row wantedScanner) (AuthorMetadataReview, error) {
 		&review.ID, &review.AuthorSubscriptionID, &review.Provider, &review.CandidateKey,
 		&review.Title, &review.AuthorName, &review.Format, &review.QualityProfile,
 		&tags, &review.Policy, &review.Reason, &review.Status, &review.Decision,
-		&review.WantedID, &raw, &review.CreatedAt, &review.UpdatedAt, &resolvedAt,
+		&review.WantedID, &raw, &review.CreatedAt, &review.UpdatedAt, &resolvedAt, &review.RootFolderID,
 	); err != nil {
 		return AuthorMetadataReview{}, err
 	}
@@ -3103,6 +3145,7 @@ func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscrip
 	subscription.QualityProfile = normalizeQualityProfile(subscription.QualityProfile)
 	subscription.Tags = compactTagLabels(subscription.Tags)
 	subscription.MetadataProfileID = strings.TrimSpace(subscription.MetadataProfileID)
+	subscription.RootFolderID = strings.TrimSpace(subscription.RootFolderID)
 	subscription.AllowedLanguages = normalizeFilterTerms(subscription.AllowedLanguages)
 	subscription.MustNotContain = normalizeFilterTerms(subscription.MustNotContain)
 	if subscription.MinPages < 0 {

@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 40, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 41, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -431,12 +431,28 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert checked > 1201 and {"wanted_link", "duplicate_content", "legacy_audio_file"}.issubset({f["kind"] for f in findings}), findings
         assert sql(snapshot_query) == before_preview
         print("Packaged repair preview: all pages inspected; legacy link, duplicate and unverified audiobook evidence explained; file records unchanged")
+        roots = request("/api/v1/library/root-folders")["rootFolders"]
+        author_root = next((root for root in roots if root["path"] == "/fixture/ebooks"), None)
+        if author_root is None:
+            author_root = request("/api/v1/library/root-folders", {
+                "name": "Author fixture", "path": "/fixture/ebooks", "mediaFormat": "ebook"})["rootFolder"]
+        author = request("/api/v1/authors", {"authorName": "Packaged Author", "provider": "Hardcover",
+            "providerKey": "hardcover-author:7", "format": "ebook", "missingBookPolicy": "none",
+            "rootFolderId": author_root["id"], "qualityProfile": "fixture-profile", "tags": ["fixture-author"]})
+        assert author["rootFolderId"] == author_root["id"] and author["qualityProfile"] == "fixture-profile", author
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        saved_author = next(item for item in request("/api/v1/authors?status=all")["authors"] if item["id"] == author["id"])
+        assert saved_author["rootFolderId"] == author_root["id"] and saved_author["tags"] == ["fixture-author"], saved_author
+        print("Packaged author defaults: selected root/profile/tags survive process restart; monitoring disabled and no provider request")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
+                      "select id,root_folder_id,quality_profile,tags from author_subscriptions order by id",
+                      "select id,root_folder_id from author_metadata_reviews order by id",
                       "select id,state,cleanup_state,source_kind,request_key,replacement_cleanup_state,replacement_cleanup_error from import_operations order by id", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files order by id",
                       "select id,metadata->'verifiedDownload' from files order by id",
                       "select id,scope_key,request_key,state,external_id,result,selection,bookkeeping_required,bookkeeping_at from acquisition_intents order by id",

@@ -611,6 +611,7 @@ export function knownQualityIds(mediaFormat: QualityProfile["mediaFormat"]): str
 }
 
 export type AuthorSubscription = {
+  rootFolderId?: string;
   id: string;
   provider: string;
   providerKey: string;
@@ -631,6 +632,7 @@ export type AuthorSubscription = {
 export type AuthorMissingBookPolicy = "all" | "future" | "missing" | "existing" | "first" | "latest" | "none";
 
 export type AuthorUpdateRequest = {
+  rootFolderId?: string;
   authorName?: string;
   qualityProfile?: string;
   status?: string;
@@ -658,6 +660,7 @@ export type AuthorSkippedItem = {
 };
 
 export type AuthorMetadataReview = {
+  rootFolderId?: string;
   id: string;
   authorSubscriptionId?: string;
   provider: string;
@@ -1607,7 +1610,9 @@ export async function subscribeAuthor(
   format: string,
   qualityProfile = "standard",
   missingBookPolicy: AuthorMissingBookPolicy = "all",
-  metadataProfileId?: string
+  metadataProfileId?: string,
+  rootFolderId?: string,
+  tags: string[] = []
 ): Promise<AuthorSubscription> {
   const response = await fetch(`${apiBase}/api/v1/authors`, {
     method: "POST",
@@ -1616,6 +1621,8 @@ export async function subscribeAuthor(
       result,
       format: format === "audiobook" ? "audiobook" : "ebook",
       qualityProfile,
+      tags,
+      ...(rootFolderId ? { rootFolderId } : {}),
       monitorNewItems: missingBookPolicy !== "none",
       missingBookPolicy,
       ...(metadataProfileId ? { metadataProfileId } : {})

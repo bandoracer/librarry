@@ -223,6 +223,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   exclusions. First/latest selection requires adequate original-publication
   evidence; unknown or overlapping dates enter review. Ignored author reviews
   remain excluded for that work and format across policy and edition changes.
+  Author subscriptions retain a chosen root folder, quality profile and tags for
+  new books. Changing those defaults leaves existing books untouched; review
+  candidates retain the destination from their last evaluation. Add New's Refresh
+  Author action runs a targeted refresh using saved settings.
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.

@@ -1,5 +1,13 @@
 # Architecture
 
+Native author subscriptions and author metadata reviews carry an optional
+`rootFolderId` (migration 0041). Subscription roots are checked against the wanted
+format. Automatic additions copy root/profile/tags into a new wanted item in its
+creation transaction; add-only refresh preserves existing tracking. Reviews use
+the destination from their latest evaluation when explicitly marked wanted.
+Changing author defaults does not migrate existing books. Root deletion clears
+these references in the same way as wanted-book destinations.
+
 Librarry is split into a Go backend, a React frontend, and Postgres.
 
 The frontend is a modular Vite + React + TanStack Query SPA; its structure,

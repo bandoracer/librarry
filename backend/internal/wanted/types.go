@@ -67,6 +67,7 @@ type ReleaseRestriction struct {
 }
 
 type AuthorSubscribeRequest struct {
+	RootFolderID      string                `json:"rootFolderId,omitempty"`
 	Result            metadata.SearchResult `json:"result,omitempty"`
 	AuthorName        string                `json:"authorName,omitempty"`
 	Provider          string                `json:"provider,omitempty"`
@@ -86,6 +87,7 @@ type AuthorSubscribeRequest struct {
 }
 
 type AuthorSubscription struct {
+	RootFolderID      string     `json:"rootFolderId,omitempty"`
 	ID                string     `json:"id,omitempty"`
 	Provider          string     `json:"provider"`
 	ProviderKey       string     `json:"providerKey"`
@@ -107,6 +109,8 @@ type AuthorSubscription struct {
 }
 
 type AuthorUpdateRequest struct {
+	// nil preserves the destination; an empty string restores the format default.
+	RootFolderID      *string  `json:"rootFolderId,omitempty"`
 	AuthorName        string   `json:"authorName,omitempty"`
 	QualityProfile    string   `json:"qualityProfile,omitempty"`
 	Status            string   `json:"status,omitempty"`
@@ -551,6 +555,7 @@ type AuthorMetadataReviewQuery struct {
 }
 
 type AuthorMetadataReview struct {
+	RootFolderID         string                `json:"rootFolderId,omitempty"`
 	ID                   string                `json:"id,omitempty"`
 	AuthorSubscriptionID string                `json:"authorSubscriptionId,omitempty"`
 	Provider             string                `json:"provider"`

@@ -32,8 +32,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [author bibliography PR #16](https://github.com/bandoracer/librarry/pull/16),
 [provider request budget PR #17](https://github.com/bandoracer/librarry/pull/17),
 [complete list PR #18](https://github.com/bandoracer/librarry/pull/18),
-[Hardcover edition PR #19](https://github.com/bandoracer/librarry/pull/19), and the
-`codex/author-monitor-policies` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[Hardcover edition PR #19](https://github.com/bandoracer/librarry/pull/19),
+[author policy PR #20](https://github.com/bandoracer/librarry/pull/20), and the
+`codex/author-destination-inheritance` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -165,8 +166,18 @@ and format; saved book exclusions apply before policy selection. Language filter
 use canonical equality instead of prefixes. Settings and exclusions are re-read
 after provider IO, and changed subscriptions cannot receive a stale success
 timestamp. This does not yet serialize every concurrent owner edit with candidate
-insertion. Root/profile inheritance, the complete verified-file projection and
-the broader curated matching corpus remain S13/S14 work.
+insertion. The complete verified-file projection and the broader curated matching
+corpus remain S13/S14 work.
+
+Native author subscriptions now persist a format-compatible destination root.
+New books inherit that root, quality profile and tags; existing books retain their
+settings. Pending reviews retain the destination from their latest evaluation.
+Add New passes the chosen defaults, runs a targeted refresh after saving, and
+reports partial save/refresh failures. Refresh Author uses the saved subscription
+without resetting it. Author settings can change or clear the root for future
+additions. Migration 0041 adds the references without guessing destinations for
+legacy subscriptions/reviews. Readarr root mapping remains S16 work; this does
+not qualify live storage paths or provider access.
 
 ## Historical verified milestones
 

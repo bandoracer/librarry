@@ -595,6 +595,7 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			}
 			item, err := s.store.CreateWanted(ctx, CreateRequest{
 				OnlyIfUntracked: true,
+				RootFolderID:    subscription.RootFolderID,
 				Result:          candidate,
 				Format:          subscription.Format,
 				QualityProfile:  subscription.QualityProfile,
@@ -673,6 +674,7 @@ func (s *Service) ResolveAuthorMetadataReview(ctx context.Context, id string, re
 	switch strings.ToLower(strings.TrimSpace(request.Action)) {
 	case "wanted", "mark_wanted", "mark-wanted":
 		item, err := s.store.CreateWanted(ctx, CreateRequest{
+			RootFolderID:   review.RootFolderID,
 			Result:         review.Result,
 			Format:         review.Format,
 			QualityProfile: review.QualityProfile,
@@ -1944,6 +1946,7 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 	missingBookPolicy := normalizeAuthorMissingBookPolicy(request.MissingBookPolicy, monitorNewItems)
 	monitorNewItems = missingBookPolicy != "none"
 	return AuthorSubscription{
+		RootFolderID:      strings.TrimSpace(request.RootFolderID),
 		Provider:          provider,
 		ProviderKey:       providerKey,
 		AuthorName:        authorName,
@@ -1978,6 +1981,7 @@ func authorResultMatchesSubscription(subscription AuthorSubscription, result met
 
 func authorMetadataReviewFromSkipped(subscription AuthorSubscription, result metadata.SearchResult, reason string) AuthorMetadataReview {
 	return AuthorMetadataReview{
+		RootFolderID:         subscription.RootFolderID,
 		AuthorSubscriptionID: subscription.ID,
 		Provider:             result.Provider,
 		CandidateKey:         authorMetadataReviewCandidateKey(result),

@@ -31,7 +31,9 @@ import {
   searchReleases,
   searchWantedReleases,
   subscribeAuthor,
+  runAuthorMonitor,
   type AuthorMissingBookPolicy,
+  type AuthorSubscription,
   type DownloadStatus,
   type Release,
   type SearchResult,
@@ -214,7 +216,7 @@ export default function SearchPage() {
   const selectedCanSearchReleases = selectedIsBookCandidate;
   const selectedWantedReviewReasons = selected && selectedCanBeWanted ? searchResultWantedReviewReasons(selected) : [];
 
-  const selectedAuthorFormat = selected ? wantedFormat(selected.edition?.format ?? format) : wantedFormat(format);
+  const selectedAuthorFormat = selected ? searchResultWantedFormat(selected, format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
     const author = selected?.work.authors?.[0];
     if (!author) return undefined;
@@ -224,7 +226,7 @@ export default function SearchPage() {
       if (subscription.format !== selectedAuthorFormat) return false;
       const providerKey = subscription.providerKey.trim().toLowerCase();
       const subscriptionName = subscription.authorName.trim().toLowerCase();
-      return Boolean((authorID && providerKey === authorID) || (authorName && subscriptionName === authorName));
+      return authorID ? providerKey === authorID : Boolean(authorName && subscriptionName === authorName && subscription.provider === selected?.provider);
     });
   }, [authorSubscriptions, selected, selectedAuthorFormat]);
 
@@ -366,9 +368,20 @@ export default function SearchPage() {
   );
 
   const monitorAuthor = useInvalidatingMutation(
-    (args: { result: SearchResult; format: string; policy: AuthorMissingBookPolicy; metadataProfileId?: string }) =>
-      subscribeAuthor(args.result, args.format, "standard", args.policy, args.metadataProfileId),
-    [keys.authorSubscriptions]
+    async (args: { result: SearchResult; format: string; policy: AuthorMissingBookPolicy; metadataProfileId?: string; profile: string; rootFolderId?: string; tags: string[]; existing?: AuthorSubscription }) => {
+      const subscription = args.existing ?? await subscribeAuthor(args.result, args.format, args.profile, args.policy, args.metadataProfileId, args.rootFolderId, args.tags);
+      let refreshError = "";
+      if (subscription.monitorNewItems && subscription.missingBookPolicy !== "none") {
+        try {
+          const run = await runAuthorMonitor({ authorIds: [subscription.id], force: true });
+          if (run.errorCount) refreshError = run.items?.find(item => item.error)?.error || `Refresh reported ${run.errorCount} error(s).`;
+        } catch (error) {
+          refreshError = error instanceof Error ? error.message : "Author refresh failed";
+        }
+      }
+      return { subscription, refreshError };
+    },
+    [keys.authorSubscriptions, keys.wanted, keys.authorMetadataReviews]
   );
 
   const grab = useInvalidatingMutation(
@@ -439,15 +452,21 @@ export default function SearchPage() {
     monitorAuthor.mutate(
       {
         result,
-        format: result.edition?.format ?? format,
+        format: searchResultWantedFormat(result, format),
         policy: authorPolicy,
-        metadataProfileId: authorMetadataProfileID || undefined
+        metadataProfileId: authorMetadataProfileID || undefined,
+        profile: effectiveProfile,
+        rootFolderId: effectiveRootFolderID || undefined,
+        tags: tagLabels,
+        existing: selectedAuthorSubscription
       },
       {
-        onSuccess: (subscription) => {
-          toast.success(
-            `Monitoring ${subscription.authorName} (${authorMissingPolicyLabel(authorPolicy)} missing books, ${subscription.format}).`
-          );
+        onSuccess: ({ subscription, refreshError }) => {
+          if (refreshError) {
+            toast.notify(`${subscription.authorName} is saved, but the refresh failed: ${refreshError}`, "warn");
+          } else {
+            toast.success(`Saved ${subscription.authorName} (${authorMissingPolicyLabel(subscription.missingBookPolicy)}, ${subscription.format}).`);
+          }
         },
         onError: (error) => {
           toast.error(error instanceof Error ? error.message : "Author subscription failed");
@@ -498,7 +517,7 @@ export default function SearchPage() {
   function renderAddBookFields() {
     return (
       <>
-        <Field label="Root folder" hint="Destination root for the new wanted item.">
+        <Field label="Root folder" hint="Destination for newly added books.">
           <select
             value={effectiveRootFolderID}
             onChange={(event) => setRootFolderID(event.target.value)}
@@ -516,7 +535,7 @@ export default function SearchPage() {
             )}
           </select>
         </Field>
-        <Field label="Tags" hint="Comma-separated labels applied to the new wanted item.">
+        <Field label="Tags" hint="Comma-separated labels for newly added books.">
           <input
             list="search-tag-suggestions"
             value={tagsInput}
@@ -699,9 +718,9 @@ export default function SearchPage() {
         </dl>
 
         <div className="search-detail-form">
-          {canBeWanted ? (
-            <Field label="Quality profile" hint="Applied to the new wanted item.">
-              <select value={effectiveProfile} onChange={(event) => setQualityProfile(event.target.value)}>
+          {canBeWanted || !selectedAuthorSubscription ? (
+            <Field label="Quality profile" hint="Applied to newly added books.">
+              <select aria-label="Quality profile" value={effectiveProfile} onChange={(event) => setQualityProfile(event.target.value)}>
                 {profileOptions.length ? (
                   profileOptions.map((profile) => (
                     <option key={profile.name} value={profile.name}>
@@ -714,10 +733,11 @@ export default function SearchPage() {
               </select>
             </Field>
           ) : null}
-          {canBeWanted ? renderAddBookFields() : null}
+          {canBeWanted || !selectedAuthorSubscription ? renderAddBookFields() : null}
           <Field label="Missing books" hint="Which existing books to add when monitoring this author.">
             <select
-              value={authorPolicy}
+              value={selectedAuthorSubscription?.missingBookPolicy ?? authorPolicy}
+              disabled={Boolean(selectedAuthorSubscription)}
               onChange={(event) => setAuthorPolicy(event.target.value as AuthorMissingBookPolicy)}
             >
               {authorMissingPolicyOptions.map((policy) => (
@@ -729,7 +749,8 @@ export default function SearchPage() {
           </Field>
           <Field label="Metadata profile" hint="Filter set applied when monitoring this author.">
             <select
-              value={authorMetadataProfileID}
+              value={selectedAuthorSubscription?.metadataProfileId ?? authorMetadataProfileID}
+              disabled={Boolean(selectedAuthorSubscription)}
               onChange={(event) => setAuthorMetadataProfileID(event.target.value)}
               aria-label="Author metadata profile"
             >
