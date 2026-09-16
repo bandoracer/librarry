@@ -59,6 +59,14 @@ func (s *Service) runScanBatch(ctx context.Context, id string, limit int) (out S
 		_, saveErr := s.store.db.ExecContext(saveCtx, `update library_scan_jobs set state=case when cancel_requested then 'cancelled' else $3 end,last_error=$4,lease_token=null,lease_expires_at=null,updated_at=now() where id=$1 and lease_token=$2 and state='running'`, job.ID, job.LeaseToken, state, message)
 		current, readErr := s.GetScan(saveCtx, job.ID)
 		if readErr == nil {
+			if current.State == "completed" && current.Moved > 0 && len(files) > 0 {
+				paths := make([]string, 0, len(files))
+				for _, file := range files {
+					paths = append(paths, file.Path)
+				}
+				// Completion may have folded discoveries into retained IDs.
+				files, readErr = s.store.FindFiles(saveCtx, nil, paths)
+			}
 			out = scanOutcome(current, files)
 		}
 		resultErr = errors.Join(resultErr, saveErr, readErr)
@@ -232,6 +240,10 @@ func (s *Service) observeScanEntry(ctx context.Context, job ScanJob, entry scanE
 	if !os.SameFile(info, after) || info.Size() != after.Size() || !info.ModTime().Equal(after.ModTime()) {
 		return nil, errors.New("file changed while scanning; retry the scan")
 	}
+	stamp, err := scanFileStamp(after)
+	if err != nil {
+		return nil, err
+	}
 	device, err := scanFileDevice(entry.Path)
 	if err != nil {
 		return nil, err
@@ -252,13 +264,22 @@ func (s *Service) observeScanEntry(ctx context.Context, job ScanJob, entry scanE
 		if pending {
 			return markScanEntryDone(ctx, tx, job, entry, true)
 		}
+		var previouslyTracked bool
+		if err := tx.QueryRowContext(ctx, `select exists(select 1 from files where path=$1)`, record.Path).Scan(&previouslyTracked); err != nil {
+			return err
+		}
 		var err error
 		stored, err = persistFile(ctx, tx, record, true)
 		if err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `update files set presence_state='present',scan_root=$2,scan_device=$4,last_seen_scan_id=$3 where id=$1`, stored.ID, entry.Root, job.ID, device); err != nil {
+		if _, err := tx.ExecContext(ctx, `update files set presence_state='present',scan_root=$2,scan_device=$4,scan_file_stamp=$5,last_seen_scan_id=$3 where id=$1`, stored.ID, entry.Root, job.ID, device, stamp); err != nil {
 			return err
+		}
+		if !previouslyTracked {
+			if _, err := tx.ExecContext(ctx, `insert into library_scan_discoveries(file_id,job_id,identity) select id,$2,scan_discovery_identity(files) from files where id=$1 on conflict do nothing`, stored.ID, job.ID); err != nil {
+				return err
+			}
 		}
 		stored.PresenceState = "present"
 		return markScanEntryDone(ctx, tx, job, entry, false)
@@ -457,6 +478,10 @@ func (s *Service) completeScan(ctx context.Context, job ScanJob) error {
 	if err := verifyScanRoots(job); err != nil {
 		return err
 	}
+	moves, err := s.prepareScanMoves(ctx, job)
+	if err != nil {
+		return err
+	}
 	return s.scanTransaction(ctx, job, func(tx *sql.Tx) error {
 		for _, id := range reappeared {
 			if _, err := tx.ExecContext(ctx, `update files f set presence_state='present',last_seen_scan_id=$1 from library_scan_absent a where a.job_id=$1 and a.file_id=f.id and f.id=$2 and f.path=a.path and f.updated_at=a.observed_updated_at`, job.ID, id); err != nil {
@@ -465,6 +490,10 @@ func (s *Service) completeScan(ctx context.Context, job ScanJob) error {
 			if _, err := tx.ExecContext(ctx, `delete from library_scan_absent where job_id=$1 and file_id=$2`, job.ID, id); err != nil {
 				return err
 			}
+		}
+		moved, err := s.commitScanMoves(ctx, tx, job, moves)
+		if err != nil {
+			return err
 		}
 		result, err := tx.ExecContext(ctx, `update files f set presence_state='missing',updated_at=now() from library_scan_absent a where a.job_id=$1 and a.file_id=f.id and f.path=a.path and f.updated_at=a.observed_updated_at and f.last_seen_scan_id<>$1 and not exists(select 1 from import_operation_files m join import_operations o on o.id=m.operation_id where m.destination_path=f.path and o.state<>'committed')`, job.ID)
 		if err != nil {
@@ -487,7 +516,7 @@ func (s *Service) completeScan(ctx context.Context, job ScanJob) error {
 		if _, err := tx.ExecContext(ctx, `delete from library_scan_absent where job_id=$1`, job.ID); err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, `update library_scan_jobs set state='completed',phase='complete',missing=$2,lease_token=null,lease_expires_at=null,finished_at=now(),updated_at=now() where id=$1`, job.ID, n)
+		_, err = tx.ExecContext(ctx, `update library_scan_jobs set state='completed',phase='complete',missing=$2,moved=$3,lease_token=null,lease_expires_at=null,finished_at=now(),updated_at=now() where id=$1`, job.ID, n, moved)
 		return err
 	})
 }

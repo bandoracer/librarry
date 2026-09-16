@@ -921,5 +921,28 @@ historical import-manifest discrepancy; keep that original history intact.
 The report inspects saved database evidence rather than current media or client
 inventories. Related-record samples show up to 20 paths with full candidate
 counts. Each page is a current observation; start a fresh report after other
-library changes. Automatic repair and automatic moved-file reattachment are not
-provided by this preview.
+library changes. The preview does not apply repairs. Completed scans can perform the narrowly
+verified move reattachment described below.
+
+
+### Reattach moved native files
+
+Scan all involved roots after moving files outside Librarry. A successful complete
+scan can reattach the original file ID when it confirms the old path is absent,
+finds exactly one matching new location and the new scan-created record has no
+manual changes, book/download associations or import references. Copies with
+identical recorded content make the match ambiguous and remain in repair preview.
+Both paths must belong to this scan's roots. Calibre-managed records and roots
+stay under Calibre review.
+
+**Library scans** shows the reattached count. **View reattached files** shows the
+old/new paths and retained IDs, with **Load more reattached files** for longer
+history. Reconciliation changes database paths, not media on disk. The original
+manual names, associations and import history remain intact; an old cleanup
+receipt cannot authorize deletion merely because the file was reattached.
+
+A destination changed after it was hashed requires a fresh scan. Failed database
+completion can be resumed; cancellation leaves original identities unchanged.
+Records created before discovery evidence was introduced are retained for manual
+review rather than guessed into an existing book. Native file presence still
+needs broader unified book-state projection and live NAS qualification.

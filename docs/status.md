@@ -21,8 +21,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [staging recovery PR #5](https://github.com/bandoracer/librarry/pull/5),
 [manual recovery PR #6](https://github.com/bandoracer/librarry/pull/6),
 [acquisition recovery PR #7](https://github.com/bandoracer/librarry/pull/7),
-[persisted scan PR #8](https://github.com/bandoracer/librarry/pull/8), and the
-`codex/library-repair-preview` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[persisted scan PR #8](https://github.com/bandoracer/librarry/pull/8),
+[repair preview PR #9](https://github.com/bandoracer/librarry/pull/9), and the
+`codex/moved-file-reconciliation` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -83,8 +84,14 @@ has positively observed them. Imports now offers a paginated, read-only repair p
 associations, duplicate recorded content, possible moves, unverified audiobook
 completeness and discrepancies against committed manifests. Every finding explains
 the evidence and a recommended action; this preview does not verify current bytes
-or apply repairs. Automatic moved-file reattachment and unified book/presence
-projections remain S11/S14 work.
+or apply repairs. Completed scans now reattach a missing file to one unambiguous,
+untouched and unassigned scan discovery with the same SHA-256, size and format.
+The current scan's hash is bound to the same inode, size and nanosecond mtime;
+root/device checks and final ownership fences protect completion. The original
+ID, manual metadata, associations and historical import manifest survive.
+Ambiguous copies, changed/assigned discoveries and Calibre ownership remain for
+review. Imports shows a paginated path-change history. Unified book/presence
+projections remain S14 work; live NAS/mount qualification remains outstanding.
 
 Hardcover tokens currently establish configured state, not proven authentication.
 Book search handles Typesense result documents and GraphQL failures. Rich

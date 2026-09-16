@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 37, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 38, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -315,6 +315,39 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert error.code == 502, error.code
         assert sql("select count(*) from files where scan_root='/fixture/scan-library' and presence_state='missing'") == "1"
         print("Packaged scans: 1,201 files resume through scheduler after process kill; missing file confirmed only after completion; unavailable root retains prior presence")
+        # Move a unique imported chapter outside the app, then interrupt the
+        # reconciliation commit. The same original ID must survive restart/retry.
+        request("/api/v1/library/scan", {"format": "audiobook"})
+        chapter_id = str(uuid.UUID(audio_files[0]["id"]))
+        old_chapter_path = audio_files[0]["path"]
+        new_chapter_path = str(Path(old_chapter_path).with_name("renamed-chapter.mp3"))
+        docker("exec", API, "mv", old_chapter_path, new_chapter_path)
+        sql("alter table library_scan_moves add constraint inject_move_commit_failure check(false)")
+        try:
+            request("/api/v1/library/scan", {"format": "audiobook"})
+            raise AssertionError("scan concealed move commit failure")
+        except urllib.error.HTTPError as error:
+            assert error.code >= 400
+        failed_move = next(row for row in request("/api/v1/library/scans")["scans"] if row["state"] == "failed" and row["format"] == "audiobook")
+        assert sql(f"select path from files where id='{chapter_id}'") == old_chapter_path
+        assert sql("select count(*) from library_scan_moves") == "0"
+        sql("alter table library_scan_moves drop constraint inject_move_commit_failure")
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        request(f"/api/v1/library/scans/{failed_move['id']}", {"action": "retry"})
+        reconciled = wait_for(lambda: completed_scan(failed_move["id"]))
+        assert reconciled["moved"] == 1 and reconciled["missing"] == 0, reconciled
+        assert sql(f"select path from files where id='{chapter_id}'") == new_chapter_path
+        assert sql(f"select count(*) from file_wanted_links where file_id='{chapter_id}' and wanted_item_id='{audio_id}'") == "1"
+        assert sql(f"select count(*) from file_download_links where file_id='{chapter_id}'") == "1"
+        assert sql(f"select destination_path from import_operation_files where file_id='{chapter_id}'") == old_chapter_path
+        history = request(f"/api/v1/library/scans/{failed_move['id']}/moves")
+        assert len(history["moves"]) == 1 and history["moves"][0]["fileId"] == chapter_id, history
+        assert history["moves"][0]["previousPath"] == old_chapter_path and history["moves"][0]["currentPath"] == new_chapter_path
+        assert not (media / Path(old_chapter_path).relative_to("/fixture")).exists()
+        assert (media / Path(new_chapter_path).relative_to("/fixture")).exists()
+        assert (media / Path(audio_files[0]["sourcePath"]).relative_to("/fixture")).exists()
+        print("Packaged move reconciliation: failed commit rolled back; process restart/retry retained original chapter ID, book/download links and historical manifest; sources retained")
         # A read-only legacy report must inspect all pages, including clean ones.
         sql("insert into files(media_format,path,size_bytes,checksum,import_status,metadata) values"
             "('audiobook','/fixture/legacy-one.mp3',42,repeat('a',64),'imported','{\"wantedId\":\"missing-book\"}'),"
@@ -341,12 +374,14 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
-                      "select id,state,cleanup_state,source_kind,request_key from import_operations", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files",
-                      "select metadata->'verifiedDownload' from files",
+                      "select id,state,cleanup_state,source_kind,request_key from import_operations order by id", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files order by id",
+                      "select id,metadata->'verifiedDownload' from files order by id",
                       "select id,scope_key,request_key,state,external_id,result from acquisition_intents order by id",
-                      "select id,state,phase,scanned,missing from library_scan_jobs order by id",
+                      "select id,state,phase,scanned,missing,moved from library_scan_jobs order by id",
+                      "select * from library_scan_moves order by job_id,file_id",
+                      "select * from library_scan_discoveries order by file_id",
                       "select path,identity,completed_job_id from library_scan_roots order by path",
-                      "select id,presence_state,scan_root,last_seen_scan_id from files order by id"):
+                      "select id,presence_state,scan_root,last_seen_scan_id,scan_file_stamp from files order by id"):
             assert sql(query) == sql(query, "librarry_restore"), query
         print("Isolated database restore verified:", len(dump), "bytes; file/download/wanted counts and receipt preserved")
         # Exercise real persistence, cookies, restart and Basic auth in the image.

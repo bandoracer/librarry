@@ -854,4 +854,31 @@ completeness and discrepancies against historical import manifests. Samples expo
 up to 20 related records and total counts. Evidence uses selected fields, never
 raw file metadata. This endpoint does not touch media or clients, mutate records,
 create verification receipts, or apply proposed actions. Existing authentication
-middleware protects it. Automatic move reconciliation remains separate work.
+middleware protects it. The scan completion path separately performs verified
+native move reconciliation as described below.
+
+
+### Scan move identity boundary
+
+Migration 0038 records `library_scan_discoveries` with the original authoritative
+projection of a new scan-created file. Observations can update scan evidence,
+but manual identity/provenance changes make the discovery ineligible for folding
+into an older row. Files retain a `scan_file_stamp` (device, inode, size and
+nanosecond mtime) bound to the SHA-256 computed in a discovery batch.
+
+After discovery and absence reconciliation, completion selects exact, globally
+unambiguous SHA-256/size/format pairs: an absent original and an unassigned,
+unchanged discovery positively observed in this job. It rechecks filesystem
+stamps and roots, then takes path advisory locks and file-row locks. A second
+eligibility check observes assignments/import references and row changes before
+removing the discovery record and updating the original path. The original
+metadata is not rewritten, and book/download links continue pointing at the same
+ID. Calibre-owned records/paths remain excluded. Completion, missing publication
+and `library_scan_moves` history commit atomically under the scan lease fence.
+
+`GET /api/v1/library/scans/{id}/moves?cursor=...` returns up to 100 historical
+old/new paths and retained IDs; `nextCursor` continues by file ID. Job/outcome
+`moved` counts describe reattached identities, not filesystem mutations. The
+immutable import manifest still names its original destinations. Reattachment
+cannot by itself establish a new cleanup receipt, current chapter completeness,
+or a unified wanted/book presence state.

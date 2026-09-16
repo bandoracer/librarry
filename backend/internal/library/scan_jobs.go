@@ -33,6 +33,7 @@ type ScanJob struct {
 	Upserted        int        `json:"upserted"`
 	Skipped         int        `json:"skipped"`
 	Missing         int        `json:"missing"`
+	Moved           int        `json:"moved"`
 	LastError       string     `json:"lastError,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	UpdatedAt       time.Time  `json:"updatedAt"`
@@ -42,14 +43,14 @@ type ScanJob struct {
 	rootIdentities  []storedScanRoot
 }
 
-const scanJobColumns = `id::text,media_format,roots,state,phase,cancel_requested,scanned,upserted,skipped,missing,last_error,created_at,updated_at,lease_expires_at,coalesce(lease_token::text,''),coalesce(reconcile_after::text,'')`
+const scanJobColumns = `id::text,media_format,roots,state,phase,cancel_requested,scanned,upserted,skipped,missing,moved,last_error,created_at,updated_at,lease_expires_at,coalesce(lease_token::text,''),coalesce(reconcile_after::text,'')`
 
 type scanJobScanner interface{ Scan(...any) error }
 
 func readScanJob(row scanJobScanner) (ScanJob, error) {
 	var j ScanJob
 	var raw []byte
-	err := row.Scan(&j.ID, &j.Format, &raw, &j.State, &j.Phase, &j.CancelRequested, &j.Scanned, &j.Upserted, &j.Skipped, &j.Missing, &j.LastError, &j.CreatedAt, &j.UpdatedAt, &j.LeaseExpiresAt, &j.LeaseToken, &j.ReconcileAfter)
+	err := row.Scan(&j.ID, &j.Format, &raw, &j.State, &j.Phase, &j.CancelRequested, &j.Scanned, &j.Upserted, &j.Skipped, &j.Missing, &j.Moved, &j.LastError, &j.CreatedAt, &j.UpdatedAt, &j.LeaseExpiresAt, &j.LeaseToken, &j.ReconcileAfter)
 	if err != nil {
 		return j, err
 	}
@@ -291,7 +292,7 @@ func (s *Service) RunPendingScans(ctx context.Context) error {
 	return err
 }
 func scanOutcome(job ScanJob, files []FileRecord) ScanOutcome {
-	out := ScanOutcome{JobID: job.ID, State: job.State, Phase: job.Phase, Roots: job.Roots, Scanned: job.Scanned, Upserted: job.Upserted, Skipped: job.Skipped, Missing: job.Missing, Files: files, HasMore: job.State == "queued" || job.State == "running"}
+	out := ScanOutcome{JobID: job.ID, State: job.State, Phase: job.Phase, Roots: job.Roots, Scanned: job.Scanned, Upserted: job.Upserted, Skipped: job.Skipped, Missing: job.Missing, Moved: job.Moved, Files: files, HasMore: job.State == "queued" || job.State == "running"}
 	if out.Files == nil {
 		out.Files = []FileRecord{}
 	}

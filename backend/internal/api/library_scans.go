@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/bandoracer/librarry/backend/internal/library"
@@ -81,4 +83,31 @@ func (h *handler) startLibraryScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusAccepted, job)
+}
+
+type libraryScanMoveService interface {
+	ScanMoveHistory(context.Context, string, string) (library.ScanMoveHistory, error)
+}
+
+func (h *handler) libraryScanMoves(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.deps.Library.(libraryScanMoveService)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "scan move history is unavailable"})
+		return
+	}
+	history, err := service.ScanMoveHistory(r.Context(), r.PathValue("id"), r.URL.Query().Get("cursor"))
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, library.ErrScanMoveCursor) {
+			status = http.StatusBadRequest
+		} else if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	if history.Moves == nil {
+		history.Moves = []library.ScanMoveRecord{}
+	}
+	writeJSON(w, http.StatusOK, history)
 }

@@ -50,3 +50,28 @@ test("a replaced custom root requires a fresh acknowledgement", async ({ page })
   await expect.poll(() => attempts).toBe(2);
   await expect(confirmation).toHaveCount(0);
 });
+
+test("completed scans explain retained identities and page through moved-file history", async ({ page }, testInfo) => {
+  const id = "00000000-0000-0000-0000-000000000038";
+  const job = { id, format: "any", roots: ["/library"], state: "completed", phase: "complete", scanned: 101, skipped: 0, missing: 0, moved: 101 };
+  let historyRequests = 0;
+  await page.route("**/api/v1/library/scans", route => route.fulfill({ json: { scans: [job], limit: 100 } }));
+  await page.route(`**/api/v1/library/scans/${id}/moves*`, route => {
+    expect(route.request().method()).toBe("GET");
+    historyRequests++;
+    const last = new URL(route.request().url()).searchParams.has("cursor");
+    return route.fulfill({ json: { moves: [{ fileId: last ? "original-101" : "original-1", previousPath: last ? "/library/old-101.epub" : "/library/old-1.epub", currentPath: last ? "/library/new-101.epub" : "/library/new-1.epub" }], nextCursor: last ? undefined : "next" } });
+  });
+  await page.goto("/imports");
+  await page.getByText("All books", { exact: true }).click();
+  await expect(page.getByText(/101 reattached/)).toBeVisible();
+  expect(historyRequests).toBe(0);
+  await page.getByRole("button", { name: "View reattached files" }).click();
+  await expect(page.getByText("Retained file ID: original-1", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Load more reattached files" }).click();
+  await expect(page.getByText("Retained file ID: original-101", { exact: true })).toBeVisible();
+  await expect(page.getByText(/No files were moved or deleted by this scan/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Load more reattached files" })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: `../output/playwright/scan-moves-${testInfo.project.name}.png`, fullPage: true });
+});

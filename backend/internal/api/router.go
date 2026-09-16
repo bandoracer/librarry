@@ -511,6 +511,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/library/scans", handler.listLibraryScans)
 	mux.HandleFunc("POST /api/v1/library/scans", handler.startLibraryScan)
 	mux.HandleFunc("POST /api/v1/library/scans/{id}", handler.controlLibraryScan)
+	mux.HandleFunc("GET /api/v1/library/scans/{id}/moves", handler.libraryScanMoves)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/preview", handler.previewPayloadReview)

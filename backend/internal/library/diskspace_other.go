@@ -2,7 +2,10 @@
 
 package library
 
-import "errors"
+import (
+	"errors"
+	"io/fs"
+)
 
 // freeSpaceBytes is unsupported on this platform.
 func freeSpaceBytes(string) (int64, bool) {
@@ -20,4 +23,8 @@ func scanRootIdentity(path string) (string, error) {
 
 func scanFileDevice(path string) (string, error) {
 	return "", errors.New("scan device identity unavailable on this platform")
+}
+
+func scanFileStamp(fs.FileInfo) (string, error) {
+	return "", errors.New("scan file identity unavailable on this platform")
 }

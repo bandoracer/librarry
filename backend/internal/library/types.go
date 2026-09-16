@@ -67,6 +67,7 @@ type ScanOutcome struct {
 	Phase    string       `json:"phase"`
 	HasMore  bool         `json:"hasMore"`
 	Missing  int          `json:"missing"`
+	Moved    int          `json:"moved"`
 	Roots    []string     `json:"roots"`
 	Scanned  int          `json:"scanned"`
 	Upserted int          `json:"upserted"`

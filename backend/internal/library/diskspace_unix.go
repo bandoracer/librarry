@@ -4,6 +4,7 @@ package library
 
 import (
 	"fmt"
+	"io/fs"
 	"syscall"
 )
 
@@ -54,4 +55,13 @@ func scanFileDevice(path string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%d", stat.Dev), nil
+}
+
+// Persist the exact filesystem observation associated with a scan's content hash.
+func scanFileStamp(info fs.FileInfo) (string, error) {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return "", fmt.Errorf("scan file identity is unavailable")
+	}
+	return fmt.Sprintf("%d:%d:%d:%d", stat.Dev, stat.Ino, info.Size(), info.ModTime().UnixNano()), nil
 }

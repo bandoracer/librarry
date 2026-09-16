@@ -71,9 +71,11 @@ See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.
 
 Unreleased scans now save their progress, resume after restart, and expose
-cancellation/retry in Imports. File limits apply per batch. A failed scan or
-unavailable root cannot publish partial missing-file results; automatic moved-file
-reattachment and broader book-state reconciliation remain open.
+cancellation/retry in Imports. File limits apply per batch. Completed scans
+reattach unambiguous moved native files while retaining original identities and
+manual assignments, with old/new paths visible in scan history. A failed scan or
+unavailable root cannot publish partial missing-file results. Broader book-state
+reconciliation and live NAS qualification remain open.
 
 Library repair preview in Imports explains broken legacy associations, duplicate
 file records, possible moves and unverified audiobook completeness. It checks

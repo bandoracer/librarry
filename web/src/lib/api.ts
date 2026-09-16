@@ -881,7 +881,7 @@ export type LibraryScanOutcome = {
  state?: string;
  phase?: string;
  hasMore?: boolean;
- missing?: number;
+ missing?: number; moved?: number;
   roots: string[];
   scanned: number;
   upserted: number;
@@ -3115,7 +3115,7 @@ export type LibraryScanJob = {
  id: string; format: string; roots: string[];
  state: "queued" | "running" | "failed" | "cancelled" | "completed";
  phase: "discover" | "reconcile" | "complete";
- cancelRequested: boolean; scanned: number; upserted: number; skipped: number; missing: number;
+ cancelRequested: boolean; scanned: number; upserted: number; skipped: number; missing: number; moved?: number;
  lastError?: string;
 };
 export async function fetchLibraryScans(): Promise<{ scans: LibraryScanJob[]; limit: number }> {
@@ -3143,4 +3143,14 @@ export async function fetchLibraryRepairPreview(cursor = ""): Promise<LibraryRep
   if (!response.ok) throw new Error(await apiError(response, "Library repair preview unavailable"));
   const data = await response.json();
   return { ...data, findings: arrayPayload(data.findings) };
+}
+
+export type LibraryScanMove = {
+  fileId: string; previousPath: string; currentPath: string; sha256: string; sizeBytes: number; createdAt: string;
+};
+export async function fetchLibraryScanMoves(id: string, cursor = ""): Promise<{ moves: LibraryScanMove[]; nextCursor?: string }> {
+  const response = await fetch(`${apiBase}/api/v1/library/scans/${encodeURIComponent(id)}/moves${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
+  if (!response.ok) throw new Error(await apiError(response, "Reattached file history unavailable"));
+  const data = await response.json();
+  return { ...data, moves: arrayPayload(data.moves) };
 }

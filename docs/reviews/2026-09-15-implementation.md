@@ -91,7 +91,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
 | S09 | Partial | Durable native/manual plans, staging journals, move and manual replacement recovery; Calibre, completed-download replacement and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation and Activity recovery implemented with fixtures; full worker, history/current-release and live-client qualification remain |
-| S11 | Partial | Persisted scans, cancellation/retry, guarded local presence and read-only legacy repair previews implemented; automatic moved-file reattachment remains |
+| S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
@@ -417,3 +417,55 @@ unchanged. The existing recovery/scan/auth harness also passed, including a
 295,860-byte database restore. These are disposable fixture results, not a live
 library audit. The packaged local web image is the earlier multipart snapshot;
 new report UI behavior is covered by the current-source browser/build checks.
+
+
+## Continuation: unambiguous moved-file reconciliation (S11)
+
+Branch: `codex/moved-file-reconciliation`, based on repair preview. Migration 0038
+records the authoritative baseline of scan-created discoveries, the exact
+filesystem observation associated with a scan hash, and durable move history.
+A completed scan can retain an absent original ID at a new observed location
+when exactly two records share its SHA-256, size and format, and the new record
+is still an untouched, unassigned scan discovery. Both locations must participate
+in the completed scan; interrupted/cancelled discovery evidence can be reused by
+a later complete scan. Legacy records without discovery evidence remain review.
+
+A final move check validates roots/devices, source absence, the destination's
+inode/size/nanosecond mtime, saved row versions and current associations. File/path
+locks prevent concurrent assignments or imports from being silently discarded.
+The scan's already-computed hash avoids rehashing an entire moved library in one
+unbounded final pass. Any database failure rolls back ID/path reconciliation,
+missing-state publication and history together. The original file row preserves
+manual metadata, source path, book/download relationships and import history.
+Only the redundant unassigned discovery row is removed; no media is renamed or
+deleted. Old import manifests and cleanup receipts do not silently follow moves.
+Calibre-owned paths/records and ambiguous same-content groups remain in review.
+
+Imports displays reattached counts and paginated previous/current path history.
+The synchronous scan result returns retained IDs after reconciliation. Move
+history preserves historical IDs even after later deliberate file removal.
+
+Qualification includes original import/link/override preservation, failed-commit
+rollback and service restart, cancellation, changed content/inodes, manual edits,
+Calibre ownership, reappeared sources, concurrent manual assignment under an
+observed database lock, and 205 files moved across two configured roots with
+restarted batches. History pagination covers 202 rows. Full Go race/Postgres
+suite, vet, frontend build and 31 applicable desktop/mobile browser checks passed
+(one desktop case is inapplicable). Mobile history was inspected visually.
+
+Repair preview PR #9 at `7f8104f607f33e827eb305273e1b9db00aae4ef9` passed
+[CI run 35061686219](https://github.com/bandoracer/librarry/actions/runs/35061686219),
+including packaged qualification, source/race/browser checks, image scans and
+AMD64/ARM64 builds. No production deployment or image publication occurred.
+
+
+The schema-38 local ARM64 packaged API passed an imported audiobook chapter move,
+forced reconciliation-commit failure, actual container restart and retry. The
+original chapter ID, wanted/download links and historical manifest were retained;
+source files remained present. A 399,910-byte dump restored matching scan moves,
+discovery baselines, filesystem stamps, imports and acquisition records. Restore
+comparisons now use deterministic ID ordering (the first run exposed an unordered
+comparison). Existing packaged import/review/acquisition/scan/auth checks passed.
+The local web image remains the earlier multipart snapshot; new history UI is
+qualified by current-source browser/build checks. Live NAS/mount proof remains
+outside this fixture result.
