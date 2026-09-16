@@ -1527,3 +1527,19 @@ reuse observations for 15 seconds and respect Retry-After. Restart or changing
 integration settings clears these process-local observations. A configuration
 change during a check requires a new check. A verified connection is evidence of
 API read access, not a guarantee that every search, grab or import will work.
+
+
+### Dashboard triage
+
+Needs attention now includes unfinished native imports, pending Calibre handoffs
+and unresolved file links as well as review queues. Import counts include work still
+running and committed transfers awaiting local cleanup; inspect the saved plan and
+lease evidence before retrying. The recovery link opens the unfinished filter.
+Refresh attention retries failed count sources. An unavailable source or incomplete
+client evidence prevents an all-clear; retained counts may be stale.
+
+Acquisition totals cover all active tracked books, while the action strip previews
+recent books only. Imported here means a saved acquisition/import record. Use
+Library to inspect current file presence and completeness. The older pending
+import-review list still needs complete pagination; its dashboard count is no longer
+capped by the visible list. These are unreleased stabilization changes.

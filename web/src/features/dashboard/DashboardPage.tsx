@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   CheckCircle2,
@@ -26,15 +26,15 @@ import { useToast } from "../../components/toast";
 import {
   keys,
   useAcquisitionQueue,
-  useAuthorMetadataReviews,
   useDownloads,
   useHistory,
-  useImportReviews,
   useIntegrationHealth,
   useProviderHealth,
   useWantedMetadataReview
 } from "../../lib/queries";
 import {
+  fetchAttentionCounts,
+  fetchAuthorReviewCollection,
   recoverFailedDownloads,
   runAuthorMonitor,
   runUpgradeSearch,
@@ -42,7 +42,7 @@ import {
   runWantedMonitor
 } from "../../lib/api";
 import type { DownloadStatus } from "../../lib/api";
-import { demoModeEnabled } from "../../lib/demo";
+import { demoModeEnabled, withDemoFallback } from "../../lib/demo";
 import { formatRelativeTime } from "../../lib/format";
 import { navItems } from "../../app/nav";
 import { AcquisitionNextActions } from "./AcquisitionActions";
@@ -70,6 +70,7 @@ function downloadNeedsRecovery(download: DownloadStatus): boolean {
 
 function healthTone(item: { configured: boolean; status: string }): Tone {
   if (item.status === "ready") return "success";
+  if (["unknown", "configured", "stale", "degraded", "rate_limited"].includes(item.status)) return "warn";
   if (!item.configured) return "warn";
   return "danger";
 }
@@ -153,10 +154,10 @@ export default function DashboardPage() {
 
   const providerHealth = useProviderHealth();
   const integrationHealth = useIntegrationHealth();
-  const metadataReview = useWantedMetadataReview();
-  const authorReviews = useAuthorMetadataReviews();
-  const importReviews = useImportReviews();
-  const acquisitionQueue = useAcquisitionQueue();
+  const metadataReview = useWantedMetadataReview({ limit: 1 });
+  const authorReviews = useQuery({ queryKey: [...keys.authorMetadataReviews, "dashboard"], queryFn: withDemoFallback(() => fetchAuthorReviewCollection({ status: "pending", limit: 1 }), () => ({ reviews: [], total: 0, filtered: 0, counts: {} })), refetchInterval: 30_000, staleTime: 0 });
+  const recovery = useQuery({ queryKey: [...keys.importRecovery, "attention"], queryFn: withDemoFallback(fetchAttentionCounts, () => ({ observedAt: new Date().toISOString(), importReviews: 0, importOperations: 0, calibreHandoffs: 0, legacyLinks: 0 })), refetchInterval: 30_000, staleTime: 0 });
+  const acquisitionQueue = useAcquisitionQueue(8);
   // Only Librarry-tagged jobs; unrelated client traffic isn't ours to triage.
   const downloads = useDownloads({ tag: "librarry" });
   const history = useHistory(10);
@@ -166,6 +167,7 @@ export default function DashboardPage() {
       keys.wanted,
       keys.wantedMetadataReview,
       keys.acquisitionQueue,
+      keys.importRecovery,
       keys.authorMetadataReviews,
       keys.authorSubscriptions,
       keys.downloads(),
@@ -243,14 +245,10 @@ export default function DashboardPage() {
 
   /* ----------------------- Needs attention derivations ---------------------- */
 
-  const metadataReviewCount = metadataReview.data?.items.length ?? 0;
-  const authorReviewCount = authorReviews.data?.length ?? 0;
-  const importReviewCount = importReviews.data?.length ?? 0;
-  const blockedItems = useMemo(
-    () => (acquisitionQueue.data?.items ?? []).filter((item) => item.state === "blocked"),
-    [acquisitionQueue.data]
-  );
-  const blockedCount = acquisitionQueue.data?.summary.blocked ?? blockedItems.length;
+  const metadataReviewCount = metadataReview.data?.total ?? 0;
+  const authorReviewCount = authorReviews.data?.filtered ?? 0;
+  const importReviewCount = recovery.data?.importReviews ?? 0;
+  const blockedCount = acquisitionQueue.data?.summary?.blocked ?? 0;
 
   type AttentionRow = {
     key: string;
@@ -269,7 +267,7 @@ export default function DashboardPage() {
       tone: "warn",
       label: "Metadata reviews",
       description: "Wanted books with conflicting provider metadata",
-      to: "/wanted?filter=review"
+      to: "/wanted/review"
     },
     {
       key: "authors",
@@ -277,16 +275,19 @@ export default function DashboardPage() {
       tone: "warn",
       label: "Author candidates",
       description: "Books skipped by author monitoring policy, awaiting a decision",
-      to: "/wanted?tab=authors"
+      to: "/library/authors"
     },
     {
       key: "imports",
       count: importReviewCount,
       tone: "warn",
       label: "Import reviews",
-      description: "Unmatched files waiting on a manual match",
+      description: "Files and payloads waiting for an import decision",
       to: "/imports"
     },
+    { key: "recovery", count: recovery.data?.importOperations ?? 0, tone: "warn", label: "Unfinished imports", description: "Saved transfers or cleanup still in progress or needing retry", to: "/imports?unfinishedOnly=true#recovery" },
+    { key: "calibre", count: recovery.data?.calibreHandoffs ?? 0, tone: "warn", label: "Calibre handoffs", description: "Uploads, conversions or bookkeeping not yet committed", to: "/imports?unfinishedOnly=true#recovery" },
+    { key: "legacy", count: recovery.data?.legacyLinks ?? 0, tone: "warn", label: "Unresolved file links", description: "Legacy associations that need an explicit review", to: "/imports#recovery" },
     {
       key: "blocked",
       count: blockedCount,
@@ -316,9 +317,15 @@ export default function DashboardPage() {
   ];
   const attentionRows = allAttentionRows.filter((row) => row.count > 0);
 
-  const attentionSources = [metadataReview, authorReviews, importReviews, acquisitionQueue, downloads];
+  const attentionSources = [metadataReview, authorReviews, recovery, acquisitionQueue, downloads];
   const attentionLoading = attentionSources.some((query) => query.isLoading);
   const attentionErrored = attentionSources.some((query) => query.isError);
+  const clientEvidenceMissing = ["partial", "unavailable"].includes(acquisitionQueue.data?.downloads ?? "");
+  const attentionRefreshing = attentionSources.some(query => query.isFetching);
+  const countKnown = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  const countsKnown = [metadataReview.data?.total, authorReviews.data?.filtered, recovery.data?.importReviews, recovery.data?.importOperations, recovery.data?.calibreHandoffs, recovery.data?.legacyLinks, acquisitionQueue.data?.summary?.blocked].every(countKnown);
+  const attentionIncomplete = attentionErrored || clientEvidenceMissing || !countsKnown;
+  const retryAttention = () => Promise.all(attentionSources.map(query => query.refetch()));
 
   const summary = acquisitionQueue.data?.summary;
 
@@ -380,14 +387,17 @@ export default function DashboardPage() {
         <div className="dashboard-column">
           <Card
             title="Needs attention"
-            subtitle="Queues that need a human decision"
+            subtitle="Work in progress or needing review"
+            actions={<Button size="sm" disabled={attentionRefreshing} onClick={() => void retryAttention()}>Refresh attention</Button>}
             padded={!attentionRows.length}
           >
-            {attentionErrored && !demoModeEnabled ? (
+            {(attentionErrored || (!attentionLoading && !countsKnown)) && !demoModeEnabled ? (
               <InlineNotice tone="warn">
-                Some review queues could not be loaded; counts below may be incomplete.
+                Some queues could not be loaded. Retained counts may be stale; this is not an all-clear.
               </InlineNotice>
             ) : null}
+            {clientEvidenceMissing ? <InlineNotice tone="warn">Download-client evidence is incomplete. Restore client visibility before deciding whether to acquire another copy. <Link to="/providers">Check integrations</Link></InlineNotice> : null}
+            {recovery.data?.observedAt ? <p className="field-hint dashboard-attention-observed">Recovery counts observed {new Date(recovery.data.observedAt).toLocaleString()}.</p> : null}
             {attentionLoading && !attentionRows.length ? (
               <LoadingRow label="Checking review queues…" />
             ) : attentionRows.length ? (
@@ -417,9 +427,9 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </DataTable>
-            ) : (
+            ) : attentionIncomplete ? <EmptyState title="Attention status unavailable">Refresh the failed sources to establish the current state.</EmptyState> : attentionRefreshing ? <LoadingRow label="Refreshing attention counts…" /> : (
               <EmptyState icon={CheckCircle2} title="All caught up">
-                No metadata, import, or acquisition reviews are pending.
+                No reviews or unfinished import work were reported by the loaded queues.
               </EmptyState>
             )}
           </Card>
@@ -462,7 +472,7 @@ export default function DashboardPage() {
         <div className="dashboard-column">
           <Card
             title="Acquisition pipeline"
-            subtitle={summary ? `${summary.total} wanted books tracked` : undefined}
+            subtitle={summary ? `${summary.total} active books across the acquisition ledger` : undefined}
             actions={
               <Link to="/wanted" aria-label="Open wanted queue">
                 Wanted
@@ -479,10 +489,14 @@ export default function DashboardPage() {
                     { label: "Ready", value: summary.readyToGrab },
                     { label: "Queued", value: summary.queued },
                     { label: "Import", value: summary.importReady },
-                    { label: "Done", value: summary.imported, tone: summary.imported ? "success" : "neutral" },
+                    { label: "Imported", value: summary.imported, tone: summary.imported ? "success" : "neutral" },
+                    ...(summary.unknown ? [{ label: "Unknown", value: summary.unknown, tone: "warn" as const }] : []),
                     { label: "Blocked", value: summary.blocked, tone: summary.blocked ? "danger" : "neutral" }
                   ]}
                 />
+                <p className="field-hint">Observed {acquisitionQueue.data?.generatedAt ? new Date(acquisitionQueue.data.generatedAt).toLocaleString() : "time unavailable"}. Totals cover every active tracked book. Import records do not verify current file availability. <Link to="/library">Check library files</Link></p>
+                {acquisitionQueue.isError ? <InlineNotice tone="warn">Acquisition totals may be stale.</InlineNotice> : null}
+                <p className="field-hint">Action preview from the {acquisitionQueue.data?.items.length ?? 0} most recently added active books. <Link to="/wanted">Browse all wanted books</Link></p>
                 <AcquisitionNextActions items={acquisitionQueue.data?.items ?? []} />
               </>
             ) : (

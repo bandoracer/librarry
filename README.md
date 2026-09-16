@@ -1057,3 +1057,8 @@ imports, Calibre handoffs and unresolved legacy links, an unfinished-work filter
 and recorded lease/file-verification evidence. A lease does not measure
 transfer progress or prove that an expired worker has stopped. These additions
 remain unreleased; see [current status](docs/status.md) for qualification limits.
+
+Dashboard triage uses complete review/recovery totals and flags incomplete evidence
+instead of showing an all-clear. Acquisition totals cover the active ledger while
+the recent-action preview stays bounded; Library remains the source for current
+file presence.

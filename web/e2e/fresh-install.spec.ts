@@ -4,7 +4,7 @@ test("fresh database supports core navigation without a crash", async ({ page })
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
-  for (const path of ["/library", "/library/authors", "/wanted", "/downloads", "/imports", "/search", "/settings", "/providers/tasks"]) {
+  for (const path of ["/dashboard", "/library", "/library/authors", "/wanted", "/downloads", "/imports", "/search", "/settings", "/providers/tasks"]) {
     await page.goto(path);
     await expect(page.locator("h1")).toBeVisible();
     await expect(page.locator(".page-loading")).toHaveCount(0);

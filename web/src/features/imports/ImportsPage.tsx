@@ -400,7 +400,7 @@ export default function ImportsPage() {
       />
 
       {payloadReviews.map(review => <PayloadReview key={`${review.id}:${review.updatedAt}`} review={review} />)}
-      <ImportRecovery />
+      <div id="recovery"><ImportRecovery /></div>
       <ScanJobs query={scanJobs} />
       <LibraryRepairPreview />
 

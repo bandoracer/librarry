@@ -226,7 +226,11 @@ Current S14/S15 progress: native books, author subscriptions, metadata Review,
 author candidate reviews and files have complete paged traversal fixtures.
 Author candidate decisions now commit atomically with history and preserve
 existing book settings. Native file browsing and rename preview traverse every
-page. Legacy readers, search badges, compatibility, removed-book browsing and
+page. Recovery collections now page independently. Dashboard review/recovery
+counts and acquisition totals cover complete collections; its action preview is
+explicitly bounded, and incomplete evidence prevents an all-clear. The older
+pending import-review list, other legacy readers, search badges, compatibility,
+removed-book browsing and
 resumable all-matching jobs remain open; neither milestone is complete. See the implementation ledger for qualification.
 
 ### S16 — Readarr compatibility and migration

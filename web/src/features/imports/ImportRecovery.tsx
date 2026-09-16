@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import CalibreRecovery from "./CalibreRecovery";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { Badge, Button, Card, InlineNotice, LoadingRow } from "../../components/ui";
 import { fetchImportRecovery, retryImportOperation, type RecoveryPage } from "../../lib/api";
@@ -20,7 +20,8 @@ function RecoveryPaging({ label, page, history, busy, change }: { label: string;
 }
 export default function ImportRecovery() {
   const [pages, setPages] = useState(firstPages);
-  const [unfinishedOnly, setUnfinishedOnly] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [unfinishedOnly, setUnfinishedOnly] = useState(() => searchParams.get("unfinishedOnly") === "true");
   const options = { unfinishedOnly, operationsCursor: pages.operations[pages.operations.length - 1], calibreCursor: pages.calibre[pages.calibre.length - 1], issuesCursor: pages.issues[pages.issues.length - 1] };
   const query = useQuery({ queryKey: [...keys.importRecovery, options], queryFn: () => fetchImportRecovery(options), refetchInterval: 15_000, placeholderData: keepPreviousData });
   const paging = (collection: Collection, label: string, page?: RecoveryPage) => <RecoveryPaging label={label} page={page} history={pages[collection]} busy={query.isFetching} change={next => setPages(previous => ({ ...previous, [collection]: next ? [...previous[collection], next] : previous[collection].slice(0, -1) }))} />;

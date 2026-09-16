@@ -2289,3 +2289,66 @@ Candidate images are `librarry-api:import-recovery` and
 This continuation adds visibility, not automatic stall diagnosis, live NAS
 certification or release. The preceding PR #43 is now green in GitHub CI run
 35128368737.
+
+## Complete dashboard counts and recovery entry points (S15/S19/S23 continuation)
+
+Dashboard review counts previously used the first loaded 100 rows, and acquisition
+summary totals used at most 200 wanted books. It also omitted saved native/Calibre
+recovery and legacy-link issues. The dashboard now reads full metadata/author-review
+counts while requesting only one preview row. The authenticated
+`GET /api/v1/system/attention` counts pending import reviews, unfinished native
+transfers/local cleanup, uncommitted Calibre handoffs and unresolved legacy links
+in one SQL snapshot. It exposes an observation time but no paths, manifests or
+external calls. Missing persistence or read failure returns 503, not zero work.
+
+Acquisition summary reads all active tracked books and batched release counts,
+independently of the bounded recent action preview. Removed/ignored rows cannot
+consume preview slots. `downloads` records evidence quality, `previewLimit` explains
+the preview scope, and absent client evidence classifies otherwise uncertain work
+as unknown rather than inviting a new grab. Positive client observations and saved
+import history remain usable. Imported acquisition totals are explicitly distinct
+from current library-file presence.
+
+Needs attention includes native import/cleanup, Calibre and legacy-link counts.
+The recovery link opens the unfinished filter. Metadata and author-review links
+use their current routes. Loading, failed refreshes, malformed/missing counts and
+incomplete client evidence cannot produce an all-clear. Retained counts get an
+explicit stale-data warning; Refresh attention retries every source. Unchecked or
+stale health observations use warning tones rather than fabricated outages.
+
+Verification:
+
+- 10,001 active books plus removed/ignored fixtures produce complete acquisition
+  totals independently of 1/8/100/200-row previews. Twenty race-enabled local reads
+  measured p95 58.3ms with an eight-row preview. Status filters, removal, positive
+  partial evidence, unknown client state and recovery are covered.
+- Recovery-count API tests exceed the former 100-row boundaries, distinguish
+  completed transfers from unfinished cleanup, enforce API-key authentication,
+  omit private paths, return 503 for absent/closed persistence, and clear counts
+  after resolution. Targeted race tests pass (wanted 3.398s, API 2.109s).
+- All 111 desktop/mobile browser tests pass, with one expected skip; fresh-database
+  navigation now includes Dashboard. Large counts, recovery navigation/filter,
+  failed refreshes, malformed success payloads and client-outage recovery are
+  covered. The 390px layout was visually inspected. Fourteen web unit tests,
+  production build, Go vet and deployment contracts pass.
+- Packaged API checks verify saved recovery counts clear after retry/restart and
+  acquisition totals match SQL independently of a one-row preview. The existing
+  import/authentication regressions and isolated schema-52 restore pass with a
+  462,441-byte dump. Candidate images are `librarry-api:dashboard-counts` and
+  `librarry-web:dashboard-counts`; API marker `working-tree-dashboard-counts`.
+
+The first full race run and PR #44 CI exposed concurrent fixture seeds exhausting
+Postgres's advisory-lock pool, not an application assertion failure. Large file
+seeds now commit at most 500 paths per batch while retaining all 10,001-record
+assertions. All affected scale fixtures pass together under race (library 18.110s,
+wanted 38.184s, API 1.945s). The CI integration script retains all tests with a
+20-minute package limit and 30-minute verification-job ceiling; production
+Postgres settings are unchanged. This repair is commit 84bc8a1 on PR #44, whose
+rerun is still pending. The final full integration script passes locally with
+race detection (library 187.429s, wanted 192.529s); the ordinary full suite also
+passes (library 163.951s, wanted 112.592s).
+
+No deployment, release or live-client qualification occurred. The older pending
+import-review list still needs pagination, and other legacy readers and unified
+presence/migration/release gates remain open. Dashboard counts are complete;
+its action strip intentionally remains a bounded preview.

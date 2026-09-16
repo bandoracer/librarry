@@ -203,6 +203,8 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert failed["errored"] == 1 and failed["imported"] == 0, failed
         pending = request("/api/v1/library/import-recovery")
         assert pending["unfinished"] == 1 and pending["operations"][0]["state"] == "failed", pending
+        attention = request("/api/v1/system/attention")
+        assert attention["importOperations"] == 1 and attention["importReviews"] >= 1 and attention["observedAt"], attention
         observed = pending["operations"][0]["recovery"]
         assert observed["leaseState"] == "none" and observed["verifiedFiles"] == observed["totalFiles"] == 1, observed
         assert observed["recordedAt"] and observed["observedAt"], observed
@@ -233,6 +235,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         operation_id = result["results"][0]["import"]["operationId"]
         recovery = request("/api/v1/library/import-recovery")
         assert recovery["unfinished"] == 0 and len(recovery["operations"]) == 1, recovery
+        assert request("/api/v1/system/attention")["importOperations"] == 0
         assert recovery["operations"][0]["id"] == operation_id
         assert recovery["operations"][0]["state"] == "committed"
         assert recovery["operations"][0]["recovery"]["leaseState"] == "not_applicable"
@@ -751,6 +754,12 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         saved = next(h for h in recovery["calibreHandoffs"] if h["id"] == calibre_handoff)
         assert recovery["calibreUnfinished"] == 1 and saved["phase"] == "uploading" and saved["conversions"] == [], saved
         assert "plan" not in saved and "password" not in json.dumps(saved).lower(), saved
+        assert request("/api/v1/system/attention")["calibreHandoffs"] == recovery["calibreUnfinished"]
+        expected_acquisitions = int(sql("select count(*) from wanted_items where status not in ('removed','ignored')").splitlines()[0])
+        acquisition_summary = request("/api/v1/acquisition/queue?limit=1")
+        assert len(acquisition_summary["items"]) <= 1 and acquisition_summary["summary"]["total"] == expected_acquisitions, acquisition_summary["summary"]
+        assert acquisition_summary["previewLimit"] == 1 and acquisition_summary["downloads"] == "fresh", acquisition_summary
+        print("Packaged dashboard: saved recovery counts clear after retry/restart; complete acquisition counts independent of action preview")
         print("Packaged Calibre recovery: uncertain handoff survives process restart and is visible without credentials")
         sql("insert into worker_tasks(task_id) values('restore-fixture')")
         worker_run = sql("insert into worker_task_runs(task_id,trigger,backend_pid,state,outcome,finished_at) values('restore-fixture','fixture',0,'completed','Fixture completed',now()) returning id").splitlines()[0]

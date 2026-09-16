@@ -143,12 +143,15 @@ type AcquisitionQueueQuery struct {
 }
 
 type AcquisitionQueue struct {
-	Items       []AcquisitionQueueItem  `json:"items"`
-	Summary     AcquisitionQueueSummary `json:"summary"`
-	GeneratedAt time.Time               `json:"generatedAt"`
+	Downloads    string                  `json:"downloads"`
+	PreviewLimit int                     `json:"previewLimit"`
+	Items        []AcquisitionQueueItem  `json:"items"`
+	Summary      AcquisitionQueueSummary `json:"summary"`
+	GeneratedAt  time.Time               `json:"generatedAt"`
 }
 
 type AcquisitionQueueSummary struct {
+	Unknown     int `json:"unknown"`
 	Total       int `json:"total"`
 	NeedsSearch int `json:"needsSearch"`
 	ReadyToGrab int `json:"readyToGrab"`

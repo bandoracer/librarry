@@ -1767,3 +1767,30 @@ operation/file update time, verified/committed file count and lease purpose/expi
 never convert a slow operation to failed or assert that an expired owner is dead.
 Pending committed cleanup exposes the lease as cleanup ownership, not transfer. The existing retry endpoint keeps
 all ownership, immutable-plan and byte-verification checks authoritative.
+
+
+### Dashboard count and evidence contracts
+
+`GET /api/v1/system/attention` requires normal API authentication and returns
+`observedAt`, `importReviews`, `importOperations`, `calibreHandoffs` and `legacyLinks`.
+One SQL statement counts pending reviews, unfinished transfer/local-cleanup work,
+uncommitted Calibre handoffs and unresolved legacy links at one database snapshot.
+It returns no paths or manifest payloads and makes no external requests. Missing
+persistence or failed reads return 503 rather than zero counts. It uses a five-second
+read deadline and `Cache-Control: no-store`.
+
+The dashboard requests one row from the existing metadata and author-review
+collections and uses their complete counts. `GET /api/v1/acquisition/queue` now
+returns a full active-ledger summary independently of the bounded `items` preview.
+A batched release-count query and a single client observation supply classification;
+only preview rows need detailed release hydration. Removed/ignored books are
+excluded before selecting the preview. `previewLimit` reports that bound, and
+`downloads` reports fresh/notConfigured/partial/unavailable evidence. Missing
+client observations produce `unknown` instead of suggesting a new grab; positive
+observations and saved import history remain usable. The summary's imported count
+is acquisition history, distinct from native library file-presence evidence.
+
+Counts from different dashboard sources have independent snapshots and refreshes.
+A failed or malformed source prevents the all-clear and retains an explicit warning;
+old cached counts are not presented as a fresh successful refresh. Recovery routes
+use `/imports?unfinishedOnly=true#recovery`. No summary read initiates acquisition.

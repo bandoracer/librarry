@@ -56,8 +56,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [notification retention PR #40](https://github.com/bandoracer/librarry/pull/40),
 [worker availability PR #41](https://github.com/bandoracer/librarry/pull/41),
 [support diagnostics PR #42](https://github.com/bandoracer/librarry/pull/42),
-[integration health PR #43](https://github.com/bandoracer/librarry/pull/43), and
-the `codex/import-recovery-visibility` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[integration health PR #43](https://github.com/bandoracer/librarry/pull/43),
+[import recovery PR #44](https://github.com/bandoracer/librarry/pull/44), and
+the `codex/dashboard-operational-counts` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -104,6 +105,15 @@ injects its HTTP client and accepts only the documented login acknowledgement.
 Support exports include recorded numeric client versions without private suffixes,
 URLs or response bodies. These are contract/container fixtures, not new live-client
 qualification or proof that a remote mutation/import will succeed.
+
+Dashboard attention now uses full metadata/author-review counts and an authenticated
+count-only recovery endpoint for pending import reviews, unfinished native imports,
+Calibre handoffs and unresolved legacy links. Recovery links open the unfinished
+filter. Missing counts, failed refreshes and incomplete client evidence cannot
+produce “All caught up”. Acquisition totals inspect all active tracked books;
+the separate action preview remains bounded and explicitly labelled. Import totals
+are historical acquisition records, not fresh file-presence claims. This does not
+complete paging for the older import-review list or other legacy readers.
 
 Automatic native import now accepts single books and identifiable audiobook
 chapter sets from complete client inventories. All required chapters and relevant

@@ -771,6 +771,7 @@ export type ReleaseDecision = {
 };
 
 export type AcquisitionQueueSummary = {
+  unknown?: number;
   total: number;
   needsSearch: number;
   readyToGrab: number;
@@ -794,6 +795,8 @@ export type AcquisitionQueueItem = {
 };
 
 export type AcquisitionQueue = {
+  downloads?: string;
+  previewLimit?: number;
   items: AcquisitionQueueItem[];
   summary: AcquisitionQueueSummary;
   generatedAt: string;
@@ -3437,4 +3440,12 @@ export async function checkIntegrationConnection(name: string): Promise<Integrat
  const response=await fetch(`${apiBase}/api/v1/integrations/${encodeURIComponent(name)}/check`, {method:"POST"});
  if (!response.ok) throw new Error(await apiError(response,"Integration check failed"));
  return response.json();
+}
+
+
+export type AttentionCounts = { observedAt: string; importReviews: number; importOperations: number; calibreHandoffs: number; legacyLinks: number };
+export async function fetchAttentionCounts(): Promise<AttentionCounts> {
+  const response = await fetch(`${apiBase}/api/v1/system/attention`);
+  if (!response.ok) throw new Error(await apiError(response, "Recovery counts could not be loaded"));
+  return response.json();
 }

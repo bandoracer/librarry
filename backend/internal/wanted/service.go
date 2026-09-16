@@ -840,30 +840,41 @@ func (s *Service) AcquisitionQueue(ctx context.Context, query AcquisitionQueueQu
 	if strings.EqualFold(status, "all") {
 		status = ""
 	}
-	items, err := s.store.ListWanted(ctx, status)
-	if err != nil {
-		return AcquisitionQueue{}, err
-	}
 	limit := query.Limit
 	if limit <= 0 || limit > 200 {
 		limit = 200
 	}
-	if len(items) > limit {
-		items = items[:limit]
+	items, err := s.store.acquisitionPreview(ctx, status, limit)
+	if err != nil {
+		return AcquisitionQueue{}, err
 	}
 
 	downloadsByWanted := map[string][]acquisition.DownloadStatus{}
+	evidence := "notConfigured"
 	if s.acquire != nil {
-		downloads, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"})
-		if err == nil {
-			downloadsByWanted = groupDownloadsByWantedID(downloads)
+		if _, ok := s.acquire.(liveDownloadEvidenceSource); ok {
+			snapshot := s.liveBookDownloads(ctx)
+			evidence = snapshot.Status
+			downloadsByWanted = groupDownloadsByWantedID(snapshot.Downloads)
+		} else {
+			evidence = "unavailable"
+			snapshot, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"})
+			if err == nil {
+				evidence = "fresh"
+				downloadsByWanted = groupDownloadsByWantedID(snapshot)
+			}
 		}
 	}
-
-	queue := AcquisitionQueue{
-		Items:       make([]AcquisitionQueueItem, 0, len(items)),
-		GeneratedAt: time.Now().UTC(),
+	switch evidence {
+	case "fresh", "notConfigured", "partial", "unavailable":
+	default:
+		evidence = "unavailable"
 	}
+	summary, err := s.store.acquisitionSummary(ctx, status, downloadsByWanted, evidence)
+	if err != nil {
+		return AcquisitionQueue{}, err
+	}
+	queue := AcquisitionQueue{Items: make([]AcquisitionQueueItem, 0, len(items)), Summary: summary, GeneratedAt: time.Now().UTC(), Downloads: evidence, PreviewLimit: limit}
 	for _, item := range items {
 		if item.Status == "removed" || item.Status == "ignored" {
 			continue
@@ -873,25 +884,13 @@ func (s *Service) AcquisitionQueue(ctx context.Context, query AcquisitionQueueQu
 			return AcquisitionQueue{}, err
 		}
 		row := acquisitionQueueItem(item, releases, downloadsByWanted[item.ID])
-		queue.Items = append(queue.Items, row)
-		queue.Summary.Total++
-		switch row.State {
-		case "needs_search":
-			queue.Summary.NeedsSearch++
-		case "ready_to_grab":
-			queue.Summary.ReadyToGrab++
-		case "queued", "downloading":
-			queue.Summary.Queued++
-		case "import_ready":
-			queue.Summary.ImportReady++
-		case "imported":
-			queue.Summary.Imported++
-		default:
-			if row.State == "blocked" {
-				queue.Summary.Blocked++
-			}
+		if (evidence == "partial" || evidence == "unavailable") && len(row.Downloads) == 0 && item.Status != "imported" {
+			row.State = "unknown"
+			row.NextAction = "Restore download-client visibility"
 		}
+		queue.Items = append(queue.Items, row)
 	}
+
 	return queue, nil
 }
 

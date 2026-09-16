@@ -189,6 +189,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /healthz", handler.health)
 	mux.HandleFunc("GET /readyz", handler.operationalReadiness)
 	mux.HandleFunc("GET /api/v1/system/support", handler.supportDiagnostics)
+	mux.HandleFunc("GET /api/v1/system/attention", handler.attentionCounts)
 	mux.HandleFunc("GET /api/v1/health", handler.compatHealth)
 	mux.HandleFunc("GET /api/v1/system/status", handler.compatSystemStatus)
 	mux.HandleFunc("GET /api/v1/system/routes", handler.compatSystemRoutes)

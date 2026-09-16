@@ -197,11 +197,11 @@ export function useWantedReleases(wantedID: string) {
   });
 }
 
-export function useAcquisitionQueue() {
+export function useAcquisitionQueue(limit?: number) {
   return useQuery({
-    queryKey: keys.acquisitionQueue,
+    queryKey: limit ? [...keys.acquisitionQueue, { limit }] : keys.acquisitionQueue,
     queryFn: withDemoFallback(
-      () => fetchAcquisitionQueue(),
+      () => fetchAcquisitionQueue({ limit }),
       () => ({
         generatedAt: new Date().toISOString(),
         summary: { total: 0, needsSearch: 0, readyToGrab: 0, queued: 0, importReady: 0, imported: 0, blocked: 0 },
