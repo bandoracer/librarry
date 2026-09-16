@@ -1578,3 +1578,25 @@ its old selection. If a selected identity is no longer active or no longer match
 the file format, it is shown as unavailable, not silently replaced by another book.
 Database errors offer Retry books and retain the selected ID. Payload assignments,
 retained-download choices and current-preview requirements remain unchanged.
+
+
+### Removed and ignored books
+
+Open Library → Removed to find inactive records, including books older than the
+former list limits. Search title, author or saved book ID, filter format/status,
+and use the page controls. Counts cover every inactive record; pages are ordered
+by creation time, so edits do not move records. Last updated is not a removal date.
+Use the book link to inspect existing files and metadata evidence.
+
+Restore opens a review of the saved record. Monitoring is unchecked by default;
+enabling it permits scheduled acquisition under the existing automation settings.
+Restore itself neither searches nor grabs. Root/profile/tags, metadata overrides,
+author policy, file links and prior history stay unchanged. It does not recover
+physically deleted files. A concurrent edit, another restore or a new removal
+rejects the old review. Use Reload book, inspect the new settings and submit again.
+A successful restore writes one history event in the same transaction. If the
+response is interrupted, refresh the list/details before retrying.
+
+Direct links to inactive books show their status and the same explicit Restore
+flow. Their regular monitoring/edit/release controls return after restoration;
+file and provenance inspection remain available.

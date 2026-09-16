@@ -451,6 +451,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/library/authors/{key}", handler.libraryAuthorDetail)
 	mux.HandleFunc("GET /api/v1/library/books", handler.libraryBookCollection)
 	mux.HandleFunc("GET /api/v1/library/book-choices", handler.bookChoices)
+	mux.HandleFunc("GET /api/v1/library/removed-books", handler.removedBooks)
+	mux.HandleFunc("POST /api/v1/wanted/{id}/restore", handler.restoreBook)
 	mux.HandleFunc("GET /api/v1/library/authors", handler.libraryAuthorCollection)
 	mux.HandleFunc("PUT /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("DELETE /api/v1/authors/{id}", handler.deleteAuthorSubscription)

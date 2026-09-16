@@ -438,6 +438,7 @@ export type DownloadRebalancePlan = {
 };
 
 export type WantedItem = {
+  rootFolderId?: string;
   authors?: AuthorIdentity[];
   id: string;
   workId?: string;
@@ -3472,4 +3473,20 @@ export async function fetchBookChoices(options: BookChoicesOptions, signal?: Abo
   if (!response.ok) throw new Error(await apiError(response, "Book choices could not be loaded"));
   const data = await response.json() as BookChoices;
   return { ...data, books: arrayPayload(data.books) };
+}
+
+export type RemovedBooksOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; status?: "removed" | "ignored" | "all"; cursor?: string; limit?: number };
+export type RemovedBooks = { books: WantedItem[]; total: number; filtered: number; counts: { removed: number; ignored: number }; nextCursor?: string; observedAt: string };
+export async function fetchRemovedBooks(options: RemovedBooksOptions, signal?: AbortSignal): Promise<RemovedBooks> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/removed-books?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Removed books could not be loaded"));
+  const data = await response.json() as RemovedBooks;
+  return { ...data, books: arrayPayload(data.books) };
+}
+export async function restoreBook(id: string, options: { updatedAt: string; monitored: boolean }): Promise<WantedItem> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(id)}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(options) });
+  if (!response.ok) throw new Error(await apiError(response, "Book could not be restored; refresh to check its current state"));
+  return response.json();
 }

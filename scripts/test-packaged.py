@@ -783,6 +783,41 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert pinned_choice["filtered"] == 0 and pinned_choice["selected"] == selected_choice
         sql("delete from wanted_items where title like 'Choice fixture %'")
         print("Packaged book choices: 251 identities across restart, selected identity preserved outside search and page, no acquisition mutation")
+        def active_book_ids():
+            page = request("/api/v1/library/books?limit=100")
+            ids = {book["id"] for book in page["books"]}
+            while page.get("nextCursor"):
+                page = request("/api/v1/library/books?limit=100&cursor=" + page["nextCursor"])
+                ids.update(book["id"] for book in page["books"])
+            return ids
+        assert wanted_id in active_book_ids()
+        before_removal = request("/api/v1/wanted/" + wanted_id)
+        saved_file_links = sql(f"select file_id from file_wanted_links where wanted_item_id='{wanted_id}' order by file_id")
+        assert saved_file_links
+        request("/api/v1/wanted/" + wanted_id, method="DELETE")
+        removed_page = request("/api/v1/library/removed-books?q=" + wanted_id)
+        assert removed_page["filtered"] == 1 and removed_page["books"][0]["status"] == "removed"
+        removed_book = removed_page["books"][0]
+        assert wanted_id not in active_book_ids()
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        assert request("/api/v1/library/removed-books?q=" + wanted_id)["books"][0]["id"] == wanted_id
+        restore_request = {"updatedAt": removed_book["updatedAt"], "monitored": False}
+        restored_book = request("/api/v1/wanted/" + wanted_id + "/restore", restore_request)
+        assert restored_book["status"] == "wanted" and not restored_book["monitored"]
+        for key in ("id", "title", "authorName", "format", "qualityProfile", "rootFolderId", "tags", "sourceProvider", "sourceKey", "manualOverrides"):
+            assert restored_book.get(key) == before_removal.get(key), key
+        assert saved_file_links == sql(f"select file_id from file_wanted_links where wanted_item_id='{wanted_id}' order by file_id")
+        assert request("/api/v1/library/removed-books?q=" + wanted_id)["filtered"] == 0
+        assert request("/api/v1/library/book-choices?selectedId=" + wanted_id)["selected"]["id"] == wanted_id
+        assert wanted_id in active_book_ids()
+        try:
+            request("/api/v1/wanted/" + wanted_id + "/restore", restore_request)
+            raise AssertionError("replayed restore was not fenced")
+        except urllib.error.HTTPError as error:
+            assert error.code == 409
+        assert int(sql(f"select count(*) from history_events where event_type='wanted_restored' and entity_id='{wanted_id}'").splitlines()[0]) == 1
+        print("Packaged removed book: survives restart, explicit restore retains saved settings/file links, defaults unmonitored and rejects replay")
         # A saved uncertain send must survive the image restart and database restore.
         # This journal fixture never contacts a Calibre server; real remote effects
         # are exercised separately by scripts/test-calibre.py.

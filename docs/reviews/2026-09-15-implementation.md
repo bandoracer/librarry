@@ -2433,3 +2433,43 @@ Qualification:
 
 This does not finish the wider S14/S15 compatibility, removed-book browsing or
 all-matching-job work, and is not production deployment or release qualification.
+
+
+## S14/S15 continuation — Removed book recovery
+
+The active Library correctly hid removed records but offered no complete way to
+find and restore them. A new Library → Removed view pages removed/ignored books
+with exact counts, title/author/ID search and format/status filters. Creation order
+is stable across edits; Last updated is explicitly not presented as removal time.
+Migration 0055 adds the inactive paging index. Reads include batched owner overrides
+and author identity, with no provider/download/file probe.
+
+Restore reviews the saved identity and settings, defaults monitoring off, and
+checks the reviewed update timestamp under a row lock. It changes only lifecycle,
+monitoring and update time, preserving file links, metadata overrides, roots,
+profiles, tags and author policy. History and restore commit together. Stale or
+competing decisions are rejected; a lost response can be reconciled through the
+collection or details. Direct inactive book links offer this explicit flow in place
+of implicit monitoring/edit/release controls. File/provenance inspection remains.
+
+Qualification:
+
+- 10,001 removed records traverse 101 pages without gaps or duplicates; local
+  race-enabled p95 10.8ms. Tests cover filtering, cursor binding, edited/deleted
+  anchors, preserved settings/overrides/file links, stale decisions, atomic
+  history failure and one concurrent restore winner.
+- All 133 desktop/mobile browser tests pass with one expected skip, including
+  stale-review reload, explicit monitoring, inactive deep links and interrupted
+  response reconciliation. The 390px collection and restore dialog were inspected.
+- Fourteen web units, production build, Go vet and deployment contracts pass.
+  Full race tests pass (library 194.012s, wanted 204.027s); ordinary full Go tests
+  pass (library 164.168s, wanted 114.528s).
+- Candidate images `librarry-api:removed-books` and `librarry-web:removed-books`
+  report API marker `working-tree-removed-books`, schema 55. Packaged checks verify
+  removal across restart, explicit restoration preserving settings/file links,
+  monitoring off by default and replay rejection. Existing import/authentication
+  checks and a 465,586-byte isolated database restore pass.
+
+This does not recover deleted bytes or finish search-badge, legacy-reader,
+compatibility or all-matching-job work. No production deployment or release is
+implied.

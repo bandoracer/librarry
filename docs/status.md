@@ -59,8 +59,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [integration health PR #43](https://github.com/bandoracer/librarry/pull/43),
 [import recovery PR #44](https://github.com/bandoracer/librarry/pull/44),
 [dashboard counts PR #45](https://github.com/bandoracer/librarry/pull/45),
-[import reviews PR #46](https://github.com/bandoracer/librarry/pull/46), and
-the `codex/import-book-choices` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[import reviews PR #46](https://github.com/bandoracer/librarry/pull/46),
+[book choices PR #47](https://github.com/bandoracer/librarry/pull/47), and
+the `codex/removed-book-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -157,6 +158,13 @@ indexes. Manual and payload book-choice selectors now search/page all active sav
 books through a database-only endpoint. Selected identities remain visible outside
 the current search/page; owner-edited labels win. Migration 0054 adds a supporting
 creation/identity index. Removed/ignored records are excluded from new choices.
+
+Removed and ignored books now have a complete searchable Library view with
+creation-time pages and exact counts. Explicit restore preserves saved file links,
+history, metadata overrides, roots, profiles and tags. Monitoring defaults off;
+a changed record requires a fresh review. Restore and its history event commit
+atomically. Removed book deep links explain their inactive state and offer Restore
+instead of an implicit monitoring toggle. This restores tracking, not deleted files.
 
 Completed-download review now supports replacing matching destinations. The
 preview binds both new and old content; old bytes are journaled before publication

@@ -232,9 +232,10 @@ explicitly bounded, and incomplete evidence prevents an all-clear. Native import
 reviews now have complete counts, search/filter pages and current-page bulk
 selection; resolved history includes imported, skipped and rejected decisions.
 Manual/payload book selectors now reach all active identities through local
-search and pages with pinned selections. Other legacy readers, search badges, compatibility,
-removed-book browsing and
-resumable all-matching jobs remain open; neither milestone is complete. See the implementation ledger for qualification.
+search and pages with pinned selections. Removed/ignored books now have complete
+paging and an explicit, revision-checked restore that retains settings and file
+links. Other legacy readers, search badges, compatibility and resumable
+all-matching jobs remain open; neither milestone is complete. See the implementation ledger for qualification.
 
 ### S16 — Readarr compatibility and migration
 

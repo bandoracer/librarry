@@ -532,7 +532,8 @@ export default function LibraryPage() {
 
   const tabs = [
     { label: "Books", to: "/library", active: tab === "books" },
-    { label: "Authors", to: "/library/authors", active: tab === "authors" }
+    { label: "Authors", to: "/library/authors", active: tab === "authors" },
+    { label: "Removed", to: "/library/removed", active: false }
   ];
 
   return (

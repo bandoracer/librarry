@@ -8,6 +8,7 @@ import { ToastProvider } from "../components/toast";
 import { Button, LoadingRow } from "../components/ui";
 
 const DashboardPage = lazy(() => import("../features/dashboard/DashboardPage"));
+const RemovedBooksPage = lazy(() => import("../features/library/RemovedBooksPage"));
 const LibraryPage = lazy(() => import("../features/library/LibraryPage"));
 const AuthorPage = lazy(() => import("../features/library/AuthorPage"));
 const BookPage = lazy(() => import("../features/library/BookPage"));
@@ -50,6 +51,7 @@ export function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/library" element={<LibraryPage />} />
               <Route path="/library/authors" element={<LibraryPage />} />
+              <Route path="/library/removed" element={<RemovedBooksPage />} />
               <Route path="/library/author/:authorId" element={<AuthorPage />} />
               <Route path="/library/book/:wantedId" element={<BookPage />} />
               <Route path="/search" element={<SearchPage />} />

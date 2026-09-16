@@ -17,6 +17,7 @@ import {
   presenceTone,
 } from "./lib";
 import "./library.css";
+import RestoreBookDialog from "./RestoreBookDialog";
 import { BookFiles } from "./FileBrowser";
 import { RenameBookFolder } from "./RenameBookFolder";
 
@@ -37,6 +38,7 @@ export default function BookPage() {
 
   const [isTogglingMonitored, setIsTogglingMonitored] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
 
   const authorPath = item ? libraryWantedAuthorPath(item) : "/library";
 
@@ -95,6 +97,7 @@ export default function BookPage() {
   }
 
   const state = item.derivedState ?? "unknown";
+  const inactive = ["removed", "ignored"].includes(item.status);
 
   return (
     <>
@@ -120,6 +123,8 @@ export default function BookPage() {
         }
       />
       <div className="library-page">
+        {inactive ? <InlineNotice tone="info">This book is {item.status} and is excluded from the active Library and automatic acquisition. File records and history remain saved. <Button size="sm" onClick={() => setRestoreOpen(true)}>Restore…</Button> <Link to="/library/removed">Removed books</Link></InlineNotice> : null}
+        {restoreOpen ? <RestoreBookDialog book={item} onClose={() => setRestoreOpen(false)} onRestored={() => { setRestoreOpen(false); toast.success("Book restored to Library."); }} /> : null}
         <Card padded>
           <div className="library-book-header">
             {item.coverUrl ? (
@@ -153,7 +158,7 @@ export default function BookPage() {
                   {item.authorName || "Unknown author"}
                 </Link>
               </p>
-              <label className="library-monitor-toggle" title={item.monitored ? "Unmonitor this book" : "Monitor this book"}>
+              {!inactive ? <label className="library-monitor-toggle" title={item.monitored ? "Unmonitor this book" : "Monitor this book"}>
                 <input
                   type="checkbox"
                   checked={item.monitored}
@@ -162,16 +167,16 @@ export default function BookPage() {
                   aria-label={`${item.title} monitored`}
                 />
                 <span>Monitored</span>
-              </label>
+              </label> : null}
             </div>
           </div>
         </Card>
 
         <RenameBookFolder wantedId={item.id} open={renameOpen} onClose={() => setRenameOpen(false)} />
         <BookFiles key={item.id} wantedId={item.id} />
-        <WantedEditForm item={item} onDeleted={() => navigate(authorPath)} />
+        {!inactive ? <WantedEditForm item={item} onDeleted={() => navigate(authorPath)} /> : null}
         <ProvenancePanel key={`provenance-${item.id}`} item={item} />
-        <ReleasesPanel key={`releases-${item.id}`} item={item} />
+        {!inactive ? <ReleasesPanel key={`releases-${item.id}`} item={item} /> : null}
       </div>
     </>
   );

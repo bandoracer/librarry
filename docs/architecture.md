@@ -1842,3 +1842,30 @@ No file-presence projection, download client or provider is consulted. Normal AP
 authentication, strict query validation, a five-second deadline, no-store and generic
 503 errors apply. This replaces capped identity selectors without changing the
 legacy wanted list, import execution, or payload preview contracts.
+
+
+### Removed book collection and restore
+
+`GET /api/v1/library/removed-books` returns `books` (array), total/filtered counts,
+global `counts.removed`/`counts.ignored`, `nextCursor` and `observedAt`. It accepts
+literal case-insensitive `q` (title, author or saved ID), `format=all|ebook|audiobook`,
+`status=removed|ignored|all` (default removed), `limit=1..100` (default 50) and
+`cursor`. A read-only repeatable-read transaction provides one response snapshot;
+creation-time/UUID descending keys bind search, format and status. Migration 0055
+indexes inactive ordering. Labels/overrides are read in batches. It performs no
+provider/client/filesystem call and makes no current file-presence claim.
+
+`POST /api/v1/wanted/{id}/restore` accepts the reviewed `updatedAt` and an optional
+boolean `monitored` (default false). A row lock checks the exact timestamp and
+removed/ignored status before changing only status to wanted, monitoring and update
+time. The existing identity, file links, metadata, root, profile, tags and author
+policy are retained. `wanted_restored` history commits atomically with the change;
+a history failure rolls back the restore. Repeated/stale decisions return 409,
+missing IDs 404, malformed bodies 400 and persistence failures 503. A response lost
+after commit should be reconciled by reading the current record, not blind replay.
+
+Both routes require normal API authentication and use no-store on success. Reads
+have a five-second deadline and restore ten seconds, including lock waits. No
+acquisition or file mutation is performed by restore. Monitoring can allow later
+scheduled work only when explicitly selected. The legacy update API remains
+available for existing integrations.
