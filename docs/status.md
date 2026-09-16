@@ -55,8 +55,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [worker diagnostics PR #39](https://github.com/bandoracer/librarry/pull/39),
 [notification retention PR #40](https://github.com/bandoracer/librarry/pull/40),
 [worker availability PR #41](https://github.com/bandoracer/librarry/pull/41),
-[support diagnostics PR #42](https://github.com/bandoracer/librarry/pull/42), and
-the `codex/integration-health-evidence` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[support diagnostics PR #42](https://github.com/bandoracer/librarry/pull/42),
+[integration health PR #43](https://github.com/bandoracer/librarry/pull/43), and
+the `codex/import-recovery-visibility` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -123,7 +124,13 @@ Native completed imports save immutable manifests and use expiring worker leases
 A failed database commit can resume without duplicating published chapters;
 uncommitted destinations remain hidden from scans. New native staging files are
 journaled and reclaimed on retry; unrecorded older stages remain untouched.
-Imports displays operation and reconciliation reports with retry controls. Native
+Imports now pages native operations, Calibre handoffs and unresolved legacy links
+independently, with exact matching totals and an unfinished filter. Migration 0052
+adds indexes for creation-time/identity ordering; retries do not reorder pages.
+Native recovery shows recorded activity, verified-file count and transfer or cleanup lease
+observations. Expired leases are not diagnosed as dead workers; lease purpose
+follows the saved operation phase. These are database observations,
+not fresh byte verification, throughput or automatic stall detection. Native
 manual imports now use the same ledger, including configured same-basename
 sidecars, moves after commit and recoverable replacement of an existing file.
 Committed manual imports with unfinished cleanup remain visible and retryable.

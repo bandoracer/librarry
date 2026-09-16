@@ -857,10 +857,29 @@ removed book stop the retry and retain the original download.
 The recovery API is `GET /api/v1/library/import-recovery`; retry is
 `POST /api/v1/library/import-operations/{id}/retry`. Legacy link issues are visible
 but require an explicit metadata correction; they never gain verification merely
-from migration. Lists are capped at 100 with total outstanding counts.
+from migration. Each collection has independent Previous/Next controls and exact
+matching totals. Use “Show only unfinished imports and Calibre handoffs” to omit
+completed work; pending manual/replacement cleanup remains included. Legacy issues
+always show unresolved links. Return to first pages to see newly created records.
+
+The endpoint accepts `limit=1..100` (default 100), `unfinishedOnly=true|false`, and
+independent `operationsCursor`, `calibreCursor`, `issuesCursor` values from each
+collection's `nextCursor`. Cursors are opaque and bound to collection/filter;
+reset them when changing the filter. Records sort by creation time and identity,
+so heartbeats and retries do not move them between pages. One response uses a
+consistent database snapshot; consecutive pages reflect live changes, not a frozen
+export. Resolved/deleted rows may disappear and newer records appear on page one.
+
+Native recovery shows observed time, last recorded activity, verified manifest-file
+count and lease purpose/state. A held lease is ownership evidence, not byte
+progress. An expired lease does not prove the old process has stopped. Large files
+can take time between journal updates. The UI disables transfer retry while the
+snapshot has a held lease; the backend always rechecks ownership and saved bytes.
+After commit, a lease for pending local cleanup is labeled as a cleanup lease;
+retry stays disabled while it is held. Finished work has no active lease purpose. Reading recovery does not probe files or clients.
 
 Completed imports support copy, hardlink and hardlinkOrCopy. For destination
-conflicts use keep both; automatic replacement requires further recovery work.
+conflicts keep both is the default; reviewed replacement requires a current preview.
 Identifiable chapter sets import together with their sidecars. Uncertain sets and
 multi-book packs appear above the import table as a complete file list. Assign
 books per file (or apply one book to all), explicitly retain unwanted files,

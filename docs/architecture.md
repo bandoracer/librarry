@@ -1748,3 +1748,22 @@ Contracts checked against primary documentation:
 - [qBittorrent WebUI API](https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-%28qBittorrent-5.0%29)
 - [Transmission 4.0.6 RPC](https://github.com/transmission/transmission/blob/4.0.6/docs/rpc-spec.md)
 - [SABnzbd API authentication and queue](https://sabnzbd.org/wiki/configuration/5.1/api)
+
+
+### Import recovery collection observations
+
+`GET /api/v1/library/import-recovery` returns independently paged operations,
+Calibre handoffs and unresolved link issues. `limit` is 1–100; each collection has
+`total` and optional `nextCursor`. Cursors bind creation time/identity to their
+collection and the `unfinishedOnly` filter. Creation time, UUID and issue kind
+provide stable tie-breakers. Migration 0052 adds supporting full/partial indexes.
+A read-only repeatable-read transaction keeps each response's exact totals,
+manifest rows and observations consistent; pages across requests remain live.
+No filesystem or remote client calls occur during this read.
+
+Native `recovery` evidence includes database observation time, greatest recorded
+operation/file update time, verified/committed file count and lease purpose/expiry.
+`held`, `expired`, `none` and `not_applicable` describe the journal evidence; they
+never convert a slow operation to failed or assert that an expired owner is dead.
+Pending committed cleanup exposes the lease as cleanup ownership, not transfer. The existing retry endpoint keeps
+all ownership, immutable-plan and byte-verification checks authoritative.

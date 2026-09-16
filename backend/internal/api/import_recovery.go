@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type importRecoveryService interface {
-	ImportRecovery(context.Context) (library.ImportRecoveryReport, error)
+	ImportRecoveryPage(context.Context, library.ImportRecoveryQuery) (library.ImportRecoveryReport, error)
 	RetryImportOperation(context.Context, string) (library.ImportOutcome, error)
 }
 
@@ -22,7 +23,28 @@ func (h *handler) importRecovery(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "import recovery is unavailable"})
 		return
 	}
-	report, err := service.ImportRecovery(r.Context())
+	values := r.URL.Query()
+	query := library.ImportRecoveryQuery{OperationsCursor: values.Get("operationsCursor"), CalibreCursor: values.Get("calibreCursor"), IssuesCursor: values.Get("issuesCursor")}
+	if values.Has("limit") {
+		limit, err := strconv.Atoi(values.Get("limit"))
+		if err != nil || limit < 1 || limit > 100 {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": library.ErrInvalidRecoveryQuery.Error()})
+			return
+		}
+		query.Limit = limit
+	}
+	if values.Has("unfinishedOnly") {
+		if values.Get("unfinishedOnly") != "true" && values.Get("unfinishedOnly") != "false" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "unfinishedOnly must be true or false"})
+			return
+		}
+		query.UnfinishedOnly = values.Get("unfinishedOnly") == "true"
+	}
+	if err := query.Validate(); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	report, err := service.ImportRecoveryPage(r.Context(), query)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return

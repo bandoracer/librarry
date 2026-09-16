@@ -650,23 +650,3 @@ func (s *Service) ResolveCalibreHandoff(ctx context.Context, id string, r Calibr
 		return ImportOutcome{Skipped: true, ImportMode: "calibre", Message: "Recovery decision saved; retry the handoff to continue"}, nil
 	})
 }
-func (s *Store) listCalibreHandoffs(ctx context.Context, limit int) ([]CalibreHandoff, int, error) {
-	items := []CalibreHandoff{}
-	var count int
-	if err := s.db.QueryRowContext(ctx, `select count(*) from calibre_handoffs where phase<>'committed'`).Scan(&count); err != nil {
-		return items, count, err
-	}
-	rows, err := s.db.QueryContext(ctx, `select `+handoffColumns+` from calibre_handoffs order by (phase<>'committed') desc,updated_at desc,id limit $1`, limit)
-	if err != nil {
-		return items, count, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		h, e := scanCalibreHandoff(rows)
-		if e != nil {
-			return items, count, e
-		}
-		items = append(items, h.CalibreHandoff)
-	}
-	return items, count, rows.Err()
-}

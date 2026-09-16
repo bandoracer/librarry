@@ -13,29 +13,30 @@ import (
 var ErrImportBusy = errors.New("this import is already being processed")
 
 type ImportOperation struct {
-	SourceKind              string                `json:"sourceKind"`
-	RequestKey              string                `json:"-"`
-	ID                      string                `json:"id"`
-	DownloadRecordID        string                `json:"downloadRecordId"`
-	Client                  string                `json:"client"`
-	DownloadID              string                `json:"downloadId"`
-	WantedID                string                `json:"wantedId"`
-	SourceRoot              string                `json:"sourceRoot"`
-	DestinationRoot         string                `json:"destinationRoot"`
-	Format                  string                `json:"format"`
-	Mode                    string                `json:"mode"`
-	State                   string                `json:"state"`
-	CleanupState            string                `json:"cleanupState"`
-	LastError               string                `json:"lastError,omitempty"`
-	ReplacementCleanupState string                `json:"replacementCleanupState"`
-	ReplacementCleanupError string                `json:"replacementCleanupError,omitempty"`
-	CleanupError            string                `json:"cleanupError,omitempty"`
-	Attempts                int                   `json:"attempts"`
-	Metadata                map[string]any        `json:"metadata"`
-	Files                   []ImportOperationFile `json:"files"`
-	CreatedAt               time.Time             `json:"createdAt"`
-	UpdatedAt               time.Time             `json:"updatedAt"`
-	LeaseToken              string                `json:"-"`
+	Recovery                *ImportRecoveryObservation `json:"recovery,omitempty"`
+	SourceKind              string                     `json:"sourceKind"`
+	RequestKey              string                     `json:"-"`
+	ID                      string                     `json:"id"`
+	DownloadRecordID        string                     `json:"downloadRecordId"`
+	Client                  string                     `json:"client"`
+	DownloadID              string                     `json:"downloadId"`
+	WantedID                string                     `json:"wantedId"`
+	SourceRoot              string                     `json:"sourceRoot"`
+	DestinationRoot         string                     `json:"destinationRoot"`
+	Format                  string                     `json:"format"`
+	Mode                    string                     `json:"mode"`
+	State                   string                     `json:"state"`
+	CleanupState            string                     `json:"cleanupState"`
+	LastError               string                     `json:"lastError,omitempty"`
+	ReplacementCleanupState string                     `json:"replacementCleanupState"`
+	ReplacementCleanupError string                     `json:"replacementCleanupError,omitempty"`
+	CleanupError            string                     `json:"cleanupError,omitempty"`
+	Attempts                int                        `json:"attempts"`
+	Metadata                map[string]any             `json:"metadata"`
+	Files                   []ImportOperationFile      `json:"files"`
+	CreatedAt               time.Time                  `json:"createdAt"`
+	UpdatedAt               time.Time                  `json:"updatedAt"`
+	LeaseToken              string                     `json:"-"`
 }
 
 type ImportOperationFile struct {
@@ -73,10 +74,19 @@ func (s *Store) operationForDownload(ctx context.Context, client, externalID str
 	return s.getOperation(ctx, id)
 }
 
+type operationReader interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
 func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, error) {
+	return readOperation(ctx, s.db, id)
+}
+
+func readOperation(ctx context.Context, db operationReader, id string) (ImportOperation, error) {
 	var op ImportOperation
 	var raw []byte
-	err := s.db.QueryRowContext(ctx, `select io.id::text,coalesce(io.download_record_id::text,''),coalesce(d.client,''),coalesce(d.external_id,''),coalesce(io.wanted_item_id::text,''),
+	err := db.QueryRowContext(ctx, `select io.id::text,coalesce(io.download_record_id::text,''),coalesce(d.client,''),coalesce(d.external_id,''),coalesce(io.wanted_item_id::text,''),
       io.source_root,io.destination_root,io.media_format,io.import_mode,io.state,io.cleanup_state,io.last_error,io.cleanup_error,
       io.attempts,io.metadata,io.created_at,io.updated_at,io.source_kind,io.request_key,io.replacement_cleanup_state,io.replacement_cleanup_error
       from import_operations io left join downloads d on d.id=io.download_record_id where io.id=$1`, id).Scan(
@@ -87,7 +97,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	if err = json.Unmarshal(raw, &op.Metadata); err != nil {
 		return op, err
 	}
-	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,''),stage_path,coalesce(stage_lease_token::text,''),previous_path,previous_sha256,previous_size_bytes,source_removed,coalesce(rename_origin_file_id::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
+	rows, err := db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,''),stage_path,coalesce(stage_lease_token::text,''),previous_path,previous_sha256,previous_size_bytes,source_removed,coalesce(rename_origin_file_id::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
 	if err != nil {
 		return op, err
 	}

@@ -2241,3 +2241,51 @@ Candidate images are `librarry-api:integration-health` and
 Schema remains 51. No production changes, real grabs or live-client certification
 occurred. Full S23 acceptance still includes live mount identity, stuck-import
 classification and end-to-end freshness/recovery qualification.
+
+## Import recovery paging and recorded ownership evidence (S14/S15/S23 continuation)
+
+The recovery screen's three silent 100-row limits are replaced by independent
+cursor pages for native operations, Calibre handoffs and unresolved legacy links.
+Each reports exact matching totals. The optional unfinished filter retains failed
+or in-flight transfers and committed manual/replacement cleanup. Creation time,
+UUID and issue kind keep ordering stable when progress changes. Invalid limits,
+malformed cursors and collection/filter mismatches return 400. One response's
+counts, manifests and observations share a read-only repeatable-read snapshot;
+consecutive pages remain a live collection, with new records on the first page.
+Migration 0052 adds full/partial indexes without rewriting earlier migrations.
+
+Native operations expose database observation time, the greatest recorded
+operation/file update time, verified/committed manifest-file count and transfer/cleanup
+lease evidence. Held leases disable the corresponding retry in the UI. Expired leases do
+not assert that the owner is dead; large-file silence does not assert failure.
+For committed work with pending local cleanup, the lease purpose changes to cleanup; the UI also disables cleanup retry while it is held.
+Collapsed committed operations with unfinished cleanup show a warning badge. The existing server retry checks remain authoritative. Recovery reads perform no
+filesystem probes, client requests or mutations. The unused capped Calibre-list
+helper was removed; operation reads can share the recovery transaction.
+
+Verification:
+
+- PostgreSQL fixture traverses 10,001 native operations (two manifest files each),
+  10,001 Calibre handoffs and 10,002 unresolved links in 101 pages with exact totals
+  and no duplicates/gaps. Tied timestamps, changed progress, a deleted cursor
+  anchor, newer insertions, unfinished filtering and invalid cursor/filter inputs
+  are covered. Final race-enabled run measured combined page p95 169.5ms on the
+  local ARM64/Postgres fixture; this is not a NAS/network latency guarantee.
+- Full ordinary and race suites pass; final targeted recovery/manual-move/
+  replacement/API race tests include cleanup-purpose observations (library 31.973s,
+  API 3.279s). The final full ordinary suite also passes.
+- All 109 desktop/mobile browser tests pass, with one expected skip. Coverage
+  includes independent navigation, previous pages, resetting filters, transfer
+  and cleanup lease controls, pending-cleanup badge recovery and retained Calibre
+  inspection safeguards. Mobile screenshots were visually inspected.
+- All 14 web unit tests, production build, Go vet, deployment contracts and
+  whitespace checks pass. Final API container tests exercise cursor paging, exact
+  totals, recorded progress, unfinished filtering and process restart alongside
+  existing acquisition/import/authentication coverage. Isolated schema-52 restore
+  passes with a 463,585-byte dump and preserved file/download/book associations.
+
+Candidate images are `librarry-api:import-recovery` and
+`librarry-web:import-recovery`, with API marker `working-tree-import-recovery`.
+This continuation adds visibility, not automatic stall diagnosis, live NAS
+certification or release. The preceding PR #43 is now green in GitHub CI run
+35128368737.

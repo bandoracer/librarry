@@ -121,3 +121,5 @@
 .imports-repair-evidence { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .4rem 1rem; }
 .imports-repair-evidence dt { color: var(--text-muted); }
 .imports-repair-evidence dd { margin: 0; overflow-wrap: anywhere; }
+
+.imports-recovery-paging { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 1rem 0; }

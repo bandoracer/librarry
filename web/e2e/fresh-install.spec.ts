@@ -123,12 +123,14 @@ test("manual recovery distinguishes committed files from pending cleanup", async
     return route.fulfill({ json: { imported: true, skipped: true, operationId: id } });
   });
   await page.goto("/imports");
+  await expect(page.getByText("cleanup pending", { exact: true })).toBeVisible();
   await page.getByText("Manual replacement", { exact: true }).click();
   await expect(page.getByText("No book assigned", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "View book", exact: true })).toHaveCount(0);
   await expect(page.getByText("Previous file recovery path:", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Retry cleanup", exact: true }).click();
   await expect(page.getByText("Cleanup: complete; source retained", { exact: false })).toBeVisible();
+  await expect(page.getByText("cleanup pending", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry cleanup", exact: true })).toHaveCount(0);
   await expect(page.getByText("Previous file recovery path:", { exact: false })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);

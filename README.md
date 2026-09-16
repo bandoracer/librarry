@@ -1050,3 +1050,10 @@ Please do not add scraping for Goodreads, Amazon, or Audible to core.
 
 Librarry is licensed under the
 [GNU Affero General Public License v3.0](LICENSE).
+
+
+On the stabilization branch, import recovery includes independent pages for native
+imports, Calibre handoffs and unresolved legacy links, an unfinished-work filter,
+and recorded lease/file-verification evidence. A lease does not measure
+transfer progress or prove that an expired worker has stopped. These additions
+remain unreleased; see [current status](docs/status.md) for qualification limits.

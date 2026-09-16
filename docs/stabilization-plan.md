@@ -317,8 +317,11 @@ readiness probe are implemented with local fixture qualification. The full live
 freshness/readiness acceptance matrix, mount identity and import-stall
 classification remain open. Client checks now have process-local timestamped
 evidence, numeric version observations, strict response validation and bounded
-coalescing/backoff; passive reads do not initiate checks. Live qualification remains
-separate.
+coalescing/backoff; passive reads do not initiate checks. Migration 0052 and the
+recovery UI remove the three 100-row dead ends with independent cursor pages and
+exact totals. Native recovery exposes recorded activity/file verification and
+transfer/cleanup lease evidence without inferring failure or byte progress. Automatic
+stall classification and live qualification remain open.
 
 **Scope:** reliable task history with operation IDs, counts, durations, failures, last success, and next action. Persist enough history for restart diagnosis without unbounded per-minute growth. Add retention for routine history while preserving unresolved failures and important import/acquisition evidence.
 

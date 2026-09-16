@@ -3150,6 +3150,7 @@ export async function deleteMetadataProfile(id: string): Promise<void> {
 }
 
 export type ImportOperation = {
+  recovery?: { observedAt: string; recordedAt: string; leasePurpose?: "transfer" | "cleanup" | "none"; leaseState: "held" | "expired" | "none" | "not_applicable"; leaseExpiresAt?: string; verifiedFiles: number; totalFiles: number };
   sourceKind?: "completed" | "manual";
   mode?: string;
   id: string;
@@ -3171,7 +3172,12 @@ export type CalibreHandoff = {
   phase: string; bookId?: number; lastError?: string; attempts: number;
   conversions: { format: string; state: string; jobId?: number }[];
 };
+export type RecoveryPage = { total: number; nextCursor?: string };
+export type ImportRecoveryQuery = { unfinishedOnly?: boolean; operationsCursor?: string; calibreCursor?: string; issuesCursor?: string };
 export type ImportRecoveryReport = {
+  operationsPage?: RecoveryPage;
+  calibrePage?: RecoveryPage;
+  issuesPage?: RecoveryPage;
   calibreHandoffs: CalibreHandoff[];
   calibreUnfinished: number;
   operations: ImportOperation[];
@@ -3180,8 +3186,10 @@ export type ImportRecoveryReport = {
   unresolved: number;
   limit: number;
 };
-export async function fetchImportRecovery(): Promise<ImportRecoveryReport> {
-  const response = await fetch(`${apiBase}/api/v1/library/import-recovery`);
+export async function fetchImportRecovery(query: ImportRecoveryQuery = {}): Promise<ImportRecoveryReport> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (value) params.set(key, String(value));
+  const response = await fetch(`${apiBase}/api/v1/library/import-recovery${params.size ? `?${params}` : ""}`);
   if (!response.ok) throw new Error(await apiError(response, "Import recovery could not be loaded"));
   const payload = await response.json() as ImportRecoveryReport;
   return { ...payload, calibreHandoffs: arrayPayload(payload.calibreHandoffs), calibreUnfinished: payload.calibreUnfinished || 0, operations: arrayPayload(payload.operations), issues: arrayPayload(payload.issues) };

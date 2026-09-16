@@ -203,6 +203,10 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert failed["errored"] == 1 and failed["imported"] == 0, failed
         pending = request("/api/v1/library/import-recovery")
         assert pending["unfinished"] == 1 and pending["operations"][0]["state"] == "failed", pending
+        observed = pending["operations"][0]["recovery"]
+        assert observed["leaseState"] == "none" and observed["verifiedFiles"] == observed["totalFiles"] == 1, observed
+        assert observed["recordedAt"] and observed["observedAt"], observed
+        assert pending["operationsPage"]["total"] == 1 and not pending["operationsPage"].get("nextCursor"), pending
         assert request("/api/v1/library/files")["files"] == []
         assert request("/api/v1/library/scan", {"format": "ebook"})["upserted"] == 0
         planned_destination = pending["operations"][0]["files"][0]["destinationPath"]
@@ -231,6 +235,9 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert recovery["unfinished"] == 0 and len(recovery["operations"]) == 1, recovery
         assert recovery["operations"][0]["id"] == operation_id
         assert recovery["operations"][0]["state"] == "committed"
+        assert recovery["operations"][0]["recovery"]["leaseState"] == "not_applicable"
+        filtered = request("/api/v1/library/import-recovery?unfinishedOnly=true&limit=1")
+        assert filtered["operations"] == [] and filtered["operationsPage"]["total"] == 0, filtered
         assert not local_stage.exists() and unrelated_stage.read_bytes() == b"retain unowned bytes"
         assert "stagePath" not in recovery["operations"][0]["files"][0]
         assert recovery["operations"][0]["cleanupState"] == "blocked"
@@ -299,6 +306,13 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         manual_report = request("/api/v1/library/import-recovery")
         manual_operation = next(operation for operation in manual_report["operations"] if operation.get("sourceKind") == "manual")
         assert manual_operation["state"] == "failed" and manual_source.exists()
+        first_recovery = request("/api/v1/library/import-recovery?limit=1")
+        cursor = first_recovery["operationsPage"]["nextCursor"]
+        second_recovery = request("/api/v1/library/import-recovery?limit=1&operationsCursor=" + cursor)
+        assert len(second_recovery["operations"]) == 1
+        assert second_recovery["operations"][0]["id"] != first_recovery["operations"][0]["id"]
+        assert first_recovery["operationsPage"]["total"] == second_recovery["operationsPage"]["total"]
+        print("Packaged recovery: independent cursor page, exact totals, recorded progress/lease and unfinished filter survive restart")
         assert len(request("/api/v1/library/files")["files"]) == len(before_manual)
         sql("alter table import_operations drop constraint inject_manual_commit_failure")
         docker("restart", API)
