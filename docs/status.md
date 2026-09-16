@@ -38,7 +38,8 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [direct author detail PR #22](https://github.com/bandoracer/librarry/pull/22),
 [book presence PR #23](https://github.com/bandoracer/librarry/pull/23),
 [worker fairness PR #24](https://github.com/bandoracer/librarry/pull/24), and the
-`codex/explicit-upgrade-selection` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[explicit upgrade selection PR #25](https://github.com/bandoracer/librarry/pull/25)
+and the `codex/collection-file-projection` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -538,3 +539,10 @@ fall through to a default queue action. A 200-selected-plus-one-unselected
 database regression and a 75-row desktop/mobile fixture exercise the boundary.
 This is source/fixture qualification; global collection caps, durable bulk jobs
 and live qualification remain open.
+
+Native recorded file evidence now uses the shared schema-43 SQL projection. It
+preserves incomplete-audiobook, alternate-import and pending-publication behavior
+while enabling filtering/counting before collection pagination. A 10,001-ebook
+fixture verifies complete counts and stable filtered traversal. The global
+collection endpoint/UI still have their existing limits; this projection is an
+implementation prerequisite, not a completed large-library workflow.

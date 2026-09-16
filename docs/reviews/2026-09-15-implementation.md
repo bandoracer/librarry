@@ -1132,3 +1132,32 @@ The local ARM64 API/web images also passed packaged restart, scan, evidence,
 recovery and authentication qualification at schema 42. A 408,967-byte database
 backup restored with book/file/download/receipt evidence intact. This is isolated
 fixture qualification, with no production deployment, publication or real grab.
+
+
+## Continuation: shared collection file projection (S14/S15)
+
+Branch: `codex/collection-file-projection`, based on explicit selection PR #25.
+Migration 0043 moves the existing file-evidence contract into a shared, stable SQL
+function. Native per-book, detail and worker reads now use that function. SQL
+collection readers can apply the same evidence before filtering/counting/paging,
+without a second implementation of audiobook completeness. NULL is an explicit
+whole-collection scope; empty arrays remain empty. No stored file, link or
+manifest data is rewritten. This does not yet expose global paginated browsing.
+
+Focused qualification passed the existing file-evidence cases and a populated
+schema-42 upgrade retaining a partial audiobook's manifest/file identities. A
+10,001-ebook fixture reports 3,333 present, 3,334 missing and 3,334 unknown entries
+and traverses all present entries in stable UUID pages without duplicates/gaps.
+The initial scale fixture used undashed IDs in legacy JSON and therefore did not
+create relational links; correcting the fixture to use canonical UUIDs fixed that
+setup error without changing migration 0043. Database-only page p95 was 46.028 ms
+on Apple M5 Max/ARM64, Colima Postgres 16.15. This is not full API or provider
+latency, nor broad mixed-media performance certification. Global derived-state
+filters/counts/sorting, native collection routes and UI adoption remain next.
+
+Final local projection qualification: full Go race/Postgres suite and vet passed.
+All 53 applicable browser cases passed against the new backend (one expected
+mobile skip). The local ARM64 API with the unchanged current web image passed
+packaged scan, presence, recovery, restart, authentication and restore checks at
+schema 43; a 413,352-byte backup restored with file/book/download/receipt evidence
+intact. No production rollout, real grab, image publication or release occurred.

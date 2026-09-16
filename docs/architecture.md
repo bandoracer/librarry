@@ -1186,3 +1186,20 @@ snapshot validates membership before the run; owner settings are re-read during
 processing. An empty selection retains the queue batch contract (50 by default,
 200 maximum). This endpoint is synchronous and does not provide durable resume
 or an all-matching collection job. Global paging and bulk jobs remain S15 work.
+
+
+### Shared recorded file evidence
+
+Migration 0043 introduces `librarry_book_file_evidence(uuid[])`, the shared SQL
+projection behind native per-book file evidence. A nonempty UUID array limits the
+scope, an empty array returns no records, and an explicit SQL NULL evaluates the
+recorded collection. Links, current file observations, pending publication and
+committed required-media manifests are evaluated in one statement snapshot.
+The existing ebook/audio evidence ranking and explanatory reasons are retained;
+complete alternate imports outrank older incomplete manifests. This is recorded
+evidence, not a live filesystem probe.
+
+The projection can be joined before collection filters, counts and pagination.
+Those native collection endpoints and UI consumers are still being built; this
+migration alone does not remove their existing limits. Quality cutoffs and live
+download evidence remain separate inputs to derived book state.
