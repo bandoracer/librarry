@@ -1373,3 +1373,36 @@ No new schema migration is needed. The old `/api/v1/library/files` and compatibl
 readers retain their existing bounded contracts; native browsing and rename
 preview now use the complete collection. Calibre refresh batching, broader
 compatibility and durable all-matching jobs remain open.
+
+
+### Durable standalone file renames
+
+Native rename apply and compatible rename commands reuse manual import operations
+with `metadata.renameFileId`, one verified media file, and move-after-commit
+cleanup. Migration 0044 permits one unfinished rename per file identity. Source
+and destination reservations prevent another import or scan from claiming the old
+source while cleanup is pending. The visibility transaction updates the existing
+file's location and byte evidence and inserts `file_renamed` history. It does not
+rewrite file metadata, replay legacy JSON associations, or update wanted rows.
+The rename manifest deliberately has no wanted ID: it cannot manufacture a new
+complete-book manifest from one selected chapter.
+
+Preview includes `revision` and, for recovery, `operationId`. Apply accepts an
+optional `revisions` map keyed by every selected file ID; the native UI always
+sends it. Changed paths, metadata, destination collisions or naming output require
+refresh before mutation. Legacy callers may omit revisions. A saved operation
+retains its original destination across settings changes. JSON request decoding
+rejects unknown fields, multiple values, empty selections and oversized bodies.
+Existing destination bytes are never overwritten, including legacy overwrite
+requests.
+
+Original import manifests remain immutable. Receipt replay and completed-download
+cleanup resolve their destination through later committed rename records for the
+same file ID, hash and size, then check the current file row and actual bytes.
+Unjournaled path edits or changed associations cannot authorize download deletion.
+Ordinary download identity, inventory and seeding gates still apply.
+
+Known multipart/companion layouts are retained by the per-file rename action.
+It detects persisted sets and linked audio chapters, chapter/disc naming and
+nearby companion/audio files. This is a conservative guard, not complete-set
+renaming: moving a book directory and updating sidecar references remain S09 work.

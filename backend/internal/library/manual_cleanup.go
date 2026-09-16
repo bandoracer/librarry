@@ -106,7 +106,7 @@ func (s *Service) finishOperationCleanup(ctx context.Context, op ImportOperation
 	}
 	result, err := s.store.db.ExecContext(ctx, `with moved as (
  update files f set metadata=f.metadata||'{"move":true,"importMode":"move"}'::jsonb from import_operation_files m,import_operations o
- where m.operation_id=o.id and m.file_id=f.id and m.source_removed and o.id=$1 and o.lease_token=$2 and o.lease_expires_at>now() and f.metadata->>'importOperationId'=o.id::text
+ where m.operation_id=o.id and m.file_id=f.id and m.source_removed and o.id=$1 and o.lease_token=$2 and o.lease_expires_at>now() and not(o.metadata ? 'renameFileId') and f.metadata->>'importOperationId'=o.id::text
  ) update import_operations set cleanup_state=case when source_kind='manual' then 'cleaned' else cleanup_state end,cleanup_error=case when source_kind='manual' then '' else cleanup_error end,replacement_cleanup_state=case when replacement_cleanup_state='pending' then 'cleaned' else replacement_cleanup_state end,replacement_cleanup_error='',lease_token=null,lease_expires_at=null,updated_at=now() where id=$1 and lease_token=$2 and lease_expires_at>now()`, op.ID, op.LeaseToken)
 	if err != nil {
 		return outcome, err
@@ -120,7 +120,7 @@ func (s *Service) finishOperationCleanup(ctx context.Context, op ImportOperation
 	}
 	outcome.Moved = manualOperationMoved(op)
 	// Reflect the committed cleanup in this response as well as future reads.
-	if op.Mode == "move" {
+	if op.Mode == "move" && !op.isRename() {
 		for _, file := range op.Files {
 			if file.SourcePath == file.DestinationPath {
 				continue
@@ -148,6 +148,23 @@ func (s *Service) cleanupManualFiles(ctx context.Context, op ImportOperation) er
 	}
 	for _, file := range op.Files {
 		if err := s.store.withOperationFence(ctx, op, func(tx *sql.Tx) error {
+			if op.isRename() {
+				if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,1))`, file.SourcePath); err != nil {
+					return err
+				}
+				var path, hash string
+				var size int64
+				if err := tx.QueryRowContext(ctx, `select path,coalesce(checksum,''),coalesce(size_bytes,0) from files where id=$1 for update`, metadataString(op.Metadata, "renameFileId")).Scan(&path, &hash, &size); err != nil {
+					return err
+				}
+				var sourceOwned bool
+				if err := tx.QueryRowContext(ctx, `select exists(select 1 from files where path=$1)`, file.SourcePath).Scan(&sourceOwned); err != nil {
+					return err
+				}
+				if path != file.DestinationPath || hash != file.SHA256 || size != file.SizeBytes || sourceOwned {
+					return errors.New("renamed file ownership changed; retain the source for review")
+				}
+			}
 			if err := verifyManifestPath(file.DestinationPath, file); err != nil {
 				return err
 			}

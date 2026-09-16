@@ -113,6 +113,11 @@ System now offers explicit provider connection checks and shows the last real
 request and successful request. A configured token alone does not imply verified
 access, and provider outages retain their prior success history.
 
+Standalone native file renames retain the original until the new path is verified
+and committed, with interrupted work recoverable in Imports. File identity and
+book links survive. Chapter sets and companion layouts are retained with an
+explanation; complete-set renaming is still unfinished.
+
 ## Documentation
 
 - [Stabilization plan](docs/stabilization-plan.md): phased execution and release gates.

@@ -2358,12 +2358,16 @@ export async function deleteRemotePathMapping(id: string): Promise<void> {
  */
 
 export type LibraryRenameRequest = {
+  revisions?: Record<string, string>;
   ids?: string[];
   paths?: string[];
   overwrite?: boolean;
 };
 
 export type LibraryRenamePreviewItem = {
+  revision?: string;
+  operationId?: string;
+  reason?: string;
   file: LibraryFile;
   sourcePath: string;
   destinationPath: string;
@@ -2373,6 +2377,7 @@ export type LibraryRenamePreviewItem = {
 };
 
 export type LibraryRenameResult = {
+  operationId?: string;
   preview: LibraryRenamePreviewItem;
   file?: LibraryFile;
   status: string;
@@ -3128,7 +3133,7 @@ export type ImportOperation = {
   lastError?: string;
   cleanupError?: string;
   attempts: number;
-  metadata: { title?: string; author?: string };
+  metadata: { title?: string; author?: string; renameFileId?: string };
   files: { id: string; previousPath?: string; previousSizeBytes?: number; previousSha256?: string; sourceRemoved?: boolean; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
 };
 export type ImportRecoveryReport = {

@@ -32,6 +32,12 @@ func (s *Service) verifyOperationCleanup(ctx context.Context, op ImportOperation
 		return errors.New("import manifest is empty")
 	}
 	for _, f := range op.Files {
+		destination, err := s.currentManifestDestination(ctx, op, f)
+		if err != nil {
+			return err
+		}
+		f.DestinationPath = destination
+
 		if pathWithinRoot(f.DestinationPath, op.SourceRoot) {
 			return errors.New("destination is inside the download deletion tree")
 		}

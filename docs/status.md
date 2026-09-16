@@ -43,8 +43,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [book paging PR #27](https://github.com/bandoracer/librarry/pull/27),
 [author paging PR #28](https://github.com/bandoracer/librarry/pull/28),
 [metadata review PR #29](https://github.com/bandoracer/librarry/pull/29),
-[author review PR #30](https://github.com/bandoracer/librarry/pull/30), and
-the `codex/paged-library-files` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[author review PR #30](https://github.com/bandoracer/librarry/pull/30),
+[file paging PR #31](https://github.com/bandoracer/librarry/pull/31), and
+the `codex/durable-file-renames` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -578,3 +579,19 @@ page; it remains accessible even when no tracked books are listed. A fixture wit
 gaps, and a 1,500-chapter book is fully reachable. This is local fixture
 qualification; legacy/compatible list endpoints and Calibre batch processing
 retain separate scaling work. Durable collection-wide jobs remain unfinished.
+
+
+Standalone native file renames now use durable import staging and cleanup. A
+failed database commit retains the original, and a restart resumes the saved
+target. File IDs, source provenance, owner metadata and relational links survive;
+renames do not change wanted status or monitoring. Imports identifies saved
+renames and offers retry. Original import receipts follow verified rename history
+when checking their current destination, so a rename does not strand cleanup.
+Migration 0044 reserves each active file rename and its old path until cleanup.
+
+The file-by-file action retains known chapter sets and companion files with an
+explicit explanation. It does not yet provide complete-set renaming or rewrite
+CUE/playlist references. Calibre still owns its own paths. Full chapter-set rename,
+whole-book replacement/retirement, Calibre recovery, broader disk faults and live
+NAS qualification remain open under S09. These are unreleased source/fixture
+changes, not a production rollout.

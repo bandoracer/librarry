@@ -1470,3 +1470,77 @@ rename journal. Chapter rename destinations also use the general book template
 and need file-set qualification. Next work should reproduce interrupted rename,
 then provide durable recovery and preserve chapter/disc layout and associations;
 current paging qualification does not certify those mutation guarantees.
+
+## Durable standalone file renames (2026-09-16)
+
+Continued S09 on `codex/durable-file-renames`, stacked on file paging PR #31.
+The original implementation removed the source before persisting the new path.
+A controlled `files` update failure reproduced the resulting missing original
+and stale record. Renames now reuse the import staging/lease/cleanup machinery,
+with migration 0044 reserving each active file identity and source path.
+
+The visibility transaction changes the existing row's location and verified byte
+evidence and inserts one history event. File IDs, names/notes, source/import
+provenance, relational book/download links, monitoring and wanted lifecycle remain
+intact. Sources stay until commit, then lease-fenced cleanup removes the old name.
+Scans skip both sides of an unfinished rename; old sources remain reserved until
+cleanup completes. New imports/direct writers cannot claim those reserved names.
+Naming changes cannot redirect a saved recovery plan. Repeated A → B → A → B
+renames get distinct operation identities without duplicating a retry.
+
+Original immutable import receipts resolve their current destination only through
+committed rename history for the same file ID, hash and size. Replay and download
+cleanup still verify bytes, associations, source separation and client inventory.
+An arbitrary path edit cannot pass as a verified relocation. A rename has no wanted
+manifest assignment, so one selected chapter cannot manufacture complete-book
+import evidence. Pending original import/replacement cleanup must finish first.
+
+Native previews now carry revisions. Apply sends every selected revision and
+rejects changed evidence; malformed/unknown/oversized JSON and multiple request
+values are rejected. Legacy callers can still omit revision maps. Existing bytes
+are never overwritten. Templates cannot change the file extension. Imports labels
+saved renames and offers retry; preview failures and reasons for retained files
+are visible. Known chapter/disc, linked audio and companion layouts are retained
+by this per-file action. **Complete-set renaming and CUE/playlist reference
+handling remain unfinished**, rather than flattening or splitting those layouts.
+
+The prior file-paging PR's CI caught a loading race: replacing the empty-library
+Rename toolbar with the populated toolbar could drop a click. Commit `f194cf8`
+keeps the trigger mounted. A controlled delayed book response checks DOM identity,
+focus trapping and focus restoration in six desktop/mobile runs. PR #31 was
+updated with that fix; the first failing run was not rerun unchanged.
+
+Database qualification covers failed path/history commits, cleanup failure after
+commit, restart, scan suppression before/after commit, corrected relational links
+alongside stale JSON, concurrent owner corrections and retries, changed bytes,
+extension changes, collisions, repeated rename history, receipt replay and unsafe
+path-edit rejection. Chapter/disc/companion fixtures retain their original paths.
+The full Go/Postgres race suite and normal suite passed, as did vet, 14 web units
+and the production build. The existing browser suite passed 77 cases with one
+expected skip; four added desktop/mobile cases passed for retained layouts,
+preview errors and saved-rename recovery. Final focused race reruns qualified
+source reservation and indexed identity queries after review.
+
+Local ARM64 images `librarry-api:durable-renames` and
+`librarry-web:durable-renames` pass schema-44 packaged restart qualification:
+a controlled rename commit failure retains the old path, a scan skips both names,
+and API restart/retry preserves file identity and original import provenance.
+Original import replay returns the verified new path. The same packaged suite
+covers the earlier import, scan, acquisition, collection, authentication and
+isolated restore contracts. Final rebuilt-image results are recorded below.
+
+This is unreleased source and isolated-fixture qualification. No image publication,
+tag, release, production deployment, real acquisition or live NAS restore occurred.
+S09 and the full stabilization goal remain active: complete-set renames, changed
+chapter-layout retirement, Calibre handoff recovery, broader disk-fault coverage
+and live qualification are still required.
+
+PR #31 CI run `35098515531` passed verification, packaged qualification and both
+API/web builds on `f194cf87391c17fd028dfe2cb95f62c9ca5cac13`.
+
+Final local qualification passed after the source-reservation and extension
+checks: `go test ./...`, focused rename/import race tests, vet and diff checks.
+The rebuilt schema-44 API/web pair passed the full packaged suite and restored a
+417,058-byte backup with file/book/download counts and prior receipts preserved,
+superseding the earlier 416,899- and 417,103-byte runs. Source and destination
+scan suppression during a failed rename is included in this final package test.

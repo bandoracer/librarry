@@ -258,7 +258,7 @@ func (s *Service) observeScanEntry(ctx context.Context, job ScanJob, entry scanE
 			return err
 		}
 		var pending bool
-		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and o.state<>'committed')`, entry.Path).Scan(&pending); err != nil {
+		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where (f.destination_path=$1 and o.state<>'committed') or (f.source_path=$1 and o.source_kind='manual' and o.metadata ? 'renameFileId' and (o.state<>'committed' or o.cleanup_state<>'cleaned')))`, entry.Path).Scan(&pending); err != nil {
 			return err
 		}
 		if pending {

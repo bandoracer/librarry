@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderPen } from "lucide-react";
-import { Badge, Button, DataTable, EmptyState, LoadingRow, Modal, Segmented } from "../../components/ui";
+import { Badge, Button, DataTable, EmptyState, InlineNotice, LoadingRow, Modal, Segmented } from "../../components/ui";
 import { useToast } from "../../components/toast";
 import {
   fetchFileCollection,
   previewLibraryRename,
   renameLibraryFiles,
+  type LibraryRenameRequest,
   type LibraryRenameOutcome
 } from "../../lib/api";
 import { useInvalidatingMutation } from "../../lib/queries";
@@ -73,7 +74,7 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
 
   // Prefix key: invalidates every per-format library-files query (same
   // pattern DownloadClientsTab uses for ["downloads"]).
-  const apply = useInvalidatingMutation((ids: string[]) => renameLibraryFiles({ ids }), [["library-files"]]);
+  const apply = useInvalidatingMutation((request: LibraryRenameRequest) => renameLibraryFiles(request), [["library-files"], ["import-recovery"], ["wanted"]]);
 
   const selectedIDs = useMemo(() => changed.map((item) => item.file.id).filter((id) => selected.has(id)), [changed, selected]);
   const allChangedSelected = changed.length > 0 && selectedIDs.length === changed.length;
@@ -97,7 +98,10 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
   async function execute() {
     if (!selectedIDs.length) return;
     try {
-      const outcome = await apply.mutateAsync(selectedIDs);
+      const selectedPreviews = changed.filter(item => selected.has(item.file.id));
+      if (selectedPreviews.some(item => !item.revision)) throw new Error("Preview is out of date. Refresh before applying.");
+      const revisions = Object.fromEntries(selectedPreviews.map(item => [item.file.id, item.revision!]));
+      const outcome = await apply.mutateAsync({ ids: selectedIDs, revisions });
       const parts = [`${outcome.renamed} renamed`];
       if (outcome.skipped) parts.push(`${outcome.skipped} skipped`);
       if (outcome.errored) parts.push(`${outcome.errored} failed`);
@@ -152,6 +156,7 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
         <Button disabled={preview.isFetching || apply.isPending} onClick={() => void preview.refetch()}>Refresh preview</Button>
       </div>
       <p className="field-hint">Selection and Apply cover only the files shown on this page.</p>
+      {preview.data?.results.filter(result => result.status === "error").map(result => <InlineNotice key={result.preview.file.id || result.preview.sourcePath} tone="warn">{result.preview.sourcePath}: {result.message}</InlineNotice>)}
       {preview.isError ? <QueryErrorNotice error={preview.error} fallback="Rename preview failed" /> : null}
       {preview.isError ? <Button onClick={() => void preview.refetch()}>Retry preview</Button> : preview.isLoading ? (
         <LoadingRow label="Building rename preview…" />
@@ -191,12 +196,13 @@ export function RenameFilesModal(props: { open: boolean; onClose: () => void }) 
                 </td>
                 <td>
                   {item.noop ? (
-                    <Badge>Unchanged</Badge>
+                    <><Badge>{item.reason ? "Retained" : "Unchanged"}</Badge>{item.reason ? <p className="field-hint">{item.reason}</p> : null}</>
                   ) : (
                     <div className="settings-rename-dest">
                       <code className="settings-rename-path" title={item.destinationPath}>
                         {item.destinationPath}
                       </code>
+                      {item.operationId ? <Badge tone="warn">Resume saved rename</Badge> : null}
                       {item.exists ? (
                         <Badge tone="warn" title="A file already exists at the destination; this rename will be skipped.">
                           Exists

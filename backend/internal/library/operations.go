@@ -114,6 +114,18 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 	if op.SourceKind == "" {
 		op.SourceKind = "completed"
 	}
+	if op.isRename() {
+		existing, e := reserveRenameFile(ctx, tx, op)
+		if e != nil {
+			return op, e
+		}
+		if existing != "" {
+			if e = tx.Commit(); e != nil {
+				return op, e
+			}
+			return s.getOperation(ctx, existing)
+		}
+	}
 	var downloadID sql.NullString
 	var existing string
 	if op.SourceKind == "manual" {
@@ -156,6 +168,9 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 	manifestByPath := map[string]ImportOperationFile{}
 	for _, f := range op.Files {
 		paths = append(paths, f.DestinationPath)
+		if op.isRename() {
+			paths = append(paths, f.SourcePath)
+		}
 		manifestByPath[f.DestinationPath] = f
 	}
 	sort.Strings(paths)
@@ -163,8 +178,11 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,1))`, path); err != nil {
 			return op, err
 		}
+		if op.isRename() && path == op.Files[0].SourcePath {
+			continue
+		}
 		var occupied bool
-		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and (o.state<>'committed' or not $2)) or (not $2 and exists(select 1 from files where path=$1))`, path, (op.SourceKind != "manual" && op.Metadata["conflictAction"] == "replace") || manifestByPath[path].PreviousPath != "" || (op.SourceKind == "manual" && manifestByPath[path].SourcePath == path)).Scan(&occupied); err != nil {
+		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and (o.state<>'committed' or not $2) and not($3<>'' and f.file_id=nullif($3,'')::uuid and o.state='committed' and (o.source_kind<>'manual' or o.cleanup_state='cleaned') and o.replacement_cleanup_state<>'pending')) or (not $2 and exists(select 1 from files where path=$1)) or exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.source_path=$1 and o.source_kind='manual' and o.metadata ? 'renameFileId' and (o.state<>'committed' or o.cleanup_state<>'cleaned'))`, path, (op.SourceKind != "manual" && op.Metadata["conflictAction"] == "replace") || manifestByPath[path].PreviousPath != "" || (op.SourceKind == "manual" && manifestByPath[path].SourcePath == path), metadataString(op.Metadata, "renameFileId")).Scan(&occupied); err != nil {
 			return op, err
 		}
 		if occupied {
@@ -189,8 +207,8 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 		return op, err
 	}
 	for _, f := range op.Files {
-		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,wanted_item_id,previous_path,previous_sha256,previous_size_bytes)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,nullif($10,'')::uuid,$11,$12,$13)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required, f.WantedID, f.PreviousPath, f.PreviousSHA256, f.PreviousSizeBytes); err != nil {
+		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,wanted_item_id,previous_path,previous_sha256,previous_size_bytes,file_id)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,nullif($10,'')::uuid,$11,$12,$13,nullif($14,'')::uuid)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required, f.WantedID, f.PreviousPath, f.PreviousSHA256, f.PreviousSizeBytes, f.FileID); err != nil {
 			return op, err
 		}
 	}
@@ -274,6 +292,16 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 	// continue seeing the unfinished operation until the whole transaction commits.
 	if _, err := tx.ExecContext(ctx, `update import_operations set state='committed' where id=$1`, op.ID); err != nil {
 		return nil, err
+	}
+	if op.isRename() {
+		stored, e := commitRenameFile(ctx, tx, op)
+		if e != nil {
+			return nil, e
+		}
+		if e = tx.Commit(); e != nil {
+			return nil, e
+		}
+		return stored, nil
 	}
 	stored := make([]FileRecord, 0, len(records))
 	for _, record := range records {

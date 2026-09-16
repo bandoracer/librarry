@@ -60,10 +60,11 @@ test("Rename preview reaches older files and applies only the selected page", as
  });
  await page.route("**/api/v1/library/files/rename/preview", route => {
   const ids = route.request().postDataJSON().ids; previews.push(ids);
-  return route.fulfill({ json: { requested: ids.length, renamed: 0, skipped: 0, errored: 0, results: [], previews: ids.map((id: string) => ({ file: file(id), sourcePath: file(id).path, destinationPath: `/renamed/${id}.mp3`, noop: false })) } });
+  return route.fulfill({ json: { requested: ids.length, renamed: 0, skipped: 0, errored: 0, results: [], previews: ids.map((id: string) => ({ revision: `revision-${id}`, file: file(id), sourcePath: file(id).path, destinationPath: `/renamed/${id}.mp3`, noop: false })) } });
  });
  await page.route("**/api/v1/library/files/rename", route => {
-  const ids = route.request().postDataJSON().ids; applied.push(ids);
+  const body = route.request().postDataJSON(); const ids = body.ids; applied.push(ids);
+  expect(body.revisions).toEqual(Object.fromEntries(ids.map((id: string) => [id, `revision-${id}`])));
   return route.fulfill({ json: { requested: ids.length, renamed: ids.length, skipped: 0, errored: 0, previews: [], results: [] } });
  });
  await page.goto("/library");
@@ -77,4 +78,35 @@ test("Rename preview reaches older files and applies only the selected page", as
  await expect.poll(() => applied).toEqual([["1501"]]);
  expect(previews).toContainEqual(["0001"]); expect(previews).toContainEqual(["1501"]);
  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("Rename explains retained chapter sets and preview failures", async ({ page }) => {
+ const reason = "Keep this file with its chapter set or companion files. Renaming a complete book set is not supported yet.";
+ await page.route("**/api/v1/library/files/collection?**", route => route.fulfill({ json: { files: [file("0001"), file("0002")], total: 2, filtered: 2, counts: {} } }));
+ await page.route("**/api/v1/library/files/rename/preview", route => route.fulfill({ json: { requested: 2, renamed: 0, skipped: 1, errored: 1, previews: [{ file: file("0001"), sourcePath: file("0001").path, destinationPath: file("0001").path, noop: true, reason, revision: "retained" }], results: [{ preview: { file: file("0002"), sourcePath: file("0002").path }, status: "error", message: "Source is unavailable; restore the mount before renaming" }] } }));
+ await page.goto("/library");
+ await page.getByRole("button", { name: "Rename Files", exact: true }).click();
+ const dialog = page.getByRole("dialog");
+ await expect(dialog.getByText(reason, { exact: true })).toBeVisible();
+ await expect(dialog.getByText(/Source is unavailable/)).toBeVisible();
+ await expect(dialog.getByRole("checkbox", { name: `Rename ${file("0001").path}`, exact: true })).toBeDisabled();
+ await expect(dialog.getByRole("button", { name: "Apply 0 Renames", exact: true })).toBeDisabled();
+});
+
+test("Imports identifies saved renames and retries their original plan", async ({ page }) => {
+ let recovered = false;
+ const requests: string[] = [];
+ await page.route("**/api/v1/library/import-recovery", route => route.fulfill({ json: { unfinished: recovered ? 0 : 1, unresolved: 0, limit: 100, issues: [], operations: [{ id: "saved-rename", sourceKind: "manual", state: recovered ? "committed" : "failed", cleanupState: recovered ? "cleaned" : "blocked", attempts: recovered ? 2 : 1, metadata: { title: "Fixture rename", renameFileId: "preserved-id" }, files: [{ id: "manifest", sourcePath: "/old/Fixture.epub", destinationPath: "/saved/Fixture.epub", sizeBytes: 1234, state: recovered ? "committed" : "verified", sourceRemoved: recovered }], lastError: recovered ? "" : "Controlled commit failure" }] } }));
+ await page.route("**/api/v1/library/import-operations/saved-rename/retry", route => { requests.push(route.request().url()); recovered = true; return route.fulfill({ json: { imported: true, operationId: "saved-rename", file: { id: "preserved-id" } } }); });
+ await page.goto("/imports");
+ const operation = page.locator(".imports-recovery-item").filter({ hasText: "Fixture rename" });
+ await operation.locator("summary").click();
+ await expect(operation.getByText(/Saved file rename/)).toBeVisible();
+ await expect(operation.getByText("Existing book links are preserved", { exact: true })).toBeVisible();
+ await expect(operation.getByText("Controlled commit failure", { exact: true })).toBeVisible();
+ await operation.getByRole("button", { name: "Retry rename", exact: true }).click();
+ await expect(page.getByText("Recovery completed.", { exact: true })).toBeVisible();
+ await expect(operation.getByRole("button", { name: "Retry rename", exact: true })).toHaveCount(0);
+ await expect(operation.getByText(/move completed/)).toBeVisible();
+ expect(requests).toHaveLength(1);
 });

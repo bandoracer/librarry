@@ -1256,3 +1256,24 @@ and Apply cover only shown files. Changed files are initially selected on each
 page; review the paths and uncheck any to exclude before applying. Collection-wide
 resumable rename/bulk jobs remain separate work. Concurrent changes can affect
 subsequent pages; Refresh preview reloads the current page.
+
+
+### Recover a standalone file rename
+
+Rename Files shows the reviewed source/destination pair and binds Apply to that
+preview. Refresh preview after a change warning. A failure after planning exposes
+its saved operation in Imports → Import recovery as **Saved file rename**. Use
+**Retry rename** for unfinished publication or **Retry cleanup** once the new path
+is committed. Retrying uses the captured destination even if naming settings have
+changed. The original remains until the verified copy and the existing file row
+commit; a pending old source is excluded from scan discovery.
+
+The file ID, owner names/notes, book/download links and original import provenance
+are preserved. An old import retry can return the verified renamed location.
+Missing files, changed bytes, a conflicting destination or an ownership change
+remain errors requiring review; a retry does not overwrite unrelated bytes.
+
+Chapter sets and companion files show **Retained** with a reason. Complete-set
+renaming, including CUE/playlist references, is not implemented. Calibre-managed
+files remain under Calibre's control. Selection applies only to the displayed
+page; there is no unattended collection-wide rename job.

@@ -137,6 +137,15 @@ Cleanup rechecks the whole required destination set, client identity, source/des
 
 **Done:** fault injection at every transition and process restart produces no lost original, truncated published book, duplicate chapter, or unearned cleanup. Retrying committed operations returns the existing result. Removing source data leaves every required imported file readable and hash-valid.
 
+**Current partial qualification (September 16):** standalone renames now reuse
+verified staging, file identity reservations, atomic path/history commit and
+post-commit source cleanup. Fault fixtures cover database rollback, cleanup retry,
+concurrent owner corrections, destination conflicts and original receipt replay
+through repeated renames. Per-file selection retains chapter/companion layouts;
+complete-set rename and sidecar reference handling are still required. Whole-book
+retirement, Calibre recovery, broader disk fault injection and live qualification
+remain open. This does not mark S09 complete.
+
 ### S10 — Acquisition deduplication and recovery
 
 **Scope:** persist per-book/format acquisition intent and coordinate manual grabs, wanted monitor, feeds, upgrades, and failed-download recovery. Use a short database claim/lease and uniqueness constraints; avoid holding a transaction open during a slow remote call.

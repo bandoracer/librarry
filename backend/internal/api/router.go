@@ -3081,8 +3081,7 @@ func (h *handler) previewRenameLibraryFiles(w http.ResponseWriter, r *http.Reque
 	}
 	defer r.Body.Close()
 	var request library.RenameFilesRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library rename preview payload"})
+	if !decodeRenameRequest(w, r, &request) {
 		return
 	}
 	outcome, err := h.deps.Library.PreviewRenameFiles(r.Context(), request)
@@ -3100,8 +3099,7 @@ func (h *handler) renameLibraryFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	var request library.RenameFilesRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library rename payload"})
+	if !decodeRenameRequest(w, r, &request) {
 		return
 	}
 	outcome, err := h.deps.Library.RenameFiles(r.Context(), request)

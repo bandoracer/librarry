@@ -332,10 +332,20 @@ func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, a
 	if len(ids) == 0 && len(paths) == 0 {
 		return RenameFilesOutcome{}, errors.New("at least one file id or path is required")
 	}
-	outcome := RenameFilesOutcome{Requested: len(ids) + len(paths)}
+	outcome := RenameFilesOutcome{Requested: len(ids) + len(paths), Previews: []RenameFilePreview{}, Results: []RenameFileResult{}}
 	files, err := s.store.FindFiles(ctx, ids, paths)
 	if err != nil {
 		return RenameFilesOutcome{}, err
+	}
+	if request.Revisions != nil {
+		if len(request.Revisions) != len(files) {
+			return outcome, errors.New("rename selection changed; refresh the preview")
+		}
+		for _, file := range files {
+			if request.Revisions[file.ID] == "" {
+				return outcome, errors.New("every selected file requires its preview revision")
+			}
+		}
 	}
 	if len(files) == 0 {
 		outcome.Skipped = outcome.Requested
@@ -369,17 +379,22 @@ func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, a
 		}
 		if preview.Noop {
 			outcome.Skipped++
-			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "skipped", Message: "file already matches naming template"})
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "skipped", Message: firstNonEmpty(preview.Reason, "file already matches naming template")})
 			continue
 		}
-		renamed, err := s.applyRename(ctx, preview)
+		if expected, ok := request.Revisions[file.ID]; ok && expected != preview.Revision {
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "error", Message: "rename preview changed; refresh before applying"})
+			continue
+		}
+		renamed, operationID, err := s.applyRename(ctx, preview)
 		if err != nil {
 			outcome.Errored++
-			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "error", Message: err.Error()})
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, OperationID: operationID, Status: "error", Message: err.Error()})
 			continue
 		}
 		outcome.Renamed++
-		outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, File: &renamed, Status: "renamed"})
+		outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, OperationID: operationID, File: &renamed, Status: "renamed"})
 	}
 	if unmatched := outcome.Requested - len(files); unmatched > 0 {
 		outcome.Skipped += unmatched
@@ -761,6 +776,16 @@ func calibreManagedRenamePreview(file FileRecord) RenameFilePreview {
 }
 
 func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, overwrite bool) (RenameFilePreview, error) {
+	if preview, found, err := s.resumeRenamePreview(ctx, file); found || err != nil {
+		return preview, err
+	}
+	if reason, err := s.renameSetRestriction(ctx, file); err != nil {
+		return RenameFilePreview{}, err
+	} else if reason != "" {
+		p := RenameFilePreview{File: file, SourcePath: file.Path, DestinationPath: file.Path, RelativePath: filepath.Base(file.Path), Noop: true, Reason: reason}
+		p.Revision = renameRevision(p)
+		return p, nil
+	}
 	source := filepath.Clean(strings.TrimSpace(file.Path))
 	if source == "" || source == "." {
 		return RenameFilePreview{}, errors.New("file path is required")
@@ -776,11 +801,22 @@ func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, ove
 	}
 	ext := firstNonEmpty(file.Extension, filepath.Ext(source))
 	root := s.renameRootForFile(ctx, file)
+	if s.Available() && root != "" {
+		var err error
+		root, err = canonicalPlannedPath(root)
+		if err != nil {
+			return RenameFilePreview{}, err
+		}
+	}
 	destination := s.destinationPathIn(root, file.MediaFormat, parsed, ext)
 	if destination == "" {
 		return RenameFilePreview{}, errors.New("library root is not configured")
 	}
 	destination = filepath.Clean(destination)
+	if !strings.EqualFold(filepath.Ext(destination), filepath.Ext(source)) {
+		return RenameFilePreview{}, errors.New("naming template must keep the file extension; renaming does not convert the book")
+	}
+
 	if !overwrite && source != destination {
 		destination = availableDestination(destination)
 	}
@@ -796,42 +832,16 @@ func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, ove
 			exists = true
 		}
 	}
-	return RenameFilePreview{
+	preview := RenameFilePreview{
 		File:            file,
 		SourcePath:      source,
 		DestinationPath: destination,
 		RelativePath:    relativePath,
 		Exists:          exists,
 		Noop:            source == destination,
-	}, nil
-}
-
-func (s *Service) applyRename(ctx context.Context, preview RenameFilePreview) (FileRecord, error) {
-	if err := os.MkdirAll(filepath.Dir(preview.DestinationPath), 0o755); err != nil {
-		return FileRecord{}, err
 	}
-	if err := copyOrMoveFile(preview.SourcePath, preview.DestinationPath, true); err != nil {
-		return FileRecord{}, err
-	}
-	info, err := os.Stat(preview.DestinationPath)
-	if err != nil {
-		return FileRecord{}, err
-	}
-	file := preview.File
-	file.Path = preview.DestinationPath
-	file.Extension = strings.ToLower(filepath.Ext(preview.DestinationPath))
-	file.SizeBytes = info.Size()
-	modified := info.ModTime().UTC()
-	file.ModifiedAt = &modified
-	if strings.TrimSpace(file.ImportStatus) == "" {
-		file.ImportStatus = "imported"
-	}
-	if file.Metadata == nil {
-		file.Metadata = map[string]any{}
-	}
-	file.Metadata["renamedAt"] = time.Now().UTC().Format(time.RFC3339)
-	file.Metadata["previousPath"] = preview.SourcePath
-	return s.store.UpdateFile(ctx, file)
+	preview.Revision = renameRevision(preview)
+	return preview, nil
 }
 
 type namingPolicy struct {

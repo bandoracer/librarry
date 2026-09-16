@@ -146,9 +146,10 @@ type DeleteFileResult struct {
 }
 
 type RenameFilesRequest struct {
-	IDs       []string `json:"ids,omitempty"`
-	Paths     []string `json:"paths,omitempty"`
-	Overwrite bool     `json:"overwrite,omitempty"`
+	Revisions map[string]string `json:"revisions,omitempty"`
+	IDs       []string          `json:"ids,omitempty"`
+	Paths     []string          `json:"paths,omitempty"`
+	Overwrite bool              `json:"overwrite,omitempty"`
 }
 
 type RenameFilesOutcome struct {
@@ -161,6 +162,8 @@ type RenameFilesOutcome struct {
 }
 
 type RenameFilePreview struct {
+	Revision        string     `json:"revision,omitempty"`
+	OperationID     string     `json:"operationId,omitempty"`
 	File            FileRecord `json:"file"`
 	SourcePath      string     `json:"sourcePath"`
 	DestinationPath string     `json:"destinationPath"`
@@ -173,10 +176,11 @@ type RenameFilePreview struct {
 }
 
 type RenameFileResult struct {
-	Preview RenameFilePreview `json:"preview"`
-	File    *FileRecord       `json:"file,omitempty"`
-	Status  string            `json:"status"`
-	Message string            `json:"message,omitempty"`
+	OperationID string            `json:"operationId,omitempty"`
+	Preview     RenameFilePreview `json:"preview"`
+	File        *FileRecord       `json:"file,omitempty"`
+	Status      string            `json:"status"`
+	Message     string            `json:"message,omitempty"`
 }
 
 type CalibreConversionRefreshRequest struct {

@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 42, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 44, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -263,6 +263,31 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         manual_target = media / Path(manual_result["destinationPath"]).relative_to("/fixture")
         assert hashlib.sha256(manual_target.read_bytes()).hexdigest() == digest
         print("Packaged manual import: failed commit retains source and hides destination; process restart resumes original plan; move cleanup and idempotent retry verified")
+        rename_id = manual_result["file"]["id"]
+        sql(f"update files set title='Renamed manual fixture' where id='{rename_id}'")
+        rename_preview = request("/api/v1/library/files/rename/preview", {"ids": [rename_id]})["previews"][0]
+        assert not rename_preview["noop"] and rename_preview["revision"], rename_preview
+        sql("alter table import_operations add constraint inject_rename_commit_failure check(not(metadata ? 'renameFileId') or state<>'committed')")
+        rename_failure = request("/api/v1/library/files/rename", {"ids": [rename_id], "revisions": {rename_id: rename_preview["revision"]}})
+        assert rename_failure["errored"] == 1 and manual_target.exists(), rename_failure
+        rename_operation_id = rename_failure["results"][0]["operationId"]
+        assert sql(f"select path from files where id='{rename_id}'") == manual_result["destinationPath"]
+        rename_scan = request("/api/v1/library/scan", {"format": "ebook"})
+        assert rename_scan["skipped"] >= 2, rename_scan
+        assert sql(f"select count(*) from files where path='{rename_preview['destinationPath']}'") == "0"
+        sql("alter table import_operations drop constraint inject_rename_commit_failure")
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        rename_result = request(f"/api/v1/library/import-operations/{rename_operation_id}/retry", {})
+        assert rename_result["file"]["id"] == rename_id and rename_result["file"]["title"] == "Renamed manual fixture", rename_result
+        assert rename_result["file"]["metadata"]["importOperationId"] == manual_operation["id"]
+        renamed_target = media / Path(rename_result["destinationPath"]).relative_to("/fixture")
+        assert hashlib.sha256(renamed_target.read_bytes()).hexdigest() == digest and not manual_target.exists()
+        replay_after_rename = request("/api/v1/library/import", manual_request)
+        assert replay_after_rename["skipped"] and replay_after_rename["file"]["id"] == rename_id
+        assert replay_after_rename["destinationPath"] == rename_result["destinationPath"]
+        assert sql(f"select count(*) from history_events where event_type='file_renamed' and entity_id='{rename_id}'") == "1"
+        print("Packaged rename: failed commit retains original; restart resumes saved target with original file identity and provenance; original import replays the verified new path")
         acquisition_request = {"client": "qBittorrent", "title": "Acquisition fixture",
                                "releaseUrl": "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
                                "tags": ["librarry", "librarry-smoke"]}

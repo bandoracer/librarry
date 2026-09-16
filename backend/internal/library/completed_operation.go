@@ -220,6 +220,9 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		return outcome, err
 	}
 	for i := range records {
+		if op.isRename() {
+			continue
+		}
 		id, _ := records[i].Metadata["wantedId"].(string)
 		if id == "" && op.SourceKind == "manual" {
 			continue
@@ -254,6 +257,12 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 func (s *Service) committedOperationOutcome(ctx context.Context, op ImportOperation) (ImportOutcome, error) {
 	ids := []string{}
 	for _, f := range op.Files {
+		destination, err := s.currentManifestDestination(ctx, op, f)
+		if err != nil {
+			return ImportOutcome{}, err
+		}
+		f.DestinationPath = destination
+
 		if err := verifyManifestPath(f.DestinationPath, f); err != nil {
 			return ImportOutcome{}, err
 		}
