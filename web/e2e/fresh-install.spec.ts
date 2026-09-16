@@ -139,7 +139,7 @@ test("manual recovery distinguishes committed files from pending cleanup", async
 
 test("manual book assignments and move options stay separate from completed imports", async ({ page }) => {
   const id = "00000000-0000-0000-0000-000000000005";
-  await page.route("**/api/v1/wanted?view=library", route => route.fulfill({ json: { wanted: [{ id, title: "Manual book", authorName: "Author", format: "ebook", status: "wanted" }] } }));
+  await page.route("**/api/v1/library/book-choices?*", route => route.fulfill({ json: { books: [{ id, title: "Manual book", authorName: "Author", format: "ebook" }], total: 1, filtered: 1 } }));
   let imported = false;
   await page.route("**/api/v1/library/import", route => {
     expect(route.request().postDataJSON()).toMatchObject({ sourcePath: "/incoming/book.epub", wantedId: id, importMode: "move" });
@@ -157,7 +157,7 @@ test("manual book assignments and move options stay separate from completed impo
   });
   await page.goto("/imports");
   await page.getByPlaceholder("Source file path to import into the library").fill("/incoming/book.epub");
-  await page.getByLabel("Book for manual import").selectOption(id);
+  await page.getByLabel("Book for manual import", { exact: true }).selectOption(id);
   await page.getByLabel("Manual import mode", { exact: true }).selectOption("move");
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await expect.poll(() => imported).toBe(true);

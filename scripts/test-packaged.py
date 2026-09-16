@@ -763,6 +763,26 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert request("/api/v1/library/import-reviews?view=collection&kind=payload&q=Paging%20fixture")["filtered"] == 51
         sql("delete from import_reviews where source_path like '/fixture/review-page/%'")
         print("Packaged import reviews: exact counts, complete 113-record traversal, restart cursor, resolved decisions and payload filter verified")
+        sql("insert into wanted_items(wanted_format,title,author_name,monitored,created_at) select 'ebook','Choice fixture '||i,'Owner author',false,'2026-01-01'::timestamptz from generate_series(1,251)i")
+        choices_url = "/api/v1/library/book-choices?q=Choice%20fixture&format=ebook&limit=100"
+        choices = request(choices_url)
+        assert choices["filtered"] == 251 and len(choices["books"]) == 100
+        selected_choice = choices["books"][0]
+        choice_ids = {book["id"] for book in choices["books"]}
+        choice_cursor = choices["nextCursor"]
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        while choice_cursor:
+            choices = request(choices_url + "&selectedId=" + selected_choice["id"] + "&cursor=" + choice_cursor)
+            assert choices["selected"] == selected_choice and choices["filtered"] == 251
+            assert not (choice_ids & {book["id"] for book in choices["books"]})
+            choice_ids.update(book["id"] for book in choices["books"])
+            choice_cursor = choices.get("nextCursor", "")
+        assert len(choice_ids) == 251
+        pinned_choice = request("/api/v1/library/book-choices?q=absent-choice&selectedId=" + selected_choice["id"])
+        assert pinned_choice["filtered"] == 0 and pinned_choice["selected"] == selected_choice
+        sql("delete from wanted_items where title like 'Choice fixture %'")
+        print("Packaged book choices: 251 identities across restart, selected identity preserved outside search and page, no acquisition mutation")
         # A saved uncertain send must survive the image restart and database restore.
         # This journal fixture never contacts a Calibre server; real remote effects
         # are exercised separately by scripts/test-calibre.py.

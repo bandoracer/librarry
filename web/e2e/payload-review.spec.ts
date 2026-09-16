@@ -5,7 +5,7 @@ test("payload mapping requires a current preview and preserves review errors", a
   const book = { id, title: "Fixture Book", authorName: "Fixture Author", format: "audiobook", status: "wanted", monitored: true };
   const files = ["Disc 1/01.mp3", "Disc 2/01.mp3", "cover.jpg"].map(relativePath => ({ relativePath, sourcePath: `/downloads/Fixture/${relativePath}`, format: relativePath.endsWith("mp3") ? "audiobook" : "sidecar", included: true, selected: true, progress: 1, sizeBytes: 1024 }));
   const review = { id, title: "Uncertain audiobook", authorName: "", status: "pending", reason: "Chapter grouping needs review", mediaFormat: "audiobook", sourcePath: "/downloads/Fixture", sizeBytes: 3072, metadata: { payloadReview: true, downloadClient: "qBittorrent", payload: { files } }, createdAt: "2026-09-15T00:00:00Z", updatedAt: "2026-09-15T00:00:00Z" };
-  await page.route("**/api/v1/wanted?view=library", route => route.fulfill({ json: { wanted: [book] } }));
+  await page.route("**/api/v1/library/book-choices?*", route => route.fulfill({ json: { books: [book], total: 1, filtered: 1 } }));
   await page.route("**/api/v1/library/import-reviews?*", route => route.fulfill({ json: { reviews: [review] } }));
   let previews = 0;
   await page.route(`**/api/v1/library/import-reviews/${id}/preview`, async route => {
@@ -45,7 +45,7 @@ test("payload mapping requires a current preview and preserves review errors", a
 test("replacement changes require a fresh preview and expose existing destinations", async ({ page }, testInfo) => {
   const id = "00000000-0000-0000-0000-000000000039";
   const file = { relativePath: "Book.epub", sourcePath: "/downloads/Book.epub", format: "ebook", included: true, selected: true, progress: 1, sizeBytes: 2048 };
-  await page.route("**/api/v1/wanted?view=library", route => route.fulfill({ json: { wanted: [{ id, title: "Replacement Book", format: "ebook" }] } }));
+  await page.route("**/api/v1/library/book-choices?*", route => route.fulfill({ json: { books: [{ id, title: "Replacement Book", format: "ebook" }], total: 1, filtered: 1 } }));
   await page.route("**/api/v1/library/import-reviews?*", route => route.fulfill({ json: { reviews: [{ id, wantedId: id, title: "Replacement Book", status: "pending", reason: "Review replacement", metadata: { payloadReview: true, payload: { files: [file] } } }] } }));
   let previews = 0;
   await page.route(`**/api/v1/library/import-reviews/${id}/preview`, route => {

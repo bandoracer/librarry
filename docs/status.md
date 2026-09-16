@@ -58,8 +58,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [support diagnostics PR #42](https://github.com/bandoracer/librarry/pull/42),
 [integration health PR #43](https://github.com/bandoracer/librarry/pull/43),
 [import recovery PR #44](https://github.com/bandoracer/librarry/pull/44),
-[dashboard counts PR #45](https://github.com/bandoracer/librarry/pull/45), and
-the `codex/import-review-paging` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[dashboard counts PR #45](https://github.com/bandoracer/librarry/pull/45),
+[import reviews PR #46](https://github.com/bandoracer/librarry/pull/46), and
+the `codex/import-book-choices` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -152,7 +153,10 @@ complete counts, search, format/type filters and cursor pages. Resolved includes
 actual imported/skipped/rejected decisions. Payload reviews share the collection;
 file bulk actions select only the current page and clear selection on navigation.
 Failed reads show an error rather than an empty queue. Migration 0053 adds paging
-indexes. Manual and payload book-choice selectors still use the older capped list.
+indexes. Manual and payload book-choice selectors now search/page all active saved
+books through a database-only endpoint. Selected identities remain visible outside
+the current search/page; owner-edited labels win. Migration 0054 adds a supporting
+creation/identity index. Removed/ignored records are excluded from new choices.
 
 Completed-download review now supports replacing matching destinations. The
 preview binds both new and old content; old bytes are journaled before publication

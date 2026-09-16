@@ -3461,3 +3461,15 @@ export async function fetchImportReviewCollection(options: ImportReviewOptions, 
   const data = await response.json() as ImportReviewCollection;
   return { ...data, reviews: arrayPayload(data.reviews) };
 }
+
+export type BookChoice = { id: string; title: string; authorName: string; format: string };
+export type BookChoicesOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; selectedId?: string; cursor?: string; limit?: number };
+export type BookChoices = { books: BookChoice[]; selected?: BookChoice; total: number; filtered: number; nextCursor?: string; observedAt: string };
+export async function fetchBookChoices(options: BookChoicesOptions, signal?: AbortSignal): Promise<BookChoices> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/book-choices?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Book choices could not be loaded"));
+  const data = await response.json() as BookChoices;
+  return { ...data, books: arrayPayload(data.books) };
+}

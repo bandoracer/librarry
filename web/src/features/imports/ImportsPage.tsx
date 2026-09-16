@@ -31,7 +31,7 @@ import {
   ToolbarButton
 } from "../../components/ui";
 import { useToast } from "../../components/toast";
-import { keys, useImportReviewCollection, useInvalidatingMutation, useWanted } from "../../lib/queries";
+import { keys, useImportReviewCollection, useInvalidatingMutation } from "../../lib/queries";
 import {
   importCompletedDownloads,
   importLibraryFile,
@@ -66,6 +66,7 @@ import ImportRecovery from "./ImportRecovery";
 import LibraryRepairPreview from "./LibraryRepairPreview";
 import ScanJobs, { scanJobsKey, useLibraryScanJobs } from "./ScanJobs";
 import PayloadReview from "./PayloadReview";
+import BookChoiceSelect from "./BookChoiceSelect";
 
 type ScanFormat = "ebook" | "audiobook" | "any";
 type ImportMode = "copy" | "move" | "hardlink" | "hardlinkOrCopy";
@@ -102,7 +103,6 @@ function mediaFormatTone(format: string) {
 export default function ImportsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const booksQuery = useWanted();
   const [importWantedID, setImportWantedID] = useState("");
 
   /* ------------------------------ Form state ------------------------------ */
@@ -494,13 +494,9 @@ export default function ImportsPage() {
                   placeholder="Source file path to import into the library"
                 />
               </Field>
-              <Field label="Book (optional)">
-                <select aria-label="Book for manual import" value={importWantedID} onChange={event => setImportWantedID(event.target.value)}>
-                  <option value="">Keep existing association, or leave unassigned</option>
-                  {(booksQuery.data ?? []).filter(book => book.format === importFormat).map(book => <option key={book.id} value={book.id}>{book.title} — {book.authorName || "Unknown author"}</option>)}
-                </select>
-                {booksQuery.isError ? <span className="field-hint">Book choices unavailable. <Button size="sm" onClick={() => void booksQuery.refetch()}>Reload books</Button></span> : null}
-              </Field>
+              <div className="field"><span className="field-label">Book (optional)</span>
+                <BookChoiceSelect key={importFormat} label="Book for manual import" value={importWantedID} onChange={setImportWantedID} format={importFormat} emptyLabel="Keep existing association, or leave unassigned" disabled={importMutation.isPending} />
+              </div>
               <Field label="Format">
                 <select aria-label="Manual import format" value={importFormat} onChange={(event) => { setImportFormat(event.target.value as "ebook" | "audiobook"); setImportWantedID(""); }}>
                   <option value="ebook">Ebook</option>

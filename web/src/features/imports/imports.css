@@ -128,3 +128,9 @@
 .imports-review-filters label { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
 .imports-review-filters label:first-child { flex: 1 1 240px; }
 .imports-review-filters input { width: 100%; min-width: 0; }
+
+.imports-book-choice { min-width: 0; width: 100%; }
+.imports-book-choice select, .imports-book-choice input { width: 100%; min-width: 0; }
+.imports-book-choice summary { cursor: pointer; font-size: .8rem; margin-top: .4rem; }
+.imports-book-choice nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0; }
+.imports-book-choice input { margin-top: .5rem; }

@@ -372,7 +372,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   suggestions, enforced per-review wanted-match selection before import, and
   explainable evidence from the UI. Native review browsing includes complete counts,
   search and status/format/file-or-payload filters, cursor pages, resolved history,
-  and bulk selection scoped to file reviews on the current page.
+  and bulk selection scoped to file reviews on the current page. Manual and payload
+  imports can search/page every active book; selected identities stay visible while
+  browsing and book choices do not require a working download client.
 - Readarr-compatible missing-book endpoints calculate missing state from wanted
   items plus tracked library files, so grabbed-but-unimported books remain
   visible while present files suppress false missing results.

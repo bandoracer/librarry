@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Badge, Button, Card, InlineNotice } from "../../components/ui";
-import { keys, useInvalidatingMutation, useWanted } from "../../lib/queries";
+import { keys, useInvalidatingMutation } from "../../lib/queries";
 import { previewPayloadReview, resolveLibraryImportReview, type ImportReview, type PayloadFile, type PayloadReviewRequest } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
+import BookChoiceSelect from "./BookChoiceSelect";
 
 const retain = "__retain";
 export default function PayloadReview({ review }: { review: ImportReview }) {
-  const books = useWanted();
   const payload = review.metadata?.payload as { files?: PayloadFile[] } | undefined;
   const files = useMemo(() => payload?.files ?? [], [payload]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
@@ -31,17 +31,12 @@ export default function PayloadReview({ review }: { review: ImportReview }) {
   const busy = preview.isPending || resolve.isPending;
   const media = files.filter(file => file.format === "ebook" || file.format === "audiobook");
   function change(path: string, value: string) { setAssignments(previous => ({ ...previous, [path]: value })); setConfirmed(false); }
-  const options = (format?: string) => (books.data ?? []).filter(book => !format || book.format === format).map(book =>
-    <option key={book.id} value={book.id}>{book.title} — {book.authorName || "Unknown author"} ({book.format})</option>);
   return <Card title={`Review files: ${review.title || "Completed download"}`} subtitle={`${media.length} book files · ${formatBytes(review.sizeBytes ?? 0)} · Originals are retained during import.`}>
     <InlineNotice tone="warn">{review.reason}</InlineNotice>
-    {books.isError ? <InlineNotice tone="danger">Book choices could not be loaded. <Button size="sm" onClick={() => void books.refetch()}>Try again</Button></InlineNotice> : null}
     <div className="imports-payload-tools">
-      <label className="field">Book for all media files
-        <select value={allBook} onChange={event => setAllBook(event.target.value)} aria-label="Book for all media files" disabled={busy}>
-          <option value="">Choose a book</option>{options()}
-        </select>
-      </label>
+      <div className="field"><span className="field-label">Book for all media files</span>
+        <BookChoiceSelect label="Book for all media files" value={allBook} onChange={setAllBook} disabled={busy} />
+      </div>
       <Button size="sm" disabled={!allBook || busy} onClick={() => { setAssignments(previous => ({ ...previous, ...Object.fromEntries(media.map(file => [file.relativePath, allBook])) })); setConfirmed(false); }}>Apply book to all</Button>
       <label className="field">Transfer mode<select value={mode} onChange={event => setMode(event.target.value as PayloadReviewRequest["importMode"])} disabled={busy}>
         <option value="hardlinkOrCopy">Hardlink or copy</option><option value="copy">Copy</option><option value="hardlink">Hardlink</option>
@@ -56,13 +51,9 @@ export default function PayloadReview({ review }: { review: ImportReview }) {
         <span className="field-hint">{formatBytes(file.sizeBytes)} · {file.format} · {Math.round(file.progress * 100)}% downloaded</span>
         {file.album || file.title || file.author ? <p className="field-hint">Embedded metadata: {file.album || file.title} {file.author ? `— ${file.author}` : ""}</p> : null}
         {file.reason ? <div><Badge tone="warn">{file.reason}</Badge></div> : null}
-        {file.format === "excluded" ? <p className="field-hint">Excluded from import: unsupported ancillary file.</p> : <label className="field">Assign file
-          <select aria-label={`Book for ${file.relativePath}`} value={valueFor(file)} onChange={event => change(file.relativePath, event.target.value)} disabled={busy}>
-            <option value="">{file.format === "sidecar" ? "Match sidecar to its book folder" : "Choose a book"}</option>
-            {options(file.format === "sidecar" ? undefined : file.format)}
-            <option value={retain}>Keep in downloads; do not import</option>
-          </select>
-        </label>}
+        {file.format === "excluded" ? <p className="field-hint">Excluded from import: unsupported ancillary file.</p> : <div className="field"><span className="field-label">Assign file</span>
+          <BookChoiceSelect label={`Book for ${file.relativePath}`} value={valueFor(file)} onChange={value => change(file.relativePath, value)} format={file.format === "ebook" || file.format === "audiobook" ? file.format : "all"} emptyLabel={file.format === "sidecar" ? "Match sidecar to its book folder" : "Choose a book"} disabled={busy} allowRetain />
+        </div>}
       </li>)}
     </ol>
     <label className="imports-payload-confirm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} />I checked these book assignments and any excluded files. These choices override conflicting metadata.</label>

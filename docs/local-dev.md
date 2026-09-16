@@ -1560,4 +1560,21 @@ preview. Changing pages discards unsubmitted payload edits; return and preview a
 Newly created reviews appear on the first page; retries do not change creation order.
 Counts are a database snapshot per response, not a frozen export across pages.
 Failed reads show an error and retry; First review page remains available to recover
-from an obsolete cursor. This does not remove the separate legacy book-choice cap.
+from an obsolete cursor.
+
+
+### Choosing books for imports
+
+The manual-import and payload-file book selectors show 50 choices per page. Open
+**Search and browse books** under a selector to search title, author or saved book
+ID and reach older pages. Choices use saved local identities and owner-edited
+labels; there is no provider or download-client request. Imported and unmonitored
+active books remain selectable for explicit replacement/repair, while removed and
+ignored books are omitted.
+
+The current selection stays pinned even when it is outside a search or page.
+Search/paging does not change the intended book. Changing the manual format clears
+its old selection. If a selected identity is no longer active or no longer matches
+the file format, it is shown as unavailable, not silently replaced by another book.
+Database errors offer Retry books and retain the selected ID. Payload assignments,
+retained-download choices and current-preview requirements remain unchanged.

@@ -2394,3 +2394,42 @@ Verification:
 
 No production deployment or release is implied; manual/payload book selectors and
 other S14/S15 legacy readers remain.
+
+
+## S14/S15 continuation — Complete local import book choices
+
+Manual imports and per-file payload assignments previously read a legacy wanted
+list capped at 200 books. A new database-only identity endpoint returns exact
+counts, title/author/ID search, format filtering and creation-time/UUID pages.
+Owner edits remain authoritative. Active imported/unmonitored books are available;
+removed and ignored books are excluded. Selection is resolved separately from the
+visible page/search, so browsing cannot silently replace an intended identity.
+Migration 0054 indexes the active ordering.
+
+The shared select exposes search and previous/next/first-page controls, keeps the
+selected identity visible, reports unavailable selections and offers retry after
+read failures. Manual format changes reset the selection. Payload file mappings,
+retained sources and preview invalidation keep their existing contracts. The new
+endpoint makes no provider/client request and does not calculate live file state.
+
+Qualification:
+
+- A 10,001-active-book fixture plus removed/ignored records traverses 101 pages
+  without duplicates/gaps; local race-enabled p95 4.4ms. Real owner edits, literal
+  search, selected identity outside search/page, format/active restrictions,
+  cursor binding/deleted anchors, empty/error states and prohibited client calls
+  are covered. API authentication/validation and no-store/empty arrays pass.
+- All 125 desktop/mobile browser tests pass with one expected skip. Older manual
+  and per-file selections, pinned identity during search/paging/outages, exact
+  submitted book ID, format reset, unavailable identity, retain-in-downloads and
+  preview invalidation are covered. The expanded 390px selector was inspected.
+- Fourteen web units, production build, Go vet and deployment contracts pass.
+  Full integration race tests pass (library 208.015s, wanted 211.238s); the
+  ordinary full Go suite also passes (library 162.074s, wanted 111.493s).
+- Candidate images `librarry-api:book-choices` and `librarry-web:book-choices`
+  report API marker `working-tree-book-choices`, schema 54. Packaged checks reach
+  251 identities across restart, preserve selection outside search/page, and pass
+  existing import/authentication regressions plus a 463,391-byte isolated restore.
+
+This does not finish the wider S14/S15 compatibility, removed-book browsing or
+all-matching-job work, and is not production deployment or release qualification.

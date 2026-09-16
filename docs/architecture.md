@@ -1819,3 +1819,26 @@ limits and incompatible cursors return 400. Unavailable persistence returns 503,
 with a five-second request deadline and no private database error text. Successful
 responses use no-store. File bulk actions retain explicit selected IDs, while
 pending payloads retain their individual preview and resolve contracts.
+
+
+### Local book identity choices
+
+`GET /api/v1/library/book-choices` returns `books` (array), `selected` (optional
+identity), `total`, `filtered`, `nextCursor` and `observedAt`. Each identity includes
+only its ID, saved title/author and format. `q` is a literal case-insensitive title,
+author or saved-ID search; `format=all|ebook|audiobook`, `limit=1..100` (default 50),
+`cursor` and `selectedId` complete the query. Total counts every active identity;
+filtered applies search/format. Removed/ignored books are excluded. Owner edits
+persisted in wanted_items take precedence over the works fallback for blank titles.
+
+A read-only repeatable-read transaction serves counts, choices and the selected
+identity. Selection is independent of search/page but must remain active and match
+the requested format. Cursors bind search and format; changing selectedId or page
+size does not invalidate a cursor. Creation-time/UUID descending ordering remains
+stable when labels change. Migration 0054 indexes active creation/identity order.
+Each page is a live snapshot, not an immutable multi-request export.
+
+No file-presence projection, download client or provider is consulted. Normal API
+authentication, strict query validation, a five-second deadline, no-store and generic
+503 errors apply. This replaces capped identity selectors without changing the
+legacy wanted list, import execution, or payload preview contracts.
