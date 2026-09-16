@@ -54,8 +54,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [compatibility notification PR #38](https://github.com/bandoracer/librarry/pull/38),
 [worker diagnostics PR #39](https://github.com/bandoracer/librarry/pull/39),
 [notification retention PR #40](https://github.com/bandoracer/librarry/pull/40),
-[worker availability PR #41](https://github.com/bandoracer/librarry/pull/41), and
-the `codex/support-diagnostics` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[worker availability PR #41](https://github.com/bandoracer/librarry/pull/41),
+[support diagnostics PR #42](https://github.com/bandoracer/librarry/pull/42), and
+the `codex/integration-health-evidence` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -89,6 +90,19 @@ connectivity through both API and nginx, returning 503 without usable persistenc
 Neither probe claims media, provider or end-to-end workflow health. Directory
 checks are time-bounded and do not certify mount identity or write permission.
 No September live readiness or NAS qualification is implied.
+
+Acquisition integration health now separates configured state from observed checks.
+Status/readiness/support reads do not contact Prowlarr or download clients; explicit
+System checks and the five-minute Health Check worker do. Checks retain actual
+attempt/success/version times, coalesce for 15 seconds, honor bounded retry delays,
+and become stale after ten minutes. Restart/reconfiguration clears process-local
+evidence; old in-flight results cannot attach to new settings. Malformed responses
+cannot count as success. SABnzbd checks a bounded authenticated queue read instead
+of its public version route. qBittorrent now retains login cookies when the service
+injects its HTTP client and accepts only the documented login acknowledgement.
+Support exports include recorded numeric client versions without private suffixes,
+URLs or response bodies. These are contract/container fixtures, not new live-client
+qualification or proof that a remote mutation/import will succeed.
 
 Automatic native import now accepts single books and identifiable audiobook
 chapter sets from complete client inventories. All required chapters and relevant

@@ -33,10 +33,20 @@ type IntegrationConfig struct {
 }
 
 type IntegrationHealth struct {
-	Name       string `json:"name"`
-	Configured bool   `json:"configured"`
-	Status     string `json:"status"`
-	Message    string `json:"message"`
+	LastCheckedAt  *time.Time `json:"lastCheckedAt,omitempty"`
+	LastSuccessAt  *time.Time `json:"lastSuccessAt,omitempty"`
+	LastVersionAt  *time.Time `json:"lastVersionAt,omitempty"`
+	RetryAfter     *time.Time `json:"retryAfter,omitempty"`
+	Version        string     `json:"version,omitempty"`
+	ObservedStatus string     `json:"observedStatus,omitempty"`
+	Freshness      string     `json:"freshness"`
+	Checking       bool       `json:"checking"`
+	Reachable      *bool      `json:"reachable,omitempty"`
+	Authenticated  *bool      `json:"authenticated,omitempty"`
+	Name           string     `json:"name"`
+	Configured     bool       `json:"configured"`
+	Status         string     `json:"status"`
+	Message        string     `json:"message"`
 }
 
 type BootstrapResult struct {
@@ -45,6 +55,7 @@ type BootstrapResult struct {
 }
 
 type integrationState struct {
+	health   [4]*integrationObservation
 	config   IntegrationConfig
 	prowlarr *ProwlarrClient
 	qbit     *QBittorrentClient
@@ -57,6 +68,7 @@ func newIntegrationState(config IntegrationConfig) *integrationState {
 	longClient := &http.Client{Timeout: 90 * time.Second}
 	shortClient := &http.Client{Timeout: 30 * time.Second}
 	return &integrationState{
+		health: [4]*integrationObservation{newIntegrationObservation(), newIntegrationObservation(), newIntegrationObservation(), newIntegrationObservation()},
 		config: config,
 		prowlarr: NewProwlarrClient(
 			config.ProwlarrURL,
@@ -91,15 +103,6 @@ func (s *integrationState) IntegrationConfig() IntegrationConfig {
 		return IntegrationConfig{}
 	}
 	return s.config
-}
-
-func (s *integrationState) Health(ctx context.Context) []IntegrationHealth {
-	return []IntegrationHealth{
-		s.prowlarr.Health(ctx),
-		s.qbit.Health(ctx),
-		s.trans.Health(ctx),
-		s.sab.Health(ctx),
-	}
 }
 
 func (s *integrationState) Bootstrap(ctx context.Context) (BootstrapResult, error) {

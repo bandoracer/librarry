@@ -11,6 +11,7 @@ from threading import Lock
 ACQUISITION_HASH = "0123456789abcdef0123456789abcdef01234567"
 accepted = []
 add_count = 0
+health_checks = 0
 lock = Lock()
 
 class Handler(BaseHTTPRequestHandler):
@@ -45,6 +46,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send({"error": "fixture does not allow download mutations"}, 405)
 
     def do_GET(self):
+        global health_checks
         url = urlsplit(self.path)
         params = parse_qs(url.query)
         config = Path("/fixture/client.json")
@@ -56,7 +58,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send([row for row in statuses if hashes == [""] or row["hash"] in hashes])
         elif url.path == "/fixture/stats":
             with lock:
-                self.send({"adds": add_count})
+                self.send({"adds": add_count, "healthChecks": health_checks})
         elif url.path == "/api/v2/torrents/files":
             target = params.get("hash", [""])[0]
             row = next((row for row in rows if row["status"]["hash"] == target), None)
@@ -68,6 +70,8 @@ class Handler(BaseHTTPRequestHandler):
         elif url.path == "/api/v2/sync/torrentPeers":
             self.send({"peers": {}})
         elif url.path == "/api/v2/app/version":
+            with lock:
+                health_checks += 1
             self.send("v5.0.4-contract-fixture")
         else:
             self.send({"error": "unsupported fixture route"}, 404)

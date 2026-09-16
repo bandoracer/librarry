@@ -50,36 +50,6 @@ func (c *ProwlarrClient) Configured() bool {
 	return c.baseURL != "" && c.apiKey != ""
 }
 
-func (c *ProwlarrClient) Health(ctx context.Context) IntegrationHealth {
-	if !c.Configured() {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_PROWLARR_URL and LIBRARRY_PROWLARR_API_KEY."}
-	}
-
-	req, err := c.request(ctx, http.MethodGet, "/api/v1/system/status", nil)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: resp.Status}
-	}
-
-	var decoded struct {
-		Version string `json:"version"`
-		AppName string `json:"appName"`
-	}
-	_ = json.NewDecoder(resp.Body).Decode(&decoded)
-	message := "Ready"
-	if decoded.Version != "" {
-		message = fmt.Sprintf("%s %s ready", decoded.AppName, decoded.Version)
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
-}
-
 func (c *ProwlarrClient) Search(ctx context.Context, query ReleaseSearchQuery) ([]Release, error) {
 	if !c.Configured() {
 		return nil, ErrIntegrationNotConfigured

@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/buildinfo"
 	"github.com/bandoracer/librarry/backend/internal/library"
 )
@@ -51,10 +53,19 @@ type supportProvider struct {
 }
 
 type supportIntegration struct {
-	Name               string `json:"name"`
-	EndpointConfigured bool   `json:"endpointConfigured"`
-	Status             string `json:"status"`
-	Version            string `json:"version"`
+	Configured         *bool      `json:"configured,omitempty"`
+	LastCheckedAt      *time.Time `json:"lastCheckedAt,omitempty"`
+	LastSuccessAt      *time.Time `json:"lastSuccessAt,omitempty"`
+	LastVersionAt      *time.Time `json:"lastVersionAt,omitempty"`
+	RetryAfter         *time.Time `json:"retryAfter,omitempty"`
+	Freshness          string     `json:"freshness,omitempty"`
+	ObservedStatus     string     `json:"observedStatus,omitempty"`
+	Reachable          *bool      `json:"reachable,omitempty"`
+	Authenticated      *bool      `json:"authenticated,omitempty"`
+	Name               string     `json:"name"`
+	EndpointConfigured bool       `json:"endpointConfigured"`
+	Status             string     `json:"status"`
+	Version            string     `json:"version"`
 }
 
 type supportRoot struct {
@@ -137,7 +148,7 @@ func (h *handler) supportReport(ctx context.Context) supportReport {
 		Providers: []supportProvider{}, Integrations: []supportIntegration{}, Roots: []supportRoot{}, Tasks: []supportTask{},
 		Sections: map[string]string{"providers": "unavailable", "integrations": "unavailable", "library": "unavailable", "tasks": "unavailable"},
 		Notes: []string{
-			"Generated time is the export time, not the time of the last successful operation. Provider observations are process-local and disappear on restart.",
+			"Generated time is the export time, not the time of the last successful operation. Provider and integration observations are process-local and disappear on restart.",
 			"Readiness checks database connectivity only. Directory presence does not prove mount identity, write permission, free space or media integrity.",
 			"Root labels are anonymous within this export. Paths, names, URLs, usernames, credentials, book metadata, notification targets and free-text errors are omitted.",
 			"Task configuration and next run describe this API instance; persisted history can include peer instances. Unknown times stay omitted.",
@@ -168,13 +179,41 @@ func (h *handler) supportReport(ctx context.Context) supportReport {
 			})
 		}
 	}
-	if integration, err := h.effectiveIntegrationConfig(ctx); err == nil {
+	integration, integrationErr := h.effectiveIntegrationConfig(ctx)
+	var observations []acquisition.IntegrationHealth
+	if snapshots, ok := h.deps.Acquire.(interface {
+		HealthSnapshot() (acquisition.IntegrationConfig, []acquisition.IntegrationHealth)
+	}); ok {
+		integration, observations = snapshots.HealthSnapshot()
+		integrationErr = nil
+	}
+	if integrationErr == nil {
 		report.Sections["integrations"] = "available"
 		for _, item := range []struct{ name, endpoint string }{
 			{"prowlarr", integration.ProwlarrURL}, {"qbittorrent", integration.QBittorrentURL},
 			{"transmission", integration.TransmissionURL}, {"sabnzbd", integration.SABnzbdURL},
 		} {
-			report.Integrations = append(report.Integrations, supportIntegration{Name: item.name, EndpointConfigured: strings.TrimSpace(item.endpoint) != "", Status: "unknown", Version: "unknown"})
+			entry := supportIntegration{Name: item.name, EndpointConfigured: strings.TrimSpace(item.endpoint) != "", Status: "unknown", Version: "unknown"}
+			for _, observation := range observations {
+				if !strings.EqualFold(observation.Name, item.name) {
+					continue
+				}
+				configured := observation.Configured
+				entry.Configured = &configured
+				entry.Status = supportEnum(observation.Status, "configured", "missing_credentials", "ready", "degraded", "invalid_credentials", "rate_limited", "unavailable", "stale")
+				entry.ObservedStatus = supportEnum(observation.ObservedStatus, "ready", "degraded", "invalid_credentials", "rate_limited", "unavailable")
+				entry.Freshness = supportEnum(observation.Freshness, "never_checked", "fresh", "stale")
+				entry.LastCheckedAt = observation.LastCheckedAt
+				entry.LastSuccessAt = observation.LastSuccessAt
+				entry.LastVersionAt = observation.LastVersionAt
+				entry.RetryAfter = observation.RetryAfter
+				entry.Reachable = observation.Reachable
+				entry.Authenticated = observation.Authenticated
+				if supportVersionPattern.MatchString(observation.Version) {
+					entry.Version = observation.Version
+				}
+			}
+			report.Integrations = append(report.Integrations, entry)
 		}
 		report.Roots = append(report.Roots, observeSupportRoot(ctx, "downloads", "downloads", integration.BookTorrentRoot))
 	}
@@ -286,3 +325,5 @@ func supportStat(ctx context.Context, path string) (os.FileInfo, error) {
 		return nil, ctx.Err()
 	}
 }
+
+var supportVersionPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+){1,3}$`)

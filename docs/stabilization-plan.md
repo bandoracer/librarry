@@ -314,8 +314,11 @@ workers. Worker status now retains disabled/unavailable definitions and reasons,
 with local scheduling separated from shared run evidence; compatibility timestamps
 come from recorded runs. Redacted on-demand support export and a database
 readiness probe are implemented with local fixture qualification. The full live
-freshness/readiness acceptance matrix, mount identity, import-stall classification
-and remote version observations remain open.
+freshness/readiness acceptance matrix, mount identity and import-stall
+classification remain open. Client checks now have process-local timestamped
+evidence, numeric version observations, strict response validation and bounded
+coalescing/backoff; passive reads do not initiate checks. Live qualification remains
+separate.
 
 **Scope:** reliable task history with operation IDs, counts, durations, failures, last success, and next action. Persist enough history for restart diagnosis without unbounded per-minute growth. Add retention for routine history while preserving unresolved failures and important import/acquisition evidence.
 

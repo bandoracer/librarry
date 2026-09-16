@@ -41,24 +41,6 @@ func (c *SABnzbdClient) Configured() bool {
 	return c.baseURL != "" && c.apiKey != ""
 }
 
-func (c *SABnzbdClient) Health(ctx context.Context) IntegrationHealth {
-	if c.baseURL == "" {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_SABNZBD_URL."}
-	}
-	if c.apiKey == "" {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_SABNZBD_API_KEY."}
-	}
-	var payload sabVersionResponse
-	if err := c.api(ctx, url.Values{"mode": {"version"}}, &payload); err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	message := "Ready"
-	if payload.Version != "" {
-		message = "Ready; version " + payload.Version
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
-}
-
 func (c *SABnzbdClient) Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error) {
 	if !c.Configured() {
 		return DownloadStatus{}, ErrIntegrationNotConfigured

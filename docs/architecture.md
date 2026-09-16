@@ -1690,7 +1690,8 @@ other evidence or expose underlying connection errors.
 Metadata provider observations are process-local and retain their actual request
 and success times. Snapshot generation does not perform provider/download-client
 IO or manufacture fresh observations. Client endpoints are reduced to configured
-booleans; unrecorded reachability and remote versions stay unknown. Worker policy
+booleans; recorded health/version evidence is included from the same configuration
+generation, while unrecorded reachability and remote versions stay unknown. Worker policy
 and next run belong to this instance; saved runs can come from peers. Only built-in
 provider/task identities are exported. Free-text names, errors, outcomes, paths,
 URLs, usernames, credentials and book metadata are excluded. This report is not a
@@ -1705,3 +1706,45 @@ in the protected support report have a 500ms deadline and a process-wide cap of
 four in-flight filesystem calls so stalled NAS calls cannot accumulate unbounded
 goroutines. A directory being present does not prove it is the expected mount or
 that it is writable. Missing directories, errors and timeouts remain distinct.
+
+### Acquisition integration health evidence
+
+`GET /api/v1/integrations/health`, native/compatible health and readiness reads,
+and support export read process-local observations. They do not initiate remote
+checks. `POST /api/v1/integrations/{name}/check` uses the normal auth boundary and
+accepts the exact built-in names (Prowlarr, qBittorrent, Transmission, SABnzbd).
+The five-minute Health Check task also checks configured integrations. Reading
+System health no longer dispatches health notifications; the task owns checks
+and notification transitions.
+
+Each immutable configuration generation owns four observations. Concurrent checks
+for the same integration coalesce; finished checks are reused for 15 seconds.
+Each probe has a 15-second deadline. HTTP 429 honors Retry-After, capped at 24 hours
+with a one-minute fallback. Cancellation from the caller does not create an outage
+observation. A check finishing after configuration replacement returns 409 instead
+of showing success against different credentials. Checks for different clients
+can run concurrently. Observations disappear on restart/reconfiguration, retain
+last success and last known numeric version after failure, and become stale after
+ten minutes. Stale/never-checked states are warnings, not invented outages or
+current readiness. Timestamps describe check evidence, not every acquisition call.
+
+Probes validate the actual protocol shape: Prowlarr app name/version, qBittorrent
+application version after the exact login acknowledgement when credentials are
+configured, successful Transmission session-get with version/RPC version, and a
+bounded SABnzbd queue read with version/status/slots. SABnzbd's version route is
+public and cannot establish API-key access. qBittorrent injected clients now get
+a cookie jar without mutating their caller's HTTP client; ordinary acquisition
+requests retain the authenticated session too. Transmission probes keep their
+session challenge local, independent of command state. When qBittorrent or
+Transmission is used without credentials, a successful read establishes access
+but does not invent an authenticated identity.
+
+Health messages never echo request URLs, response bodies or raw network errors.
+Redirects are refused and bodies are limited to 1 MiB. Version fields expose only
+the numeric components; private build suffixes are omitted. This does not certify
+remote mutations, indexer search coverage, download success or completed imports.
+
+Contracts checked against primary documentation:
+- [qBittorrent WebUI API](https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-%28qBittorrent-5.0%29)
+- [Transmission 4.0.6 RPC](https://github.com/transmission/transmission/blob/4.0.6/docs/rpc-spec.md)
+- [SABnzbd API authentication and queue](https://sabnzbd.org/wiki/configuration/5.1/api)

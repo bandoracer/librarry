@@ -117,6 +117,12 @@ private paths and free-text errors. `/healthz` reports process liveness;
 `/readyz` separately checks database connectivity. These are unreleased changes,
 not a claim of healthy mounts or completed end-to-end workflows.
 
+Acquisition integrations now have explicit connection checks and recorded last
+attempt/success/version evidence. Status refreshes spend no client requests;
+scheduled checks run every five minutes, and evidence older than ten minutes is
+marked stale. Malformed responses cannot appear healthy, and a successful
+SABnzbd check verifies API-key access rather than only its public version route.
+
 System now offers explicit provider connection checks and shows the last real
 request and successful request. A configured token alone does not imply verified
 access, and provider outages retain their prior success history.

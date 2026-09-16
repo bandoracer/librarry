@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"net/http"
 	"strconv"
 	"strings"
@@ -139,5 +141,26 @@ func (h *handler) reviewSystemTaskRun(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 503, map[string]any{"error": "task review is unavailable"})
 	default:
 		writeJSON(w, 200, map[string]any{"ok": true})
+	}
+}
+
+func (h *handler) checkIntegration(w http.ResponseWriter, r *http.Request) {
+	checker, ok := h.deps.Acquire.(interface {
+		CheckIntegration(context.Context, string) (acquisition.IntegrationHealth, error)
+	})
+	if !ok {
+		writeJSON(w, 503, map[string]any{"error": "integration checks are unavailable"})
+		return
+	}
+	result, err := checker.CheckIntegration(r.Context(), r.PathValue("name"))
+	switch {
+	case errors.Is(err, acquisition.ErrIntegrationUnknown):
+		writeJSON(w, 404, map[string]any{"error": err.Error()})
+	case errors.Is(err, acquisition.ErrIntegrationChanged):
+		writeJSON(w, 409, map[string]any{"error": err.Error()})
+	case err != nil:
+		writeJSON(w, 503, map[string]any{"error": "integration check is unavailable"})
+	default:
+		writeJSON(w, 200, result)
 	}
 }

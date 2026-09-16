@@ -151,6 +151,22 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         checked = request("/api/v1/providers/Hardcover/check", {}, method="POST")
         assert checked["status"] == "missing_credentials" and "lastCheckedAt" not in checked, checked
         print("Packaged provider health: configuration does not invent reachability/authentication; missing-token check records no request")
+        checked_client = request("/api/v1/integrations/qBittorrent/check", {}, method="POST")
+        assert checked_client["status"] == "ready" and checked_client["version"] == "5.0.4", checked_client
+        def health_request_count():
+            return int(docker("exec", CLIENT, "python", "-c", "import json,urllib.request; print(json.load(urllib.request.urlopen('http://127.0.0.1:8080/fixture/stats'))['healthChecks'])").strip())
+        checked_calls = health_request_count()
+        for path in ("/api/v1/integrations/health", "/api/v1/system/health", "/api/v1/readiness", "/api/v1/health"):
+            request(path)
+        client_support = next(item for item in request("/api/v1/system/support")["integrations"] if item["name"] == "qbittorrent")
+        assert client_support["version"] == "5.0.4" and client_support["lastCheckedAt"] == checked_client["lastCheckedAt"], client_support
+        assert health_request_count() == checked_calls, "status polling performed external checks"
+        docker("restart", API)
+        reset_health = wait_for(lambda: request("/api/v1/integrations/health"))["integrations"]
+        reset_client = next(item for item in reset_health if item["name"] == "qBittorrent")
+        assert reset_client["status"] == "configured" and "lastCheckedAt" not in reset_client and "version" not in reset_client, reset_client
+        print("Packaged integration health: explicit check verifies numeric version, polling/support preserve request evidence, process restart clears observations")
+
         for route in ("/library", "/activity", "/settings"):
             page = request(route)
             assert b'<div id="root">' in page, route

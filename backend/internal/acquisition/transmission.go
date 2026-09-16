@@ -44,24 +44,6 @@ func (c *TransmissionClient) Configured() bool {
 	return c.baseURL != ""
 }
 
-func (c *TransmissionClient) Health(ctx context.Context) IntegrationHealth {
-	if !c.Configured() {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_TRANSMISSION_URL."}
-	}
-	var payload struct {
-		Version    string `json:"version"`
-		RPCVersion int    `json:"rpc-version"`
-	}
-	if err := c.rpc(ctx, "session-get", map[string]any{}, &payload); err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	message := "Ready"
-	if payload.Version != "" {
-		message = "Ready; version " + payload.Version
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
-}
-
 func (c *TransmissionClient) Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error) {
 	if !c.Configured() {
 		return DownloadStatus{}, ErrIntegrationNotConfigured

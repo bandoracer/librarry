@@ -89,7 +89,7 @@ func TestSupportExportOmitsPrivateDataAndMakesNoExternalRequests(t *testing.T) {
 	if report.Providers[1].LastCheckedAt != nil || report.Providers[1].Status != "configured" {
 		t.Fatal(report.Providers[1])
 	}
-	if report.Integrations[0].Status != "unknown" || !report.Integrations[0].EndpointConfigured {
+	if report.Integrations[0].Status != "configured" || !report.Integrations[0].EndpointConfigured {
 		t.Fatal(report.Integrations)
 	}
 	if calls.Load() != 1 {

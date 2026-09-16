@@ -403,6 +403,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/notifications/{id}/test", handler.testNotificationTarget)
 	mux.HandleFunc("GET /api/v1/providers/health", handler.providerHealth)
 	mux.HandleFunc("POST /api/v1/providers/{name}/check", handler.checkProvider)
+	mux.HandleFunc("POST /api/v1/integrations/{name}/check", handler.checkIntegration)
 	mux.HandleFunc("GET /api/v1/providers/diagnostics", handler.providerDiagnostics)
 	mux.HandleFunc("GET /api/v1/readiness", handler.readiness)
 	mux.HandleFunc("GET /api/v1/search", handler.search)

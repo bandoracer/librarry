@@ -2177,3 +2177,67 @@ No migration is needed. Full S23 acceptance remains open: live NAS/mount identit
 stuck-import diagnosis, recorded client-version evidence and the end-to-end
 freshness/recovery matrix still require work. No production change, release,
 real-provider mutation or unattended soak occurred.
+
+## Recorded acquisition health and strict checks (2026-09-16 continuation)
+
+PR #42 is fully green in run 35126242843: all five jobs, including the disposable
+Calibre contract, packaged qualification and both image builds, passed.
+
+Acquisition status used to perform remote requests on every read, sometimes more
+than once per page. Several adapters ignored response-decoding errors or accepted
+missing fields as healthy. Prowlarr, qBittorrent, Transmission and SABnzbd now have
+process-local observations associated with immutable configuration generations.
+Status, readiness, compatible health and support reads do not contact them.
+Protected explicit checks and the five-minute Health Check task perform probes;
+System health GET no longer emits health-notification transitions.
+
+Checks record actual attempt/success/version times, coalesce concurrent requests,
+reuse results for 15 seconds, respect bounded Retry-After and expire to stale after
+ten minutes. A request cancelled by its caller does not manufacture an outage.
+Last success/version remain available after a failed check. Restart and config
+replacement clear evidence, and a check finishing against old settings returns
+409 instead of attaching success to new settings. Unknown/stale observations are
+warnings, not invented outages or fresh successes.
+
+Protocol validation checks actual response shape. SABnzbd uses a bounded queue
+read because its version endpoint requires no API key. qBittorrent now retains
+its login cookie when the service injects a client without a jar, without mutating
+that client; ordinary login requires the exact acknowledgement instead of any
+text containing “ok”. Transmission probe session challenges remain separate from
+command state. Read access without configured qBittorrent/Transmission credentials
+does not invent an authenticated identity. Health HTTP requests refuse redirects,
+limit bodies to 1 MiB and have a 15-second deadline. Health output includes no raw
+response bodies, URL-bearing network errors or private version suffixes. Version
+parsing accepts common alpha/beta/RC forms but rejects trailing non-version text.
+
+System shows last attempt, last success, numeric version and its observation time,
+stale evidence and retry delays. Explicit checks have loading/error/retry states.
+Support export reads configuration and observations from one generation and keeps
+unknown values explicit. A connection check is not a test of remote mutations,
+release availability, completed downloads or library imports.
+
+Verification:
+
+- Full PostgreSQL ordinary and race suites pass. Race times: acquisition 22.119s, API 26.253s, library
+  171.945s and wanted 194.177s. Final focused protocol/version/session race checks
+  pass after strict version parsing (1.348s). Fixtures cover positive and malformed
+  protocol responses, cookie/session challenges, HTTP access failures, oversized
+  bodies, redirect refusal, retry delays, concurrency, cancellation, config fences,
+  stale/reset evidence and last-success preservation through failure/recovery.
+- API regressions prove passive status/readiness/compatibility/support reads do
+  not spend client requests, explicit checks enforce the API-key boundary and the
+  worker performs checks. Existing support-redaction tests continue to pass.
+- 107 desktop/mobile browser tests pass, with one expected skip. Refresh does not
+  invoke explicit checks; version/failure/stale/rate-limit states are covered. The
+  final 390px card screenshot was visually inspected. All 14 web units, production
+  build, vet, deployment and whitespace checks pass.
+- Packaged fixtures verify explicit version checks, unchanged evidence during
+  polling/support export and cleared observations after process restart, alongside
+  the existing import, recovery, authentication and isolated-restore regressions.
+  Final rebuilt API qualification passes with a 462,015-byte schema-51 restore.
+
+Candidate images are `librarry-api:integration-health` and
+`librarry-web:integration-health`; API marker `working-tree-integration-health`.
+Schema remains 51. No production changes, real grabs or live-client certification
+occurred. Full S23 acceptance still includes live mount identity, stuck-import
+classification and end-to-end freshness/recovery qualification.

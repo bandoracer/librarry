@@ -1493,3 +1493,18 @@ readiness check does not guarantee provider availability, mounts, writable media
 complete imports or a successful backup. The existing setup checklist is separate
 from this current-connectivity probe. Worker failures and last success are retained
 in System Tasks; downloading support does not acknowledge or clear them.
+
+### Checking acquisition integrations
+
+System shows configured, verified, failed and stale observations separately for
+Prowlarr, qBittorrent, Transmission and SABnzbd. Use **Check [integration]** to make
+an explicit read-only connection check, or run the Health Check task. The worker
+normally checks every five minutes. Refreshing status, readiness or a support
+report does not contact those services or emit health notifications.
+
+Checks show the last attempt, success and numeric version, preserve prior success
+after failure, and expire to stale after ten minutes. Concurrent/repeated checks
+reuse observations for 15 seconds and respect Retry-After. Restart or changing
+integration settings clears these process-local observations. A configuration
+change during a check requires a new check. A verified connection is evidence of
+API read access, not a guarantee that every search, grab or import will work.

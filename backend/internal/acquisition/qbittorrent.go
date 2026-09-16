@@ -26,9 +26,14 @@ type QBittorrentClient struct {
 
 func NewQBittorrentClient(baseURL string, username string, password string, client *http.Client) *QBittorrentClient {
 	if client == nil {
-		jar, _ := cookiejar.New(nil)
-		client = &http.Client{Timeout: 30 * time.Second, Jar: jar}
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
+	if client.Jar == nil {
+		copy := *client
+		copy.Jar, _ = cookiejar.New(nil)
+		client = &copy
+	}
+
 	return &QBittorrentClient{
 		baseURL:  strings.TrimRight(baseURL, "/"),
 		username: strings.TrimSpace(username),
@@ -41,37 +46,6 @@ func (c *QBittorrentClient) Name() string { return "qBittorrent" }
 
 func (c *QBittorrentClient) Configured() bool {
 	return c.baseURL != ""
-}
-
-func (c *QBittorrentClient) Health(ctx context.Context) IntegrationHealth {
-	if !c.Configured() {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_QBITTORRENT_URL."}
-	}
-	if err := c.login(ctx); err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/transfer/info", nil)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: resp.Status}
-	}
-	var decoded struct {
-		ConnectionStatus string `json:"connection_status"`
-		DHTNodes         int    `json:"dht_nodes"`
-	}
-	_ = json.NewDecoder(resp.Body).Decode(&decoded)
-	message := "Ready"
-	if decoded.ConnectionStatus != "" {
-		message = fmt.Sprintf("VPN %s; %d DHT nodes", decoded.ConnectionStatus, decoded.DHTNodes)
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
 }
 
 func (c *QBittorrentClient) EnsureCategory(ctx context.Context, category string, savePath string) error {
@@ -1176,8 +1150,8 @@ func (c *QBittorrentClient) login(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 400 || !strings.Contains(strings.ToLower(string(body)), "ok") {
-		return fmt.Errorf("qBittorrent login failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
+	if resp.StatusCode >= 400 || strings.TrimSpace(string(body)) != "Ok." {
+		return errors.New("qBittorrent login failed; check credentials and access rules")
 	}
 	return nil
 }

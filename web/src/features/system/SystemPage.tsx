@@ -42,6 +42,7 @@ import { demoModeEnabled } from "../../lib/demo";
 import { formatBytes, formatRelativeTime } from "../../lib/format";
 import {
   checkProviderConnection,
+  checkIntegrationConnection,
   createBackup,
   deleteBackup,
   runSystemTask,
@@ -310,6 +311,8 @@ export default function SystemPage() {
   const [showAllHealth, setShowAllHealth] = React.useState(false);
 
   const checkProvider = useInvalidatingMutation(checkProviderConnection, [keys.providerHealth, keys.readiness]);
+
+  const checkIntegration = useInvalidatingMutation(checkIntegrationConnection, [keys.integrationHealth, keys.readiness, operabilityKeys.systemHealth]);
 
   const runTask = useInvalidatingMutation(runSystemTask, [operabilityKeys.systemTasks]);
 
@@ -647,7 +650,7 @@ export default function SystemPage() {
         subtitle={
           integrations.data?.length
             ? `${integrationReadyCount}/${integrations.data.length} acquisition integrations ready.`
-            : "Prowlarr and download client health."
+            : "Recorded Prowlarr and download client checks."
         }
       >
         {integrations.isPending ? (
@@ -671,6 +674,15 @@ export default function SystemPage() {
                   {!integration.configured ? <Badge tone="neutral">Not configured</Badge> : null}
                 </div>
                 <p className="system-muted">{integration.message}</p>
+                <div className="system-meta">
+                  {integration.lastCheckedAt ? `Last check ${formatRelativeTime(integration.lastCheckedAt)}` : "Connection not checked"}
+                  {integration.lastSuccessAt ? <div>Last success {formatRelativeTime(integration.lastSuccessAt)}</div> : null}
+                  {integration.version ? <div>Last known version {integration.version}{integration.lastVersionAt ? ` · ${formatRelativeTime(integration.lastVersionAt)}` : ""}</div> : null}
+                  {integration.freshness === "stale" ? <div>Previous result: {titleize(integration.observedStatus ?? "unknown")}</div> : null}
+                  {integration.retryAfter ? <div>Retry after {new Date(integration.retryAfter).toLocaleString()}</div> : null}
+                </div>
+                <Button size="sm" disabled={!integration.configured || integration.checking || checkIntegration.isPending || (!!integration.retryAfter && Date.parse(integration.retryAfter) > Date.now())} busy={checkIntegration.isPending && checkIntegration.variables === integration.name} onClick={() => checkIntegration.mutate(integration.name)}>Check {integration.name}</Button>
+                {checkIntegration.isError && checkIntegration.variables === integration.name ? <InlineNotice tone="danger">{checkIntegration.error.message}</InlineNotice> : null}
               </article>
             ))}
           </div>

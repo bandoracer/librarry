@@ -67,6 +67,9 @@ func NewHealthEvaluator(deps Dependencies) *HealthEvaluator {
 // Evaluate runs every check, dispatches ok-to-bad transition notifications,
 // and returns the full check list.
 func (e *HealthEvaluator) Evaluate(ctx context.Context) []HealthCheck {
+	if checker, ok := e.handler.deps.Acquire.(interface{ CheckIntegrations(context.Context) }); ok {
+		checker.CheckIntegrations(ctx)
+	}
 	checks := evaluateHealthChecks(e.handler.healthInputs(ctx))
 	if e.notify != nil && e.notify.Available() {
 		observeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -190,7 +193,10 @@ func indexerHealthCheck(inputs healthInputs) HealthCheck {
 			return check
 		}
 		check.Severity = healthSeverityError
-		check.Message = "Prowlarr is unreachable: " + integration.Message
+		if integration.Status == "configured" || integration.Status == "stale" {
+			check.Severity = healthSeverityWarning
+		}
+		check.Message = "Prowlarr: " + integration.Message
 		return check
 	}
 	check.Severity = healthSeverityError
@@ -203,6 +209,7 @@ func downloadClientHealthCheck(inputs healthInputs) HealthCheck {
 	configured := 0
 	var readyNames []string
 	var configuredNames []string
+	unknown := false
 	for _, integration := range inputs.integrations {
 		if integration.Name == "Prowlarr" {
 			continue
@@ -210,6 +217,7 @@ func downloadClientHealthCheck(inputs healthInputs) HealthCheck {
 		if integration.Configured {
 			configured++
 			configuredNames = append(configuredNames, integration.Name)
+			unknown = unknown || integration.Status == "configured" || integration.Status == "stale"
 		}
 		if integration.Status == "ready" {
 			readyNames = append(readyNames, integration.Name)
@@ -221,7 +229,10 @@ func downloadClientHealthCheck(inputs healthInputs) HealthCheck {
 		check.Message = joinNames(readyNames) + " ready for grabs."
 	case configured > 0:
 		check.Severity = healthSeverityError
-		check.Message = joinNames(configuredNames) + " configured but unreachable. Check credentials and network access."
+		check.Message = joinNames(configuredNames) + " have no current successful connection check. Review integration status."
+		if unknown {
+			check.Severity = healthSeverityWarning
+		}
 	default:
 		check.Severity = healthSeverityError
 		check.Message = "No download client is configured. Configure qBittorrent, Transmission, or SABnzbd."
@@ -336,12 +347,9 @@ func formatBytes(value int64) string {
 }
 
 func (h *handler) systemHealth(w http.ResponseWriter, r *http.Request) {
-	var checks []HealthCheck
-	if h.deps.Health != nil {
-		checks = h.deps.Health.Evaluate(r.Context())
-	} else {
-		checks = evaluateHealthChecks(h.healthInputs(r.Context()))
-	}
+	// Reading status must not probe integrations or emit health notifications.
+	// The scheduled/manual Health Check task owns those effects.
+	checks := evaluateHealthChecks(h.healthInputs(r.Context()))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"checks":      checks,
 		"generatedAt": time.Now().UTC(),

@@ -51,6 +51,16 @@ export type SearchResult = {
 export type MetadataSearchType = "book" | "author" | "series";
 
 export type IntegrationHealth = {
+ lastCheckedAt?: string;
+ lastSuccessAt?: string;
+ lastVersionAt?: string;
+ retryAfter?: string;
+ version?: string;
+ freshness?: "never_checked" | "fresh" | "stale";
+ observedStatus?: string;
+ checking?: boolean;
+ reachable?: boolean;
+ authenticated?: boolean;
   name: string;
   configured: boolean;
   status: string;
@@ -3413,4 +3423,10 @@ export async function fetchSupportReport(): Promise<Record<string, unknown>> {
     throw new Error("The API returned an unsupported support report.");
   }
   return report as Record<string, unknown>;
+}
+
+export async function checkIntegrationConnection(name: string): Promise<IntegrationHealth> {
+ const response=await fetch(`${apiBase}/api/v1/integrations/${encodeURIComponent(name)}/check`, {method:"POST"});
+ if (!response.ok) throw new Error(await apiError(response,"Integration check failed"));
+ return response.json();
 }
