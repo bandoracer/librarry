@@ -3212,3 +3212,31 @@ export async function checkProviderConnection(name: string): Promise<ProviderHea
  if (!response.ok) throw new Error(await apiError(response, "Provider check failed"));
  return response.json();
 }
+
+export type BookCollectionOptions = {
+  q?: string;
+  format?: "all" | "ebook" | "audiobook";
+  monitor?: "all" | "monitored" | "unmonitored";
+  state?: "all" | "missing" | "incomplete" | "unknown" | "downloading" | "cutoffUnmet" | "downloaded" | "unmonitored";
+  sort?: "status" | "title" | "author" | "added";
+  cursor?: string;
+  limit?: number;
+};
+export type BookCollection = {
+  books: WantedItem[];
+  total: number;
+  filtered: number;
+  counts: Record<string, number>;
+  recordedFiles: number;
+  nextCursor?: string;
+  downloads: string;
+  observedAt: string;
+};
+export async function fetchBookCollection(options: BookCollectionOptions = {}, signal?: AbortSignal): Promise<BookCollection> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/books?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Book collection could not be loaded"));
+  const page = await response.json() as BookCollection;
+  return { ...page, books: arrayPayload(page.books) };
+}

@@ -1164,3 +1164,18 @@ that was deleted before validation asks the operator to refresh the selection.
 The action does not automatically grab. Check Upgrade Batch remains a separate
 50-book queue action. Neither action means every matching book in a large library
 has been processed, and collection-wide bulk jobs remain unfinished.
+
+
+### Full book collection browsing
+
+Library and Wanted's Missing, Incomplete, Unknown and Cutoff Unmet tabs use native
+server pages of up to 100 books. Filters/sorts apply to the full tracked collection;
+counts no longer mean just the first loaded 200 books. Previous/Next navigate
+pages; Refresh page refreshes the current page. Changes while browsing can move
+books, so return to the first page to restart a traversal after edits.
+
+Selections clear on page/filter/tab changes. Select shown, mass edits, selected
+search and selected upgrade actions affect only the current selected page.
+Scheduled batch buttons remain separate 50-book actions. Review's count is marked
+as loaded because review pagination is still unfinished; author list, file list,
+compatibility and other legacy collection readers retain separate scaling work.

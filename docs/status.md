@@ -37,9 +37,10 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [author destination PR #21](https://github.com/bandoracer/librarry/pull/21),
 [direct author detail PR #22](https://github.com/bandoracer/librarry/pull/22),
 [book presence PR #23](https://github.com/bandoracer/librarry/pull/23),
-[worker fairness PR #24](https://github.com/bandoracer/librarry/pull/24), and the
-[explicit upgrade selection PR #25](https://github.com/bandoracer/librarry/pull/25)
-and the `codex/collection-file-projection` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[worker fairness PR #24](https://github.com/bandoracer/librarry/pull/24),
+[explicit upgrade selection PR #25](https://github.com/bandoracer/librarry/pull/25),
+[collection projection PR #26](https://github.com/bandoracer/librarry/pull/26), and
+the `codex/paged-book-collection` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -543,6 +544,11 @@ and live qualification remain open.
 Native recorded file evidence now uses the shared schema-43 SQL projection. It
 preserves incomplete-audiobook, alternate-import and pending-publication behavior
 while enabling filtering/counting before collection pagination. A 10,001-ebook
-fixture verifies complete counts and stable filtered traversal. The global
-collection endpoint/UI still have their existing limits; this projection is an
-implementation prerequisite, not a completed large-library workflow.
+fixture verifies complete counts and stable filtered traversal. Native Library
+books and Wanted gap tabs now use global filters/counts and stable server pages
+through `/api/v1/library/books`, with current-page bulk selection. A 10,001-book /
+10,003-file fixture traverses all four sorts and preserves imported/unmonitored
+membership while excluding removed/ignored books. Client/quality/file evidence
+matches book details; outages remain explicit. This is source and isolated
+fixture qualification. Author lists, metadata review, other legacy readers,
+compatibility and durable all-matching jobs remain unfinished under S14/S15.

@@ -22,10 +22,8 @@ import {
 import type { MetadataReviewConfirmOutcome, WantedItem } from "../../lib/api";
 import {
   keys,
-  useCutoffUnmet,
-  useLibraryFiles,
   useLibrarySettings,
-  useWanted,
+  useBookCollection,
   useWantedMetadataReview
 } from "../../lib/queries";
 import { formatDate } from "../../lib/format";
@@ -54,8 +52,6 @@ import {
   monitorRunSummary,
   summarizeMetadataReview,
   upgradeRunSummary,
-  wantedItemVisibleForFilter,
-  wantedPresenceMap
 } from "./lib";
 import "./wanted.css";
 
@@ -112,32 +108,21 @@ export default function WantedPage() {
 
   /* --------------------------------- Data ---------------------------------- */
 
-  const wantedQuery = useWanted();
-  const filesQuery = useLibraryFiles("any");
-  const cutoffQuery = useCutoffUnmet();
+  const [pagination, setPagination] = useState<{ tab: WantedTab; cursors: string[] }>({ tab, cursors: [""] });
+  const cursors = pagination.tab === tab ? pagination.cursors : [""];
+  const cursor = cursors[cursors.length - 1];
+  const wantedQuery = useBookCollection({ state: tab === "cutoff" ? "cutoffUnmet" : tab === "review" ? "all" : tab, sort: "title", limit: tab === "review" ? 1 : 100, cursor: tab === "review" ? "" : cursor });
   const reviewQuery = useWantedMetadataReview();
   const librarySettings = useLibrarySettings();
   const releaseSearch = useWantedReleaseSearch();
-
   const language = librarySettings.data?.settings.standardSearchLanguage || "English";
-  const wantedItems = useMemo(() => wantedQuery.data ?? [], [wantedQuery.data]);
-  const libraryFiles = useMemo(() => filesQuery.data ?? [], [filesQuery.data]);
-  const cutoffItems = useMemo(() => cutoffQuery.data ?? [], [cutoffQuery.data]);
-
-  const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
   const reviewByID = useMemo(() => metadataReviewMap(reviewQuery.data), [reviewQuery.data]);
   const reviewSummary = useMemo(() => summarizeMetadataReview(reviewQuery.data), [reviewQuery.data]);
-
-  const missingItems = useMemo(
-    () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, presence.get(item.id), "missing", reviewByID.has(item.id))),
-    [wantedItems, presence, reviewByID]
-  );
-  const incompleteItems = useMemo(() => wantedItems.filter(item => presence.get(item.id) === "incomplete"), [wantedItems, presence]);
-  const unknownItems = useMemo(() => wantedItems.filter(item => presence.get(item.id) === "unknown"), [wantedItems, presence]);
   const reviewItems = useMemo(() => (reviewQuery.data?.items ?? []).map((entry) => entry.wantedItem), [reviewQuery.data]);
-
-  const rows: WantedItem[] = tab === "cutoff" ? cutoffItems : tab === "review" ? reviewItems : tab === "incomplete" ? incompleteItems : tab === "unknown" ? unknownItems : missingItems;
-  const rowsLoading = tab === "cutoff" ? cutoffQuery.isLoading : tab === "review" ? reviewQuery.isLoading : wantedQuery.isLoading;
+  const rows: WantedItem[] = useMemo(() => tab === "review" ? reviewItems : wantedQuery.data?.books ?? [], [tab, reviewItems, wantedQuery.data]);
+  const rowsLoading = tab === "review" ? reviewQuery.isLoading : wantedQuery.isLoading;
+  const rowsError = tab === "review" ? reviewQuery.isError : wantedQuery.isError;
+  const counts = wantedQuery.data?.counts ?? {};
 
   /* ------------------------------- Selection -------------------------------- */
 
@@ -146,12 +131,12 @@ export default function WantedPage() {
   // Selections don't carry across tabs; also drop rows that left the list.
   useEffect(() => {
     setSelectedIDs([]);
-  }, [tab]);
+  }, [tab, cursor]);
   useEffect(() => {
     const available = new Set(rows.map((item) => item.id));
     setSelectedIDs((current) => current.filter((id) => available.has(id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wantedQuery.data, cutoffQuery.data, reviewQuery.data]);
+  }, [wantedQuery.data, reviewQuery.data]);
 
   const selectedSet = useMemo(() => new Set(selectedIDs), [selectedIDs]);
   const selectedRows = useMemo(() => rows.filter((item) => selectedSet.has(item.id)), [rows, selectedSet]);
@@ -297,7 +282,6 @@ export default function WantedPage() {
 
   const queryNotices = [
     wantedQuery.error ? appErrorMessage(errorMessage(wantedQuery.error, "Wanted refresh failed")) : "",
-    tab === "cutoff" && cutoffQuery.error ? appErrorMessage(errorMessage(cutoffQuery.error, "Cutoff unmet refresh failed")) : "",
     tab === "review" && reviewQuery.error ? appErrorMessage(errorMessage(reviewQuery.error, "Wanted metadata review failed")) : ""
   ].filter(Boolean);
 
@@ -465,22 +449,23 @@ export default function WantedPage() {
         </InlineNotice>
       ))}
 
-      <StatBar
+      {wantedQuery.data ? <StatBar
         stats={[
-          { label: "Missing", value: missingItems.length, tone: missingItems.length ? "danger" : "neutral" },
-          { label: "Cutoff Unmet", value: cutoffItems.length, tone: cutoffItems.length ? "warn" : "neutral" },
-          { label: "Review", value: reviewSummary.items, tone: reviewSummary.items ? "info" : "neutral" },
-          { label: "Incomplete", value: incompleteItems.length, tone: incompleteItems.length ? "warn" : "neutral" },
-          { label: "Unknown", value: unknownItems.length, tone: unknownItems.length ? "warn" : "neutral" },
-          { label: "Loaded books", value: wantedItems.length }
+          { label: "Missing", value: counts.missing ?? 0, tone: counts.missing ? "danger" : "neutral" },
+          { label: "Cutoff Unmet", value: counts.cutoffUnmet ?? 0, tone: counts.cutoffUnmet ? "warn" : "neutral" },
+          { label: "Review loaded", value: reviewSummary.items, tone: reviewSummary.items ? "info" : "neutral" },
+          { label: "Incomplete", value: counts.incomplete ?? 0, tone: counts.incomplete ? "warn" : "neutral" },
+          { label: "Unknown", value: counts.unknown ?? 0, tone: counts.unknown ? "warn" : "neutral" },
+          { label: "Library books", value: wantedQuery.data.total }
         ]}
-      />
+      /> : null}
+      {wantedQuery.data && ["partial", "unavailable"].includes(wantedQuery.data.downloads) ? <InlineNotice tone="warn">Download status is unavailable or incomplete. Books without verified media may show Unknown.</InlineNotice> : null}
 
       {tab === "review" && rows.length ? (
         <Card className="wanted-review-bulk-card">
           <div className="wanted-review-bulkbar" aria-label="Metadata review bulk actions">
             <div className="wanted-review-bulkbar-text">
-              <strong>{reviewSummary.conflicts} unresolved metadata conflicts</strong>
+              <strong>{reviewSummary.conflicts} unresolved metadata conflicts loaded</strong>
               <span>
                 {selectedRows.length} selected · {rows.length} shown
                 {reviewConfirmOutcome
@@ -505,7 +490,13 @@ export default function WantedPage() {
         </Card>
       ) : null}
 
-      <Card padded={rows.length === 0}>
+      <Card padded={rows.length === 0} subtitle={tab === "review" ? undefined : `${rows.length} shown · ${wantedQuery.data?.filtered ?? 0} matching · ${selectedRows.length} selected on this page`}
+        actions={tab === "review" ? undefined : <div className="wanted-pagination" aria-label="Wanted pages">
+          <Button size="sm" disabled={cursors.length < 2 || wantedQuery.isFetching || anyBulkBusy} onClick={() => setPagination({ tab, cursors: cursors.slice(0, -1) })}>Previous</Button>
+          <span>Page {cursors.length}</span>
+          <Button size="sm" disabled={!wantedQuery.data?.nextCursor || wantedQuery.isFetching || anyBulkBusy} onClick={() => setPagination({ tab, cursors: [...cursors, wantedQuery.data?.nextCursor ?? ""] })}>Next</Button>
+          <Button size="sm" disabled={wantedQuery.isFetching || anyBulkBusy} onClick={() => void wantedQuery.refetch()}>Refresh page</Button>
+        </div>}>
         {rowsLoading ? (
           <LoadingRow
             label={
@@ -538,7 +529,9 @@ export default function WantedPage() {
             </thead>
             <tbody>{rows.map(renderRow)}</tbody>
           </DataTable>
-        ) : tab === "cutoff" ? (
+        ) : rowsError ? <EmptyState icon={BookOpen} title="Books could not be loaded" actions={<Button size="sm" onClick={() => void (tab === "review" ? reviewQuery.refetch() : wantedQuery.refetch())}>Retry</Button>}>Retry loading this collection.</EmptyState>
+        : cursor && tab !== "review" ? <EmptyState icon={BookOpen} title="No books on this page" actions={<Button size="sm" onClick={() => setPagination({ tab, cursors: [""] })}>First page</Button>}>The collection may have changed. Return to the first page to refresh your view.</EmptyState>
+        : tab === "cutoff" ? (
           <EmptyState icon={TrendingUp} title="No books below their quality cutoff">
             Books with a tracked file scoring under their quality profile’s cutoff appear here so you can run upgrade
             searches for better releases.
@@ -547,9 +540,9 @@ export default function WantedPage() {
           <EmptyState icon={CheckCircle2} title="No metadata reviews pending">
             Wanted books with conflicting provider metadata appear here for a bulk keep-current decision.
           </EmptyState>
-        ) : wantedItems.length ? (
+        ) : (wantedQuery.data?.total ?? 0) > 0 ? (
           <EmptyState icon={FileSearch} title={`No ${tab} books in this list`}>
-            No loaded books have this status. Incomplete and unknown evidence are listed separately.
+            No library books have this status. Incomplete and unknown evidence are listed separately.
           </EmptyState>
         ) : (
           <EmptyState icon={BookOpen} title="No wanted items">

@@ -1199,7 +1199,48 @@ The existing ebook/audio evidence ranking and explanatory reasons are retained;
 complete alternate imports outrank older incomplete manifests. This is recorded
 evidence, not a live filesystem probe.
 
-The projection can be joined before collection filters, counts and pagination.
-Those native collection endpoints and UI consumers are still being built; this
-migration alone does not remove their existing limits. Quality cutoffs and live
-download evidence remain separate inputs to derived book state.
+The projection is joined before native book collection filters, counts and
+pagination. Quality cutoffs and live download evidence remain separate inputs to
+derived book state; the collection contract below combines them.
+
+
+### Native paginated book collection
+
+`GET /api/v1/library/books` returns `books`, `total`, `filtered`, global state
+`counts`, `recordedFiles`, `downloads`, `observedAt` and an optional `nextCursor`.
+The tracked library excludes removed/ignored rows and retains imported and
+unmonitored books. `recordedFiles` counts file records, including retained files
+from removed books; it is not a count of bytes verified present now.
+
+Parameters are `q` (literal case-insensitive substring, maximum 256 UTF-8 bytes),
+`format` (all/ebook/audiobook), `monitor` (all/monitored/unmonitored), `state`
+(all/missing/incomplete/unknown/downloading/cutoffUnmet/downloaded/unmonitored),
+`sort` (status/title/author/added), `limit` (1–100, default 100), and `cursor`.
+Unknown/duplicate parameters, invalid values and cursors bound to another filter
+or sort return 400. Failure to read persistence returns 503, not an empty library.
+
+Totals and state counts describe the entire tracked collection; `filtered` applies
+all requested filters. Profiles, file/manifests, counts, page membership and
+manual overrides/author links share one repeatable-read database snapshot.
+One live-client observation precedes that snapshot and has its existing five-second
+budget. No per-book client request occurs. Client outage/partial evidence remains
+explicit; present verified media still wins and unverified gaps become Unknown.
+Quality uses the same normalized profile cutoffs and saved installed score as
+book details, including the legacy-score exemption.
+
+Sorts use PostgreSQL lowercase plus C collation and a UUID tie-breaker. Added sorts
+newest first; status sorts missing, incomplete, unknown, downloading, cutoff unmet,
+downloaded, then unmonitored. Opaque keyset cursors carry the previous sort values
+and bind the filters/sort. They survive process restart without server memory.
+Each request is internally consistent; the whole traversal is not a frozen
+snapshot. Concurrent edits or changing client evidence can move books between
+pages; refresh from the first page when that matters.
+
+Derived states are materialized before cursor filtering and the bounded page is
+materialized before detail hydration. Measured plans otherwise compared 100 million
+rows on a late page. These read transactions disable JIT and force custom plans
+locally; they do not change database-wide or pooled-session settings. The 10,001-book,
+10,003-file fixture measured 61.400 ms p95 for local service reads, including
+counts/hydration and excluding external client IO, on Apple M5 Max/ARM64 with
+Colima Postgres 16.15. Author/review collections, compatibility surfaces and durable
+all-matching bulk jobs are not covered by this endpoint.

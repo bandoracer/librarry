@@ -459,7 +459,11 @@ func (s *Store) ListQualityProfiles(ctx context.Context) ([]QualityProfile, erro
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
 	}
-	rows, err := s.db.QueryContext(ctx, `
+	return listQualityProfiles(ctx, s.db)
+}
+
+func listQualityProfiles(ctx context.Context, reader wantedDetailReader) ([]QualityProfile, error) {
+	rows, err := reader.QueryContext(ctx, `
 		select
 			id, name, media_format, qualities, cutoff_quality,
 			min_score, cutoff_score, min_seeders,

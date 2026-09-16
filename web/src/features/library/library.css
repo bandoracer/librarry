@@ -443,3 +443,6 @@
     grid-template-columns: 1fr;
   }
 }
+
+.library-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.library-pagination > span { font-size: 0.8rem; color: var(--muted); }

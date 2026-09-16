@@ -467,12 +467,29 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         incomplete = request("/api/v1/wanted/" + audio_book_id)
         assert incomplete["derivedState"] == "incomplete", incomplete
         assert incomplete["stateEvidence"]["files"]["state"] == "incomplete", incomplete
+        incomplete_page = request("/api/v1/library/books?state=incomplete")
+        assert audio_book_id in {book["id"] for book in incomplete_page["books"]}, incomplete_page
+        assert incomplete_page["filtered"] == incomplete_page["counts"]["incomplete"], incomplete_page
         docker("exec", "--user", "0", "-i", API, "tee", current_audio["path"], binary=True, input=chapter_bytes)
         restored_scan = request("/api/v1/library/scans", {"root": "/fixture/audiobooks"})
         wait_for(lambda: completed_scan(restored_scan["id"]))
         restored_book = request("/api/v1/wanted/" + audio_book_id)
         assert restored_book["stateEvidence"]["files"]["state"] == "present", restored_book
         print("Packaged book evidence: complete import, missing chapter after scan, and restored complete audiobook verified through native book API")
+        expected_books = int(sql("select count(*) from wanted_items where status not in ('removed','ignored')"))
+        native_first = request("/api/v1/library/books?limit=1&sort=title")
+        native_page = native_first
+        native_ids = set()
+        while True:
+            assert native_page["total"] == expected_books and native_page["filtered"] == expected_books, native_page
+            assert len(native_page["books"]) <= 1, native_page
+            for book in native_page["books"]:
+                assert book["id"] not in native_ids, native_page
+                native_ids.add(book["id"])
+            if not native_page.get("nextCursor"):
+                break
+            native_page = request("/api/v1/library/books?limit=1&sort=title&cursor=" + native_page["nextCursor"])
+        assert len(native_ids) == expected_books and wanted_id in native_ids and audio_book_id in native_ids
         # Checks advance durably even when file evidence makes a search unnecessary.
         # The fixture has no configured indexer, and auto-grab remains disabled.
         first_checks = request("/api/v1/wanted/monitor", {"limit": 1, "autoGrab": False})
@@ -485,12 +502,18 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert second_checks["wantedChecked"] == 1, second_checks
         assert second_checks["items"][0]["wantedItem"]["id"] != first_checked_id, second_checks
         print("Packaged worker fairness: checked book retained scheduling progress across restart; next batch advanced without a real indexer or acquisition")
+        if native_first.get("nextCursor"):
+            after_restart = request("/api/v1/library/books?limit=1&sort=title&cursor=" + native_first["nextCursor"])
+            assert after_restart["total"] == expected_books and after_restart["books"], after_restart
+            assert after_restart["books"][0]["id"] != native_first["books"][0]["id"], after_restart
+        print("Packaged book collection: exact counts, complete keyset traversal, incomplete-audio filtering and cursor continuation after restart verified")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
+                      "select * from librarry_book_file_evidence(null) order by wanted_id",
                       "select id,root_folder_id,quality_profile,tags from author_subscriptions order by id",
                       "select id,root_folder_id from author_metadata_reviews order by id",
                       "select id,state,cleanup_state,source_kind,request_key,replacement_cleanup_state,replacement_cleanup_error from import_operations order by id", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files order by id",

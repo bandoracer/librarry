@@ -22,7 +22,7 @@ test("book status explains partial audiobook loss and client outages", async ({ 
 
 test("Wanted exposes incomplete and unknown books and explains skipped batches", async ({ page }, testInfo) => {
  const books = ["missing", "incomplete", "unknown"].map((state, index) => ({ id: `evidence-${index}`, title: `${state} fixture book`, authorName: "Fixture Author", format: "ebook", status: "imported", monitored: true, qualityProfile: "standard", derivedState: state }));
- await page.route("**/api/v1/wanted?**", route => route.fulfill({ json: { wanted: new URL(route.request().url()).searchParams.get("view") === "cutoff-unmet" ? [] : books } }));
+ await page.route("**/api/v1/library/books?**", route => route.fulfill({ json: { books: books.filter(book => book.derivedState === new URL(route.request().url()).searchParams.get("state")), total: 3, filtered: 1, counts: { missing: 1, incomplete: 1, unknown: 1 }, recordedFiles: 0, downloads: "fresh" } }));
  await page.route("**/api/v1/wanted/monitor", async route => {
   expect(route.request().postDataJSON()).toMatchObject({ force: true, autoGrab: false });
   await route.fulfill({ json: { wantedChecked: 1, grabbedCount: 0, errorCount: 0, items: [{ wantedItem: books[2], skippedReason: "download-client evidence is unavailable or incomplete" }] } });
@@ -41,7 +41,7 @@ test("Wanted exposes incomplete and unknown books and explains skipped batches",
 
 test("Wanted upgrade selection sends every selected row beyond the default batch", async ({ page }, testInfo) => {
  const books = Array.from({ length: 75 }, (_, index) => ({ id: `00000000-0000-0000-0000-${String(index + 1).padStart(12, "0")}`, title: `Upgrade fixture ${String(index + 1).padStart(3, "0")}`, authorName: "Fixture Author", format: "ebook", status: "imported", monitored: true, qualityProfile: "standard", derivedState: "cutoffUnmet" }));
- await page.route("**/api/v1/wanted?**", route => route.fulfill({ json: { wanted: books } }));
+ await page.route("**/api/v1/library/books?**", route => route.fulfill({ json: { books, total: 75, filtered: 75, counts: { cutoffUnmet: 75 }, recordedFiles: 75, downloads: "fresh" } }));
  let submitted = 0;
  await page.route("**/api/v1/wanted/upgrades", async route => {
   const request = route.request().postDataJSON();

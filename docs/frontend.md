@@ -112,3 +112,15 @@ npm run build   # tsc -b && vite build → web/dist
 ```
 
 Pages are lazy-loaded (`React.lazy`) so each feature is its own chunk.
+
+
+## Native book pages
+
+Library books and Wanted gap tabs use `useBookCollection`, with filters, sort and
+cursor in the query key beneath `keys.wanted`. Existing book mutations therefore
+invalidate the new collection cache. Fetches pass TanStack's abort signal. Text
+filtering is debounced; page/filter/tab changes clear selections. Counts come from
+the server and remain distinct from the number of displayed rows. Database errors
+render retry states, not empty-library success. Metadata review remains a legacy
+loaded collection and is labelled accordingly. Explicit demo builds keep seeded
+book filtering/paging through `demoBookCollection`; production failures propagate.

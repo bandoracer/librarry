@@ -1161,3 +1161,63 @@ mobile skip). The local ARM64 API with the unchanged current web image passed
 packaged scan, presence, recovery, restart, authentication and restore checks at
 schema 43; a 413,352-byte backup restored with file/book/download/receipt evidence
 intact. No production rollout, real grab, image publication or release occurred.
+
+
+Explicit upgrade selection PR #25 at `4cfa394b399c4cc63e21d8fbf6e24923b3109dd2`
+passed [CI 35085446775](https://github.com/bandoracer/librarry/actions/runs/35085446775).
+Shared projection PR #26 at `5c410b69f1cfb0a5b83ed4405b65a5aaa111f3fc` passed
+[CI 35086016041](https://github.com/bandoracer/librarry/actions/runs/35086016041).
+Both include source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+No images were published or deployed.
+
+## Continuation: native book collection paging (S14/S15)
+
+Branch: `codex/paged-book-collection`, based on PR #26. The new
+`GET /api/v1/library/books` evaluates tracked membership, global state counts,
+filtered totals and bounded pages in a repeatable-read snapshot. Profiles and
+manual overrides/author links use the same snapshot. It captures one live-client
+observation per request, retains uncertainty, and normalizes installed quality
+using the detail contract. Removed/ignored books are excluded; imported and
+unmonitored books remain reachable. Four sorts use unique ID ties and cursors
+bound to filters/sort. Each request is consistent, not a frozen multi-page session.
+
+Library books and Wanted Missing/Incomplete/Unknown/Cutoff Unmet now consume this
+endpoint with actual Previous/Next controls and global counters. Text filters,
+format/monitor filters and sorting run on the server. Current-page selections
+clear on navigation/filter changes; errors offer retry rather than claiming empty
+success. Demo builds retain explicit seeded fallback. Metadata review's count is
+labelled loaded, because that collection remains separate work. The inherited
+Library Update All label was corrected to Check Author Batch for its 50-author
+request. No all-matching bulk job is implied.
+
+The initial scale run exposed real planner costs. JIT compilation took about
+525 ms before useful work, and a late-page plan compared 100,030,002 rejected join
+pairs (~5.95 s). Limiting before hydration still left 6,931,386 rejected pairs
+(~398 ms). Materializing derived states before cursor filtering reduced that plan
+to ~35.6 ms. Read transactions disable JIT and force custom plans locally; pooled
+sessions/database settings are unchanged. Diagnostic runs using obsolete slow
+plans were explicitly canceled after those plans were measured; the final scale
+run passed 404 pages across all four sorts. Its 10,001 active books / 10,003 file
+records returned exact counts with no duplicates/gaps at 61.400 ms local service
+p95 on Apple M5 Max/ARM64, Colima Postgres 16.15, excluding external client IO.
+
+Validation also covers full filtered subsets, invalid parameters/cursor reuse,
+empty arrays, manual corrections, partial/unknown media, client outages, custom
+profiles and saved/legacy scores. Full Go race/Postgres checks and vet passed;
+the additional installed-quality regression passed with races. Fourteen web unit
+checks and the production build passed. All 59 applicable desktop/mobile browser
+cases passed (one expected mobile skip); both new views were inspected at 390x844,
+with selection/paging/error recovery also exercised at 1440x1000.
+
+The final local ARM64 API/web pair passed packaged qualification at schema 43:
+complete cursor traversal, exact counts, incomplete-audio filtering and cursor
+continuation after API restart. The 413,062-byte backup restored with native file
+projection, records and receipts matching the source. No real provider/indexer
+grab, production rollout, publication, tag or release occurred. Author collections,
+metadata review, file/legacy readers, compatibility and durable all-matching bulk
+jobs remain open; S14/S15 and the overall plan are not complete.
+
+The final `go test ./...` run also passed after the installed-quality fixture was
+added. The next audited gap is AuthorsTab: its 500-subscription response and
+counts derived from capped wanted/file/review lists still need native collection
+membership, accurate statistics and pagination.

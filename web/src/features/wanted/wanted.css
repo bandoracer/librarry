@@ -671,3 +671,6 @@
   width: 30px;
   height: 44px;
 }
+
+.wanted-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.wanted-pagination > span { font-size: 0.8rem; color: var(--muted); }

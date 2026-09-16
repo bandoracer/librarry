@@ -32,7 +32,7 @@ test("an unavailable authentication service offers recovery", async ({ page }) =
 });
 
 test("dialogs trap keyboard focus and restore their trigger", async ({ page }) => {
-  await page.route("**/api/v1/wanted?view=library", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ wanted: [{ id: "fixture", title: "Fixture book", authorName: "Fixture author", format: "ebook", qualityProfile: "Default", status: "wanted", monitored: true }] }) }));
+  await page.route("**/api/v1/library/books?**", route => route.fulfill({ json: { total: 1, filtered: 1, counts: { missing: 1 }, recordedFiles: 0, downloads: "notConfigured", books: [{ id: "fixture", title: "Fixture book", authorName: "Fixture author", format: "ebook", qualityProfile: "Default", status: "wanted", derivedState: "missing", monitored: true }] } }));
   await page.goto("/library");
   const trigger = page.getByRole("button", { name: "Rename Files" });
   await trigger.click();

@@ -11,6 +11,8 @@ import {
   fetchIntegrationHealth,
   fetchIntegrationSettings,
   fetchLibraryFiles,
+  fetchBookCollection,
+  type BookCollectionOptions,
   fetchLibraryImportReviews,
   fetchLibrarySettings,
   fetchNotificationTargets,
@@ -32,6 +34,7 @@ import {
   type DownloadListOptions
 } from "./api";
 import { demoModeEnabled, demoSeeds, withDemoFallback } from "./demo";
+import { demoBookCollection } from "./demoBookCollection";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +57,7 @@ export const keys = {
   readiness: ["readiness"] as const,
   readarrCompatibility: ["readarr-compatibility"] as const,
   wanted: ["wanted"] as const,
+  bookCollection: (options: BookCollectionOptions) => ["wanted", "collection", options] as const,
   wantedCutoffUnmet: ["wanted", "cutoff-unmet"] as const,
   wantedMetadataReview: ["wanted-metadata-review"] as const,
   wantedMetadata: (wantedID: string) => ["wanted-metadata", wantedID] as const,
@@ -521,4 +525,8 @@ export function useMetadataProfiles() {
     queryKey: metadataProfileKeys.metadataProfiles,
     queryFn: withDemoFallback(fetchMetadataProfiles, () => [])
   });
+}
+
+export function useBookCollection(options: BookCollectionOptions = {}, enabled = true) {
+  return useQuery({ queryKey: keys.bookCollection(options), queryFn: ({ signal }) => withDemoFallback(() => fetchBookCollection(options, signal), () => demoBookCollection(options))(), enabled, refetchInterval: 30_000 });
 }

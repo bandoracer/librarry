@@ -68,3 +68,21 @@ describe("upgrade selection contract", () => {
     await expect(runUpgradeSearch({ wantedIds: ["missing"] })).rejects.toThrow("selected book no longer exists");
   });
 });
+
+describe("paged book collection", () => {
+  it("passes filters and cursor, supports cancellation, and normalizes empty pages", async () => {
+    const { fetchBookCollection } = await import("./api");
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{"books":null,"total":501,"filtered":0}'));
+    vi.stubGlobal("fetch", fetch);
+    const controller = new AbortController();
+    const page = await fetchBookCollection({ q: "Older book", format: "ebook", sort: "title", cursor: "next", limit: 100 }, controller.signal);
+    expect(fetch.mock.calls[0]?.[0]).toBe("/api/v1/library/books?q=Older+book&format=ebook&sort=title&cursor=next&limit=100");
+    expect(fetch.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+    expect(page.books).toEqual([]);
+    expect(page.total).toBe(501);
+  });
+  it("keeps paged collections under wanted mutation invalidation", async () => {
+    const { keys } = await import("./queries");
+    expect(keys.bookCollection({ cursor: "next" }).slice(0, keys.wanted.length)).toEqual(keys.wanted);
+  });
+});

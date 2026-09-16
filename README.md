@@ -36,6 +36,11 @@ download-client outages remain explicit instead of appearing as missing books.
 Scheduled checks use that evidence and advance past skipped or failed batches;
 feed matching traverses older monitored books as well as recent additions.
 
+Unreleased Library and Wanted gap views now page through the full tracked book
+collection with server filtering, sorting and counts. Bulk edits apply to selected
+books on the current page. Author lists, metadata review and collection-wide bulk
+jobs still have separate scaling work outstanding.
+
 ## Project Status
 
 Librarry is **early alpha**. The current implementation is strong enough to test
