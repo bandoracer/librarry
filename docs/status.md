@@ -34,6 +34,13 @@ the recorded link ID, preventing repeated scans of unrelated files. The existing
 page deadlines, completeness rules and result counts remain unchanged. A cold
 10,001-book regression demonstrates the old broad scan and verifies bounded work.
 
+The repaired application commit `e2f99c0` passed all six candidate CI jobs,
+including Postgres race tests, 23 frontend unit tests, 143 browser tests,
+disposable Calibre, packaged recovery/restore, image scanning and both multiarch
+builds. A [focused code review](reviews/2026-09-16-candidate-code-review.md) found
+no new blockers in the reviewed safety boundaries and latest fixes. Full-stack
+review and the remaining release gates stay open; images were not published.
+
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation
 branch adds exact client payload selection, protected scan observations,
