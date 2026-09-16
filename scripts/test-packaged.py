@@ -194,6 +194,29 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert (Path(audio_files[0]["path"]).parent.name == "Disc 1")
         assert (media / Path(audio_files[0]["path"]).relative_to("/fixture").parent.parent / "cover.jpg").exists()
         print("Packaged imports: database failure rolled back, unfinished publication hidden, process restart resumed exact plan, missing payload reviewed, multi-disc chapters and cover imported, source retained, rescans preserve links")
+        # Complete the missing-file review through the real HTTP preview/resolve
+        # contract once the client and filesystem both prove the file is present.
+        missing_source = media / "downloads" / "Missing.epub"
+        shutil.copyfile(source, missing_source)
+        client_rows[1]["files"][0]["size"] = missing_source.stat().st_size
+        (media / "client.json").write_text(json.dumps(client_rows))
+        reviews = request("/api/v1/library/import-reviews?status=pending")["reviews"]
+        review = next(row for row in reviews if row["downloadId"] == "missing")
+        mapping = {"action": "import", "confirmIdentity": True, "importMode": "copy", "conflictAction": "rename",
+                   "mapping": [{"relativePath": "Missing.epub", "wantedId": wanted_id}]}
+        preview = request(f"/api/v1/library/import-reviews/{review['id']}/preview", mapping)
+        preview_destination = media / Path(preview["operation"]["files"][0]["destinationPath"]).relative_to("/fixture")
+        assert not preview_destination.exists()
+        try:
+            request(f"/api/v1/library/import-reviews/{review['id']}/resolve", {**mapping, "previewToken": "stale"})
+            raise AssertionError("review accepted a stale preview")
+        except urllib.error.HTTPError as error:
+            assert error.code == 409, error.code
+        resolved = request(f"/api/v1/library/import-reviews/{review['id']}/resolve", {**mapping, "previewToken": preview["fingerprint"]})
+        assert resolved["review"]["status"] == "imported", resolved
+        assert preview_destination.exists() and missing_source.exists()
+        assert hashlib.sha256(preview_destination.read_bytes()).hexdigest() == digest
+        print("Packaged review: read-only destination preview, stale-token rejection, explicit mapping import and source retention verified")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

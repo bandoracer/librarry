@@ -7,9 +7,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 )
+
+var ErrImportReviewConflict = errors.New("import review conflict")
 
 func (s *Service) queuePayloadReview(ctx context.Context, download acquisition.DownloadStatus, payload DownloadPayload, wantedID, reason string) (ImportReview, error) {
 	metadata := map[string]any{"payload": payload, "downloadClient": download.Client, "payloadReview": true, "requiresWantedSelection": true}
@@ -94,7 +97,7 @@ func (s *Service) PreviewPayloadReview(ctx context.Context, id string, request R
 
 func (s *Service) resolvePayloadReview(ctx context.Context, review ImportReview, request ReviewDecisionRequest) (ReviewDecisionOutcome, error) {
 	if !request.ConfirmIdentity || request.PreviewToken == "" {
-		return ReviewDecisionOutcome{}, errors.New("preview and confirm the file-to-book assignments before importing")
+		return ReviewDecisionOutcome{}, fmt.Errorf("%w: preview and confirm the file-to-book assignments before importing", ErrImportReviewConflict)
 	}
 	download, err := reviewDownload(review)
 	if err != nil {
@@ -107,7 +110,7 @@ func (s *Service) resolvePayloadReview(ctx context.Context, review ImportReview,
 			return ReviewDecisionOutcome{}, previewErr
 		}
 		if preview.Fingerprint != request.PreviewToken {
-			return ReviewDecisionOutcome{}, errors.New("payload, mapping or destination changed; refresh the import preview")
+			return ReviewDecisionOutcome{}, fmt.Errorf("%w: payload, mapping or destination changed; refresh the import preview", ErrImportReviewConflict)
 		}
 		op = preview.Operation
 		op.Metadata["reviewFingerprint"] = preview.Fingerprint
@@ -117,7 +120,7 @@ func (s *Service) resolvePayloadReview(ctx context.Context, review ImportReview,
 		return ReviewDecisionOutcome{}, err
 	}
 	if op.Metadata["reviewFingerprint"] != request.PreviewToken {
-		return ReviewDecisionOutcome{}, errors.New("another import plan already owns this download; inspect import recovery")
+		return ReviewDecisionOutcome{}, fmt.Errorf("%w: another import plan already owns this download; inspect import recovery", ErrImportReviewConflict)
 	}
 	imported, err := s.runImportOperation(ctx, op)
 	if err != nil {

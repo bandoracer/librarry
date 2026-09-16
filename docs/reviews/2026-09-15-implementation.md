@@ -219,7 +219,9 @@ Disposable ARM64 API/web images with schema 32 passed the packaged harness:
 missing payload enters review; a forced database failure hides unfinished files;
 a real process restart resumes the saved plan; three chapters across two discs
 and a cover import completely; source bytes remain intact; rescans preserve links.
-A 115,357-byte database dump restored matching operation/manifest/link state.
+A subsequent packaged HTTP review test passed read-only preview, 409 stale-token
+rejection, explicit mapping import and source retention. A 115,911-byte database
+dump restored matching operation/manifest/link state.
 Forms, persisted sessions across restart, Basic and explicit none checks passed.
 This test used a read-only qBittorrent HTTP contract fixture, not a live client.
 Image CI for the eventual commit is tracked on the stacked PR.

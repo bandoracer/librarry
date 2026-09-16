@@ -3163,13 +3163,17 @@ func (h *handler) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	var request library.ReviewDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&request); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid review decision payload"})
 		return
 	}
 	outcome, err := h.deps.Library.ResolveImportReview(r.Context(), id, request)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		status := http.StatusBadGateway
+		if errors.Is(err, library.ErrImportReviewConflict) {
+			status = http.StatusConflict
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	if outcome.Import != nil && outcome.Import.Imported {
