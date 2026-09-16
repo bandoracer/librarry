@@ -392,6 +392,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("DELETE /api/v1/notifications/{id}", handler.deleteNotificationTarget)
 	mux.HandleFunc("POST /api/v1/notifications/{id}/test", handler.testNotificationTarget)
 	mux.HandleFunc("GET /api/v1/providers/health", handler.providerHealth)
+	mux.HandleFunc("POST /api/v1/providers/{name}/check", handler.checkProvider)
 	mux.HandleFunc("GET /api/v1/providers/diagnostics", handler.providerDiagnostics)
 	mux.HandleFunc("GET /api/v1/readiness", handler.readiness)
 	mux.HandleFunc("GET /api/v1/search", handler.search)
@@ -538,6 +539,19 @@ func (h *handler) providerHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *handler) checkProvider(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Metadata == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "metadata service is unavailable"})
+		return
+	}
+	result, err := h.deps.Metadata.CheckProvider(r.Context(), r.PathValue("name"))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (h *handler) providerDiagnostics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"providers": h.deps.Metadata.Diagnostics(r.Context()),
@@ -653,7 +667,12 @@ func (h *handler) metadataReadinessStep(ctx context.Context) readinessStep {
 	health := h.deps.Metadata.Health(ctx)
 	ready := 0
 	configured := 0
+	total := 0
 	for _, provider := range health {
+		if provider.Name == "Local OPF" {
+			continue
+		}
+		total++
 		if provider.Configured {
 			configured++
 		}
@@ -663,10 +682,10 @@ func (h *handler) metadataReadinessStep(ctx context.Context) readinessStep {
 	}
 	if ready > 0 {
 		status := "ready"
-		message := strconv.Itoa(ready) + "/" + strconv.Itoa(len(health)) + " providers are ready for lookup and import evidence."
-		if configured < len(health) {
+		message := strconv.Itoa(ready) + "/" + strconv.Itoa(total) + " providers are ready for lookup and import evidence."
+		if ready < total {
 			status = "warning"
-			message += " Add Hardcover for richer series and edition metadata."
+			message += " Check the remaining providers in System."
 		}
 		return readinessStep{
 			ID:          "metadata",
@@ -678,6 +697,10 @@ func (h *handler) metadataReadinessStep(ctx context.Context) readinessStep {
 			TargetView:  "providers",
 		}
 	}
+	if configured > 0 {
+		return readinessStep{ID: "metadata", Title: "Metadata providers", Status: "warning", Required: true, Message: "Remote metadata is configured but no successful request is recorded. Check a provider connection in System.", ActionLabel: "Check providers", TargetView: "providers"}
+	}
+
 	return readinessStep{
 		ID:          "metadata",
 		Title:       "Metadata providers",

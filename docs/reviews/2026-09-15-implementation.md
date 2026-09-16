@@ -92,7 +92,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
-| S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
+| S12 | Partial | Observed provider health, explicit checks, error sanitization and request backoff implemented; rich traversal, exact Google fallback enforcement, result caching and live credentials remain |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
@@ -571,3 +571,40 @@ including source/race/browser, packaged restart/restore, image scans and AMD64/A
 API/web builds. No images were published or deployed. S09/S10 remain partial:
 changed-layout retirement, Calibre recovery, legacy repair, broader worker/fault
 qualification and the live release gates are still open.
+
+
+## Continuation: observed provider health (S12)
+
+Branch: `codex/provider-health`, based on acquisition bookkeeping. Remote providers
+previously returned configured/ready state and fresh checked timestamps without
+observing the network. System now separates configuration from actual last request
+and last success, with nullable reachability/authentication and a retry time.
+Snapshot reads spend no provider quota. Explicit checks use Hardcover's documented
+read-only account query or a one-result Open Library/Google ISBN lookup; local OPF
+cannot prove remote readiness. No account details are exposed or persisted.
+
+A provider serializes requests, bounds queued waits, coalesces recent explicit
+checks for 15 seconds and honors HTTP 429 backoff. Cancellation does not invent an
+outage. HTTP/GraphQL failures distinguish rejected credentials, forbidden access,
+rate limiting, degraded responses and unavailability. Malformed/missing lists do
+not become healthy empty searches; valid empty responses remain valid. Request
+errors exclude provider bodies and credential-bearing URLs, including Google keys.
+Observations are process-local and reset on restart/reconfiguration.
+
+Full Go race/Postgres suite, vet and frontend production build passed. The 37 prior
+browser checks passed; the new desktop/mobile cases passed after correcting a test
+expectation for the existing lowercase status labels. Mobile success was inspected
+visually. Contract tests cover successful/rejected credentials, malformed responses,
+concurrent check coalescing, cancellation, missing keys, rate limits and redacted
+network errors. The local ARM64 schema-40 packaged API passed startup observations,
+missing-token checks, authenticated route enforcement and all existing
+import/acquisition/scan/replacement checks. A 404,543-byte database dump restored.
+Packaged web remains the older multipart snapshot; changed UI is qualified from
+current source. Real provider credentials have not been supplied or tested.
+
+Acquisition bookkeeping PR #12 at `ea7587fd18575db4ba313380a6ac9205893b3a6f` passed
+[CI run 35066114133](https://github.com/bandoracer/librarry/actions/runs/35066114133),
+including source/race/browser, packaged restart/restore, image scans and AMD64/ARM64
+API/web builds. No images were published or deployed. Rich provider traversal,
+Google's exact-fallback enforcement, result caching and live qualification remain
+S12 work; this is not completion of the stabilization plan.

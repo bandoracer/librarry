@@ -979,3 +979,15 @@ this flow. An existing book directory with extra old chapters/unknown files outs
 the new manifest requires review or Keep both; full old-layout retirement is not
 yet implemented. Matching chapter/sidecar replacements preserve tracked IDs and
 manual names/notes. Historical manifests continue describing their original bytes.
+
+
+## Provider connection checks
+
+Open System and use the named **Check** button to verify a configured metadata
+provider. Reading provider status alone performs no metadata HTTP request. Cards
+separate configuration from the last actual request and successful request;
+connection observations reset on API restart. The native route is
+`POST /api/v1/providers/{name}/check` (URL-encode spaces in provider names) and uses
+normal authentication. Missing-key checks report missing credentials without IO;
+HTTP 429 shows the next allowed retry time. See [provider setup](provider-setup.md)
+for probe scope and credential qualification limits.

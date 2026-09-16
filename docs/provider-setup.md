@@ -3,8 +3,13 @@
 ## Hardcover
 
 Set `LIBRARRY_HARDCOVER_TOKEN` on the backend. The token is server-side only and
-enables book search. Configured does not mean authenticated: GraphQL/HTTP errors
-are reported on requests. Typesense result documents are decoded, but author
+enables book search. **Configured** means the token is present; it does not prove
+access. In System, **Check Hardcover** sends the documented read-only `me { id }`
+query. A valid user response establishes successful authentication; the response's
+user details are not returned to the browser or saved. A copied `Bearer ` prefix
+is normalized so it is not sent twice. Regular successful searches also establish
+request evidence. GraphQL/HTTP errors are shown as degraded, rejected credentials,
+forbidden access, rate limiting or an unavailable provider as appropriate. Typesense result documents are decoded, but author
 bibliography traversal and full rich edition/series enrichment are still pending
 qualification. Open Library continues to work independently.
 
@@ -29,3 +34,30 @@ library scan/import and used as high-confidence local evidence for title,
 author, identifiers, language, publisher, and series metadata. MP3 ID3 tags and
 M4B/MP4 metadata atoms are also extracted for audiobook imports. The provider is
 present as a health/diagnostic source and does not return remote search results.
+
+
+## Observed provider health
+
+System reads cached observations; opening or refreshing the page does not contact
+metadata providers. **Check Open Library** and **Check Google Books** perform a
+one-result ISBN lookup. Missing credentials skip remote checks entirely. Configured
+remote providers start unverified after process restart. Local OPF is local import
+evidence and cannot establish readiness for remote book/author lookups.
+
+Cards show the last actual request and last successful request separately. An
+outage retains the historical success time but does not claim current
+reachability/authentication. An invalid token clears successful authentication;
+forbidden/malformed responses do not prove it. A valid empty result is a successful
+request, while a missing expected result structure is an error. Provider response
+bodies and credential-bearing request URLs are excluded from returned errors.
+
+Concurrent requests run one at a time per provider, with a bounded wait. Explicit
+checks reuse a recent observation for 15 seconds. HTTP 429 prevents another request
+until Retry-After (one minute when absent/invalid, capped at 24 hours). This is
+request backoff, not a scheduled background retry. Observations are in memory;
+restarting or constructing providers with different credentials resets them.
+
+Connection checks do not certify rich metadata coverage or author/list traversal.
+Real Hardcover and Google credential qualification remains pending. The probe
+contracts follow [Hardcover's getting-started example](https://docs.hardcover.app/api/getting-started/)
+and [Google Books volumes search](https://developers.google.com/books/docs/v1/using#PerformingSearch).

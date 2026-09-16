@@ -927,3 +927,24 @@ Retry verifies the complete destination set before disposing of recorded backups
 Download cleanup rejects pending replacement cleanup and still requires its
 independent whole-set/client/seed evidence. Historical import manifests are not
 rewritten to pretend the older version's receipt verifies newer bytes.
+
+
+### Provider request observations
+
+`GET /api/v1/providers/health` returns configuration and cached request evidence;
+`POST /api/v1/providers/{name}/check` explicitly verifies a named provider using
+normal application authentication. Hardcover checks its read-only `me { id }`
+query; Open Library/Google check one ISBN result. `lastCheckedAt`, `lastSuccessAt`,
+nullable `reachable`/`authenticated`, and `retryAfter` describe actual evidence.
+The older `checkedAt` remains a snapshot timestamp for compatibility and is not a
+remote probe time. System renders the explicit evidence fields.
+
+Each provider has a synchronized observation and a single request slot. Queue waits
+are bounded at 15 seconds; clients without a bounded timeout receive one. Explicit
+checks reuse observations for 15 seconds. HTTP 429 backoff applies to both checks
+and searches. Snapshot reads and unavailable credentials perform no remote IO;
+caller cancellation does not become an outage. Error classifications exclude raw
+response bodies and credential-bearing URLs. Missing response lists/counts are
+errors, while valid empty lists remain valid responses. This state is process-local
+and resets with provider instances; search-result caching and richer traversal
+remain separate S12 work.

@@ -33,21 +33,26 @@ func DefaultProviders(cfg ProviderConfig) []Provider {
 }
 
 type HardcoverProvider struct {
-	client *http.Client
-	token  string
+	observation *providerObservation
+	client      *http.Client
+	token       string
 }
 
 func NewHardcoverProvider(client *http.Client, token string) *HardcoverProvider {
-	return &HardcoverProvider{client: client, token: strings.TrimSpace(token)}
+	token = strings.TrimSpace(token)
+	if strings.HasPrefix(strings.ToLower(token), "bearer ") {
+		token = strings.TrimSpace(token[7:])
+	}
+	return &HardcoverProvider{client: boundedProviderClient(client), token: token, observation: newProviderObservation("Hardcover", true)}
 }
 
 func (p *HardcoverProvider) Name() string { return "Hardcover" }
 
 func (p *HardcoverProvider) Health(ctx Context) ProviderHealth {
 	if p.token == "" {
-		return health(p.Name(), "missing_credentials", false, "Set LIBRARRY_HARDCOVER_TOKEN to enable rich metadata.")
+		return p.observation.health(false, "Set LIBRARRY_HARDCOVER_TOKEN to enable rich metadata.")
 	}
-	return health(p.Name(), "configured", true, "Token configured; authentication is verified when a request succeeds.")
+	return p.observation.health(true, "Token configured; connection has not been checked.")
 }
 
 func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
@@ -62,7 +67,7 @@ func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
 	}
 }
 
-func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, error) {
+func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchResult, err error) {
 	if p.token == "" {
 		return nil, nil
 	}
@@ -70,6 +75,11 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 		return nil, nil
 	}
 
+	finish, err := p.observation.begin(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = finish(err) }()
 	payload := map[string]any{
 		"query": `query SearchBooks($query: String!, $limit: Int!) {
 			search(query: $query, query_type: "Book", per_page: $limit, page: 1) {
@@ -94,20 +104,15 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("hardcover search returned %s", resp.Status)
-	}
 
 	var decoded struct {
-		Errors []struct {
-			Message string `json:"message"`
-		} `json:"errors"`
-		Data struct {
+		Errors []hardcoverGraphQLError `json:"errors"`
+		Data   struct {
 			Search struct {
 				Results json.RawMessage `json:"results"`
 			} `json:"search"`
@@ -117,14 +122,14 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 		return nil, err
 	}
 
-	if len(decoded.Errors) > 0 {
-		return nil, fmt.Errorf("hardcover GraphQL request failed (%d errors)", len(decoded.Errors))
+	if err := hardcoverErrors(decoded.Errors); err != nil {
+		return nil, err
 	}
 	rawResults, err := hardcoverSearchDocuments(decoded.Data.Search.Results)
 	if err != nil {
 		return nil, err
 	}
-	results := make([]SearchResult, 0, len(rawResults))
+	results = make([]SearchResult, 0, len(rawResults))
 	for _, raw := range rawResults {
 		title := stringValue(raw["title"])
 		if title == "" {
@@ -167,17 +172,18 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 }
 
 type OpenLibraryProvider struct {
-	client *http.Client
+	observation *providerObservation
+	client      *http.Client
 }
 
 func NewOpenLibraryProvider(client *http.Client) *OpenLibraryProvider {
-	return &OpenLibraryProvider{client: client}
+	return &OpenLibraryProvider{client: boundedProviderClient(client), observation: newProviderObservation("Open Library", false)}
 }
 
 func (p *OpenLibraryProvider) Name() string { return "Open Library" }
 
 func (p *OpenLibraryProvider) Health(ctx Context) ProviderHealth {
-	return health(p.Name(), "ready", true, "Open API configured as the open-data backbone.")
+	return p.observation.health(true, "Open API configured; connection has not been checked.")
 }
 
 func (p *OpenLibraryProvider) Diagnostics(ctx Context) Diagnostic {
@@ -194,10 +200,15 @@ func (p *OpenLibraryProvider) Diagnostics(ctx Context) Diagnostic {
 	}
 }
 
-func (p *OpenLibraryProvider) Search(ctx Context, query Query) ([]SearchResult, error) {
+func (p *OpenLibraryProvider) Search(ctx Context, query Query) (results []SearchResult, err error) {
 	if strings.TrimSpace(query.Query) == "" {
 		return nil, errors.New("query is required")
 	}
+	finish, err := p.observation.begin(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = finish(err) }()
 	switch query.Type {
 	case SearchTypeAuthor:
 		return p.searchAuthors(ctx, query)
@@ -219,14 +230,11 @@ func (p *OpenLibraryProvider) searchAuthors(ctx Context, query Query) ([]SearchR
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("open library author search returned %s", resp.Status)
-	}
 
 	var decoded struct {
 		Docs []struct {
@@ -238,6 +246,10 @@ func (p *OpenLibraryProvider) searchAuthors(ctx Context, query Query) ([]SearchR
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
+	}
+
+	if decoded.Docs == nil {
+		return nil, errors.New("missing provider result list")
 	}
 
 	results := make([]SearchResult, 0, len(decoded.Docs))
@@ -281,14 +293,11 @@ func (p *OpenLibraryProvider) searchAuthorWorks(ctx Context, query Query, author
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("open library author works returned %s", resp.Status)
-	}
 
 	var decoded struct {
 		Entries []struct {
@@ -300,6 +309,10 @@ func (p *OpenLibraryProvider) searchAuthorWorks(ctx Context, query Query, author
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
+	}
+
+	if decoded.Entries == nil {
+		return nil, errors.New("missing provider result list")
 	}
 
 	authorID := "openlibrary:" + authorKey
@@ -361,14 +374,11 @@ func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("open library search returned %s", resp.Status)
-	}
 
 	var decoded struct {
 		Docs []struct {
@@ -385,6 +395,10 @@ func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
+	}
+
+	if decoded.Docs == nil {
+		return nil, errors.New("missing provider result list")
 	}
 
 	results := make([]SearchResult, 0, len(decoded.Docs))
@@ -436,21 +450,22 @@ func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 }
 
 type GoogleBooksProvider struct {
-	client *http.Client
-	apiKey string
+	observation *providerObservation
+	client      *http.Client
+	apiKey      string
 }
 
 func NewGoogleBooksProvider(client *http.Client, apiKey string) *GoogleBooksProvider {
-	return &GoogleBooksProvider{client: client, apiKey: strings.TrimSpace(apiKey)}
+	return &GoogleBooksProvider{client: boundedProviderClient(client), apiKey: strings.TrimSpace(apiKey), observation: newProviderObservation("Google Books", true)}
 }
 
 func (p *GoogleBooksProvider) Name() string { return "Google Books" }
 
 func (p *GoogleBooksProvider) Health(ctx Context) ProviderHealth {
 	if p.apiKey == "" {
-		return health(p.Name(), "missing_credentials", false, "Set LIBRARRY_GOOGLE_BOOKS_API_KEY for exact fallback lookup.")
+		return p.observation.health(false, "Set LIBRARRY_GOOGLE_BOOKS_API_KEY for exact fallback lookup.")
 	}
-	return health(p.Name(), "ready", true, "Configured as exact ISBN/title fallback only.")
+	return p.observation.health(true, "API key configured; connection has not been checked.")
 }
 
 func (p *GoogleBooksProvider) Diagnostics(ctx Context) Diagnostic {
@@ -473,6 +488,14 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	if query.Type == SearchTypeAuthor {
 		return nil, nil
 	}
+	finish, err := p.observation.begin(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	results, err := p.searchBooks(ctx, query)
+	return results, finish(err)
+}
+func (p *GoogleBooksProvider) searchBooks(ctx Context, query Query) ([]SearchResult, error) {
 	values := url.Values{}
 	if query.Type == SearchTypeAuthorWorks {
 		values.Set("q", "inauthor:"+query.Query)
@@ -489,17 +512,15 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("google books search returned %s", resp.Status)
-	}
 
 	var decoded struct {
-		Items []struct {
+		TotalItems *int `json:"totalItems"`
+		Items      []struct {
 			ID         string `json:"id"`
 			VolumeInfo struct {
 				Title               string   `json:"title"`
@@ -519,6 +540,10 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
+	}
+
+	if decoded.TotalItems == nil || *decoded.TotalItems < 0 || (*decoded.TotalItems > 0 && decoded.Items == nil) {
+		return nil, errors.New("missing provider result count or list")
 	}
 
 	results := make([]SearchResult, 0, len(decoded.Items))

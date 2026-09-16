@@ -1,4 +1,9 @@
 export type ProviderHealth = {
+  lastCheckedAt?: string;
+  lastSuccessAt?: string;
+  reachable?: boolean;
+  authenticated?: boolean;
+  retryAfter?: string;
   name: string;
   status: string;
   configured: boolean;
@@ -3155,4 +3160,10 @@ export async function fetchLibraryScanMoves(id: string, cursor = ""): Promise<{ 
   if (!response.ok) throw new Error(await apiError(response, "Reattached file history unavailable"));
   const data = await response.json();
   return { ...data, moves: arrayPayload(data.moves) };
+}
+
+export async function checkProviderConnection(name: string): Promise<ProviderHealth> {
+ const response = await fetch(`${apiBase}/api/v1/providers/${encodeURIComponent(name)}/check`, { method: "POST" });
+ if (!response.ok) throw new Error(await apiError(response, "Provider check failed"));
+ return response.json();
 }

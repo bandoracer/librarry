@@ -114,6 +114,12 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
               ("version", "commit", "buildTime", "migrationVersion", "runtimeVersion", "authentication")}))
+        provider_status = {p["name"]: p for p in request("/api/v1/providers/health")["providers"]}
+        assert provider_status["Open Library"]["status"] == "configured", provider_status
+        assert "lastCheckedAt" not in provider_status["Open Library"], provider_status
+        checked = request("/api/v1/providers/Hardcover/check", {}, method="POST")
+        assert checked["status"] == "missing_credentials" and "lastCheckedAt" not in checked, checked
+        print("Packaged provider health: configuration does not invent reachability/authentication; missing-token check records no request")
         for route in ("/library", "/activity", "/settings"):
             page = request(route)
             assert b'<div id="root">' in page, route
@@ -455,6 +461,11 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         try:
             request("/api/v1/library/repair-preview")
             raise AssertionError("repair preview bypassed forms authentication")
+        except urllib.error.HTTPError as error:
+            assert error.code == 401
+        try:
+            request("/api/v1/providers/Hardcover/check", {}, method="POST")
+            raise AssertionError("provider check bypassed forms authentication")
         except urllib.error.HTTPError as error:
             assert error.code == 401
         assert request("/api/v1/login", {"username": "fixture", "password": "fixture-password"})["authenticated"] is True

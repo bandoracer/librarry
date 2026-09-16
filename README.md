@@ -95,6 +95,10 @@ local bookkeeping remain retryable, and a new grab no longer counts as an instal
 upgrade before its file set commits. These stabilization changes
 are unreleased; see [current status](docs/status.md) for qualification limits.
 
+System now offers explicit provider connection checks and shows the last real
+request and successful request. A configured token alone does not imply verified
+access, and provider outages retain their prior success history.
+
 ## Documentation
 
 - [Stabilization plan](docs/stabilization-plan.md): phased execution and release gates.

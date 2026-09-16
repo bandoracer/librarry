@@ -39,6 +39,7 @@ import {
 import { demoModeEnabled } from "../../lib/demo";
 import { formatBytes, formatRelativeTime } from "../../lib/format";
 import {
+  checkProviderConnection,
   createBackup,
   deleteBackup,
   runSystemTask,
@@ -75,7 +76,7 @@ function titleize(value: string): string {
 function healthTone(status: string): Tone {
   const normalized = status.toLowerCase();
   if (normalized === "ready" || normalized === "ok") return "success";
-  if (normalized.includes("error") || normalized.includes("fail")) return "danger";
+  if (normalized.includes("error") || normalized.includes("fail") || ["invalid_credentials", "forbidden", "unavailable"].includes(normalized)) return "danger";
   return "warn";
 }
 
@@ -305,6 +306,8 @@ export default function SystemPage() {
   const diskSpace = useDiskSpace();
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
   const [showAllHealth, setShowAllHealth] = React.useState(false);
+
+  const checkProvider = useInvalidatingMutation(checkProviderConnection, [keys.providerHealth, keys.readiness]);
 
   const runTask = useInvalidatingMutation(runSystemTask, [operabilityKeys.systemTasks]);
 
@@ -593,7 +596,7 @@ export default function SystemPage() {
         }
       >
         {providers.isPending ? (
-          <LoadingRow label="Checking provider health…" />
+          <LoadingRow label="Loading provider status…" />
         ) : providers.isError ? (
           <InlineNotice tone="danger">
             {providers.error instanceof Error ? providers.error.message : "Provider health check failed."}
@@ -613,7 +616,13 @@ export default function SystemPage() {
                   {!provider.configured ? <Badge tone="neutral">Not configured</Badge> : null}
                 </div>
                 <p className="system-muted">{provider.message}</p>
-                <span className="system-meta">Checked {formatRelativeTime(provider.checkedAt)}</span>
+                <div className="system-meta">
+                  {provider.name === "Local OPF" ? "Local import evidence" : provider.lastCheckedAt ? `Last request ${formatRelativeTime(provider.lastCheckedAt)}` : "Connection not checked"}
+                  {provider.lastSuccessAt ? <div>Last success {formatRelativeTime(provider.lastSuccessAt)}</div> : null}
+                  {provider.retryAfter ? <div>Retry after {new Date(provider.retryAfter).toLocaleString()}</div> : null}
+                </div>
+                {provider.name !== "Local OPF" ? <Button size="sm" disabled={!provider.configured || checkProvider.isPending || (!!provider.retryAfter && Date.parse(provider.retryAfter) > Date.now())} busy={checkProvider.isPending && checkProvider.variables === provider.name} onClick={() => checkProvider.mutate(provider.name)}>Check {provider.name}</Button> : null}
+                {checkProvider.isError && checkProvider.variables === provider.name ? <InlineNotice tone="danger">{checkProvider.error.message}</InlineNotice> : null}
               </article>
             ))}
           </div>

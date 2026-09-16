@@ -69,11 +69,16 @@ type SearchResult struct {
 }
 
 type ProviderHealth struct {
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	Configured bool      `json:"configured"`
-	Message    string    `json:"message"`
-	CheckedAt  time.Time `json:"checkedAt"`
+	LastCheckedAt *time.Time `json:"lastCheckedAt,omitempty"`
+	LastSuccessAt *time.Time `json:"lastSuccessAt,omitempty"`
+	Reachable     *bool      `json:"reachable,omitempty"`
+	Authenticated *bool      `json:"authenticated,omitempty"`
+	RetryAfter    *time.Time `json:"retryAfter,omitempty"`
+	Name          string     `json:"name"`
+	Status        string     `json:"status"`
+	Configured    bool       `json:"configured"`
+	Message       string     `json:"message"`
+	CheckedAt     time.Time  `json:"checkedAt"`
 }
 
 type Diagnostic struct {

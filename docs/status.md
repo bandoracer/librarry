@@ -1,6 +1,6 @@
 # Current Status
 
-Last updated: 2026-09-15.
+Last updated: 2026-09-16.
 
 Librarry is an early alpha Readarr replacement. It is useful for validating the
 metadata-first workflow and exercising acquisition integrations, but it is not
@@ -24,8 +24,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [persisted scan PR #8](https://github.com/bandoracer/librarry/pull/8),
 [repair preview PR #9](https://github.com/bandoracer/librarry/pull/9),
 [move reconciliation PR #10](https://github.com/bandoracer/librarry/pull/10),
-[reviewed replacement PR #11](https://github.com/bandoracer/librarry/pull/11), and the
-`codex/acquisition-bookkeeping` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[reviewed replacement PR #11](https://github.com/bandoracer/librarry/pull/11),
+[acquisition bookkeeping PR #12](https://github.com/bandoracer/librarry/pull/12), and the
+`codex/provider-health` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -105,9 +106,16 @@ Ambiguous copies, changed/assigned discoveries and Calibre ownership remain for
 review. Imports shows a paginated path-change history. Unified book/presence
 projections remain S14 work; live NAS/mount qualification remains outstanding.
 
-Hardcover tokens currently establish configured state, not proven authentication.
-Book search handles Typesense result documents and GraphQL failures. Rich
-edition/author traversal and real-token qualification remain outstanding.
+Remote provider health now distinguishes configured credentials from actual request
+evidence. System's explicit checks verify Hardcover authentication with a read-only
+query and Open Library/Google access with an ISBN lookup. Polling status does not
+spend provider quota or refresh request timestamps. Errors retain the prior success
+time while showing rejected credentials, denied access, rate limiting or outage;
+HTTP 429 applies retry backoff. Credential-bearing URLs and provider error bodies
+are not returned. These behaviors are qualified with contract fixtures, including
+concurrency and malformed/empty-response cases. Real-token qualification, rich
+edition/author/list traversal, result caching and enforcement of the Google
+exact-fallback policy remain outstanding under S12.
 
 ## Historical verified milestones
 
