@@ -76,7 +76,7 @@ func TestListQuotaAlsoStopsMetadataBeforeFirstRequest(t *testing.T) {
 		if req.Header.Get("Authorization") != "Bearer fixture-token" {
 			t.Fatal("bearer prefix doubled")
 		}
-		return budgetResponse(`{"data":{"list_books":[]}}`), nil
+		return budgetResponse(`{"data":{"lists_by_pk":{"id":1,"books_count":0,"updated_at":"2026-09-16T00:00:00Z","list_books":[]}}}`), nil
 	}))}
 	lists := importlists.NewHardcoverClient(client, "Bearer fixture-token")
 	if rows, err := lists.FetchList(context.Background(), map[string]string{"listId": "1"}, 10); err != nil || len(rows) != 0 {

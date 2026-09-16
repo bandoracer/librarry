@@ -156,3 +156,25 @@ missing list data is an error, while a valid empty list remains valid.
 
 References: [Open Library rate limits](https://openlibrary.org/developers/api#rate-limits)
 and [Hardcover's current quota/header contract](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/Getting-Started.mdx#rate-limits).
+
+
+Hardcover import lists now traverse by increasing membership ID until a terminal
+empty page, rather than stopping after 200 books. Each page verifies list identity,
+declared membership count and available modification timestamp; changed counts,
+changed timestamps, repeated/invalid identities, hidden books and early endings
+fail the complete fetch. A nullable provider timestamp is accepted; these checks
+cannot provide a transaction snapshot across a concurrently edited remote list.
+No entries from a failed fetch are added. Traversal is bounded to 10,000 membership
+rows, 101 requests, two minutes and 4 MiB per response; exceeding a bound returns
+an explicit error instead of partial success. Repeated membership of the same
+book adds it once.
+
+Sync honors every stored exclusion and reuses existing work/format tracking,
+including older edition identities. It preserves removed status, manual metadata,
+monitoring and existing root choices. New monitoring/root defaults commit with
+creation. Failed persistence leaves the list's prior success timestamp unchanged;
+the next run can reuse successful additions and retry missing ones. Optional
+search-on-add is still best effort and does not have durable retry delivery.
+These behaviors are fixture-qualified against the documented
+[Hardcover list schema](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/GraphQL/Schemas/Lists.mdx);
+a real token/private-list check remains pending.

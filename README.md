@@ -433,6 +433,11 @@ Cache hits preserve the actual request timestamps shown in System. Metadata and
 Hardcover list requests share per-provider pacing and quota backoff; cached results
 remain usable during rate limiting until their normal expiry.
 
+Hardcover list sync traverses the complete visible list before adding books and
+reports incomplete pages as errors. Existing tracked books and manual choices
+survive repeated syncs; new root and monitoring defaults save with the book.
+List traversal is fixture-qualified, with live-token validation still pending.
+
 Goodreads, Amazon, and Audible scraping are intentionally not part of core.
 
 ## Architecture

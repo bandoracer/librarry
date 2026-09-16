@@ -1031,3 +1031,13 @@ hosts, canceled waits, shared metadata/list quota and unchanged health timestamp
 The regular API process passes the same client to metadata and import lists;
 replacing credentials in a future runtime-settings flow must replace that client
 and its provider instances together.
+
+
+Import-list fixtures cover 605 books over short provider pages, missing/hidden
+lists, incomplete pages, count/timestamp changes, malformed identities, response
+size/page limits, cancellation and nullable timestamps. Database tests add 205
+books, honor more than 1,000 exclusions, preserve removed/manual legacy editions,
+commit initial root/monitoring settings, retry failed additions, and converge
+concurrent syncs. Run `go test -race ./backend/internal/importlists` with
+`LIBRARRY_TEST_DATABASE_URL` set as above for the database checks. No real Hardcover
+token is used and no release is grabbed.

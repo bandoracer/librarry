@@ -1042,3 +1042,19 @@ successful data remains valid through ordinary TTL during rate limiting. Credent
 shape and connection failures still invalidate cached queries. No background fetch
 or retry is detached from its caller. This is per-process coordination, not a
 cross-replica quota service or persistent account budget.
+
+
+Import-list fetchers return a complete validated traversal or an error before
+wanted mutations begin. Hardcover uses stable membership-ID pagination and checks
+list identity, declared count and available modification timestamps on each page.
+Remote edits are detected when these signals change; the API provides no snapshot
+transaction. Bounds fail explicitly rather than returning truncated success.
+Native list additions use the same work/format add-only lock as bibliography
+monitoring. Root and initial monitoring settings join the creation transaction;
+existing tracking is returned unchanged. A list success timestamp advances only
+after all required additions succeed, and timestamp failures are returned in the
+outcome. The scheduled task reports errored outcomes as task failures. Per-book
+commits make a retry idempotent without holding one transaction over network IO.
+Search-on-add retains its existing best-effort behavior pending durable follow-up
+work. Manual runs remain synchronous; long lists may exceed an upstream proxy's
+request timeout, while scheduled runs have a ten-minute job budget.

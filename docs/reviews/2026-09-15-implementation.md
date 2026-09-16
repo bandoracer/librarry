@@ -92,8 +92,8 @@ progress record, not a claim that the full stabilization plan is complete.
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
-| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; stable-ID author traversal implemented with fixtures and read-only Open Library proof; shared request pacing/quota backoff implemented; rich editions/lists, persistent raw records and live Hardcover/Google credentials remain |
-| S13 | Not complete | Matching corpus and full author monitoring policy qualification |
+| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; stable-ID author traversal implemented with fixtures and read-only Open Library proof; shared request pacing/quota backoff and complete import-list traversal implemented; rich editions/series, persistent raw records and live Hardcover/Google credentials remain |
+| S13 | Partial | Add-only bibliography/list sync preserves existing tracking; complete list traversal, atomic list defaults and full exclusions implemented; matching corpus and full author monitoring policy qualification remain |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
 | S17–S19 | Not complete | Setup, search/add, activity/import-review redesign and workflow qualification |
@@ -763,3 +763,38 @@ packaged restart/import/acquisition/scan/replacement/authentication checks; its
 404,409-byte dump restored with file/download/wanted counts and receipt intact.
 The packaged web image remains the older multipart snapshot; the current web
 source was built and browser-tested separately. No production changes occurred.
+
+
+## Continuation: complete Hardcover list traversal (S12/S13)
+
+Branch: `codex/complete-import-lists`, based on request-budget PR #17. Hardcover
+lists formerly returned only the first 200 rows and silently skipped malformed
+books. The new fetch verifies list visibility and traverses stable membership IDs
+through an empty terminal page, checking declared counts and modification evidence.
+Incomplete/changed/invalid/oversized traversals fail before wanted mutations.
+Repeated membership of one book deduplicates after membership completeness checks.
+This is bounded traversal, not an atomic provider snapshot; live-token proof is
+still unavailable.
+
+List sync now preserves existing work/format tracking across legacy edition IDs,
+including removed/manual state. New root/monitoring defaults commit with creation,
+closing the second-write window. All exclusions are loaded (the former 1,000-row
+cap could ignore older exclusions). Failed additions or timestamp persistence are
+visible and cannot advance a success timestamp. Scheduled errored outcomes fail
+the task; retries reuse completed additions. Search-on-add remains best effort
+and durable follow-up delivery is still outstanding.
+
+Request-budget PR #17 at `4cd05bb2fbbf4746ef4f0d47427a4c71ecb3788b` passed
+[CI run 35072580313](https://github.com/bandoracer/librarry/actions/runs/35072580313),
+including source/race/browser checks, packaged qualification and both architecture
+builds. No images were published or deployed.
+
+Final list qualification: full Go race/Postgres suite and vet passed, including
+complete traversal, database failure/retry, concurrent adds and scheduler failure
+reporting. Web production build and 39 applicable desktop/mobile browser cases
+passed (one desktop-only case skipped on mobile). The schema-40 local ARM64 API
+passed the packaged restart/import/acquisition/scan/replacement/authentication
+checks; a 404,518-byte dump restored with counts and receipt intact. The packaged
+web remains the older multipart snapshot, with current web source separately
+built and browser-tested. No live Hardcover request, production change or release
+occurred.

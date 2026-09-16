@@ -137,10 +137,20 @@ func (s *Store) MarkListSynced(ctx context.Context, id string) error {
 	if !s.Configured() {
 		return errors.New("import list store is unavailable")
 	}
-	_, err := s.db.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		update import_lists set last_synced_at = now(), updated_at = now() where id::text = $1
 	`, strings.TrimSpace(id))
-	return err
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrListNotFound
+	}
+	return nil
 }
 
 func (s *Store) ListExclusions(ctx context.Context) ([]Exclusion, error) {
@@ -151,7 +161,6 @@ func (s *Store) ListExclusions(ctx context.Context) ([]Exclusion, error) {
 		select id::text, title, author_name, source_key, created_at
 		from import_list_exclusions
 		order by created_at desc
-		limit 1000
 	`)
 	if err != nil {
 		return nil, err

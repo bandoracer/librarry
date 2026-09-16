@@ -21,11 +21,13 @@ type Acquisition interface {
 }
 
 type CreateRequest struct {
-	OnlyIfUntracked bool                  `json:"-"`
-	Result          metadata.SearchResult `json:"result"`
-	Format          string                `json:"format,omitempty"`
-	QualityProfile  string                `json:"qualityProfile,omitempty"`
-	Tags            []string              `json:"tags,omitempty"`
+	// InitialMonitored applies only on insertion; existing tracking is unchanged.
+	InitialMonitored *bool                 `json:"-"`
+	OnlyIfUntracked  bool                  `json:"-"`
+	Result           metadata.SearchResult `json:"result"`
+	Format           string                `json:"format,omitempty"`
+	QualityProfile   string                `json:"qualityProfile,omitempty"`
+	Tags             []string              `json:"tags,omitempty"`
 	// RootFolderID pins the import destination root at add time. When set it
 	// must reference an existing root folder whose media format matches the
 	// wanted format.
@@ -228,6 +230,10 @@ type GrabRequest struct {
 	Paused    bool   `json:"paused"`
 	Force     bool   `json:"force,omitempty"`
 }
+
+// WasAlreadyTracked identifies an add-only result that reused existing tracking.
+// It is transient operation evidence, never persisted or exposed in API JSON.
+func (item WantedItem) WasAlreadyTracked() bool { return item.alreadyTracked }
 
 type WantedItem struct {
 	alreadyTracked   bool

@@ -136,8 +136,8 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		insert into wanted_items (
 			work_id, edition_id, wanted_format, quality_profile, status,
 			title, author_name, cover_url, metadata_provider, source_key, tags,
-			series, series_position, first_publish_year, release_date, root_folder_id
-		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, nullif($15, '')::uuid)
+			series, series_position, first_publish_year, release_date, root_folder_id, monitored
+		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, nullif($15, '')::uuid, coalesce($16, true))
 		on conflict (metadata_provider, source_key, wanted_format)
 			where metadata_provider <> '' and source_key <> ''
 		do update set
@@ -187,7 +187,7 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 			updated_at = now()
 		returning id
 	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, tagLabelsString(request.Tags),
-		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result), rootFolderID).Scan(&wantedID)
+		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result), rootFolderID, request.InitialMonitored).Scan(&wantedID)
 	if err != nil {
 		return WantedItem{}, err
 	}

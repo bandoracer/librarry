@@ -29,8 +29,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [provider health PR #13](https://github.com/bandoracer/librarry/pull/13),
 [exact fallback PR #14](https://github.com/bandoracer/librarry/pull/14),
 [metadata cache PR #15](https://github.com/bandoracer/librarry/pull/15),
-[author bibliography PR #16](https://github.com/bandoracer/librarry/pull/16), and the
-`codex/provider-request-budget` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[author bibliography PR #16](https://github.com/bandoracer/librarry/pull/16),
+[provider request budget PR #17](https://github.com/bandoracer/librarry/pull/17), and the
+`codex/complete-import-lists` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -136,7 +137,13 @@ Metadata and Hardcover lists now share a per-host request budget with one-second
 spacing and header-driven daily/burst backoff. Unsent requests do not invent health
 evidence; valid cached data survives rate limiting. The paced Open Library probe
 was rerun through this production transport. Real-token qualification, rich
-editions/series/lists and persistent raw records remain outstanding under S12.
+editions/series and persistent raw records remain outstanding under S12.
+Hardcover list sync now verifies a visible list and traverses all pages before
+adding entries. Failed/inconsistent traversal leaves existing tracking and the
+success timestamp unchanged. Existing tracked books survive add-only list sync;
+new root/monitor settings commit with creation. All stored exclusions are honored.
+This list behavior is contract/database-qualified; real-token validation remains
+pending. Search-on-add remains a best-effort search with logged errors.
 
 ## Historical verified milestones
 

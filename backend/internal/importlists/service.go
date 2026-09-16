@@ -16,7 +16,6 @@ import (
 // interface so mapping/dedupe/exclusion logic is testable without Postgres.
 type WantedGateway interface {
 	Create(ctx context.Context, request wanted.CreateRequest) (wanted.WantedItem, error)
-	UpdateWanted(ctx context.Context, id string, request wanted.WantedUpdateRequest) (wanted.WantedItem, error)
 	SearchReleases(ctx context.Context, wantedID string, request wanted.SearchReleasesRequest) (wanted.SearchOutcome, error)
 	WantedSourceKeySet(ctx context.Context) (map[string]bool, error)
 }
@@ -118,7 +117,12 @@ func (s *Service) Sync(ctx context.Context, listIDs []string, trigger string) (S
 			continue
 		}
 		outcome.ListsChecked++
-		s.syncList(ctx, list, exclusions, existing, &outcome)
+		if s.syncList(ctx, list, exclusions, existing, &outcome) {
+			if err := s.store.MarkListSynced(ctx, list.ID); err != nil {
+				outcome.ErrorCount++
+				outcome.Items = append(outcome.Items, SyncItem{ListID: list.ID, ListName: list.Name, Status: "error", Error: "Could not persist the successful list sync: " + err.Error()})
+			}
+		}
 	}
 
 	if outcome.ErrorCount > 0 {
@@ -129,7 +133,7 @@ func (s *Service) Sync(ctx context.Context, listIDs []string, trigger string) (S
 	return outcome, nil
 }
 
-func (s *Service) syncList(ctx context.Context, list List, exclusions []Exclusion, existing map[string]bool, outcome *SyncOutcome) {
+func (s *Service) syncList(ctx context.Context, list List, exclusions []Exclusion, existing map[string]bool, outcome *SyncOutcome) bool {
 	fetcher := s.fetchers[strings.ToLower(strings.TrimSpace(list.Type))]
 	if fetcher == nil {
 		outcome.ErrorCount++
@@ -137,7 +141,7 @@ func (s *Service) syncList(ctx context.Context, list List, exclusions []Exclusio
 			ListID: list.ID, ListName: list.Name, Status: "error",
 			Error: "no fetcher for list type " + list.Type,
 		})
-		return
+		return false
 	}
 	entries, err := fetcher.FetchList(ctx, list.Settings, 200)
 	if err != nil {
@@ -145,10 +149,17 @@ func (s *Service) syncList(ctx context.Context, list List, exclusions []Exclusio
 		outcome.Items = append(outcome.Items, SyncItem{
 			ListID: list.ID, ListName: list.Name, Status: "error", Error: err.Error(),
 		})
-		return
+		return false
 	}
+	initialErrors := outcome.ErrorCount
 	format := listFormat(list)
+	monitored := list.Monitor != "none"
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			outcome.ErrorCount++
+			outcome.Items = append(outcome.Items, SyncItem{ListID: list.ID, ListName: list.Name, Status: "error", Error: "List sync canceled before all entries were processed"})
+			return false
+		}
 		outcome.EntriesFound++
 		item := SyncItem{ListID: list.ID, ListName: list.Name, Title: entry.Title, AuthorName: entry.AuthorName}
 		if excluded, reason := EntryExcluded(entry, exclusions); excluded {
@@ -167,9 +178,12 @@ func (s *Service) syncList(ctx context.Context, list List, exclusions []Exclusio
 			continue
 		}
 		created, err := s.wanted.Create(ctx, wanted.CreateRequest{
-			Result:         EntryToSearchResult(entry, format),
-			Format:         format,
-			QualityProfile: list.QualityProfile,
+			OnlyIfUntracked:  true,
+			InitialMonitored: &monitored,
+			RootFolderID:     list.RootFolderID,
+			Result:           EntryToSearchResult(entry, format),
+			Format:           format,
+			QualityProfile:   list.QualityProfile,
 		})
 		if err != nil {
 			outcome.ErrorCount++
@@ -179,29 +193,17 @@ func (s *Service) syncList(ctx context.Context, list List, exclusions []Exclusio
 			continue
 		}
 		existing[identity] = true
+		if created.WasAlreadyTracked() {
+			outcome.SkippedExisting++
+			item.Status = "skipped"
+			item.Reason = "already tracked"
+			item.WantedID = created.ID
+			outcome.Items = append(outcome.Items, item)
+			continue
+		}
 		item.Status = "wanted"
 		item.WantedID = created.ID
 
-		// Monitor mode and root folder land through the update path so the
-		// create upsert semantics stay untouched.
-		update := wanted.WantedUpdateRequest{}
-		needsUpdate := false
-		if list.Monitor == "none" {
-			monitored := false
-			update.Monitored = &monitored
-			needsUpdate = true
-		}
-		if list.RootFolderID != "" {
-			rootID := list.RootFolderID
-			update.RootFolderID = &rootID
-			needsUpdate = true
-		}
-		if needsUpdate {
-			if _, err := s.wanted.UpdateWanted(ctx, created.ID, update); err != nil {
-				outcome.ErrorCount++
-				item.Error = err.Error()
-			}
-		}
 		if list.SearchOnAdd && list.Monitor != "none" {
 			// Review-first rule intact: search records release decisions, it
 			// never grabs.
@@ -214,9 +216,7 @@ func (s *Service) syncList(ctx context.Context, list List, exclusions []Exclusio
 		outcome.WantedCreated++
 		outcome.Items = append(outcome.Items, item)
 	}
-	if err := s.store.MarkListSynced(ctx, list.ID); err != nil {
-		s.logger.Warn("import list sync timestamp update failed", "list", list.Name, "error", err)
-	}
+	return outcome.ErrorCount == initialErrors
 }
 
 // EntryToSearchResult maps a list entry onto the metadata result shape the

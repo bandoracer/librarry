@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -837,10 +838,14 @@ func importListSyncTask(logger *slog.Logger, service *importlists.Service, cfg c
 				"wanted_created", outcome.WantedCreated,
 				"errors", outcome.ErrorCount,
 			)
-			return fmt.Sprintf(
+			message := fmt.Sprintf(
 				"%d lists checked, %d entries, %d wanted created, %d errors",
 				outcome.ListsChecked, outcome.EntriesFound, outcome.WantedCreated, outcome.ErrorCount,
-			), nil
+			)
+			if outcome.ErrorCount > 0 {
+				return message, errors.New(outcome.Message)
+			}
+			return message, nil
 		},
 	}
 }
