@@ -984,7 +984,7 @@ A cancellable provider slot rechecks the cache after waiting, preventing duplica
 successful fetches for concurrent identical misses. Waits are bounded at 15 seconds;
 provider request timeouts/backoff still apply. No detached fetch outlives its
 caller. Errors invalidate only that provider's entries and are not cached; caller
-cancellation preserves other successful keys. A generation fence prevents an
+cancellation, unsent waits and quota backoff preserve unexpired successful keys. A generation fence prevents an
 in-flight success from repopulating entries invalidated by an explicit failed
 health check. Cached reads never advance observed request/success timestamps.
 Credentials are not cache keys or values; replacing the service resets all caches.
@@ -1023,3 +1023,22 @@ work aliases, and serializes known canonical work identities before checking for
 any existing tracking. Existing rows—including removed/unmonitored and legacy
 synthetic edition rows—return unchanged. This prevents automatic resurrection and
 losing a selected edition; explicit user adds keep their existing behavior.
+
+
+### Shared provider HTTP budget
+
+The API process constructs one `providerhttp` client for metadata and Hardcover
+import lists. Its transport serializes requests per known provider host, spaces
+starts by one second, and records retry deadlines from 429/Retry-After and exhausted
+named RateLimit buckets. Legacy quota headers are fallback evidence. Different
+hosts have separate slots/deadlines; budget keys contain no token or query text.
+Cloned bounded clients retain the shared transport instance. Explicitly injected
+custom clients remain useful for isolated adapter fixtures.
+
+`NotSentError` distinguishes quota refusal/canceled budget waits from a failed
+network attempt. Metadata observations keep their actual checked/success times;
+health combines existing request evidence with the shared quota deadline. Cached
+successful data remains valid through ordinary TTL during rate limiting. Credential,
+shape and connection failures still invalidate cached queries. No background fetch
+or retry is detached from its caller. This is per-process coordination, not a
+cross-replica quota service or persistent account budget.

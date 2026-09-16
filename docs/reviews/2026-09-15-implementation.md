@@ -92,7 +92,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
-| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; stable-ID author traversal implemented with fixtures and read-only Open Library proof; rich editions/lists, persistent raw records, pacing and live Hardcover/Google credentials remain |
+| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; stable-ID author traversal implemented with fixtures and read-only Open Library proof; shared request pacing/quota backoff implemented; rich editions/lists, persistent raw records and live Hardcover/Google credentials remain |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
@@ -727,3 +727,39 @@ import/acquisition/scan/replacement/restart/authentication regressions; a
 the older multipart snapshot; current web code was built/tested from source.
 The opt-in Open Library probe was actually run; default tests explicitly skip
 that live probe. No production deployment or release occurred.
+
+
+## Continuation: shared provider request budget (S12)
+
+Branch: `codex/provider-request-budget`, based on author bibliography PR #16. A
+shared transport now coordinates metadata lookups, author pages, checks and
+Hardcover import lists, with one-second per-host request spacing. It honors 429
+Retry-After, exhausted named RateLimit buckets, and legacy quota headers as
+fallback. Daily/burst backoff cannot be bypassed through the other client. Budgets
+are bounded to known hosts, contain no credentials, and reset with the process.
+
+Requests refused before IO cannot advance provider checked/success timestamps or
+invent reachability/authentication. Health reports the shared retry time. Unexpired
+cached searches remain usable during quota backoff, while credential/shape/outage
+failures still invalidate them. Hardcover list credentials normalize a Bearer
+prefix; list errors omit raw provider messages/URLs and missing list data fails
+explicitly. Rich list pagination remains separate work.
+
+Transport/adapter fixtures cover concurrency, spacing, host isolation, daily and
+burst headers, malformed/legacy headers, expiry, canceled waits, shared clients,
+cached results, and actual-vs-unsent health evidence. The live read-only Open
+Library probe again retrieved 418 works in six requests, now through the exact
+production pacing transport with measured spacing and no catalog mutations.
+
+Author bibliography PR #16 at `9936547adc1eee0cf8aa15cd2ac5e9842fd7959e` passed
+[CI run 35071061527](https://github.com/bandoracer/librarry/actions/runs/35071061527),
+including source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+No images were published or deployed.
+
+Final request-budget qualification: full Go race/Postgres suite, vet and web
+production build passed. Browser checks passed 39 applicable cases (one
+desktop-only case skipped on mobile). The local schema-40 API image passed all
+packaged restart/import/acquisition/scan/replacement/authentication checks; its
+404,409-byte dump restored with file/download/wanted counts and receipt intact.
+The packaged web image remains the older multipart snapshot; the current web
+source was built and browser-tested separately. No production changes occurred.

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 )
 
 type providerFailure struct {
@@ -29,11 +31,18 @@ type providerObservation struct {
 	slot            chan struct{}
 	latest          ProviderHealth
 	needsCredential bool
+	sharedRetry     func() *time.Time
 }
 
 func newProviderObservation(name string, credentials bool) *providerObservation {
 	return &providerObservation{slot: make(chan struct{}, 1), latest: ProviderHealth{Name: name}, needsCredential: credentials}
 }
+func observedClient(name string, credentials bool, client *http.Client, host string) *providerObservation {
+	observation := newProviderObservation(name, credentials)
+	observation.sharedRetry = func() *time.Time { return providerhttp.RetryAfter(client, host) }
+	return observation
+}
+
 func (p *providerObservation) health(configured bool, message string) ProviderHealth {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -46,6 +55,15 @@ func (p *providerObservation) health(configured bool, message string) ProviderHe
 	} else if h.Status == "" {
 		h.Status = "configured"
 		h.Message = message
+	}
+	if configured && p.sharedRetry != nil {
+		if at := p.sharedRetry(); at != nil {
+			h.RetryAfter = at
+			if h.Status == "ready" || h.Status == "configured" || h.Status == "rate_limited" {
+				h.Status = "rate_limited"
+				h.Message = "Shared provider quota is exhausted; retry after the displayed time."
+			}
+		}
 	}
 	return h
 }
@@ -82,6 +100,10 @@ func (p *providerObservation) begin(ctx Context, check bool) (func(error) error,
 		defer func() { <-p.slot }()
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		var notSent *providerhttp.NotSentError
+		if errors.As(err, &notSent) {
+			return notSent
 		}
 		p.mu.Lock()
 		defer p.mu.Unlock()
@@ -121,6 +143,10 @@ func (p *providerObservation) begin(ctx Context, check bool) (func(error) error,
 func providerRequest(client *http.Client, req *http.Request) (*http.Response, error) {
 	resp, err := client.Do(req)
 	if err != nil {
+		var notSent *providerhttp.NotSentError
+		if errors.As(err, &notSent) {
+			return nil, notSent
+		}
 		return nil, &providerFailure{status: "unavailable", message: "Provider request failed. Check the connection and try again.", reachable: false}
 	}
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -157,7 +183,7 @@ func providerRequest(client *http.Client, req *http.Request) (*http.Response, er
 }
 func boundedProviderClient(client *http.Client) *http.Client {
 	if client == nil {
-		return &http.Client{Timeout: 10 * time.Second}
+		return providerhttp.NewClient(10 * time.Second)
 	}
 	clone := *client
 	if clone.Timeout <= 0 || clone.Timeout > 30*time.Second {
@@ -256,7 +282,7 @@ func (s *Service) CheckProvider(ctx context.Context, name string) (ProviderHealt
 		}
 		if checker, ok := p.(interface{ Check(Context) ProviderHealth }); ok {
 			health := checker.Check(ctx)
-			if health.Status != "ready" && ctx.Err() == nil {
+			if health.Status != "ready" && health.Status != "rate_limited" && ctx.Err() == nil {
 				s.searchCaches[index].invalidate()
 			}
 			return health, nil

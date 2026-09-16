@@ -1018,8 +1018,16 @@ Optional live read-only Open Library qualification is:
 LIBRARRY_TEST_LIVE_OPEN_LIBRARY=1 go test -v ./backend/internal/metadata -run '^TestLiveOpenLibraryBibliography$' -count=1
 ```
 
-This probe uses a known public author and conservative one-second pacing, without
-catalog mutations. It is skipped explicitly in the default suite and does not
-qualify production request pacing or Hardcover credentials. Manual/name-hash
+This probe uses a known public author and the application's shared one-second
+pacing transport, without catalog mutations. It checks request spacing and is
+skipped explicitly in the default suite. It does not qualify Hardcover credentials. Manual/name-hash
 legacy author subscriptions need a stable provider selection before monitoring;
 existing wanted items are retained when a bibliography fails.
+
+
+Shared HTTP budget contracts run with `go test -race ./backend/internal/providerhttp ./backend/internal/metadata ./backend/internal/importlists` (one shell command).
+They cover named/legacy quotas, backoff expiry, concurrent clients, independent
+hosts, canceled waits, shared metadata/list quota and unchanged health timestamps.
+The regular API process passes the same client to metadata and import lists;
+replacing credentials in a future runtime-settings flow must replace that client
+and its provider instances together.

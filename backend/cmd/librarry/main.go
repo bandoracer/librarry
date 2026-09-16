@@ -25,6 +25,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/notify"
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 	"github.com/bandoracer/librarry/backend/internal/scheduler"
 	"github.com/bandoracer/librarry/backend/internal/tags"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
@@ -108,7 +109,9 @@ func main() {
 		logger.Info("api authentication enabled", "method", authService.Method())
 	}
 
+	providerClient := providerhttp.NewClient(12 * time.Second)
 	providers := metadata.DefaultProviders(metadata.ProviderConfig{
+		HTTPClient:     providerClient,
 		HardcoverToken: cfg.HardcoverToken,
 		GoogleAPIKey:   cfg.GoogleBooksAPIKey,
 		HTTPTimeout:    12 * time.Second,
@@ -196,7 +199,7 @@ func main() {
 	importListService := importlists.NewService(
 		importListStore,
 		wantedService,
-		importlists.NewHardcoverClient(nil, cfg.HardcoverToken),
+		importlists.NewHardcoverClient(providerClient, cfg.HardcoverToken),
 		logger,
 	)
 

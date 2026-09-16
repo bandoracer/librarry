@@ -3,6 +3,9 @@ package metadata
 import (
 	"context"
 	"encoding/json"
+	"errors"
+
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 	"sync"
 	"time"
 )
@@ -73,7 +76,13 @@ func (c *providerSearchCache) search(ctx context.Context, query Query, provider 
 	if err != nil {
 		// A failed request invalidates other cached queries for this provider;
 		// a known credential/outage failure cannot be hidden behind older success.
-		c.invalidate()
+		// Quota backoff and unsent waits keep unexpired successful data usable.
+		var notSent *providerhttp.NotSentError
+		var failure *providerFailure
+		quotaLimited := errors.As(err, &failure) && failure.status == "rate_limited"
+		if !errors.As(err, &notSent) && !quotaLimited {
+			c.invalidate()
+		}
 		return results, err
 	}
 	c.put(query, results, generation)

@@ -9,9 +9,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 )
 
 type ProviderConfig struct {
+	HTTPClient     *http.Client
 	HardcoverToken string
 	GoogleAPIKey   string
 	HTTPTimeout    time.Duration
@@ -22,7 +25,10 @@ func DefaultProviders(cfg ProviderConfig) []Provider {
 	if timeout == 0 {
 		timeout = 10 * time.Second
 	}
-	client := &http.Client{Timeout: timeout}
+	client := cfg.HTTPClient
+	if client == nil {
+		client = providerhttp.NewClient(timeout)
+	}
 	return []Provider{
 		NewHardcoverProvider(client, cfg.HardcoverToken),
 		NewOpenLibraryProvider(client),
@@ -42,7 +48,8 @@ func NewHardcoverProvider(client *http.Client, token string) *HardcoverProvider 
 	if strings.HasPrefix(strings.ToLower(token), "bearer ") {
 		token = strings.TrimSpace(token[7:])
 	}
-	return &HardcoverProvider{client: boundedProviderClient(client), token: token, observation: newProviderObservation("Hardcover", true)}
+	client = boundedProviderClient(client)
+	return &HardcoverProvider{client: client, token: token, observation: observedClient("Hardcover", true, client, "api.hardcover.app")}
 }
 
 func (p *HardcoverProvider) Name() string { return "Hardcover" }
@@ -156,7 +163,8 @@ type OpenLibraryProvider struct {
 }
 
 func NewOpenLibraryProvider(client *http.Client) *OpenLibraryProvider {
-	return &OpenLibraryProvider{client: boundedProviderClient(client), observation: newProviderObservation("Open Library", false)}
+	client = boundedProviderClient(client)
+	return &OpenLibraryProvider{client: client, observation: observedClient("Open Library", false, client, "openlibrary.org")}
 }
 
 func (p *OpenLibraryProvider) Name() string { return "Open Library" }
@@ -435,7 +443,8 @@ type GoogleBooksProvider struct {
 }
 
 func NewGoogleBooksProvider(client *http.Client, apiKey string) *GoogleBooksProvider {
-	return &GoogleBooksProvider{client: boundedProviderClient(client), apiKey: strings.TrimSpace(apiKey), observation: newProviderObservation("Google Books", true)}
+	client = boundedProviderClient(client)
+	return &GoogleBooksProvider{client: client, apiKey: strings.TrimSpace(apiKey), observation: observedClient("Google Books", true, client, "www.googleapis.com")}
 }
 
 func (p *GoogleBooksProvider) Name() string { return "Google Books" }

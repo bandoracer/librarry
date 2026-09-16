@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 )
 
 const hardcoverGraphQLURL = "https://api.hardcover.app/v1/graphql"
@@ -24,9 +26,18 @@ type HardcoverClient struct {
 
 func NewHardcoverClient(client *http.Client, token string) *HardcoverClient {
 	if client == nil {
-		client = &http.Client{Timeout: 15 * time.Second}
+		client = providerhttp.NewClient(15 * time.Second)
 	}
-	return &HardcoverClient{client: client, token: strings.TrimSpace(token), url: hardcoverGraphQLURL}
+	clone := *client
+	if clone.Timeout <= 0 || clone.Timeout > 30*time.Second {
+		clone.Timeout = 15 * time.Second
+	}
+	client = &clone
+	token = strings.TrimSpace(token)
+	if len(token) >= 7 && strings.EqualFold(token[:7], "Bearer ") {
+		token = strings.TrimSpace(token[7:])
+	}
+	return &HardcoverClient{client: client, token: token, url: hardcoverGraphQLURL}
 }
 
 // WithURL overrides the GraphQL endpoint (tests).
@@ -92,11 +103,15 @@ func (c *HardcoverClient) FetchList(ctx context.Context, settings map[string]str
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, err
+		var notSent *providerhttp.NotSentError
+		if errors.As(err, &notSent) {
+			return nil, notSent
+		}
+		return nil, errors.New("Hardcover list request failed; check the connection and request budget")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("hardcover list fetch returned %s", resp.Status)
+		return nil, fmt.Errorf("Hardcover list request returned HTTP %d", resp.StatusCode)
 	}
 
 	var decoded struct {
@@ -110,12 +125,15 @@ func (c *HardcoverClient) FetchList(ctx context.Context, settings map[string]str
 		} `json:"errors"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return nil, err
+		return nil, errors.New("Hardcover list response could not be decoded; check the provider API")
 	}
 	if len(decoded.Errors) > 0 {
-		return nil, fmt.Errorf("hardcover list fetch failed: %s", decoded.Errors[0].Message)
+		return nil, errors.New("Hardcover rejected the list query; check API access and list permissions")
 	}
 
+	if decoded.Data.ListBooks == nil {
+		return nil, errors.New("Hardcover list response is missing entries")
+	}
 	entries := make([]Entry, 0, len(decoded.Data.ListBooks))
 	for _, row := range decoded.Data.ListBooks {
 		entry, ok := entryFromHardcoverBook(row.Book)

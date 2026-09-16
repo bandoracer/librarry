@@ -429,7 +429,9 @@ Provider priority:
 
 Successful provider searches are cached in memory for up to five minutes (empty
 results for 30 seconds), with bounded storage and independent provider failures.
-Cache hits preserve the actual request timestamps shown in System.
+Cache hits preserve the actual request timestamps shown in System. Metadata and
+Hardcover list requests share per-provider pacing and quota backoff; cached results
+remain usable during rate limiting until their normal expiry.
 
 Goodreads, Amazon, and Audible scraping are intentionally not part of core.
 

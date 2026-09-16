@@ -91,6 +91,7 @@ or change provider request/success timestamps. Query text, type, format, languag
 limit and provider identity are separate cache keys, including author IDs. Errors
 are never cached. A failed search or explicit health check clears the affected
 provider's cached results, so known outages or rejected credentials remain visible.
+Quota backoff and waits canceled before sending retain unexpired successful data.
 Other providers keep their independent cache entries. Concurrent identical misses
 share a successful fetch; canceled requests do not clear earlier successes.
 
@@ -127,3 +128,31 @@ including older synthetic edition identities. Existing selected editions, manual
 corrections, unmonitored state and removed entries survive; this pass does not
 refresh or re-add existing books. Legacy/Readarr identities can still be stored
 for migration, but require provider identity repair before automated traversal.
+
+
+## Shared request pacing and quotas
+
+The application shares one HTTP request budget between metadata lookups, author
+pages, explicit connection checks and Hardcover import lists. Requests start at
+most once per second per provider host. Open Library uses its conservative
+unidentified-client limit; no operator contact address is assumed. Hardcover and
+Google use the same conservative spacing, while actual response quotas can stop
+requests for longer.
+
+HTTP 429 respects Retry-After. Hardcover's documented named `RateLimit` buckets
+also stop requests proactively when remaining quota reaches zero, even after a
+successful response. Legacy `X-RateLimit-*` headers are fallback evidence when
+structured buckets are unavailable. Daily and burst waits use the longest valid
+reset, capped at 24 hours. A blocked request fails promptly with the retry time
+visible in System. It does not advance actual request timestamps or invent
+reachability/authentication. Successful cached searches remain usable until their
+ordinary expiry, and another provider's budget stays independent.
+
+This budget is process-local. Other applications or replicas can consume the same
+account quota independently; provider responses remain authoritative. Restarting
+or replacing the shared client resets its local observations. No credentials are
+stored in budget keys. Import-list errors omit response messages and request URLs;
+missing list data is an error, while a valid empty list remains valid.
+
+References: [Open Library rate limits](https://openlibrary.org/developers/api#rate-limits)
+and [Hardcover's current quota/header contract](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/Getting-Started.mdx#rate-limits).
