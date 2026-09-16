@@ -840,3 +840,28 @@ new file is verified and committed. If a configured recycle bin is unavailable,
 cleanup reports an error and retains that previous file. Repair the bin and use
 Imports → Import recovery → Retry cleanup. A committed manual copy with completed
 cleanup still retains its source; the UI distinguishes this from a completed move.
+
+## Acquisition recovery
+
+Postgres-backed acquisitions persist a reservation before sending to qBittorrent,
+Transmission or SABnzbd. Manual adds, wanted grabs, monitor/feed/upgrade/recovery
+paths share this boundary. A book's wanted row is its format-specific acquisition
+scope; an exact release also has one active request across manual/worker paths.
+Deleted/explicitly failed downloads free the slot. A completed import permits a
+different upgrade release; replaying its same request remains idempotent.
+
+Activity shows submitting/uncertain requests. **Check client** reads the original
+client directly and matches its exact intent tag or torrent infohash, with bounded
+5–300 second retry backoff. It never sends another add. Missing results and outages
+remain unresolved. A changed client address must be restored before reconciliation.
+**Attach existing download** accepts an operator-confirmed exact ID; use this for
+SABnzbd after acknowledgement loss, since arbitrary intent tags do not round-trip.
+**Allow new attempt** requires inspecting the client and acknowledging duplicate
+risk. It releases the reservation without starting a download. Active submissions
+cannot be released while their lease remains valid.
+
+GET `/api/v1/acquisition-recovery` returns up to 200 unresolved requests, oldest
+first. POST `/api/v1/acquisition-recovery/{id}` accepts `action: check`, or
+`action: attach` with `downloadId` and `confirmed: true`, or `action: release`
+with `confirmed: true`. These routes use normal application authentication.
+No-database development mode does not provide durable acquisition guarantees.

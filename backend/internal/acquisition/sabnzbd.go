@@ -81,7 +81,7 @@ func (c *SABnzbdClient) Add(ctx context.Context, request DownloadRequest) (Downl
 	}
 	id := firstString(payload.NZOIDs)
 	if id == "" {
-		id = releaseID(request.ReleaseURL)
+		return DownloadStatus{}, errors.New("SABnzbd accepted add without a download ID; reconcile before retrying")
 	}
 	if request.Paused && id != "" {
 		_, _ = c.Action(ctx, DownloadActionRequest{Action: DownloadActionStop, IDs: []string{id}})

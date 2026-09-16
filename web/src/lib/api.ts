@@ -3073,3 +3073,32 @@ export async function previewPayloadReview(id: string, options: PayloadReviewReq
   if (!response.ok) throw new Error(await apiError(response, "Import preview failed"));
   return response.json();
 }
+
+export type AcquisitionIntent = {
+  id: string;
+  wantedId?: string;
+  format?: string;
+  client: string;
+  title: string;
+  state: "submitting" | "uncertain" | "accepted" | "released";
+  downloadId?: string;
+  lastError?: string;
+  attempts: number;
+  nextCheckAt?: string;
+  leaseExpiresAt?: string;
+};
+
+export async function fetchAcquisitionRecovery(): Promise<{ intents: AcquisitionIntent[]; limit: number }> {
+  const response = await fetch(`${apiBase}/api/v1/acquisition-recovery`);
+  if (!response.ok) throw new Error(await apiError(response, "Acquisition recovery unavailable"));
+  const data = await response.json();
+  return { intents: data.intents ?? [], limit: data.limit ?? 200 };
+}
+
+export async function resolveAcquisition(request: { id: string; action: "check" | "attach" | "release"; downloadId?: string; confirmed?: boolean }): Promise<void> {
+  const { id, ...body } = request;
+  const response = await fetch(`${apiBase}/api/v1/acquisition-recovery/${encodeURIComponent(id)}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Acquisition still needs review"));
+}

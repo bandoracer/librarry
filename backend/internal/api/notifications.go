@@ -50,6 +50,9 @@ type notificationTarget struct {
 }
 
 func (h *handler) notifyDownloadGrab(ctx context.Context, source string, status acquisition.DownloadStatus, wantedID string) {
+	if status.Deduplicated {
+		return
+	}
 	h.dispatchNotifications(ctx, notificationEvent{
 		EventType: notificationEventGrab,
 		Source:    source,

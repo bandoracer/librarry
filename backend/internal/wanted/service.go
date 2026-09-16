@@ -1582,11 +1582,17 @@ func (s *Service) grabRelease(ctx context.Context, item WantedItem, release Rele
 	if err != nil {
 		return acquisition.DownloadStatus{}, err
 	}
+	if status.Deduplicated && status.ImportStatus == "imported" {
+		return status, nil
+	}
 	if err := s.store.MarkWantedStatus(ctx, item.ID, "grabbed"); err != nil {
 		return status, err
 	}
 	if err := s.store.MarkWantedCurrentRelease(ctx, item.ID, release); err != nil {
 		return status, err
+	}
+	if status.Deduplicated {
+		return status, nil
 	}
 	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
 		EventType:  "release_grabbed",

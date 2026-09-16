@@ -35,6 +35,9 @@ func (s *SQLDownloadStore) UpsertDownloads(ctx context.Context, downloads []Down
 	if s == nil || s.db == nil || len(downloads) == 0 {
 		return nil
 	}
+	if err := s.restoreAcquisitionLinks(ctx, downloads); err != nil {
+		return err
+	}
 	for _, download := range downloads {
 		if strings.TrimSpace(download.ID) == "" {
 			continue

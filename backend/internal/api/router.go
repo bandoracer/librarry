@@ -405,6 +405,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/integrations/bootstrap", handler.integrationBootstrap)
 	mux.HandleFunc("POST /api/v1/releases/search", handler.releaseSearch)
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
+	mux.HandleFunc("GET /api/v1/acquisition-recovery", handler.acquisitionRecovery)
+	mux.HandleFunc("POST /api/v1/acquisition-recovery/{id}", handler.resolveAcquisition)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("GET /api/v1/downloads/{id}", handler.downloadDetails)
 	mux.HandleFunc("GET /api/v1/downloads/resources", handler.downloadResources)

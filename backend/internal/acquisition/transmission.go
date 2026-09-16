@@ -88,7 +88,10 @@ func (c *TransmissionClient) Add(ctx context.Context, request DownloadRequest) (
 	if torrent.ID == 0 && torrent.HashString == "" {
 		torrent = payload["torrent-duplicate"]
 	}
-	id := firstNonEmpty(torrent.HashString, strconv.Itoa(torrent.ID), request.InfoHash, releaseID(request.ReleaseURL))
+	if torrent.ID == 0 && torrent.HashString == "" {
+		return DownloadStatus{}, errors.New("Transmission accepted add without a download ID; reconcile before retrying")
+	}
+	id := firstNonEmpty(torrent.HashString, strconv.Itoa(torrent.ID))
 	labels := transmissionLabels(request)
 	if len(labels) > 0 && strings.TrimSpace(id) != "" {
 		_ = c.rpc(ctx, "torrent-set", map[string]any{"ids": []string{id}, "labels": labels}, nil)

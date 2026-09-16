@@ -141,10 +141,22 @@ func (s *integrationState) Grab(ctx context.Context, request DownloadRequest) (D
 		request.Tags = []string{"librarry"}
 	}
 	client := s.downloadClientForRequest(request)
+	if request.Client != "" && !strings.EqualFold(strings.TrimSpace(request.Client), clientName(client)) {
+		return DownloadStatus{}, errors.New("unsupported download client")
+	}
+	if configured, ok := client.(interface{ Configured() bool }); !ok || !configured.Configured() {
+		return DownloadStatus{}, ErrIntegrationNotConfigured
+	}
+	if request.ReleaseURL == "" && len(request.UploadData) == 0 {
+		return DownloadStatus{}, errors.New("releaseUrl or torrent upload is required")
+	}
 	var err error
 	request, err = s.resolveProwlarrReleasePayload(ctx, request, client)
 	if err != nil {
 		return DownloadStatus{}, err
+	}
+	if store, ok := s.store.(acquisitionIntentStore); ok {
+		return s.grabWithIntent(ctx, request, client, store)
 	}
 	status, err := client.Add(ctx, request)
 	if err != nil {

@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 34, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 36, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -257,6 +257,28 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         manual_target = media / Path(manual_result["destinationPath"]).relative_to("/fixture")
         assert hashlib.sha256(manual_target.read_bytes()).hexdigest() == digest
         print("Packaged manual import: failed commit retains source and hides destination; process restart resumes original plan; move cleanup and idempotent retry verified")
+        acquisition_request = {"client": "qBittorrent", "title": "Acquisition fixture",
+                               "releaseUrl": "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
+                               "tags": ["librarry", "librarry-smoke"]}
+        try:
+            request("/api/v1/grabs", acquisition_request)
+            raise AssertionError("simulated acknowledgement loss reported success")
+        except urllib.error.HTTPError as error:
+            assert error.code == 502, error.code
+        intents = request("/api/v1/acquisition-recovery")["intents"]
+        assert len(intents) == 1 and intents[0]["state"] == "uncertain", intents
+        intent_id = str(uuid.UUID(intents[0]["id"]))
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        sql(f"update acquisition_intents set next_check_at=null where id='{intent_id}'")
+        reconciled = request(f"/api/v1/acquisition-recovery/{intent_id}", {"action": "check"})
+        assert reconciled["download"]["deduplicated"] and reconciled["download"]["acquisitionId"] == intent_id, reconciled
+        repeated = request("/api/v1/grabs", acquisition_request)
+        assert repeated["deduplicated"] and repeated["acquisitionId"] == intent_id, repeated
+        stats = json.loads(docker("exec", CLIENT, "python", "-c", "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/fixture/stats').read().decode())"))
+        assert stats["adds"] == 1, stats
+        assert request("/api/v1/acquisition-recovery")["intents"] == []
+        print("Packaged acquisition: accepted-then-error retained; process restart reconciles exact download; duplicate request does not add again")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
@@ -264,7 +286,8 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
                       "select id,state,cleanup_state,source_kind,request_key from import_operations", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files",
-                      "select metadata->'verifiedDownload' from files"):
+                      "select metadata->'verifiedDownload' from files",
+                      "select id,scope_key,request_key,state,external_id,result from acquisition_intents order by id"):
             assert sql(query) == sql(query, "librarry_restore"), query
         print("Isolated database restore verified:", len(dump), "bytes; file/download/wanted counts and receipt preserved")
         # Exercise real persistence, cookies, restart and Basic auth in the image.

@@ -70,6 +70,11 @@ Current gaps:
 See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.
 
+With Postgres, acquisitions also keep a durable submission receipt. Activity can
+recover ambiguous client responses without blindly submitting another download,
+or attach an explicitly selected existing download. These stabilization changes
+are unreleased; see [current status](docs/status.md) for qualification limits.
+
 ## Documentation
 
 - [Stabilization plan](docs/stabilization-plan.md): phased execution and release gates.

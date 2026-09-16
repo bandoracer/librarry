@@ -21,7 +21,7 @@ progress record, not a claim that the full stabilization plan is complete.
 - Copies stage and sync data before atomic, non-overwriting publication. Failed
   replacement transfer keeps the original. Replacement originals remain at a
   recovery path until persistence succeeds; manual moves remove sources only
-  after record persistence. Native completed-import recovery is described below; manual/replacement crash recovery remains S09 work.
+  after record persistence. Native completed-import recovery is described below; native manual/replacement recovery is described in its continuation below.
 - New completed imports store a client/ID/content-hash receipt. Cleanup rechecks
   exact client inventory, file count/progress/size, source and destination hashes,
   destination separation, and seed-goal evidence. Old imports do not inherit
@@ -90,7 +90,8 @@ progress record, not a claim that the full stabilization plan is complete.
 | S07 | Implemented with fixture qualification | Relational links, manifest/operation records and reconciliation report; live database-copy migration still pending |
 | S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
 | S09 | Partial | Durable native/manual plans, staging journals, move and manual replacement recovery; Calibre, completed-download replacement and broader disk fault qualification remain |
-| S10–S11 | Not complete | Acquisition intents, resumable scans and missing-file reconciliation |
+| S10 | Partial | Durable submission/reconciliation and Activity recovery implemented with fixtures; full worker, history/current-release and live-client qualification remain |
+| S11 | Not complete | Resumable scans and missing-file reconciliation |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
@@ -297,3 +298,42 @@ replacement remain open; the full S01–S25 plan is not complete.
 Staging PR #5 at `15e7743d5b872b20c007a53229963c89b1c1aba8` passed
 [CI run 35054590253](https://github.com/bandoracer/librarry/actions/runs/35054590253),
 including packaged qualification, image scans and AMD64/ARM64 image builds.
+
+
+## Continuation: acquisition submission recovery (S10)
+
+Branch: `codex/acquisition-recovery`, based on manual recovery. Migrations 0035 and
+0036 add unique active book/release reservations, expiring submission claims,
+accepted receipts and unresolved outcomes. All production grab entry points share
+the acquisition service. External submission never holds a database transaction.
+A retry/expired claim reconciles exact client identity instead of resending.
+A changed endpoint, unavailable client, empty response or matching title alone
+cannot authorize a duplicate. A known acceptance is persisted before download
+bookkeeping; replay repairs a missing row without resetting existing progress.
+
+Activity exposes unresolved attempts, backoff, direct checks and explicit
+operator-confirmed attach/release actions. SABnzbd lost acknowledgements require
+an exact selected client ID. Authoritative book associations survive tagless client
+observations. Replayed receipts suppress duplicate grab notifications/history;
+more extensive history/current-release repair remains to be implemented.
+
+Qualification: full Go race/Postgres suite, vet, production build and 23 applicable
+desktop/mobile browser checks passed (one desktop case is inapplicable). Tests
+cover concurrent service instances, accepted-then-error, persistence failure,
+restart, original-client identity, legacy active downloads, manual/worker release
+collisions, explicit release and imported-book upgrades. API tests reject missing
+operator confirmations. The mobile recovery confirmation was inspected visually.
+
+The schema-36 ARM64 image passed a simulated client acceptance followed by HTTP
+502, actual API-container restart, exact reconciliation and duplicate suppression
+(one total add). The same harness passed prior import/staging/review/auth checks;
+a 123,275-byte dump restored matching intent and import records. The isolated
+client fixture performs no actual network downloads. Current adapter references:
+[SABnzbd add/queue API](https://sabnzbd.org/wiki/configuration/5.0/api) and
+[Transmission 4.0.6 RPC](https://github.com/transmission/transmission/blob/4.0.6/docs/rpc-spec.md).
+Live client/worker qualification and remaining S10 reconciliation are still open.
+
+Manual recovery PR #6 at `8dcd0c1042811161ba343f9a74c70cee4f1a9fb2` passed
+[CI run 35056853220](https://github.com/bandoracer/librarry/actions/runs/35056853220),
+including source/browser/race verification, packaged restart/restore/auth checks,
+image scans and AMD64/ARM64 builds. No PR images were published.

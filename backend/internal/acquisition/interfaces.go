@@ -54,6 +54,8 @@ type DownloadRequest struct {
 }
 
 type DownloadStatus struct {
+	AcquisitionID   string     `json:"acquisitionId,omitempty"`
+	Deduplicated    bool       `json:"deduplicated,omitempty"`
 	SeedGoalMet     bool       `json:"seedGoalMet"`
 	Client          string     `json:"client,omitempty"`
 	ID              string     `json:"id"`

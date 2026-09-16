@@ -781,3 +781,31 @@ the filesystem mutation, closing the check/act lease-takeover window. This
 coordinates Librarry workers; it is not an atomic filesystem/Postgres transaction.
 The recovery API includes committed manual operations with pending cleanup in
 its unfinished count; the UI offers Retry cleanup and shows retained backup paths.
+
+### Durable acquisition submission
+
+Migrations 0035/0036 add acquisition intents with unique active book/release
+reservations. Short Postgres claims precede remote submission; no transaction stays
+open during client HTTP calls. Intent identity includes the selected client endpoint
+hash, requested book, and content hash or hashed release URL/payload. Source URLs,
+provider credentials and uploaded payload bytes are not retained in the intent.
+
+A request moves from submitting to accepted or uncertain. Expired submitting leases
+become reconciliation work, never another send. Exact accepted receipts are saved
+before the ordinary download row, so retry can repair a failed download write.
+Receipt replay preserves current progress/import state. Authoritative intent book
+links survive tagless client observations. A raw manual grab and a book-associated
+worker cannot reserve the same exact release concurrently.
+
+Reconciliation reads only the original client, bypassing aggregate cached/partial
+lists. Exact intent tags/infohashes establish identity; title similarity does not.
+SABnzbd uncertainty requires explicit operator attachment when no ID was received.
+Unsuccessful checks retain state and exponentially back off to five minutes.
+Operator-confirmed attachment/release is available from Activity and native recovery
+routes; release itself sends no remote mutation. Changing the configured endpoint
+prevents automatic reconciliation against a different server. Existing accepted
+imports can reserve a different upgrade, while replay of the original is a no-op.
+
+The ledger coordinates all production paths through `acquisition.Service.Grab`.
+Wanted history/current-release transactions and legacy adoption are separate
+reconciliation concerns; this does not claim complete S10 or live-client validation.

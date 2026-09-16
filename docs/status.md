@@ -18,8 +18,9 @@ See the [implementation ledger](reviews/2026-09-15-implementation.md) for eviden
 
 These changes are **unreleased work**: [safety/recovery PR #3](https://github.com/bandoracer/librarry/pull/3),
 [multipart PR #4](https://github.com/bandoracer/librarry/pull/4),
-[staging recovery PR #5](https://github.com/bandoracer/librarry/pull/5), and the
-`codex/manual-import-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[staging recovery PR #5](https://github.com/bandoracer/librarry/pull/5),
+[manual recovery PR #6](https://github.com/bandoracer/librarry/pull/6), and the
+`codex/acquisition-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -57,6 +58,17 @@ Multipart qualification uses generated local fixtures, adapter contract tests an
 disposable API/web/Postgres containers. It is not a live client or homelab
 certification. SABnzbd import trusts only a successful completed history record's
 final output directory, never a queue/archive inventory or a shared-folder search.
+
+With Postgres persistence, manual and scheduled grabs now reserve the wanted
+book and exact release before sending an add. Duplicate requests replay the saved
+receipt without resetting current download progress. Interrupted/ambiguous sends
+stay visible in Activity; a lease expiry, empty queue or client outage cannot
+silently authorize another add. Check client reconciles exact tags/infohashes on
+the original configured client. SABnzbd acknowledgement loss needs an explicit
+client-ID selection. Attach/release decisions require operator confirmation.
+This is contract-fixture and packaged restart qualification, not live-client proof.
+Legacy history/current-release repair and broader scheduled-worker qualification
+remain open under S10/S21.
 
 Hardcover tokens currently establish configured state, not proven authentication.
 Book search handles Typesense result documents and GraphQL failures. Rich
