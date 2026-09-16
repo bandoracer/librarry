@@ -20,6 +20,13 @@ Automatic builds cannot advance `latest` or version aliases; explicit candidate
 publication records unique tags and digests. No release, deployment or live
 qualification is implied by these repository changes.
 
+The initial candidate UI walkthrough used a fresh disposable database and a real
+Open Library English search. Search, review, add and saved-book lookup worked.
+Release search now explains missing Prowlarr setup instead of hiding the server
+reason behind HTTP 502, and grab failures retain recovery instructions. The
+collapsed tablet sidebar's theme control keeps its accessible name. This is
+partial journey evidence; see the [operator review](reviews/2026-09-16-candidate-journey.md).
+
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation
 branch adds exact client payload selection, protected scan observations,

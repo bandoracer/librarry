@@ -1125,6 +1125,14 @@ async function apiError(response: Response, label: string) {
   return `${label}: ${detail || response.status}`;
 }
 
+async function releaseSearchError(response: Response, label: string) {
+  const message = await apiError(response, label);
+  if (message === `${label}: integration is not configured`) {
+    return "Prowlarr is not configured. Open Settings → Indexers to configure it, then retry the release search.";
+  }
+  return message;
+}
+
 function arrayPayload<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : [];
 }
@@ -1264,7 +1272,7 @@ export async function searchReleases(query: string, format: string, language = "
     body: JSON.stringify({ query, format, languages: language && language !== "Any" ? [language] : [], limit: 12 })
   });
   if (!response.ok) {
-    throw new Error(`Release search failed: ${response.status}`);
+    throw new Error(await releaseSearchError(response, "Release search failed"));
   }
   const payload = (await response.json()) as { releases?: Release[] | null };
   return arrayPayload(payload.releases);
@@ -1286,7 +1294,7 @@ export async function grabRelease(release: Release, format: string): Promise<Dow
     })
   });
   if (!response.ok) {
-    throw new Error(`Grab failed: ${response.status}`);
+    throw new Error(await apiError(response, "Grab failed"));
   }
   return (await response.json()) as DownloadStatus;
 }
@@ -1889,7 +1897,7 @@ export async function searchWantedReleases(wantedID: string, language = "English
     body: JSON.stringify({ limit: 20, language })
   });
   if (!response.ok) {
-    throw new Error(`Wanted release search failed: ${response.status}`);
+    throw new Error(await releaseSearchError(response, "Wanted release search failed"));
   }
   return normalizeWantedSearchOutcome((await response.json()) as WantedSearchPayload);
 }
@@ -1913,7 +1921,7 @@ export async function grabWanted(wantedID: string, releaseID?: string, options: 
     })
   });
   if (!response.ok) {
-    throw new Error(`Wanted grab failed: ${response.status}`);
+    throw new Error(await apiError(response, "Wanted grab failed"));
   }
   return (await response.json()) as DownloadStatus;
 }

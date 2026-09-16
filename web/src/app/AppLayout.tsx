@@ -122,7 +122,7 @@ export function AppLayout() {
         {nav}
         <div className="sidebar-foot">
           {statusDot}
-          <button type="button" className="theme-toggle" onClick={toggleTheme}>
+          <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "Light mode" : "Dark mode"}>
             {theme === "dark" ? <Sun size={14} aria-hidden /> : <Moon size={14} aria-hidden />}
             <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
           </button>
