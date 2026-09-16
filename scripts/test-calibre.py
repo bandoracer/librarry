@@ -41,6 +41,8 @@ try:
     print(docker("exec", name, "calibre-server", "--version"), flush=True)
     env = dict(os.environ, LIBRARRY_CALIBRE_FIXTURE_URL=url)
     subprocess.run(["go", "test", "-race", "./backend/internal/calibre", "-run", "^TestDisposableCalibre", "-count=1", "-v"], cwd=ROOT, env=env, check=True)
+    if env.get("LIBRARRY_TEST_DATABASE_URL"):
+        subprocess.run(["go", "test", "-race", "./backend/internal/library", "-run", "^TestDisposableCalibre", "-count=1", "-v"], cwd=ROOT, env=env, check=True)
     books = docker("exec", name, "python3", "-c", "import sqlite3; db=sqlite3.connect('file:/library/metadata.db?mode=ro',uri=True); print(db.execute('select count(*) from books').fetchone()[0])")
     assert books == "0", books
     print("Disposable Calibre: authenticated upload, library ID, metadata, conversion, deletion and final empty library verified")

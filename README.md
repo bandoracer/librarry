@@ -78,8 +78,9 @@ Current gaps:
   shows interrupted operations, retry controls and legacy link issues. Sources and
   existing destination files are retained until verified commit. Manual imports
   also have recovery plans, move cleanup and recoverable file replacement.
-  Calibre recovery, retirement of different old chapter layouts, live upgrade qualification
-  and unattended operation remain open.
+  Calibre handoffs now retain accepted book IDs and expose recovery decisions.
+  Retirement of different old chapter layouts, live upgrade qualification and
+  unattended operation remain open.
 
 See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.
@@ -121,8 +122,11 @@ references. Unproven sets remain for review.
 
 Calibre client qualification now includes a disposable real Content Server with
 Digest and Basic authentication, verified library book IDs, metadata updates,
-conversion job zero, and deletion readback. Interrupted handoff recovery remains
-unfinished; these checks do not certify unattended Calibre imports.
+conversion job zero, and deletion readback. New native-root handoffs persist upload
+acknowledgements, conversion progress and atomic local bookkeeping. Interrupted
+metadata sync resumes without uploading again; uncertain sends require explicit
+review in Imports. This is disposable-server qualification, not unattended
+homelab certification.
 
 ## Documentation
 

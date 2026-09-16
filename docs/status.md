@@ -47,7 +47,8 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [file paging PR #31](https://github.com/bandoracer/librarry/pull/31),
 [durable rename PR #32](https://github.com/bandoracer/librarry/pull/32),
 [book folder PR #33](https://github.com/bandoracer/librarry/pull/33), and
-the `codex/calibre-client-contracts` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[Calibre client PR #34](https://github.com/bandoracer/librarry/pull/34) and the
+`codex/calibre-handoff-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -82,9 +83,9 @@ and kept until the complete replacement commits. Replacement-backup cleanup has
 its own retryable state and cannot authorize download-source deletion. Existing
 file IDs, book associations and manual names/notes survive. Keep both remains the
 default. Extra old chapters or unrelated files outside the new manifest require
-review; whole-book retirement across different chapter layouts, Calibre handoff
-recovery and live upgrades remain open. Existing single-book Calibre handoff is
-preserved; multipart Calibre roots require review.
+review; whole-book retirement across different chapter layouts and live upgrades remain
+open. New single-book Calibre handoffs now have durable recovery; multipart
+Calibre roots still require review.
 
 Multipart qualification uses generated local fixtures, adapter contract tests and
 disposable API/web/Postgres containers. It is not a live client or homelab
@@ -628,3 +629,33 @@ failure. Durable handoff receipts, uncertain-outcome reconciliation, terminal
 conversion polling across failures/restarts, source-path/root resolution and
 fair background conversion traversal remain open. Existing Calibre IDs are not
 guessed or repaired automatically. S09 and the overall release gates remain open.
+
+
+### Calibre handoff recovery qualification
+
+New native-root Calibre imports use migration 0046's separate handoff journal.
+Upload intent is saved before sending, and the acknowledged book ID is saved
+before metadata or conversion work. Accepted handoffs retry without another
+upload. Interrupted sends and lost terminal conversion responses remain for
+operator review. Imports can attach an explicitly selected existing book, accept
+a verified existing format, or authorize another upload/conversion after the
+operator confirms inspection. These decisions are recorded in history.
+
+Conversions are started and polled one at a time, preserving job zero and each
+terminal acknowledgement before proceeding. The conversion background task
+resumes accepted handoffs in oldest-updated order; uncertain sends are excluded.
+File registration, wanted/download state, relational associations, installed
+release and import history commit together. Owner changes during metadata sync
+reject the commit and are read again on retry. Saved roots cannot silently change
+servers; password rotation is allowed. Sources remain in place and no native
+cleanup receipt is created. Existing Calibre IDs are not retroactively repaired.
+
+Disposable Calibre 8.5 tests passed for Digest and Basic: a real accepted upload
+survives metadata interruption or lost acknowledgement and a fresh service
+instance, converts to TXT, commits once and is explicitly deleted from the test
+library. Final server readback confirms zero remaining fixture books. Database
+fault tests cover acknowledgement persistence, terminal-status persistence,
+atomic bookkeeping, concurrent retry, target changes, owner edits, cross-client
+identity, changed source bytes and background recovery. These are local fixtures;
+Calibre-side path refresh, richer editions, legacy refresh fairness, live NAS
+qualification and the unattended soak remain open.

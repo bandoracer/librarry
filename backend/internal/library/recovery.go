@@ -15,11 +15,13 @@ type ImportReconciliationIssue struct {
 }
 
 type ImportRecoveryReport struct {
-	Operations []ImportOperation           `json:"operations"`
-	Issues     []ImportReconciliationIssue `json:"issues"`
-	Unfinished int                         `json:"unfinished"`
-	Unresolved int                         `json:"unresolved"`
-	Limit      int                         `json:"limit"`
+	CalibreHandoffs   []CalibreHandoff            `json:"calibreHandoffs"`
+	CalibreUnfinished int                         `json:"calibreUnfinished"`
+	Operations        []ImportOperation           `json:"operations"`
+	Issues            []ImportReconciliationIssue `json:"issues"`
+	Unfinished        int                         `json:"unfinished"`
+	Unresolved        int                         `json:"unresolved"`
+	Limit             int                         `json:"limit"`
 }
 
 // ImportRecovery exposes a bounded recent history and total unresolved counts.
@@ -27,6 +29,11 @@ func (s *Service) ImportRecovery(ctx context.Context) (ImportRecoveryReport, err
 	report := ImportRecoveryReport{Operations: []ImportOperation{}, Issues: []ImportReconciliationIssue{}, Limit: 100}
 	if !s.Available() {
 		return report, errors.New("import recovery requires database persistence")
+	}
+	var calibreErr error
+	report.CalibreHandoffs, report.CalibreUnfinished, calibreErr = s.store.listCalibreHandoffs(ctx, report.Limit)
+	if calibreErr != nil {
+		return report, calibreErr
 	}
 	if err := s.store.db.QueryRowContext(ctx, `select (select count(*) from import_operations where (state<>'committed' or (source_kind='manual' and cleanup_state<>'cleaned') or replacement_cleanup_state='pending')),(select count(*) from import_reconciliation_issues where resolved_at is null)`).Scan(&report.Unfinished, &report.Unresolved); err != nil {
 		return report, err

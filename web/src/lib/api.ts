@@ -3153,7 +3153,14 @@ export type ImportOperation = {
   metadata: { title?: string; author?: string; renameFileId?: string; renameWantedId?: string };
   files: { id: string; previousPath?: string; previousSizeBytes?: number; previousSha256?: string; sourceRemoved?: boolean; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
 };
+export type CalibreHandoff = {
+  id: string; sourcePath: string; rootFolderId: string; wantedId?: string;
+  phase: string; bookId?: number; lastError?: string; attempts: number;
+  conversions: { format: string; state: string; jobId?: number }[];
+};
 export type ImportRecoveryReport = {
+  calibreHandoffs: CalibreHandoff[];
+  calibreUnfinished: number;
   operations: ImportOperation[];
   issues: { fileId: string; path: string; kind: string; reason: string }[];
   unfinished: number;
@@ -3164,7 +3171,7 @@ export async function fetchImportRecovery(): Promise<ImportRecoveryReport> {
   const response = await fetch(`${apiBase}/api/v1/library/import-recovery`);
   if (!response.ok) throw new Error(await apiError(response, "Import recovery could not be loaded"));
   const payload = await response.json() as ImportRecoveryReport;
-  return { ...payload, operations: arrayPayload(payload.operations), issues: arrayPayload(payload.issues) };
+  return { ...payload, calibreHandoffs: arrayPayload(payload.calibreHandoffs), calibreUnfinished: payload.calibreUnfinished || 0, operations: arrayPayload(payload.operations), issues: arrayPayload(payload.issues) };
 }
 export async function retryImportOperation(id: string): Promise<LibraryImportOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import-operations/${encodeURIComponent(id)}/retry`, { method: "POST" });
@@ -3325,4 +3332,18 @@ export async function fetchAuthorCollection(options: AuthorCollectionOptions = {
   if (!response.ok) throw new Error(await apiError(response, "Author subscriptions could not be loaded"));
   const page = await response.json() as AuthorCollection;
   return { ...page, authors: arrayPayload(page.authors) };
+}
+
+export async function retryCalibreHandoff(id: string): Promise<LibraryImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/calibre-handoffs/${encodeURIComponent(id)}/retry`, { method: "POST" });
+  if (!response.ok) throw new Error(await apiError(response, "Calibre handoff retry failed"));
+  return response.json();
+}
+export async function resolveCalibreHandoff(request: { id: string; action: string; confirm: boolean; bookId?: number; format?: string }): Promise<LibraryImportOutcome> {
+  const { id, ...decision } = request;
+  const response = await fetch(`${apiBase}/api/v1/library/calibre-handoffs/${encodeURIComponent(id)}/resolve`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(decision)
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Calibre recovery decision failed"));
+  return response.json();
 }

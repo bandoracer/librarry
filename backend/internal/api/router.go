@@ -512,6 +512,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/library/import-recovery", handler.importRecovery)
 	mux.HandleFunc("GET /api/v1/library/repair-preview", handler.libraryRepairPreview)
 	mux.HandleFunc("POST /api/v1/library/import-operations/{id}/retry", handler.retryImportOperation)
+	mux.HandleFunc("POST /api/v1/library/calibre-handoffs/{id}/retry", handler.retryCalibreHandoff)
+	mux.HandleFunc("POST /api/v1/library/calibre-handoffs/{id}/resolve", handler.resolveCalibreHandoff)
 	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/resolve-bulk", handler.resolveImportReviewsBulk)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)

@@ -324,6 +324,14 @@ func planBookDirectory(path, action string, reserved map[string]bool) (string, e
 }
 
 func (s *Service) importCompletedPayload(ctx context.Context, download acquisition.DownloadStatus, payload DownloadPayload, request ImportRequest, mappings []PayloadMapping, confirmed bool) (ImportOutcome, error) {
+	var calibreID string
+	calibreErr := s.store.db.QueryRowContext(ctx, `select h.id::text from calibre_handoffs h join downloads d on d.id=h.download_record_id where lower(d.client)=lower($1) and d.external_id=$2`, download.Client, download.ID).Scan(&calibreID)
+	if calibreErr == nil {
+		return s.RetryCalibreHandoff(ctx, calibreID)
+	}
+	if !errors.Is(calibreErr, sql.ErrNoRows) {
+		return ImportOutcome{}, calibreErr
+	}
 	existing, err := s.store.operationForDownload(ctx, download.Client, download.ID)
 	if err == nil {
 		return s.runImportOperation(ctx, existing)
@@ -350,9 +358,6 @@ func (s *Service) importCompletedPayload(ctx context.Context, download acquisiti
 			}
 			request.SourcePath = media[0].SourcePath
 			imported, importErr := s.Import(ctx, request)
-			if importErr == nil && imported.Imported && s.downloads != nil {
-				importErr = s.downloads.MarkDownloadImported(ctx, download.ID, imported.File.ID)
-			}
 			return imported, importErr
 		}
 	}

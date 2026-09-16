@@ -408,22 +408,44 @@ stored UUIDs to stable integer IDs for Arr-style clients.
 Root folder records also preserve Readarr's Calibre Content Server fields
 (`isCalibreLibrary`, host, port, URL base, credentials, library, output format,
 output profile, SSL, default profiles, monitor options, and tags) as metadata so
-setup clients can round-trip Calibre configuration. When a manual or
-completed-download import lands under a Calibre-enabled root, Librarry posts the
-file bytes to the Calibre Content Server add-book endpoint and records the
-returned Calibre book ID on the imported file. Librarry then calls the
-Content Server set-fields endpoint with the imported title, author, and common
-identifiers available on the file record. If the root folder has output formats
-configured, Librarry fetches Calibre conversion book data and starts conversion
-jobs for target formats that are not already present, then captures an immediate
-status snapshot from Calibre's conversion status endpoint. Stored conversion
-jobs can be refreshed later through the native refresh endpoint or
-`RefreshCalibreConversions` command, and the API process can poll those jobs on
-an interval through the `RefreshCalibreConversions` background task. When a
-Calibre-backed file is physically deleted, Librarry calls the Content Server
-delete-books endpoint before removing the local file record. Richer edition
-metadata, embedded metadata writes, path refresh after Calibre renames, and
-rollback for failed Calibre imports are still future work.
+setup clients can round-trip Calibre configuration.
+
+New native-root Calibre imports use a separate `calibre_handoffs` journal. The
+source path and exact optional download UUID reserve one plan with the original
+root ID, a credential-free target fingerprint, source hash and captured conversion
+targets. A dedicated Postgres session advisory lock serializes remote work;
+per-run tokens fence writes from a previous connection. No database transaction
+is held across network calls.
+
+The journal progresses through planned, uploading, accepted, converting, ready
+and committed. Uploading without a saved book ID means uncertain acceptance and
+cannot automatically send again. Per-format conversion states similarly record
+starting/submitted/polling/done or review-needed outcomes. Each destructive
+terminal status response is saved before the next poll. Conversion job zero is
+valid. The conversion worker resumes known accepted work in oldest-updated order;
+legacy file polling cannot consume a journal-owned terminal status again.
+
+Metadata syncing reads current owner data. Commit locks and checks the current
+book/file revision, original target and relational ownership, then records the
+file, book/download associations, imported status, installed release and history
+in one transaction. Root password rotation does not change the saved target;
+server/library/identity changes do. The source remains the tracked path because
+Calibre does not return its managed file path. No native cleanup receipt is earned.
+
+`GET /api/v1/library/import-recovery` includes bounded `calibreHandoffs` and a
+separate total `calibreUnfinished` count. `POST
+/api/v1/library/calibre-handoffs/{id}/retry` resumes the saved plan. The sibling
+`/resolve` endpoint requires explicit confirmation for attaching an existing book
+ID, allowing another upload, accepting an existing format or allowing another
+conversion. Attach/format decisions read the original server before accepting;
+the owner identifies the book, without automatic fuzzy matching. Decisions and
+journal updates commit together before further remote work. Credentials and
+remote diagnostic bodies are excluded from recovery output.
+
+Physical deletion of a journal-backed book resolves its saved root and positive
+Calibre book ID, rejecting a changed target. Legacy file conversions retain the
+older refresh route. Richer edition metadata, embedded metadata writes, remote
+path refresh and legacy identity repair remain future work.
 
 Readarr-compatible operational support endpoints expose filesystem browsing,
 languages, localization strings, logs, update records, and backup records. The

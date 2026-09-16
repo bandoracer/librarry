@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 45, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 46, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -679,6 +679,18 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         file_after_restart = request("/api/v1/library/files/collection?limit=1&cursor=" + file_first["nextCursor"])
         assert file_after_restart["total"] == file_first["total"] and file_after_restart["files"][0]["id"] != file_first["files"][0]["id"], file_after_restart
         print("Packaged file collection: full traversal, exact totals, chapter membership, relational links and restart cursor verified")
+        # A saved uncertain send must survive the image restart and database restore.
+        # This journal fixture never contacts a Calibre server; real remote effects
+        # are exercised separately by scripts/test-calibre.py.
+        calibre_root = sql("insert into root_folders(name,path) values('Recovery fixture','/fixture/calibre-recovery') returning id").splitlines()[0]
+        calibre_handoff = sql(f"insert into calibre_handoffs(source_path,root_folder_id,phase,plan) values('/fixture/downloads/uncertain-calibre.epub','{calibre_root}','uploading','{{}}') returning id").splitlines()[0]
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        recovery = request("/api/v1/library/import-recovery")
+        saved = next(h for h in recovery["calibreHandoffs"] if h["id"] == calibre_handoff)
+        assert recovery["calibreUnfinished"] == 1 and saved["phase"] == "uploading" and saved["conversions"] == [], saved
+        assert "plan" not in saved and "password" not in json.dumps(saved).lower(), saved
+        print("Packaged Calibre recovery: uncertain handoff survives process restart and is visible without credentials")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
@@ -686,6 +698,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
                       "select * from file_rename_claims order by file_id",
+                      "select * from calibre_handoffs order by id",
                       "select id,rename_origin_file_id from import_operation_files order by id",
                       "select * from librarry_book_file_evidence(null) order by wanted_id",
                       "select id,root_folder_id,quality_profile,tags from author_subscriptions order by id",

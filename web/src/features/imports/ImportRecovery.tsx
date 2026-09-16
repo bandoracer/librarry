@@ -1,4 +1,5 @@
 import React from "react";
+import CalibreRecovery from "./CalibreRecovery";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
@@ -40,6 +41,7 @@ export default function ImportRecovery() {
           {operation.state !== "committed" || operation.replacementCleanupState === "pending" || (operation.sourceKind === "manual" && operation.cleanupState !== "cleaned") ? <Button size="sm" icon={RefreshCw} busy={retry.isPending && retry.variables === operation.id} disabled={retry.isPending} onClick={() => retry.mutate(operation.id)}>{operation.state === "committed" ? "Retry cleanup" : operation.metadata?.renameFileId ? "Retry rename" : "Retry import"}</Button> : null}
         </details>; })}
       </div>
+      <CalibreRecovery handoffs={report.calibreHandoffs} unfinished={report.calibreUnfinished} />
       {report.issues.length ? <details className="imports-recovery-item">
         <summary>Legacy links needing review ({report.unresolved})</summary>
         <p className="field-hint">These files are retained. Ambiguous links do not authorize download cleanup.</p>

@@ -222,7 +222,7 @@ func (s *Service) RefreshCalibreConversions(ctx context.Context, request Calibre
 	if !s.Available() {
 		return CalibreConversionRefreshOutcome{}, errors.New("library service requires database persistence")
 	}
-	if s.calibre == nil || s.rootFolders == nil {
+	if s.calibre == nil {
 		return CalibreConversionRefreshOutcome{}, errors.New("calibre integration is unavailable")
 	}
 	ids := compactStrings(request.IDs)
@@ -241,13 +241,53 @@ func (s *Service) RefreshCalibreConversions(ctx context.Context, request Calibre
 	if err != nil {
 		return CalibreConversionRefreshOutcome{}, err
 	}
-	outcome := CalibreConversionRefreshOutcome{}
+	outcome := CalibreConversionRefreshOutcome{Results: []CalibreConversionRefreshResult{}}
+	if len(ids) == 0 && len(paths) == 0 {
+		rows, e := s.store.db.QueryContext(ctx, `select id::text from calibre_handoffs where phase in ('accepted','converting','ready') and not exists(select 1 from jsonb_array_elements(progress) c where c->>'state' in ('starting','polling','unknown','failed')) order by updated_at,id limit $1`, limit)
+		if e != nil {
+			return outcome, e
+		}
+		handoffs := []string{}
+		for rows.Next() {
+			var id string
+			if e = rows.Scan(&id); e != nil {
+				rows.Close()
+				return outcome, e
+			}
+			handoffs = append(handoffs, id)
+		}
+		e = rows.Err()
+		rows.Close()
+		if e != nil {
+			return outcome, e
+		}
+		for _, id := range handoffs {
+			imported, e := s.RetryCalibreHandoff(ctx, id)
+			result := CalibreConversionRefreshResult{CalibreHandoffID: id, File: imported.File, Message: imported.Message, Status: "refreshed"}
+			outcome.Checked++
+			if e != nil {
+				result.Status = "error"
+				result.Message = e.Error()
+				outcome.Errored++
+			} else {
+				outcome.Refreshed++
+			}
+			outcome.Results = append(outcome.Results, result)
+		}
+	}
 	for _, file := range files {
 		if outcome.Checked >= limit {
 			break
 		}
 		outcome.Checked++
 		result := CalibreConversionRefreshResult{File: file}
+		if metadataString(file.Metadata, "calibreHandoffId") != "" {
+			result.Status = "skipped"
+			result.Message = "Saved Calibre handoff owns conversion recovery; terminal status cannot be polled twice"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
 		jobs := calibreConversionJobsFromMetadata(file.Metadata)
 		if len(jobs) == 0 {
 			result.Status = "skipped"
@@ -433,6 +473,9 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	if strings.TrimSpace(request.DownloadID) != "" && normalizeImportMode(request.ImportMode, request.Move) == "move" {
 		return ImportOutcome{}, errors.New("download imports must retain their sources; use copy or hardlink")
 	}
+	if outcome, found, err := s.resumeCalibreRequest(ctx, request); found || err != nil {
+		return outcome, err
+	}
 	if outcome, found, resumeErr := s.resumeManualRequest(ctx, request); found || resumeErr != nil {
 		return outcome, resumeErr
 	}
@@ -495,7 +538,11 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 
 	// Calibre-managed destination roots skip the move/hardlink+naming path:
 	// the source file is handed to the root's Calibre content server instead.
-	if folder, ok := resolveImportRootFolder(s.nativeRootFolders(ctx), format, rootFolderID); ok && folder.Calibre.Enabled {
+	roots, err := s.store.ListRootFolders(ctx)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	if folder, ok := resolveImportRootFolder(roots, format, rootFolderID); ok && folder.Calibre.Enabled {
 		return s.importViaCalibre(ctx, request, folder, source, format, parsed, info)
 	}
 
@@ -876,84 +923,6 @@ func (s *Service) lookupWanted(ctx context.Context, id string) (wanted.WantedIte
 	return s.wanted.GetWanted(ctx, id)
 }
 
-func (s *Service) applyCalibreImport(ctx context.Context, destination string, record *FileRecord) error {
-	if s == nil || s.calibre == nil || s.rootFolders == nil || record == nil {
-		return nil
-	}
-	settings, ok, err := s.calibreSettingsForDestination(ctx, destination)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return nil
-	}
-	return s.applyCalibreImportWithSettings(ctx, settings, destination, record)
-}
-
-// applyCalibreImportWithSettings posts path to the Calibre content server
-// (add-book), syncs metadata, and starts conversions per the settings,
-// recording Calibre state onto the file record.
-func (s *Service) applyCalibreImportWithSettings(ctx context.Context, settings calibre.Settings, path string, record *FileRecord) error {
-	if s == nil || s.calibre == nil || record == nil {
-		return errors.New("calibre integration is unavailable")
-	}
-	result, err := s.calibre.AddBook(ctx, calibre.AddBookRequest{
-		Settings: settings,
-		Path:     path,
-	})
-	if err != nil {
-		return err
-	}
-	if record.Metadata == nil {
-		record.Metadata = map[string]any{}
-	}
-	record.Metadata["calibreId"] = result.ID
-	record.Metadata["calibreImportedAt"] = time.Now().UTC().Format(time.RFC3339)
-	record.Metadata["calibreHost"] = settings.Host
-	record.Metadata["calibreLibrary"] = settings.Library
-	record.Metadata["calibreOutputFormat"] = settings.OutputFormat
-	record.Metadata["calibreOutputProfile"] = settings.OutputProfile
-	metadata := calibreMetadataFromRecord(*record)
-	if calibreMetadataHasChanges(metadata) {
-		if err := s.calibre.SetFields(ctx, calibre.SetFieldsRequest{
-			Settings: settings,
-			ID:       result.ID,
-			Metadata: metadata,
-		}); err != nil {
-			return err
-		}
-		record.Metadata["calibreMetadataSyncedAt"] = time.Now().UTC().Format(time.RFC3339)
-	}
-	conversion, err := s.calibre.Convert(ctx, calibre.ConvertRequest{
-		Settings:    settings,
-		ID:          result.ID,
-		InputFormat: firstNonEmpty(record.Extension, filepath.Ext(record.Path)),
-	})
-	if err != nil {
-		return err
-	}
-	if len(conversion.Jobs) > 0 || len(conversion.Skipped) > 0 {
-		record.Metadata["calibreConversionJobs"] = calibreConversionJobMetadata(conversion.Jobs)
-		record.Metadata["calibreConversionSkipped"] = conversion.Skipped
-		record.Metadata["calibreConversionStartedAt"] = time.Now().UTC().Format(time.RFC3339)
-	}
-	if len(conversion.Jobs) > 0 {
-		statuses, err := s.calibre.PollConversions(ctx, calibre.PollConversionsRequest{
-			Settings:    settings,
-			Jobs:        conversion.Jobs,
-			MaxAttempts: 1,
-		})
-		if err != nil {
-			return err
-		}
-		if len(statuses) > 0 {
-			record.Metadata["calibreConversionStatuses"] = calibreConversionStatusMetadata(statuses)
-			record.Metadata["calibreConversionPolledAt"] = time.Now().UTC().Format(time.RFC3339)
-		}
-	}
-	return nil
-}
-
 // importViaCalibre is the import path for Calibre-managed native roots: the
 // source file is handed to the root's Calibre content server (add-book plus
 // optional conversion) instead of being moved/hardlinked into the naming
@@ -961,56 +930,7 @@ func (s *Service) applyCalibreImportWithSettings(ctx context.Context, settings c
 // path), so the tracked file keeps the source path with import status
 // "calibre".
 func (s *Service) importViaCalibre(ctx context.Context, request ImportRequest, folder RootFolder, source string, format string, parsed parsedBook, info fs.FileInfo) (ImportOutcome, error) {
-	record, err := s.calibreHandoffRecord(ctx, calibreSettingsFromRootFolder(folder), source, format, parsed, info)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if strings.TrimSpace(folder.ID) != "" {
-		record.Metadata["rootFolderId"] = strings.TrimSpace(folder.ID)
-	}
-	if strings.TrimSpace(request.WantedID) != "" {
-		record.Metadata["wantedId"] = strings.TrimSpace(request.WantedID)
-	}
-	if strings.TrimSpace(request.DownloadID) != "" {
-		record.Metadata["downloadId"] = strings.TrimSpace(request.DownloadID)
-	}
-	stored, err := s.store.UpsertFile(ctx, record)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if strings.TrimSpace(request.WantedID) != "" && s.wanted != nil {
-		_ = s.wanted.MarkWantedStatus(ctx, request.WantedID, "imported")
-	}
-	return ImportOutcome{
-		File:            stored,
-		DestinationPath: stored.Path,
-		Imported:        true,
-		ImportMode:      "calibre",
-		Message:         fmt.Sprintf("handed to Calibre-managed root %q", folder.Path),
-	}, nil
-}
-
-// calibreHandoffRecord builds the tracked file record for a Calibre-managed
-// import and performs the Calibre handoff (add-book, metadata sync, optional
-// conversion). The record keeps the source path because the Calibre client
-// reports the new book asynchronously by id, not by library path.
-func (s *Service) calibreHandoffRecord(ctx context.Context, settings calibre.Settings, source string, format string, parsed parsedBook, info fs.FileInfo) (FileRecord, error) {
-	if s == nil || s.calibre == nil {
-		return FileRecord{}, errors.New("calibre integration is unavailable")
-	}
-	record := fileRecordFromPath(source, format, info, "calibre")
-	record.SourcePath = source
-	record.Title = firstNonEmpty(parsed.Title, record.Title)
-	record.AuthorName = firstNonEmpty(parsed.AuthorName, record.AuthorName)
-	if record.Metadata == nil {
-		record.Metadata = map[string]any{}
-	}
-	record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
-	record.Metadata["importMode"] = "calibre"
-	if err := s.applyCalibreImportWithSettings(ctx, settings, source, &record); err != nil {
-		return FileRecord{}, err
-	}
-	return record, nil
+	return s.planCalibreHandoff(ctx, request, folder, source, format, parsed, info)
 }
 
 // calibreSettingsFromRootFolder maps a native root folder's Calibre config
@@ -1030,7 +950,27 @@ func calibreSettingsFromRootFolder(folder RootFolder) calibre.Settings {
 }
 
 func (s *Service) applyCalibreDelete(ctx context.Context, file FileRecord) error {
-	if s == nil || s.calibre == nil || s.rootFolders == nil {
+	if s == nil || s.calibre == nil {
+		return nil
+	}
+	if id := metadataString(file.Metadata, "calibreHandoffId"); id != "" {
+		if !s.Available() {
+			return errors.New("saved Calibre handoff is unavailable")
+		}
+		h, err := scanCalibreHandoff(s.store.db.QueryRowContext(ctx, `select `+handoffColumns+` from calibre_handoffs where id::text=$1 and file_id=$2 and phase='committed'`, id, file.ID))
+		if err != nil {
+			return err
+		}
+		settings, err := s.handoffSettings(ctx, &h)
+		if err != nil {
+			return err
+		}
+		if err = s.calibre.DeleteBooks(ctx, calibre.DeleteBooksRequest{Settings: settings, IDs: []int{h.BookID}}); err != nil {
+			return errors.New("could not delete the book from its original Calibre library")
+		}
+		return nil
+	}
+	if s.rootFolders == nil {
 		return nil
 	}
 	calibreID := metadataInt(file.Metadata, "calibreId", 0)

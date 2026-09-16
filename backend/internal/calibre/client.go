@@ -784,3 +784,15 @@ func joinURLPath(parts ...string) string {
 	}
 	return "/" + path.Join(clean...)
 }
+
+// BookFormats reads an existing book on the configured server without mutation.
+func (c *Client) BookFormats(ctx context.Context, settings Settings, id int) ([]string, error) {
+	if id <= 0 {
+		return nil, errors.New("Calibre book ID must be positive")
+	}
+	data, err := c.conversionBookData(ctx, normalizeSettings(settings), id)
+	if err != nil {
+		return nil, errors.New("could not inspect Calibre book")
+	}
+	return data.InputFormats, nil
+}

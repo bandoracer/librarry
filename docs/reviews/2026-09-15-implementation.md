@@ -1661,3 +1661,78 @@ real authentication-mode runs passed again after the request helper cleanup.
 Vet, the web production build, deployment configuration contracts and diff checks
 passed. The fixture-server image is local test infrastructure only; no Librarry
 image was published and no production or homelab state changed.
+
+### September 16 — Durable Calibre handoffs and explicit recovery
+
+Continued on `codex/calibre-handoff-recovery`, stacked on #34. The prerequisite
+Calibre client PR #34 completed all five CI jobs successfully in run
+35106916144. Migration 0046 introduces a separate Calibre handoff journal:
+source-path and exact optional download identity reservations, captured original
+root/target fingerprint, immutable source evidence, positive accepted book ID,
+per-format conversion progress and final file identity. No credentials are saved
+in the journal. Dedicated session advisory locks serialize remote work; per-run
+tokens reject writes after connection ownership changes. Network calls hold no
+open database transaction.
+
+The original duplicate-upload reproducer is fixed. The send is recorded before
+AddBook, its acknowledgement is saved before metadata work, and metadata retries
+reuse the accepted book. Conversion requests are issued per format and each job
+acknowledgement, including zero, is saved independently. Calibre's consumptive
+terminal status is recorded before another poll. Lost upload/start/status
+acknowledgements require explicit inspection instead of another mutation.
+Imports exposes retry, attach-existing-book, confirmed-absent upload, verified
+existing-format and confirmed-stopped conversion recovery. Decisions require
+confirmation and are written to history. Attach/format operations read the
+original server; the operator, not fuzzy matching, identifies the book.
+
+The conversion background task also resumes accepted handoffs, including manual
+imports without a file row yet, in oldest-updated order. It excludes uncertain
+sends. Legacy forced refresh cannot repoll journal-owned terminal jobs. Current
+owner names/notes and associations are preserved; book/file changes during sync
+reject the commit and are reread on retry. Root changes cannot route a retry to a
+new server, while password rotation is allowed. File, wanted/download projections,
+relational links, installed release and history commit atomically. A replay returns
+the saved result even when its retained source has since disappeared. Remote
+book deletion resolves the saved original root. No native cleanup receipt is
+created, and this change never automatically deletes Calibre handoff sources.
+
+Database fault tests cover metadata failure, lost upload response/save, lost
+terminal-status save, final transaction rollback, concurrent retries, owner and
+target changes, existing file notes/foreign links, cross-client download IDs,
+changed source bytes, explicit resolution and background conversion recovery.
+The obsolete non-journal upload helper and its mock-only tests were removed.
+Real disposable Calibre 8.5 qualification passes under both Digest and Basic:
+actual accepted uploads survive metadata interruption or lost acknowledgement,
+a fresh Service recovers the saved ID, TXT conversion is read back, import history
+is written once, and explicit fixture deletion leaves the server database empty.
+CI now gives this real-server job an isolated Postgres service as well.
+
+The full browser suite passed 89 tests with one expected desktop-only skip.
+Desktop/mobile recovery tests verify required confirmation, saved ID attachment,
+job zero, retry and source-retention messaging. The 390px uncertain-state screenshot
+was visually inspected and has no horizontal overflow. Fourteen web unit tests,
+production web build, vet, deployment contracts and diff checks passed. The full
+Postgres race suite passed; later background integration changes also passed the
+focused race suite. An initial broad run overlapped other disposable-database
+suites and exhausted the local Postgres default lock table; the isolated full
+rerun passed (library 154.003s). This was a test-resource failure, not a hidden
+passing claim.
+
+Packaged API/web images `librarry-api:calibre-handoff` and
+`librarry-web:calibre-handoff` report schema 46 and commit marker
+`working-tree-calibre-handoff`. Full packaged regression, process restart,
+uncertain-handoff recovery projection and isolated database restore passed. The
+427,643-byte backup preserves the journal as well as existing import/acquisition
+receipts and library relationships. This is local image qualification only;
+no images were published and no homelab or production state changed.
+
+S09 remains partial: changed chapter-layout retirement, broader disk-fault and
+live-NAS qualification remain. Legacy Calibre identity repair, remote file-path
+refresh, richer edition metadata, legacy polling fairness and the 72-hour soak
+are not certified by these fixtures. The overall stabilization goal remains open.
+
+The final ordinary full Postgres suite passed (library 143.742s). A final review
+also bound remote deletion to the committed handoff's exact file ID; metadata on
+an unrelated file cannot authorize deleting that handoff's Calibre book. Focused
+race coverage verifies both refusal and the original-target deletion. The local
+packaged run preceded this final identity guard; PR CI qualifies the final commit.

@@ -309,6 +309,12 @@ func WithDownloadClient(ctx context.Context, client string) context.Context {
 	return context.WithValue(ctx, downloadClientContextKey{}, strings.TrimSpace(client))
 }
 
+// DownloadClientFromContext returns the client scope used for exact download identity.
+func DownloadClientFromContext(ctx context.Context) string {
+	client, _ := ctx.Value(downloadClientContextKey{}).(string)
+	return client
+}
+
 func (s *SQLDownloadStore) execDownloadMutation(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	client, _ := ctx.Value(downloadClientContextKey{}).(string)
 	args = append(args, client)

@@ -145,9 +145,12 @@ through repeated renames. Per-file selection retains chapter/companion layouts;
 a separate book action moves complete recorded folders while preserving names,
 disc paths and verified relative CUE/M3U/OPF references. General chapter/reference
 rewriting remains unsupported. Whole-book
-retirement, Calibre recovery, broader disk fault injection and live qualification
-remain open. Calibre API identity/authentication now has real disposable-server
-qualification; accepted-upload and conversion recovery still need durable state.
+retirement, broader disk fault injection and live qualification remain open.
+New native-root Calibre handoffs now persist accepted uploads, per-format
+conversion acknowledgements and atomic bookkeeping. Unknown sends require
+operator decisions. Real disposable Calibre tests cover recovery after metadata
+interruption and acknowledgement loss under Digest and Basic. Legacy Calibre
+identity repair, remote path refresh and unattended qualification remain open.
 This does not mark S09 complete.
 
 ### S10 — Acquisition deduplication and recovery

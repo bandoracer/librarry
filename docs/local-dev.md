@@ -1326,5 +1326,31 @@ LIBRARRY_CALIBRE_AUTH_MODE=basic python3 scripts/test-calibre.py
 The fixture prints its actual Calibre version. September local qualification used
 Debian's Calibre 8.5 on ARM64. Ordinary Go test runs skip the disposable-server
 case; CI builds the fixture and tests both modes. The contract verifies protocol
-identities and actual remote effects. It does not yet qualify interrupted
-handoff recovery or make Calibre-managed sources eligible for download cleanup.
+identities and actual remote effects. Set `LIBRARRY_TEST_DATABASE_URL` to the
+disposable Postgres instance to also run real handoff recovery through fresh
+service instances after metadata failure and lost upload acknowledgement. CI
+runs both client and handoff tests. Calibre-managed sources do not earn download
+cleanup eligibility.
+
+
+### Recover a Calibre handoff
+
+Open **Imports → Calibre handoffs**. An accepted book ID stays attached to the
+saved original root across retry and restart. **Retry Calibre handoff** resumes
+metadata syncing, known conversion jobs and local bookkeeping. Running conversions
+also resume through the configured conversion background task. Disabling that
+task requires timely manual checks; expired server jobs need review.
+
+For an uncertain upload, inspect the original Calibre library first. Confirm that
+the earlier request has stopped, then enter the existing Calibre book ID and choose
+**Attach existing book**. Librarry verifies the ID and source format; you must
+verify that it is the right book. If you verified that the upload is absent,
+**Confirmed absent: allow another upload** permits a new send. A similar decision
+is required for uncertain/failed conversions: verify an existing output format or
+allow another conversion. After saving a decision, retry the handoff.
+
+Recovery never silently changes servers or deletes the retained source. Restore
+the original root configuration if the target has changed; password rotation is
+allowed. Changes to the wanted destination or file associations require resolving
+those owner settings before retry. These controls apply to new journal-backed
+handoffs; old IDs and external Calibre file moves are not automatically repaired.
