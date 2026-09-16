@@ -2645,16 +2645,39 @@ func (h *handler) upgradeWanted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	var request wanted.UpgradeRequest
+	request := wanted.UpgradeRequest{}
 	if r.Body != http.NoBody {
-		_ = json.NewDecoder(r.Body).Decode(&request)
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+		decoder.DisallowUnknownFields()
+		var parsed *wanted.UpgradeRequest
+		decodeErr := decoder.Decode(&parsed)
+		if decodeErr == io.EOF {
+			parsed = &request // Preserve the existing empty-body batch action.
+		} else if decodeErr != nil || parsed == nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "upgrade request must be a valid JSON object"})
+			return
+		}
+		if err := decoder.Decode(new(any)); err != io.EOF {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "upgrade request must contain one JSON object"})
+			return
+		}
+		request = *parsed
+	}
+	request, err := wanted.NormalizeUpgradeRequest(request)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
 	}
 	if request.Trigger == "" {
 		request.Trigger = "manual"
 	}
 	run, err := h.deps.Wanted.SearchUpgrades(r.Context(), request)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
+		status := http.StatusBadGateway
+		if errors.Is(err, wanted.ErrInvalidUpgradeRequest) {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
 	h.notifyUpgradeGrabs(r.Context(), "upgrade-search", run)

@@ -1940,7 +1940,7 @@ export async function runUpgradeSearch(options: {
     body: JSON.stringify({
       trigger: "manual",
       wantedIds: options.wantedIds ?? [],
-      limit: options.limit ?? 50,
+      limit: options.limit ?? (options.wantedIds?.length || 50),
       searchLimit: options.searchLimit ?? 20,
       minScoreDelta: options.minScoreDelta ?? 5,
       autoGrab: options.autoGrab ?? false,
@@ -1949,7 +1949,7 @@ export async function runUpgradeSearch(options: {
     })
   });
   if (!response.ok) {
-    throw new Error(`Upgrade search failed: ${response.status}`);
+    throw new Error(await apiError(response, "Upgrade search failed"));
   }
   return (await response.json()) as UpgradeRun;
 }

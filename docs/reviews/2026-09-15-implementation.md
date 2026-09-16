@@ -1098,3 +1098,37 @@ Next collection-contract work should also fix the selected-upgrade UI's inherite
 not raise its limit to cover a larger selection. Global profile/restriction edits
 do not share the per-book revision fence and need broader decision/configuration
 validation. Neither limitation is certified complete by these worker tests.
+
+
+Worker fairness PR #24 at `b5533c8725888adb9538a4b6dda6590f56d281cc` passed
+[CI run 35084318036](https://github.com/bandoracer/librarry/actions/runs/35084318036),
+including source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+No images were published or deployed.
+
+## Continuation: exact upgrade selections (S15)
+
+Branch: `codex/explicit-upgrade-selection`, based on PR #24. Explicit selections
+previously inherited the 50-book scheduled batch limit, and malformed JSON was
+silently decoded as a default batch. Nonempty wantedIds now select the entire
+request (maximum 200), independently of the queue limit. UUIDs normalize and
+deduplicate while preserving order. Unmonitored, removed, ignored and not-yet-due
+books return per-item skip reasons. Force bypasses timing only. Missing IDs reject
+the whole selection before a run starts; later owner changes retain existing
+per-book checks. Invalid JSON, unknown fields, invalid IDs, oversized requests and
+invalid limits return 400 without starting work. An empty selection retains the
+bounded queue action. The web client sends the selection size and displays the
+server's explanation when validation fails.
+
+Qualification: the full Go race/Postgres suite and vet passed; the 200-selected
+plus one unselected regression proves complete processing and exact scope. Other
+cases cover duplicates, stopped/recent books, Force, deleted/invalid IDs, bad JSON
+and unchanged scheduling clocks on rejected work. Twelve web unit checks and the
+production build passed. All 53 applicable browser cases passed, with one expected
+mobile skip; the 75-row upgrade selection passed at 1440x1000 and 390x844, and the
+mobile screenshot was inspected. Global collection paging/counts, durable
+all-matching jobs and live qualification remain open. No complete S15 claim.
+
+The local ARM64 API/web images also passed packaged restart, scan, evidence,
+recovery and authentication qualification at schema 42. A 408,967-byte database
+backup restored with book/file/download/receipt evidence intact. This is isolated
+fixture qualification, with no production deployment, publication or real grab.

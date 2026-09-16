@@ -38,3 +38,23 @@ test("Wanted exposes incomplete and unknown books and explains skipped batches",
  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
  await page.screenshot({ path: `../output/playwright/wanted-evidence-${testInfo.project.name}.png`, fullPage: true });
 });
+
+test("Wanted upgrade selection sends every selected row beyond the default batch", async ({ page }, testInfo) => {
+ const books = Array.from({ length: 75 }, (_, index) => ({ id: `00000000-0000-0000-0000-${String(index + 1).padStart(12, "0")}`, title: `Upgrade fixture ${String(index + 1).padStart(3, "0")}`, authorName: "Fixture Author", format: "ebook", status: "imported", monitored: true, qualityProfile: "standard", derivedState: "cutoffUnmet" }));
+ await page.route("**/api/v1/wanted?**", route => route.fulfill({ json: { wanted: books } }));
+ let submitted = 0;
+ await page.route("**/api/v1/wanted/upgrades", async route => {
+  const request = route.request().postDataJSON();
+  expect(request).toMatchObject({ limit: 75, force: true, autoGrab: false });
+  expect([...request.wantedIds].sort()).toEqual(books.map(book => book.id).sort());
+  submitted++;
+  await route.fulfill({ json: { wantedChecked: 75, upgradeCount: 0, grabbedCount: 0, errorCount: 0, items: books.map(wantedItem => ({ wantedItem })) } });
+ });
+ await page.goto("/wanted/cutoff-unmet");
+ await page.getByRole("checkbox", { name: "Select all rows", exact: true }).check();
+ await page.getByRole("button", { name: "Upgrade Search Selected", exact: true }).click();
+ await expect(page.getByText("Upgrade search: 75 checked, 0 upgrades, 0 grabbed, 0 errors", { exact: true })).toBeVisible();
+ expect(submitted).toBe(1);
+ expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+ await page.screenshot({ path: `../output/playwright/upgrade-selection-${testInfo.project.name}.png`, fullPage: true });
+});

@@ -1154,3 +1154,13 @@ all-matching bulk jobs remain separate work.
 
 Feed release observations persist decisions without updating the full indexer
 search timestamp, so repeated RSS matches cannot postpone due searches.
+
+### Selected upgrade checks
+
+Wanted → Cutoff Unmet → Upgrade Search Selected checks the entire current
+selection, including selections larger than 50. Each request accepts at most 200
+books. Skipped books contribute to the summary and carry an explanation; a book
+that was deleted before validation asks the operator to refresh the selection.
+The action does not automatically grab. Check Upgrade Batch remains a separate
+50-book queue action. Neither action means every matching book in a large library
+has been processed, and collection-wide bulk jobs remain unfinished.

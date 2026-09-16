@@ -1170,3 +1170,19 @@ search timestamp, so repeated RSS matches cannot postpone due searches.
 Full-search decision persistence also locks/checks the book revision captured
 before provider IO. A changed revision rejects stale decisions and does not
 advance the successful-search timestamp.
+
+### Explicit upgrade selection
+
+`POST /api/v1/wanted/upgrades` treats nonempty `wantedIds` as the complete
+selection, independently of the scheduled `limit`. Up to 200 UUIDs are accepted;
+duplicates are normalized, input order is retained, and every selected book is
+checked or returned with a skip reason. Unmonitored/removed books and checks not
+yet due are reported rather than silently omitted. Force bypasses timing only;
+file evidence, owner monitoring and acquisition safeguards still apply.
+
+Invalid JSON, unknown request fields, invalid IDs, oversized selections and
+nonexistent selected books fail with HTTP 400 before starting work. A selection
+snapshot validates membership before the run; owner settings are re-read during
+processing. An empty selection retains the queue batch contract (50 by default,
+200 maximum). This endpoint is synchronous and does not provide durable resume
+or an all-matching collection job. Global paging and bulk jobs remain S15 work.

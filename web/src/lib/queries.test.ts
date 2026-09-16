@@ -50,3 +50,21 @@ describe("direct book lookup", () => {
     expect(fetch).toHaveBeenCalledWith("/api/v1/library/files?limit=100&wantedId=target-book", expect.any(Object));
   });
 });
+
+describe("upgrade selection contract", () => {
+  it("sends the full explicit selection while keeping the default queue batch bounded", async () => {
+    const { runUpgradeSearch } = await import("./api");
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}'));
+    vi.stubGlobal("fetch", fetch);
+    const ids = Array.from({ length: 200 }, (_, index) => `book-${index}`);
+    await runUpgradeSearch({ wantedIds: ids });
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({ wantedIds: ids, limit: 200, autoGrab: false });
+    await runUpgradeSearch();
+    expect(JSON.parse(String(fetch.mock.calls[1]?.[1]?.body))).toMatchObject({ wantedIds: [], limit: 50 });
+  });
+  it("explains an invalid selection using the API error", async () => {
+    const { runUpgradeSearch } = await import("./api");
+    vi.stubGlobal("fetch", async () => new Response('{"error":"selected book no longer exists; refresh the selection"}', { status: 400 }));
+    await expect(runUpgradeSearch({ wantedIds: ["missing"] })).rejects.toThrow("selected book no longer exists");
+  });
+});

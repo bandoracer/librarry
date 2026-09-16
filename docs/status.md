@@ -36,8 +36,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [author policy PR #20](https://github.com/bandoracer/librarry/pull/20),
 [author destination PR #21](https://github.com/bandoracer/librarry/pull/21),
 [direct author detail PR #22](https://github.com/bandoracer/librarry/pull/22),
-[book presence PR #23](https://github.com/bandoracer/librarry/pull/23), and the
-`codex/worker-evidence-fairness` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[book presence PR #23](https://github.com/bandoracer/librarry/pull/23),
+[worker fairness PR #24](https://github.com/bandoracer/librarry/pull/24), and the
+`codex/explicit-upgrade-selection` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -529,3 +530,11 @@ Librarry is roughly alpha quality:
   Prowlarr search, qBittorrent handoff, and UI review workflows.
 - Not yet good enough to retire Readarr without a controlled migration/import
   test and several successful full acquisition/import loops.
+
+Explicit upgrade selections now process up to 200 selected books independently of
+the queue batch limit, report ineligible selections as skips, and reject invalid
+or missing IDs before starting work. Malformed request bodies can no longer
+fall through to a default queue action. A 200-selected-plus-one-unselected
+database regression and a 75-row desktop/mobile fixture exercise the boundary.
+This is source/fixture qualification; global collection caps, durable bulk jobs
+and live qualification remain open.

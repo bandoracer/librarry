@@ -1569,13 +1569,9 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		return UpgradeRun{}, errors.New("acquisition service is unavailable")
 	}
 
-	run, err := s.store.StartUpgradeRun(ctx, request.Trigger)
+	request, err := NormalizeUpgradeRequest(request)
 	if err != nil {
 		return UpgradeRun{}, err
-	}
-	limit := request.Limit
-	if limit <= 0 || limit > 200 {
-		limit = defaultWantedMonitorLimit
 	}
 	searchLimit := request.SearchLimit
 	if searchLimit <= 0 || searchLimit > 50 {
@@ -1586,7 +1582,21 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		minSearchInterval = time.Duration(request.MinSearchIntervalMinutes) * time.Minute
 	}
 
-	items, err := s.store.ListUpgradeWanted(ctx, request.WantedIDs, limit, minSearchInterval, request.Force)
+	var items []WantedItem
+	var selectionSkips map[string]string
+	if len(request.WantedIDs) > 0 {
+		items, selectionSkips, err = s.store.selectedUpgradeBooks(ctx, request.WantedIDs, minSearchInterval, request.Force)
+		if err != nil {
+			return UpgradeRun{}, err
+		}
+	}
+	run, err := s.store.StartUpgradeRun(ctx, request.Trigger)
+	if err != nil {
+		return UpgradeRun{}, err
+	}
+	if len(request.WantedIDs) == 0 {
+		items, err = s.store.ListUpgradeWanted(ctx, nil, request.Limit, minSearchInterval, request.Force)
+	}
 	if err != nil {
 		run.Status = "failed"
 		run.ErrorCount = 1
@@ -1629,6 +1639,11 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		default:
 		}
 
+		if reason := selectionSkips[item.ID]; reason != "" {
+			run.WantedChecked++
+			run.Items = append(run.Items, UpgradeItemResult{WantedItem: item, SkippedReason: reason})
+			continue
+		}
 		current, checkErr := s.checkedWorkerItem(ctx, item, "upgrade")
 		if checkErr != nil {
 			result := UpgradeItemResult{WantedItem: item}
