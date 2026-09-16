@@ -103,7 +103,7 @@ func TestAuthorLatestPolicyUsesEligibleWorksAndOriginalPublication(t *testing.T)
 	}
 }
 
-func TestAuthorMonitorPersistenceFailureLeavesSubscriptionDue(t *testing.T) {
+func TestAuthorMonitorPersistenceFailureBacksOffWithoutFalseSuccess(t *testing.T) {
 	db := testdb.Open(t)
 	store := NewStore(db)
 	ctx := context.Background()
@@ -131,6 +131,11 @@ func TestAuthorMonitorPersistenceFailureLeavesSubscriptionDue(t *testing.T) {
 		t.Fatal(err)
 	}
 	run, err = service.MonitorAuthors(ctx, AuthorMonitorRequest{})
+	if err != nil || run.AuthorsChecked != 0 {
+		t.Fatal("failed author must not pin every scheduled batch", run, err)
+	}
+	// An operator retry bypasses check backoff after the underlying failure is fixed.
+	run, err = service.MonitorAuthors(ctx, AuthorMonitorRequest{Force: true})
 	if err != nil || run.ErrorCount != 0 || run.AuthorsChecked != 1 {
 		t.Fatal(run, err)
 	}

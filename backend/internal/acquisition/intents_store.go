@@ -155,10 +155,11 @@ func (s *SQLDownloadStore) ClaimAcquisition(ctx context.Context, candidate Acqui
 	}
 	if candidate.WantedID != "" {
 		var status, format string
-		if err := tx.QueryRowContext(ctx, `select status,wanted_format from wanted_items where id=$1`, candidate.WantedID).Scan(&status, &format); err != nil {
+		var monitored bool
+		if err := tx.QueryRowContext(ctx, `select status,wanted_format,monitored from wanted_items where id=$1 for update`, candidate.WantedID).Scan(&status, &format, &monitored); err != nil {
 			return candidate, false, err
 		}
-		if status == "removed" || status == "ignored" {
+		if status == "removed" || status == "ignored" || (candidate.Selection.Trigger != "" && candidate.Selection.Trigger != "manual" && !monitored) {
 			return candidate, false, errors.New("this book is not eligible for acquisition")
 		}
 		candidate.Format = format

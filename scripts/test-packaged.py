@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 41, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 42, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -473,6 +473,18 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         restored_book = request("/api/v1/wanted/" + audio_book_id)
         assert restored_book["stateEvidence"]["files"]["state"] == "present", restored_book
         print("Packaged book evidence: complete import, missing chapter after scan, and restored complete audiobook verified through native book API")
+        # Checks advance durably even when file evidence makes a search unnecessary.
+        # The fixture has no configured indexer, and auto-grab remains disabled.
+        first_checks = request("/api/v1/wanted/monitor", {"limit": 1, "autoGrab": False})
+        assert first_checks["wantedChecked"] == 1, first_checks
+        first_checked_id = str(uuid.UUID(first_checks["items"][0]["wantedItem"]["id"]))
+        assert sql(f"select last_monitor_checked_at is not null from wanted_items where id='{first_checked_id}'") == "t"
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        second_checks = request("/api/v1/wanted/monitor", {"limit": 1, "autoGrab": False})
+        assert second_checks["wantedChecked"] == 1, second_checks
+        assert second_checks["items"][0]["wantedItem"]["id"] != first_checked_id, second_checks
+        print("Packaged worker fairness: checked book retained scheduling progress across restart; next batch advanced without a real indexer or acquisition")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

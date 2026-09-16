@@ -444,3 +444,24 @@ func TestAcquisitionUncertainBookCannotMasqueradeAsDifferentRelease(t *testing.T
 		t.Fatal(fixture.adds)
 	}
 }
+
+func TestAutomaticAcquisitionRejectsUnmonitoredBookAtReservation(t *testing.T) {
+	service, db, fixture, request := intentTestService(t)
+	if _, err := db.Exec(`update wanted_items set monitored=false`); err != nil {
+		t.Fatal(err)
+	}
+	request.Selection = &AcquisitionSelection{Trigger: "monitor"}
+	if _, err := service.Grab(context.Background(), request); err == nil {
+		t.Fatal("automatic acquisition accepted unmonitored book")
+	}
+	fixture.mu.Lock()
+	adds := fixture.adds
+	fixture.mu.Unlock()
+	if adds != 0 {
+		t.Fatal(adds)
+	}
+	request.Selection = &AcquisitionSelection{Trigger: "manual"}
+	if _, err := service.Grab(context.Background(), request); err != nil {
+		t.Fatal("explicit manual grab should remain available", err)
+	}
+}

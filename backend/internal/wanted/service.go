@@ -485,6 +485,14 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 
 		result := AuthorMonitorItemResult{Subscription: subscription}
+		if err := s.store.markWorkerChecked(ctx, subscription.ID, "author"); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				result.Error = err.Error()
+				run.ErrorCount++
+				run.Items = append(run.Items, result)
+			}
+			continue
+		}
 		results, err := s.metadata.AuthorBibliography(ctx, metadata.Query{
 			Query:       subscription.AuthorName,
 			Type:        metadata.SearchTypeAuthorWorks,
@@ -774,12 +782,20 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 		}
 		return decisions[i].Score > decisions[j].Score
 	})
-	stored, err := s.store.UpsertReleaseDecisions(ctx, item.ID, decisions)
+	stored, err := s.store.upsertReleaseDecisions(ctx, item.ID, decisions, true, &item.UpdatedAt)
 	if err != nil {
 		return SearchOutcome{}, err
 	}
-	item, _ = s.store.GetWanted(ctx, item.ID)
-	return SearchOutcome{WantedItem: item, Releases: stored}, nil
+	current, err := s.store.GetWanted(ctx, item.ID)
+	if err != nil {
+		return SearchOutcome{}, err
+	}
+	// The injected default language is a query input, not an owner override.
+	comparison := wantedItemWithDefaultSearchLanguage(current, language)
+	if !sameWantedAcquisitionSettings(comparison, item) {
+		return SearchOutcome{}, errors.New("book settings changed during release search; search again")
+	}
+	return SearchOutcome{WantedItem: current, Releases: stored}, nil
 }
 
 func releaseSearchQueryForWanted(item WantedItem, limit int) acquisition.ReleaseSearchQuery {
@@ -1026,34 +1042,45 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 		return finished, err
 	}
 
-	// Readarr semantics: a grabbed book with a live download is in flight and
-	// skipped; one whose download vanished is treated as missing and searched
-	// again. When the client is unreachable we cannot tell the difference, so
-	// grabbed candidates are skipped rather than risking a double grab.
-	inFlight := map[string]bool{}
-	clientReachable := false
-	if s.acquire != nil {
-		if downloads, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"}); err == nil {
-			clientReachable = true
-			for id := range groupDownloadsByWantedID(downloads) {
-				inFlight[id] = true
-			}
+	evidence, err := s.workerEvidence(ctx, items)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishMonitorRun(ctx, run)
+		if finishErr != nil {
+			return finished, finishErr
 		}
+		return finished, err
 	}
 
 	for _, item := range items {
-		if inFlight[item.ID] || (item.Status == "grabbed" && !clientReachable) {
+		if err := ctx.Err(); err != nil {
+			run.Status = "canceled"
+			run.Message = err.Error()
+			return s.store.FinishMonitorRun(context.Background(), run)
+		}
+		result := MonitorItemResult{WantedItem: item}
+		current, checkErr := s.checkedWorkerItem(ctx, item, "monitor")
+		if checkErr != nil {
+			run.WantedChecked++
+			if errors.Is(checkErr, sql.ErrNoRows) {
+				result.SkippedReason = "book is no longer monitored"
+			} else {
+				result.Error = checkErr.Error()
+				run.ErrorCount++
+			}
+			run.Items = append(run.Items, result)
 			continue
 		}
-		select {
-		case <-ctx.Done():
-			run.Status = "canceled"
-			run.Message = ctx.Err().Error()
-			return s.store.FinishMonitorRun(context.Background(), run)
-		default:
+		item = current
+		result.WantedItem = item
+		if reason := evidence.skipReason(item, false); reason != "" {
+			run.WantedChecked++
+			result.SkippedReason = reason
+			run.Items = append(run.Items, result)
+			continue
 		}
-
-		result := MonitorItemResult{WantedItem: item}
 		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
 		run.WantedChecked++
 		if err != nil {
@@ -1138,6 +1165,15 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 		run.Status = "completed"
 	}
 	run.Message = monitorMessage(run)
+	reasons := []string{}
+	for _, item := range run.Items {
+		if item.SkippedReason != "" {
+			reasons = append(reasons, item.SkippedReason)
+		}
+	}
+	if len(reasons) > 0 {
+		run.Message += fmt.Sprintf("; skipped %d (%s)", len(reasons), reasons[0])
+	}
 	return s.store.FinishMonitorRun(ctx, run)
 }
 
@@ -1184,89 +1220,122 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 		return finished, err
 	}
 
-	items, err := s.store.ListWanted(ctx, "wanted")
-	if err != nil {
-		run.Status = "failed"
-		run.ErrorCount = 1
-		run.Message = err.Error()
-		finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
-		if finishErr != nil {
-			return FeedSyncRun{}, finishErr
+	after := ""
+	for {
+		if err := ctx.Err(); err != nil {
+			run.Status = "canceled"
+			run.Message = err.Error()
+			return s.store.FinishFeedSyncRun(context.Background(), run)
 		}
-		return finished, err
-	}
-
-	grabbedWanted := map[string]bool{}
-	for _, item := range items {
-		if !formatMatchesRequest(request.Format, item.Format) {
-			continue
-		}
-		options, err := s.releaseEvaluationOptions(ctx, item)
+		items, err := s.store.listFeedWantedPage(ctx, after, request.Format)
 		if err != nil {
+			run.Status = "failed"
 			run.ErrorCount++
-			run.Matches = append(run.Matches, FeedSyncMatch{WantedItem: item, Error: err.Error()})
-			continue
+			run.Message = err.Error()
+			finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+			if finishErr != nil {
+				return finished, finishErr
+			}
+			return finished, err
 		}
-		var decisions []ReleaseDecision
-		for _, release := range releases {
-			if !feedReleaseMatchesWanted(item, release) {
+		if len(items) == 0 {
+			break
+		}
+		evidence, err := s.workerEvidence(ctx, items)
+		if err != nil {
+			run.Status = "failed"
+			run.ErrorCount++
+			run.Message = err.Error()
+			finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+			if finishErr != nil {
+				return finished, finishErr
+			}
+			return finished, err
+		}
+		grabbedWanted := map[string]bool{}
+		for _, item := range items {
+			if !formatMatchesRequest(request.Format, item.Format) {
 				continue
 			}
-			decisions = append(decisions, evaluateReleaseWithOptions(item, release, options))
-		}
-		if len(decisions) == 0 {
-			continue
-		}
-		sort.SliceStable(decisions, func(i, j int) bool {
-			if decisions[i].Approved != decisions[j].Approved {
-				return decisions[i].Approved
-			}
-			if decisions[i].Score == decisions[j].Score {
-				return decisions[i].Seeders > decisions[j].Seeders
-			}
-			return decisions[i].Score > decisions[j].Score
-		})
-		stored, err := s.store.UpsertReleaseDecisions(ctx, item.ID, decisions)
-		if err != nil {
-			run.ErrorCount++
-			run.Matches = append(run.Matches, FeedSyncMatch{WantedItem: item, Error: err.Error()})
-			continue
-		}
-		for _, decision := range stored {
-			match := FeedSyncMatch{WantedItem: item, Release: decision}
-			run.MatchedCount++
-			if decision.Approved {
-				run.ApprovedCount++
-			} else {
-				run.RejectedCount++
-			}
-			if request.AutoGrab && decision.Approved && !grabbedWanted[item.ID] {
-				status, err := s.grabRelease(ctx, item, decision, request.Paused, "", "feed", false)
-				if err != nil {
-					match.Error = err.Error()
-					run.ErrorCount++
-					_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-						EventType:  "feed_grab_failed",
-						EntityType: "wanted_item",
-						EntityID:   item.ID,
-						Severity:   "error",
-						Message:    "Feed grab failed for " + item.Title,
-						Data: map[string]any{
-							"error":     err.Error(),
-							"releaseId": decision.ID,
-							"title":     decision.Title,
-						},
-					})
-				} else {
-					grabbedWanted[item.ID] = true
-					match.GrabbedDownload = &status
-					if !status.Deduplicated {
-						run.GrabbedCount++
-					}
+			matching := []acquisition.Release{}
+			for _, release := range releases {
+				if feedReleaseMatchesWanted(item, release) {
+					matching = append(matching, release)
 				}
 			}
-			run.Matches = append(run.Matches, match)
+			if len(matching) == 0 {
+				continue
+			}
+			if reason := evidence.skipReason(item, false); reason != "" {
+				appendFeedMatch(&run, FeedSyncMatch{WantedItem: item, SkippedReason: reason})
+				continue
+			}
+			options, err := s.releaseEvaluationOptions(ctx, item)
+			if err != nil {
+				run.ErrorCount++
+				appendFeedMatch(&run, FeedSyncMatch{WantedItem: item, Error: err.Error()})
+				continue
+			}
+			var decisions []ReleaseDecision
+			for _, release := range matching {
+				decisions = append(decisions, evaluateReleaseWithOptions(item, release, options))
+			}
+			if len(decisions) == 0 {
+				continue
+			}
+			sort.SliceStable(decisions, func(i, j int) bool {
+				if decisions[i].Approved != decisions[j].Approved {
+					return decisions[i].Approved
+				}
+				if decisions[i].Score == decisions[j].Score {
+					return decisions[i].Seeders > decisions[j].Seeders
+				}
+				return decisions[i].Score > decisions[j].Score
+			})
+			stored, err := s.store.upsertReleaseDecisions(ctx, item.ID, decisions, false, nil)
+			if err != nil {
+				run.ErrorCount++
+				appendFeedMatch(&run, FeedSyncMatch{WantedItem: item, Error: err.Error()})
+				continue
+			}
+			for _, decision := range stored {
+				match := FeedSyncMatch{WantedItem: item, Release: decision}
+				run.MatchedCount++
+				if decision.Approved {
+					run.ApprovedCount++
+				} else {
+					run.RejectedCount++
+				}
+				if request.AutoGrab && decision.Approved && !grabbedWanted[item.ID] {
+					status, err := s.grabRelease(ctx, item, decision, request.Paused, "", "feed", false)
+					if err != nil {
+						match.Error = err.Error()
+						run.ErrorCount++
+						_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+							EventType:  "feed_grab_failed",
+							EntityType: "wanted_item",
+							EntityID:   item.ID,
+							Severity:   "error",
+							Message:    "Feed grab failed for " + item.Title,
+							Data: map[string]any{
+								"error":     err.Error(),
+								"releaseId": decision.ID,
+								"title":     decision.Title,
+							},
+						})
+					} else {
+						grabbedWanted[item.ID] = true
+						match.GrabbedDownload = &status
+						if !status.Deduplicated {
+							run.GrabbedCount++
+						}
+					}
+				}
+				appendFeedMatch(&run, match)
+			}
 		}
+
+		after = items[len(items)-1].ID
 	}
 
 	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
@@ -1289,6 +1358,9 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 		run.Status = "completed"
 	}
 	run.Message = feedSyncMessage(run)
+	if run.MatchesTruncated {
+		run.Message += "; showing the first 1,000 match details; counters include all evaluated matches"
+	}
 	return s.store.FinishFeedSyncRun(ctx, run)
 }
 
@@ -1526,6 +1598,28 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		return finished, err
 	}
 
+	evidence, err := s.workerEvidence(ctx, items)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishUpgradeRun(ctx, run)
+		if finishErr != nil {
+			return finished, finishErr
+		}
+		return finished, err
+	}
+	profiles, err := s.store.ListQualityProfiles(ctx)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount++
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishUpgradeRun(ctx, run)
+		if finishErr != nil {
+			return finished, finishErr
+		}
+		return finished, err
+	}
 	for _, item := range items {
 		select {
 		case <-ctx.Done():
@@ -1535,7 +1629,26 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		default:
 		}
 
-		profile := s.qualityProfileForItem(ctx, item)
+		current, checkErr := s.checkedWorkerItem(ctx, item, "upgrade")
+		if checkErr != nil {
+			result := UpgradeItemResult{WantedItem: item}
+			run.WantedChecked++
+			if errors.Is(checkErr, sql.ErrNoRows) {
+				result.SkippedReason = "book is no longer monitored"
+			} else {
+				result.Error = checkErr.Error()
+				run.ErrorCount++
+			}
+			run.Items = append(run.Items, result)
+			continue
+		}
+		item = current
+		if reason := evidence.skipReason(item, true); reason != "" {
+			run.WantedChecked++
+			run.Items = append(run.Items, UpgradeItemResult{WantedItem: item, SkippedReason: reason})
+			continue
+		}
+		profile := profileFromList(profiles, item)
 		currentScore := s.currentReleaseScore(ctx, item)
 		cutoff := profile.CutoffCompositeScore()
 		result := UpgradeItemResult{
@@ -1543,16 +1656,21 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 			CurrentScore: currentScore,
 			CutoffScore:  cutoff,
 		}
-		if !profile.UpgradeAllowed {
+		if !cutoffUnmet(profile, currentScore) {
 			run.WantedChecked++
-			_ = s.store.MarkWantedUpgradeSearched(ctx, item.ID)
+			result.SkippedReason = "quality profile does not need an upgrade"
 			run.Items = append(run.Items, result)
 			continue
 		}
 		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
 		run.WantedChecked++
-		_ = s.store.MarkWantedUpgradeSearched(ctx, item.ID)
 		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		if err := s.store.MarkWantedUpgradeSearched(ctx, item.ID); err != nil {
 			result.Error = err.Error()
 			run.ErrorCount++
 			run.Items = append(run.Items, result)
@@ -1636,6 +1754,15 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		run.Status = "completed"
 	}
 	run.Message = upgradeMessage(run)
+	reasons := []string{}
+	for _, item := range run.Items {
+		if item.SkippedReason != "" {
+			reasons = append(reasons, item.SkippedReason)
+		}
+	}
+	if len(reasons) > 0 {
+		run.Message += fmt.Sprintf("; skipped %d (%s)", len(reasons), reasons[0])
+	}
 	return s.store.FinishUpgradeRun(ctx, run)
 }
 
@@ -1647,6 +1774,12 @@ func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEve
 }
 
 func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string, forced bool) (acquisition.DownloadStatus, error) {
+	if trigger != "manual" {
+		if err := s.validateAutomaticGrab(ctx, item, release, trigger); err != nil {
+			return acquisition.DownloadStatus{}, err
+		}
+	}
+
 	status, err := s.acquire.Grab(ctx, acquisition.DownloadRequest{
 		Selection:  &acquisition.AcquisitionSelection{ReleaseID: release.ID, Trigger: trigger, Forced: forced, Paused: paused},
 		Client:     client,
@@ -2080,7 +2213,7 @@ func authorMonitorMessage(run AuthorMonitorRun) string {
 
 func upgradeMessage(run UpgradeRun) string {
 	if run.WantedChecked == 0 {
-		return strings.TrimSpace(run.Status) + ": no grabbed or imported wanted items due for upgrade search"
+		return strings.TrimSpace(run.Status) + ": no monitored books due for upgrade checks"
 	}
 	return fmt.Sprintf(
 		"%s: checked %d wanted items, found %d releases, upgrades %d, grabbed %d, errors %d",

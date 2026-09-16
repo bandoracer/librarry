@@ -456,22 +456,24 @@ type MonitorRun struct {
 }
 
 type FeedSyncRun struct {
-	ID            string          `json:"id"`
-	Trigger       string          `json:"trigger"`
-	Status        string          `json:"status"`
-	ReleasesSeen  int             `json:"releasesSeen"`
-	MatchedCount  int             `json:"matchedCount"`
-	ApprovedCount int             `json:"approvedCount"`
-	RejectedCount int             `json:"rejectedCount"`
-	GrabbedCount  int             `json:"grabbedCount"`
-	ErrorCount    int             `json:"errorCount"`
-	Message       string          `json:"message,omitempty"`
-	Matches       []FeedSyncMatch `json:"matches,omitempty"`
-	StartedAt     time.Time       `json:"startedAt"`
-	FinishedAt    *time.Time      `json:"finishedAt,omitempty"`
+	MatchesTruncated bool            `json:"matchesTruncated,omitempty"`
+	ID               string          `json:"id"`
+	Trigger          string          `json:"trigger"`
+	Status           string          `json:"status"`
+	ReleasesSeen     int             `json:"releasesSeen"`
+	MatchedCount     int             `json:"matchedCount"`
+	ApprovedCount    int             `json:"approvedCount"`
+	RejectedCount    int             `json:"rejectedCount"`
+	GrabbedCount     int             `json:"grabbedCount"`
+	ErrorCount       int             `json:"errorCount"`
+	Message          string          `json:"message,omitempty"`
+	Matches          []FeedSyncMatch `json:"matches,omitempty"`
+	StartedAt        time.Time       `json:"startedAt"`
+	FinishedAt       *time.Time      `json:"finishedAt,omitempty"`
 }
 
 type FeedSyncMatch struct {
+	SkippedReason   string                      `json:"skippedReason,omitempty"`
 	WantedItem      WantedItem                  `json:"wantedItem"`
 	Release         ReleaseDecision             `json:"release"`
 	GrabbedDownload *acquisition.DownloadStatus `json:"grabbedDownload,omitempty"`
@@ -588,6 +590,7 @@ type AuthorMetadataReviewDecision struct {
 }
 
 type UpgradeItemResult struct {
+	SkippedReason   string                      `json:"skippedReason,omitempty"`
 	WantedItem      WantedItem                  `json:"wantedItem"`
 	CurrentScore    float64                     `json:"currentScore"`
 	CutoffScore     float64                     `json:"cutoffScore"`
@@ -598,6 +601,7 @@ type UpgradeItemResult struct {
 }
 
 type MonitorItemResult struct {
+	SkippedReason   string                      `json:"skippedReason,omitempty"`
 	WantedItem      WantedItem                  `json:"wantedItem"`
 	ReleasesFound   int                         `json:"releasesFound"`
 	ApprovedCount   int                         `json:"approvedCount"`

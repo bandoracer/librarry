@@ -782,16 +782,21 @@ export function authorSkippedDateLabel(result: SearchResult) {
 
 /* ------------------------------ Run summaries ------------------------------ */
 
+function skippedRunSummary(items?: Array<{ skippedReason?: string }>) {
+  const skipped = (items ?? []).filter(item => item.skippedReason);
+  return skipped.length ? `, ${skipped.length} skipped (${skipped[0].skippedReason})` : "";
+}
+
 export function monitorRunSummary(run: MonitorRun) {
-  return `Monitor run: ${run.wantedChecked} item${run.wantedChecked === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}`;
+  return `Monitor run: ${run.wantedChecked} item${run.wantedChecked === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}${skippedRunSummary(run.items)}`;
 }
 
 export function feedSyncRunSummary(run: FeedSyncRun) {
-  return `Feed sync: ${run.releasesSeen} release${run.releasesSeen === 1 ? "" : "s"} seen, ${run.matchedCount} matched, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}`;
+  return `Feed sync: ${run.releasesSeen} release${run.releasesSeen === 1 ? "" : "s"} seen, ${run.matchedCount} matched, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}${skippedRunSummary(run.matches)}${run.matchesTruncated ? "; showing the first 1,000 details" : ""}`;
 }
 
 export function upgradeRunSummary(run: UpgradeRun) {
-  return `Upgrade search: ${run.wantedChecked} checked, ${run.upgradeCount} upgrade${run.upgradeCount === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}`;
+  return `Upgrade search: ${run.wantedChecked} checked, ${run.upgradeCount} upgrade${run.upgradeCount === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}${skippedRunSummary(run.items)}`;
 }
 
 export function authorMonitorRunSummary(run: AuthorMonitorRun) {

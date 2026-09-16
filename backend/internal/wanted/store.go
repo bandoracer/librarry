@@ -907,15 +907,15 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 		where status = 'monitored'
 			and monitor_new_items = true
 			and missing_book_policy <> 'none'
-			and ($1::boolean or last_sync_at is null or last_sync_at <= $2)
+			and ($1::boolean or ((last_sync_at is null or last_sync_at <= $2) and (last_sync_attempt_at is null or last_sync_attempt_at <= $6)))
 			and (
 				($4 = '' and $5 = '')
 				or ($4 <> '' and id::text = any(string_to_array($4, ',')))
 				or ($5 <> '' and provider_key = any(string_to_array($5, ',')))
 			)
-		order by coalesce(last_sync_at, 'epoch'::timestamptz), author_name
+		order by coalesce(last_sync_attempt_at, last_sync_at, 'epoch'::timestamptz), author_name, id
 		limit $3
-		`, force, cutoff, limit, authorIDList, providerKeyList)
+		`, force, cutoff, limit, authorIDList, providerKeyList, workerCheckCutoff(minInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -2004,6 +2004,11 @@ func (s *Store) DeleteWanted(ctx context.Context, id string) error {
 }
 
 func (s *Store) UpsertReleaseDecisions(ctx context.Context, wantedID string, decisions []ReleaseDecision) ([]ReleaseDecision, error) {
+	return s.upsertReleaseDecisions(ctx, wantedID, decisions, true, nil)
+}
+
+// Feed observations do not reset the full indexer-search retry clock.
+func (s *Store) upsertReleaseDecisions(ctx context.Context, wantedID string, decisions []ReleaseDecision, markSearched bool, expectedUpdatedAt *time.Time) ([]ReleaseDecision, error) {
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
 	}
@@ -2013,6 +2018,15 @@ func (s *Store) UpsertReleaseDecisions(ctx context.Context, wantedID string, dec
 	}
 	defer tx.Rollback()
 
+	if expectedUpdatedAt != nil {
+		var currentID string
+		if err := tx.QueryRowContext(ctx, `select id from wanted_items where id=$1 and updated_at=$2 for update`, wantedID, *expectedUpdatedAt).Scan(&currentID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, errors.New("book settings changed during release search; search again")
+			}
+			return nil, err
+		}
+	}
 	stored := make([]ReleaseDecision, 0, len(decisions))
 	for _, decision := range decisions {
 		categories := strings.Join(decision.Categories, ",")
@@ -2057,8 +2071,10 @@ func (s *Store) UpsertReleaseDecisions(ctx context.Context, wantedID string, dec
 		decision.CreatedAt = createdAt
 		stored = append(stored, decision)
 	}
-	if _, err := tx.ExecContext(ctx, `update wanted_items set last_search_at = now(), updated_at = now() where id = $1`, wantedID); err != nil {
-		return nil, err
+	if markSearched {
+		if _, err := tx.ExecContext(ctx, `update wanted_items set last_search_at = now(), updated_at = now() where id = $1`, wantedID); err != nil {
+			return nil, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
@@ -2131,16 +2147,12 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
-		where wi.status in ('wanted', 'grabbed')
+		where wi.status in ('wanted', 'grabbed', 'imported')
 			and wi.monitored = true
-			and not exists (
-				select 1 from files f
-				where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
-			)
-			and ($1::boolean or wi.last_search_at is null or wi.last_search_at <= $2)
-		order by coalesce(wi.last_search_at, 'epoch'::timestamptz), wi.created_at
+			and ($1::boolean or ((wi.last_search_at is null or wi.last_search_at <= $2) and (wi.last_monitor_checked_at is null or wi.last_monitor_checked_at <= $4)))
+		order by coalesce(wi.last_monitor_checked_at, wi.last_search_at, 'epoch'::timestamptz), wi.created_at, wi.id
 		limit $3
-	`, force, cutoff, limit)
+	`, force, cutoff, limit, workerCheckCutoff(minInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -2168,11 +2180,11 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 		minInterval = 12 * time.Hour
 	}
 	cleanIDs := compactStrings(ids)
-	args := []any{force, time.Now().UTC().Add(-minInterval)}
+	args := []any{force, time.Now().UTC().Add(-minInterval), workerCheckCutoff(minInterval)}
 	where := []string{
-		"wi.status in ('grabbed', 'imported')",
+		"wi.status in ('wanted', 'grabbed', 'imported')",
 		"wi.monitored = true",
-		"($1::boolean or wi.last_upgrade_search_at is null or wi.last_upgrade_search_at <= $2)",
+		"($1::boolean or ((wi.last_upgrade_search_at is null or wi.last_upgrade_search_at <= $2) and (wi.last_upgrade_checked_at is null or wi.last_upgrade_checked_at <= $3)))",
 	}
 	if len(cleanIDs) > 0 {
 		for _, id := range cleanIDs {
@@ -2197,7 +2209,7 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where `+strings.Join(where, " and ")+`
-		order by coalesce(wi.last_upgrade_search_at, 'epoch'::timestamptz), wi.created_at
+		order by coalesce(wi.last_upgrade_checked_at, wi.last_upgrade_search_at, 'epoch'::timestamptz), wi.created_at, wi.id
 		limit $`+strconv.Itoa(len(args))+`
 	`, args...)
 	if err != nil {
@@ -2564,6 +2576,7 @@ func (s *Store) FinishFeedSyncRun(ctx context.Context, run FeedSyncRun) (FeedSyn
 		return FeedSyncRun{}, err
 	}
 	finished.Matches = run.Matches
+	finished.MatchesTruncated = run.MatchesTruncated
 	return finished, nil
 }
 

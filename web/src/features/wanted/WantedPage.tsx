@@ -59,11 +59,11 @@ import {
 } from "./lib";
 import "./wanted.css";
 
-type WantedTab = "missing" | "cutoff" | "review";
+type WantedTab = "missing" | "cutoff" | "review" | "incomplete" | "unknown";
 
 /**
- * Wanted: a pure gap view in the Readarr page shape. Three tabs —
- * Missing (/wanted), Cutoff Unmet (/wanted/cutoff-unmet), and Review
+ * Wanted: native gap/evidence views in the Readarr page shape. Tabs include
+ * Missing (/wanted), Incomplete/Unknown, Cutoff Unmet (/wanted/cutoff-unmet), and Review
  * (/wanted/review, the metadata-review queue + bulk confirm flow). Rows link
  * to /library/book/:id; author subscriptions live under Library → Authors and
  * the acquisition-queue strip lives on the Dashboard.
@@ -83,7 +83,7 @@ export default function WantedPage() {
     ? "cutoff"
     : location.pathname.endsWith("/review")
       ? "review"
-      : "missing";
+      : location.pathname.endsWith("/incomplete") ? "incomplete" : location.pathname.endsWith("/unknown") ? "unknown" : "missing";
 
   /* ------------------------------ URL contract ----------------------------- */
 
@@ -100,6 +100,8 @@ export default function WantedPage() {
     const filter = searchParams.get("filter");
     if (filter === "cutoff-unmet") {
       navigate("/wanted/cutoff-unmet", { replace: true });
+    } else if (filter === "incomplete" || filter === "unknown") {
+      navigate(`/wanted/${filter}`, { replace: true });
     } else if (filter === "review") {
       navigate("/wanted/review", { replace: true });
     } else if (filter) {
@@ -130,9 +132,11 @@ export default function WantedPage() {
     () => wantedItems.filter((item) => wantedItemVisibleForFilter(item, presence.get(item.id), "missing", reviewByID.has(item.id))),
     [wantedItems, presence, reviewByID]
   );
+  const incompleteItems = useMemo(() => wantedItems.filter(item => presence.get(item.id) === "incomplete"), [wantedItems, presence]);
+  const unknownItems = useMemo(() => wantedItems.filter(item => presence.get(item.id) === "unknown"), [wantedItems, presence]);
   const reviewItems = useMemo(() => (reviewQuery.data?.items ?? []).map((entry) => entry.wantedItem), [reviewQuery.data]);
 
-  const rows: WantedItem[] = tab === "cutoff" ? cutoffItems : tab === "review" ? reviewItems : missingItems;
+  const rows: WantedItem[] = tab === "cutoff" ? cutoffItems : tab === "review" ? reviewItems : tab === "incomplete" ? incompleteItems : tab === "unknown" ? unknownItems : missingItems;
   const rowsLoading = tab === "cutoff" ? cutoffQuery.isLoading : tab === "review" ? reviewQuery.isLoading : wantedQuery.isLoading;
 
   /* ------------------------------- Selection -------------------------------- */
@@ -299,6 +303,8 @@ export default function WantedPage() {
 
   const tabs = [
     { label: "Missing", to: "/wanted", active: tab === "missing" },
+    { label: "Incomplete", to: "/wanted/incomplete", active: tab === "incomplete" },
+    { label: "Unknown", to: "/wanted/unknown", active: tab === "unknown" },
     { label: "Cutoff Unmet", to: "/wanted/cutoff-unmet", active: tab === "cutoff" },
     { label: "Review", to: "/wanted/review", active: tab === "review" }
   ];
@@ -381,7 +387,7 @@ export default function WantedPage() {
         title="Wanted"
         subtitle="Missing books, quality-cutoff gaps, and metadata review."
         actions={
-          tab === "missing" ? (
+          ["missing", "incomplete", "unknown"].includes(tab) ? (
             <>
               <ToolbarButton
                 icon={FileSearch}
@@ -393,10 +399,10 @@ export default function WantedPage() {
               />
               <ToolbarButton
                 icon={RadioTower}
-                label={isSearchingAll ? "Searching all" : "Search All"}
+                label={isSearchingAll ? "Checking batch" : "Check Next Batch"}
                 busy={isSearchingAll}
                 disabled={anyBulkBusy}
-                title="Search releases for every missing book (paused grabs)"
+                title="Check the next 50 monitored books and search eligible gaps; never grab automatically"
                 onClick={() => void runSearchAll()}
               />
               <ToolbarButton
@@ -420,10 +426,10 @@ export default function WantedPage() {
               />
               <ToolbarButton
                 icon={TrendingUp}
-                label={isUpgradingAll ? "Searching upgrades" : "Upgrade Search All"}
+                label={isUpgradingAll ? "Checking upgrades" : "Check Upgrade Batch"}
                 busy={isUpgradingAll}
                 disabled={anyBulkBusy}
-                title="Look for better-scored releases for every book below cutoff"
+                title="Check the next 50 monitored books for eligible upgrades; never grab automatically"
                 onClick={() => void runUpgrade(false)}
               />
               <ToolbarButton
@@ -464,7 +470,9 @@ export default function WantedPage() {
           { label: "Missing", value: missingItems.length, tone: missingItems.length ? "danger" : "neutral" },
           { label: "Cutoff Unmet", value: cutoffItems.length, tone: cutoffItems.length ? "warn" : "neutral" },
           { label: "Review", value: reviewSummary.items, tone: reviewSummary.items ? "info" : "neutral" },
-          { label: "Tracked", value: wantedItems.length }
+          { label: "Incomplete", value: incompleteItems.length, tone: incompleteItems.length ? "warn" : "neutral" },
+          { label: "Unknown", value: unknownItems.length, tone: unknownItems.length ? "warn" : "neutral" },
+          { label: "Loaded books", value: wantedItems.length }
         ]}
       />
 
@@ -505,7 +513,7 @@ export default function WantedPage() {
                 ? "Loading cutoff unmet books…"
                 : tab === "review"
                   ? "Loading metadata reviews…"
-                  : "Loading missing books…"
+                  : `Loading ${tab} books…`
             }
           />
         ) : rows.length ? (
@@ -540,8 +548,8 @@ export default function WantedPage() {
             Wanted books with conflicting provider metadata appear here for a bulk keep-current decision.
           </EmptyState>
         ) : wantedItems.length ? (
-          <EmptyState icon={FileSearch} title="No missing books">
-            Every tracked book is downloading, downloaded, or unmonitored.
+          <EmptyState icon={FileSearch} title={`No ${tab} books in this list`}>
+            No loaded books have this status. Incomplete and unknown evidence are listed separately.
           </EmptyState>
         ) : (
           <EmptyState icon={BookOpen} title="No wanted items">

@@ -789,6 +789,7 @@ type WantedSearchPayload = Omit<WantedSearchOutcome, "releases"> & {
 };
 
 export type MonitorItemResult = {
+  skippedReason?: string;
   wantedItem: WantedItem;
   releasesFound: number;
   approvedCount: number;
@@ -814,6 +815,7 @@ export type MonitorRun = {
 };
 
 export type FeedSyncMatch = {
+  skippedReason?: string;
   wantedItem: WantedItem;
   release: ReleaseDecision;
   grabbedDownload?: DownloadStatus;
@@ -821,6 +823,7 @@ export type FeedSyncMatch = {
 };
 
 export type FeedSyncRun = {
+  matchesTruncated?: boolean;
   id: string;
   trigger: string;
   status: string;
@@ -864,6 +867,7 @@ export type FailedDownloadRun = {
 };
 
 export type UpgradeItemResult = {
+  skippedReason?: string;
   wantedItem: WantedItem;
   currentScore: number;
   cutoffScore: number;

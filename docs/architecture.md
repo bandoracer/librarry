@@ -1129,5 +1129,44 @@ already-imported sources and failed/deleted client states cannot. Missing withou
 complete client evidence becomes unknown; positive file evidence survives client
 outages with a warning. File database failure explicitly marks evidence unavailable.
 Quality profiles are loaded once per page; cutoff membership also requires
-positive file evidence. Global cutoff paging and worker/policy/Readarr adoption
+positive file evidence. Global cutoff paging and author-policy/Readarr adoption
 remain separate work. The general Activity/download endpoint is unchanged.
+
+
+### Scheduled evidence and fair checks
+
+Migration 0042 adds `wanted_items.last_monitor_checked_at`,
+`last_upgrade_checked_at`, and `author_subscriptions.last_sync_attempt_at`.
+Scheduling orders by the check/attempt timestamp, falling back to previous
+successful activity, then deterministic creation/name and UUID tie-breakers.
+A checked row advances before remote work, including skips and failures. Check
+backoff is the smaller of 15 minutes and the requested interval; successful
+search/sync timestamps retain their independent interval. Force bypasses waiting.
+Check writes leave `updated_at` unchanged because it is an owner revision fence.
+No success timestamp is written for a skipped or failed search/sync.
+
+Monitor candidates include monitored imported books. Page evidence distinguishes
+known gaps from complete copies and uncertainty. Upgrades require a complete
+present copy that actually needs the configured cutoff. Provider IO is followed
+by an automatic-grab preflight that rechecks settings, monitoring, current media
+and live download evidence. Acquisition reservation also takes the wanted row
+lock and rejects stopped/removed automatic requests. The reservation is the
+linearization point: a stop after submission cannot recall the external request.
+Manual grabs retain their explicit override scope. Overlapping worker/provider
+reads are not serialized by these scheduling timestamps; durable acquisition
+reservations continue to prevent duplicate adds.
+
+Feeds page all eligible monitored books by UUID in batches of 200. Owner changes
+between pages take effect on later reads; there is no frozen whole-run snapshot.
+Book-specific evaluation settings load only after a release-title candidate
+matches. Run responses retain at most 1,000 match details, set `matchesTruncated`,
+and explain that evaluation counters cover the full run. Release decisions remain
+stored per book. Per-item skipped-run history is not yet durable; returned skip
+reasons and saved run summaries must not be described as a complete event log.
+
+Feed release observations persist decisions without updating the full indexer
+search timestamp, so repeated RSS matches cannot postpone due searches.
+
+Full-search decision persistence also locks/checks the book revision captured
+before provider IO. A changed revision rejects stale decisions and does not
+advance the successful-search timestamp.

@@ -33,6 +33,8 @@ book data is incomplete or ambiguous.
 Native book status distinguishes incomplete audiobooks and unavailable evidence.
 Recorded scan/import presence and complete audiobook manifests drive status;
 download-client outages remain explicit instead of appearing as missing books.
+Scheduled checks use that evidence and advance past skipped or failed batches;
+feed matching traverses older monitored books as well as recent additions.
 
 ## Project Status
 

@@ -259,7 +259,7 @@ provider IO. A stop/removal during that request prevents additions, and a
 subscription revision change prevents recording a stale successful sync.
 Changes during the subsequent candidate-write loop are not yet serialized with
 every insertion. File-based policies still use recorded associations rather than
-the native status evidence described below; worker/policy adoption remains open.
+the native status evidence described below; author-file-policy adoption remains open.
 
 Native author subscriptions accept `rootFolderId` on create and update. A root
 must exist and match the subscription's ebook/audiobook format. Updates omit this
@@ -1122,6 +1122,35 @@ observations, not a live mount health check. Scanning an unavailable root retain
 prior presence. Sidecar damage continues to block cleanup verification separately.
 
 Wanted includes explicit Incomplete/Unknown filters over its loaded list. Global
-list caps/counts and worker/Readarr use of the new evidence remain unfinished.
+list caps/counts and author-file-policy/Readarr use of the new evidence remain unfinished.
 The native status path may spend up to five seconds on live client requests;
 local-only page latency is not yet a qualified product guarantee.
+
+
+### Worker checks and recovery gaps
+
+Monitor and upgrade endpoints now return `skippedReason` per checked book when
+current evidence blocks a search. Known missing/incomplete imported books enter
+normal recovery search; unverified legacy media and partial/unavailable client
+responses remain skipped. Upgrade search only operates on complete present copies
+below cutoff. A still-seeding already-imported source does not hide library loss.
+Automatic grab rechecks monitoring/settings/media after provider IO. An explicit
+manual grab remains a separate owner action.
+
+Check/attempt timestamps in migration 0042 advance fairness independently of
+`last_search_at`, `last_upgrade_search_at`, and `last_sync_at`. Failed/skipped
+checks back off for at most 15 minutes; successful activity retains configured
+intervals. `force: true` retries immediately while retaining fair ordering.
+Restarting the API does not reset this progress. This is not a worker lease and
+does not eliminate duplicate provider reads from overlapping runs.
+
+Wanted's Incomplete and Unknown tabs are `/wanted/incomplete` and `/wanted/unknown`.
+Check Next Batch and Check Upgrade Batch examine the next 50 eligible scheduling
+candidates, which can include skipped books; they do not mean every matching book
+or the visible page. Selected searches retain explicit selected-ID scope. Feed
+sync traverses every eligible monitored book in 200-row batches, with an explicit
+1,000-detail response cap and full evaluated-match counts. Global list paging and
+all-matching bulk jobs remain separate work.
+
+Feed release observations persist decisions without updating the full indexer
+search timestamp, so repeated RSS matches cannot postpone due searches.

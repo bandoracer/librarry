@@ -1026,3 +1026,75 @@ a 406,432-byte restore; hosted qualification is pending on the follow-up commit.
 The first local retry from `/tmp` failed because that directory is not shared with
 Colima; moving the isolated checkout under the shared home directory resolved the
 fixture mount. Neither failure changed production state.
+
+
+## Continuation: scheduled evidence and fair checks (S14/S15)
+
+Branch: `codex/worker-evidence-fairness`, based on presence PR #23 and its Linux
+fixture ownership correction. Monitoring previously excluded every imported book
+and every linked file, leaving known file loss unrecoverable. Skips and provider
+failures could repeatedly occupy the first batch. Feed matching selected only the
+latest 200 wanted rows and could include unmonitored entries.
+
+Migration 0042 adds independent check/attempt clocks and ordering indexes. Monitor,
+upgrade and author retries advance after skips/errors without claiming successful
+search/sync or changing owner revisions. Stable UUID tie-breakers support fair
+ordering. Backoff is capped at 15 minutes; successful activity keeps the requested
+interval, and Force permits a deliberate immediate retry. The existing author
+persistence-failure regression was expanded to assert no false sync, scheduled
+backoff, and an idempotent forced retry after fixing the injected failure.
+
+Monitor/upgrade checks use native media and live-client evidence. Known imported
+file loss can be searched; partial audio belongs to recovery, not upgrade search.
+Unknown/client outage evidence blocks automatic work with a reason. Automatic
+acquisition rechecks after provider IO; owner field changes invalidate stale
+search evaluation. The acquisition transaction locks the wanted row and rejects
+unmonitored automatic requests. Manual owner grabs remain supported. Existing
+acquisition reservations protect duplicate client adds; this is not a renewable
+worker lease and does not eliminate overlapping provider reads.
+
+Feeds traverse all monitored candidates in bounded UUID pages, load per-book
+settings after a title candidate matches, and cap returned detail at 1,000 with
+explicit truncation and full counters. Book decisions still persist. Native
+Wanted now wires the Incomplete/Unknown helpers to actual routes; the prior helper
+addition alone did not expose those tabs. Batch buttons now state their limited
+scope and toasts explain skips. Global list counts/caps, all-matching bulk jobs,
+author-file-policy adoption, compatibility and durable per-item skip history
+remain open. No complete S14/S15 claim.
+
+Feed release observations persist decisions without updating the full indexer
+search timestamp, so repeated RSS matches cannot postpone due searches.
+
+Full-search decision persistence also locks/checks the book revision captured
+before provider IO. A changed revision rejects stale decisions and does not
+advance the successful-search timestamp.
+
+
+Presence PR #23 at `15abd047f80336f742972dae78120fb5d67d3ba9` passed
+[CI run 35083013552](https://github.com/bandoracer/librarry/actions/runs/35083013552),
+including source/race/browser, corrected Linux packaged restart/restore and
+AMD64/ARM64 builds. This supersedes the initial fixture-permission failure.
+No images were published or deployed.
+
+
+Final worker qualification: full Go race/Postgres suite and vet passed. The tests
+traverse 10,001 tied records through monitor and upgrade ordering without repeat
+batches, reach older imported books during paged feed matching, advance past 205
+failed authors, recover incomplete audio instead of upgrading it, preserve manual
+grab behavior, and reject stale book revisions before saving search success. The
+owner-edit fixture now uses the actual settings write path so it advances the
+same revision as the app. Ten web unit checks, production build and 51 applicable
+desktop/mobile browser cases passed (one desktop-only mobile skip). Wanted status
+and skip-toast screenshots were inspected at both widths.
+
+Latest local ARM64 API/web images passed packaged qualification at schema 42.
+Scheduling progress survived restart and the next monitor batch advanced; the
+408,901-byte backup restored with file/book/receipt evidence intact. No real
+indexer/provider/acquisition request, production deployment, release or image
+publication occurred. The broader plan remains active.
+
+Next collection-contract work should also fix the selected-upgrade UI's inherited
+50-item default: explicit IDs currently constrain membership but the request does
+not raise its limit to cover a larger selection. Global profile/restriction edits
+do not share the per-book revision fence and need broader decision/configuration
+validation. Neither limitation is certified complete by these worker tests.

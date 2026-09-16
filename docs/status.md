@@ -35,8 +35,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [Hardcover edition PR #19](https://github.com/bandoracer/librarry/pull/19),
 [author policy PR #20](https://github.com/bandoracer/librarry/pull/20),
 [author destination PR #21](https://github.com/bandoracer/librarry/pull/21),
-[direct author detail PR #22](https://github.com/bandoracer/librarry/pull/22), and the
-`codex/verified-book-presence` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[direct author detail PR #22](https://github.com/bandoracer/librarry/pull/22),
+[book presence PR #23](https://github.com/bandoracer/librarry/pull/23), and the
+`codex/worker-evidence-fairness` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -205,10 +206,37 @@ unavailable mounts still retain previous observations. Quality profiles load onc
 per page, and older books are no longer annotated through the global cutoff cap.
 The cutoff list excludes missing/unverified media but retains its existing cap.
 
-Global collection counts/caps, worker/author-policy integration of this evidence,
+Global collection counts/caps, author-file-policy integration of this evidence,
 Readarr parity, legacy manifest repair and broader S15 latency qualification remain
 open. General download queues retain their separate historical fallback behavior.
 No new migration, production deployment or live NAS qualification is included.
+
+Scheduled book monitoring and upgrade checks now use the native file/client
+evidence. Known missing/incomplete imported books can enter recovery search;
+unknown/outage evidence is skipped with a reason. Upgrades require complete
+present media below cutoff. Automatic monitor/feed/upgrade/failed-replacement
+grabs recheck ownership/settings/evidence after provider IO; the acquisition
+reservation locks the wanted row and rejects unmonitored automatic requests.
+Explicit manual grabs remain available.
+
+Migration 0042 separates check/attempt timestamps from successful search/sync
+history. Skipped or failed batches advance fairly, with stable ID tie-breakers
+and a retry backoff capped at 15 minutes. Successful searches/syncs still obey
+their configured intervals; Force permits an immediate operator retry. Checks
+do not change owner revisions or invent successful search timestamps. This does
+not introduce renewable worker leases; overlapping workers can still perform
+redundant provider reads, while acquisition reservations prevent duplicate adds.
+
+Feed matching now traverses eligible monitored books in 200-row ID batches rather
+than only the newest 200 wanted rows, including imported books with known file
+loss. Response details cap at 1,000 with an explicit truncation flag/message;
+counts cover all evaluated matches. Wanted exposes actual Incomplete/Unknown
+routes, and its batch buttons state their 50-book scope. Global list counts,
+server-defined all-matching bulk jobs and durable per-item skip history remain
+unfinished. Author file policies still use the older association lookup.
+
+Feed release observations persist decisions without updating the full indexer
+search timestamp, so repeated RSS matches cannot postpone due searches.
 
 ## Historical verified milestones
 

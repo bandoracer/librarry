@@ -56,6 +56,8 @@ export function App() {
               <Route path="/wanted" element={<WantedPage />} />
               <Route path="/wanted/cutoff-unmet" element={<WantedPage />} />
               <Route path="/wanted/review" element={<WantedPage />} />
+              <Route path="/wanted/incomplete" element={<WantedPage />} />
+              <Route path="/wanted/unknown" element={<WantedPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/downloads" element={<ActivityPage />} />
               <Route path="/downloads/history" element={<ActivityPage />} />

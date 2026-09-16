@@ -19,3 +19,22 @@ test("book status explains partial audiobook loss and client outages", async ({ 
  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
  await page.screenshot({ path: `../output/playwright/book-evidence-${testInfo.project.name}.png`, fullPage: true });
 });
+
+test("Wanted exposes incomplete and unknown books and explains skipped batches", async ({ page }, testInfo) => {
+ const books = ["missing", "incomplete", "unknown"].map((state, index) => ({ id: `evidence-${index}`, title: `${state} fixture book`, authorName: "Fixture Author", format: "ebook", status: "imported", monitored: true, qualityProfile: "standard", derivedState: state }));
+ await page.route("**/api/v1/wanted?**", route => route.fulfill({ json: { wanted: new URL(route.request().url()).searchParams.get("view") === "cutoff-unmet" ? [] : books } }));
+ await page.route("**/api/v1/wanted/monitor", async route => {
+  expect(route.request().postDataJSON()).toMatchObject({ force: true, autoGrab: false });
+  await route.fulfill({ json: { wantedChecked: 1, grabbedCount: 0, errorCount: 0, items: [{ wantedItem: books[2], skippedReason: "download-client evidence is unavailable or incomplete" }] } });
+ });
+ await page.goto("/wanted/unknown");
+ await expect(page.getByRole("link", { name: "unknown fixture book", exact: true })).toBeVisible();
+ await expect(page.getByRole("link", { name: "missing fixture book", exact: true })).toHaveCount(0);
+ await page.getByRole("button", { name: "Check Next Batch", exact: true }).click();
+ await expect(page.getByText(/1 skipped \(download-client evidence is unavailable or incomplete\)/)).toBeVisible();
+ await page.getByRole("link", { name: "Incomplete", exact: true }).click();
+ await expect(page.getByRole("link", { name: "incomplete fixture book", exact: true })).toBeVisible();
+ await expect(page.getByRole("link", { name: "unknown fixture book", exact: true })).toHaveCount(0);
+ expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+ await page.screenshot({ path: `../output/playwright/wanted-evidence-${testInfo.project.name}.png`, fullPage: true });
+});

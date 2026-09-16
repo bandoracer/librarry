@@ -61,15 +61,7 @@ func (s *Service) AnnotateWantedStates(ctx context.Context, items []WantedItem) 
 	}
 	files, fileErr := s.store.WantedFileEvidence(ctx, ids)
 	profiles, profileErr := s.store.ListQualityProfiles(ctx)
-	downloads := acquisition.DownloadEvidence{Status: "notConfigured"}
-	if s.acquire != nil {
-		downloads.Status = "unavailable"
-		if source, ok := s.acquire.(liveDownloadEvidenceSource); ok {
-			liveCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			downloads = source.LiveDownloadEvidence(liveCtx, acquisition.DownloadListQuery{Tag: "librarry"})
-			cancel()
-		}
-	}
+	downloads := s.liveBookDownloads(ctx)
 	inFlight := groupDownloadsByWantedID(downloads.Downloads)
 	for i := range items {
 		item := &items[i]
@@ -136,4 +128,17 @@ func profileFromList(profiles []QualityProfile, item WantedItem) QualityProfile 
 func downloadSupportsInFlight(d acquisition.DownloadStatus) bool {
 	state := strings.ToLower(strings.TrimSpace(d.State))
 	return d.ImportStatus != "imported" && d.ImportStatus != "removed" && state != "" && !strings.Contains(state, "error") && !strings.Contains(state, "missing") && !strings.Contains(state, "fail") && state != "removed" && state != "deleted"
+}
+
+func (s *Service) liveBookDownloads(ctx context.Context) acquisition.DownloadEvidence {
+	downloads := acquisition.DownloadEvidence{Status: "notConfigured"}
+	if s.acquire != nil {
+		downloads.Status = "unavailable"
+		if source, ok := s.acquire.(liveDownloadEvidenceSource); ok {
+			liveCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			downloads = source.LiveDownloadEvidence(liveCtx, acquisition.DownloadListQuery{Tag: "librarry"})
+			cancel()
+		}
+	}
+	return downloads
 }
