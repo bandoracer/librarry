@@ -452,6 +452,27 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert wanted_id in {book["id"] for book in author_page["books"]}, author_page
         assert author_page["choices"] == [] and author_page["totalBooks"] >= 1, author_page
         print("Packaged author detail: direct subscription and recorded-author links retain imported books after restart")
+        # Prove native presence against real packaged import/scan observations.
+        imported_book = request("/api/v1/wanted/" + wanted_id)
+        assert imported_book["stateEvidence"]["files"]["state"] == "present", imported_book
+        audio_book_id = audio_files[0]["metadata"]["wantedId"]
+        audio_book = request("/api/v1/wanted/" + audio_book_id)
+        assert audio_book["stateEvidence"]["files"]["state"] == "present", audio_book
+        current_audio = next(file for file in request("/api/v1/library/files")["files"] if file["id"] == audio_files[0]["id"])
+        lost_chapter = media / Path(current_audio["path"]).relative_to("/fixture")
+        chapter_bytes = lost_chapter.read_bytes()
+        lost_chapter.unlink()
+        loss_scan = request("/api/v1/library/scans", {"root": "/fixture/audiobooks"})
+        wait_for(lambda: completed_scan(loss_scan["id"]))
+        incomplete = request("/api/v1/wanted/" + audio_book_id)
+        assert incomplete["derivedState"] == "incomplete", incomplete
+        assert incomplete["stateEvidence"]["files"]["state"] == "incomplete", incomplete
+        lost_chapter.write_bytes(chapter_bytes)
+        restored_scan = request("/api/v1/library/scans", {"root": "/fixture/audiobooks"})
+        wait_for(lambda: completed_scan(restored_scan["id"]))
+        restored_book = request("/api/v1/wanted/" + audio_book_id)
+        assert restored_book["stateEvidence"]["files"]["state"] == "present", restored_book
+        print("Packaged book evidence: complete import, missing chapter after scan, and restored complete audiobook verified through native book API")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

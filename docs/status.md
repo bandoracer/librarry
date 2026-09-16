@@ -34,8 +34,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [complete list PR #18](https://github.com/bandoracer/librarry/pull/18),
 [Hardcover edition PR #19](https://github.com/bandoracer/librarry/pull/19),
 [author policy PR #20](https://github.com/bandoracer/librarry/pull/20),
-[author destination PR #21](https://github.com/bandoracer/librarry/pull/21), and the
-`codex/direct-author-details` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[author destination PR #21](https://github.com/bandoracer/librarry/pull/21),
+[direct author detail PR #22](https://github.com/bandoracer/librarry/pull/22), and the
+`codex/verified-book-presence` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -188,9 +189,26 @@ writes retain coauthors and contributor roles with concurrent alias locking.
 Existing omitted coauthors, incorrect historical roles and conflated legacy
 identities require repair rather than a guessed backfill. The detail page
 distinguishes outage from absence and scopes bulk search to its visible page.
-Global library counts/caps, verified file-presence semantics and broader S15
-performance/compatibility qualification remain open. Current derived-state
-annotation still uses the existing service and may query a download client.
+Native book/author/list status now reads page-scoped file evidence. Ebooks need a
+recorded present media file; audiobooks need one complete committed per-book media
+manifest whose linked file identities, sizes and hashes still match. Lost chapters
+are incomplete; legacy audio without a manifest remains unknown. A successful
+alternate complete import can satisfy presence. Sidecars are outside playback
+presence; their full verification remains required for cleanup. Renamed files keep
+presence through identity/content, without rewriting historical manifests.
+
+Download state uses successful live responses only, with explicit partial/outage
+signals and a five-second request budget. Already-imported download sources do
+not hide later chapter loss. File/database uncertainty becomes unknown. Presence
+is the last recorded scan/import observation, not a filesystem probe on page load;
+unavailable mounts still retain previous observations. Quality profiles load once
+per page, and older books are no longer annotated through the global cutoff cap.
+The cutoff list excludes missing/unverified media but retains its existing cap.
+
+Global collection counts/caps, worker/author-policy integration of this evidence,
+Readarr parity, legacy manifest repair and broader S15 latency qualification remain
+open. General download queues retain their separate historical fallback behavior.
+No new migration, production deployment or live NAS qualification is included.
 
 ## Historical verified milestones
 

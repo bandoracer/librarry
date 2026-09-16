@@ -13,7 +13,7 @@ import { formatDate } from "../../lib/format";
  * `WantedItem.derivedState`; `wantedItemBookState` falls back to the legacy
  * status/file inference when it is absent (demo mode, older APIs).
  */
-export const bookStates = ["unmonitored", "missing", "downloading", "downloaded", "cutoffUnmet"] as const;
+export const bookStates = ["unmonitored", "missing", "downloading", "downloaded", "cutoffUnmet", "incomplete", "unknown"] as const;
 export type WantedPresence = (typeof bookStates)[number];
 
 export type LibraryFormatFilter = "all" | "ebook" | "audiobook";
@@ -26,6 +26,8 @@ export type LibraryAuthorRow = {
   subscriptionCount: number;
   monitoredBooks: number;
   unmonitoredBooks: number;
+  incomplete: number;
+  unknown: number;
   missing: number;
   downloading: number;
   downloaded: number;
@@ -39,6 +41,8 @@ export type LibrarySummary = {
   authors: number;
   monitoredAuthors: number;
   monitoredBooks: number;
+  incomplete: number;
+  unknown: number;
   missing: number;
   downloading: number;
   downloaded: number;
@@ -74,7 +78,7 @@ function stringMetadataValue(value: unknown): string {
 
 function libraryFileCountsAsPresent(file: LibraryFile): boolean {
   const status = (file.importStatus || "").toLowerCase();
-  return Boolean(file.path) && (status === "" || status === "available" || status === "imported");
+  return file.presenceState !== "missing" && Boolean(file.path) && (status === "" || status === "available" || status === "imported");
 }
 
 function libraryFileMatchesWanted(item: WantedItem, file: LibraryFile): boolean {
@@ -122,7 +126,7 @@ export function summarizeWantedItems(items: WantedItem[], presence: Map<string, 
       summary[state] += 1;
       return summary;
     },
-    { missing: 0, downloading: 0, downloaded: 0, cutoffUnmet: 0, unmonitored: 0 }
+    { missing: 0, downloading: 0, downloaded: 0, cutoffUnmet: 0, unmonitored: 0, incomplete: 0, unknown: 0 }
   );
 }
 
@@ -146,6 +150,8 @@ export function buildLibraryAuthorRows(
       subscriptionCount: 0,
       monitoredBooks: 0,
       unmonitoredBooks: 0,
+      incomplete: 0,
+      unknown: 0,
       missing: 0,
       downloading: 0,
       downloaded: 0,
@@ -187,6 +193,12 @@ export function buildLibraryAuthorRows(
         break;
       case "cutoffUnmet":
         row.cutoffUnmet += 1;
+        break;
+      case "unknown":
+        row.unknown += 1;
+        break;
+      case "incomplete":
+        row.incomplete += 1;
         break;
       case "unmonitored":
         break;
@@ -242,6 +254,10 @@ export function libraryPresenceRank(presence?: WantedPresence): number {
 
 export function presenceLabel(presence: WantedPresence): string {
   switch (presence) {
+    case "unknown":
+      return "Unknown";
+    case "incomplete":
+      return "Incomplete";
     case "downloaded":
       return "Downloaded";
     case "downloading":
@@ -261,6 +277,8 @@ export function presenceTone(presence: WantedPresence): "danger" | "info" | "suc
       return "success";
     case "downloading":
       return "info";
+    case "unknown":
+    case "incomplete":
     case "cutoffUnmet":
       return "warn";
     case "unmonitored":

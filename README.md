@@ -30,6 +30,10 @@ book data is incomplete or ambiguous.
 
 ![Librarry UI concept](docs/assets/librarry-ui-concept.png)
 
+Native book status distinguishes incomplete audiobooks and unavailable evidence.
+Recorded scan/import presence and complete audiobook manifests drive status;
+download-client outages remain explicit instead of appearing as missing books.
+
 ## Project Status
 
 Librarry is **early alpha**. The current implementation is strong enough to test

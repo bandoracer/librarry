@@ -971,3 +971,48 @@ packaged restart/import/acquisition/scan/replacement/authentication qualificatio
 direct author links retained imported books after restart. The 406,610-byte dump
 restored successfully at schema 41. No real provider or acquisition request,
 production deployment, release or image publication occurred.
+
+
+## Continuation: native book presence evidence (S14/S15)
+
+Branch: `codex/verified-book-presence`, based on direct-author PR #22. The previous
+annotation counted any linked file, including scan-confirmed missing media. It
+also queried the capped global cutoff list per page and used a download method
+that could silently substitute stored rows after empty/failed client responses.
+
+Native annotation now batches only the page's file/link/manifest evidence in one
+snapshot and loads quality profiles once. Ebooks require positive observations;
+audiobooks require a complete committed per-book media set with matching IDs,
+links, format, hashes and sizes. Partial chapter loss is incomplete; legacy or
+conflicting evidence is unknown. A complete alternate import may satisfy the
+book. Proven renames preserve identity/content and historical manifests. Pending
+publication prevents certainty. Sidecars remain part of cleanup verification,
+separate from playable media presence. No schema change or guessed backfill.
+
+A separate live-only acquisition read labels fresh/partial/unavailable/notConfigured
+responses and never returns stored-only downloads. Saved bookkeeping can exclude
+an already-imported source from downloading. Native annotation uses a five-second
+remote budget; failures stay explicit. File-database outages become unknown
+instead of invoking the UI's legacy inference. The native cutoff list now requires
+positive file evidence, while retaining its existing collection cap. Library,
+author and book UI retain incomplete/unknown states; book details explain evidence.
+
+Known boundaries: file evidence is the last recorded observation, not a page-load
+filesystem probe or live mount-health guarantee. Worker/author policies, global
+collection paging/counts, Readarr parity, historical manifest repair and broader
+latency qualification remain open. General Activity download fallback is unchanged.
+
+Direct-author PR #22 at `3876da31ca6dd764947fe9ccea173f207dc7b208` passed
+[CI run 35080699203](https://github.com/bandoracer/librarry/actions/runs/35080699203),
+including source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+
+Presence qualification: the full Go race/Postgres suite and vet passed; the
+additional already-imported-source regression passed under race instrumentation.
+Ten web unit checks and the production build passed. All 49 applicable desktop/
+mobile browser checks passed (one desktop-only case skipped on mobile); status
+screenshots were inspected at both widths. Newly built local ARM64 images passed
+packaged qualification at schema 41. A real fixture audiobook moved from complete
+to incomplete after chapter deletion and scan, then returned to complete after
+restoration and scan. The 406,904-byte backup restored successfully. All client
+requests targeted isolated fixtures; no real acquisition/provider request,
+production deployment, release, live NAS qualification or image publication.

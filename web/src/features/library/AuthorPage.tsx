@@ -273,7 +273,9 @@ export default function AuthorPage() {
                 { label: "Monitored on page", value: monitoredCount },
                 { label: "Missing on page", value: stats.missing, tone: stats.missing > 0 ? "danger" : "neutral" },
                 { label: "Downloading on page", value: stats.downloading, tone: stats.downloading > 0 ? "info" : "neutral" },
-                { label: "Downloaded on page", value: stats.downloaded, tone: stats.downloaded > 0 ? "success" : "neutral" }
+                { label: "Downloaded on page", value: stats.downloaded, tone: stats.downloaded > 0 ? "success" : "neutral" },
+                { label: "Incomplete on page", value: stats.incomplete, tone: stats.incomplete > 0 ? "warn" : "neutral" },
+                { label: "Unknown on page", value: stats.unknown, tone: stats.unknown > 0 ? "warn" : "neutral" }
               ]}
             />
 

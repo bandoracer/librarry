@@ -259,7 +259,7 @@ provider IO. A stop/removal during that request prevents additions, and a
 subscription revision change prevents recording a stale successful sync.
 Changes during the subsequent candidate-write loop are not yet serialized with
 every insertion. File-based policies still use recorded associations rather than
-the complete verified-presence projection planned under S14.
+the native status evidence described below; worker/policy adoption remains open.
 
 Native author subscriptions accept `rootFolderId` on create and update. A root
 must exist and match the subscription's ebook/audiobook format. Updates omit this
@@ -960,9 +960,9 @@ implemented on Unix (qualified on macOS/Linux); unsupported platforms fail clear
 File `presenceState` is `unknown`, `present`, or `missing`, separate from import
 history. Older records begin unknown; a scan must first observe a file before a
 later scan can mark it missing. Native verified imports mark their destinations
-present. Imports displays missing local files explicitly. Broader wanted/library/
-compatible-API presence semantics, moved-file reattachment and legacy repair
-previews remain outstanding; scans never fuzzy-reassign a file automatically.
+present. Imports displays missing local files explicitly. Native book evidence,
+moved-file reconciliation and repair previews are described below; compatible-API
+parity remains outstanding. Scans never fuzzy-reassign a file automatically.
 
 
 ### Preview legacy library repairs
@@ -1100,3 +1100,28 @@ Database checks prove that concrete editions do not reuse a work/format
 placeholder, retain normalized edition evidence, and preserve add-only monitoring.
 Run the metadata and wanted packages with the disposable Postgres configuration;
 no live provider token is used.
+
+
+### Book status evidence
+
+Native wanted/library/detail responses include `stateEvidence`. `files.state` is
+present, missing, incomplete, unknown or unavailable. Download evidence is fresh,
+partial, unavailable or notConfigured. An ebook needs recorded present media; an
+audiobook needs a complete matching committed media manifest. A partial chapter
+loss is Incomplete; legacy audiobook files without a manifest are Unknown, even
+if their old lifecycle says imported. Run a scan to update observations; do not
+change lifecycle rows to manufacture completeness. A rename with retained IDs and
+matching content preserves presence. Restoring a missing chapter and successfully
+scanning restores completeness if its manifest identity still matches.
+
+Book details explain unavailable evidence. A client outage never establishes that
+a book is missing or resurrects stale download rows; known positive files retain
+their presence with a warning. A completed, already-imported source still seeding
+in the client does not hide later library damage. These are recorded import/scan
+observations, not a live mount health check. Scanning an unavailable root retains
+prior presence. Sidecar damage continues to block cleanup verification separately.
+
+Wanted includes explicit Incomplete/Unknown filters over its loaded list. Global
+list caps/counts and worker/Readarr use of the new evidence remain unfinished.
+The native status path may spend up to five seconds on live client requests;
+local-only page latency is not yet a qualified product guarantee.

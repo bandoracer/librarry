@@ -121,11 +121,21 @@ func (s *Service) ListCutoffUnmet(ctx context.Context) ([]WantedItem, error) {
 	if err != nil {
 		return nil, err
 	}
+	ids := make([]string, len(items))
+	for i := range items {
+		ids[i] = items[i].ID
+	}
+	files, err := s.store.WantedFileEvidence(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	profiles, err := s.store.ListQualityProfiles(ctx)
+	if err != nil {
+		return nil, err
+	}
 	unmet := make([]WantedItem, 0, len(items))
 	for _, item := range items {
-		profile := s.qualityProfileForItem(ctx, item)
-		score := s.currentReleaseScore(ctx, item)
-		if cutoffUnmet(profile, score) {
+		if files[item.ID].State == "present" && cutoffUnmet(profileFromList(profiles, item), s.currentReleaseScore(ctx, item)) {
 			unmet = append(unmet, item)
 		}
 	}

@@ -150,6 +150,8 @@ export default function LibraryPage() {
       monitoredAuthors: authorSubscriptions.length,
       books: wantedItems.length,
       missing: wantedSummary.missing,
+      incomplete: wantedSummary.incomplete,
+      unknown: wantedSummary.unknown,
       downloading: wantedSummary.downloading,
       downloaded: wantedSummary.downloaded,
       files: libraryFiles.length
@@ -649,6 +651,8 @@ export default function LibraryPage() {
             { label: "Missing", value: summary.missing, tone: summary.missing > 0 ? "danger" : "neutral" },
             { label: "Downloading", value: summary.downloading, tone: summary.downloading > 0 ? "info" : "neutral" },
             { label: "Downloaded", value: summary.downloaded, tone: summary.downloaded > 0 ? "success" : "neutral" },
+            { label: "Incomplete", value: summary.incomplete, tone: summary.incomplete > 0 ? "warn" : "neutral" },
+            { label: "Unknown", value: summary.unknown, tone: summary.unknown > 0 ? "warn" : "neutral" },
             { label: "Files", value: summary.files }
           ]}
         />

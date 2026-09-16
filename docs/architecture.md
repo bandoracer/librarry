@@ -706,8 +706,8 @@ limits. Removed/ignored/missing rows return 404; malformed IDs return 400; stora
 failure returns 503. `GET /api/v1/library/files?wantedId={uuid}` filters file
 associations before the result limit. Book routes use these queries and preserve
 the distinction between missing data and a retryable service failure. General
-collection pagination, author details and full presence reconciliation remain
-separate stabilization work.
+collection pagination and compatibility reconciliation remain separate stabilization
+work; direct author and native presence contracts are described below.
 
 ## Durable completed-import operations (unreleased)
 
@@ -882,9 +882,8 @@ Successful jobs discard queues while retaining summaries and root evidence.
 
 `presence_state` is local filesystem evidence, separate from `import_status`.
 New verified imports are present; historical records are unknown until observed.
-This stage exposes presence through native file responses and Imports. It does not
-yet implement moved-file reattachment, legacy repair previews or the shared domain
-projection required by S11/S14/S16.
+Native files expose these observations. The move/repair and native book evidence
+sections below describe subsequent work; Readarr parity remains unqualified.
 
 
 ### Library repair evidence
@@ -1102,3 +1101,33 @@ are retained for review, not silently rewritten. Add-only monitoring continues t
 reuse the existing tracked work/format regardless of a newly selected default.
 Merge clusters require compatibility with every member so a work-only candidate
 cannot join incompatible ebook/audio editions indirectly.
+
+
+### Native book presence evidence
+
+`WantedItem.stateEvidence` contains file state/reason/counts, download availability,
+quality-profile availability and an explanatory message. `derivedState` adds
+`incomplete` and `unknown`; stored lifecycle values remain unchanged. Page-scoped
+file/link/manifest reads share one repeatable-read transaction. Ebooks require at
+least one present matching-format media record with available/imported status and
+no unfinished publication at that path. Audiobooks require all required media in
+one committed per-book manifest, matching current IDs, links, sizes, hashes and
+presence. Partial known loss is incomplete; unverified legacy audio or content
+changes are unknown. Complete alternate imports win over incomplete old sets.
+Sidecar presence does not determine playback availability or relax cleanup rules.
+
+File observations are persisted evidence, not live filesystem access. Proven
+renames retain file identity; manifest paths remain immutable. An unavailable
+mount retains prior observations until a successful scan can reconcile them.
+
+`LiveDownloadEvidence` retains successful client lists and labels their overall
+availability fresh/partial/unavailable/notConfigured. Saved bookkeeping may
+annotate those exact client/ID matches as already imported, but never supplies
+rows absent from live results. Native annotation bounds this remote read to five
+seconds. A current new download can establish downloading during file recovery;
+already-imported sources and failed/deleted client states cannot. Missing without
+complete client evidence becomes unknown; positive file evidence survives client
+outages with a warning. File database failure explicitly marks evidence unavailable.
+Quality profiles are loaded once per page; cutoff membership also requires
+positive file evidence. Global cutoff paging and worker/policy/Readarr adoption
+remain separate work. The general Activity/download endpoint is unchanged.

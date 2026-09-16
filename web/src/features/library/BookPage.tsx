@@ -145,6 +145,10 @@ export default function BookPage() {
                 ) : null}
               </div>
               <p className="library-book-header-line">{libraryBookOverviewLine(item)}</p>
+              {item.stateEvidence ? <p className="library-book-header-line" role="status">
+                {item.stateEvidence.message || item.stateEvidence.files.reason}
+                {item.stateEvidence.files.state === "present" ? " Based on recorded import or scan observations; files are not checked during this page load." : ""}
+              </p> : null}
               <p className="library-book-header-line">
                 By{" "}
                 <Link to={authorPath} className="library-book-header-author">

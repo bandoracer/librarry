@@ -438,7 +438,13 @@ export type WantedItem = {
   format: "ebook" | "audiobook";
   qualityProfile: string;
   status: string;
-  derivedState?: "unmonitored" | "missing" | "downloading" | "downloaded" | "cutoffUnmet";
+  derivedState?: "unmonitored" | "missing" | "downloading" | "downloaded" | "cutoffUnmet" | "incomplete" | "unknown";
+  stateEvidence?: {
+    files: { state: "present" | "missing" | "incomplete" | "unknown" | "unavailable"; reason: string; presentFiles: number; requiredFiles?: number };
+    downloads: "fresh" | "partial" | "unavailable" | "notConfigured";
+    quality: "available" | "unavailable";
+    message?: string;
+  };
   monitored: boolean;
   tags?: string[];
   sourceProvider?: string;
