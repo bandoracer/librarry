@@ -47,3 +47,13 @@ Exact identifiers beat fuzzy matching:
 Goodreads, Amazon, and Audible scraping are intentionally excluded from core.
 They can be future optional plugins only if the legal and operational risk is
 made explicit.
+
+
+Native metadata Review uses the same field evidence as direct book provenance,
+including imported and unmonitored tracked books. Text comparison retains Unicode
+letters, marks and numbers and normalizes canonical composition. The wanted
+media format is the owner's acquisition choice; a provider describing an ebook
+edition does not by itself create a conflict for an audiobook target. Its format
+remains visible as provider evidence. Keep current confirms a displayed evidence
+revision and protects newer owner corrections or cleared overrides. Fields with
+no current value still require an explicit choice in the book's metadata editor.

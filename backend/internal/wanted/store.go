@@ -2,7 +2,9 @@ package wanted
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,9 +12,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
+	"golang.org/x/text/unicode/norm"
 )
 
 type Store struct {
@@ -1205,12 +1209,10 @@ func (s *Store) ClearWantedManualOverrides(ctx context.Context, wantedID string,
 	}
 	defer tx.Rollback()
 
-	var exists bool
-	if err := tx.QueryRowContext(ctx, `select exists(select 1 from wanted_items where id::text = $1)`, wantedID).Scan(&exists); err != nil {
+	// Use the same book-before-override lock order as confirmation and edits.
+	var lockedID string
+	if err := tx.QueryRowContext(ctx, `select id from wanted_items where id::text=$1 for update`, wantedID).Scan(&lockedID); err != nil {
 		return WantedItem{}, err
-	}
-	if !exists {
-		return WantedItem{}, sql.ErrNoRows
 	}
 	for _, field := range normalizedFields {
 		if _, err := tx.ExecContext(ctx, `
@@ -1232,75 +1234,7 @@ func (s *Store) ClearWantedManualOverrides(ctx context.Context, wantedID string,
 }
 
 func (s *Store) WantedMetadataProvenance(ctx context.Context, wantedID string) (MetadataProvenance, error) {
-	if !s.Configured() {
-		return MetadataProvenance{}, errors.New("wanted store is unavailable")
-	}
-	wantedID = strings.TrimSpace(wantedID)
-	if wantedID == "" {
-		return MetadataProvenance{}, errors.New("wanted item id is required")
-	}
-	item, err := s.GetWanted(ctx, wantedID)
-	if err != nil {
-		return MetadataProvenance{}, err
-	}
-	rows, err := s.db.QueryContext(ctx, `
-		with target_entities as (
-			select wi.work_id as entity_id
-			from wanted_items wi
-			where wi.id::text = $1 and wi.work_id is not null
-			union
-			select wi.edition_id as entity_id
-			from wanted_items wi
-			where wi.id::text = $1 and wi.edition_id is not null
-			union
-			select wa.author_id as entity_id
-			from wanted_items wi
-			join work_authors wa on wa.work_id = wi.work_id
-			where wi.id::text = $1
-		)
-		select
-			pr.id::text, pr.provider, pr.provider_key, pr.entity_type,
-			coalesce(pr.entity_id::text, ''), pr.confidence, pr.fetched_at, pr.raw
-		from provider_records pr
-		join target_entities te on te.entity_id = pr.entity_id
-		order by
-			case pr.entity_type
-				when 'work' then 0
-				when 'edition' then 1
-				when 'author' then 2
-				else 3
-			end,
-			pr.confidence desc,
-			pr.fetched_at desc
-	`, wantedID)
-	if err != nil {
-		return MetadataProvenance{}, err
-	}
-	defer rows.Close()
-
-	records := []ProviderMetadataRecord{}
-	for rows.Next() {
-		var record ProviderMetadataRecord
-		var raw []byte
-		if err := rows.Scan(
-			&record.ID, &record.Provider, &record.ProviderKey, &record.EntityType,
-			&record.EntityID, &record.Confidence, &record.FetchedAt, &raw,
-		); err != nil {
-			return MetadataProvenance{}, err
-		}
-		record.Values = metadataValuesFromProviderRaw(raw)
-		records = append(records, record)
-	}
-	if err := rows.Err(); err != nil {
-		return MetadataProvenance{}, err
-	}
-	return MetadataProvenance{
-		WantedItem:      item,
-		Records:         records,
-		Fields:          metadataFieldEvidence(item, records),
-		ManualOverrides: item.ManualOverrides,
-		GeneratedAt:     time.Now().UTC(),
-	}, nil
+	return s.metadataProvenanceSnapshot(ctx, wantedID)
 }
 
 func (s *Store) ProviderISBNsForWanted(ctx context.Context, wantedIDs []string) (map[string][]string, error) {
@@ -1370,32 +1304,7 @@ func (s *Store) ProviderISBNsForWanted(ctx context.Context, wantedIDs []string) 
 }
 
 func (s *Store) WantedMetadataReviewQueue(ctx context.Context) (MetadataReviewQueue, error) {
-	if !s.Configured() {
-		return MetadataReviewQueue{}, errors.New("wanted store is unavailable")
-	}
-	items, err := s.ListWanted(ctx, "")
-	if err != nil {
-		return MetadataReviewQueue{}, err
-	}
-	reviewItems := []MetadataReviewItem{}
-	for _, item := range items {
-		if wantedItemReviewSkipped(item) {
-			continue
-		}
-		provenance, err := s.WantedMetadataProvenance(ctx, item.ID)
-		if err != nil {
-			return MetadataReviewQueue{}, err
-		}
-		review := metadataReviewItem(provenance)
-		if !metadataReviewRequiresOperator(review) {
-			continue
-		}
-		reviewItems = append(reviewItems, review)
-	}
-	return MetadataReviewQueue{
-		Items:       reviewItems,
-		GeneratedAt: time.Now().UTC(),
-	}, nil
+	return s.MetadataReviewCollection(ctx, MetadataReviewQuery{})
 }
 
 func (s *Store) ApplyWantedMetadataCorrection(ctx context.Context, wantedID string, request MetadataCorrectionRequest) (MetadataProvenance, error) {
@@ -1428,12 +1337,10 @@ func (s *Store) ApplyWantedMetadataCorrections(ctx context.Context, wantedID str
 	}
 	defer tx.Rollback()
 
-	var exists bool
-	if err := tx.QueryRowContext(ctx, `select exists(select 1 from wanted_items where id::text = $1)`, wantedID).Scan(&exists); err != nil {
+	// Use the same book-before-override lock order as confirmation and edits.
+	var lockedID string
+	if err := tx.QueryRowContext(ctx, `select id from wanted_items where id::text=$1 for update`, wantedID).Scan(&lockedID); err != nil {
 		return MetadataProvenance{}, err
-	}
-	if !exists {
-		return MetadataProvenance{}, sql.ErrNoRows
 	}
 
 	if metadataCorrectionsIncludeWantedColumns(values) {
@@ -1671,8 +1578,10 @@ func metadataFieldEvidence(item WantedItem, records []ProviderMetadataRecord) []
 			CanonicalSource: source,
 			Protected:       protected,
 			ReviewResolved:  reviewResolved,
-			Conflict:        !reviewResolved && metadataFieldHasConflict(canonical, candidates, protected),
-			Candidates:      candidates,
+			// The requested acquisition format is an owner choice. A provider
+			// describing another edition format is not a metadata conflict.
+			Conflict:   spec.name != "format" && !reviewResolved && metadataFieldHasConflict(canonical, candidates, protected),
+			Candidates: candidates,
 		})
 	}
 	return evidence
@@ -1690,7 +1599,7 @@ func metadataFieldCandidates(spec metadataFieldSpec, records []ProviderMetadataR
 			if value == "" {
 				continue
 			}
-			key := strings.Join([]string{record.Provider, record.ProviderKey, normalizeText(value)}, "\x00")
+			key := strings.Join([]string{record.Provider, record.ProviderKey, normalizeMetadataValue(value)}, "\x00")
 			if seen[key] {
 				continue
 			}
@@ -1711,9 +1620,9 @@ func metadataFieldCandidates(spec metadataFieldSpec, records []ProviderMetadataR
 
 func metadataFieldHasConflict(canonical string, candidates []MetadataFieldCandidate, protected bool) bool {
 	distinct := map[string]bool{}
-	canonicalKey := normalizeText(canonical)
+	canonicalKey := normalizeMetadataValue(canonical)
 	for _, candidate := range candidates {
-		key := normalizeText(candidate.Value)
+		key := normalizeMetadataValue(candidate.Value)
 		if key == "" {
 			continue
 		}
@@ -1741,7 +1650,22 @@ func oneValue(value string) []string {
 	return []string{value}
 }
 
+func metadataReviewRevision(provenance MetadataProvenance) string {
+	raw, _ := json.Marshal(struct {
+		ID     string
+		Fields []MetadataFieldEvidence
+	}{provenance.WantedItem.ID, provenance.Fields})
+	digest := sha256.Sum256(raw)
+	return hex.EncodeToString(digest[:])
+}
+
 func metadataReviewItem(provenance MetadataProvenance) MetadataReviewItem {
+	review := metadataReviewSummary(provenance)
+	review.Revision = metadataReviewRevision(provenance)
+	return review
+}
+
+func metadataReviewSummary(provenance MetadataProvenance) MetadataReviewItem {
 	fields := []MetadataFieldEvidence{}
 	conflictCount := 0
 	protectedCount := 0
@@ -1775,7 +1699,7 @@ func metadataReviewRequiresOperator(review MetadataReviewItem) bool {
 
 func wantedItemReviewSkipped(item WantedItem) bool {
 	switch strings.ToLower(strings.TrimSpace(item.Status)) {
-	case "removed", "ignored", "imported":
+	case "removed", "ignored":
 		return true
 	default:
 		return false
@@ -3377,4 +3301,21 @@ func nullableInt64(value int64) any {
 		return nil
 	}
 	return value
+}
+
+// Metadata comparison retains non-ASCII letters and numbers; unrelated CJK or
+// accented values must not collapse to the same empty ASCII matching key.
+func normalizeMetadataValue(value string) string {
+	var out strings.Builder
+	spaced := true
+	for _, r := range strings.ToLower(norm.NFC.String(value)) {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsMark(r) {
+			out.WriteRune(r)
+			spaced = false
+		} else if !spaced {
+			out.WriteByte(' ')
+			spaced = true
+		}
+	}
+	return strings.TrimSpace(out.String())
 }

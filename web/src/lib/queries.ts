@@ -31,6 +31,7 @@ import {
   fetchWantedItem,
   fetchWantedMetadata,
   fetchWantedMetadataReview,
+  type MetadataReviewOptions,
   fetchWantedReleases,
   knownQualityIds,
   type DownloadListOptions
@@ -149,10 +150,16 @@ export function useCutoffUnmet(enabled = true) {
   });
 }
 
-export function useWantedMetadataReview() {
+export function useWantedMetadataReview(options: MetadataReviewOptions = {}) {
   return useQuery({
-    queryKey: keys.wantedMetadataReview,
-    queryFn: withDemoFallback(fetchWantedMetadataReview, () => demoSeeds.wantedMetadataReview)
+    queryKey: [...keys.wantedMetadataReview, options],
+    queryFn: ({ signal }) => withDemoFallback(() => fetchWantedMetadataReview(options, signal), () => {
+      const seed = demoSeeds.wantedMetadataReview;
+      const q = (options.q ?? "").trim().toLowerCase();
+      const items = seed.items.filter(({ wantedItem: item }) => (!options.format || options.format === "all" || options.format === item.format) && [item.title, item.authorName, item.sourceProvider, item.qualityProfile].join(" ").toLowerCase().includes(q));
+      return { ...seed, filtered: items.length, items: options.cursor ? [] : items.slice(0, options.limit ?? 100) };
+    })(),
+    refetchInterval: 30_000
   });
 }
 

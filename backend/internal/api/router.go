@@ -2372,9 +2372,13 @@ func (h *handler) wantedMetadataReview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted metadata review is unavailable"})
 		return
 	}
+	if paged, ok := h.deps.Wanted.(metadataReviewCollectionService); ok {
+		h.metadataReviewCollection(w, r, paged)
+		return
+	}
 	queue, err := provenanceService.MetadataReviewQueue(r.Context())
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "metadata review could not be loaded"})
 		return
 	}
 	writeJSON(w, http.StatusOK, queue)
@@ -2392,13 +2396,25 @@ func (h *handler) confirmWantedMetadataReviewCanonical(w http.ResponseWriter, r 
 	}
 	defer r.Body.Close()
 	var request wanted.MetadataReviewConfirmRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted metadata review confirmation payload"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "expected one confirmation object"})
 		return
 	}
 	outcome, err := provenanceService.ConfirmMetadataReviewCanonical(r.Context(), request)
 	if err != nil {
 		status := http.StatusBadGateway
+		if errors.Is(err, wanted.ErrReviewSelection) {
+			status = http.StatusBadRequest
+		}
+		if errors.Is(err, wanted.ErrReviewChanged) {
+			status = http.StatusConflict
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
 		}

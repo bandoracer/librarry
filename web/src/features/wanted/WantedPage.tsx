@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,7 +19,7 @@ import {
   runWantedMonitor,
   searchWantedReleases
 } from "../../lib/api";
-import type { MetadataReviewConfirmOutcome, WantedItem } from "../../lib/api";
+import type { MetadataReviewConfirmOutcome, MetadataReviewOptions, WantedItem } from "../../lib/api";
 import {
   keys,
   useLibrarySettings,
@@ -50,7 +50,6 @@ import {
   metadataReviewBadgeLabel,
   metadataReviewMap,
   monitorRunSummary,
-  summarizeMetadataReview,
   upgradeRunSummary,
 } from "./lib";
 import "./wanted.css";
@@ -108,16 +107,29 @@ export default function WantedPage() {
 
   /* --------------------------------- Data ---------------------------------- */
 
+  const activeTabRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    const link = activeTabRef.current;
+    const nav = link?.parentElement;
+    if (!link || !nav) return;
+    const item = link.getBoundingClientRect(), container = nav.getBoundingClientRect();
+    if (item.left < container.left) nav.scrollLeft -= container.left - item.left;
+    else if (item.right > container.right) nav.scrollLeft += item.right - container.right;
+  }, [tab]);
   const [pagination, setPagination] = useState<{ tab: WantedTab; cursors: string[] }>({ tab, cursors: [""] });
   const cursors = pagination.tab === tab ? pagination.cursors : [""];
   const cursor = cursors[cursors.length - 1];
   const wantedQuery = useBookCollection({ state: tab === "cutoff" ? "cutoffUnmet" : tab === "review" ? "all" : tab, sort: "title", limit: tab === "review" ? 1 : 100, cursor: tab === "review" ? "" : cursor });
-  const reviewQuery = useWantedMetadataReview();
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewQuerySearch, setReviewQuerySearch] = useState("");
+  const [reviewFormat, setReviewFormat] = useState<MetadataReviewOptions["format"]>("all");
+  useEffect(() => { if (reviewSearch === reviewQuerySearch) return; const timer = setTimeout(() => { setReviewQuerySearch(reviewSearch); setPagination(value => value.tab === "review" ? { tab: "review", cursors: [""] } : value); }, 250); return () => clearTimeout(timer); }, [reviewSearch, reviewQuerySearch]);
+  const reviewQuery = useWantedMetadataReview({ q: reviewQuerySearch, format: reviewFormat, cursor: tab === "review" ? cursor : "", limit: tab === "review" ? 100 : 1 });
+  const activeCollection = tab === "review" ? reviewQuery : wantedQuery;
   const librarySettings = useLibrarySettings();
   const releaseSearch = useWantedReleaseSearch();
   const language = librarySettings.data?.settings.standardSearchLanguage || "English";
   const reviewByID = useMemo(() => metadataReviewMap(reviewQuery.data), [reviewQuery.data]);
-  const reviewSummary = useMemo(() => summarizeMetadataReview(reviewQuery.data), [reviewQuery.data]);
   const reviewItems = useMemo(() => (reviewQuery.data?.items ?? []).map((entry) => entry.wantedItem), [reviewQuery.data]);
   const rows: WantedItem[] = useMemo(() => tab === "review" ? reviewItems : wantedQuery.data?.books ?? [], [tab, reviewItems, wantedQuery.data]);
   const rowsLoading = tab === "review" ? reviewQuery.isLoading : wantedQuery.isLoading;
@@ -131,7 +143,7 @@ export default function WantedPage() {
   // Selections don't carry across tabs; also drop rows that left the list.
   useEffect(() => {
     setSelectedIDs([]);
-  }, [tab, cursor]);
+  }, [tab, cursor, reviewSearch, reviewFormat]);
   useEffect(() => {
     const available = new Set(rows.map((item) => item.id));
     setSelectedIDs((current) => current.filter((id) => available.has(id)));
@@ -250,14 +262,15 @@ export default function WantedPage() {
     if (!wantedIds.length) return;
     setIsConfirmingReviews(true);
     try {
-      const outcome = await confirmWantedMetadataReviewCanonical({ wantedIds });
+      const revisions = Object.fromEntries(wantedIds.flatMap(id => { const revision = reviewByID.get(id)?.revision; return revision ? [[id, revision]] : []; }));
+      const outcome = await confirmWantedMetadataReviewCanonical({ wantedIds, ...(Object.keys(revisions).length ? { revisions } : {}) });
       setReviewConfirmOutcome(outcome);
       (outcome.items ?? []).forEach((provenance) => {
         client.setQueryData(keys.wantedMetadata(provenance.wantedItem.id), provenance);
       });
       setSelectedIDs((current) => current.filter((id) => !wantedIds.includes(id)));
       toast.success(
-        `${outcome.fieldsConfirmed} field${outcome.fieldsConfirmed === 1 ? "" : "s"} confirmed across ${outcome.itemsReviewed} item${outcome.itemsReviewed === 1 ? "" : "s"}`
+        `${outcome.fieldsConfirmed} field${outcome.fieldsConfirmed === 1 ? "" : "s"} confirmed across ${outcome.itemsReviewed} item${outcome.itemsReviewed === 1 ? "" : "s"}${outcome.skippedItems ? `; ${outcome.skippedItems} skipped — open book details to choose unresolved values` : ""}`
       );
       await invalidate(keys.wanted, keys.wantedMetadataReview, keys.acquisitionQueue);
     } catch (error) {
@@ -293,7 +306,7 @@ export default function WantedPage() {
     { label: "Review", to: "/wanted/review", active: tab === "review" }
   ];
 
-  const anyBulkBusy = isSearchingSelected || isSearchingAll || isUpgradingSelected || isUpgradingAll || isUnmonitoring;
+  const anyBulkBusy = isSearchingSelected || isSearchingAll || isUpgradingSelected || isUpgradingAll || isUnmonitoring || isConfirmingReviews;
 
   function renderRow(item: WantedItem) {
     const review = reviewByID.get(item.id);
@@ -434,7 +447,7 @@ export default function WantedPage() {
             render={(navTab) => {
               const active = tabs.find((entry) => entry.label === navTab.label)?.active;
               return (
-                <Link key={navTab.label} to={navTab.to} className={active ? "active" : undefined}>
+                <Link key={navTab.label} ref={active ? activeTabRef : undefined} to={navTab.to} className={active ? "active" : undefined}>
                   {navTab.label}
                 </Link>
               );
@@ -453,7 +466,7 @@ export default function WantedPage() {
         stats={[
           { label: "Missing", value: counts.missing ?? 0, tone: counts.missing ? "danger" : "neutral" },
           { label: "Cutoff Unmet", value: counts.cutoffUnmet ?? 0, tone: counts.cutoffUnmet ? "warn" : "neutral" },
-          { label: "Review loaded", value: reviewSummary.items, tone: reviewSummary.items ? "info" : "neutral" },
+          { label: "Review", value: reviewQuery.data?.total ?? 0, tone: reviewQuery.data?.total ? "info" : "neutral" },
           { label: "Incomplete", value: counts.incomplete ?? 0, tone: counts.incomplete ? "warn" : "neutral" },
           { label: "Unknown", value: counts.unknown ?? 0, tone: counts.unknown ? "warn" : "neutral" },
           { label: "Library books", value: wantedQuery.data.total }
@@ -461,11 +474,17 @@ export default function WantedPage() {
       /> : null}
       {wantedQuery.data && ["partial", "unavailable"].includes(wantedQuery.data.downloads) ? <InlineNotice tone="warn">Download status is unavailable or incomplete. Books without verified media may show Unknown.</InlineNotice> : null}
 
+      {tab === "review" && <div className="wanted-pagination wanted-review-filters" aria-label="Metadata review filters">
+        <input aria-label="Filter metadata reviews" placeholder="Filter metadata reviews" value={reviewSearch} onChange={event => setReviewSearch(event.target.value)} />
+        <select aria-label="Metadata review format" value={reviewFormat} onChange={event => { setReviewFormat(event.target.value as MetadataReviewOptions["format"]); setPagination({ tab, cursors: [""] }); }}>
+          <option value="all">All formats</option><option value="ebook">Ebooks</option><option value="audiobook">Audiobooks</option>
+        </select>
+      </div>}
       {tab === "review" && rows.length ? (
         <Card className="wanted-review-bulk-card">
           <div className="wanted-review-bulkbar" aria-label="Metadata review bulk actions">
             <div className="wanted-review-bulkbar-text">
-              <strong>{reviewSummary.conflicts} unresolved metadata conflicts loaded</strong>
+              <strong>{reviewQuery.data?.conflictCount ?? 0} unresolved metadata conflicts in the library</strong>
               <span>
                 {selectedRows.length} selected · {rows.length} shown
                 {reviewConfirmOutcome
@@ -473,14 +492,14 @@ export default function WantedPage() {
                   : ""}
               </span>
             </div>
-            <Button size="sm" icon={allSelected ? CheckSquare : Square} onClick={toggleAll}>
+            <Button size="sm" disabled={anyBulkBusy} icon={allSelected ? CheckSquare : Square} onClick={toggleAll}>
               {allSelected ? "Clear shown" : "Select shown"}
             </Button>
             <Button
               size="sm"
               variant="primary"
               icon={CheckCircle2}
-              disabled={selectedRows.length === 0}
+              disabled={anyBulkBusy || selectedRows.length === 0}
               busy={isConfirmingReviews}
               onClick={() => void confirmSelectedReviews()}
             >
@@ -490,12 +509,12 @@ export default function WantedPage() {
         </Card>
       ) : null}
 
-      <Card padded={rows.length === 0} subtitle={tab === "review" ? undefined : `${rows.length} shown · ${wantedQuery.data?.filtered ?? 0} matching · ${selectedRows.length} selected on this page`}
-        actions={tab === "review" ? undefined : <div className="wanted-pagination" aria-label="Wanted pages">
-          <Button size="sm" disabled={cursors.length < 2 || wantedQuery.isFetching || anyBulkBusy} onClick={() => setPagination({ tab, cursors: cursors.slice(0, -1) })}>Previous</Button>
+      <Card padded={rows.length === 0} subtitle={`${rows.length} shown · ${activeCollection.data?.filtered ?? 0} matching · ${selectedRows.length} selected on this page`}
+        actions={<div className="wanted-pagination" aria-label="Wanted pages">
+          <Button size="sm" disabled={cursors.length < 2 || activeCollection.isFetching || anyBulkBusy} onClick={() => setPagination({ tab, cursors: cursors.slice(0, -1) })}>Previous</Button>
           <span>Page {cursors.length}</span>
-          <Button size="sm" disabled={!wantedQuery.data?.nextCursor || wantedQuery.isFetching || anyBulkBusy} onClick={() => setPagination({ tab, cursors: [...cursors, wantedQuery.data?.nextCursor ?? ""] })}>Next</Button>
-          <Button size="sm" disabled={wantedQuery.isFetching || anyBulkBusy} onClick={() => void wantedQuery.refetch()}>Refresh page</Button>
+          <Button size="sm" disabled={!activeCollection.data?.nextCursor || activeCollection.isFetching || anyBulkBusy} onClick={() => setPagination({ tab, cursors: [...cursors, activeCollection.data?.nextCursor ?? ""] })}>Next</Button>
+          <Button size="sm" disabled={activeCollection.isFetching || anyBulkBusy} onClick={() => void activeCollection.refetch()}>Refresh page</Button>
         </div>}>
         {rowsLoading ? (
           <LoadingRow
@@ -530,15 +549,15 @@ export default function WantedPage() {
             <tbody>{rows.map(renderRow)}</tbody>
           </DataTable>
         ) : rowsError ? <EmptyState icon={BookOpen} title="Books could not be loaded" actions={<Button size="sm" onClick={() => void (tab === "review" ? reviewQuery.refetch() : wantedQuery.refetch())}>Retry</Button>}>Retry loading this collection.</EmptyState>
-        : cursor && tab !== "review" ? <EmptyState icon={BookOpen} title="No books on this page" actions={<Button size="sm" onClick={() => setPagination({ tab, cursors: [""] })}>First page</Button>}>The collection may have changed. Return to the first page to refresh your view.</EmptyState>
+        : cursor ? <EmptyState icon={BookOpen} title="No books on this page" actions={<Button size="sm" onClick={() => setPagination({ tab, cursors: [""] })}>First page</Button>}>The collection may have changed. Return to the first page to refresh your view.</EmptyState>
         : tab === "cutoff" ? (
           <EmptyState icon={TrendingUp} title="No books below their quality cutoff">
             Books with a tracked file scoring under their quality profile’s cutoff appear here so you can run upgrade
             searches for better releases.
           </EmptyState>
         ) : tab === "review" ? (
-          <EmptyState icon={CheckCircle2} title="No metadata reviews pending">
-            Wanted books with conflicting provider metadata appear here for a bulk keep-current decision.
+          <EmptyState icon={CheckCircle2} title={reviewQuery.data?.total ? "No matching metadata reviews" : "No metadata reviews pending"}>
+            Tracked books, including imported books, with conflicting provider metadata appear here for a bulk keep-current decision.
           </EmptyState>
         ) : (wantedQuery.data?.total ?? 0) > 0 ? (
           <EmptyState icon={FileSearch} title={`No ${tab} books in this list`}>

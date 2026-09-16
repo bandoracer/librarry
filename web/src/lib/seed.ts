@@ -534,6 +534,7 @@ export const seedWantedMetadataByID: Record<string, MetadataProvenance> = {
 };
 
 export const seedWantedMetadataReview: MetadataReviewQueue = {
+  total: 1, filtered: 1, conflictCount: 1,
   generatedAt: seedFetchedAt,
   items: [
     {

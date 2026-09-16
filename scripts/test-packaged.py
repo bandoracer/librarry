@@ -510,6 +510,23 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                 break
             native_page = request("/api/v1/library/books?limit=1&sort=title&cursor=" + native_page["nextCursor"])
         assert len(native_ids) == expected_books and wanted_id in native_ids and audio_book_id in native_ids
+        # Conflicting provider titles remain reviewable after native import.
+        for target_id in (wanted_id, audio_book_id):
+            target_id = str(uuid.UUID(target_id))
+            sql(f"insert into provider_records(provider,provider_key,entity_type,entity_id,raw,confidence) select 'Review Fixture','review:'||id::text,'work',work_id,jsonb_build_object('work',jsonb_build_object('title','Conflicting fixture title')),0.8 from wanted_items where id='{target_id}'")
+        review_first = request("/api/v1/wanted/metadata/review?limit=1")
+        review_page = review_first
+        review_ids = set()
+        while True:
+            assert review_page["total"] == review_first["total"] and review_page["filtered"] == review_first["total"], review_page
+            assert len(review_page["items"]) <= 1, review_page
+            for item in review_page["items"]:
+                assert item["wantedItem"]["id"] not in review_ids, item
+                review_ids.add(item["wantedItem"]["id"])
+            if not review_page.get("nextCursor"):
+                break
+            review_page = request("/api/v1/wanted/metadata/review?limit=1&cursor=" + review_page["nextCursor"])
+        assert len(review_ids) == review_first["total"] and {wanted_id, audio_book_id}.issubset(review_ids), review_ids
         # Checks advance durably even when file evidence makes a search unnecessary.
         # The fixture has no configured indexer, and auto-grab remains disabled.
         first_checks = request("/api/v1/wanted/monitor", {"limit": 1, "autoGrab": False})
@@ -530,6 +547,16 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         author_after_restart = request("/api/v1/library/authors?status=all&limit=1&cursor=" + author_first["nextCursor"])
         assert author_after_restart["total"] == 2 and author_after_restart["authors"][0]["id"] != author_first["authors"][0]["id"], author_after_restart
         print("Packaged author collection: identity counts, unlinked identities, complete traversal and cursor continuation after restart verified")
+        review_after_restart = request("/api/v1/wanted/metadata/review?limit=1&cursor=" + review_first["nextCursor"])
+        assert review_after_restart["total"] == review_first["total"] and review_after_restart["items"][0]["wantedItem"]["id"] != review_first["items"][0]["wantedItem"]["id"], review_after_restart
+        unselected_overrides = sql(f"select entity_id,field_name,value,reason from manual_overrides where entity_id<>'{wanted_id}' order by entity_id,field_name")
+        kept = request("/api/v1/wanted/metadata/review/confirm-canonical", {"wantedIds": [wanted_id]})
+        assert kept["itemsReviewed"] == 1 and kept["fieldsConfirmed"] >= 1 and kept["items"][0]["wantedItem"]["title"] == imported_book["title"], kept
+        assert unselected_overrides == sql(f"select entity_id,field_name,value,reason from manual_overrides where entity_id<>'{wanted_id}' order by entity_id,field_name")
+        remaining_review = request("/api/v1/wanted/metadata/review?limit=100")
+        assert remaining_review["total"] == review_first["total"] - 1, remaining_review
+        assert wanted_id not in {item["wantedItem"]["id"] for item in remaining_review["items"]}, remaining_review
+        print("Packaged metadata review: imported conflicts, exact counts, full traversal, restart cursor and selected canonical confirmation verified")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

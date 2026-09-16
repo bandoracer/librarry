@@ -121,8 +121,7 @@ cursor in the query key beneath `keys.wanted`. Existing book mutations therefore
 invalidate the new collection cache. Fetches pass TanStack's abort signal. Text
 filtering is debounced; page/filter/tab changes clear selections. Counts come from
 the server and remain distinct from the number of displayed rows. Database errors
-render retry states, not empty-library success. Metadata review remains a legacy
-loaded collection and is labelled accordingly. Explicit demo builds keep seeded
+render retry states, not empty-library success. Metadata Review now has its own native paged collection and global counters. Explicit demo builds keep seeded
 book filtering/paging through `demoBookCollection`; production failures propagate.
 
 
@@ -132,3 +131,13 @@ counts, pages 100 subscriptions at a time, and filters the entire subscription
 collection. It does not fetch capped wanted/file/review lists to infer ownership
 by name. Unlinked identities, client uncertainty and retryable collection errors
 are explicit. The separate author review panel retains its existing reader.
+
+
+Wanted → Review passes search/format/cursor/limit through `useWantedMetadataReview`
+with abort signals and options in the cache key. Page/filter/tab changes clear
+selection. Review revisions travel with Keep current so changed evidence returns
+409 and remains selected for review/retry; successful confirmation clears the
+selection and invalidates book/provenance/review caches. Missing canonical values
+require a choice in book details and contribute to the skipped count. The active
+Wanted tab scrolls into horizontal view on narrow screens without moving the
+whole page vertically. Explicit demo seeds also honor the new review filters.

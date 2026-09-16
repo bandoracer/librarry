@@ -1271,3 +1271,52 @@ Ambiguous legacy provider mappings remain unresolved. Aliases and ebook/audio
 subscriptions retain independent settings rows; these are not unique-person
 counts or an all-authors catalog. Author metadata review and compatibility
 collection readers remain separate work.
+
+
+### Native metadata Review collection and confirmation
+
+`GET /api/v1/wanted/metadata/review` accepts `q` (literal case-insensitive
+substring across title/author/source provider/profile, maximum 256 UTF-8 bytes),
+`format` (all/ebook/audiobook), `limit` (1–100, default 100) and `cursor`.
+The response preserves `items` and `generatedAt` and adds global `total` reviews,
+`conflictCount`, filtered review count `filtered`, and optional `nextCursor`.
+Invalid/unknown/duplicate parameters return 400; unavailable persistence returns
+503, not an empty review queue. Imported and unmonitored tracked books participate;
+removed/ignored books do not.
+
+Reviews and direct metadata detail now use the same batched provenance reader in
+repeatable-read transactions. Field comparison preserves Unicode letters/marks/
+numbers and canonical Unicode composition. Provider format is informative, because
+the wanted format is the owner's acquisition target. Conflicts without a current
+canonical value still need an explicit metadata choice in book details.
+
+The collection projects all active book metadata per request to obtain exact
+counts, rather than maintaining an eventually consistent review index. There are
+no per-book database or provider round trips. Processing and memory still grow
+with the library; only the response is bounded. Sort keys are PostgreSQL lowercase
+title/author with C collation and UUID ties. Review cursors have a distinct
+namespace, bind filters and survive process restart; multi-request traversal is
+not a frozen snapshot. Evidence revisions are calculated for the returned page,
+not every counted book.
+
+`POST /api/v1/wanted/metadata/review/confirm-canonical` accepts 1–200 UUID entries
+in `wantedIds`, deduplicates them, and validates every requested identity before
+mutation. Optional `revisions` maps exactly those IDs to their displayed evidence
+hashes; the native UI supplies it. A stale hash or concurrent owner change returns
+409 and rolls back every confirmation. Missing/invalid selections, mixed `all`
+and IDs, malformed/unknown JSON fields or multiple JSON objects return 400.
+Resolved/removed/ignored books and books without confirmable canonical values
+are reported as skipped.
+
+The transaction locks selected books in UUID order, updates acceptance reasons
+on existing override rows, and inserts only when the observed override was absent.
+It never replaces an existing value. Updating existing rows rather than upserting
+also prevents resurrecting a concurrently cleared override; snapshot serialization
+failures become a retryable 409. Native corrections and clears take the book lock
+first as well, so their lock order cannot invert confirmation. Those owner actions
+serialize behind confirmation and remain the final value/clear. Direct metadata
+correction remains available.
+Older API clients without revisions explicitly confirm the current server snapshot.
+Legacy `all: true` now processes the entire active review selection atomically,
+rather than the first 200 rows. It is synchronous and can be expensive; it is not
+a resumable all-matching bulk job and is not the native UI's selected-page action.

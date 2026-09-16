@@ -1176,9 +1176,9 @@ books, so return to the first page to restart a traversal after edits.
 
 Selections clear on page/filter/tab changes. Select shown, mass edits, selected
 search and selected upgrade actions affect only the current selected page.
-Scheduled batch buttons remain separate 50-book actions. Review's count is marked
-as loaded because review pagination is still unfinished; file list,
-compatibility and other legacy collection readers retain separate scaling work.
+Scheduled batch buttons remain separate 50-book actions. Metadata Review now
+uses its own paged collection; file lists, compatibility and other legacy readers
+retain separate scaling work.
 
 
 ### Author subscription browsing
@@ -1195,3 +1195,21 @@ Author Batch and Force Author Batch check at most 50 subscriptions; each row's
 refresh targets that subscription only. These are subscription settings rows,
 not a deduplicated catalog of every writer in the library. The separate author
 review queue still uses its existing bounded reader.
+
+
+### Metadata Review
+
+Wanted → Review includes tracked imported and unmonitored books with conflicting
+metadata; removed and ignored books stay excluded. Search and format filters
+apply to the full queue, and Previous/Next pages up to 100 reviews. The Review
+count and conflict summary cover the full library, not just the loaded page.
+Provider edition formats remain visible evidence but do not conflict with the
+owner's ebook/audiobook acquisition choice.
+
+Select shown and Keep current operate on the current page only. Every selected
+confirmation commits together or rolls back together. Changed displayed evidence,
+concurrent owner corrections and concurrently cleared overrides require a fresh
+review instead of overwriting the owner's choice. If a conflicting field has no
+current value to keep, open the book details and choose a value; skipped books
+are reported explicitly. Refresh page reloads evidence without broadening the
+selection. Collection-wide resumable bulk jobs remain future work.

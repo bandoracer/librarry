@@ -285,11 +285,16 @@ type MetadataProvenance struct {
 }
 
 type MetadataReviewQueue struct {
-	Items       []MetadataReviewItem `json:"items"`
-	GeneratedAt time.Time            `json:"generatedAt"`
+	Total         int                  `json:"total"`
+	Filtered      int                  `json:"filtered"`
+	ConflictCount int                  `json:"conflictCount"`
+	NextCursor    string               `json:"nextCursor,omitempty"`
+	Items         []MetadataReviewItem `json:"items"`
+	GeneratedAt   time.Time            `json:"generatedAt"`
 }
 
 type MetadataReviewItem struct {
+	Revision       string                  `json:"revision"`
 	WantedItem     WantedItem              `json:"wantedItem"`
 	Fields         []MetadataFieldEvidence `json:"fields"`
 	ConflictCount  int                     `json:"conflictCount"`
@@ -310,8 +315,9 @@ type MetadataCorrectionBatchRequest struct {
 }
 
 type MetadataReviewConfirmRequest struct {
-	WantedIDs []string `json:"wantedIds,omitempty"`
-	All       bool     `json:"all,omitempty"`
+	Revisions map[string]string `json:"revisions,omitempty"`
+	WantedIDs []string          `json:"wantedIds,omitempty"`
+	All       bool              `json:"all,omitempty"`
 }
 
 type MetadataReviewConfirmOutcome struct {

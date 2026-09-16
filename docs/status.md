@@ -40,8 +40,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [worker fairness PR #24](https://github.com/bandoracer/librarry/pull/24),
 [explicit upgrade selection PR #25](https://github.com/bandoracer/librarry/pull/25),
 [collection projection PR #26](https://github.com/bandoracer/librarry/pull/26),
-[book paging PR #27](https://github.com/bandoracer/librarry/pull/27), and
-the `codex/paged-author-subscriptions` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[book paging PR #27](https://github.com/bandoracer/librarry/pull/27),
+[author paging PR #28](https://github.com/bandoracer/librarry/pull/28), and
+the `codex/paged-metadata-review` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -554,5 +555,8 @@ matches book details; outages remain explicit. This is source and isolated
 fixture qualification. Native author subscriptions now also page across the full
 collection with provider-identity/format book counts. Ambiguous or unresolved
 identities remain explicit; manual author overrides are excluded from recorded
-author membership. Metadata review, other legacy readers,
-compatibility and durable all-matching jobs remain unfinished under S14/S15.
+author membership. Native metadata Review now includes older/imported/unmonitored
+books, full counts, paging and selections bound to the displayed evidence.
+Confirmations are atomic and protect concurrent corrections and clears. Author
+metadata review, file/legacy readers, compatibility and durable all-matching jobs
+remain unfinished under S14/S15.

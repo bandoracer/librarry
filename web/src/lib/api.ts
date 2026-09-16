@@ -525,6 +525,7 @@ export type MetadataProvenance = {
 };
 
 export type MetadataReviewItem = {
+  revision?: string;
   wantedItem: WantedItem;
   fields: MetadataFieldEvidence[];
   conflictCount: number;
@@ -534,12 +535,18 @@ export type MetadataReviewItem = {
   lastFetchedAt?: string;
 };
 
+export type MetadataReviewOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; cursor?: string; limit?: number };
 export type MetadataReviewQueue = {
+  total: number;
+  filtered: number;
+  conflictCount: number;
+  nextCursor?: string;
   items: MetadataReviewItem[];
   generatedAt: string;
 };
 
 export type MetadataReviewConfirmRequest = {
+  revisions?: Record<string, string>;
   wantedIds?: string[];
   all?: boolean;
 };
@@ -1798,12 +1805,15 @@ export async function fetchWantedMetadata(wantedID: string): Promise<MetadataPro
   return (await response.json()) as MetadataProvenance;
 }
 
-export async function fetchWantedMetadataReview(): Promise<MetadataReviewQueue> {
-  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/review`);
+export async function fetchWantedMetadataReview(options: MetadataReviewOptions = {}, signal?: AbortSignal): Promise<MetadataReviewQueue> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/review?${params}`, { signal });
   if (!response.ok) {
     throw new Error(await apiError(response, "Wanted metadata review failed"));
   }
-  return (await response.json()) as MetadataReviewQueue;
+  const data = await response.json() as MetadataReviewQueue;
+  return { ...data, items: arrayPayload(data.items) };
 }
 
 export async function confirmWantedMetadataReviewCanonical(request: MetadataReviewConfirmRequest): Promise<MetadataReviewConfirmOutcome> {

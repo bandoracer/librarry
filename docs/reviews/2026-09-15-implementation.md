@@ -1277,3 +1277,77 @@ The final `go test ./...` run also passed. Next audited gap: the metadata Review
 queue calls the 200-row `ListWanted` reader, performs per-book provenance reads,
 and explicitly skips imported books. Selected canonical-confirmation also depends
 on that truncated queue. These remain the next S14/S15 continuation.
+
+
+Author subscription PR #28 at `57a12a28e500b413b530e303abae089b47a66fb0` passed
+[CI 35090148378](https://github.com/bandoracer/librarry/actions/runs/35090148378),
+including source/race/browser, packaged restore and platform image gates.
+
+
+## Continuation: native metadata Review and atomic confirmation (S14/S15)
+
+Branch `codex/paged-metadata-review` follows PR #28. Review previously inspected
+only 200 wanted rows, skipped imported books and made per-book provenance queries.
+Selected confirmation used that truncated queue and could partially commit a
+multi-book request. The native endpoint now counts and pages every active tracked
+book with unresolved metadata, including imported/unmonitored books. Removed and
+ignored books stay excluded. Full text/format filtering, stable title/author/UUID
+keys, cursor binding, global totals and explicit read errors replace loaded-list
+inference. Direct provenance and Review share a repeatable-read batched reader.
+
+The reader projects all active metadata per request. It has no per-book database
+or provider round trips, but processing/memory still grow with library size; only
+the returned page is bounded. The final local scale fixture has 10,001 active books
+with distinct work/provider records, and traverses 101 pages without gaps or
+duplicates at 208.342 ms p95 (Apple M5 Max/ARM64, Colima Postgres 16.15; no external
+provider IO). Revisions are computed only for the page/lookahead rather than for
+every counted book. Unicode comparison preserves letters/marks/numbers and NFC
+composition; differing CJK titles no longer collapse to the same empty ASCII key.
+Provider edition format remains visible evidence without contradicting an owner's
+explicit ebook/audiobook acquisition target.
+
+Keep current validates every selected UUID independently of the collection page,
+locks books in UUID order, and commits all accepted fields together. Native UI
+requests bind the displayed field evidence via revisions; stale evidence returns
+409. Existing overrides change only their acceptance reason. An initial upsert
+implementation reproduced a race that resurrected a concurrently cleared override;
+separate UPDATE/INSERT paths fixed it. Native corrections and clears now take the
+book lock before override changes to avoid inverse lock ordering. Tests prove both
+native serialized owner actions and noncooperating older update/delete writers:
+new owner values or clears survive, while stale concurrent confirmation aborts.
+A controlled late write failure rolls back all earlier confirmations. Missing IDs
+reject the entire selection. A 200-book older selection and a 501-book all request
+prove the old listing cap no longer limits mutation membership.
+
+The native UI adds Review filtering/paging, global counters, current-page scope,
+retryable failure states and explicit skipped-book feedback. Selection clears on
+page/filter/tab changes, evidence revisions travel with confirmation, and mobile
+navigation keeps the active Review tab in horizontal view without moving the
+whole page vertically. The separate author metadata review queue remains capped;
+file/legacy readers, search badges, compatibility, removed-item browsing and
+resumable all-matching bulk jobs remain open. Legacy API `all: true` is synchronous
+and atomic, not a durable bulk job.
+
+Validation before final image qualification: full Go race/Postgres suite passed;
+final revision/confirmation/owner-lock contracts passed with races. The 14 web unit
+checks, production build and all 67 applicable desktop/mobile browser cases passed
+(one expected mobile skip); the ten Review/book paging cases passed again after
+mobile navigation/busy-state fixes. The initial browser failures exposed an
+initial debounce reset and an over-exact test message expectation; both were
+corrected. The initial stale-revision fixture changed zero confidence to zero and
+was corrected to actually change the record; the final stale-revision regression
+passes. Mobile Review was visually inspected at 390x844.
+
+
+The final `go test ./...` run with Postgres and vet passed after the owner lock
+ordering change, as did focused race checks for native and noncooperating
+update/clear races. The final local ARM64 API/web pair (`librarry-api:paged-review`
+and `librarry-web:paged-review`) passed schema-43 packaged qualification: imported
+conflicts, exact counts, complete cursor traversal, cursor continuation after
+restart, selected confirmation preserving other overrides, authentication, and a
+413,546-byte isolated database restore with settings/evidence/receipts intact.
+Earlier package runs and the pre-fix clear-race reproduction are superseded by
+these final checks. No real provider request, acquisition, production deployment,
+image publication, tag or release occurred. The full stabilization goal remains
+active; S14/S15 are not complete. Next audited collection gap: AuthorsTab's author
+review panel fetches the capped candidate list and displays only six entries.
