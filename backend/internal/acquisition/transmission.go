@@ -741,6 +741,7 @@ type transmissionTorrentAdded struct {
 }
 
 type transmissionTorrent struct {
+	IsFinished         bool     `json:"isFinished"`
 	ID                 int      `json:"id"`
 	HashString         string   `json:"hashString"`
 	Name               string   `json:"name"`
@@ -911,6 +912,7 @@ func (t transmissionTorrent) DownloadStatus(now time.Time) DownloadStatus {
 	}
 	return DownloadStatus{
 		Client:          "Transmission",
+		SeedGoalMet:     t.IsFinished,
 		ID:              firstNonEmpty(t.HashString, strconv.Itoa(t.ID)),
 		Name:            t.Name,
 		State:           state,
@@ -1470,7 +1472,7 @@ func transmissionStatusFields() []string {
 	return []string{
 		"id", "hashString", "name", "status", "percentDone", "downloadDir",
 		"totalSize", "downloadedEver", "uploadedEver", "rateDownload",
-		"rateUpload", "eta", "uploadRatio", "peersConnected",
+		"rateUpload", "eta", "uploadRatio", "peersConnected", "isFinished",
 		"peersGettingFromUs", "peersSendingToUs", "addedDate", "doneDate",
 		"activityDate", "error", "errorString", "labels",
 	}

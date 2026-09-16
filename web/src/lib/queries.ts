@@ -107,12 +107,16 @@ export function useReadarrCompatibility() {
   });
 }
 
-export function useWanted() {
-  return useQuery({
+export function libraryQueryOptions() {
+  return {
     queryKey: keys.wanted,
-    queryFn: withDemoFallback(fetchWanted, () => demoSeeds.wantedItems),
+    queryFn: withDemoFallback(() => fetchWanted("library"), () => demoSeeds.wantedItems.filter((item) => !["removed", "ignored"].includes(item.status))),
     refetchInterval: 30_000
-  });
+  };
+}
+
+export function useWanted() {
+  return useQuery(libraryQueryOptions());
 }
 
 /** Wanted items whose tracked file scores under the profile cutoff (server-defined view). */
@@ -413,19 +417,13 @@ export function useCalendar(start: string, end: string, unmonitored: boolean) {
 
 /**
  * Session/auth state, polled every minute. Any fetch failure resolves to an
- * open install ({method:"none", authenticated:true}) so installs without the
- * auth endpoints — or with an unreachable API — are never locked out.
+ * demo install only when demo mode is explicitly enabled. Real failures remain
+ * errors so the UI can offer connection recovery without inventing auth state.
  */
 export function useAuthStatus() {
   return useQuery<AuthStatus>({
     queryKey: m6Keys.authStatus,
-    queryFn: async () => {
-      try {
-        return await fetchAuthStatus();
-      } catch {
-        return { method: "none", authenticated: true };
-      }
-    },
+    queryFn: withDemoFallback<AuthStatus>(fetchAuthStatus, () => ({ method: "none", authenticated: true })),
     refetchInterval: 60_000,
     retry: 0
   });

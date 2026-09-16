@@ -3,6 +3,7 @@ package acquisition
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -187,7 +188,7 @@ func (s *SQLDownloadStore) MarkDownloadsDeleted(ctx context.Context, ids []strin
 		return nil
 	}
 	for _, id := range compactStrings(ids) {
-		if _, err := s.db.ExecContext(ctx, `
+		if _, err := s.execDownloadMutation(ctx, `
 			update downloads
 			set state = 'removed', last_seen_at = now(), updated_at = now()
 			where external_id = $1
@@ -202,7 +203,7 @@ func (s *SQLDownloadStore) MarkDownloadFailed(ctx context.Context, id string, re
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set failure_reason = $2,
 			failed_at = coalesce(failed_at, now()),
@@ -216,7 +217,7 @@ func (s *SQLDownloadStore) ClearDownloadFailure(ctx context.Context, id string) 
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set failure_reason = '',
 			failed_at = null,
@@ -236,7 +237,7 @@ func (s *SQLDownloadStore) MarkDownloadReplacement(ctx context.Context, id strin
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set retry_count = retry_count + 1,
 			replacement_external_id = $2,
@@ -250,7 +251,7 @@ func (s *SQLDownloadStore) MarkDownloadImported(ctx context.Context, id string, 
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set import_status = 'imported',
 			imported_file_id = nullif($2, '')::uuid,
@@ -266,7 +267,7 @@ func (s *SQLDownloadStore) MarkDownloadImportError(ctx context.Context, id strin
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set import_status = 'error',
 			import_error = $2,
@@ -292,4 +293,32 @@ func importStatusForDownload(download DownloadStatus) string {
 		return "ready"
 	}
 	return "pending"
+}
+
+// WithDownloadClient binds external IDs to their owning client for store
+// mutations. Legacy callers without a client can only mutate a unique ID.
+type downloadClientContextKey struct{}
+
+func WithDownloadClient(ctx context.Context, client string) context.Context {
+	return context.WithValue(ctx, downloadClientContextKey{}, strings.TrimSpace(client))
+}
+
+func (s *SQLDownloadStore) execDownloadMutation(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	client, _ := ctx.Value(downloadClientContextKey{}).(string)
+	args = append(args, client)
+	parameter := "$" + strconv.Itoa(len(args))
+	query += ` and id = (select min(candidate.id::text)::uuid from downloads candidate
+ where candidate.external_id = $1 and (` + parameter + ` = '' or lower(candidate.client) = lower(` + parameter + `)) having count(*) = 1)`
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if count != 1 {
+		return result, fmt.Errorf("download ID was not found or is ambiguous; specify its client")
+	}
+	return result, nil
 }

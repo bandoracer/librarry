@@ -8,12 +8,12 @@ on:
       - "v*"
   pull_request:
     paths:
-      - ".github/workflows/container-images.yml"
+      - ".github/workflows/**"
+      - "scripts/**"
+      - ".mise.toml"
       - ".dockerignore"
       - "backend/**"
-      - "deploy/Dockerfile.api"
-      - "deploy/Dockerfile.web"
-      - "deploy/nginx.conf"
+      - "deploy/**"
       - "go.mod"
       - "go.sum"
       - "web/**"
@@ -24,7 +24,10 @@ permissions:
   packages: write
 
 jobs:
+  verify:
+    uses: ./.github/workflows/checks.yml
   build:
+    needs: verify
     name: Build ${{ matrix.image.name }}
     runs-on: ubuntu-latest
     strategy:
@@ -65,12 +68,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Record build identity
+        id: identity
+        run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build and optionally push image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '0.4.2-dev' }}
+            COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ steps.identity.outputs.time }}
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}

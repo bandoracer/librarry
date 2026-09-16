@@ -80,7 +80,7 @@ import "./library.css";
 
 const BOOK_ROW_CAP = 80;
 
-const subtitle = navItems.find((item) => item.id === "library")?.subtitle ?? "Monitored authors and books";
+const subtitle = navItems.find((item) => item.id === "library")?.subtitle ?? "Books and authors";
 
 const formatOptions: { value: LibraryFormatFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -148,7 +148,7 @@ export default function LibraryPage() {
     () => ({
       authors: authorRows.length,
       monitoredAuthors: authorSubscriptions.length,
-      monitoredBooks: wantedItems.filter((item) => item.monitored).length,
+      books: wantedItems.length,
       missing: wantedSummary.missing,
       downloading: wantedSummary.downloading,
       downloaded: wantedSummary.downloaded,
@@ -567,7 +567,7 @@ export default function LibraryPage() {
         title="Library"
         subtitle={subtitle}
         actions={
-          tab === "books" ? (
+          tab === "books" && wantedItems.length > 0 ? (
             <>
               <ToolbarButton
                 icon={RadioTower}
@@ -640,11 +640,12 @@ export default function LibraryPage() {
           </InlineNotice>
         ))}
 
+        {wantedItems.length > 0 ? <>
         <StatBar
           stats={[
             { label: "Authors", value: summary.authors },
-            { label: "Monitored", value: summary.monitoredAuthors },
-            { label: "Books", value: summary.monitoredBooks },
+            { label: "Monitored authors", value: summary.monitoredAuthors },
+            { label: "Books", value: summary.books },
             { label: "Missing", value: summary.missing, tone: summary.missing > 0 ? "danger" : "neutral" },
             { label: "Downloading", value: summary.downloading, tone: summary.downloading > 0 ? "info" : "neutral" },
             { label: "Downloaded", value: summary.downloaded, tone: summary.downloaded > 0 ? "success" : "neutral" },
@@ -680,6 +681,8 @@ export default function LibraryPage() {
           </select>
           <Segmented options={viewOptions} value={viewMode} onChange={changeViewMode} ariaLabel="Books view mode" />
         </div>
+
+        </> : null}
 
         {editMode ? (
           <Card className="library-bulk-card">
@@ -769,7 +772,7 @@ export default function LibraryPage() {
         ) : null}
 
         <Card
-          title="Monitored books"
+          title="Books"
           subtitle={booksSubtitle}
           padded={false}
           actions={
@@ -781,7 +784,7 @@ export default function LibraryPage() {
           }
         >
           {wanted.isLoading ? (
-            <LoadingRow label="Loading monitored books…" />
+            <LoadingRow label="Loading books…" />
           ) : shownBooks.length ? (
             viewMode === "posters" ? (
               renderPostersView()
@@ -793,7 +796,7 @@ export default function LibraryPage() {
           ) : (
             <EmptyState
               icon={BookOpen}
-              title={filtersActive ? "No monitored books match this filter" : "No monitored books yet"}
+              title={filtersActive ? "No books match these filters" : "Your library is empty"}
               actions={
                 filtersActive ? (
                   <Button size="sm" onClick={clearFilters}>
@@ -807,10 +810,10 @@ export default function LibraryPage() {
               }
             >
               {filtersActive
-                ? "Adjust the filters to see the rest of the library plan."
+                ? "Adjust the filters to see more books."
                 : wanted.isError
                   ? "Books are unavailable until the error above is resolved."
-                  : "Search metadata, monitor authors, and mark books wanted to build the library plan."}
+                  : "Find a book or author to start building your library."}
             </EmptyState>
           )}
         </Card>

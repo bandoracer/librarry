@@ -54,14 +54,18 @@ Current gaps:
 - A real Readarr migration dry run, real book-root scan, and full
   wanted-to-import loop still need controlled validation before relying on
   Librarry as the only book automation system.
-- The first tagged release still needs to be cut after the GHCR image workflow
-  runs cleanly from `main`.
+- A stabilization effort is in progress; published tags through v0.4.1 predate
+  this work. The new safety changes are not yet a released or deployed build.
+- Completed-download imports currently require a single unambiguous book file.
+  Multi-chapter folders are retained for review until complete file-set import
+  and recovery are implemented.
 
 See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.
 
 ## Documentation
 
+- [Stabilization plan](docs/stabilization-plan.md): phased execution and release gates.
 - [Current status](docs/status.md): what works, what is risky, and what needs
   validation next.
 - [Deployment](docs/deployment.md): generic Docker Compose, TrueNAS, Unraid,

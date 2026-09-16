@@ -238,15 +238,15 @@ func TestFeedAuthRequiresAPIKeyWhenConfigured(t *testing.T) {
 	}
 }
 
-func TestAuthConfigEndpointSwitchesMethod(t *testing.T) {
+func TestAuthConfigEndpointRequiresDurablePersistence(t *testing.T) {
 	router, service := newAuthTestRouter(t, auth.MethodNone, "secret")
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/config", strings.NewReader(`{"method":"forms"}`))
 	req.Header.Set("X-Api-Key", "secret")
-	if got := requestStatus(t, router, req); got != http.StatusOK {
-		t.Fatalf("expected auth config 200, got %d", got)
+	if got := requestStatus(t, router, req); got != http.StatusServiceUnavailable {
+		t.Fatalf("expected auth config 503 without persistence, got %d", got)
 	}
-	if service.Method() != auth.MethodForms {
-		t.Fatalf("expected method forms, got %s", service.Method())
+	if service.Method() != auth.MethodNone {
+		t.Fatalf("failed persistence must preserve method, got %s", service.Method())
 	}
 
 	// Switching on auth without any user fails loudly.
@@ -260,5 +260,16 @@ func TestAuthConfigEndpointSwitchesMethod(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/auth/config", strings.NewReader(`{"method":"forms"}`))
 	if got := requestStatus(t, bare, req); got != http.StatusBadRequest {
 		t.Fatalf("expected 400 enabling auth without user, got %d", got)
+	}
+}
+
+func TestUnavailablePersistenceDoesNotDisableAuthentication(t *testing.T) {
+	for _, method := range []string{auth.MethodForms, auth.MethodBasic} {
+		service := auth.NewService(nil, slog.Default())
+		service.SetMethod(method)
+		router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*"}, Metadata: metadata.NewService(nil), Auth: service})
+		if got := requestStatus(t, router, httptest.NewRequest(http.MethodGet, "/api/v1/wanted", nil)); got != http.StatusUnauthorized {
+			t.Fatalf("%s became open: %d", method, got)
+		}
 	}
 }

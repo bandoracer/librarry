@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
@@ -280,10 +280,41 @@ export function Modal(props: {
   footer?: React.ReactNode;
   wide?: boolean;
 }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  const close = useRef(props.onClose);
+  close.current = props.onClose;
+  useEffect(() => {
+    if (!props.open || !dialog.current) return;
+    const element = dialog.current;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusable = () => Array.from(element.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(node => node.getClientRects().length > 0 && !node.closest('[inert], [aria-hidden="true"]'));
+    const isTopDialog = () => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      return dialogs[dialogs.length - 1] === element;
+    };
+    (focusable()[0] ?? element).focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (!isTopDialog()) return;
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close.current(); }
+      if (event.key !== "Tab") return;
+      const nodes = focusable();
+      const first = nodes[0] ?? element;
+      const last = nodes[nodes.length - 1] ?? element;
+      if (event.shiftKey && (document.activeElement === first || !element.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !element.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => { document.removeEventListener("keydown", handleKey); if (previous?.isConnected) previous.focus(); };
+  }, [props.open]);
   if (!props.open) return null;
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && props.onClose()}>
-      <div className={`modal${props.wide ? " modal-wide" : ""}`} role="dialog" aria-modal="true" aria-label={props.title}>
+      <div className={`modal${props.wide ? " modal-wide" : ""}`} ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label={props.title}>
         <div className="modal-head">
           <h2>{props.title}</h2>
           <button type="button" className="icon-btn" onClick={props.onClose} aria-label="Close">

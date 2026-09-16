@@ -1154,6 +1154,7 @@ code {
     position: fixed;
     inset: 0 auto 0 0;
     width: min(280px, 84vw);
+    visibility: hidden;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     box-shadow: none;
@@ -1161,6 +1162,7 @@ code {
   }
 
   .sidebar.open {
+    visibility: visible;
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
   }

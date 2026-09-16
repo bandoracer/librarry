@@ -47,7 +47,7 @@ func (p *HardcoverProvider) Health(ctx Context) ProviderHealth {
 	if p.token == "" {
 		return health(p.Name(), "missing_credentials", false, "Set LIBRARRY_HARDCOVER_TOKEN to enable rich metadata.")
 	}
-	return health(p.Name(), "ready", true, "Token configured; requests are rate-limited by the backend.")
+	return health(p.Name(), "configured", true, "Token configured; authentication is verified when a request succeeds.")
 }
 
 func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
@@ -56,8 +56,6 @@ func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
 		Configured: p.token != "",
 		Capabilities: []string{
 			"book search",
-			"author search",
-			"series and edition enrichment",
 			"ebook/audiobook metadata",
 		},
 		Notes: []string{"Primary rich metadata provider. Token stays server-side."},
@@ -106,9 +104,12 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 	}
 
 	var decoded struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
 		Data struct {
 			Search struct {
-				Results []map[string]any `json:"results"`
+				Results json.RawMessage `json:"results"`
 			} `json:"search"`
 		} `json:"data"`
 	}
@@ -116,8 +117,15 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 		return nil, err
 	}
 
-	results := make([]SearchResult, 0, len(decoded.Data.Search.Results))
-	for _, raw := range decoded.Data.Search.Results {
+	if len(decoded.Errors) > 0 {
+		return nil, fmt.Errorf("hardcover GraphQL request failed (%d errors)", len(decoded.Errors))
+	}
+	rawResults, err := hardcoverSearchDocuments(decoded.Data.Search.Results)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]SearchResult, 0, len(rawResults))
+	for _, raw := range rawResults {
 		title := stringValue(raw["title"])
 		if title == "" {
 			continue
@@ -128,6 +136,10 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, er
 				authorName = stringValue(first["author_name"])
 			}
 		}
+		if names, ok := raw["author_names"].([]any); authorName == "" && ok && len(names) > 0 {
+			authorName = stringValue(names[0])
+		}
+
 		id := fmt.Sprintf("hardcover:%v", raw["id"])
 		result := SearchResult{
 			Provider: p.Name(),
@@ -588,4 +600,37 @@ func health(name string, status string, configured bool, message string) Provide
 		Message:    message,
 		CheckedAt:  time.Now().UTC(),
 	}
+}
+
+// Hardcover returns Typesense search JSON; retain array support for older
+// recorded responses while rejecting malformed/missing data as provider errors.
+func hardcoverSearchDocuments(raw json.RawMessage) ([]map[string]any, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, fmt.Errorf("hardcover search response is missing results")
+	}
+	var list []map[string]any
+	if raw[0] == '[' {
+		if err := json.Unmarshal(raw, &list); err != nil {
+			return nil, err
+		}
+		return list, nil
+	}
+	var envelope struct {
+		Hits *[]struct {
+			Document map[string]any `json:"document"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return nil, fmt.Errorf("invalid hardcover results: %w", err)
+	}
+	if envelope.Hits == nil {
+		return nil, fmt.Errorf("hardcover search response is missing hits")
+	}
+	for _, hit := range *envelope.Hits {
+		if hit.Document == nil {
+			return nil, fmt.Errorf("hardcover search hit is missing document")
+		}
+		list = append(list, hit.Document)
+	}
+	return list, nil
 }

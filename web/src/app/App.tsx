@@ -5,7 +5,7 @@ import { AppLayout } from "./AppLayout";
 import { defaultPath } from "./nav";
 import { queryClient, useAuthStatus } from "../lib/queries";
 import { ToastProvider } from "../components/toast";
-import { LoadingRow } from "../components/ui";
+import { Button, LoadingRow } from "../components/ui";
 
 const DashboardPage = lazy(() => import("../features/dashboard/DashboardPage"));
 const LibraryPage = lazy(() => import("../features/library/LibraryPage"));
@@ -22,11 +22,16 @@ const LoginPage = lazy(() => import("../features/auth/LoginPage"));
 
 /**
  * Forms-auth gate: unauthenticated sessions see the login page. API-key
- * clients and none/basic installs pass straight through (useAuthStatus
- * resolves open on any failure so a broken probe can never lock the UI).
+ * clients and none/basic installs pass after a successful status probe.
  */
 function AuthGate(props: { children: React.ReactNode }) {
   const auth = useAuthStatus();
+  if (auth.isPending) return <div className="page-loading"><LoadingRow /></div>;
+  if (auth.isError) return <main className="workspace" role="alert">
+    <h1>Can’t connect to Librarry</h1>
+    <p>Check that the server is running, then try again.</p>
+    <Button onClick={() => void auth.refetch()} disabled={auth.isFetching}>Try again</Button>
+  </main>;
   if (auth.data && auth.data.method === "forms" && !auth.data.authenticated) {
     return <LoginPage />;
   }

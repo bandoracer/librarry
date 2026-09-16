@@ -20,7 +20,7 @@ export const demoModeEnabled = import.meta.env.VITE_LIBRARRY_DEMO === "true";
  * untouched — real deployments must never silently show fake data.
  */
 export function withDemoFallback<T>(fetcher: () => Promise<T>, fallback: () => T): () => Promise<T> {
-  if (!demoModeEnabled) return fetcher;
+  if (!demoModeEnabled) return () => fetcher();
   return async () => {
     try {
       return await fetcher();

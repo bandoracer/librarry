@@ -16,6 +16,47 @@ configured, `/api/` accepts `X-Api-Key`, `apikey`, `apiKey`, or bearer auth;
 `/healthz` and `/ping` remain unauthenticated for local and container probes.
 The web UI stores the key per browser from Settings.
 
+## Reproducible verification
+
+Use Go 1.26.8 and Node 22 (`mise install`). A Docker context with permission to
+start disposable containers is required for the integration command:
+
+```bash
+scripts/test-integration.sh
+scripts/check-deployment.sh
+cd web
+npm ci
+npm test
+npm run build
+```
+
+`test-integration.sh` starts and removes its own Postgres 16 container. Every Go
+integration test creates a unique database and drops only that database. An
+explicit `LIBRARRY_TEST_DATABASE_URL` can reuse a disposable server; production
+`LIBRARRY_DATABASE_URL` is never used by the test harness. Without the test URL,
+plain `go test` reports integration cases as skipped rather than qualified.
+
+For browser tests, supply a disposable database URL, install Chromium, and run:
+
+```bash
+cd web
+npx playwright install chromium
+LIBRARRY_TEST_DATABASE_URL=postgres://postgres:librarry-test@127.0.0.1:15432/librarry_test?sslmode=disable npm run test:browser
+```
+
+The browser harness starts isolated API/Vite processes on 18182/15173 with all
+acquisition automation disabled and no inherited provider/client credentials.
+It applies migrations to the supplied disposable database. Browser artifacts go
+under `output/playwright/`. CI runs Go vet/race/Postgres tests, frontend tests and
+build, browser checks, and deployment configuration checks before building images.
+
+Configured forms/basic authentication requires Postgres and a usable user at
+startup. Unknown methods or an unavailable persisted auth setting are errors;
+only explicit/default `none` starts open. UI auth changes must persist before
+changing the active method. An environment-owned auth method cannot be changed
+through the UI. Other settings still have their existing persisted precedence;
+a unified source/precedence UI remains part of the stabilization plan.
+
 ## Frontend
 
 ```bash

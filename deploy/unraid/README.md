@@ -89,3 +89,18 @@ docker exec librarry-postgres pg_dump -U librarry librarry > librarry.sql
 Both `librarry-api` and `librarry-web` GHCR packages are public, so Unraid can
 pull them without a GitHub login. The stack supports the normal Unraid x86_64
 servers and ARM64 Docker hosts.
+
+## Stabilization candidate configuration
+
+All deployment variants now pass completed import/removal controls, import mode,
+rename/recycle/extra-file settings, and import-list sync interval to the API.
+Automatic grabbing and removal remain enabled by default. To retain all completed
+downloads, set `LIBRARRY_COMPLETED_REMOVE_ENABLED=false`; source Compose and image
+Compose now honor it. Use `hardlinkOrCopy`, `hardlink`, or `copy` for
+`LIBRARRY_COMPLETED_IMPORT_MODE`; completed-download move mode is rejected.
+
+Removal is individually gated by verified imported content and actual seeding
+eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client.
+Back up both Postgres and library/download data before upgrading. The local
+fixture restore check does not qualify restoration of the live homelab backup.
+No September candidate release or production rollback rehearsal is complete yet.

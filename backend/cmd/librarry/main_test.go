@@ -138,15 +138,15 @@ func TestCompletedDownloadRemovalEligible(t *testing.T) {
 		download acquisition.DownloadStatus
 		eligible bool
 	}{
-		{"qbit 5.x stoppedUP imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "stoppedUP", ImportStatus: "imported", Progress: 1}, true},
-		{"qbit 4.x pausedUP imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "pausedUP", ImportStatus: "imported", Progress: 1}, true},
-		{"qbit still uploading", acquisition.DownloadStatus{Client: "qBittorrent", State: "uploading", ImportStatus: "imported", Progress: 1}, false},
+		{"qbit 5.x stoppedUP imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "stoppedUP", ImportStatus: "imported", Progress: 1, SeedGoalMet: true}, true},
+		{"qbit 4.x pausedUP imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "pausedUP", ImportStatus: "imported", Progress: 1, SeedGoalMet: true}, true},
+		{"qbit still uploading", acquisition.DownloadStatus{Client: "qBittorrent", State: "uploading", ImportStatus: "imported", Progress: 1, SeedGoalMet: true}, false},
 		{"qbit stopped but not imported", acquisition.DownloadStatus{Client: "qBittorrent", State: "stoppedUP", ImportStatus: "ready", Progress: 1}, false},
 		{"qbit stopped pending import", acquisition.DownloadStatus{Client: "qBittorrent", State: "stoppedUP", Progress: 1}, false},
-		{"transmission stopped and done", acquisition.DownloadStatus{Client: "Transmission", State: "completed", ImportStatus: "imported", Progress: 1}, true},
+		{"transmission stopped and done", acquisition.DownloadStatus{Client: "Transmission", State: "completed", ImportStatus: "imported", Progress: 1, SeedGoalMet: true}, true},
 		{"transmission stopped mid-download", acquisition.DownloadStatus{Client: "Transmission", State: "stopped", ImportStatus: "imported", Progress: 0.4}, false},
-		{"transmission still seeding", acquisition.DownloadStatus{Client: "Transmission", State: "seeding", ImportStatus: "imported", Progress: 1}, false},
-		{"sabnzbd completed import stays", acquisition.DownloadStatus{Client: "SABnzbd", State: "completed", ImportStatus: "imported", Progress: 1}, false},
+		{"transmission still seeding", acquisition.DownloadStatus{Client: "Transmission", State: "seeding", ImportStatus: "imported", Progress: 1, SeedGoalMet: true}, false},
+		{"sabnzbd completed import stays", acquisition.DownloadStatus{Client: "SABnzbd", State: "completed", ImportStatus: "imported", Progress: 1, SeedGoalMet: true}, false},
 	}
 	for _, testCase := range cases {
 		if got := completedDownloadRemovalEligible(testCase.download); got != testCase.eligible {
@@ -158,12 +158,12 @@ func TestCompletedDownloadRemovalEligible(t *testing.T) {
 func TestRunCompletedDownloadRemovalOnceDeletesEligibleDownloads(t *testing.T) {
 	client := &fakeCompletedDownloadLister{
 		rows: []acquisition.DownloadStatus{
-			{Client: "qBittorrent", ID: "keep-seeding", State: "uploading", ImportStatus: "imported", Progress: 1, Tags: []string{"librarry"}},
-			{Client: "qBittorrent", ID: "done-1", State: "stoppedUP", ImportStatus: "imported", Progress: 1, Tags: []string{"librarry"}},
-			{Client: "Transmission", ID: "done-2", State: "completed", ImportStatus: "imported", Progress: 1, Tags: []string{"librarry"}},
+			{Client: "qBittorrent", ID: "keep-seeding", State: "uploading", ImportStatus: "imported", Progress: 1, SeedGoalMet: true, Tags: []string{"librarry"}},
+			{Client: "qBittorrent", ID: "done-1", State: "stoppedUP", ImportStatus: "imported", Progress: 1, SeedGoalMet: true, Tags: []string{"librarry"}},
+			{Client: "Transmission", ID: "done-2", State: "completed", ImportStatus: "imported", Progress: 1, SeedGoalMet: true, Tags: []string{"librarry"}},
 		},
 	}
-	removed, err := runCompletedDownloadRemovalOnce(context.Background(), client)
+	removed, err := runCompletedDownloadRemovalOnce(context.Background(), client, fakeCompletedVerifier{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,4 +196,35 @@ func (f *fakeCompletedImportService) ImportCompletedDownloads(_ context.Context,
 	f.downloads = append(f.downloads, downloads)
 	f.requests = append(f.requests, request)
 	return f.outcome, nil
+}
+
+type fakeCompletedVerifier struct{}
+
+func (fakeCompletedVerifier) VerifyCompletedDownload(context.Context, acquisition.DownloadStatus, []acquisition.DownloadFile) error {
+	return nil
+}
+func (f *fakeCompletedDownloadLister) DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error) {
+	return acquisition.DownloadDetails{}, nil
+}
+
+func TestPausedDownloadDoesNotProveSeedGoal(t *testing.T) {
+	for _, client := range []string{"qBittorrent", "Transmission"} {
+		if completedDownloadRemovalEligible(acquisition.DownloadStatus{Client: client, State: "pausedUP", ImportStatus: "imported", Progress: 1}) {
+			t.Fatal("pause authorized cleanup")
+		}
+	}
+}
+
+func TestBootAuthenticationRejectsUnknownMode(t *testing.T) {
+	for _, mode := range []string{"formz", "false", "invalid"} {
+		if _, err := bootAuthMethod(context.Background(), nil, config.Config{AuthMethod: mode}); err == nil {
+			t.Fatalf("accepted %q", mode)
+		}
+	}
+	for _, mode := range []string{"none", "forms", "basic"} {
+		got, err := bootAuthMethod(context.Background(), nil, config.Config{AuthMethod: mode})
+		if err != nil || got != mode {
+			t.Fatalf("%s: %s %v", mode, got, err)
+		}
+	}
 }

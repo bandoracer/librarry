@@ -1529,7 +1529,7 @@ export async function recoverFailedDownloads(options: {
   return (await response.json()) as FailedDownloadRun;
 }
 
-export async function fetchWanted(view?: "cutoff-unmet"): Promise<WantedItem[]> {
+export async function fetchWanted(view?: "cutoff-unmet" | "library"): Promise<WantedItem[]> {
   const params = new URLSearchParams();
   if (view) params.set("view", view);
   const query = params.toString();

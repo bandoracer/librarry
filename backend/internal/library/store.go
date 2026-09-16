@@ -25,6 +25,16 @@ func (s *Store) Configured() bool {
 }
 
 func (s *Store) UpsertFile(ctx context.Context, file FileRecord) (FileRecord, error) {
+	return s.upsertFile(ctx, file, false)
+}
+
+// ObserveFile records filesystem evidence without replacing authoritative
+// associations, manual names, original source paths, or import provenance.
+func (s *Store) ObserveFile(ctx context.Context, file FileRecord) (FileRecord, error) {
+	return s.upsertFile(ctx, file, true)
+}
+
+func (s *Store) upsertFile(ctx context.Context, file FileRecord, observation bool) (FileRecord, error) {
 	if !s.Configured() {
 		return FileRecord{}, errors.New("library store is unavailable")
 	}
@@ -55,14 +65,14 @@ func (s *Store) UpsertFile(ctx context.Context, file FileRecord) (FileRecord, er
 		on conflict (path) do update set
 			edition_id = coalesce(excluded.edition_id, files.edition_id),
 			media_format = excluded.media_format,
-			source_path = excluded.source_path,
-			title = excluded.title,
-			author_name = excluded.author_name,
+			source_path = case when $13 then files.source_path else excluded.source_path end,
+			title = case when $13 then files.title else excluded.title end,
+			author_name = case when $13 then files.author_name else excluded.author_name end,
 			extension = excluded.extension,
 			size_bytes = excluded.size_bytes,
 			checksum = excluded.checksum,
-			import_status = excluded.import_status,
-			metadata = excluded.metadata,
+			import_status = case when $13 then files.import_status else excluded.import_status end,
+			metadata = case when $13 then files.metadata || jsonb_build_object('scanEvidence', excluded.metadata) else excluded.metadata end,
 			modified_at = excluded.modified_at,
 			updated_at = now()
 		returning
@@ -70,7 +80,7 @@ func (s *Store) UpsertFile(ctx context.Context, file FileRecord) (FileRecord, er
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
 			import_status, metadata, modified_at, created_at, updated_at
 	`, file.EditionID, file.MediaFormat, file.Path, file.SourcePath, file.Title, file.AuthorName,
-		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, file.ImportStatus, string(raw), file.ModifiedAt)
+		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, file.ImportStatus, string(raw), file.ModifiedAt, observation)
 	return scanFile(row)
 }
 

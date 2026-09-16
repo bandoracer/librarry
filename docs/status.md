@@ -1,12 +1,38 @@
 # Current Status
 
-Last updated: 2026-07-01.
+Last updated: 2026-09-15.
 
 Librarry is an early alpha Readarr replacement. It is useful for validating the
 metadata-first workflow and exercising acquisition integrations, but it is not
 yet ready to replace a production Readarr instance unattended.
 
-## Verified Working
+## September stabilization work
+
+The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
+separate current risks from the older milestone record below. The implementation
+branch adds exact single-file payload selection, protected scan observations,
+verified cleanup, scoped download mutations, authentication failure handling,
+configuration snapshots, repeated Prowlarr categories, CI tests, and UI recovery.
+See the [implementation ledger](reviews/2026-09-15-implementation.md) for evidence.
+
+These changes are **local, unreleased work**, not a certification of the current
+homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
+historical. No September production rollout or unattended soak is complete.
+
+Automatic import currently accepts one supported book file in an exact named
+payload. Multiple supported files, unresolved payloads, and symlinks are retained
+with an explanatory import error. Complete chapter-set imports remain planned.
+Automatic removal requires a new verified import receipt, complete client file
+inventory, current matching source/destination hashes, a destination outside the
+download root, and positive seed-goal evidence. Old `imported` rows alone are not
+eligible. Completed import rejects move mode; use hardlinkOrCopy, hardlink, or copy.
+
+Hardcover tokens currently establish configured state, not proven authentication.
+Book search handles Typesense result documents and GraphQL failures. Rich
+edition/author traversal and real-token qualification remain outstanding.
+
+## Historical verified milestones
 
 - The Go API, React web UI, Postgres migrations, and Docker/TrueNAS custom-app
   shape build and run together.

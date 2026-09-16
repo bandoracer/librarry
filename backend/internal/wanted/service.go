@@ -1270,7 +1270,7 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 
 		result := FailedDownloadResult{Download: download, FailureReason: reason}
 		run.FailedCount++
-		if err := s.acquire.MarkDownloadFailed(ctx, download.ID, reason); err != nil {
+		if err := s.acquire.MarkDownloadFailed(acquisition.WithDownloadClient(ctx, download.Client), download.ID, reason); err != nil {
 			result.Error = err.Error()
 			run.ErrorCount++
 			run.Items = append(run.Items, result)
@@ -1355,7 +1355,7 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 				} else {
 					result.ReplacementDownload = &status
 					run.GrabbedCount++
-					_ = s.acquire.MarkDownloadReplacement(ctx, download.ID, status.ID)
+					_ = s.acquire.MarkDownloadReplacement(acquisition.WithDownloadClient(ctx, download.Client), download.ID, status.ID)
 				}
 			}
 		}

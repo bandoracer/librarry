@@ -3,7 +3,10 @@
 ## Hardcover
 
 Set `LIBRARRY_HARDCOVER_TOKEN` on the backend. The token is server-side only and
-is used for rich metadata search, editions, series, and format hints.
+enables book search. Configured does not mean authenticated: GraphQL/HTTP errors
+are reported on requests. Typesense result documents are decoded, but author
+bibliography traversal and full rich edition/series enrichment are still pending
+qualification. Open Library continues to work independently.
 
 ## Open Library
 

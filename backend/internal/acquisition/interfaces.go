@@ -54,6 +54,7 @@ type DownloadRequest struct {
 }
 
 type DownloadStatus struct {
+	SeedGoalMet     bool       `json:"seedGoalMet"`
 	Client          string     `json:"client,omitempty"`
 	ID              string     `json:"id"`
 	Name            string     `json:"name"`

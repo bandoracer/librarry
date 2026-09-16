@@ -640,3 +640,26 @@ Default roots are:
 - `/data/media/books/ebooks`
 - `/data/media/books/audiobooks`
 - `/data/torrents/books`
+
+## Stabilization boundaries
+
+Acquisition operations hold one immutable client/configuration generation. Settings
+updates atomically publish a new generation; in-flight operations keep their
+original clients. Download mutations bind external IDs to a client; legacy callers
+without a client may mutate only an unambiguous external ID.
+
+Library scans call an observation-specific store method. The scan updates physical
+file evidence and keeps fresh local metadata under `scanEvidence`; it preserves
+existing names, wanted/download links, source paths, and Calibre metadata.
+
+A newly verified single-file completed import stores `verifiedDownload` evidence
+(client, external ID, SHA-256) in file metadata. This is an interim safety receipt,
+not the planned relational multipart operation ledger. Cleanup compares a fresh
+client file inventory and both filesystem hashes before requesting deletion.
+
+`GET /api/v1/wanted?view=library` includes tracked imported/unmonitored books and
+excludes removed/ignored entries. `cutoff-unmet` retains its separate membership.
+Unknown views return 400. Collection pagination and direct detail lookup remain
+planned. System status reports build version/commit/time, active authentication,
+and the applied migration filename/number. Local builds without an injected build
+timestamp report `unknown` rather than the request time.

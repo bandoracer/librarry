@@ -46,6 +46,7 @@ func main() {
 	var authStore *auth.Store
 	var tagsStore *tags.Store
 	var importListStore *importlists.Store
+	var schemaMigration string
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -59,6 +60,10 @@ func main() {
 			logger.Error("database migrations failed", "error", err)
 			os.Exit(1)
 		}
+		if err := db.QueryRowContext(ctx, "select coalesce(max(version), '') from schema_migrations").Scan(&schemaMigration); err != nil {
+			logger.Error("read applied migration", "error", err)
+			os.Exit(1)
+		}
 		downloadStore = acquisition.NewSQLDownloadStore(db)
 		wantedStore = wanted.NewStore(db)
 		libraryStore = library.NewStore(db)
@@ -70,6 +75,33 @@ func main() {
 		logger.Info("database migrations applied")
 	} else {
 		logger.Warn("LIBRARRY_DATABASE_URL is not set; starting without database-backed persistence")
+	}
+
+	// Auth (M6.2): an explicit LIBRARRY_AUTH_METHOD wins at boot; otherwise a
+	// UI-persisted method (compat resource auth-config) is restored.
+	authService := auth.NewService(authStore, logger)
+	method, err := bootAuthMethod(ctx, compatStore, cfg)
+	if err != nil {
+		logger.Error("authentication configuration failed", "error", err)
+		os.Exit(1)
+	}
+	authService.SetMethod(method)
+	if method != auth.MethodNone && !authService.Available() {
+		logger.Error("configured authentication requires database persistence")
+		os.Exit(1)
+	}
+	if cfg.AuthUsername != "" && cfg.AuthPassword != "" && authService.Available() {
+		if err := authService.EnsureUser(ctx, cfg.AuthUsername, cfg.AuthPassword); err != nil {
+			logger.Error("auth user seed failed", "error", err)
+			os.Exit(1)
+		}
+	}
+	if authService.Method() != auth.MethodNone && !authService.HasUser(ctx) {
+		logger.Error("configured authentication requires a usable user; supply LIBRARRY_AUTH_USERNAME and LIBRARRY_AUTH_PASSWORD")
+		os.Exit(1)
+	}
+	if authService.Method() != auth.MethodNone {
+		logger.Info("api authentication enabled", "method", authService.Method())
 	}
 
 	providers := metadata.DefaultProviders(metadata.ProviderConfig{
@@ -156,19 +188,6 @@ func main() {
 	wantedService.SetDefaultSearchLanguage(libraryConfig.StandardSearchLanguage)
 	notifier := notify.NewService(notifyStore, logger)
 
-	// Auth (M6.2): an explicit LIBRARRY_AUTH_METHOD wins at boot; otherwise a
-	// UI-persisted method (compat resource auth-config) is restored.
-	authService := auth.NewService(authStore, logger)
-	authService.SetMethod(bootAuthMethod(ctx, logger, compatStore, cfg))
-	if cfg.AuthUsername != "" && cfg.AuthPassword != "" && authService.Available() {
-		if err := authService.EnsureUser(ctx, cfg.AuthUsername, cfg.AuthPassword); err != nil {
-			logger.Warn("auth user seed failed", "error", err)
-		}
-	}
-	if authService.Method() != auth.MethodNone {
-		logger.Info("api authentication enabled", "method", authService.Method())
-	}
-
 	// Import lists (M6.3): Hardcover-native list sync.
 	importListService := importlists.NewService(
 		importListStore,
@@ -222,18 +241,19 @@ func main() {
 	}
 
 	deps := api.Dependencies{
-		Logger:      logger,
-		Config:      cfg,
-		Metadata:    metadataService,
-		Acquire:     acquire,
-		Wanted:      wantedService,
-		Library:     libraryService,
-		Notify:      notifier,
-		Scheduler:   registry,
-		Auth:        authService,
-		ImportLists: importListService,
-		Tags:        tagsStore,
-		Backups:     backupService,
+		SchemaMigration: schemaMigration,
+		Logger:          logger,
+		Config:          cfg,
+		Metadata:        metadataService,
+		Acquire:         acquire,
+		Wanted:          wantedService,
+		Library:         libraryService,
+		Notify:          notifier,
+		Scheduler:       registry,
+		Auth:            authService,
+		ImportLists:     importListService,
+		Tags:            tagsStore,
+		Backups:         backupService,
 	}
 	if compatStore != nil {
 		deps.Compat = compatStore
@@ -556,7 +576,7 @@ func completedDownloadImportTask(logger *slog.Logger, service completedDownloadI
 			notifier.DispatchAll(ctx, notify.EventsFromCompletedImports("completed-import", outcome))
 			removed := 0
 			if cfg.CompletedRemoveEnabled {
-				removed, err = runCompletedDownloadRemovalOnce(ctx, downloads)
+				removed, err = runCompletedDownloadRemovalOnce(ctx, downloads, service)
 				if err != nil {
 					logger.Warn("completed download removal failed", "trigger", trigger, "error", err)
 				}
@@ -614,7 +634,22 @@ func runCompletedDownloadImportOnce(ctx context.Context, service completedDownlo
 // runCompletedDownloadRemovalOnce deletes imported, seed-finished downloads
 // (with their data) from the download client. It lists fresh state so the
 // downloads imported earlier in the same tick are eligible immediately.
-func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownloadClient) (int, error) {
+type completedDownloadVerifier interface {
+	VerifyCompletedDownload(context.Context, acquisition.DownloadStatus, []acquisition.DownloadFile) error
+}
+type completedDownloadInspector interface {
+	DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error)
+}
+
+func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownloadClient, service any) (int, error) {
+	verifier, ok := service.(completedDownloadVerifier)
+	if !ok {
+		return 0, fmt.Errorf("completed cleanup requires import verification")
+	}
+	inspector, ok := client.(completedDownloadInspector)
+	if !ok {
+		return 0, fmt.Errorf("completed cleanup requires client file inventory")
+	}
 	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	rows, err := client.Downloads(runCtx, acquisition.DownloadListQuery{Tag: "librarry"})
@@ -625,6 +660,16 @@ func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownlo
 	var firstErr error
 	for _, download := range rows {
 		if !completedDownloadRemovalEligible(download) {
+			continue
+		}
+		details, err := inspector.DownloadDetails(runCtx, download.ID, download.Client)
+		if err == nil {
+			err = verifier.VerifyCompletedDownload(runCtx, download, details.Files)
+		}
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("cleanup retained %s: %w", download.ID, err)
+			}
 			continue
 		}
 		result, err := client.DownloadAction(runCtx, acquisition.DownloadActionRequest{
@@ -647,11 +692,10 @@ func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownlo
 }
 
 // completedDownloadRemovalEligible reports whether an imported download has
-// finished seeding and can be deleted with its data: qBittorrent parks
-// finished torrents in stoppedUP (5.x) or pausedUP (4.x), and Transmission
-// reports stopped-and-done torrents as completed.
+// finished seeding. A stopped state alone is insufficient: the client must
+// also report a satisfied seed goal. Import verification is a separate gate.
 func completedDownloadRemovalEligible(download acquisition.DownloadStatus) bool {
-	if !strings.EqualFold(strings.TrimSpace(download.ImportStatus), "imported") {
+	if !download.SeedGoalMet || download.Progress < 1 || !strings.EqualFold(strings.TrimSpace(download.ImportStatus), "imported") {
 		return false
 	}
 	state := strings.ToLower(strings.TrimSpace(download.State))
@@ -711,25 +755,27 @@ func calibreConversionRefreshTask(logger *slog.Logger, service calibreConversion
 
 // bootAuthMethod resolves the auth method at startup: explicit env wins, then
 // the UI-persisted compat resource, then none.
-func bootAuthMethod(ctx context.Context, logger *slog.Logger, compatStore *compatstore.Store, cfg config.Config) string {
-	if method := auth.NormalizeMethod(cfg.AuthMethod); method != "" {
-		return method
-	}
+func bootAuthMethod(ctx context.Context, compatStore *compatstore.Store, cfg config.Config) (string, error) {
 	if cfg.AuthMethod != "" {
-		logger.Warn("unrecognized LIBRARRY_AUTH_METHOD; falling back to none", "value", cfg.AuthMethod)
+		if method := auth.NormalizeMethod(cfg.AuthMethod); method != "" {
+			return method, nil
+		}
+		return "", fmt.Errorf("LIBRARRY_AUTH_METHOD must be none, basic, or forms")
 	}
 	if compatStore != nil {
-		if resource, ok, err := compatStore.GetResource(ctx, "auth-config", 1); err != nil {
-			logger.Warn("persisted auth method unavailable", "error", err)
-		} else if ok {
-			if raw, ok := resource.Payload["method"].(string); ok {
-				if method := auth.NormalizeMethod(strings.ToLower(strings.TrimSpace(raw))); method != "" {
-					return method
-				}
+		resource, ok, err := compatStore.GetResource(ctx, "auth-config", 1)
+		if err != nil {
+			return "", fmt.Errorf("read persisted authentication: %w", err)
+		}
+		if ok {
+			raw, _ := resource.Payload["method"].(string)
+			if method := auth.NormalizeMethod(raw); method != "" {
+				return method, nil
 			}
+			return "", fmt.Errorf("persisted authentication method is invalid")
 		}
 	}
-	return auth.MethodNone
+	return auth.MethodNone, nil
 }
 
 // importListSyncTask keeps enabled import lists in sync with their Hardcover

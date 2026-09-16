@@ -1162,12 +1162,13 @@ func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	path, _ = filepath.EvalSymlinks(path)
 	if got != path || format != "ebook" {
 		t.Fatalf("expected %s ebook, got %s %s", path, got, format)
 	}
 }
 
-func TestLocateDownloadSourceFindsBestFileInFolder(t *testing.T) {
+func TestLocateDownloadSourceRejectsAmbiguousFolder(t *testing.T) {
 	dir := t.TempDir()
 	folder := filepath.Join(dir, "Book Folder")
 	if err := os.MkdirAll(folder, 0o755); err != nil {
@@ -1182,16 +1183,13 @@ func TestLocateDownloadSourceFindsBestFileInFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, format, err := locateDownloadSource(acquisition.DownloadStatus{
+	_, _, err := locateDownloadSource(acquisition.DownloadStatus{
 		Name:     "Book Folder",
 		SavePath: dir,
 		Category: "books-ebook",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != large || format != "ebook" {
-		t.Fatalf("expected %s ebook, got %s %s", large, got, format)
+	if err == nil {
+		t.Fatal("multiple supported files must require review")
 	}
 }
 

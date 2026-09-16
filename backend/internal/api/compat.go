@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
+	"github.com/bandoracer/librarry/backend/internal/buildinfo"
 	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
@@ -82,12 +83,19 @@ func (h *handler) readarrCompatibility(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) compatSystemStatus(w http.ResponseWriter, r *http.Request) {
-	now := time.Now().UTC()
+	migration, _ := strconv.Atoi(strings.SplitN(h.deps.SchemaMigration, "_", 2)[0])
+	authentication := effectiveAuthMethod(h.deps.Auth)
+	if authentication == "none" && h.deps.Config.APIKey != "" {
+		authentication = "apiKey"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"appName":           "Librarry",
 		"instanceName":      "Librarry",
-		"version":           "0.4.1",
-		"buildTime":         now.Format(time.RFC3339),
+		"version":           buildinfo.Version,
+		"commit":            buildinfo.Commit,
+		"dirty":             buildinfo.Dirty,
+		"schemaMigration":   h.deps.SchemaMigration,
+		"buildTime":         buildinfo.BuildTime,
 		"isDebug":           false,
 		"isProduction":      true,
 		"isAdmin":           false,
@@ -102,9 +110,9 @@ func (h *handler) compatSystemStatus(w http.ResponseWriter, r *http.Request) {
 		"isOsx":             runtime.GOOS == "darwin",
 		"isWindows":         runtime.GOOS == "windows",
 		"mode":              "console",
-		"branch":            "main",
-		"authentication":    "none",
-		"migrationVersion":  0,
+		"branch":            "unknown",
+		"authentication":    authentication,
+		"migrationVersion":  migration,
 		"urlBase":           "",
 		"runtimeVersion":    runtime.Version(),
 		"runtimeName":       "go",

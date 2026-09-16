@@ -234,26 +234,29 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 		return nil, fmt.Errorf("qBittorrent list returned %s", resp.Status)
 	}
 	var raw []struct {
-		Hash         string  `json:"hash"`
-		Name         string  `json:"name"`
-		State        string  `json:"state"`
-		Progress     float64 `json:"progress"`
-		SavePath     string  `json:"save_path"`
-		Category     string  `json:"category"`
-		Tags         string  `json:"tags"`
-		Size         int64   `json:"size"`
-		TotalSize    int64   `json:"total_size"`
-		Downloaded   int64   `json:"downloaded"`
-		Uploaded     int64   `json:"uploaded"`
-		DownloadRate int64   `json:"dlspeed"`
-		UploadRate   int64   `json:"upspeed"`
-		ETA          int64   `json:"eta"`
-		Ratio        float64 `json:"ratio"`
-		Seeders      int     `json:"num_seeds"`
-		Peers        int     `json:"num_leechs"`
-		AddedOn      int64   `json:"added_on"`
-		CompletionOn int64   `json:"completion_on"`
-		LastActivity int64   `json:"last_activity"`
+		MaxRatio       *float64 `json:"max_ratio"`
+		MaxSeedingTime *int64   `json:"max_seeding_time"`
+		SeedingTime    int64    `json:"seeding_time"`
+		Hash           string   `json:"hash"`
+		Name           string   `json:"name"`
+		State          string   `json:"state"`
+		Progress       float64  `json:"progress"`
+		SavePath       string   `json:"save_path"`
+		Category       string   `json:"category"`
+		Tags           string   `json:"tags"`
+		Size           int64    `json:"size"`
+		TotalSize      int64    `json:"total_size"`
+		Downloaded     int64    `json:"downloaded"`
+		Uploaded       int64    `json:"uploaded"`
+		DownloadRate   int64    `json:"dlspeed"`
+		UploadRate     int64    `json:"upspeed"`
+		ETA            int64    `json:"eta"`
+		Ratio          float64  `json:"ratio"`
+		Seeders        int      `json:"num_seeds"`
+		Peers          int      `json:"num_leechs"`
+		AddedOn        int64    `json:"added_on"`
+		CompletionOn   int64    `json:"completion_on"`
+		LastActivity   int64    `json:"last_activity"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, err
@@ -266,6 +269,7 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 			size = item.TotalSize
 		}
 		statuses = append(statuses, DownloadStatus{
+			SeedGoalMet:     (item.MaxRatio != nil && *item.MaxRatio >= 0 && item.Ratio >= *item.MaxRatio) || (item.MaxSeedingTime != nil && *item.MaxSeedingTime >= 0 && item.SeedingTime/60 >= *item.MaxSeedingTime),
 			Client:          c.Name(),
 			ID:              item.Hash,
 			Name:            item.Name,

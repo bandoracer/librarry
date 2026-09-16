@@ -1,0 +1,35 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import { libraryQueryOptions } from "./queries";
+import { fetchWanted } from "./api";
+import { withDemoFallback } from "./demo";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("library query contract", () => {
+  it("does not serialize TanStack context and retains imported books", async () => {
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ wanted: [{ id: "one", status: "imported" }] })));
+    vi.stubGlobal("fetch", fetch);
+    const client = new QueryClient();
+    try {
+      const rows = await client.fetchQuery(libraryQueryOptions());
+      expect(fetch.mock.calls[0]?.[0]).toBe("/api/v1/wanted?view=library");
+      expect(rows.map(row => row.id)).toEqual(["one"]);
+    } finally { client.clear(); }
+  });
+  it("normalizes an empty persisted collection", async () => {
+    vi.stubGlobal("fetch", async () => new Response('{"wanted":null}'));
+    expect(await fetchWanted("library")).toEqual([]);
+  });
+  it("never passes callback context to optional fetcher arguments", async () => {
+    const fetcher = vi.fn(async () => []);
+    const client = new QueryClient();
+    try {
+      await client.fetchQuery({ queryKey: ["fixture"], queryFn: withDemoFallback(fetcher, () => []) });
+      expect(fetcher).toHaveBeenCalledWith();
+    } finally { client.clear(); }
+  });
+  it("propagates real failures instead of demo data", async () => {
+    await expect(withDemoFallback(async () => { throw new Error("offline"); }, () => ["fake"])()).rejects.toThrow("offline");
+  });
+});

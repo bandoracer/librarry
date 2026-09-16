@@ -33,20 +33,21 @@ import (
 const maxGrabUploadBytes = 64 << 20
 
 type Dependencies struct {
-	Logger      *slog.Logger
-	Config      config.Config
-	Metadata    *metadata.Service
-	Acquire     acquisitionService
-	Wanted      wantedService
-	Library     libraryService
-	Compat      compatResourceService
-	Notify      *notify.Service
-	Scheduler   *scheduler.Registry
-	Health      *HealthEvaluator
-	Auth        *auth.Service
-	ImportLists *importlists.Service
-	Tags        *tags.Store
-	Backups     *backups.Service
+	SchemaMigration string
+	Logger          *slog.Logger
+	Config          config.Config
+	Metadata        *metadata.Service
+	Acquire         acquisitionService
+	Wanted          wantedService
+	Library         libraryService
+	Compat          compatResourceService
+	Notify          *notify.Service
+	Scheduler       *scheduler.Registry
+	Health          *HealthEvaluator
+	Auth            *auth.Service
+	ImportLists     *importlists.Service
+	Tags            *tags.Store
+	Backups         *backups.Service
 }
 
 type acquisitionService interface {
@@ -2110,6 +2111,11 @@ func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
 		return
 	}
+	view := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("view")))
+	if view != "" && view != "library" && view != "cutoff-unmet" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "view must be library or cutoff-unmet"})
+		return
+	}
 	var items []wanted.WantedItem
 	var err error
 	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "cutoff-unmet") {
@@ -2123,6 +2129,15 @@ func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
 	}
 	if items == nil {
 		items = []wanted.WantedItem{}
+	}
+	if view == "library" {
+		visible := make([]wanted.WantedItem, 0, len(items))
+		for _, item := range items {
+			if item.Status != "removed" && item.Status != "ignored" {
+				visible = append(visible, item)
+			}
+		}
+		items = visible
 	}
 	items = h.deps.Wanted.AnnotateWantedStates(r.Context(), items)
 	writeJSON(w, http.StatusOK, map[string]any{"wanted": items})
