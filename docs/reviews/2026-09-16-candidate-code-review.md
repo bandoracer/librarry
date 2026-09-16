@@ -61,6 +61,11 @@ application, migrations, tests or workflows.
 
 ## Outstanding release evidence
 
+This section records the earlier `e2f99c0` checkpoint. The subsequent
+[release qualification report](2026-09-16-release-qualification.md) records the
+broader review, continued operator journey, published candidate identities and
+production-copy upgrade/rollback for `6e209ff`.
+
 The [release checklist](../release-checklist.md) remains in force. Combined review
 of the remaining stack, a complete browser-driven acquisition/import/recovery
 journey, first-run usability, a production-copy upgrade and rollback rehearsal,

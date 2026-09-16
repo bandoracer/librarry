@@ -10,8 +10,9 @@ The original safety patch at PR #3 (`7771862`) has confirmed recovery gaps.
 The [boundary review](reviews/2026-09-16-release-boundary.md) identifies later
 fixes. The recommended qualification baseline is the existing stack at
 `30f7ddefe7ec3e30e2d0c2e0ded61f97d2e7f013`, with publication isolation applied.
-That is a candidate for review, not a declaration that all 48 drafts are ready
-to merge. A smaller patch requires explicit backport selection and a narrower
+That initial stack is now qualified with follow-up fixes at `6e209ff`; see the
+[qualification report](reviews/2026-09-16-release-qualification.md). The 48 older
+drafts remain review history. A smaller patch requires explicit backport selection and a narrower
 supported surface; PR count is not a safety argument.
 
 Use the existing PR boundaries as review units. Avoid unrelated refactors,
@@ -23,11 +24,11 @@ belong in the release candidate. Every change invalidates affected evidence.
 
 | Gate | Required evidence | Current state |
 | --- | --- | --- |
-| 1. Publication isolation | PR/main/tag/default-dispatch builds cannot publish; explicit candidate runs produce paired source/digest records; stable aliases unchanged | PR #51 merged as `4d5bc4c` after publication policy and both image builds passed; candidate integration preserves the guard; explicit candidate publication has not been exercised |
-| 2. Reviewed candidate | Exact source SHA and migration range; safety/auth/import review; known limitations; all candidate CI checks green | Frozen application baseline `e2f99c0`, migrations 0030–0058; all six CI jobs green. [Focused safety and latest-fix review](reviews/2026-09-16-candidate-code-review.md) found no new blockers; review of the remaining stack stays open |
-| 3. Complete operator journey | Fresh database, setup, English search, add, controlled ebook and chapter acquisition/import, deliberate failure and restart recovery; inspect desktop, mobile and tablet | Fresh browser/Open Library search/add and setup checks completed; two feedback/accessibility defects fixed. Controlled full lifecycle and complete setup/UX review remain open |
-| 4. Safe upgrade and rollback | Restore a sanitized pre-upgrade database/media/config copy; compare books, overrides, links and hashes; rehearse rollback using the original images and pre-upgrade snapshot | Prior disposable restores exist; production-copy rehearsal and rollback open |
-| 5. Exact artifact qualification | Publish candidates explicitly; record paired manifest/architecture digests; pull and test those digests on supported architectures; scan those images | Not started for a release candidate; build success alone does not prove ARM64 runtime or exact-artifact qualification |
+| 1. Publication isolation | PR/main/tag/default-dispatch builds cannot publish; explicit candidate runs produce paired source/digest records; stable aliases unchanged | Passed: PR #51 guard retained; explicit run 35157133068 published paired candidate identities for `6e209ff`. Both `latest` digests verified unchanged. |
+| 2. Reviewed candidate | Exact source SHA and migration range; safety/auth/import review; known limitations; all candidate CI checks green | Passed in the documented review scope: `6e209ff`, migrations 0030–0058, all six CI jobs green. [Broader risk review](reviews/2026-09-16-release-qualification.md) found three UI defects, now fixed, and no additional backend blocker. |
+| 3. Complete operator journey | Fresh database, setup, English search, add, controlled ebook and chapter acquisition/import, deliberate failure and restart recovery; inspect desktop, mobile and tablet | Passed for controlled alpha workflows: Forms authentication/restart, real English Open Library search/add, uncertain acquisition reconciliation, EPUB/chapter import, missing/foreign-file review, failure/restart recovery, rename/remove/restore and three viewport sizes. Roots were preconfigured; audio bytes were synthetic. See the [journey record](reviews/2026-09-16-release-qualification.md). |
+| 4. Safe upgrade and rollback | Restore a sanitized pre-upgrade database/media/config copy; compare books, overrides, links and hashes; rehearse rollback using the original images and pre-upgrade snapshot | Passed: production copy migrated 0029→0058; all existing fields across nine tables, three file/book links and three media hashes verified. Original image bytes and snapshot restored 0029 and reverted a copy-only mutation. |
+| 5. Exact artifact qualification | Publish candidates explicitly; record paired manifest/architecture digests; pull and test those digests on supported architectures; scan those images | Passed: paired candidate and platform digests recorded; exact pulls passed all three packaged suites on native ARM64 and native NAS AMD64. All four exact-image scans had zero fixable HIGH/CRITICAL findings under the configured policy. |
 | 6. Controlled target rollout | Named target, backup and rollback record, real integration readback, media permissions/mount checks, health and reverse-proxy checks | Open; no September live deployment claimed |
 | 7. Observation and stable promotion | Timed operator log, no unresolved integrity/recovery errors, reproducible release notes; promote qualified digests without rebuilding | Open; expanded stabilized release retains the planned 72-hour/20-controlled-case gate |
 

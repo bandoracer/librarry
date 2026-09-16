@@ -38,8 +38,8 @@ The repaired application commit `e2f99c0` passed all six candidate CI jobs,
 including Postgres race tests, 23 frontend unit tests, 143 browser tests,
 disposable Calibre, packaged recovery/restore, image scanning and both multiarch
 builds. A [focused code review](reviews/2026-09-16-candidate-code-review.md) found
-no new blockers in the reviewed safety boundaries and latest fixes. Full-stack
-review and the remaining release gates stay open; images were not published.
+no new blockers in the reviewed safety boundaries and latest fixes. That earlier
+run did not publish images; subsequent qualification is recorded below.
 
 The continued operator walkthrough found outdated removal confirmation text.
 The dialog now correctly explains that removing tracking retains files, metadata
@@ -48,6 +48,24 @@ Removing a book from its detail page also returns to Removed books; the former
 author-page redirect could return 404 after removing that author's last book.
 Manual magnet/URL and torrent-upload errors now also preserve the server's
 uncertain-acceptance recovery instructions instead of displaying only HTTP 502.
+
+Application commit `6e209ff` has now passed the broader risk review, controlled
+browser journey and all six CI jobs (25 frontend tests, 143 browser tests).
+Explicit candidate run 35157133068 published paired immutable image identities.
+Those exact images passed the packaged application, worker and notification
+suites on native ARM64 and native NAS AMD64; all four exact-image scans had zero
+fixable HIGH/CRITICAL findings under the configured policy. Both `latest` digests
+remained unchanged.
+
+A sanitized production copy upgraded from migration 0029 to 0058 with all
+pre-existing fields across nine tables preserved, three correct backfilled
+file/book links and three unchanged media hashes. Restoring the pre-upgrade
+snapshot and exact original API/web image bytes passed rollback, including
+reverting a deliberate copy-only mutation. See the [qualification report](reviews/2026-09-16-release-qualification.md)
+for source/digests, scope and fixture limitations. The candidate is ready for a
+controlled rollout; live rollout and the 72-hour/20-controlled-case observation
+gate remain open. The LAN health check is 200, the Cosmos hostname still returns
+502, and the live application remains on its original images.
 
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation
