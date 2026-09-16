@@ -1,3 +1,4 @@
+import NotificationDeliveries from "./NotificationDeliveries";
 import React, { useState } from "react";
 import { BellRing, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import {
@@ -352,6 +353,8 @@ export function ConnectTab() {
           </EmptyState>
         )}
       </Card>
+
+      <NotificationDeliveries />
 
       <Modal
         title={form?.id ? "Edit Connection" : "Add Connection"}

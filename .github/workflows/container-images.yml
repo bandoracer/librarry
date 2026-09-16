@@ -42,6 +42,7 @@ jobs:
         run: |
           python3 scripts/test-packaged.py
           python3 scripts/test-worker-packaged.py
+          python3 scripts/test-notification-packaged.py
       - name: Scan candidate images
         run: |
           mkdir -p output/security

@@ -1377,5 +1377,32 @@ DOCKER_CONTEXT=your-test-context python3 scripts/test-worker-packaged.py librarr
 Task ownership uses a session advisory lock. Configure a direct/session-pooled
 Postgres connection; transaction-pooling proxies are not supported for workers.
 Run history is diagnostic and bounded; it does not replace durable acquisition
-or import receipts. Notification delivery is still best effort pending outbox
-work, and these fixtures do not establish a live multi-instance deployment.
+or import receipts. Native notifications use the durable outbox described below. These fixtures do
+not establish a live multi-instance deployment.
+
+### Review native notification delivery
+
+Settings → Connect → Notification delivery lists new queued messages and their
+outcomes. **Accepted** records HTTP acceptance, not a read receipt. **Uncertain**
+means a request may already have reached the receiver: inspect it before choosing
+**Confirm acceptance**, **Review retry**, or **Cancel delivery**. Retry can create
+a duplicate, uses the connection's current settings and requires confirmation.
+Cancellation stops future attempts but cannot retract a sent request. A stale
+review is rejected; close the dialog, refresh and inspect the current entry.
+Changed/deleted/disabled connections stop pending messages. New connections do not
+receive old events. HTTP 429 uses bounded retries; other ambiguous failures wait
+for review. Explicit connection tests remain immediate.
+
+Only native connections are covered. Migrated Readarr-compatible notification
+resources retain their prior delivery behavior. Use a disposable local receiver
+for qualification; do not point test notifications at real people.
+
+```sh
+DOCKER_CONTEXT=your-test-context python3 scripts/test-notification-packaged.py librarry-api:your-candidate
+```
+
+This fixture creates its own Postgres, API and Python HTTP receiver containers,
+verifies pending recovery after restart, kills the API after the receiver records
+a request, and verifies uncertainty plus confirmation without a second send.
+It removes the containers/network on exit. The packaged backup fixture also
+compares event, delivery, attempt, action and health-state records after restore.

@@ -89,11 +89,21 @@ func TestManualMoveResumesAfterAtomicDatabaseFailure(t *testing.T) {
 }
 
 func TestManualUnassociatedAndInPlaceImport(t *testing.T) {
-	service, _, download, _ := operationFixture(t)
+	service, db, download, _ := operationFixture(t)
+	if _, err := db.Exec(`insert into notification_targets(name,type,settings) values('Fixture','webhook','{"url":"http://127.0.0.1:1/unused"}')`); err != nil {
+		t.Fatal(err)
+	}
 	source := filepath.Join(download.SavePath, download.Name)
 	result, err := service.Import(context.Background(), ImportRequest{SourcePath: source})
 	if err != nil || result.File.ID == "" {
 		t.Fatalf("unassociated import: %+v %v", result, err)
+	}
+	if replay, err := service.Import(context.Background(), ImportRequest{SourcePath: source}); err != nil || !replay.Skipped {
+		t.Fatal(replay, err)
+	}
+	var notifications int
+	if err := db.QueryRow(`select count(*) from notification_deliveries d join notification_events e on e.id=d.event_id where e.event->>'type'='import'`).Scan(&notifications); err != nil || notifications != 1 {
+		t.Fatal("unassigned import notification missing or duplicated", notifications, err)
 	}
 	inPlace, err := service.Import(context.Background(), ImportRequest{SourcePath: result.DestinationPath, ImportMode: "move"})
 	if err != nil || inPlace.DestinationPath != result.DestinationPath {

@@ -387,6 +387,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/system/tasks/{id}/run", handler.runSystemTask)
 	mux.HandleFunc("GET /api/v1/system/health", handler.systemHealth)
 	mux.HandleFunc("GET /api/v1/system/diskspace", handler.systemDiskspace)
+	mux.HandleFunc("GET /api/v1/notification-deliveries", handler.listNotificationDeliveries)
+	mux.HandleFunc("POST /api/v1/notification-deliveries/{id}/resolve", handler.resolveNotificationDelivery)
 	mux.HandleFunc("GET /api/v1/notifications", handler.listNotificationTargets)
 	mux.HandleFunc("POST /api/v1/notifications", handler.createNotificationTarget)
 	mux.HandleFunc("PUT /api/v1/notifications/{id}", handler.updateNotificationTarget)

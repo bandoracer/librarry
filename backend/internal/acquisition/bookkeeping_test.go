@@ -22,6 +22,9 @@ func addSelectedRelease(t *testing.T, db *sql.DB, request *DownloadRequest, scor
 func TestAcceptedAcquisitionRepairsHistoryAfterRestartWithoutRegressingInstalledRelease(t *testing.T) {
 	s, db, f, request := intentTestService(t)
 	selected := addSelectedRelease(t, db, &request, 82.5)
+	if _, err := db.Exec(`insert into notification_targets(name,type,settings) values('Fixture','webhook','{"url":"http://127.0.0.1:1/unused"}')`); err != nil {
+		t.Fatal(err)
+	}
 	wantedID := strings.TrimPrefix(request.Tags[1], "wanted:")
 	var old string
 	if err := db.QueryRow(`insert into releases(wanted_item_id,indexer,title,protocol,download_url,score) values($1,'Fixture','Installed','torrent','',25) returning id::text`, wantedID).Scan(&old); err != nil {
@@ -45,6 +48,9 @@ func TestAcceptedAcquisitionRepairsHistoryAfterRestartWithoutRegressingInstalled
 	if err := db.QueryRow(`select count(*) from downloads where release_id is not null or acquisition_intent_id is not null`).Scan(&n); err != nil || n != 0 {
 		t.Fatal("partial bookkeeping committed", n, err)
 	}
+	if err := db.QueryRow(`select count(*) from notification_deliveries`).Scan(&n); err != nil || n != 0 {
+		t.Fatal("rolled back grab enqueued notification", n, err)
+	}
 	// A later search must not rewrite the decision already sent to the client.
 	if _, err := db.Exec(`update releases set score=999 where id=$1`, selected); err != nil {
 		t.Fatal(err)
@@ -67,6 +73,7 @@ func TestAcceptedAcquisitionRepairsHistoryAfterRestartWithoutRegressingInstalled
 	wg.Wait()
 	for query, want := range map[string]int{
 		`select count(*) from history_events where event_type='release_grabbed' and (data->>'score')::numeric=82.5`: 1,
+		`select count(*) from notification_deliveries`:                                                              1,
 		`select count(*) from acquisition_intents where bookkeeping_at is not null`:                                 1,
 		`select count(*) from downloads where release_id is not null and acquisition_intent_id is not null`:         1,
 	} {

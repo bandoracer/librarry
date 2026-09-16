@@ -25,6 +25,9 @@ func attachImportSelection(t *testing.T, db *sql.DB, wantedID string) string {
 func TestImportCommitsInstalledReleaseAndHistoryAtomically(t *testing.T) {
 	s, db, download, wantedID := operationFixture(t)
 	selected := attachImportSelection(t, db, wantedID)
+	if _, err := db.Exec(`insert into notification_targets(name,type,settings) values('Fixture','webhook','{"url":"http://127.0.0.1:1/unused"}')`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := db.Exec(`alter table history_events add constraint fail_import_history check(event_type<>'book_imported')`); err != nil {
 		t.Fatal(err)
 	}
@@ -38,6 +41,9 @@ func TestImportCommitsInstalledReleaseAndHistoryAtomically(t *testing.T) {
 	}
 	if err := db.QueryRow(`select count(*) from files`).Scan(&count); err != nil || count != 0 {
 		t.Fatal(count, err)
+	}
+	if err := db.QueryRow(`select count(*) from notification_deliveries`).Scan(&count); err != nil || count != 0 {
+		t.Fatal("rolled back import enqueued notification", count, err)
 	}
 	if _, err := db.Exec(`alter table history_events drop constraint fail_import_history`); err != nil {
 		t.Fatal(err)
@@ -54,6 +60,9 @@ func TestImportCommitsInstalledReleaseAndHistoryAtomically(t *testing.T) {
 	repeat, err := restarted.RetryImportOperation(context.Background(), op.ID)
 	if err != nil || !repeat.Skipped {
 		t.Fatal(repeat, err)
+	}
+	if err := db.QueryRow(`select count(*) from notification_deliveries d join notification_events e on e.id=d.event_id where e.event->>'type'='import'`).Scan(&count); err != nil || count != 1 {
+		t.Fatal("recovered import notification lost or duplicated", count, err)
 	}
 	var releaseID string
 	var score float64

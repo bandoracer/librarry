@@ -320,3 +320,19 @@ Two disposable API processes have verified shared ownership and process-kill
 recovery. This does not certify running multiple production API instances against
 a shared NAS. Acquisition/import journals remain the authority for side effects,
 and live platform/soak qualification is still required.
+
+### Notification state and restored databases
+
+Migration 0048 includes native event, target-delivery, attempt, operator-decision
+and health-transition records in ordinary Postgres backups. New history is
+captured transactionally; applying the migration does not resend old history.
+The outbox worker starts automatically with database persistence. It uses the same
+direct/session-pooled connection requirement as other shared workers.
+
+A database backup cannot roll back a remote receiver. Restore into an isolated
+network, inspect pending/uncertain deliveries and verify their receiver state
+before allowing notification egress. An older backup may predate acceptance
+that happened after the backup. Confirm acceptance or cancel such entries instead
+of blindly replaying them. Delivery/attempt retention is currently unbounded;
+include this ledger when estimating backup/storage size. The disposable restore
+fixture verifies row preservation, not live recipient or homelab restoration.

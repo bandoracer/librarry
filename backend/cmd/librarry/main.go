@@ -223,6 +223,12 @@ func main() {
 			logger.Error("task registration failed", "task", task.ID, "error", err)
 		}
 	}
+	if notifier.Available() {
+		registerTask(scheduler.Task{ID: "notification-delivery", Name: "Notification Delivery", Interval: 15 * time.Second, StartupDelay: 3 * time.Second, Run: func(runCtx context.Context, trigger string) (string, error) {
+			count, err := notifier.RunPending(runCtx)
+			return fmt.Sprintf("Processed %d notification deliveries", count), err
+		}})
+	}
 	if libraryService.Available() {
 		registerTask(scheduler.Task{ID: "library-scan", Name: "Library Scan Progress", Interval: 5 * time.Second, StartupDelay: 2 * time.Second, Run: func(runCtx context.Context, trigger string) (string, error) {
 			err := libraryService.RunPendingScans(runCtx)
@@ -230,25 +236,25 @@ func main() {
 		}})
 	}
 	if cfg.MonitorEnabled && wantedService.Available() {
-		registerTask(wantedMonitorTask(logger, wantedService, notifier, cfg))
+		registerTask(wantedMonitorTask(logger, wantedService, cfg))
 	}
 	if cfg.AuthorMonitorEnabled && wantedService.Available() {
 		registerTask(authorMonitorTask(logger, wantedService, cfg))
 	}
 	if cfg.FeedSyncEnabled && wantedService.Available() {
-		registerTask(feedSyncTask(logger, wantedService, notifier, cfg))
+		registerTask(feedSyncTask(logger, wantedService, cfg))
 	}
 	if cfg.FailedDownloadEnabled && wantedService.Available() {
-		registerTask(failedDownloadRecoveryTask(logger, wantedService, notifier, cfg))
+		registerTask(failedDownloadRecoveryTask(logger, wantedService, cfg))
 	}
 	if cfg.UpgradeSearchEnabled && wantedService.Available() {
-		registerTask(upgradeSearchTask(logger, wantedService, notifier, cfg))
+		registerTask(upgradeSearchTask(logger, wantedService, cfg))
 	}
 	if cfg.CalibreRefreshEnabled && libraryService.Available() {
 		registerTask(calibreConversionRefreshTask(logger, libraryService, cfg))
 	}
 	if cfg.CompletedImportEnabled && libraryService.Available() {
-		registerTask(completedDownloadImportTask(logger, libraryService, acquire, notifier, cfg))
+		registerTask(completedDownloadImportTask(logger, libraryService, acquire, cfg))
 	}
 	if importListService.Available() {
 		registerTask(importListSyncTask(logger, importListService, cfg))
@@ -311,7 +317,7 @@ func main() {
 	}
 }
 
-func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func feedSyncTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.FeedSyncInterval
 	if interval <= 0 {
 		interval = 15 * time.Minute
@@ -336,7 +342,6 @@ func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify
 				logger.Warn("feed sync failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromFeedSyncRun("feed-sync", outcome))
 			logger.Info(
 				"feed sync completed",
 				"trigger", trigger,
@@ -355,7 +360,7 @@ func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify
 	}
 }
 
-func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.FailedDownloadInterval
 	if interval <= 0 {
 		interval = 30 * time.Minute
@@ -387,7 +392,6 @@ func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, no
 				logger.Warn("failed download recovery failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromFailedDownloadRun("failed-download-recovery", outcome))
 			logger.Info(
 				"failed download recovery completed",
 				"trigger", trigger,
@@ -407,7 +411,7 @@ func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, no
 	}
 }
 
-func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.UpgradeSearchInterval
 	if interval <= 0 {
 		interval = 12 * time.Hour
@@ -438,7 +442,6 @@ func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *n
 				logger.Warn("upgrade search failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromUpgradeRun("upgrade-search", outcome))
 			logger.Info(
 				"upgrade search completed",
 				"trigger", trigger,
@@ -456,7 +459,7 @@ func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *n
 	}
 }
 
-func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.MonitorInterval
 	if interval <= 0 {
 		interval = 30 * time.Minute
@@ -485,7 +488,6 @@ func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, notifier *n
 				logger.Warn("wanted monitor run failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromMonitorRun("wanted-monitor", outcome))
 			logger.Info(
 				"wanted monitor run completed",
 				"trigger", trigger,
@@ -576,7 +578,7 @@ type recycleBinCleaner interface {
 // arr "Remove Completed" behavior: imported downloads whose client reports
 // seeding has finished are deleted with their data (imports use
 // hardlink-or-copy, so the library copy survives).
-func completedDownloadImportTask(logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadClient, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func completedDownloadImportTask(logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadClient, cfg config.Config) scheduler.Task {
 	interval := completedImportInterval(cfg)
 	logger.Info("completed download import enabled", "interval", interval, "limit", completedImportLimit(cfg), "remove_after_seeding", cfg.CompletedRemoveEnabled)
 	return scheduler.Task{
@@ -590,7 +592,6 @@ func completedDownloadImportTask(logger *slog.Logger, service completedDownloadI
 				logger.Warn("completed download import failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(ctx, notify.EventsFromCompletedImports("completed-import", outcome))
 			removed := 0
 			if cfg.CompletedRemoveEnabled {
 				removed, err = runCompletedDownloadRemovalOnce(ctx, downloads, service)

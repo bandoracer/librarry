@@ -878,9 +878,10 @@ failed-download blocklisting uses the download's saved release ID or exact hash,
 never an unrelated installed release. Legacy installed projections remain for
 separate review rather than being guessed from historical searches.
 
-Native and compatibility notification producers suppress replayed imports/grabs;
-worker grab counts exclude receipt replays. Notification delivery remains best
-effort, without a transactional outbox or an exactly-once remote-delivery claim.
+Worker grab counts and compatibility producers exclude receipt replays. Native
+notifications are now captured by the committing transaction, as described below.
+Legacy compatibility webhooks still use best-effort delivery. No exactly-once
+remote-delivery guarantee is made.
 Broader worker/live-client and legacy qualification remain S10/S21 work.
 
 ### Persisted scan execution and local presence
@@ -1520,3 +1521,42 @@ latest 100 runs for a registered task. System Tasks offers run history, includin
 interruption and failure details, through an accessible dialog. Direct business
 API/compatibility operations still use their domain-level coordination rather
 than becoming scheduler jobs.
+
+### Transactional native notification delivery
+
+Migration 0048 adds immutable `notification_events`, per-target
+`notification_deliveries`, attempt/action history, and persisted health states.
+An insert trigger captures `release_grabbed` and `book_imported` history. A
+separate trigger captures the transition into `downloads.failed_at`, avoiding
+reliance on the recovery worker's later best-effort history write. Both execute
+inside the domain transaction. Health observations serialize by check ID and
+atomically capture only ok/unknown-to-unhealthy transitions. No historical
+backfill occurs. Domain callback sends have been removed for native targets.
+
+Fan-out records only targets enabled for that event at capture time, their IDs,
+names/types and exact `updated_at` revisions. Event payloads allow-list basic
+book/release labels and identifiers; raw release URLs, target settings and
+credentials are not copied. The sender fetches current settings under a short
+shared row lock, refuses changed/deleted/disabled targets and commits `sending`
+plus an attempt token before HTTP. Settings may change after a send starts; those
+changes cannot retract an in-flight request. No DB transaction spans remote I/O.
+
+A per-delivery advisory session lock serializes send and operator resolution.
+Completion writes through the original connection/token. Acquiring an abandoned
+`sending` entry marks it uncertain rather than issuing another request. Network
+errors, 408/5xx and a lost result save are uncertain. 2xx is acceptance; other
+3xx/4xx fail. Redirects are not followed. 429 alone gets automatic backoff
+(minimum exponential minutes, respecting Retry-After up to 24 hours) with at most
+five total sends. Longer requested waits require operator review. Explicit retry
+uses a current target revision and a current delivery revision, and records an
+audit action. `X-Librarry-Delivery-ID` and `X-Librarry-Event-ID` remain stable across
+retry; webhook event timestamps describe the original committed event.
+
+The shared `notification-delivery` task advances at most 25 entries per pass at a
+15-second interval. `GET /api/v1/notification-deliveries?limit=25&offset=0` returns
+one repeatable-read page/count without settings; `POST
+/api/v1/notification-deliveries/{id}/resolve` accepts retry/accepted/cancel plus
+confirmation and expected revisions. The latest send state is shown in Settings
+→ Connect; attempt and resolution records remain in Postgres and backups. Explicit
+connection tests do not enter the queue. Legacy Readarr compatibility webhooks
+retain their existing rich payload and synchronous path pending separate migration.

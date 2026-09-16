@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
@@ -56,16 +55,12 @@ type healthRoot struct {
 type HealthEvaluator struct {
 	handler *handler
 	notify  *notify.Service
-
-	mu        sync.Mutex
-	lastState map[string]string
 }
 
 func NewHealthEvaluator(deps Dependencies) *HealthEvaluator {
 	return &HealthEvaluator{
-		handler:   &handler{deps: deps},
-		notify:    deps.Notify,
-		lastState: map[string]string{},
+		handler: &handler{deps: deps},
+		notify:  deps.Notify,
 	}
 }
 
@@ -73,34 +68,19 @@ func NewHealthEvaluator(deps Dependencies) *HealthEvaluator {
 // and returns the full check list.
 func (e *HealthEvaluator) Evaluate(ctx context.Context) []HealthCheck {
 	checks := evaluateHealthChecks(e.handler.healthInputs(ctx))
-	e.mu.Lock()
-	nextState, events := healthTransitions(e.lastState, checks)
-	e.lastState = nextState
-	e.mu.Unlock()
-	if e.notify != nil && len(events) > 0 {
-		e.notify.DispatchAll(ctx, events)
+	if e.notify != nil && e.notify.Available() {
+		observeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		for _, check := range checks {
+			if err := e.notify.ObserveHealth(observeCtx, check.ID, check.Severity, check.Name, check.Message); err != nil {
+				if e.handler.deps.Logger != nil {
+					e.handler.deps.Logger.Warn("health notification state could not be saved", "check", check.ID)
+				}
+				break
+			}
+		}
 	}
 	return checks
-}
-
-// healthTransitions computes the next last-state map and the healthIssue
-// events for checks that newly turned bad (unknown or ok before, warning or
-// error now).
-func healthTransitions(lastState map[string]string, checks []HealthCheck) (map[string]string, []notify.Event) {
-	nextState := make(map[string]string, len(checks))
-	var events []notify.Event
-	for _, check := range checks {
-		nextState[check.ID] = check.Severity
-		if check.Severity == healthSeverityOK {
-			continue
-		}
-		previous, seen := lastState[check.ID]
-		if seen && previous != healthSeverityOK {
-			continue
-		}
-		events = append(events, notify.HealthIssueEvent(check.Name, check.Severity, check.Message))
-	}
-	return nextState, events
 }
 
 // healthInputs gathers the live snapshot the pure rules evaluate.

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testService() *Service {
@@ -293,5 +294,20 @@ func TestMergeSecretsKeepsStoredToken(t *testing.T) {
 	merged = MergeSecrets(replaced, stored)
 	if merged.Settings["botToken"] != "new-token" {
 		t.Fatalf("expected replacement token to win, got %q", merged.Settings["botToken"])
+	}
+}
+
+func TestWebhookPreservesCommittedEventIdentityAndTime(t *testing.T) {
+	server, captured := captureServer(t)
+	event := Event{ID: "durable-event", Type: EventImport, Title: "Book imported", OccurredAt: time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)}
+	if err := testService().Deliver(context.Background(), Target{Type: TargetTypeWebhook, Settings: map[string]string{"url": server.URL}}, event); err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(captured.body, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["eventId"] != event.ID || payload["timestamp"] != "2026-09-16T12:00:00Z" {
+		t.Fatal(payload)
 	}
 }

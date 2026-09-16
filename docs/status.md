@@ -48,8 +48,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [durable rename PR #32](https://github.com/bandoracer/librarry/pull/32),
 [book folder PR #33](https://github.com/bandoracer/librarry/pull/33),
 [Calibre client PR #34](https://github.com/bandoracer/librarry/pull/34),
-[Calibre recovery PR #35](https://github.com/bandoracer/librarry/pull/35), and the
-`codex/persisted-worker-coordination` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[Calibre recovery PR #35](https://github.com/bandoracer/librarry/pull/35),
+[worker coordination PR #36](https://github.com/bandoracer/librarry/pull/36), and the
+`codex/durable-notification-outbox` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -106,8 +107,9 @@ whose local bookkeeping failed remain visible and retryable, with one grab-histo
 entry after recovery. Native import commits installed-release state and import
 history with the complete file set. Failed upgrades preserve imported status;
 blocklisting uses the failed download's identity. API/worker notifications skip
-replayed results. Legacy history/current-release repair, durable notification
-delivery and broader scheduled-worker qualification remain open under S10/S21.
+replayed results. New native notifications now use a transactional outbox; legacy Readarr-compatible
+webhooks still use best-effort delivery. Legacy history/current-release repair and
+broader scheduled-worker qualification remain open under S10/S21.
 
 Library scans now persist their path queue and progress, resume through the
 scheduler after restart, and support cancellation/retry in Imports. The old file
@@ -681,3 +683,29 @@ navigation and visual inspection. Direct business API operations still rely on
 their acquisition/import journals. Notification outbox delivery, broader worker
 side-effect qualification, full S23 operational diagnostics and live soak remain
 open. No production or homelab rollout is implied by these container fixtures.
+
+## Native notification recovery (unreleased)
+
+Migration 0048 captures new grab/upgrade and import history, download-failure
+transitions, and persisted health transitions together with their native target
+fan-out. Rollback discards the notification; recovery preserves one committed
+event. Unassigned manual imports also receive committed history. Existing history
+is not replayed and later-added connections do not receive older events.
+
+The shared Notification Delivery task processes at most 25 entries per pass.
+Each attempt has session ownership and a saved send intent. HTTP 2xx records
+receiver acceptance. A lost response, HTTP 408/5xx, interrupted sender or failed
+acceptance save stays uncertain without automatic resend. HTTP 429 retries with
+backoff up to five total attempts; a requested wait above 24 hours needs review.
+Redirects are refused. Deleted, disabled or changed connections stop queued sends;
+confirmed retry binds the current settings revision. Credentials and receiver
+response bodies are not copied into the delivery ledger or returned by its API.
+
+Settings → Connect shows paginated status with confirmed retry, acceptance and
+cancellation decisions. A stable delivery header lets a cooperating receiver
+deduplicate, but does not establish exactly-once third-party delivery. Explicit
+connection tests remain synchronous. Legacy `/api/v1/notification` resources
+remain on their previous best-effort path; they are not covered by this outbox.
+Terminal delivery/attempt records currently remain until backup/maintenance policy
+is defined; bounded retention, legacy webhook migration and live qualification
+remain open. No production notifications were sent during qualification.

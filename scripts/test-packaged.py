@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 47, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 48, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -694,6 +694,13 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         sql("insert into worker_tasks(task_id) values('restore-fixture')")
         worker_run = sql("insert into worker_task_runs(task_id,trigger,backend_pid,state,outcome,finished_at) values('restore-fixture','fixture',0,'completed','Fixture completed',now()) returning id").splitlines()[0]
         sql(f"update worker_tasks set run_id='{worker_run}' where task_id='restore-fixture'")
+        # Retain a terminal outbox fixture without contacting any receiver.
+        notification_target = sql("insert into notification_targets(name,type,enabled) values('Restore fixture','webhook',false) returning id").splitlines()[0]
+        notification_event = sql("insert into notification_events(source_key,event) values('restore-fixture','{\"type\":\"import\",\"title\":\"Fixture\"}') returning id").splitlines()[0]
+        notification_delivery = sql(f"insert into notification_deliveries(event_id,target_id,target_name,target_type,target_revision,state,attempts) values('{notification_event}','{notification_target}','Restore fixture','webhook',now(),'accepted',1) returning id").splitlines()[0]
+        sql(f"insert into notification_delivery_attempts(id,delivery_id,state,finished_at) values(gen_random_uuid(),'{notification_delivery}','uncertain',now())")
+        sql(f"insert into notification_delivery_actions(delivery_id,action,previous_state,target_revision) values('{notification_delivery}','accepted','uncertain',now())")
+        sql("insert into notification_health_states(check_id,severity) values('restore-fixture','warning')")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
@@ -702,6 +709,11 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
                       "select * from file_rename_claims order by file_id",
                       "select * from calibre_handoffs order by id",
+                      "select * from notification_events order by id",
+                      "select * from notification_deliveries order by id",
+                      "select * from notification_delivery_attempts order by id",
+                      "select * from notification_delivery_actions order by id",
+                      "select * from notification_health_states where check_id='restore-fixture'",
                       "select * from worker_tasks where task_id='restore-fixture'",
                       "select * from worker_task_runs where task_id='restore-fixture'",
                       "select id,rename_origin_file_id from import_operation_files order by id",

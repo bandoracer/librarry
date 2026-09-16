@@ -10,9 +10,7 @@ import (
 	"time"
 )
 
-// Service fans events out to enabled notification targets. Delivery uses a
-// 10s timeout per request and logs failures instead of returning them to the
-// automation that raised the event.
+// Service delivers the durable native outbox and explicit connection tests.
 type Service struct {
 	store  *Store
 	logger *slog.Logger
@@ -29,7 +27,7 @@ func NewService(store *Store, logger *slog.Logger) *Service {
 	return &Service{
 		store:           store,
 		logger:          logger,
-		client:          &http.Client{Timeout: 10 * time.Second},
+		client:          &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 		telegramAPIBase: "https://api.telegram.org",
 	}
 }
@@ -126,35 +124,6 @@ func NormalizeTarget(target Target) (Target, error) {
 	return target, nil
 }
 
-// Dispatch fans the event out to every enabled target whose triggers match.
-// Errors are logged, never returned: notifications must not fail automation.
-func (s *Service) Dispatch(ctx context.Context, event Event) {
-	if !s.Available() {
-		return
-	}
-	targets, err := s.store.ListTargets(ctx)
-	if err != nil {
-		s.logger.Warn("notification targets unavailable", "event", event.Type, "error", err)
-		return
-	}
-	for _, target := range targets {
-		if !target.Enabled || !target.Triggers.Matches(event.Type) {
-			continue
-		}
-		if err := s.Deliver(ctx, target, event); err != nil {
-			s.logger.Warn("notification delivery failed",
-				"target", target.Name, "type", target.Type, "event", event.Type, "error", err)
-		}
-	}
-}
-
-// DispatchAll dispatches a batch of events.
-func (s *Service) DispatchAll(ctx context.Context, events []Event) {
-	for _, event := range events {
-		s.Dispatch(ctx, event)
-	}
-}
-
 // Deliver sends one event to one target (also used by the test endpoint).
 func (s *Service) Deliver(ctx context.Context, target Target, event Event) error {
 	if s == nil {
@@ -162,15 +131,15 @@ func (s *Service) Deliver(ctx context.Context, target Target, event Event) error
 	}
 	req, err := s.buildRequest(ctx, target, event)
 	if err != nil {
-		return err
+		return errors.New("notification request settings are invalid")
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return err
+		return errors.New("notification acceptance could not be verified")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("%s returned %s", target.Type, resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("notification endpoint returned HTTP %d", resp.StatusCode)
 	}
 	return nil
 }

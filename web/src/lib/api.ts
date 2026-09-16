@@ -3356,3 +3356,36 @@ export async function fetchTaskRuns(id: string): Promise<TaskRun[]> {
   const payload = await response.json() as { runs?: TaskRun[] | null };
   return arrayPayload(payload.runs);
 }
+
+export type NotificationDelivery = {
+  id: string;
+  eventId: string;
+  event: { type: string; title: string; message: string; fields: Record<string, string> };
+  targetId: string;
+  targetName: string;
+  targetType: string;
+  targetRevision: string;
+  currentTargetRevision: string | null;
+  targetAvailable: boolean;
+  state: "pending" | "sending" | "retry" | "accepted" | "failed" | "uncertain" | "cancelled";
+  attempts: number;
+  statusCode: number | null;
+  message: string;
+  nextAttemptAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type NotificationDeliveryPage = { items: NotificationDelivery[]; total: number; limit: number; offset: number };
+export async function fetchNotificationDeliveries(offset = 0): Promise<NotificationDeliveryPage> {
+  const response = await fetch(`${apiBase}/api/v1/notification-deliveries?limit=25&offset=${offset}`);
+  if (!response.ok) throw new Error(await apiError(response, "Notification history refresh failed"));
+  const page = await response.json() as NotificationDeliveryPage;
+  return { ...page, items: page.items ?? [] };
+}
+export async function resolveNotificationDelivery(delivery: NotificationDelivery, action: "retry" | "accepted" | "cancel"): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/notification-deliveries/${encodeURIComponent(delivery.id)}/resolve`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, confirm: true, expectedUpdatedAt: delivery.updatedAt, expectedTargetRevision: delivery.currentTargetRevision })
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Notification decision failed"));
+}

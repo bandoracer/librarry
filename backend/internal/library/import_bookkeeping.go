@@ -60,5 +60,20 @@ func commitImportBookkeeping(ctx context.Context, tx *sql.Tx, op ImportOperation
 			return err
 		}
 	}
+	// Unassigned manual imports still have a committed outcome worth notifying.
+	if len(books) == 0 && len(files) > 0 {
+		ids, paths := []string{}, []string{}
+		for _, file := range files {
+			ids = append(ids, file.ID)
+			paths = append(paths, file.Path)
+		}
+		data, err := json.Marshal(map[string]any{"operationId": op.ID, "fileIds": ids, "paths": paths, "format": files[0].MediaFormat, "title": files[0].Title, "sourceKind": op.SourceKind})
+		if err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, `insert into history_events(event_type,entity_type,entity_id,message,data) values('book_imported','import_operation',$1,'Unassigned file set imported',$2::jsonb)`, op.ID, string(data)); err != nil {
+			return err
+		}
+	}
 	return nil
 }

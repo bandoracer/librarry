@@ -1813,3 +1813,61 @@ Postgres race suite passed again (scheduler 17.173s), and both packaged suites
 passed on the rebuilt candidate. A disposable PostgreSQL readiness race was also
 fixed: the harness now checks TCP readiness rather than accepting the temporary
 Unix-socket server used during initialization.
+
+## Native notification outbox and recovery (2026-09-16 continuation)
+
+PR #36 finished green in GitHub CI run 35112542990: verification, real disposable
+Calibre contract, packaged qualification and both image builds. This continuation
+adds migration 0048 and replaces native callback sends with durable events.
+
+New `release_grabbed`/`book_imported` history captures target fan-out in the same
+transaction. The download failure transition is captured directly, avoiding the
+worker's later best-effort history write. Unassigned manual imports now also
+write committed history. Health state and ok-to-unhealthy notification capture
+share a transaction and survive restarts/concurrent API observations. Historical
+events are not backfilled, and targets added later do not receive older events.
+The old native callback/event adapters were removed; legacy compatibility webhook
+payloads and their existing best-effort path remain separate and unchanged.
+
+The shared Notification Delivery task processes up to 25 due entries per pass.
+A per-delivery Postgres session lock and saved attempt token fence sends and
+operator decisions. No transaction spans HTTP. Acceptance is only recorded for
+2xx. Lost responses, 408/5xx, abandoned sends and failed acceptance saves remain
+uncertain without automatic resend. 429 gets bounded backoff/five total attempts;
+waits above 24 hours require review. Redirects are refused. Target revision and
+trigger checks stop sends to changed/deleted/disabled connections. Credentials,
+release URLs and receiver bodies are excluded from the ledger/API. Stable event
+and delivery headers support cooperating receivers; the HTTP Idempotency-Key
+header is deliberately omitted to prevent Go transport from silently replaying a
+POST. Event timestamps retain the committed time. Due checks use the DB clock.
+
+Settings → Connect exposes paginated history and explicit confirmed retry,
+receiver-acceptance and cancellation controls. Resolution binds current delivery
+and target revisions and preserves attempt/action history. Desktop/mobile tests
+cover outages, stale 409 decisions, confirmations and complete page traversal;
+390px screenshots were visually inspected. Connection tests remain synchronous.
+
+Qualification passed with generated fixtures and local receivers only:
+
+- Full Postgres race suite (library 165.522s, wanted 187.945s), then full ordinary
+  suite (library 170.856s, wanted 107.084s). Final changed-package race checks passed.
+- Atomic rollback/recovery assertions in actual acquisition and import tests;
+  concurrent sends, terminated DB ownership, failed acceptance saves, changed
+  targets, receiver disconnects, backoff, explicit retry identity/audit, and
+  persistent health-transition/failure tests.
+- 95 browser tests plus one expected skip; final focused notification tests,
+  14 web unit tests, production web build, vet, deployment and whitespace checks.
+- `scripts/test-notification-packaged.py`: pending delivery survives API restart;
+  SIGKILL after receipt becomes uncertain with no second request; confirmation
+  records acceptance without another send. CI now runs this fixture.
+- Schema-48 full packaged regressions and a 447,572-byte isolated restore,
+  including native events, deliveries, attempts, operator actions and a persisted
+  health state. API/web candidate tags are `librarry-api:notification-outbox` and
+  `librarry-web:notification-outbox`, marker `working-tree-notification-outbox`.
+
+No real recipient, production service, live library or homelab deployment changed.
+Restoring an old backup can forget later remote acceptance; deployment docs now
+require isolated receiver review before enabling notification egress. Terminal
+outbox retention is currently unbounded. Legacy compatibility webhook migration,
+retention/support diagnostics, broader worker qualification and the live soak
+remain open under S10/S23. This does not mark either stage complete.
