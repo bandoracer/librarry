@@ -948,3 +948,23 @@ response bodies and credential-bearing URLs. Missing response lists/counts are
 errors, while valid empty lists remain valid responses. This state is process-local
 and resets with provider instances; search-result caching and richer traversal
 remain separate S12 work.
+
+
+### Exact metadata fallback
+
+The metadata service collects primary results before considering Google Books,
+independent of provider registration order. Known language/format conflicts are
+filtered before merging. A checksum-valid ISBN or normalized full-title match
+suppresses fallback; otherwise the Google adapter sends `isbn:` or a quoted
+`intitle:` search and validates each returned record. Only book queries qualify.
+The service repeats exact-result validation at its provider boundary. Canonical
+ISBN-13 queries reach all adapters while the response retains the user's query.
+Exact matches rank ahead of fuzzy primary results; partial provider errors remain
+visible. Existing merge logic retains provider aliases.
+
+Google requests full projection with explicit fields because the lite projection
+omits industry identifiers. Subtitle, all authors, language, original identifiers
+and volume/source IDs are retained; `saleInfo.isEbook` is the only concrete format
+evidence used. Unknown format is not assigned from the requested format. Empty
+results remain arrays. Broader work/edition matching and persisted raw records
+remain separate S12/S13 work.

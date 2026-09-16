@@ -485,7 +485,7 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	if p.apiKey == "" {
 		return nil, nil
 	}
-	if query.Type == SearchTypeAuthor {
+	if _, eligible := exactBookLookup(query); !eligible {
 		return nil, nil
 	}
 	finish, err := p.observation.begin(ctx, false)
@@ -497,13 +497,19 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 }
 func (p *GoogleBooksProvider) searchBooks(ctx Context, query Query) ([]SearchResult, error) {
 	values := url.Values{}
-	if query.Type == SearchTypeAuthorWorks {
-		values.Set("q", "inauthor:"+query.Query)
+	lookup, eligible := exactBookLookup(query)
+	if !eligible {
+		return []SearchResult{}, nil
+	}
+	if lookup.isbn != "" {
+		values.Set("q", "isbn:"+lookup.isbn)
 	} else {
-		values.Set("q", query.Query)
+		values.Set("q", "intitle:"+strconv.Quote(strings.TrimSpace(query.Query)))
 	}
 	values.Set("maxResults", strconv.Itoa(clampLimit(query.Limit)))
-	values.Set("projection", "lite")
+	values.Set("projection", "full")
+	values.Set("printType", "books")
+	values.Set("fields", "totalItems,items(id,volumeInfo(title,subtitle,authors,publishedDate,publisher,pageCount,industryIdentifiers,imageLinks/thumbnail,language),saleInfo/isEbook)")
 	values.Set("key", p.apiKey)
 
 	req, err := http.NewRequestWithContext(asContext(ctx), http.MethodGet, "https://www.googleapis.com/books/v1/volumes?"+values.Encode(), nil)
@@ -521,9 +527,14 @@ func (p *GoogleBooksProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 	var decoded struct {
 		TotalItems *int `json:"totalItems"`
 		Items      []struct {
-			ID         string `json:"id"`
+			ID       string `json:"id"`
+			SaleInfo struct {
+				IsEbook bool `json:"isEbook"`
+			} `json:"saleInfo"`
 			VolumeInfo struct {
 				Title               string   `json:"title"`
+				Subtitle            string   `json:"subtitle"`
+				Language            string   `json:"language"`
 				Authors             []string `json:"authors"`
 				PublishedDate       string   `json:"publishedDate"`
 				Publisher           string   `json:"publisher"`
@@ -554,27 +565,40 @@ func (p *GoogleBooksProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 				isbns = append(isbns, identifier.Identifier)
 			}
 		}
+		title := strings.TrimSpace(item.VolumeInfo.Title)
+		if subtitle := strings.TrimSpace(item.VolumeInfo.Subtitle); subtitle != "" {
+			title += ": " + subtitle
+		}
+		if strings.TrimSpace(item.ID) == "" || strings.TrimSpace(item.VolumeInfo.Title) == "" {
+			continue
+		}
+		format := FormatAny
+		if item.SaleInfo.IsEbook {
+			format = FormatEbook
+		}
+		authors := []Author{}
+		for _, name := range compactStrings(item.VolumeInfo.Authors) {
+			authors = append(authors, Author{ID: stableID("googlebooks-author", name), Name: name})
+		}
 		author := first(item.VolumeInfo.Authors)
-		score := scoreResult(query, item.VolumeInfo.Title, author, isbns)
+		score := scoreResult(query, title, author, isbns)
 		workID := "googlebooks:" + item.ID
-		results = append(results, SearchResult{
+		result := SearchResult{
 			Provider: p.Name(),
 			Kind:     SearchTypeBook,
 			Work: Work{
-				ID:       workID,
-				Title:    item.VolumeInfo.Title,
-				CoverURL: item.VolumeInfo.ImageLinks.Thumbnail,
-				Authors: []Author{{
-					ID:   stableID("googlebooks-author", author),
-					Name: author,
-				}},
+				ID:          workID,
+				Title:       title,
+				CoverURL:    item.VolumeInfo.ImageLinks.Thumbnail,
+				Authors:     authors,
 				ProviderIDs: []string{workID},
 			},
 			Edition: Edition{
 				ID:            workID + ":edition",
 				WorkID:        workID,
-				Title:         item.VolumeInfo.Title,
-				Format:        inferFormat(query.Format, isbns),
+				Title:         title,
+				Format:        format,
+				Language:      item.VolumeInfo.Language,
 				ISBNs:         compactStrings(isbns),
 				Publisher:     item.VolumeInfo.Publisher,
 				PublishedDate: item.VolumeInfo.PublishedDate,
@@ -583,9 +607,20 @@ func (p *GoogleBooksProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 			},
 			Score:        score,
 			Confidence:   confidence(score),
-			MatchedOn:    matchedOn(query, item.VolumeInfo.Title, author, isbns),
+			MatchedOn:    matchedOn(query, title, author, isbns),
 			RawSourceKey: item.ID,
-		})
+		}
+		if !lookup.matches(result) || !resultFitsQuery(query, result) {
+			continue
+		}
+		if lookup.isbn != "" {
+			result.Score = 0.99
+			result.Confidence = confidence(result.Score)
+			result.MatchedOn = []string{"exact ISBN fallback"}
+		} else {
+			result.MatchedOn = append(result.MatchedOn, "exact title fallback")
+		}
+		results = append(results, result)
 	}
 	return results, nil
 }

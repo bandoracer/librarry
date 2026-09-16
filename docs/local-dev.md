@@ -991,3 +991,10 @@ connection observations reset on API restart. The native route is
 normal authentication. Missing-key checks report missing credentials without IO;
 HTTP 429 shows the next allowed retry time. See [provider setup](provider-setup.md)
 for probe scope and credential qualification limits.
+
+
+Google fallback contracts run offline with `go test ./backend/internal/metadata`.
+They cover primary-first routing, ISBN checksums/equivalence, literal titles and
+subtitles, Unicode, languages/formats, partial errors, and author/series exclusion.
+No provider key is needed for these fixtures; they do not qualify a real key.
+See [provider setup](provider-setup.md) for search behavior.

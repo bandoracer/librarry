@@ -92,7 +92,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
-| S12 | Partial | Observed provider health, explicit checks, error sanitization and request backoff implemented; rich traversal, exact Google fallback enforcement, result caching and live credentials remain |
+| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff and exact Google fallback implemented; rich traversal, result caching and live credentials remain |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
@@ -608,3 +608,38 @@ including source/race/browser, packaged restart/restore, image scans and AMD64/A
 API/web builds. No images were published or deployed. Rich provider traversal,
 Google's exact-fallback enforcement, result caching and live qualification remain
 S12 work; this is not completion of the stabilization plan.
+
+
+## Continuation: exact Google fallback (S12)
+
+Branch: `codex/exact-metadata-fallback`, based on provider health. Primary providers
+now run before Google regardless of registration order. Google is skipped for
+exact suitable primary matches and for all author/bibliography/series queries.
+ISBN-10/13 checksums and equivalent 978 identifiers are validated; explicit invalid
+ISBNs cannot become text searches. Title fallback compares every word, including
+subtitles, with Unicode composition/case/punctuation normalization and retained
+accents. Exact results rank before fuzzy primary results. Known conflicting
+languages/formats are filtered before merging; explicit Any language is preserved.
+Primary/fallback errors retain successful partial results.
+
+The Google adapter requests full projection and explicit identifier fields, checks
+returned matches, preserves contributors/language/source IDs and derives ebook
+format only from provider evidence. Unknown format remains unknown even for an
+audiobook query. Existing provider-alias merge coverage remains, now separate from
+fallback orchestration tests. A title-only match remains a candidate rather than
+proof of author/edition identity. No real Google key has been qualified.
+
+Provider health PR #13 at `83e78f187baa45a2e0a7c95efd0eaa813e4f8a45` passed
+[CI run 35067198012](https://github.com/bandoracer/librarry/actions/runs/35067198012),
+including source/race/browser, packaged restore and AMD64/ARM64 image builds.
+No images were published or deployed.
+
+Contract references: [Google volumes search](https://developers.google.com/books/docs/v1/using#PerformingSearch)
+and [volume fields/projection](https://developers.google.com/books/docs/v1/reference/volumes).
+
+Validation: full Go race/Postgres suite, vet, production web build and all 39
+applicable desktop/mobile browser checks passed (one desktop-only case skipped on
+mobile). The local ARM64 schema-40 API passed packaged import/restart/replacement,
+acquisition bookkeeping, scan/move/repair and authentication regressions; an
+isolated 403,593-byte database dump restored with counts and receipt intact. The
+packaged web is the older multipart snapshot; current UI was tested from source.

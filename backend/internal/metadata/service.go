@@ -68,24 +68,51 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 		query.Limit = 10
 	}
 
-	var merged []SearchResult
+	merged := []SearchResult{}
 	var providerErrors []ProviderError
-	for _, provider := range s.providers {
-		results, err := provider.Search(ctx, query)
+	fallback := []Provider{}
+	requestQuery := query
+	lookup, lookupEligible := exactBookLookup(query)
+	if lookupEligible && lookup.isbn != "" {
+		requestQuery.Query = lookup.isbn
+	}
+	collect := func(provider Provider, exactOnly bool) {
+		results, err := provider.Search(ctx, requestQuery)
 		if err != nil {
-			providerErrors = append(providerErrors, ProviderError{
-				Provider: provider.Name(),
-				Message:  err.Error(),
-			})
+			providerErrors = append(providerErrors, ProviderError{Provider: provider.Name(), Message: err.Error()})
+			return
+		}
+		for _, result := range results {
+			if !resultFitsQuery(query, result) || (exactOnly && !lookup.matches(result)) {
+				continue
+			}
+			merged = append(merged, result)
+		}
+	}
+	// Fallback ordering is policy, independent of constructor/provider order.
+	for _, provider := range s.providers {
+		if provider.Name() == "Google Books" {
+			fallback = append(fallback, provider)
 			continue
 		}
-		merged = append(merged, results...)
+		collect(provider, false)
+	}
+	if lookupEligible && !hasExactPrimaryMatch(query, merged) {
+		for _, provider := range fallback {
+			collect(provider, true)
+		}
 	}
 
 	merged = mergeEquivalentResults(query, merged)
 	merged = filterResultsByPreferredLanguage(merged, query.PreferredLanguage)
 
 	sort.SliceStable(merged, func(i, j int) bool {
+		if lookupEligible {
+			left, right := lookup.matches(merged[i]), lookup.matches(merged[j])
+			if left != right {
+				return left
+			}
+		}
 		if merged[i].Score == merged[j].Score {
 			return providerRank(merged[i].Provider) < providerRank(merged[j].Provider)
 		}
@@ -116,6 +143,9 @@ func filterResultsByPreferredLanguage(results []SearchResult, preferred string) 
 }
 
 func resultMatchesPreferredLanguage(result SearchResult, preferred string) bool {
+	if preferred = normalizePreferredLanguage(preferred); preferred == "" || preferred == "Any" {
+		return true
+	}
 	language := strings.TrimSpace(result.Edition.Language)
 	if language == "" {
 		return true

@@ -25,8 +25,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [repair preview PR #9](https://github.com/bandoracer/librarry/pull/9),
 [move reconciliation PR #10](https://github.com/bandoracer/librarry/pull/10),
 [reviewed replacement PR #11](https://github.com/bandoracer/librarry/pull/11),
-[acquisition bookkeeping PR #12](https://github.com/bandoracer/librarry/pull/12), and the
-`codex/provider-health` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[acquisition bookkeeping PR #12](https://github.com/bandoracer/librarry/pull/12),
+[provider health PR #13](https://github.com/bandoracer/librarry/pull/13), and the
+`codex/exact-metadata-fallback` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -113,9 +114,12 @@ spend provider quota or refresh request timestamps. Errors retain the prior succ
 time while showing rejected credentials, denied access, rate limiting or outage;
 HTTP 429 applies retry backoff. Credential-bearing URLs and provider error bodies
 are not returned. These behaviors are qualified with contract fixtures, including
-concurrency and malformed/empty-response cases. Real-token qualification, rich
-edition/author/list traversal, result caching and enforcement of the Google
-exact-fallback policy remain outstanding under S12.
+concurrency and malformed/empty-response cases. Google fallback now runs only when
+primary providers have no suitable exact ISBN/full-title match. Returned matches
+are checked for ISBN checksum/equivalence or literal title/subtitle and known
+language/format conflicts. Author and series queries never use Google; unknown
+format stays unknown. Real-token qualification, rich edition/author/list traversal
+and result caching remain outstanding under S12.
 
 ## Historical verified milestones
 

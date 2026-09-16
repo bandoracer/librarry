@@ -419,7 +419,9 @@ Provider priority:
    from author bibliography crawling: author lookup uses `/search/authors.json`,
    while monitored authors with Open Library IDs use `/authors/{id}/works.json`
    before falling back to an author-name book search.
-3. Google Books is an API-keyed exact-match fallback, not a primary graph.
+3. Google Books is an API-keyed fallback when primary providers lack a suitable
+   exact ISBN or full-title match. Returned identifiers/titles are checked locally;
+   author and series discovery never use Google.
 4. Local OPF, EPUB package metadata, MP3 ID3 tags, and M4B/MP4 metadata atoms
    are high-confidence import evidence.
 5. Manual overrides always win.

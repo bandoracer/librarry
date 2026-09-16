@@ -12,8 +12,11 @@ normalizing multiple providers into a local canonical model with provenance.
    while monitored authors with Open Library IDs use the works-by-author API so
    author subscriptions are tied to a stable provider identity instead of a
    loose title search.
-3. Google Books is an exact fallback for ISBN and title lookups. It should not be
-   used for author bibliography crawling.
+3. Google Books runs after primary providers only when no suitable exact ISBN or
+   full-title match exists. Returned matches are validated, including ISBN
+   checksums/equivalence, title/subtitle, known format and language. It never runs
+   for author, bibliography or series queries. See [provider setup](provider-setup.md)
+   for exact lookup rules and limits.
 4. Local OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and
    M4B/MP4 metadata atoms are high-confidence import evidence.
 5. Manual overrides always win.

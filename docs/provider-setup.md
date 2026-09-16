@@ -23,9 +23,26 @@ entered authors or non-Open Library identities.
 
 ## Google Books
 
-Set `LIBRARRY_GOOGLE_BOOKS_API_KEY` to enable exact fallback lookups. Google
-Books should not be used as the primary author/work graph because rate limiting
-and author identity are not strong enough for that workflow.
+Set `LIBRARRY_GOOGLE_BOOKS_API_KEY` to enable exact fallback lookups. Book search
+contacts primary providers first. Google runs only when they have no exact ISBN or
+full-title result compatible with the selected language and known format. Author,
+author bibliography and series queries never contact Google. A primary outage
+can trigger fallback; its error stays visible alongside any successful results.
+
+Use a checksum-valid ISBN-10/ISBN-13 (optional `ISBN:` prefix), or the full title,
+including a subtitle when present. Equivalent ISBN-10/978 ISBN-13 values match.
+Malformed explicit ISBNs do not become title searches. Title matching ignores
+case, punctuation and Unicode composition, while preserving accents and all
+words. Related titles and study guides are excluded unless their full title was
+requested. Exact returned identifiers/titles are checked locally, not assumed
+from Google's search ranking.
+
+Results retain provider IDs, original identifiers, contributors, language and
+source keys. Known incompatible languages/formats are excluded; unknown evidence
+stays unknown. Google results are marked ebook only when the provider says so;
+requesting audiobook never invents audiobook metadata. A title match identifies
+a candidate, not proof of the right author or edition. Real-key qualification is
+still pending.
 
 ## Local Metadata
 
