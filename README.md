@@ -56,13 +56,14 @@ Current gaps:
   Librarry as the only book automation system.
 - A stabilization effort is in progress; published tags through v0.4.1 predate
   this work. The new safety changes are not yet a released or deployed build.
-- Completed-download imports currently require a single unambiguous book file.
-  Multi-chapter folders are retained for review until complete file-set import
-  and recovery are implemented.
-- Unreleased native single-file imports now persist recovery plans and verified
-  file manifests. Imports shows interrupted operations, retry controls and legacy
-  link issues. Completed imports retain sources and existing destination files;
-  multipart, manual/Calibre recovery and live upgrade qualification remain open.
+- Unreleased completed-download imports now use exact client inventories and
+  support single EPUB/M4B files, multi-disc chapter sets and relevant sidecars.
+  Conflicting metadata and multi-book packs enter per-file mapping review with
+  a required destination preview.
+- Native completed imports persist verified manifests and recovery plans. Imports
+  shows interrupted operations, retry controls and legacy link issues. Sources and
+  existing destination files are retained. Manual/Calibre recovery, replacement,
+  live upgrade qualification and unattended operation remain open.
 
 See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.

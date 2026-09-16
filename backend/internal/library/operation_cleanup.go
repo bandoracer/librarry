@@ -36,7 +36,7 @@ func (s *Service) verifyOperationCleanup(ctx context.Context, op ImportOperation
 		}
 		if f.Format != "sidecar" {
 			var linked bool
-			if err := s.store.db.QueryRowContext(ctx, `select exists(select 1 from files f join file_download_links d on d.file_id=f.id join file_wanted_links w on w.file_id=f.id where f.id::text=$1 and f.path=$2 and d.download_record_id=$3 and w.wanted_item_id=$4)`, f.FileID, f.DestinationPath, op.DownloadRecordID, op.WantedID).Scan(&linked); err != nil {
+			if err := s.store.db.QueryRowContext(ctx, `select exists(select 1 from files f join file_download_links d on d.file_id=f.id join file_wanted_links w on w.file_id=f.id where f.id::text=$1 and f.path=$2 and d.download_record_id=$3 and w.wanted_item_id=$4)`, f.FileID, f.DestinationPath, op.DownloadRecordID, f.WantedID).Scan(&linked); err != nil {
 				return err
 			}
 			if !linked {
@@ -44,9 +44,7 @@ func (s *Service) verifyOperationCleanup(ctx context.Context, op ImportOperation
 			}
 		}
 	}
-	// The current completed importer only accepts a single book file. Its client
-	// inventory check remains an independent authority on the deletion payload.
-	return s.verifySingleFileReceipt(ctx, download, inventory)
+	return s.verifyOperationInventory(ctx, op, true)
 }
 
 // RecordCompletedCleanup records the result of an already-authorized remote

@@ -10,8 +10,8 @@ yet ready to replace a production Readarr instance unattended.
 
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation
-branch adds exact single-file payload selection, protected scan observations,
-verified cleanup, relational file/book/download links, durable single-file import
+branch adds exact client payload selection, protected scan observations,
+verified cleanup, relational file/book/download links, durable complete-file-set import
 plans and recovery controls, scoped download mutations, authentication failure handling,
 configuration snapshots, repeated Prowlarr categories, CI tests, and UI recovery.
 See the [implementation ledger](reviews/2026-09-15-implementation.md) for evidence.
@@ -21,22 +21,34 @@ homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
-Automatic import currently accepts one supported book file in an exact named
-payload. Multiple supported files, unresolved payloads, and symlinks are retained
-with an explanatory import error. Complete chapter-set imports remain planned.
-Automatic removal requires a new verified import receipt, complete client file
-inventory, current matching source/destination hashes, a destination outside the
-download root, and positive seed-goal evidence. Old `imported` rows alone are not
-eligible. Completed import rejects move mode; use hardlinkOrCopy, hardlink, or copy.
+Automatic native import now accepts single books and identifiable audiobook
+chapter sets from complete client inventories. All required chapters and relevant
+sidecars enter one durable manifest, preserving disc directories and natural
+chapter order. Conflicting metadata, incomplete/unselected files and multi-book
+packs enter review. Review shows all files and exclusions, supports assigning
+files to different wanted books, and requires a current destination preview.
+Skip/Reject retain sources and prevent worker import until the review is reopened.
 
-Native completed imports now save immutable manifests and use expiring worker
-leases. A failed database commit can resume without duplicating a published file;
-uncommitted destinations remain hidden from scans. Configured same-basename
-sidecars inside a dedicated payload directory join the manifest. Imports displays
-operation/reconciliation reports and retry controls. Completed replacement of an
-existing destination is retained for review; use keep both. Manual/review imports,
-Calibre handoff, multipart grouping, temporary-stage reclamation, and live upgrade
-qualification remain outside these verified recovery guarantees.
+Automatic removal requires a verified import receipt, fresh client inventory,
+current matching source/destination hashes for every required file, a destination
+outside download storage, and positive seed-goal evidence. Retaining any supported
+file in downloads during explicit mapping blocks automatic cleanup. Old `imported`
+rows alone are not eligible. Completed import rejects move mode; use
+hardlinkOrCopy, hardlink, or copy.
+
+Native completed imports save immutable manifests and use expiring worker leases.
+A failed database commit can resume without duplicating published chapters;
+uncommitted destinations remain hidden from scans. Imports displays operation and
+reconciliation reports with retry controls. Replacement of existing destinations
+is retained for review; use keep both. Manual-path imports, Calibre handoff,
+temporary-stage reclamation and live upgrade qualification remain outside these
+verified recovery guarantees. Existing single-book Calibre handoff is preserved;
+multipart imports into Calibre roots require review.
+
+Multipart qualification uses generated local fixtures, adapter contract tests and
+disposable API/web/Postgres containers. It is not a live client or homelab
+certification. SABnzbd import trusts only a successful completed history record's
+final output directory, never a queue/archive inventory or a shared-folder search.
 
 Hardcover tokens currently establish configured state, not proven authentication.
 Book search handles Typesense result documents and GraphQL failures. Rich

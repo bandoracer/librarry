@@ -11,9 +11,10 @@ progress record, not a claim that the full stabilization plan is complete.
   client identity; ambiguous legacy external IDs fail instead of updating several
   clients. Remote acceptance/deletion followed by failed persistence reports an
   explicit error.
-- Completed imports inspect only the exact named payload. Missing names, path
-  traversal, symlinks, format conflicts, and more than one supported book file
-  are rejected. Completed move mode is rejected to preserve seeding sources.
+- Completed imports inspect exact client payload inventories. Traversal, symlinks,
+  unknown membership and incomplete files cannot silently satisfy a book. Chapter
+  sets and explicitly mapped packs now use the durable importer described below.
+  Completed move mode is rejected to preserve seeding sources.
 - Scan observations preserve authoritative names, source paths, JSON associations,
   manual metadata, and Calibre evidence. A real Postgres regression verifies two
   rescans preserve an imported record's identity.
@@ -83,12 +84,12 @@ progress record, not a claim that the full stabilization plan is complete.
 | S01 | Substantially implemented | Live predeployment file/database inventory and backup-copy restore |
 | S02 | Implemented locally | Verification, packaged safety/auth/restore tests and scan gates implemented; latest run linked on PR #3 |
 | S03 | Partial | Unified effective configuration/source/precedence view for settings beyond auth |
-| S04 | Implemented safety guard | Packaged safety regressions passed; controlled live qualification and multipart review UI remain |
+| S04 | Implemented safety guard | Packaged safety regressions and multipart review passed; controlled live qualification remains |
 | S05 | Implemented | Read-only live audiobook search against the candidate |
 | S06 | Partial | Latest multi-platform checks linked on PR #3; upgrade/rollback and candidate deployment remain |
 | S07 | Implemented with fixture qualification | Relational links, manifest/operation records and reconciliation report; live database-copy migration still pending |
-| S08 | Not complete | Multipart grouping, client-inventory selection and manual mapping |
-| S09 | Partial | Durable native single-file plans, leases, atomic record commit, retry and cleanup status; manual/Calibre/replacement recovery and temporary-stage reclamation remain |
+| S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
+| S09 | Partial | Durable native file-set plans, leases, atomic record commit, retry and cleanup status; manual/Calibre/replacement recovery and temporary-stage reclamation remain |
 | S10–S11 | Not complete | Acquisition intents, resumable scans and missing-file reconciliation |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
@@ -147,7 +148,7 @@ homelab gates remain separate from this local/CI evidence.
   projection, and operation state. A database trigger blocks premature visibility
   from scans and compatibility writes. Scans preserve historical path aliases.
 - Configured same-basename sidecars in a dedicated payload directory are required
-  manifest members. Removing one blocks retry. Multipart book sets remain blocked.
+  manifest members. Removing one blocks retry. This initial restriction is superseded by the S08 continuation below.
 - Recovery API and Imports controls show saved plans, attempts, failure reason,
   cleanup status and unresolved legacy links. Retry accepts only an operation ID.
 - Cleanup verifies relational ownership and every manifested file again, and stores
@@ -173,3 +174,58 @@ operation IDs/states, manifests/hashes/file links, relational links, legacy
 receipts and entity counts. This remains fixture evidence, not a live restore.
 Inventory lookup and unapplied remote-deletion failures are also persisted and
 reported by the cleanup worker instead of appearing as successful task runs.
+
+
+## Continuation: exact file sets and operator mapping (S08)
+
+Branch: `codex/multipart-imports`, stacked on the safety/recovery PR.
+
+- qBittorrent and Transmission preserve explicit per-file selection separately
+  from priority. Missing selection evidence remains unknown. SABnzbd accepts only
+  successful completed history with a final output directory; queue/archive file
+  names cannot stand in for extracted files.
+- Client inventories resolve boundary-checked relative paths. Traversal, aliases
+  resolving to duplicate sources, symlinks (including excluded entries), unknown
+  inventories and shared-folder search are rejected. Complete media/sidecars must
+  match client byte counts and completion state.
+- Single EPUB/M4B and multi-disc MP3 imports preserve all required files. Natural
+  chapter order remains stable on committed retries. Sidecar sets retain their
+  names/relative paths in a fresh destination folder. Local ISBN, title, author,
+  album and chapter evidence gates automatic grouping.
+- Migration 0032 adds per-manifest-file wanted identity and client-scoped pending
+  review uniqueness. Multi-book packs require explicit file assignments. Each
+  destination book receives its own relational file links in the final transaction.
+- Review lists every file and exclusion, provides per-file book/retain choices,
+  and requires an acknowledged destination preview. A hash of the complete plan
+  rejects changed bytes, destinations or assignments. Preview writes no library
+  directories or operation records. Skip/reject persist across worker runs;
+  reopening restores manual review rather than silently importing.
+- Whole-set recovery validates current inventories before and after transfer,
+  then commits all required files together. Cleanup verifies all chapters/sidecars
+  and refuses any required member retained in downloads by an explicit mapping.
+- Existing single-book Calibre handoff remains available without native verified
+  cleanup eligibility. Multipart Calibre, manual-path recovery, replacement and
+  temporary-stage reclamation remain open S09 work.
+
+Qualification on September 15 (local Pacific time): full Go race/Postgres suite,
+Go vet, six frontend tests, production build and 17 browser checks passed (one
+mobile-only case is inapplicable on desktop). Browser fixtures exercised mapping,
+preview invalidation and retained server errors at 1440/390 pixels. Screenshot
+inspection caught and fixed an incorrect empty-review message beneath payload
+reviews. Adapter fixtures cover selected/unselected/unknown qBittorrent and
+Transmission files and successful/failed/in-progress SAB history.
+
+Disposable ARM64 API/web images with schema 32 passed the packaged harness:
+missing payload enters review; a forced database failure hides unfinished files;
+a real process restart resumes the saved plan; three chapters across two discs
+and a cover import completely; source bytes remain intact; rescans preserve links.
+A 115,357-byte database dump restored matching operation/manifest/link state.
+Forms, persisted sessions across restart, Basic and explicit none checks passed.
+This test used a read-only qBittorrent HTTP contract fixture, not a live client.
+Image CI for the eventual commit is tracked on the stacked PR.
+
+S08 references: [SABnzbd API](https://sabnzbd.org/wiki/configuration/5.0/api)
+(history storage versus get_files archive inventory) and
+[Transmission RPC specification](https://github.com/transmission/transmission/blob/4.0.6/docs/rpc-spec.md)
+(per-file wanted/progress metadata). These contract fixtures do not replace
+version-specific real-client qualification in S21.

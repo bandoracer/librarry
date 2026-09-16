@@ -973,11 +973,12 @@ func (t transmissionTorrentDetail) DownloadDetails(now time.Time) DownloadDetail
 		Comment:            strings.TrimSpace(t.Comment),
 	}
 	return DownloadDetails{
-		Status:     status,
-		Properties: properties,
-		Files:      t.DownloadFiles(),
-		Trackers:   t.DownloadTrackers(),
-		Peers:      t.DownloadPeers(),
+		Status:          status,
+		Properties:      properties,
+		Files:           t.DownloadFiles(),
+		InventorySource: "client-files",
+		Trackers:        t.DownloadTrackers(),
+		Peers:           t.DownloadPeers(),
 	}
 }
 
@@ -985,8 +986,10 @@ func (t transmissionTorrentDetail) DownloadFiles() []DownloadFile {
 	files := make([]DownloadFile, 0, len(t.Files))
 	for i, file := range t.Files {
 		stat := transmissionFileStat{Wanted: true}
+		var selected *bool
 		if i < len(t.FileStats) {
 			stat = t.FileStats[i]
+			selected = new(stat.Wanted)
 		}
 		files = append(files, DownloadFile{
 			ID:        i,
@@ -994,6 +997,7 @@ func (t transmissionTorrentDetail) DownloadFiles() []DownloadFile {
 			SizeBytes: file.Length,
 			Progress:  transmissionFileProgress(file, stat),
 			Priority:  transmissionFilePriority(stat),
+			Selected:  selected,
 		})
 	}
 	return files

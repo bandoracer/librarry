@@ -885,6 +885,8 @@ export type LibraryScanOutcome = {
 };
 
 export type LibraryImportOutcome = {
+ operationId?: string;
+ files?: LibraryFile[];
   file: LibraryFile;
   destinationPath: string;
   moved: boolean;
@@ -1997,13 +1999,16 @@ export async function importCompletedDownloads(options: {
 export async function resolveLibraryImportReview(
   reviewId: string,
   options: {
-    action: "import" | "skip" | "reject";
+    action: "import" | "skip" | "reject" | "reopen";
     wantedId?: string;
     format?: string;
     move?: boolean;
     importMode?: "copy" | "move" | "hardlink" | "hardlinkOrCopy";
     conflictAction?: "rename" | "replace" | "skip" | "fail";
     overwrite?: boolean;
+    mapping?: PayloadMapping[];
+    confirmIdentity?: boolean;
+    previewToken?: string;
   }
 ): Promise<ReviewDecisionOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import-reviews/${encodeURIComponent(reviewId)}/resolve`, {
@@ -3027,7 +3032,7 @@ export type ImportOperation = {
   cleanupError?: string;
   attempts: number;
   metadata: { title?: string; author?: string };
-  files: { id: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
+  files: { id: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
 };
 export type ImportRecoveryReport = {
   operations: ImportOperation[];
@@ -3045,5 +3050,24 @@ export async function fetchImportRecovery(): Promise<ImportRecoveryReport> {
 export async function retryImportOperation(id: string): Promise<LibraryImportOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import-operations/${encodeURIComponent(id)}/retry`, { method: "POST" });
   if (!response.ok) throw new Error(await apiError(response, "Import retry failed"));
+  return response.json();
+}
+
+export type PayloadFile = {
+  relativePath: string; sourcePath: string; format: string; sizeBytes: number;
+  progress: number; selected?: boolean | null; included: boolean; reason?: string;
+  title?: string; author?: string; album?: string; track?: string;
+};
+export type PayloadMapping = { relativePath: string; wantedId?: string; exclude?: boolean };
+export type PayloadReviewRequest = {
+  action: "import"; wantedId?: string; importMode: "copy" | "hardlink" | "hardlinkOrCopy";
+  conflictAction: "rename"; mapping: PayloadMapping[]; confirmIdentity: boolean; previewToken?: string;
+};
+export type PayloadPreview = { operation: ImportOperation; fingerprint: string };
+export async function previewPayloadReview(id: string, options: PayloadReviewRequest): Promise<PayloadPreview> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-reviews/${encodeURIComponent(id)}/preview`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(options)
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Import preview failed"));
   return response.json();
 }

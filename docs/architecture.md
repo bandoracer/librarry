@@ -652,14 +652,14 @@ Library scans call an observation-specific store method. The scan updates physic
 file evidence and keeps fresh local metadata under `scanEvidence`; it preserves
 existing names, wanted/download links, source paths, and Calibre metadata.
 
-A newly verified single-file completed import stores `verifiedDownload` evidence
-(client, external ID, SHA-256) in file metadata. This is an interim safety receipt,
-not the planned relational multipart operation ledger. Cleanup compares a fresh
-client file inventory and both filesystem hashes before requesting deletion.
+Verified completed imports retain `verifiedDownload` evidence (client, external
+ID, SHA-256) in file metadata as a compatibility projection of the durable
+operation ledger below. Cleanup compares fresh client inventory and all required
+filesystem hashes before requesting deletion.
 
 `GET /api/v1/wanted?view=library` includes tracked imported/unmonitored books and
 excludes removed/ignored entries. `cutoff-unmet` retains its separate membership.
-Unknown views return 400. Collection pagination and direct detail lookup remain
+Unknown views return 400. Direct book/file lookup bypasses collection caps; collection pagination remains
 planned. System status reports build version/commit/time, active authentication,
 and the applied migration filename/number. Local builds without an injected build
 timestamp report `unknown` rather than the request time.
@@ -717,10 +717,24 @@ links, and source/destination separation. Remote deletion failure leaves the
 committed import intact and records its error. The singular imported-file field
 continues serving older clients.
 
-Current limits: the automatic selector still rejects multiple book files;
-chapter grouping and multi-book mapping remain S08 work. Same-basename configured
-sidecars are manifested only inside a dedicated payload directory. Completed
-imports cannot replace an existing destination or move seeding sources; use keep
-both. Manual/review imports and remote Calibre handoff remain outside this durable
-engine. Abandoned temporary staging files after process death, resumable scans,
-and crash-safe replacement remain open S09/S11 work.
+Completed imports use exact qBittorrent/Transmission file inventories, including
+explicit selection state. SABnzbd's successfully completed history record supplies
+the finalized extracted directory. Unknown inventories fail closed. Required
+media and sidecars retain relative disc paths in the manifest. Migration 0032 adds
+per-file wanted identity so an explicitly reviewed pack can map to several books.
+Automatic grouping checks local title/author/ISBN evidence, audio album identity,
+and numbered disc/chapter layout; conflicting or uncertain sets require review.
+
+`POST /api/v1/library/import-reviews/{id}/preview` accepts per-file
+`mapping: [{relativePath, wantedId, exclude}]`, transfer mode, conflict policy and
+`confirmIdentity`. It returns the complete operation preview and a fingerprint
+without creating directories or records. Resolving the review requires that
+fingerprint as `previewToken`; changed source content or destinations invalidate
+it. Explicitly retained book/sidecar files prevent cleanup. Skip/reject dispositions
+are scoped to the client/download and persist across polling. Resolving with
+`action: "reopen"` returns a skipped/rejected payload review to pending.
+
+This engine covers native completed imports and reviewed completed payloads.
+Manual-path imports, Calibre handoff, replacement and orphaned temporary-stage
+reclamation remain S09 work. Existing single-book Calibre imports retain their
+previous behavior and cannot claim a native verified-cleanup receipt.

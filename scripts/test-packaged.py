@@ -19,6 +19,8 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+import zipfile
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCKER = ["docker"]
@@ -27,7 +29,7 @@ if os.environ.get("DOCKER_CONTEXT"):
 API_IMAGE = sys.argv[1] if len(sys.argv) > 1 else "librarry-api:stabilization"
 WEB_IMAGE = sys.argv[2] if len(sys.argv) > 2 else "librarry-web:stabilization"
 PREFIX = "librarry-qualification-" + uuid.uuid4().hex[:12]
-PG, API, WEB = [PREFIX + suffix for suffix in ("-pg", "-api", "-web")]
+PG, API, WEB, CLIENT = [PREFIX + suffix for suffix in ("-pg", "-api", "-web", "-client")]
 CONTAINERS = []
 OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
@@ -76,13 +78,23 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
     source.chmod(0o644)
     chapters = media / "downloads" / "Chapters"
     chapters.mkdir()
-    for name in ("01.mp3", "02.mp3"):
-        (chapters / name).write_bytes(b"ID3 controlled chapter fixture " + name.encode())
+    for name in ("Disc 1/01.mp3", "Disc 1/02.mp3", "Disc 2/01.mp3", "cover.jpg"):
+        target = chapters / name
+        target.parent.mkdir(exist_ok=True)
+        target.write_bytes(b"controlled chapter fixture " + name.encode())
+    with zipfile.ZipFile(source) as epub:
+        opf = ET.fromstring(epub.read(next(name for name in epub.namelist() if name.endswith(".opf"))))
+        book_title = next(node.text for node in opf.iter() if node.tag.endswith("}title"))
+        book_author = next(node.text for node in opf.iter() if node.tag.endswith("}creator"))
     docker("network", "create", PREFIX)
     try:
         start(PG, "-e", "POSTGRES_PASSWORD=fixture-only", "-e", "POSTGRES_DB=librarry_test", "postgres:16-alpine")
         wait_for(lambda: docker("exec", PG, "pg_isready", "-U", "postgres"))
+        start(CLIENT, "--network-alias", "fixture-client", "-v", f"{media}:/fixture:ro",
+              "-v", f"{ROOT / 'scripts/fixtures/qbittorrent.py'}:/server.py:ro",
+              "python:3.13-alpine", "python", "/server.py")
         env = {
+            "LIBRARRY_QBITTORRENT_URL": "http://fixture-client:8080",
             "LIBRARRY_DATABASE_URL": f"postgres://postgres:fixture-only@{PG}:5432/librarry_test?sslmode=disable",
             "LIBRARRY_EBOOK_LIBRARY_ROOT": "/fixture/ebooks",
             "LIBRARRY_AUDIOBOOK_LIBRARY_ROOT": "/fixture/audiobooks",
@@ -97,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 29, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 32, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -109,18 +121,30 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert len(request(asset)) > 1000
         assert request("/api/v1/library/files")["files"] == []
         wanted = request("/api/v1/wanted", {"result": {"provider": "fixture", "kind": "book",
-            "work": {"id": "packaged-fixture", "title": "Librarry Fixture Book",
-                     "authors": [{"id": "fixture-author", "name": "Fixture Author"}]}}, "format": "ebook"})
+            "work": {"id": "packaged-fixture", "title": book_title,
+                     "authors": [{"id": "fixture-author", "name": book_author}]}}, "format": "ebook"})
         wanted_id = str(uuid.UUID(wanted["id"]))
-        for external, name, category in (("single", "Fixture.epub", "books-ebook"),
-                                         ("missing", "Missing.epub", "books-ebook"),
-                                         ("chapters", "Chapters", "books-audiobook")):
+        audio = request("/api/v1/wanted", {"result": {"provider": "fixture", "kind": "book",
+            "work": {"id": "packaged-audio", "title": "Chapters",
+                     "authors": [{"id": "audio-author", "name": "Audio Author"}]}}, "format": "audiobook"})
+        audio_id = str(uuid.UUID(audio["id"]))
+        client_rows = []
+        for external, name, category, linked_id in (("single", "Fixture.epub", "books-ebook", wanted_id),
+                                                    ("missing", "Missing.epub", "books-ebook", wanted_id),
+                                                    ("chapters", "Chapters", "books-audiobook", audio_id)):
             sql("insert into downloads(client,external_id,name,category,save_path,state,progress,tags) values"
                 f"('qBittorrent','{external}','{name}','{category}','/fixture/downloads','pausedUP',1,"
-                f"'librarry,wanted:{wanted_id}')")
-        for external in ("missing", "chapters"):
-            result = request("/api/v1/library/import-completed", {"downloadIds": [external], "importMode": "copy"})
-            assert result["imported"] == 0 and result["errored"] == 1, result
+                f"'librarry,wanted:{linked_id}')")
+            payload = media / "downloads" / name
+            paths = sorted(payload.rglob("*")) if payload.is_dir() else [payload]
+            files = [{"name": str(path.relative_to(media / "downloads")), "size": path.stat().st_size if path.exists() else 42,
+                      "progress": 1, "priority": 1} for path in paths if not path.is_dir()]
+            client_rows.append({"status": {"hash": external, "name": name, "category": category,
+                "save_path": "/fixture/downloads", "state": "pausedUP", "progress": 1,
+                "tags": f"librarry,wanted:{linked_id}"}, "files": files})
+        (media / "client.json").write_text(json.dumps(client_rows))
+        result = request("/api/v1/library/import-completed", {"downloadIds": ["missing"], "importMode": "copy"})
+        assert result["imported"] == 0 and result["reviewQueued"] == 1, result
         sql("alter table downloads add constraint inject_commit_failure check(import_status <> 'imported')")
         failed = request("/api/v1/library/import-completed", {"downloadIds": ["single"], "importMode": "copy"})
         assert failed["errored"] == 1 and failed["imported"] == 0, failed
@@ -156,10 +180,20 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert len(records) == 1 and records[0]["id"] == record["id"], records
         assert records[0]["metadata"]["wantedId"] == wanted_id
         assert records[0]["metadata"]["verifiedDownload"]["sha256"] == digest
-        assert source.exists() and all((chapters / name).exists() for name in ("01.mp3", "02.mp3"))
+        assert source.exists() and all((chapters / name).exists() for name in ("Disc 1/01.mp3", "Disc 1/02.mp3", "Disc 2/01.mp3"))
         repeat = request("/api/v1/library/import-completed", {"downloadIds": ["single"], "importMode": "copy"})
         assert repeat["imported"] == 0 and repeat["skipped"] == 1, repeat
-        print("Packaged imports: database failure rolled back, unfinished publication hidden, process restart resumed exact plan, sibling/multipart rejected, source retained, rescans preserve links")
+        audio_result = request("/api/v1/library/import-completed", {"downloadIds": ["chapters"], "importMode": "copy"})
+        assert audio_result["imported"] == 1 and audio_result["errored"] == 0, audio_result
+        audio_files = audio_result["results"][0]["import"]["files"]
+        assert len(audio_files) == 3, audio_files
+        for file in audio_files:
+            src = media / Path(file["sourcePath"]).relative_to("/fixture")
+            dest = media / Path(file["path"]).relative_to("/fixture")
+            assert src.exists() and hashlib.sha256(src.read_bytes()).digest() == hashlib.sha256(dest.read_bytes()).digest()
+        assert (Path(audio_files[0]["path"]).parent.name == "Disc 1")
+        assert (media / Path(audio_files[0]["path"]).relative_to("/fixture").parent.parent / "cover.jpg").exists()
+        print("Packaged imports: database failure rolled back, unfinished publication hidden, process restart resumed exact plan, missing payload reviewed, multi-disc chapters and cover imported, source retained, rescans preserve links")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)

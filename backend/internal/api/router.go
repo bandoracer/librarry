@@ -507,6 +507,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
+	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/preview", handler.previewPayloadReview)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/resolve", handler.resolveImportReview)
 
 	return withCORS(deps.Config.WebOrigin, withAuth(deps.Config.APIKey, deps.Auth, mux))

@@ -39,6 +39,10 @@ type DownloadStore interface {
 	MarkDownloadImportError(ctx context.Context, id string, message string) error
 }
 
+type DownloadInspector interface {
+	DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error)
+}
+
 type RootFolderProvider interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 }
@@ -87,10 +91,18 @@ type Service struct {
 	downloads   DownloadStore
 	calibre     calibre.Manager
 	rootFolders RootFolderProvider
+	inspector   DownloadInspector
 }
 
 func NewService(store *Store, config Config, wanted WantedStore, downloads DownloadStore) *Service {
 	return &Service{store: store, config: config, wanted: wanted, downloads: downloads}
+}
+
+func (s *Service) WithDownloadInspector(inspector DownloadInspector) *Service {
+	if s != nil {
+		s.inspector = inspector
+	}
+	return s
 }
 
 func (s *Service) WithCalibre(manager calibre.Manager, rootFolders RootFolderProvider) *Service {
@@ -635,10 +647,8 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 		limit = 50
 	}
 	allowedIDs := stringSet(request.DownloadIDs)
-	mappings := s.remotePathMappings(ctx)
-	outcome := CompletedImportOutcome{}
+	outcome := CompletedImportOutcome{Results: []DownloadImportResult{}}
 	for _, download := range downloads {
-		ctx := acquisition.WithDownloadClient(ctx, download.Client)
 		if outcome.Checked >= limit {
 			break
 		}
@@ -646,126 +656,91 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			continue
 		}
 		outcome.Checked++
-		result := DownloadImportResult{
-			Download: download,
-			WantedID: wantedIDFromTags(download.Tags),
-		}
-		if !isCompletedDownload(download) {
+		runCtx := acquisition.WithDownloadClient(ctx, download.Client)
+		result := DownloadImportResult{Download: download, WantedID: wantedIDFromTags(download.Tags)}
+		if !isCompletedDownload(download) || download.ImportStatus == "imported" {
 			result.Status = "skipped"
-			result.Message = "download is not complete"
+			result.Message = "download is not complete or is already imported"
 			outcome.Skipped++
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
-		if strings.TrimSpace(download.ImportStatus) == "imported" {
-			result.Status = "skipped"
-			result.Message = "download is already imported"
-			outcome.Skipped++
-			outcome.Results = append(outcome.Results, result)
-			continue
-		}
-		existing, operationErr := s.store.operationForDownload(ctx, download.Client, download.ID)
-		if operationErr == nil {
-			imported, err := s.runImportOperation(ctx, existing)
-			result.WantedID = existing.WantedID
-			if err != nil {
-				result.Status, result.Message = "error", err.Error()
-				outcome.Errored++
-			} else if imported.Skipped {
-				result.Status, result.Message, result.Import = "skipped", imported.Message, &imported
-				outcome.Skipped++
-			} else {
-				result.Status, result.Import = "imported", &imported
-				outcome.Imported++
-			}
-			outcome.Results = append(outcome.Results, result)
-			continue
-		}
-		if !errors.Is(operationErr, sql.ErrNoRows) {
-			return outcome, operationErr
-		}
-		sourcePath, format, err := locateDownloadSource(remapDownloadSavePath(download, mappings))
-		if err != nil {
-			result.Status = "error"
-			result.Message = err.Error()
+		disposition, dispositionErr := s.store.payloadReviewDisposition(runCtx, download.Client, download.ID)
+		if dispositionErr != nil {
+			result.Status, result.Message = "error", dispositionErr.Error()
 			outcome.Errored++
-			if s.downloads != nil {
-				_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
-			}
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
-		result.SourcePath = sourcePath
-		format = firstNonEmpty(formatFromDownload(download), format)
-		if strings.TrimSpace(result.WantedID) == "" {
-			if completedImportAutoMatchEnabled(request) {
-				match, err := s.completedImportAutoMatch(ctx, sourcePath, format)
-				if err != nil {
-					result.Status = "error"
-					result.Message = err.Error()
-					outcome.Errored++
-					if s.downloads != nil {
-						_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+		if disposition == "skipped" || disposition == "rejected" {
+			result.Status, result.Message = "skipped", "payload review was "+disposition+"; reopen it in Imports to try again"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		existing, err := s.store.operationForDownload(runCtx, download.Client, download.ID)
+		var imported ImportOutcome
+		if err == nil {
+			result.WantedID = existing.WantedID
+			imported, err = s.runImportOperation(runCtx, existing)
+		} else if errors.Is(err, sql.ErrNoRows) {
+			var payload DownloadPayload
+			payload, err = s.inspectDownloadPayload(runCtx, download)
+			if err == nil {
+				media := []PayloadFile{}
+				for _, f := range payload.Files {
+					if f.Format == "ebook" || f.Format == "audiobook" {
+						media = append(media, f)
 					}
-					outcome.Results = append(outcome.Results, result)
-					continue
 				}
-				if match.WantedID != "" {
-					result.WantedID = match.WantedID
-					result.AutoMatched = true
-					result.Message = match.Message
+				if len(media) > 0 {
+					result.SourcePath = media[0].SourcePath
+				}
+				if result.WantedID == "" && len(media) == 1 && media[0].Included && completedImportAutoMatchEnabled(request) {
+					var match completedImportAutoMatch
+					match, err = s.completedImportAutoMatch(runCtx, media[0].SourcePath, media[0].Format)
+					if err == nil {
+						result.WantedID = match.WantedID
+						result.AutoMatched = match.WantedID != ""
+						result.Message = match.Message
+					}
+				}
+				if err == nil && disposition == "pending" {
+					err = &PayloadReviewError{Payload: payload, Reasons: []string{"download awaits an explicit import review decision"}}
+				}
+				if err == nil {
+					imported, err = s.importCompletedPayload(runCtx, download, payload, ImportRequest{WantedID: result.WantedID, DownloadID: download.ID, ImportMode: request.ImportMode, ConflictAction: request.ConflictAction, Overwrite: request.Overwrite}, nil, false)
 				}
 			}
 		}
-		if strings.TrimSpace(result.WantedID) == "" {
-			review, err := s.queueImportReview(ctx, download, sourcePath, format, "download is not linked to a wanted item")
-			if err != nil {
-				result.Status = "error"
-				result.Message = err.Error()
-				outcome.Errored++
-				if s.downloads != nil {
-					_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
-				}
+		var reviewErr *PayloadReviewError
+		if errors.As(err, &reviewErr) {
+			review, saveErr := s.queuePayloadReview(runCtx, download, reviewErr.Payload, result.WantedID, reviewErr.Error())
+			if saveErr == nil {
+				result.Status, result.Message, result.Review = "review", review.Reason, &review
+				outcome.ReviewQueued++
 				outcome.Results = append(outcome.Results, result)
 				continue
 			}
-			result.Status = "review"
-			result.Message = review.Reason
-			result.Review = &review
-			outcome.ReviewQueued++
-			outcome.Results = append(outcome.Results, result)
-			continue
+			err = saveErr
 		}
-		imported, err := s.importCompletedFile(ctx, remapDownloadSavePath(download, mappings), ImportRequest{
-			SourcePath: sourcePath, WantedID: result.WantedID, DownloadID: download.ID,
-			Format: format, ImportMode: request.ImportMode, ConflictAction: request.ConflictAction, Overwrite: request.Overwrite,
-		})
 		if err != nil {
-			result.Status = "error"
-			result.Message = err.Error()
+			result.Status, result.Message = "error", err.Error()
 			outcome.Errored++
 			if s.downloads != nil {
-				_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+				if persistErr := s.downloads.MarkDownloadImportError(runCtx, download.ID, err.Error()); persistErr != nil {
+					result.Message += "; persist import error: " + persistErr.Error()
+				}
 			}
-			outcome.Results = append(outcome.Results, result)
-			continue
-		}
-		if imported.Skipped {
-			result.Status = "skipped"
-			result.Message = imported.Message
-			result.Import = &imported
+		} else if imported.Skipped {
+			result.Status, result.Message, result.Import = "skipped", imported.Message, &imported
 			outcome.Skipped++
-			outcome.Results = append(outcome.Results, result)
-			continue
-		}
-		result.Status = "imported"
-		if result.AutoMatched && result.Message == "" {
-			result.Message = "auto-matched unique high-confidence wanted item"
-		}
-		result.Import = &imported
-		outcome.Imported++
-		if result.AutoMatched {
-			outcome.AutoMatched++
+		} else {
+			result.Status, result.Import = "imported", &imported
+			outcome.Imported++
+			if result.AutoMatched {
+				outcome.AutoMatched++
+			}
 		}
 		outcome.Results = append(outcome.Results, result)
 	}
@@ -780,6 +755,10 @@ func (s *Service) ResolveImportReview(ctx context.Context, id string, request Re
 	if err != nil {
 		return ReviewDecisionOutcome{}, err
 	}
+	if strings.EqualFold(strings.TrimSpace(request.Action), "reopen") {
+		resolved, reopenErr := s.store.reopenPayloadReview(ctx, review.ID)
+		return ReviewDecisionOutcome{Review: resolved}, reopenErr
+	}
 	if review.Status != "pending" {
 		return ReviewDecisionOutcome{}, errors.New("import review is already resolved")
 	}
@@ -792,6 +771,10 @@ func (s *Service) ResolveImportReview(ctx context.Context, id string, request Re
 	}
 	switch action {
 	case "import":
+		if review.Metadata["payloadReview"] == true {
+			request.Action = "import"
+			return s.resolvePayloadReview(ctx, review, request)
+		}
 		wantedID := firstNonEmpty(request.WantedID, review.WantedID)
 		if strings.TrimSpace(wantedID) == "" && importReviewRequiresWantedSelection(review) {
 			return ReviewDecisionOutcome{}, errors.New("wanted item selection is required for ambiguous import review")

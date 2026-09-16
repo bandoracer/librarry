@@ -54,7 +54,7 @@ After building `librarry-api:stabilization` and `librarry-web:stabilization`, ru
 `python3 scripts/test-packaged.py`. Set `DOCKER_CONTEXT` to select a test engine
 and optionally `EXPECTED_COMMIT` to assert the packaged source SHA. The script
 creates a unique network, Postgres database container, app containers and media
-fixture directory. It verifies the web proxy, exact import, sibling/multipart
+fixture directory. It verifies the web proxy, exact import, chapter sets, missing-payload
 rejection, source retention, scan identity, retry and isolated database restore,
 also exercises forms login, cookie/restart persistence and Basic authentication,
 then removes only those resources. This is a fixture restore, not a backup of
@@ -809,5 +809,14 @@ from migration. Lists are capped at 100 with total outstanding counts.
 
 Completed imports support copy, hardlink and hardlinkOrCopy. For destination
 conflicts use keep both; automatic replacement requires further recovery work.
-Multipart chapter sets remain rejected. Manual imports and Calibre handoff do not
-yet share the native completed-import recovery guarantee.
+Identifiable chapter sets import together with their sidecars. Uncertain sets and
+multi-book packs appear above the import table as a complete file list. Assign
+books per file (or apply one book to all), explicitly retain unwanted files,
+confirm the assignments, then preview destinations and import. Editing assignments
+invalidates the preview. A server-side content/path change also requires a new
+preview. Required retained files block automatic source deletion.
+
+Skip/Reject stop automatic import of that client/download without deleting files.
+Use Resolved → Reopen review to reconsider. Reopening returns to manual review;
+the next worker run does not silently import it. Manual-path imports and Calibre
+handoff do not yet share the native completed-import recovery guarantee.

@@ -1,6 +1,6 @@
 # Librarry stabilization and polish plan
 
-Status: execution in progress on `codex/stabilize-librarry`. See the [implementation ledger](reviews/2026-09-15-implementation.md) for completed changes, evidence, and remaining gates. The full plan is not complete.
+Status: execution in progress on `codex/stabilize-librarry` and the stacked `codex/multipart-imports` branch. See the [implementation ledger](reviews/2026-09-15-implementation.md) for completed changes, evidence, and remaining gates. The full plan is not complete.
 
 Prepared September 15, 2026 against checkout `6c1f32e`. Based on the [product and reliability audit](reviews/2026-09-15-audit.md), current implementation, and standing product decisions. The earlier [parity plan](parity-plan.md) remains a historical implementation record. This document describes the next body of work; it does not certify existing features or deployments.
 

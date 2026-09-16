@@ -61,6 +61,7 @@ import {
 } from "./lib";
 import "./imports.css";
 import ImportRecovery from "./ImportRecovery";
+import PayloadReview from "./PayloadReview";
 
 type ScanFormat = "ebook" | "audiobook" | "any";
 type ImportMode = "copy" | "move" | "hardlink" | "hardlinkOrCopy";
@@ -130,7 +131,8 @@ export default function ImportsPage() {
   const filesQuery = useLibraryFiles(fileFormat);
   const allFilesQuery = useLibraryFiles("any");
 
-  const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
+  const payloadReviews = (reviewsQuery.data ?? []).filter(review => review.status === "pending" && review.metadata?.payloadReview === true);
+ const reviews = useMemo(() => (reviewsQuery.data ?? []).filter(review => review.status !== "pending" || review.metadata?.payloadReview !== true), [reviewsQuery.data]);
   const pendingReviews = pendingReviewsQuery.data ?? [];
   const files = filesQuery.data ?? [];
   const allFiles = allFilesQuery.data ?? [];
@@ -392,6 +394,7 @@ export default function ImportsPage() {
         }
       />
 
+      {payloadReviews.map(review => <PayloadReview key={`${review.id}:${review.updatedAt}`} review={review} />)}
       <ImportRecovery />
 
       <Card
@@ -584,6 +587,8 @@ export default function ImportsPage() {
 
         {reviewsQuery.isLoading ? (
           <LoadingRow label="Loading import reviews…" />
+        ) : reviews.length === 0 && payloadReviews.length > 0 ? (
+          <p className="field-hint">{payloadReviews.length} download review{payloadReviews.length === 1 ? " needs" : "s need"} file assignments above.</p>
         ) : reviews.length === 0 ? (
           <EmptyState icon={Inbox} title={reviewStatus === "pending" ? "No pending import reviews" : "No import reviews"}>
             Completed downloads that cannot be matched automatically land here for a manual decision.
@@ -738,6 +743,7 @@ export default function ImportsPage() {
                           </div>
                         ) : (
                           <div className="cell-actions">
+                            {review.metadata?.payloadReview === true && ["skipped", "rejected"].includes(review.status) ? <Button size="sm" disabled={resolveMutation.isPending} onClick={() => resolveMutation.mutate({ reviewId: review.id, options: { action: "reopen" } })}>Reopen review</Button> : null}
                             <Badge tone={importStatusTone(review.decision || review.status)}>
                               {review.decision || review.status}
                             </Badge>

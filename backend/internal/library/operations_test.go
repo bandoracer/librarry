@@ -34,6 +34,7 @@ func operationFixture(t *testing.T) (*Service, *sql.DB, acquisition.DownloadStat
 	}
 	service := NewService(NewStore(db), Config{EbookRoot: filepath.Join(root, "library")}, wanted.NewStore(db), nil)
 	download := acquisition.DownloadStatus{Client: "qBittorrent", ID: "fixture", Name: "Fixture.epub", SavePath: sourceRoot, Category: "books", Progress: 1, State: "pausedUP", Tags: []string{"librarry", "wanted:" + wantedID}}
+	service.WithDownloadInspector(newFixtureInspector(t, download))
 	return service, db, download, wantedID
 }
 
@@ -111,7 +112,7 @@ func TestPublishedImportRecoversAfterDatabaseFailureAndStaysHidden(t *testing.T)
 		t.Fatal(err)
 	}
 	// A new process resumes the persisted destination, even with different config.
-	restarted := NewService(NewStore(db), Config{EbookRoot: filepath.Join(t.TempDir(), "changed")}, wanted.NewStore(db), nil)
+	restarted := NewService(NewStore(db), Config{EbookRoot: filepath.Join(t.TempDir(), "changed")}, wanted.NewStore(db), nil).WithDownloadInspector(service.inspector)
 	result, err = restarted.ImportCompletedDownloads(ctx, []acquisition.DownloadStatus{download}, CompletedImportRequest{ImportMode: "hardlink"})
 	if err != nil || result.Imported != 1 || result.Results[0].Import.DestinationPath != op.Files[0].DestinationPath {
 		t.Fatalf("resume: %+v %v", result, err)
@@ -251,6 +252,7 @@ func TestOperationRequiresEverySidecarBeforeCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	download.Name = "Fixture"
+	service.WithDownloadInspector(newFixtureInspector(t, download))
 	service.Reconfigure(Config{EbookRoot: service.Config().EbookRoot, ImportExtraFiles: ".cue"})
 	if _, err := db.Exec(`alter table downloads add constraint inject_commit_failure check(import_status <> 'imported')`); err != nil {
 		t.Fatal(err)
@@ -273,4 +275,47 @@ func TestOperationRequiresEverySidecarBeforeCommit(t *testing.T) {
 	if err != nil || result.Errored != 1 {
 		t.Fatalf("missing sidecar accepted: %+v %v", result, err)
 	}
+}
+
+type fixtureInspector struct {
+	download        acquisition.DownloadStatus
+	files           []acquisition.DownloadFile
+	err             error
+	inventorySource string
+	payloadRoot     string
+}
+
+func (f *fixtureInspector) DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error) {
+	source := f.inventorySource
+	if source == "" {
+		source = "client-files"
+	}
+	return acquisition.DownloadDetails{Status: f.download, Files: f.files, InventorySource: source, PayloadRoot: f.payloadRoot}, f.err
+}
+func newFixtureInspector(t *testing.T, download acquisition.DownloadStatus) *fixtureInspector {
+	t.Helper()
+	inspector := &fixtureInspector{download: download}
+	root := filepath.Join(download.SavePath, download.Name)
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(download.SavePath, path)
+		if err != nil {
+			return err
+		}
+		inspector.files = append(inspector.files, acquisition.DownloadFile{Name: relative, SizeBytes: info.Size(), Progress: 1, Selected: new(true)})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return inspector
 }

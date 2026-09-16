@@ -35,6 +35,7 @@ type ImportOperation struct {
 }
 
 type ImportOperationFile struct {
+	WantedID        string `json:"wantedId,omitempty"`
 	ID              string `json:"id"`
 	Order           int    `json:"order"`
 	RelativePath    string `json:"relativePath"`
@@ -75,7 +76,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	if err = json.Unmarshal(raw, &op.Metadata); err != nil {
 		return op, err
 	}
-	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
+	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
 	if err != nil {
 		return op, err
 	}
@@ -83,7 +84,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	op.Files = []ImportOperationFile{}
 	for rows.Next() {
 		var f ImportOperationFile
-		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID); err != nil {
+		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID, &f.WantedID); err != nil {
 			return op, err
 		}
 		op.Files = append(op.Files, f)
@@ -154,8 +155,8 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 		return op, err
 	}
 	for _, f := range op.Files {
-		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required); err != nil {
+		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,wanted_item_id)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,nullif($10,'')::uuid)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required, f.WantedID); err != nil {
 			return op, err
 		}
 	}
@@ -233,11 +234,15 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 	}
 	stored := make([]FileRecord, 0, len(records))
 	for _, record := range records {
+		wantedID, _ := record.Metadata["wantedId"].(string)
+		if wantedID == "" {
+			return nil, errors.New("manifest book association is missing")
+		}
 		file, err := persistFile(ctx, tx, record, false)
 		if err != nil {
 			return nil, err
 		}
-		result, err := tx.ExecContext(ctx, `update import_operation_files set file_id=$3,state='committed',updated_at=now() where operation_id=$1 and destination_path=$2 and media_format<>'sidecar'`, op.ID, file.Path, file.ID)
+		result, err := tx.ExecContext(ctx, `update import_operation_files set file_id=$3,state='committed',updated_at=now() where operation_id=$1 and destination_path=$2 and media_format<>'sidecar' and wanted_item_id=$4`, op.ID, file.Path, file.ID, wantedID)
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +250,7 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 		if err != nil || n != 1 {
 			return nil, errors.New("file does not match import manifest")
 		}
-		if _, err := tx.ExecContext(ctx, `insert into file_wanted_links(file_id,wanted_item_id) values($1,$2) on conflict do nothing`, file.ID, op.WantedID); err != nil {
+		if _, err := tx.ExecContext(ctx, `insert into file_wanted_links(file_id,wanted_item_id) values($1,$2) on conflict do nothing`, file.ID, wantedID); err != nil {
 			return nil, err
 		}
 		if _, err := tx.ExecContext(ctx, `insert into file_download_links(file_id,download_record_id) values($1,$2) on conflict do nothing`, file.ID, op.DownloadRecordID); err != nil {
@@ -262,13 +267,20 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 	if _, err := tx.ExecContext(ctx, `update import_operation_files set state='committed',updated_at=now() where operation_id=$1`, op.ID); err != nil {
 		return nil, err
 	}
-	result, err := tx.ExecContext(ctx, `update wanted_items set status='imported',updated_at=now() where id=$1 and status not in ('removed','ignored')`, op.WantedID)
-	if err != nil {
-		return nil, err
+	importedBooks := map[string]string{}
+	for _, record := range records {
+		id, _ := record.Metadata["wantedId"].(string)
+		importedBooks[id] = record.MediaFormat
 	}
-	n, err := result.RowsAffected()
-	if err != nil || n != 1 {
-		return nil, errors.New("book was removed while importing")
+	for id, format := range importedBooks {
+		result, err := tx.ExecContext(ctx, `update wanted_items set status='imported',updated_at=now() where id=$1 and status not in ('removed','ignored') and wanted_format in ('any',$2)`, id, format)
+		if err != nil {
+			return nil, err
+		}
+		n, err := result.RowsAffected()
+		if err != nil || n != 1 {
+			return nil, errors.New("book was removed or its format changed while importing")
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `update downloads set import_status='imported',imported_file_id=$2,imported_at=now(),import_error='',updated_at=now() where id=$1`, op.DownloadRecordID, stored[0].ID); err != nil {
 		return nil, err

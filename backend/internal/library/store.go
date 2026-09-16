@@ -249,7 +249,7 @@ func (s *Store) CreateImportReview(ctx context.Context, review ImportReview) (Im
 	if review.Metadata == nil {
 		review.Metadata = map[string]any{}
 	}
-	existing, err := s.findPendingImportReviewBySource(ctx, review.SourcePath)
+	existing, err := s.findPendingImportReviewBySource(ctx, review.SourcePath, review.DownloadID, review.Metadata["downloadClient"])
 	if err == nil {
 		return existing, nil
 	}
@@ -283,7 +283,7 @@ func (s *Store) CreateImportReview(ctx context.Context, review ImportReview) (Im
 	if !errors.Is(err, sql.ErrNoRows) {
 		return ImportReview{}, err
 	}
-	return s.findPendingImportReviewBySource(ctx, review.SourcePath)
+	return s.findPendingImportReviewBySource(ctx, review.SourcePath, review.DownloadID, review.Metadata["downloadClient"])
 }
 
 func (s *Store) ListImportReviews(ctx context.Context, query ReviewListQuery) ([]ImportReview, error) {
@@ -376,17 +376,17 @@ func (s *Store) ResolveImportReview(ctx context.Context, id string, status strin
 	return scanImportReview(row)
 }
 
-func (s *Store) findPendingImportReviewBySource(ctx context.Context, sourcePath string) (ImportReview, error) {
+func (s *Store) findPendingImportReviewBySource(ctx context.Context, sourcePath, downloadID string, client any) (ImportReview, error) {
 	row := s.db.QueryRowContext(ctx, `
 		select
 			id, source_path, download_id, coalesce(wanted_item_id::text, ''), media_format,
 			title, author_name, coalesce(size_bytes, 0), reason, status, decision,
 			destination_path, metadata, created_at, updated_at, resolved_at
 		from import_reviews
-		where source_path = $1 and status = 'pending'
+		where source_path = $1 and download_id=$2 and lower(coalesce(metadata->>'downloadClient',''))=lower(coalesce($3::text,'')) and status = 'pending'
 		order by created_at desc
 		limit 1
-	`, strings.TrimSpace(sourcePath))
+	`, strings.TrimSpace(sourcePath), downloadID, client)
 	return scanImportReview(row)
 }
 

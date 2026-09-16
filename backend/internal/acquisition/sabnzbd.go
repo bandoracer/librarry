@@ -312,7 +312,12 @@ func (c *SABnzbdClient) historyDetails(ctx context.Context, id string) (Download
 		return DownloadDetails{}, false, nil
 	}
 	slot := history.History.Slots[0]
+	inventorySource, payloadRoot := "", ""
+	if strings.EqualFold(strings.TrimSpace(slot.Status), "completed") && slot.FailMessage == "" && strings.TrimSpace(slot.Storage) != "" {
+		inventorySource, payloadRoot = "completed-directory", slot.Storage
+	}
 	return DownloadDetails{
+		InventorySource: inventorySource, PayloadRoot: payloadRoot,
 		Status:     slot.DownloadStatus(time.Now().UTC()),
 		Properties: slot.DownloadProperties(),
 	}, true, nil

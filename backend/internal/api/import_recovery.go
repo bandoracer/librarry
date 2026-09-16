@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -51,4 +52,33 @@ func (h *handler) retryImportOperation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, outcome)
+}
+
+type payloadReviewService interface {
+	PreviewPayloadReview(context.Context, string, library.ReviewDecisionRequest) (library.PayloadPreview, error)
+}
+
+func (h *handler) previewPayloadReview(w http.ResponseWriter, r *http.Request) {
+	service, ok := h.deps.Library.(payloadReviewService)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "payload review is unavailable"})
+		return
+	}
+	defer r.Body.Close()
+	var request library.ReviewDecisionRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid payload mapping"})
+		return
+	}
+	var parsed pgtype.UUID
+	if err := parsed.Scan(r.PathValue("id")); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid review ID"})
+		return
+	}
+	preview, err := service.PreviewPayloadReview(r.Context(), r.PathValue("id"), request)
+	if err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, preview)
 }

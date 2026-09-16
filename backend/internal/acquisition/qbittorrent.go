@@ -475,11 +475,12 @@ func (c *QBittorrentClient) Details(ctx context.Context, id string) (DownloadDet
 		return DownloadDetails{}, err
 	}
 	return DownloadDetails{
-		Status:     statuses[0],
-		Properties: properties,
-		Files:      files,
-		Trackers:   trackers,
-		Peers:      peers,
+		Status:          statuses[0],
+		InventorySource: "client-files",
+		Properties:      properties,
+		Files:           files,
+		Trackers:        trackers,
+		Peers:           peers,
 	}, nil
 }
 
@@ -798,7 +799,7 @@ func (c *QBittorrentClient) files(ctx context.Context, id string) ([]DownloadFil
 		Name         string  `json:"name"`
 		Size         int64   `json:"size"`
 		Progress     float64 `json:"progress"`
-		Priority     int     `json:"priority"`
+		Priority     *int    `json:"priority"`
 		Availability float64 `json:"availability"`
 		IsSeed       bool    `json:"is_seed"`
 		PieceRange   []int   `json:"piece_range"`
@@ -809,12 +810,19 @@ func (c *QBittorrentClient) files(ctx context.Context, id string) ([]DownloadFil
 	files := make([]DownloadFile, 0, len(raw))
 	for i, item := range raw {
 		firstPiece, lastPiece := pieceRange(item.PieceRange)
+		var selected *bool
+		priority := 0
+		if item.Priority != nil {
+			priority = *item.Priority
+			selected = new(priority > 0)
+		}
 		files = append(files, DownloadFile{
 			ID:           i,
 			Name:         item.Name,
 			SizeBytes:    item.Size,
 			Progress:     item.Progress,
-			Priority:     item.Priority,
+			Priority:     priority,
+			Selected:     selected,
 			Availability: item.Availability,
 			IsSeed:       item.IsSeed,
 			FirstPiece:   firstPiece,

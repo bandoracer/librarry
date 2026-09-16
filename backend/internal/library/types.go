@@ -230,13 +230,16 @@ type ImportReview struct {
 }
 
 type ReviewDecisionRequest struct {
-	Action         string `json:"action"`
-	WantedID       string `json:"wantedId,omitempty"`
-	Format         string `json:"format,omitempty"`
-	Move           bool   `json:"move,omitempty"`
-	ImportMode     string `json:"importMode,omitempty"`
-	ConflictAction string `json:"conflictAction,omitempty"`
-	Overwrite      bool   `json:"overwrite,omitempty"`
+	PreviewToken    string           `json:"previewToken,omitempty"`
+	Mapping         []PayloadMapping `json:"mapping,omitempty"`
+	ConfirmIdentity bool             `json:"confirmIdentity,omitempty"`
+	Action          string           `json:"action"`
+	WantedID        string           `json:"wantedId,omitempty"`
+	Format          string           `json:"format,omitempty"`
+	Move            bool             `json:"move,omitempty"`
+	ImportMode      string           `json:"importMode,omitempty"`
+	ConflictAction  string           `json:"conflictAction,omitempty"`
+	Overwrite       bool             `json:"overwrite,omitempty"`
 }
 
 type ReviewDecisionOutcome struct {

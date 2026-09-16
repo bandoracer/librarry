@@ -104,3 +104,13 @@
 .imports-recovery-item summary::before { content: "▸"; }
 .imports-recovery-item[open] > summary::before { content: "▾"; }
 .imports-recovery-item summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.imports-payload-tools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 16px 0; }
+.imports-payload-tools .field { flex: 1 1 220px; min-width: 0; }
+.imports-payload-files { padding-left: 24px; }
+.imports-payload-files li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.imports-payload-files select { width: 100%; min-width: 0; margin-top: 6px; }
+.imports-payload-confirm { display: flex; align-items: start; gap: 8px; margin-top: 16px; }
+.imports-payload-confirm input { margin-top: 4px; flex-shrink: 0; }
+.imports-payload-preview { margin-top: 16px; }
+.imports-payload-preview ol { padding-left: 24px; }
+.imports-payload-preview li { margin: 8px 0; }

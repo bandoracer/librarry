@@ -92,11 +92,13 @@ type DownloadStatus struct {
 }
 
 type DownloadDetails struct {
-	Status     DownloadStatus     `json:"status"`
-	Properties DownloadProperties `json:"properties,omitempty"`
-	Files      []DownloadFile     `json:"files,omitempty"`
-	Trackers   []DownloadTracker  `json:"trackers,omitempty"`
-	Peers      []DownloadPeer     `json:"peers,omitempty"`
+	InventorySource string             `json:"inventorySource,omitempty"`
+	PayloadRoot     string             `json:"payloadRoot,omitempty"`
+	Status          DownloadStatus     `json:"status"`
+	Properties      DownloadProperties `json:"properties,omitempty"`
+	Files           []DownloadFile     `json:"files,omitempty"`
+	Trackers        []DownloadTracker  `json:"trackers,omitempty"`
+	Peers           []DownloadPeer     `json:"peers,omitempty"`
 }
 
 type DownloadProperties struct {
@@ -126,6 +128,7 @@ type DownloadProperties struct {
 }
 
 type DownloadFile struct {
+	Selected     *bool   `json:"selected,omitempty"`
 	ID           int     `json:"id"`
 	ExternalID   string  `json:"externalId,omitempty"`
 	Name         string  `json:"name"`

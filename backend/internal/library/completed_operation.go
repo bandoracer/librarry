@@ -2,119 +2,12 @@ package library
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
-
-	"github.com/bandoracer/librarry/backend/internal/acquisition"
 )
-
-// importCompletedFile persists the immutable source/destination/hash plan before
-// transferring bytes. A retry uses that plan even if naming settings change.
-func (s *Service) importCompletedFile(ctx context.Context, download acquisition.DownloadStatus, request ImportRequest) (ImportOutcome, error) {
-	op, err := s.store.operationForDownload(ctx, download.Client, download.ID)
-	if err == nil {
-		return s.runImportOperation(ctx, op)
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return ImportOutcome{}, err
-	}
-	item, err := s.lookupWanted(ctx, request.WantedID)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if item.Status == "removed" || item.Status == "ignored" {
-		return ImportOutcome{}, errors.New("book is no longer eligible for import")
-	}
-	source := filepath.Clean(request.SourcePath)
-	format, ok := classifyFile(source)
-	if !ok {
-		return ImportOutcome{}, errors.New("unsupported source format")
-	}
-	if item.Format != "" && item.Format != "any" && normalizeFormat(item.Format) != format {
-		return ImportOutcome{}, errors.New("source format conflicts with the wanted book")
-	}
-	// Remote Calibre handoff retains its existing operator flow. It cannot earn
-	// local filesystem verification or cleanup eligibility from a remote add alone.
-	if folder, ok := resolveImportRootFolder(s.nativeRootFolders(ctx), format, item.RootFolderID); ok && folder.Calibre.Enabled {
-		imported, err := s.Import(ctx, request)
-		if err == nil && imported.Imported && s.downloads != nil {
-			err = s.downloads.MarkDownloadImported(ctx, download.ID, imported.File.ID)
-		}
-		return imported, err
-	}
-	parsed := parsedBookForPath(source)
-	parsed.Title = firstNonEmpty(item.Title, parsed.Title)
-	parsed.AuthorName = firstNonEmpty(item.AuthorName, parsed.AuthorName)
-	parsed.Series = firstNonEmpty(wantedOverrideValue(item, "series"), item.Series, parsed.Series)
-	parsed.SeriesPosition = firstNonEmpty(wantedOverrideValue(item, "series_position"), item.SeriesPosition, parsed.SeriesPosition)
-	if item.FirstPublishYear > 0 {
-		parsed.Year = strconv.Itoa(item.FirstPublishYear)
-	}
-	root := s.importRootPath(ctx, format, item.RootFolderID)
-	if root == "" || !filepath.IsAbs(root) {
-		return ImportOutcome{}, errors.New("an absolute library root is required")
-	}
-	if err := os.MkdirAll(root, 0755); err != nil {
-		return ImportOutcome{}, err
-	}
-	root, err = filepath.EvalSymlinks(root)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	destination := s.importDestinationPath(root, format, parsed, source)
-	plan, err := planImportDestination(source, destination, normalizeConflictAction(request.ConflictAction, request.Overwrite))
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if plan.Skipped {
-		return ImportOutcome{Skipped: true, DestinationPath: plan.DestinationPath, Message: plan.Message}, nil
-	}
-	if plan.Replaced {
-		return ImportOutcome{}, errors.New("completed import replacement requires review; use keep both to preserve the existing book")
-	}
-	sourceRoot, err := filepath.EvalSymlinks(download.SavePath)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if !pathWithinRoot(source, sourceRoot) || pathWithinRoot(plan.DestinationPath, sourceRoot) {
-		return ImportOutcome{}, errors.New("import destination must be outside the download deletion tree")
-	}
-	entry, err := newManifestFile(source, plan.DestinationPath, sourceRoot, format, 0)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	op = ImportOperation{Client: download.Client, DownloadID: download.ID, WantedID: request.WantedID,
-		SourceRoot: sourceRoot, DestinationRoot: root, Format: format, Mode: normalizeImportMode(request.ImportMode, false),
-		Metadata: map[string]any{"title": parsed.Title, "author": parsed.AuthorName, "conflictAction": plan.ConflictAction}, Files: []ImportOperationFile{entry}}
-	// Same-basename configured sidecars are part of this operation only when the
-	// download has its own payload directory. Never consume siblings of a loose file.
-	payload := filepath.Join(sourceRoot, filepath.Base(download.Name))
-	if info, err := os.Lstat(payload); err == nil && info.IsDir() && pathWithinRoot(source, payload) {
-		extras, err := siblingExtraFiles(source, importExtraExtensions(s.Config().ImportExtraFiles))
-		if err != nil {
-			return ImportOutcome{}, err
-		}
-		for _, extra := range extras {
-			target := strings.TrimSuffix(plan.DestinationPath, filepath.Ext(plan.DestinationPath)) + strings.ToLower(filepath.Ext(extra))
-			f, err := newManifestFile(extra, target, sourceRoot, "sidecar", len(op.Files))
-			if err != nil {
-				return ImportOutcome{}, err
-			}
-			op.Files = append(op.Files, f)
-		}
-	}
-	op, err = s.store.planOperation(ctx, op)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	return s.runImportOperation(ctx, op)
-}
 
 func newManifestFile(source, destination, root, format string, order int) (ImportOperationFile, error) {
 	var f ImportOperationFile
@@ -193,6 +86,9 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 			s.store.failOperation(persistCtx, op.ID, token, resultErr.Error())
 		}
 	}()
+	if err := s.verifyOperationInventory(runCtx, op, false); err != nil {
+		return outcome, err
+	}
 	records := make([]FileRecord, 0, len(op.Files))
 	for _, f := range op.Files {
 		if err := runCtx.Err(); err != nil {
@@ -264,12 +160,15 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		record.SourcePath, record.Checksum = f.SourcePath, f.SHA256
 		record.Title, _ = op.Metadata["title"].(string)
 		record.AuthorName, _ = op.Metadata["author"].(string)
-		record.Metadata["wantedId"], record.Metadata["downloadId"], record.Metadata["downloadClient"] = op.WantedID, op.DownloadID, op.Client
+		record.Metadata["wantedId"], record.Metadata["downloadId"], record.Metadata["downloadClient"] = f.WantedID, op.DownloadID, op.Client
 		record.Metadata["importOperationId"] = op.ID
 		record.Metadata["importMode"] = op.Mode
 		record.Metadata["verifiedDownload"] = map[string]any{"client": op.Client, "id": op.DownloadID, "sha256": f.SHA256}
 		record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
 		records = append(records, record)
+	}
+	if err := s.verifyOperationInventory(runCtx, op, false); err != nil {
+		return outcome, err
 	}
 	// Re-check the whole set at the visibility boundary, including sources that a
 	// still-running download client may have modified during transfer.
@@ -283,14 +182,15 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 	if err := s.store.renewOperation(runCtx, op.ID, token); err != nil {
 		return outcome, err
 	}
-	current, err := s.lookupWanted(runCtx, op.WantedID)
-	if err != nil {
-		return outcome, err
-	}
-	if current.Format != "" && current.Format != "any" && normalizeFormat(current.Format) != op.Format {
-		return outcome, errors.New("wanted format changed; import needs review")
-	}
 	for i := range records {
+		id, _ := records[i].Metadata["wantedId"].(string)
+		current, err := s.lookupWanted(runCtx, id)
+		if err != nil {
+			return outcome, err
+		}
+		if current.Format != "" && current.Format != "any" && normalizeFormat(current.Format) != records[i].MediaFormat {
+			return outcome, errors.New("wanted format changed; import needs review")
+		}
 		records[i].Title = firstNonEmpty(current.Title, records[i].Title)
 		records[i].AuthorName = firstNonEmpty(current.AuthorName, records[i].AuthorName)
 	}
@@ -320,6 +220,13 @@ func (s *Service) committedOperationOutcome(ctx context.Context, op ImportOperat
 	}
 	if len(records) == 0 || len(records) != len(ids) {
 		return ImportOutcome{}, errors.New("committed import files are missing")
+	}
+	byID := make(map[string]FileRecord, len(records))
+	for _, record := range records {
+		byID[record.ID] = record
+	}
+	for i, id := range ids {
+		records[i] = byID[id]
 	}
 	return ImportOutcome{File: records[0], Files: records, OperationID: op.ID, DestinationPath: records[0].Path, Imported: true, Skipped: true, ImportMode: op.Mode, Message: "verified import already committed"}, nil
 }

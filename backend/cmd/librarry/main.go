@@ -182,7 +182,7 @@ func main() {
 	if compatStore != nil {
 		rootFolders = compatStore
 	}
-	libraryService := library.NewService(libraryStore, libraryConfig, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), rootFolders)
+	libraryService := library.NewService(libraryStore, libraryConfig, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), rootFolders).WithDownloadInspector(acquire)
 	if libraryService.Available() {
 		// Native root folders (when present) win over the env/compat roots.
 		if err := libraryService.SyncConfigFromRootFolders(ctx); err != nil {
