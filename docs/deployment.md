@@ -24,19 +24,33 @@ send browser or reverse-proxy traffic to the web container.
 
 Images are built for `linux/amd64` and `linux/arm64` by
 [.github/workflows/container-images.yml](../.github/workflows/container-images.yml).
-The workflow publishes on pushes to `main`, version tags, and manual dispatches.
+Pushes to `main`, version tags, pull requests, and ordinary manual runs only
+validate builds. To publish images for qualification, manually dispatch the
+workflow at the reviewed candidate ref and explicitly enable `publish_candidate`.
+It publishes only `candidate-<full commit>-<run ID>-<attempt>` tags and records
+each image digest in a `candidate-librarry-api` or `candidate-librarry-web` artifact.
+Rebuilding a commit gets a different tag. Candidate tags are not release approval;
+use the recorded digest for qualification and deployment.
 
-Use `:latest` only for alpha testing:
+This workflow cannot update `latest`, branch aliases, or version aliases. Existing
+`latest` images remain whatever was published previously; merging a fix does not
+update installed images. Stable promotion is withheld until the
+[release checklist](release-checklist.md) is complete. A future promotion must
+use the qualified digests instead of rebuilding the source.
+
+The installer defaults still use the historical alpha `:latest` channel:
 
 ```dotenv
 LIBRARRY_API_IMAGE=ghcr.io/bandoracer/librarry-api:latest
 LIBRARRY_WEB_IMAGE=ghcr.io/bandoracer/librarry-web:latest
 ```
 
-For production-like installs, pin both images to the same version tag once
-tagged releases exist. After the first publish, verify both GHCR packages are
-public in GitHub package settings; anonymous Docker, TrueNAS, and Unraid pulls
-fail against private packages.
+For candidate testing, override both variables with the corresponding
+`ghcr.io/bandoracer/librarry-api@sha256:<digest>` and
+`ghcr.io/bandoracer/librarry-web@sha256:<digest>` values recorded by the same run.
+Wait for both image jobs to succeed; a partially successful run is not a usable
+release pair. Verify both GHCR packages allow anonymous pulls for public installs.
+Package visibility is independent of a successful authenticated publication.
 
 ## Generic Docker Compose
 
@@ -272,13 +286,7 @@ using move, rename, hardlink, or delete actions.
 
 ## Release Checklist
 
-Before calling a build publicly installable:
-
-1. `go test ./...`
-2. `cd web && npm run build`
-3. `docker compose -f deploy/docker-compose.build.yml config`
-4. `docker compose -f deploy/docker-compose.yml config`
-5. Build/push both GHCR images for `linux/amd64` and `linux/arm64`.
-6. Verify the GHCR packages are public.
-7. Smoke test `/healthz`, web direct routes, provider health, and at least one
-   safe book search/grab path on the target platform.
+Use the [bounded release checklist](release-checklist.md). Successful image
+builds are one prerequisite, not evidence that imports, upgrades, restores, or
+the target NAS work correctly. Do not publish stable aliases before completing
+the applicable release gates.
