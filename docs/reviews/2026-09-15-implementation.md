@@ -840,3 +840,45 @@ ARM64 API passed packaged restart/import/acquisition/scan/replacement/authentica
 checks; its 405,178-byte dump restored with counts and receipt intact. Packaged web
 remains the older multipart snapshot; current web source was separately built and
 browser-tested. No live Hardcover request, production deployment or release.
+
+## Continuation: author monitoring policies and exclusions (S13)
+
+Branch: `codex/author-monitor-policies`, based on edition-evidence PR #19.
+Latest monitoring formerly chose an unreleased title as the absolute newest
+work, omitting the most recent published book. It now selects the latest
+released work separately. First/latest require provable publication ordering;
+missing or overlapping dates enter review rather than using provider order.
+Date-only evidence retains day/month/year precision. Original work dates/years
+win over reprint dates, and a coarse date spanning the subscription cutoff
+cannot invent a future-publication classification.
+
+Ignored reviews follow stable work aliases within the author subscription and
+format, even if policy, preferred edition or title changes. Global saved book
+exclusions are loaded without the former list limit and apply before first/latest
+selection. Language allowlists compare canonical names/codes, never arbitrary
+prefixes. Existing tracking, manual corrections and removed books remain intact
+under repeated add-only passes.
+
+Author settings, referenced metadata-profile filters and exclusions are read after
+provider IO. Stops/removals during the fetch skip additions without marking the
+author synced; changed policies and creation defaults take effect. Sync success
+requires the same still-active subscription revision and a successful database
+write. This closes the long remote-IO window, but does not serialize all owner
+edits with every insertion in the later candidate loop. Complete root/profile
+inheritance, verified file-presence semantics and broader matching corpus remain
+open S13/S14 work. No new database migration is required.
+
+Edition-evidence PR #19 at `8a7db4b631e9bf620085133e0c94cf853f7f8724` passed
+[CI run 35075050971](https://github.com/bandoracer/librarry/actions/runs/35075050971),
+including source/race/browser, packaged restart/restore and AMD64/ARM64 builds.
+No images were published or deployed.
+
+Final policy qualification: full Go race/Postgres suite, vet, web production build
+and whitespace checks passed. Contract/database tests cover all seven policies,
+repeated refreshes, 1,100 exclusions, changed edition/work aliases, language
+normalization, imprecise dates, stops/removals/policy/filter/default changes during
+provider fetch and stale sync timestamps. The schema-40 local ARM64 API passed
+packaged restart/import/acquisition/scan/replacement/authentication checks; a
+404,854-byte dump restored with counts and receipt intact. Packaged web remains
+the older multipart snapshot; this change has no web source edits. No live provider
+request, production deployment or release occurred.

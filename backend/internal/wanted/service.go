@@ -475,16 +475,6 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 
 		result := AuthorMonitorItemResult{Subscription: subscription}
-		// Effective add-filters: the referenced metadata profile wins over the
-		// per-author override columns when set. Failed evidence/config reads
-		// leave the subscription unsynced for a complete retry.
-		effective, filterErr := s.resolveAuthorSubscriptionFilters(ctx, subscription)
-		if filterErr != nil {
-			result.Error = filterErr.Error()
-			run.ErrorCount++
-			run.Items = append(run.Items, result)
-			continue
-		}
 		results, err := s.metadata.AuthorBibliography(ctx, metadata.Query{
 			Query:       subscription.AuthorName,
 			Type:        metadata.SearchTypeAuthorWorks,
@@ -498,6 +488,50 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			run.Items = append(run.Items, result)
 			continue
 		}
+		// Provider IO may take minutes. Re-read the owner configuration before
+		// using its results, including stops/removals and referenced profiles.
+		current, err := s.store.GetAuthorSubscription(ctx, subscription.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			current = subscription
+			current.Status = "removed"
+			current.MonitorNewItems = false
+		} else if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		subscription = current
+		result.Subscription = subscription
+		if subscription.Status != "monitored" || !subscription.MonitorNewItems || subscription.MissingBookPolicy == "none" {
+			result.ResultsFound = len(results)
+			result.SkippedCount = len(results)
+			run.ItemsFound += len(results)
+			for _, candidate := range results {
+				if len(result.SkippedItems) >= defaultAuthorSkippedItemsLimit {
+					break
+				}
+				result.SkippedItems = append(result.SkippedItems, AuthorSkippedItem{Result: candidate, Policy: subscription.MissingBookPolicy, Reason: "author monitoring stopped while the bibliography was loading"})
+			}
+			run.Items = append(run.Items, result)
+			continue
+		}
+		effective, filterErr := s.resolveAuthorSubscriptionFilters(ctx, subscription)
+		if filterErr != nil {
+			result.Error = filterErr.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		// Include exclusions changed while the bibliography was loading.
+		exclusions, err := s.store.authorExclusionSnapshot(ctx, []AuthorSubscription{subscription})
+		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+
 		matched := make([]metadata.SearchResult, 0, len(results))
 		for _, candidate := range results {
 			if authorResultMatchesSubscription(subscription, candidate) {
@@ -506,7 +540,7 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 		policyCandidates := make([]metadata.SearchResult, 0, len(matched))
 		for _, candidate := range matched {
-			if authorResultFilterReason(effective, candidate) == "" {
+			if exclusions.reason(subscription, candidate) == "" && authorResultFilterReason(effective, candidate) == "" {
 				policyCandidates = append(policyCandidates, candidate)
 			}
 		}
@@ -519,6 +553,15 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 		for _, candidate := range matched {
 			result.ResultsFound++
+			// Saved exclusions/ignored reviews are owner decisions, not provider
+			// suggestions. They cannot be bypassed by a new policy or edition.
+			if reason := exclusions.reason(subscription, candidate); reason != "" {
+				result.SkippedCount++
+				if len(result.SkippedItems) < defaultAuthorSkippedItemsLimit {
+					result.SkippedItems = append(result.SkippedItems, AuthorSkippedItem{Result: candidate, Policy: subscription.MissingBookPolicy, Reason: reason})
+				}
+				continue
+			}
 			// Add-filters (language allowlist, must-not-contain, ISBN, page
 			// count) run before the missing-book policy; both paths land in
 			// the review queue as skipped entries with explicit reasons.
@@ -575,7 +618,7 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			run.Items = append(run.Items, result)
 			continue
 		}
-		if err := s.store.MarkAuthorSubscriptionSynced(ctx, subscription.ID); err != nil {
+		if err := s.store.MarkAuthorSubscriptionSynced(ctx, subscription.ID, subscription.UpdatedAt); err != nil {
 			result.Error = err.Error()
 			run.ErrorCount++
 			run.Items = append(run.Items, result)
@@ -1959,14 +2002,14 @@ func resultPublicationDate(result metadata.SearchResult) (publicationDate, bool)
 	if published, ok := parsePublicationDate(result.Work.FirstPublishDate); ok {
 		return published, true
 	}
-	if published, ok := parsePublicationDate(result.Edition.PublishedDate); ok {
-		return published, true
-	}
 	if result.Work.FirstPublishYear > 0 {
 		return publicationDate{
 			Time:      time.Date(result.Work.FirstPublishYear, 1, 1, 0, 0, 0, 0, time.UTC),
 			Precision: "year",
 		}, true
+	}
+	if published, ok := parsePublicationDate(result.Edition.PublishedDate); ok {
+		return published, true
 	}
 	return publicationDate{}, false
 }

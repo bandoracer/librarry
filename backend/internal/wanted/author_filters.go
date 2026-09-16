@@ -52,13 +52,13 @@ func languageFilterReason(allowed []string, language string) string {
 	if len(allowed) == 0 {
 		return ""
 	}
-	language = strings.ToLower(strings.TrimSpace(language))
+	language = metadata.LanguageName(language)
 	if language == "" {
 		return ""
 	}
 	for _, candidate := range allowed {
-		candidate = strings.ToLower(candidate)
-		if candidate == language || strings.HasPrefix(language, candidate) || strings.HasPrefix(candidate, language) {
+		candidate = metadata.LanguageName(candidate)
+		if candidate == language || candidate == "any" || candidate == "all" {
 			return ""
 		}
 	}

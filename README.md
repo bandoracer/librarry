@@ -219,7 +219,10 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   wanted open the existing wanted item instead of creating duplicates.
 - Newly monitored authors are immediately eligible for a targeted bibliography
   refresh, which creates or reviews wanted books from metadata before release
-  acquisition starts.
+  acquisition starts. All seven policies preserve existing tracking and saved
+  exclusions. First/latest selection requires adequate original-publication
+  evidence; unknown or overlapping dates enter review. Ignored author reviews
+  remain excluded for that work and format across policy and edition changes.
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.

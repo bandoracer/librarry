@@ -661,6 +661,19 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 	return scanAuthorSubscription(row)
 }
 
+func (s *Store) GetAuthorSubscription(ctx context.Context, id string) (AuthorSubscription, error) {
+	if !s.Configured() {
+		return AuthorSubscription{}, errors.New("wanted store is unavailable")
+	}
+	return scanAuthorSubscription(s.db.QueryRowContext(ctx, `
+		select id, provider, provider_key, author_name, wanted_format, quality_profile,
+			status, monitor_new_items, missing_book_policy, tags,
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			coalesce(metadata_profile_id::text, ''), last_sync_at, created_at, updated_at
+		from author_subscriptions where id::text = $1
+	`, strings.TrimSpace(id)))
+}
+
 func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]AuthorSubscription, error) {
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
@@ -877,15 +890,28 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 	return subscriptions, rows.Err()
 }
 
-func (s *Store) MarkAuthorSubscriptionSynced(ctx context.Context, id string) error {
+func (s *Store) MarkAuthorSubscriptionSynced(ctx context.Context, id string, expectedUpdatedAt time.Time) error {
 	if !s.Configured() {
 		return errors.New("wanted store is unavailable")
 	}
 	if strings.TrimSpace(id) == "" {
-		return nil
+		return errors.New("author subscription id is required")
 	}
-	_, err := s.db.ExecContext(ctx, `update author_subscriptions set last_sync_at = now(), updated_at = now() where id = $1`, id)
-	return err
+	result, err := s.db.ExecContext(ctx, `update author_subscriptions
+		set last_sync_at = now(), updated_at = now()
+		where id = $1 and updated_at = $2 and status = 'monitored'
+			and monitor_new_items and missing_book_policy <> 'none'`, id, expectedUpdatedAt)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return errors.New("author settings changed during refresh; refresh again to apply current settings")
+	}
+	return nil
 }
 
 func (s *Store) StartAuthorMonitorRun(ctx context.Context, trigger string) (AuthorMonitorRun, error) {

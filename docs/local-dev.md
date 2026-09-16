@@ -225,17 +225,23 @@ and each author row has a refresh action that sends that author's subscription
 ID/provider key to `POST /api/v1/authors/monitor`. Set
 `missingBookPolicy` to `all`, `future`, `none`, `missing`, `existing`,
 `first`, or `latest` to control which discovered books become wanted items:
-`all` backfills the visible bibliography, `future` only takes books published
-after the subscription, `none` only syncs author metadata, `missing` takes
+`all` backfills the complete verified bibliography, `future` only takes books
+whose original publication is on or after the subscription's UTC date, `none`
+disables bibliography monitoring, `missing` takes
 books without a tracked library file, `existing` takes books with a library
-file plus future releases, `first` only takes the earliest discovered book,
-and `latest` takes the most recent book plus future releases. Existing subscriptions can
+file plus future releases, `first` takes the unambiguously earliest dated book,
+and `latest` takes the most recent published book plus books published since
+the subscription cutoff. Future releases cannot displace the latest published
+book. Original work dates/years take precedence over edition dates. Missing,
+overlapping or insufficiently precise dates enter review when the policy needs
+an ordering or cutoff that they cannot establish. Existing subscriptions can
 be changed with `PATCH /api/v1/authors/{id}` and soft-removed with
 `DELETE /api/v1/authors/{id}`. Manual author refreshes are
 available through `POST /api/v1/authors/monitor`; monitor results report
 metadata hits, wanted items created, and entries skipped by policy. For Open
-Library-backed subscriptions, the monitor uses the stored author ID against the
-works-by-author endpoint before falling back to a name-based book search. Skipped
+Library-backed subscriptions, the monitor verifies the stored author ID and
+traverses the works-by-author endpoint; failed or incomplete traversal never
+falls back to an unverified name match. Skipped
 entries are persisted in `author_metadata_reviews` and include the normalized
 metadata result and skip reason so the web UI can review them and mark
 individual books wanted without changing the author policy. Use
@@ -243,6 +249,17 @@ individual books wanted without changing the author policy. Use
 `POST /api/v1/authors/metadata/review/{id}/resolve` with `{"action":"wanted"}`
 or `{"action":"ignore"}` to resolve one. Author monitoring does not grab
 releases.
+
+Saved book exclusions apply before first/latest selection. Ignoring a review
+excludes that provider work for the subscription's format, even if its preferred
+edition, title or monitoring policy later changes. Existing tracked books,
+including manual corrections and removed entries, survive add-only refreshes.
+Monitoring re-reads author settings, metadata profiles and exclusions after
+provider IO. A stop/removal during that request prevents additions, and a
+subscription revision change prevents recording a stale successful sync.
+Changes during the subsequent candidate-write loop are not yet serialized with
+every insertion. File-based policies still use recorded associations rather than
+the complete verified-presence projection planned under S14.
 
 ### Author Add-Filters
 

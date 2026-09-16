@@ -31,8 +31,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [metadata cache PR #15](https://github.com/bandoracer/librarry/pull/15),
 [author bibliography PR #16](https://github.com/bandoracer/librarry/pull/16),
 [provider request budget PR #17](https://github.com/bandoracer/librarry/pull/17),
-[complete list PR #18](https://github.com/bandoracer/librarry/pull/18), and the
-`codex/hardcover-edition-metadata` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[complete list PR #18](https://github.com/bandoracer/librarry/pull/18),
+[Hardcover edition PR #19](https://github.com/bandoracer/librarry/pull/19), and the
+`codex/author-monitor-policies` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -154,6 +155,18 @@ success timestamp unchanged. Existing tracked books survive add-only list sync;
 new root/monitor settings commit with creation. All stored exclusions are honored.
 This list behavior is contract/database-qualified; real-token validation remains
 pending. Search-on-add remains a best-effort search with logged errors.
+
+Author policy qualification now covers all seven modes and repeat refreshes.
+Latest selection keeps the latest published book when a future title exists;
+missing/overlapping dates require review instead of provider-order guesses.
+Original work dates/years precede edition dates, and partial dates cannot invent
+cutoff precision. Ignored reviews follow stable work identity within the author
+and format; saved book exclusions apply before policy selection. Language filters
+use canonical equality instead of prefixes. Settings and exclusions are re-read
+after provider IO, and changed subscriptions cannot receive a stale success
+timestamp. This does not yet serialize every concurrent owner edit with candidate
+insertion. Root/profile inheritance, the complete verified-file projection and
+the broader curated matching corpus remain S13/S14 work.
 
 ## Historical verified milestones
 

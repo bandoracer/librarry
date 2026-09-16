@@ -186,6 +186,9 @@ func languageMatchesPreference(language string, preferred string) bool {
 	return language == "" || preferred == "" || language == preferred
 }
 
+// LanguageName normalizes supported language names/codes without prefix guessing.
+func LanguageName(language string) string { return normalizeLanguageName(language) }
+
 func normalizeLanguageName(language string) string {
 	normalized := strings.ToLower(strings.TrimSpace(language))
 	switch normalized {
