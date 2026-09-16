@@ -1794,3 +1794,28 @@ Counts from different dashboard sources have independent snapshots and refreshes
 A failed or malformed source prevents the all-clear and retains an explicit warning;
 old cached counts are not presented as a fresh successful refresh. Recovery routes
 use `/imports?unfinishedOnly=true#recovery`. No summary read initiates acquisition.
+
+
+### Import review collection contract
+
+`GET /api/v1/library/import-reviews?view=collection` preserves the legacy list
+response for callers omitting `view`. The collection returns `reviews` (always an
+array), `total`, `filtered`, global `counts.pending`/`counts.resolved`, `nextCursor`
+and `observedAt`. Query parameters are `status=pending|resolved|all` (default
+pending), `format=all|ebook|audiobook|unknown`, `kind=all|file|payload`, literal
+case-insensitive `q` (title, author, source path and reason), `limit=1..100`
+(default 50) and `cursor`. Resolved means every non-pending saved decision,
+including imported, skipped and rejected; the legacy list retains exact statuses.
+
+A read-only repeatable-read transaction keeps counts and rows consistent within a
+response. Creation time descending plus UUID descending is the stable keyset;
+updates/retries do not move records, and a deleted anchor does not invalidate the
+next page. Cursors bind status, format, kind and search; limit may change. Migration
+0053 adds full and pending creation/identity indexes. Pages are live observations
+across requests. No filesystem or client calls run during collection reads.
+
+Normal API authentication applies. Duplicate/unknown query keys, invalid filters,
+limits and incompatible cursors return 400. Unavailable persistence returns 503,
+with a five-second request deadline and no private database error text. Successful
+responses use no-store. File bulk actions retain explicit selected IDs, while
+pending payloads retain their individual preview and resolve contracts.

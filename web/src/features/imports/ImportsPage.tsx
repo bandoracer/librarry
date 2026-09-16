@@ -31,7 +31,7 @@ import {
   ToolbarButton
 } from "../../components/ui";
 import { useToast } from "../../components/toast";
-import { keys, useImportReviews, useInvalidatingMutation, useWanted } from "../../lib/queries";
+import { keys, useImportReviewCollection, useInvalidatingMutation, useWanted } from "../../lib/queries";
 import {
   importCompletedDownloads,
   importLibraryFile,
@@ -40,6 +40,7 @@ import {
   scanLibrary,
   type CompletedImportOutcome,
   type ImportReview,
+  type ImportReviewOptions,
   type LibraryImportOutcome,
   type LibraryScanOutcome,
   type ReviewBulkDecisionOutcome
@@ -115,6 +116,10 @@ export default function ImportsPage() {
 
   /* ---------------------------- Review selection --------------------------- */
   const [reviewStatus, setReviewStatus] = useState<ReviewStatusFilter>("pending");
+  const [reviewCursors, setReviewCursors] = useState([""]);
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewFormat, setReviewFormat] = useState<ImportReviewOptions["format"]>("all");
+  const [reviewKind, setReviewKind] = useState<ImportReviewOptions["kind"]>("all");
   const [selectedReviewIDs, setSelectedReviewIDs] = useState<string[]>([]);
   const [reviewWantedChoices, setReviewWantedChoices] = useState<Record<string, string>>({});
   const [reviewActionID, setReviewActionID] = useState("");
@@ -135,13 +140,21 @@ export default function ImportsPage() {
   const fileBrowser = useFileBrowser();
 
   /* --------------------------------- Queries ------------------------------- */
-  const reviewsQuery = useImportReviews(reviewStatus);
-  const pendingReviewsQuery = useImportReviews("pending");
+  const reviewsQuery = useImportReviewCollection({ status: reviewStatus, q: reviewSearch, format: reviewFormat, kind: reviewKind, cursor: reviewCursors[reviewCursors.length - 1], limit: 50 });
   const fileCollection = fileBrowser.query.isError ? undefined : fileBrowser.query.data;
 
-  const payloadReviews = (reviewsQuery.data ?? []).filter(review => review.status === "pending" && review.metadata?.payloadReview === true);
-  const reviews = useMemo(() => (reviewsQuery.data ?? []).filter(review => review.status !== "pending" || review.metadata?.payloadReview !== true), [reviewsQuery.data]);
-  const pendingReviews = pendingReviewsQuery.data ?? [];
+  const reviewCollection = reviewsQuery.isError ? undefined : reviewsQuery.data;
+  const payloadReviews = (reviewCollection?.reviews ?? []).filter(review => review.status === "pending" && review.metadata?.payloadReview === true);
+  const reviews = useMemo(() => (reviewCollection?.reviews ?? []).filter(review => review.status !== "pending" || review.metadata?.payloadReview !== true), [reviewCollection]);
+  const pendingReviewCount = reviewCollection?.counts?.pending;
+  function clearReviewSelection() { setSelectedReviewIDs([]); setReviewWantedChoices({}); setBulkModalOpen(false); }
+  function resetReviewPages() { setReviewCursors([""]); clearReviewSelection(); }
+  function reviewPaging(location: string) { return <nav className="imports-review-paging" aria-label={`${location} import review pages`}>
+    <span className="field-hint">{reviewCollection?.filtered ?? "—"} matching · {reviewCollection?.total ?? "—"} total · Page {reviewCursors.length}</span>
+    <Button size="sm" disabled={reviewsQuery.isFetching || reviewBusy || reviewCursors.length === 1} onClick={() => { clearReviewSelection(); setReviewCursors(previous => previous.slice(0, -1)); }}>Previous reviews</Button>
+    <Button size="sm" disabled={reviewsQuery.isFetching || reviewBusy || !reviewCollection?.nextCursor} onClick={() => { const next = reviewCollection?.nextCursor; if (next) { clearReviewSelection(); setReviewCursors(previous => [...previous, next]); } }}>Next reviews</Button>
+    {reviewCursors.length > 1 ? <Button size="sm" disabled={reviewBusy} onClick={resetReviewPages}>First review page</Button> : null}
+  </nav>; }
 
   /* -------------------------------- Mutations ------------------------------ */
   const scanMutation = useInvalidatingMutation(
@@ -399,7 +412,6 @@ export default function ImportsPage() {
         }
       />
 
-      {payloadReviews.map(review => <PayloadReview key={`${review.id}:${review.updatedAt}`} review={review} />)}
       <div id="recovery"><ImportRecovery /></div>
       <ScanJobs query={scanJobs} />
       <LibraryRepairPreview />
@@ -546,9 +558,9 @@ export default function ImportsPage() {
         </div>
       </Card>
 
-      <Card
-        title="Pending import reviews"
-        subtitle="Files that need a manual wanted-item match before they can be imported."
+      <div id="reviews"><Card
+        title="Import reviews"
+        subtitle="Review files and download payloads. Bulk selection applies only to file reviews on the current page."
         actions={
           <Segmented<ReviewStatusFilter>
             ariaLabel="Import review status filter"
@@ -559,12 +571,21 @@ export default function ImportsPage() {
             ]}
             value={reviewStatus}
             onChange={(value) => {
+              if (reviewBusy) return;
               setReviewStatus(value);
-              setSelectedReviewIDs([]);
+              resetReviewPages();
             }}
           />
         }
       >
+        <div className="imports-review-filters">
+          <label>Search reviews<input aria-label="Search import reviews" maxLength={256} value={reviewSearch} disabled={reviewBusy} onChange={event => { setReviewSearch(event.target.value); resetReviewPages(); }} placeholder="Title, author, path or reason" /></label>
+          <label>Format<select aria-label="Import review format" value={reviewFormat} disabled={reviewBusy} onChange={event => { setReviewFormat(event.target.value as ImportReviewOptions["format"]); resetReviewPages(); }}><option value="all">All formats</option><option value="ebook">Ebooks</option><option value="audiobook">Audiobooks</option><option value="unknown">Unknown format</option></select></label>
+          <label>Review type<select aria-label="Import review type" value={reviewKind} disabled={reviewBusy} onChange={event => { setReviewKind(event.target.value as ImportReviewOptions["kind"]); resetReviewPages(); }}><option value="all">All reviews</option><option value="file">File matches</option><option value="payload">Download payloads</option></select></label>
+        </div>
+        {reviewPaging("Top")}
+        <p className="field-hint">Newest created reviews first. Updates and retries keep their place; new reviews appear on the first page. Counts reflect the current database snapshot.</p>
+        {payloadReviews.map(review => <PayloadReview key={`${review.id}:${review.updatedAt}`} review={review} />)}
         <div className="imports-statbar-wrap">
           <StatBar
             stats={[
@@ -574,7 +595,7 @@ export default function ImportsPage() {
                 value: fileCollection?.counts.imported ?? "—",
                 tone: "success"
               },
-              { label: "Review", value: pendingReviews.length, tone: pendingReviews.length ? "warn" : "neutral" },
+              { label: "Pending reviews", value: pendingReviewCount ?? "—", tone: pendingReviewCount ? "warn" : "neutral" },
               { label: "Ebooks", value: fileCollection?.counts.ebook ?? "—" },
               { label: "Audiobooks", value: fileCollection?.counts.audiobook ?? "—" },
               { label: "Scanned", value: lastScan?.scanned ?? 0 },
@@ -585,7 +606,7 @@ export default function ImportsPage() {
 
         {reviewsError ? (
           <InlineNotice tone={isPersistenceRequiredError(reviewsQuery.error?.message ?? "") ? "info" : "danger"}>
-            {reviewsError}
+            {reviewsError} <Button size="sm" onClick={() => void reviewsQuery.refetch()}>Retry reviews</Button>
           </InlineNotice>
         ) : null}
 
@@ -603,11 +624,11 @@ export default function ImportsPage() {
 
         {reviewsQuery.isLoading ? (
           <LoadingRow label="Loading import reviews…" />
-        ) : reviews.length === 0 && payloadReviews.length > 0 ? (
-          <p className="field-hint">{payloadReviews.length} download review{payloadReviews.length === 1 ? " needs" : "s need"} file assignments above.</p>
+        ) : reviewsQuery.isError ? <p className="field-hint">Review records are unavailable.</p> : reviews.length === 0 && payloadReviews.length > 0 ? (
+          <p className="field-hint">{payloadReviews.length} download review{payloadReviews.length === 1 ? " needs" : "s need"} file assignments on this page.</p>
         ) : reviews.length === 0 ? (
-          <EmptyState icon={Inbox} title={reviewStatus === "pending" ? "No pending import reviews" : "No import reviews"}>
-            Completed downloads that cannot be matched automatically land here for a manual decision.
+          <EmptyState icon={Inbox} title="No reviews on this page">
+            Change the filters or return to the first page to see other reviews.
           </EmptyState>
         ) : (
           <>
@@ -618,7 +639,7 @@ export default function ImportsPage() {
                 disabled={selectableReviewIDs.length === 0 || reviewBusy}
                 onClick={toggleAllReviews}
               >
-                {allReviewsSelected ? "Clear all" : "Select all"}
+                {allReviewsSelected ? "Clear page selection" : "Select page"}
               </Button>
               <span className="field-hint">{selectedReviews.length} selected</span>
               <Button
@@ -661,6 +682,7 @@ export default function ImportsPage() {
                           <input
                             type="checkbox"
                             checked={selected}
+                            disabled={reviewBusy}
                             onChange={() => toggleReviewSelection(review)}
                             aria-label={`Select ${review.title || review.sourcePath}`}
                           />
@@ -696,7 +718,7 @@ export default function ImportsPage() {
                               onChange={(event) =>
                                 setReviewWantedChoices((current) => ({ ...current, [review.id]: event.target.value }))
                               }
-                              disabled={Boolean(review.wantedId)}
+                              disabled={reviewBusy || Boolean(review.wantedId)}
                               aria-label={requiresWantedChoice ? "Choose wanted match" : "Wanted match"}
                             >
                               <option value="">{requiresWantedChoice ? "Select a wanted item" : "No wanted item"}</option>
@@ -773,7 +795,8 @@ export default function ImportsPage() {
             </DataTable>
           </>
         )}
-      </Card>
+        {reviewPaging("Bottom")}
+      </Card></div>
 
       <FileBrowser model={fileBrowser} />
 

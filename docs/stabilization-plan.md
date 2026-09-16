@@ -228,8 +228,10 @@ Author candidate decisions now commit atomically with history and preserve
 existing book settings. Native file browsing and rename preview traverse every
 page. Recovery collections now page independently. Dashboard review/recovery
 counts and acquisition totals cover complete collections; its action preview is
-explicitly bounded, and incomplete evidence prevents an all-clear. The older
-pending import-review list, other legacy readers, search badges, compatibility,
+explicitly bounded, and incomplete evidence prevents an all-clear. Native import
+reviews now have complete counts, search/filter pages and current-page bulk
+selection; resolved history includes imported, skipped and rejected decisions.
+Capped manual/payload book selectors, other legacy readers, search badges, compatibility,
 removed-book browsing and
 resumable all-matching jobs remain open; neither milestone is complete. See the implementation ledger for qualification.
 

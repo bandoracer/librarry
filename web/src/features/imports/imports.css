@@ -123,3 +123,8 @@
 .imports-repair-evidence dd { margin: 0; overflow-wrap: anywhere; }
 
 .imports-recovery-paging { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 1rem 0; }
+
+.imports-review-filters, .imports-review-paging { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin: 0.75rem 0; }
+.imports-review-filters label { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.imports-review-filters label:first-child { flex: 1 1 240px; }
+.imports-review-filters input { width: 100%; min-width: 0; }

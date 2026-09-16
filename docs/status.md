@@ -57,8 +57,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [worker availability PR #41](https://github.com/bandoracer/librarry/pull/41),
 [support diagnostics PR #42](https://github.com/bandoracer/librarry/pull/42),
 [integration health PR #43](https://github.com/bandoracer/librarry/pull/43),
-[import recovery PR #44](https://github.com/bandoracer/librarry/pull/44), and
-the `codex/dashboard-operational-counts` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[import recovery PR #44](https://github.com/bandoracer/librarry/pull/44),
+[dashboard counts PR #45](https://github.com/bandoracer/librarry/pull/45), and
+the `codex/import-review-paging` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -145,6 +146,13 @@ manual imports now use the same ledger, including configured same-basename
 sidecars, moves after commit and recoverable replacement of an existing file.
 Committed manual imports with unfinished cleanup remain visible and retryable.
 A configured recycle bin failure retains the previous file and reports an error.
+
+Native import review browsing now reaches older pending and resolved records with
+complete counts, search, format/type filters and cursor pages. Resolved includes
+actual imported/skipped/rejected decisions. Payload reviews share the collection;
+file bulk actions select only the current page and clear selection on navigation.
+Failed reads show an error rather than an empty queue. Migration 0053 adds paging
+indexes. Manual and payload book-choice selectors still use the older capped list.
 
 Completed-download review now supports replacing matching destinations. The
 preview binds both new and old content; old bytes are journaled before publication

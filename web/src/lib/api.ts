@@ -3449,3 +3449,15 @@ export async function fetchAttentionCounts(): Promise<AttentionCounts> {
   if (!response.ok) throw new Error(await apiError(response, "Recovery counts could not be loaded"));
   return response.json();
 }
+
+
+export type ImportReviewOptions = { status?: "pending" | "resolved" | "all"; format?: "all" | "ebook" | "audiobook" | "unknown"; kind?: "all" | "file" | "payload"; q?: string; cursor?: string; limit?: number };
+export type ImportReviewCollection = { reviews: ImportReview[]; total: number; filtered: number; counts: { pending: number; resolved: number }; nextCursor?: string; observedAt: string };
+export async function fetchImportReviewCollection(options: ImportReviewOptions, signal?: AbortSignal): Promise<ImportReviewCollection> {
+  const params = new URLSearchParams({ view: "collection" });
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/import-reviews?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Import reviews could not be loaded"));
+  const data = await response.json() as ImportReviewCollection;
+  return { ...data, reviews: arrayPayload(data.reviews) };
+}

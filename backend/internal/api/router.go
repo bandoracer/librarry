@@ -3140,6 +3140,14 @@ func (h *handler) refreshCalibreConversions(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *handler) importReviews(w http.ResponseWriter, r *http.Request) {
+	if view := r.URL.Query().Get("view"); view != "" && view != "collection" {
+		writeJSON(w, 400, map[string]any{"error": "unknown import review view"})
+		return
+	}
+	if r.URL.Query().Get("view") == "collection" {
+		h.importReviewCollection(w, r)
+		return
+	}
 	if h.deps.Library == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
 		return

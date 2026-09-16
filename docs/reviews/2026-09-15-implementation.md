@@ -2344,7 +2344,7 @@ assertions. All affected scale fixtures pass together under race (library 18.110
 wanted 38.184s, API 1.945s). The CI integration script retains all tests with a
 20-minute package limit and 30-minute verification-job ceiling; production
 Postgres settings are unchanged. This repair is commit 84bc8a1 on PR #44, whose
-rerun is still pending. The final full integration script passes locally with
+rerun passed all jobs (35132253887). The final full integration script passes locally with
 race detection (library 187.429s, wanted 192.529s); the ordinary full suite also
 passes (library 163.951s, wanted 112.592s).
 
@@ -2352,3 +2352,45 @@ No deployment, release or live-client qualification occurred. The older pending
 import-review list still needs pagination, and other legacy readers and unified
 presence/migration/release gates remain open. Dashboard counts are complete;
 its action strip intentionally remains a bounded preview.
+
+
+## S14/S15 continuation — Complete import review browsing
+
+The native import-review screen previously stopped at 100 rows. Its Resolved tab
+requested a literal status that actual imported/skipped/rejected decisions never
+use. `view=collection` now returns exact complete/matching counts, global decision
+counts, observation time and stable creation-time/UUID cursor pages. Search and
+status/format/file-or-payload filters are bound into cursors. The legacy list API
+keeps its response contract. Migration 0053 adds full and pending paging indexes.
+
+The UI pages file and payload reviews together, clears selection and temporary
+match choices on page/filter changes, and sends only explicitly selected file IDs
+for bulk decisions. Resolved payloads keep Reopen; pending payload imports still
+require their individual preview. Errors show unavailable state and retry rather
+than an empty queue. A first-page reset remains available for invalid cursors.
+Unsubmitted payload edits are local to the visible page.
+
+Verification:
+
+- 10,001 mixed-decision reviews traverse 101 pages with no duplicates/gaps. Filters,
+  literal search characters, tied creation times, deleted anchors, progress updates,
+  changed page sizes, invalid/filter-mismatched cursors and absent/closed persistence
+  are covered. Local race fixture p95 is 4.8ms; focused library/API race tests pass.
+- API tests cover authentication, strict parameter handling, empty-array responses,
+  no-store and the unchanged legacy exact-status list.
+- All 117 desktop/mobile browser tests pass, with one expected skip. The new cases
+  verify exact counts, older pages, selection reset and exact bulk IDs, payload and
+  resolved-history filters, page failure/retry/first-page recovery. Existing payload
+  preview/replacement tests pass; the 390px layout was visually inspected.
+- Fourteen web unit tests, production build, Go vet and deployment contracts pass.
+  The full integration script passes with race detection (library 193.181s,
+  wanted 199.433s). The ordinary full suite also passes (library 160.336s,
+  wanted 108.617s).
+- Local images `librarry-api:review-paging` and `librarry-web:review-paging` report
+  API marker `working-tree-review-paging`, schema 53. Packaged tests traverse 113
+  database-only reviews across restart, check resolved and payload counts, and pass
+  the existing import/authentication regressions plus a 463,963-byte isolated restore.
+- Parent PR #44 CI run 35132253887 and PR #45 run 35132680210 are fully green.
+
+No production deployment or release is implied; manual/payload book selectors and
+other S14/S15 legacy readers remain.

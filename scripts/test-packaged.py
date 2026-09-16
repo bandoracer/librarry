@@ -743,6 +743,26 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         file_after_restart = request("/api/v1/library/files/collection?limit=1&cursor=" + file_first["nextCursor"])
         assert file_after_restart["total"] == file_first["total"] and file_after_restart["files"][0]["id"] != file_first["files"][0]["id"], file_after_restart
         print("Packaged file collection: full traversal, exact totals, chapter membership, relational links and restart cursor verified")
+        # Complete review browsing must survive process restart, including cursor history.
+        # These are database-only records with nonexistent paths; never resolve/grab them.
+        sql("insert into import_reviews(source_path,title,status,media_format,metadata,created_at) select '/fixture/review-page/'||i,'Paging fixture '||i,case when i<=103 then 'pending' when i<=107 then 'imported' when i<=110 then 'skipped' else 'rejected' end,'ebook',jsonb_build_object('payloadReview',i%2=0),'2026-01-01'::timestamptz from generate_series(1,113)i")
+        import_review_url = "/api/v1/library/import-reviews?view=collection&status=all&q=Paging%20fixture&limit=50"
+        import_review_first = request(import_review_url)
+        assert import_review_first["filtered"] == 113 and len(import_review_first["reviews"]) == 50
+        import_review_ids = {row["id"] for row in import_review_first["reviews"]}
+        import_review_cursor = import_review_first["nextCursor"]
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        while import_review_cursor:
+            page = request(import_review_url + "&cursor=" + import_review_cursor)
+            assert page["filtered"] == 113 and not (import_review_ids & {row["id"] for row in page["reviews"]})
+            import_review_ids.update(row["id"] for row in page["reviews"])
+            import_review_cursor = page.get("nextCursor", "")
+        assert len(import_review_ids) == 113
+        assert request("/api/v1/library/import-reviews?view=collection&status=resolved&q=Paging%20fixture")["filtered"] == 10
+        assert request("/api/v1/library/import-reviews?view=collection&kind=payload&q=Paging%20fixture")["filtered"] == 51
+        sql("delete from import_reviews where source_path like '/fixture/review-page/%'")
+        print("Packaged import reviews: exact counts, complete 113-record traversal, restart cursor, resolved decisions and payload filter verified")
         # A saved uncertain send must survive the image restart and database restore.
         # This journal fixture never contacts a Calibre server; real remote effects
         # are exercised separately by scripts/test-calibre.py.

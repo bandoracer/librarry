@@ -1540,6 +1540,24 @@ client evidence prevents an all-clear; retained counts may be stale.
 
 Acquisition totals cover all active tracked books, while the action strip previews
 recent books only. Imported here means a saved acquisition/import record. Use
-Library to inspect current file presence and completeness. The older pending
-import-review list still needs complete pagination; its dashboard count is no longer
-capped by the visible list. These are unreleased stabilization changes.
+Library to inspect current file presence and completeness. Import review counts
+cover the complete queue and the review screen pages through it. These are
+unreleased stabilization changes.
+
+
+### Browsing import reviews
+
+Imports → Import reviews uses pages of 50 reviews with complete matching/total
+counts. Search title, author, source path or reason; filter by Pending/Resolved/All,
+format, and file matches versus download payloads. Resolved includes imported,
+skipped and rejected records; skipped/rejected payload reviews retain their
+existing Reopen action. Pending payloads use the same page controls as file reviews.
+
+Select page selects pending file rows only. Page or filter changes clear selection
+and temporary match choices. Bulk actions send the selected IDs, never the entire
+matching queue. Payloads still require individual file assignments and a current
+preview. Changing pages discards unsubmitted payload edits; return and preview again.
+Newly created reviews appear on the first page; retries do not change creation order.
+Counts are a database snapshot per response, not a frozen export across pages.
+Failed reads show an error and retry; First review page remains available to recover
+from an obsolete cursor. This does not remove the separate legacy book-choice cap.

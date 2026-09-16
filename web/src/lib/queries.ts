@@ -1,3 +1,4 @@
+import { fetchImportReviewCollection, type ImportReviewOptions } from "./api";
 import { fetchFileCollection, type FileCollectionOptions, fetchAuthorReviewCollection, type AuthorReviewOptions } from "./api";
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -556,4 +557,9 @@ export function useBookCollection(options: BookCollectionOptions = {}, enabled =
 
 export function useAuthorCollection(options: AuthorCollectionOptions = {}) {
   return useQuery({ queryKey: [...keys.authorSubscriptions, "collection", options], queryFn: ({ signal }) => withDemoFallback(() => fetchAuthorCollection(options, signal), () => ({ authors: [], total: 0, filtered: 0, downloads: "notConfigured", observedAt: new Date().toISOString(), nextCursor: undefined }))(), refetchInterval: 30_000 });
+}
+
+
+export function useImportReviewCollection(options: ImportReviewOptions) {
+  return useQuery({ queryKey: [...keys.importReviews(options.status ?? "pending"), "collection", options], queryFn: ({ signal }) => withDemoFallback(() => fetchImportReviewCollection(options, signal), () => ({ reviews: [], total: 0, filtered: 0, counts: { pending: 0, resolved: 0 }, observedAt: new Date().toISOString() }))(), refetchInterval: 30_000 });
 }

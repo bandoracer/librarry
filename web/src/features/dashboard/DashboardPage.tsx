@@ -283,7 +283,7 @@ export default function DashboardPage() {
       tone: "warn",
       label: "Import reviews",
       description: "Files and payloads waiting for an import decision",
-      to: "/imports"
+      to: "/imports#reviews"
     },
     { key: "recovery", count: recovery.data?.importOperations ?? 0, tone: "warn", label: "Unfinished imports", description: "Saved transfers or cleanup still in progress or needing retry", to: "/imports?unfinishedOnly=true#recovery" },
     { key: "calibre", count: recovery.data?.calibreHandoffs ?? 0, tone: "warn", label: "Calibre handoffs", description: "Uploads, conversions or bookkeeping not yet committed", to: "/imports?unfinishedOnly=true#recovery" },
