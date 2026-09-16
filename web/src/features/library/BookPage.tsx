@@ -174,7 +174,7 @@ export default function BookPage() {
 
         <RenameBookFolder wantedId={item.id} open={renameOpen} onClose={() => setRenameOpen(false)} />
         <BookFiles key={item.id} wantedId={item.id} />
-        {!inactive ? <WantedEditForm item={item} onDeleted={() => navigate(authorPath)} /> : null}
+        {!inactive ? <WantedEditForm item={item} onDeleted={() => navigate("/library/removed")} /> : null}
         <ProvenancePanel key={`provenance-${item.id}`} item={item} />
         {!inactive ? <ReleasesPanel key={`releases-${item.id}`} item={item} /> : null}
       </div>

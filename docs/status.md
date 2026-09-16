@@ -44,6 +44,10 @@ review and the remaining release gates stay open; images were not published.
 The continued operator walkthrough found outdated removal confirmation text.
 The dialog now correctly explains that removing tracking retains files, metadata
 overrides, history and settings, and points to Library → Removed for restoration.
+Removing a book from its detail page also returns to Removed books; the former
+author-page redirect could return 404 after removing that author's last book.
+Manual magnet/URL and torrent-upload errors now also preserve the server's
+uncertain-acceptance recovery instructions instead of displaying only HTTP 502.
 
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation

@@ -1325,7 +1325,7 @@ export async function grabManualDownload(request: {
       body: form
     });
     if (!response.ok) {
-      throw new Error(`Manual upload failed: ${response.status}`);
+      throw await apiError(response, "Manual upload failed");
     }
     return (await response.json()) as DownloadStatus;
   }
@@ -1343,7 +1343,7 @@ export async function grabManualDownload(request: {
     })
   });
   if (!response.ok) {
-    throw new Error(`Manual grab failed: ${response.status}`);
+    throw await apiError(response, "Manual grab failed");
   }
   return (await response.json()) as DownloadStatus;
 }

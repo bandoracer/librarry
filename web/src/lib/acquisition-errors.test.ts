@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { grabRelease, grabWanted, searchReleases, searchWantedReleases, type Release } from "./api";
+import { grabManualDownload, grabRelease, grabWanted, searchReleases, searchWantedReleases, type Release } from "./api";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -26,6 +26,8 @@ describe("grab failures", () => {
   it.each([
     () => grabWanted("fixture"),
     () => grabRelease({ title: "Fixture", downloadUrl: "https://example.invalid/fixture.torrent" } as Release, "ebook"),
+    () => grabManualDownload({ releaseUrl: "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567" }),
+    () => grabManualDownload({ file: new File(["controlled fixture"], "fixture.torrent") }),
   ])("preserves the recovery reason without resubmitting a grab", async (grab) => {
     const request = vi.fn(async () => new Response('{"error":"acceptance is uncertain; reconcile the existing attempt before retrying"}', { status: 409 }));
     vi.stubGlobal("fetch", request);
