@@ -27,8 +27,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [reviewed replacement PR #11](https://github.com/bandoracer/librarry/pull/11),
 [acquisition bookkeeping PR #12](https://github.com/bandoracer/librarry/pull/12),
 [provider health PR #13](https://github.com/bandoracer/librarry/pull/13),
-[exact fallback PR #14](https://github.com/bandoracer/librarry/pull/14), and the
-`codex/metadata-cache` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[exact fallback PR #14](https://github.com/bandoracer/librarry/pull/14),
+[metadata cache PR #15](https://github.com/bandoracer/librarry/pull/15), and the
+`codex/author-bibliographies` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -122,8 +123,15 @@ language/format conflicts. Author and series queries never use Google; unknown
 format stays unknown. Bounded process-local provider caches reuse successful
 searches for five minutes and empty results for 30 seconds. Cache reads do not
 invent fresh request evidence; failures invalidate the affected provider's entries.
-Real-token qualification, rich edition/author/list traversal and persistent raw
-records remain outstanding under S12.
+Author monitoring now verifies a stable provider ID and traverses a complete
+bibliography before applying policy. Failed pages or unproven identities retain
+existing data and leave the author unsynced. Existing tracked editions, manual
+corrections and removed entries survive add-only monitoring. Same-name identities stay separate;
+unknown/non-writing Hardcover credits enter review. Original work dates remain
+separate from editions. Open Library returned 418 works across six paced read-only
+requests in September qualification. Hardcover traversal is fixture-qualified only.
+Real-token qualification, rich editions/series/lists, persistent raw records and
+production pacing remain outstanding under S12.
 
 ## Historical verified milestones
 

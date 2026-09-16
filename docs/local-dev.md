@@ -1006,3 +1006,20 @@ concurrent misses, cancellation and failure invalidation without live quota.
 `go test -race ./backend/internal/metadata` runs them. Cached reads keep the
 provider's actual request timestamps; use System's explicit check for current
 connection evidence. Caches reset on process restart.
+
+
+Author monitoring now consumes complete stable-ID bibliographies; `searchLimit`
+no longer limits its total results. Offline fixtures cover 205-book Open Library
+and Hardcover traversals, failed pages/count drift/duplicate IDs, same-name
+identities, repeated database sync and original-date/credit policy handling.
+Optional live read-only Open Library qualification is:
+
+```bash
+LIBRARRY_TEST_LIVE_OPEN_LIBRARY=1 go test -v ./backend/internal/metadata -run '^TestLiveOpenLibraryBibliography$' -count=1
+```
+
+This probe uses a known public author and conservative one-second pacing, without
+catalog mutations. It is skipped explicitly in the default suite and does not
+qualify production request pacing or Hardcover credentials. Manual/name-hash
+legacy author subscriptions need a stable provider selection before monitoring;
+existing wanted items are retained when a bibliography fails.

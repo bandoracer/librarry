@@ -17,7 +17,8 @@ export type SearchResult = {
   work: {
     id: string;
     title: string;
-    authors?: Array<{ id: string; name: string; providerIds?: string[] }>;
+    authors?: Array<{ id: string; name: string; role?: string; providerIds?: string[] }>;
+    firstPublishDate?: string;
     firstPublishYear?: number;
     description?: string;
     series?: string;

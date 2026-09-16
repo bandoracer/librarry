@@ -35,7 +35,7 @@ type Service struct {
 }
 
 type MetadataSearch interface {
-	Search(ctx context.Context, query metadata.Query) ([]metadata.SearchResult, error)
+	AuthorBibliography(ctx context.Context, query metadata.Query) ([]metadata.SearchResult, error)
 }
 
 type ReleaseRestrictionProvider interface {
@@ -449,10 +449,6 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 	if limit <= 0 || limit > 200 {
 		limit = defaultWantedMonitorLimit
 	}
-	searchLimit := request.SearchLimit
-	if searchLimit <= 0 || searchLimit > 50 {
-		searchLimit = defaultWantedMonitorSearchLimit
-	}
 	minSyncInterval := defaultAuthorSyncInterval
 	if request.MinSyncIntervalMinutes > 0 {
 		minSyncInterval = time.Duration(request.MinSyncIntervalMinutes) * time.Minute
@@ -480,18 +476,19 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 
 		result := AuthorMonitorItemResult{Subscription: subscription}
 		// Effective add-filters: the referenced metadata profile wins over the
-		// per-author override columns when set; lookup failures fall back to
-		// the stored overrides and count as run errors.
+		// per-author override columns when set. Failed evidence/config reads
+		// leave the subscription unsynced for a complete retry.
 		effective, filterErr := s.resolveAuthorSubscriptionFilters(ctx, subscription)
 		if filterErr != nil {
 			result.Error = filterErr.Error()
 			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
 		}
-		results, err := s.metadata.Search(ctx, metadata.Query{
+		results, err := s.metadata.AuthorBibliography(ctx, metadata.Query{
 			Query:       subscription.AuthorName,
 			Type:        metadata.SearchTypeAuthorWorks,
 			Format:      metadata.MediaFormat(subscription.Format),
-			Limit:       searchLimit,
 			ProviderKey: subscription.ProviderKey,
 		})
 		run.AuthorsChecked++
@@ -507,10 +504,18 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 				matched = append(matched, candidate)
 			}
 		}
-		policyCtx, policyErr := s.authorPolicyContext(ctx, subscription, matched, time.Now().UTC())
+		policyCandidates := make([]metadata.SearchResult, 0, len(matched))
+		for _, candidate := range matched {
+			if authorResultFilterReason(effective, candidate) == "" {
+				policyCandidates = append(policyCandidates, candidate)
+			}
+		}
+		policyCtx, policyErr := s.authorPolicyContext(ctx, subscription, policyCandidates, time.Now().UTC())
 		if policyErr != nil {
 			result.Error = policyErr.Error()
 			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
 		}
 		for _, candidate := range matched {
 			result.ResultsFound++
@@ -546,14 +551,19 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 				continue
 			}
 			item, err := s.store.CreateWanted(ctx, CreateRequest{
-				Result:         candidate,
-				Format:         subscription.Format,
-				QualityProfile: subscription.QualityProfile,
-				Tags:           subscription.Tags,
+				OnlyIfUntracked: true,
+				Result:          candidate,
+				Format:          subscription.Format,
+				QualityProfile:  subscription.QualityProfile,
+				Tags:            subscription.Tags,
 			})
 			if err != nil {
 				result.Error = err.Error()
 				run.ErrorCount++
+				continue
+			}
+			if item.alreadyTracked {
+				result.SkippedCount++
 				continue
 			}
 			result.WantedItems = append(result.WantedItems, item)
@@ -561,9 +571,15 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 		run.ItemsFound += result.ResultsFound
 		run.WantedCreated += result.WantedCreated
+		if result.Error != "" {
+			run.Items = append(run.Items, result)
+			continue
+		}
 		if err := s.store.MarkAuthorSubscriptionSynced(ctx, subscription.ID); err != nil {
 			result.Error = err.Error()
 			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
 		}
 		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
 			EventType:  "author_subscription_synced",
@@ -1903,21 +1919,15 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 }
 
 func authorResultMatchesSubscription(subscription AuthorSubscription, result metadata.SearchResult) bool {
-	if len(result.Work.Authors) == 0 {
+	key := metadata.CanonicalAuthorKey(subscription.ProviderKey)
+	if key == "" {
 		return false
 	}
-	subscriptionKey := strings.TrimSpace(subscription.ProviderKey)
-	subscriptionName := normalizeText(subscription.AuthorName)
 	for _, author := range result.Work.Authors {
-		if subscriptionKey != "" && strings.EqualFold(subscriptionKey, strings.TrimSpace(author.ID)) {
-			return true
-		}
-		authorName := normalizeText(author.Name)
-		if authorName == "" || subscriptionName == "" {
-			continue
-		}
-		if authorName == subscriptionName || strings.Contains(authorName, subscriptionName) || strings.Contains(subscriptionName, authorName) {
-			return true
+		for _, candidate := range append([]string{author.ID}, author.ProviderIDs...) {
+			if metadata.CanonicalAuthorKey(candidate) == key {
+				return true
+			}
 		}
 	}
 	return false
@@ -1946,6 +1956,9 @@ type publicationDate struct {
 }
 
 func resultPublicationDate(result metadata.SearchResult) (publicationDate, bool) {
+	if published, ok := parsePublicationDate(result.Work.FirstPublishDate); ok {
+		return published, true
+	}
 	if published, ok := parsePublicationDate(result.Edition.PublishedDate); ok {
 		return published, true
 	}

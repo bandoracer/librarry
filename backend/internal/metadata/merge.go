@@ -70,11 +70,26 @@ func resultsCanMerge(query Query, left SearchResult, right SearchResult) bool {
 	if left.Kind != right.Kind {
 		return false
 	}
+	if left.Kind == SearchTypeAuthor {
+		for _, a := range left.Work.Authors {
+			for _, b := range right.Work.Authors {
+				for _, leftID := range append([]string{a.ID}, a.ProviderIDs...) {
+					key := CanonicalAuthorKey(leftID)
+					if key == "" {
+						continue
+					}
+					for _, rightID := range append([]string{b.ID}, b.ProviderIDs...) {
+						if CanonicalAuthorKey(rightID) == key {
+							return true
+						}
+					}
+				}
+			}
+		}
+		return false
+	}
 	if firstSharedNormalizedISBN(left.Edition.ISBNs, right.Edition.ISBNs) != "" {
 		return true
-	}
-	if left.Kind == SearchTypeAuthor {
-		return normalize(firstNonEmpty(firstAuthorName(left), left.Work.Title)) == normalize(firstNonEmpty(firstAuthorName(right), right.Work.Title))
 	}
 	if !formatsCompatible(query, left.Edition.Format, right.Edition.Format) {
 		return false
@@ -198,6 +213,9 @@ func mergeSearchResult(base SearchResult, candidate SearchResult) SearchResult {
 }
 
 func mergeWork(base Work, candidate Work) Work {
+	if base.FirstPublishDate == "" {
+		base.FirstPublishDate = candidate.FirstPublishDate
+	}
 	if base.ID == "" {
 		base.ID = candidate.ID
 	}

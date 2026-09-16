@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,7 +60,9 @@ func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
 		Configured: p.token != "",
 		Capabilities: []string{
 			"book search",
-			"ebook/audiobook metadata",
+			"author identity search",
+			"paginated author bibliography",
+			"work publication metadata",
 		},
 		Notes: []string{"Primary rich metadata provider. Token stays server-side."},
 	}
@@ -72,63 +73,41 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchRe
 		return nil, nil
 	}
 	if query.Type == SearchTypeAuthor {
+		return p.searchAuthors(ctx, query)
+	}
+	if query.Type == SearchTypeAuthorWorks {
+		if hardcoverAuthorID(query.ProviderKey) == 0 {
+			return nil, nil
+		}
+		return p.Bibliography(ctx, query)
+	}
+	if query.Type == SearchTypeSeries {
 		return nil, nil
 	}
-
-	finish, err := p.observation.begin(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { err = finish(err) }()
-	payload := map[string]any{
-		"query": `query SearchBooks($query: String!, $limit: Int!) {
-			search(query: $query, query_type: "Book", per_page: $limit, page: 1) {
-				ids
-				results
-			}
-		}`,
-		"variables": map[string]any{
-			"query": query.Query,
-			"limit": clampLimit(query.Limit),
-		},
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(asContext(ctx), http.MethodPost, "https://api.hardcover.app/v1/graphql", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+p.token)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "librarry/0.1")
-
-	resp, err := providerRequest(p.client, req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
 	var decoded struct {
-		Errors []hardcoverGraphQLError `json:"errors"`
-		Data   struct {
-			Search struct {
-				Results json.RawMessage `json:"results"`
-			} `json:"search"`
-		} `json:"data"`
+		Search struct {
+			Results json.RawMessage `json:"results"`
+		} `json:"search"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+	var rawResults []map[string]any
+	if err := p.graphQL(ctx, `query SearchBooks($query: String!, $limit: Int!) {
+		search(query: $query, query_type: "Book", per_page: $limit, page: 1) { ids results }
+	}`, map[string]any{"query": query.Query, "limit": clampLimit(query.Limit)}, &decoded, func() error {
+		var parseErr error
+		rawResults, parseErr = hardcoverSearchDocuments(decoded.Search.Results)
+		if parseErr != nil {
+			return parseErr
+		}
+		for _, doc := range rawResults {
+			if hardcoverDocumentID(doc["id"]) == 0 || strings.TrimSpace(stringValue(doc["title"])) == "" {
+				return providerValidationError("Hardcover book result lacks a stable identity or title")
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
-	if err := hardcoverErrors(decoded.Errors); err != nil {
-		return nil, err
-	}
-	rawResults, err := hardcoverSearchDocuments(decoded.Data.Search.Results)
-	if err != nil {
-		return nil, err
-	}
 	results = make([]SearchResult, 0, len(rawResults))
 	for _, raw := range rawResults {
 		title := stringValue(raw["title"])
@@ -145,7 +124,7 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchRe
 			authorName = stringValue(names[0])
 		}
 
-		id := fmt.Sprintf("hardcover:%v", raw["id"])
+		id := fmt.Sprintf("hardcover:%d", hardcoverDocumentID(raw["id"]))
 		result := SearchResult{
 			Provider: p.Name(),
 			Kind:     SearchTypeBook,

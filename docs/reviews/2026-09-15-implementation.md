@@ -92,7 +92,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
-| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; rich traversal, persistent raw records and live credentials remain |
+| S12 | Partial | Observed provider health, explicit checks, error sanitization, request backoff, exact Google fallback and bounded result caching implemented; stable-ID author traversal implemented with fixtures and read-only Open Library proof; rich editions/lists, persistent raw records, pacing and live Hardcover/Google credentials remain |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
@@ -670,3 +670,60 @@ ARM64 schema-40 packaged API passed import/acquisition/scan/restart/replacement,
 repair, move and authentication regressions; a 404,789-byte database dump restored
 with counts and receipt intact. Packaged web remains the older multipart snapshot;
 this continuation changes no UI. No image was published or deployed.
+
+
+## Continuation: complete author bibliographies (S12/S13)
+
+Branch: `codex/author-bibliographies`, based on metadata cache PR #15. The monitor
+previously treated capped search results (normally 20 books) as a whole author
+bibliography. It now verifies a stable provider author ID, follows every page and
+applies policies only after successful traversal. Open Library validates declared
+counts/identities; Hardcover walks ordered book IDs and verifies contributions.
+Timeout/size bounds, duplicate/nonadvancing IDs, changed counts, malformed data
+and page failures return errors without applying a partial list. Name-hash legacy
+subscriptions fail visibly instead of guessing; existing wanted items remain.
+
+Hardcover author search now retains numeric identities and images. Same-name
+identities no longer merge or satisfy another subscription. Contributor roles are
+preserved; unknown/non-writing roles enter review. Filtered candidates cannot
+supplant an eligible book in first/latest policy. Original publication dates have
+a separate field; unknown edition format stays unknown. Failed filter/policy or
+wanted/review persistence does not mark an author synced.
+
+Contract and database tests cover 205-book traversals, failures, empty-vs-missing
+author identity, no partial mutation, repeated sync without duplicate rows,
+original dates, and writing-credit review. A live read-only Open Library probe
+retrieved 418 works across six conservatively paced requests, checking declared
+counts and IDs. No catalog mutations or download grabs occurred. This is not
+Hardcover token, production pacing or rich edition qualification.
+
+Exact fallback PR #14 at `58bee619797e805a6512ed3c74afcb59b896d1c2` passed
+[CI run 35068283820](https://github.com/bandoracer/librarry/actions/runs/35068283820).
+Metadata cache PR #15 at `d658fa0e88a4ffb68dfdfd38f469f98d4720c56d` passed
+[CI run 35068912844](https://github.com/bandoracer/librarry/actions/runs/35068912844).
+Both include source/race/browser, packaged restart/restore and AMD64/ARM64 API/web
+builds. Nothing was published or deployed.
+
+Contracts: [Open Library authors](https://openlibrary.org/dev/docs/api/authors),
+[Hardcover search](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/guides/Searching.mdx),
+[authors](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/GraphQL/Schemas/Authors.mdx)
+and [book contributions](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/GraphQL/Schemas/Contributions.mdx).
+
+
+Automatic bibliography additions now reuse existing work/format tracking across
+legacy synthetic and real edition identities. Existing removed/unmonitored/manual
+state is not updated or resurrected. Per-work creation locks and canonical-work
+locks serialize these decisions; repeat sync reports existing items as skipped,
+not newly created. Database regressions cover a retained removed/manual record
+and recovery from a failed second insertion without duplicating the first. Rich
+metadata refresh remains separate from this add-only monitoring pass.
+
+Final qualification: full Go race/Postgres suite and vet passed, including
+concurrent automatic adds converging to one tracked work. The web production
+build and 39 applicable desktop/mobile browser checks passed (one desktop-only
+case skipped on mobile). The final local ARM64 schema-40 API passed the packaged
+import/acquisition/scan/replacement/restart/authentication regressions; a
+405,045-byte dump restored with counts and receipt intact. Packaged web remains
+the older multipart snapshot; current web code was built/tested from source.
+The opt-in Open Library probe was actually run; default tests explicitly skip
+that live probe. No production deployment or release occurred.

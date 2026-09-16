@@ -97,6 +97,12 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 	}
 	// Fallback ordering is policy, independent of constructor/provider order.
 	for index, provider := range s.providers {
+		if query.Type == SearchTypeAuthorWorks {
+			key := CanonicalAuthorKey(query.ProviderKey)
+			if strings.HasPrefix(key, "openlibrary:") && provider.Name() != "Open Library" || strings.HasPrefix(key, "hardcover-author:") && provider.Name() != "Hardcover" {
+				continue
+			}
+		}
 		if provider.Name() == "Google Books" {
 			fallback = append(fallback, index)
 			continue

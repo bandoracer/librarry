@@ -54,6 +54,14 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		return WantedItem{}, err
 	}
 	defer tx.Rollback()
+	// Coordinate automatic bibliography adds with ordinary adds for the same
+	// provider work/format, including legacy synthetic edition source keys.
+	if result.Work.ID != "" {
+		lockKey := "wanted-work:" + strings.ToLower(result.Provider) + "|" + result.Work.ID + "|" + format
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
+			return WantedItem{}, err
+		}
+	}
 
 	rootFolderID := strings.TrimSpace(request.RootFolderID)
 	if rootFolderID != "" {
@@ -69,6 +77,36 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		}
 		if reason := rootFolderFormatMismatchReason(rootFolderFormat, format); reason != "" {
 			return WantedItem{}, errors.New(reason)
+		}
+	}
+
+	if request.OnlyIfUntracked {
+		workID, _, err := lookupProviderEntityAliases(ctx, tx, workProviderAliases(result))
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if workID != "" {
+			if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "wanted-existing-work:"+workID+"|"+format); err != nil {
+				return WantedItem{}, err
+			}
+		}
+		var existingID string
+		err = tx.QueryRowContext(ctx, `select id::text from wanted_items
+			where wanted_format = $1 and (
+				work_id = nullif($2, '')::uuid or
+				(metadata_provider = $3 and source_key in ($4, $5, $6)))
+			order by created_at, id limit 1`, format, workID, result.Provider,
+			result.Work.ID, result.Work.ID+":edition", candidateSourceKey(result)).Scan(&existingID)
+		if err == nil {
+			if err := tx.Rollback(); err != nil {
+				return WantedItem{}, err
+			}
+			item, err := s.GetWanted(ctx, existingID)
+			item.alreadyTracked = true
+			return item, err
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return WantedItem{}, err
 		}
 	}
 

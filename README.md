@@ -417,8 +417,9 @@ Provider priority:
 2. Open Library is the open-data backbone for works, authors, editions, ISBNs,
    and covers. Librarry treats Open Library author identity lookup separately
    from author bibliography crawling: author lookup uses `/search/authors.json`,
-   while monitored authors with Open Library IDs use `/authors/{id}/works.json`
-   before falling back to an author-name book search.
+   while monitoring verifies the selected author and traverses every works page.
+   Hardcover author search and paginated bibliographies have fixture coverage;
+   real-token qualification and rich edition selection remain pending.
 3. Google Books is an API-keyed fallback when primary providers lack a suitable
    exact ISBN or full-title match. Returned identifiers/titles are checked locally;
    author and series discovery never use Google.

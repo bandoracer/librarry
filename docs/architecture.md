@@ -988,3 +988,38 @@ cancellation preserves other successful keys. A generation fence prevents an
 in-flight success from repopulating entries invalidated by an explicit failed
 health check. Cached reads never advance observed request/success timestamps.
 Credentials are not cache keys or values; replacing the service resets all caches.
+
+
+### Complete author bibliographies
+
+`metadata.Service.AuthorBibliography` is separate from ranked/limited search and
+its caches. It dispatches only to the provider identified by a verified author key.
+The author monitor uses this operation before any wanted/review mutations. The
+legacy request `searchLimit` remains accepted for compatibility but cannot truncate
+a bibliography. The operation has a two-minute deadline and a 10,000-record guard;
+either limit returns an explicit failure instead of applying partial results.
+
+Open Library verifies `/authors/{id}.json`, then follows explicit limit/offset
+pages with a stable declared size and unique valid work IDs. Hardcover verifies
+`authors(where: id)` and queries books by contribution author ID, using ascending
+book-ID cursors until an empty page. Per-page request observation/backoff includes
+shape and identity validation. Neither adapter uses an external next-link URL.
+Missing/changed/duplicate data is an error, not an empty successful bibliography.
+External mutations do not have transactional snapshot guarantees.
+
+Author search clustering and subscription matching use stable IDs/aliases rather
+than matching names. `Author.role` retains Hardcover contribution evidence;
+non-writing/unknown credits enter review. Only candidates passing metadata/credit
+filters participate in first/latest policy selection. `Work.firstPublishDate`
+retains original dates independently of `Edition.publishedDate`; work-only records
+have unknown format and no fabricated edition ID. Failed bibliography, filter,
+policy or wanted/review persistence keeps the subscription unsynced for retry.
+Existing success-history insertion remains best-effort and is not an outbox.
+
+
+Author additions use an internal `OnlyIfUntracked` flag that cannot be set through
+JSON. The store serializes same-provider work/format creation, resolves existing
+work aliases, and serializes known canonical work identities before checking for
+any existing tracking. Existing rows—including removed/unmonitored and legacy
+synthetic edition rows—return unchanged. This prevents automatic resurrection and
+losing a selected edition; explicit user adds keep their existing behavior.

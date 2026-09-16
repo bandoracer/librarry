@@ -26,12 +26,14 @@ type Query struct {
 }
 
 type Author struct {
+	Role        string   `json:"role,omitempty"`
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	ProviderIDs []string `json:"providerIds,omitempty"`
 }
 
 type Work struct {
+	FirstPublishDate string   `json:"firstPublishDate,omitempty"`
 	ID               string   `json:"id"`
 	Title            string   `json:"title"`
 	Authors          []Author `json:"authors"`

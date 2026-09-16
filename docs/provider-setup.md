@@ -9,17 +9,20 @@ query. A valid user response establishes successful authentication; the response
 user details are not returned to the browser or saved. A copied `Bearer ` prefix
 is normalized so it is not sent twice. Regular successful searches also establish
 request evidence. GraphQL/HTTP errors are shown as degraded, rejected credentials,
-forbidden access, rate limiting or an unavailable provider as appropriate. Typesense result documents are decoded, but author
-bibliography traversal and full rich edition/series enrichment are still pending
-qualification. Open Library continues to work independently.
+forbidden access, rate limiting or an unavailable provider as appropriate. Typesense book/author results are decoded. Author search retains numeric provider
+IDs, and monitoring traverses the selected author's book contributions with
+pagination. These Hardcover paths have contract-fixture coverage; real-token and
+rich edition/series/list qualification remain pending. Open Library continues to work independently.
 
 ## Open Library
 
 Open Library requires no token. Librarry uses it as the open-data backbone and
 cover fallback. Author lookup uses Open Library's author search endpoint to get
-stable author IDs. Author monitoring then uses those IDs with the works-by-author
-endpoint when available, falling back to an author-name book search for manually
-entered authors or non-Open Library identities.
+stable author IDs. Author monitoring verifies that identity, then pages through the works-by-author
+endpoint and checks the declared count. A name-only or synthetic legacy identity
+cannot establish a complete bibliography: select the correct author from search
+and replace the old subscription, preserving its desired settings. Existing
+wanted books are retained.
 
 ## Google Books
 
@@ -97,3 +100,30 @@ entries and 2 MiB of serialized results/query keys; responses over 256 KiB and
 query keys over 4 KiB are returned normally without caching. Least-recently-used
 entries are evicted. This is short-lived search reuse, not a persistent raw record
 or bibliography store, and does not establish complete author coverage.
+
+
+## Complete author monitoring
+
+Monitoring uses a separate bibliography operation, scoped to the selected provider
+and stable author ID. It does not use ranked search results or the legacy
+`searchLimit` as a total-book cap. Open Library checks count consistency, duplicate
+IDs and premature endings. Hardcover walks book IDs in ascending order until an
+empty page, validating the selected author's contributions. Missing identity,
+malformed pages, changed counts, request failures, a two-minute traversal timeout
+or the 10,000-record safety limit fail explicitly; no partial bibliography is
+applied and the subscription stays unsynced. Provider records can change during
+traversal; this is not an atomic snapshot of an external database.
+
+Same-name authors remain separate unless stable identities match. Hardcover
+illustrator/editor/unknown credits enter metadata review unless the selected
+person also has an explicit Author/Writer credit. Eligible works alone determine
+first/latest policies. Original publication dates are distinct from edition dates;
+work-only evidence does not invent an ebook/audiobook edition. Rich edition
+selection, all-policy qualification and legacy identity repair remain open.
+
+
+Monitoring adds newly discovered works and reuses existing work/format tracking,
+including older synthetic edition identities. Existing selected editions, manual
+corrections, unmonitored state and removed entries survive; this pass does not
+refresh or re-add existing books. Legacy/Readarr identities can still be stored
+for migration, but require provider identity repair before automated traversal.

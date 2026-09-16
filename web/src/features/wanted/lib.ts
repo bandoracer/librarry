@@ -754,6 +754,7 @@ export function authorSkippedItemKey(subscription: AuthorSubscription, skipped: 
 }
 
 export function authorSkippedDateLabel(result: SearchResult) {
+  if (result.work.firstPublishDate) return result.work.firstPublishDate;
   return result.edition?.publishedDate || (result.work.firstPublishYear ? String(result.work.firstPublishYear) : "undated");
 }
 

@@ -21,10 +21,11 @@ type Acquisition interface {
 }
 
 type CreateRequest struct {
-	Result         metadata.SearchResult `json:"result"`
-	Format         string                `json:"format,omitempty"`
-	QualityProfile string                `json:"qualityProfile,omitempty"`
-	Tags           []string              `json:"tags,omitempty"`
+	OnlyIfUntracked bool                  `json:"-"`
+	Result          metadata.SearchResult `json:"result"`
+	Format          string                `json:"format,omitempty"`
+	QualityProfile  string                `json:"qualityProfile,omitempty"`
+	Tags            []string              `json:"tags,omitempty"`
 	// RootFolderID pins the import destination root at add time. When set it
 	// must reference an existing root folder whose media format matches the
 	// wanted format.
@@ -229,6 +230,7 @@ type GrabRequest struct {
 }
 
 type WantedItem struct {
+	alreadyTracked   bool
 	ID               string `json:"id"`
 	WorkID           string `json:"workId,omitempty"`
 	EditionID        string `json:"editionId,omitempty"`
