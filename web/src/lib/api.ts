@@ -695,6 +695,7 @@ export type AuthorSkippedItem = {
 };
 
 export type AuthorMetadataReview = {
+  revision?: string;
   rootFolderId?: string;
   id: string;
   authorSubscriptionId?: string;
@@ -717,6 +718,8 @@ export type AuthorMetadataReview = {
 };
 
 export type AuthorMetadataReviewDecision = {
+  replayed?: boolean;
+  alreadyTracked?: boolean;
   review: AuthorMetadataReview;
   wantedItem?: WantedItem;
 };
@@ -1694,6 +1697,17 @@ export async function deleteAuthorSubscription(authorID: string): Promise<void> 
   }
 }
 
+export type AuthorReviewOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; status?: "pending" | "wanted" | "ignored" | "all"; cursor?: string; limit?: number };
+export type AuthorReviewCollection = { reviews: AuthorMetadataReview[]; total: number; filtered: number; counts: Record<string, number>; nextCursor?: string };
+export async function fetchAuthorReviewCollection(options: AuthorReviewOptions): Promise<AuthorReviewCollection> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "") params.set(key, String(value));
+  const response = await fetch(`${apiBase}/api/v1/authors/metadata/review?${params}`);
+  if (!response.ok) throw new Error(await apiError(response, "Author reviews could not be loaded"));
+  const payload = await response.json() as AuthorReviewCollection;
+  return { ...payload, reviews: arrayPayload(payload.reviews), counts: payload.counts ?? {} };
+}
+
 export async function fetchAuthorMetadataReviews(status = "pending", limit = 100): Promise<AuthorMetadataReview[]> {
   const params = new URLSearchParams({ status, limit: String(limit) });
   const response = await fetch(`${apiBase}/api/v1/authors/metadata/review?${params.toString()}`);
@@ -1704,11 +1718,11 @@ export async function fetchAuthorMetadataReviews(status = "pending", limit = 100
   return arrayPayload(payload.reviews);
 }
 
-export async function resolveAuthorMetadataReview(reviewId: string, action: "wanted" | "ignore"): Promise<AuthorMetadataReviewDecision> {
+export async function resolveAuthorMetadataReview(reviewId: string, action: "wanted" | "ignore", revision?: string): Promise<AuthorMetadataReviewDecision> {
   const response = await fetch(`${apiBase}/api/v1/authors/metadata/review/${encodeURIComponent(reviewId)}/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action })
+    body: JSON.stringify({ action, revision })
   });
   if (!response.ok) {
     throw new Error(await apiError(response, "Author metadata review update failed"));

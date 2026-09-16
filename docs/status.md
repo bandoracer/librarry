@@ -41,8 +41,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [explicit upgrade selection PR #25](https://github.com/bandoracer/librarry/pull/25),
 [collection projection PR #26](https://github.com/bandoracer/librarry/pull/26),
 [book paging PR #27](https://github.com/bandoracer/librarry/pull/27),
-[author paging PR #28](https://github.com/bandoracer/librarry/pull/28), and
-the `codex/paged-metadata-review` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[author paging PR #28](https://github.com/bandoracer/librarry/pull/28),
+[metadata review PR #29](https://github.com/bandoracer/librarry/pull/29), and
+the `codex/paged-author-review` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -557,6 +558,10 @@ collection with provider-identity/format book counts. Ambiguous or unresolved
 identities remain explicit; manual author overrides are excluded from recorded
 author membership. Native metadata Review now includes older/imported/unmonitored
 books, full counts, paging and selections bound to the displayed evidence.
-Confirmations are atomic and protect concurrent corrections and clears. Author
-metadata review, file/legacy readers, compatibility and durable all-matching jobs
-remain unfinished under S14/S15.
+Confirmations are atomic and protect concurrent corrections and clears. The separate
+author candidate review queue now pages all stored candidates and resolves each
+decision atomically with book creation and history. Existing books retain owner
+settings, and retries replay the saved decision. A 10,001-candidate fixture
+traversed 101 pages without gaps or duplicates (local p95 approximately 7 ms).
+File/legacy readers, search badges, compatibility, removed-book browsing and
+durable all-matching jobs remain unfinished under S14/S15.

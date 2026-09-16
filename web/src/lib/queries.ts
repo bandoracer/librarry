@@ -1,3 +1,4 @@
+import { fetchAuthorReviewCollection, type AuthorReviewOptions } from "./api";
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAcquisitionQueue,
@@ -227,6 +228,13 @@ export function useAuthorSubscriptions() {
       () => []
     )
   });
+}
+
+export function useAuthorReviewCollection(options: AuthorReviewOptions) {
+  return useQuery({ queryKey: [...keys.authorMetadataReviews, "collection", options], queryFn: withDemoFallback(
+    () => fetchAuthorReviewCollection(options),
+    () => ({ reviews: [], total: 0, filtered: 0, counts: {} })
+  ) });
 }
 
 export function useAuthorMetadataReviews() {

@@ -1351,3 +1351,62 @@ these final checks. No real provider request, acquisition, production deployment
 image publication, tag or release occurred. The full stabilization goal remains
 active; S14/S15 are not complete. Next audited collection gap: AuthorsTab's author
 review panel fetches the capped candidate list and displays only six entries.
+
+
+## Author candidate review paging and atomic decisions (2026-09-16)
+
+Continued S14/S15 on `codex/paged-author-review`, stacked on metadata Review PR
+#29. That preceding PR's CI completed successfully in run 35093172787.
+The separate AuthorsTab queue fetched a capped list and displayed only six rows
+with no continuation. It now uses a native filtered collection with six visible
+rows per page and every stored candidate reachable. Pending/wanted/ignored/all
+status, format and literal search apply globally; response counts and bounded
+page records share a repeatable-read snapshot. Timestamp/UUID cursors bind filters
+and survive process restart. API limits are 1–100; invalid or duplicate query
+parameters return 400, unavailable persistence 503, and empty arrays stay arrays.
+
+The previous resolution path created a book and saved the decision in separate
+transactions, followed by best-effort history. A row lock now serializes the
+whole operation. Wanted creation/reuse, resolution and history commit together;
+a controlled history failure proves rollback of the book and decision. Displayed
+candidate revisions protect against changed settings/evidence. Same-action
+retries replay the saved receipt; competing different actions return 409. Existing
+tracked work/format records preserve destination, profile, tags, status and
+monitoring, including removed books; UI feedback explicitly says settings were
+retained. New books inherit the candidate's saved settings. No provider lookup,
+indexer search or acquisition is part of resolution.
+
+A 10,001-candidate fixture traversed 101 pages with no gaps/duplicates and local
+p95 6.934 ms (Apple M5 Max ARM64, Colima Postgres 16.15). Additional database tests
+cover filter binding, stale revisions, late history rollback, captured defaults,
+existing-owner choices, opposing concurrent decisions and same-action retries.
+Full Go race/Postgres checks passed. API tests cover strict JSON, unknown fields,
+oversized bodies and paging input errors. Fourteen web unit checks and production
+build passed; the complete browser suite passed 71 cases with one expected skip.
+A focused rerun exposed an initial empty-search debounce resetting a just-opened
+second page; subscription and candidate search effects now schedule resets only
+when the search actually changes. All eight focused desktop/mobile author tests passed after
+that correction. Mobile presentation was inspected at 390x844.
+
+Local ARM64 `librarry-api:paged-author-review` and
+`librarry-web:paged-author-review` passed schema-43 packaged qualification,
+including seven candidates across two pages, cursor continuation after restart,
+captured destination/profile/tags, same-action replay after another restart,
+conflicting Ignore rejection and exactly one history event. The final 414,797-byte backup
+restored with author review decisions and the prior file/book/import receipts
+intact; auth/restart checks also passed. This final packaged run used the web
+image rebuilt after the debounce correction; the earlier 414,916-byte restore
+is superseded. The final `go test ./...` run with Postgres also passed. No migration, published image, tag, release or production
+rollout occurred.
+
+S14/S15 and the full stabilization goal remain active. Native file/legacy readers,
+search badges and bounded dashboard summaries, compatibility, removed-book
+browsing and resumable collection-wide jobs remain open. Broader S03/S09/S10/S12/
+S13 and S16–S25 gates remain in the plan; live credentials/platform/soak work is
+still separate from fixture qualification.
+
+Next concrete collection gap: `BookPage` calls `useLibraryFiles`, which asks for
+only 100 files; the store has a hard 500-row maximum and no cursor. Large chapter
+sets can therefore be truncated even though native completeness evidence counts
+the full manifest. Next work should add a bounded paged file contract and update
+book/file readers without weakening pending-publication exclusion or book links.

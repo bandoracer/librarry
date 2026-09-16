@@ -244,6 +244,9 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   Author detail links use stored identities and server-side book pages. Legacy
   name links offer a choice when multiple records match; they no longer combine
   same-name people. Imported and unmonitored books remain visible on these pages.
+- **Author review queue:** page/search all candidate reviews, inspect saved
+  decisions, and mark wanted or ignore with retry-safe decisions. Already tracked
+  books retain their existing destination, profile and monitoring choices.
 - Native integration settings API and UI for persisted Prowlarr, qBittorrent,
   Transmission, and SABnzbd configuration. Saved settings reconfigure the
   running acquisition service and are loaded again on restart.

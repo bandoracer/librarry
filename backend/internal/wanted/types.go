@@ -560,11 +560,15 @@ type AuthorSkippedItem struct {
 }
 
 type AuthorMetadataReviewQuery struct {
+	Search string `json:"q,omitempty"`
+	Format string `json:"format,omitempty"`
+	Cursor string `json:"cursor,omitempty"`
 	Status string `json:"status,omitempty"`
 	Limit  int    `json:"limit,omitempty"`
 }
 
 type AuthorMetadataReview struct {
+	Revision             string                `json:"revision"`
 	RootFolderID         string                `json:"rootFolderId,omitempty"`
 	ID                   string                `json:"id,omitempty"`
 	AuthorSubscriptionID string                `json:"authorSubscriptionId,omitempty"`
@@ -587,12 +591,15 @@ type AuthorMetadataReview struct {
 }
 
 type AuthorMetadataReviewDecisionRequest struct {
-	Action string `json:"action"`
+	Revision string `json:"revision,omitempty"`
+	Action   string `json:"action"`
 }
 
 type AuthorMetadataReviewDecision struct {
-	Review     AuthorMetadataReview `json:"review"`
-	WantedItem *WantedItem          `json:"wantedItem,omitempty"`
+	Replayed       bool                 `json:"replayed,omitempty"`
+	AlreadyTracked bool                 `json:"alreadyTracked,omitempty"`
+	Review         AuthorMetadataReview `json:"review"`
+	WantedItem     *WantedItem          `json:"wantedItem,omitempty"`
 }
 
 type UpgradeItemResult struct {

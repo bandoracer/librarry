@@ -197,6 +197,13 @@ Remove silent whole-collection caps from business decisions. Process background 
 
 **Done:** 10,000-book/file fixtures return accurate counts, access older records directly, and traverse every page. Stable-data paging has no duplicates/gaps. On a documented CI/reference machine, target p95 ≤500 ms for local paged reads of up to 100 records; measure external-provider latency separately. Verify bulk actions affect exactly the chosen scope.
 
+Current S14/S15 progress: native book, author subscription, metadata Review and
+author candidate review collections have complete paged traversal fixtures.
+Author candidate decisions now commit atomically with history and preserve
+existing book settings. File/legacy readers, search badges, compatibility,
+removed-book browsing and resumable all-matching jobs remain open; this does not
+complete either milestone. See the implementation ledger for qualification.
+
 ### S16 — Readarr compatibility and migration
 
 **Scope:** maintain an endpoint contract matrix with real side effects, supported fields, and unsupported behavior. Reuse native services so compatible routes cannot bypass import, identity, or deletion rules. Do not return success for an unsupported mutation.

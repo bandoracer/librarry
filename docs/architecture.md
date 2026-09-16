@@ -1320,3 +1320,32 @@ Older API clients without revisions explicitly confirm the current server snapsh
 Legacy `all: true` now processes the entire active review selection atomically,
 rather than the first 200 rows. It is synchronous and can be expensive; it is not
 a resumable all-matching bulk job and is not the native UI's selected-page action.
+
+
+### Author candidate review collection and decisions
+
+`GET /api/v1/authors/metadata/review` accepts `q`, `format` (all/ebook/audiobook),
+`status` (pending default, wanted, ignored, all), `limit` (1–100, default 100) and
+`cursor`. It retains the `reviews` array and adds `total`, `filtered`, global
+status `counts`, `nextCursor` and `observedAt`. Unknown/duplicate filters or invalid
+limits/cursors return 400; unavailable persistence returns 503. Older callers
+requesting more than 100 must page. Read-only repeatable-read transactions bind
+counts and page membership within each response. Newest-first creation time and
+UUID provide a stable tie-breaker. Cursors bind normalized filters, and remain
+valid after process restart; separate page requests are not a frozen snapshot.
+
+Each review carries a revision of its complete saved evidence/settings.
+`POST /api/v1/authors/metadata/review/{id}/resolve` accepts one strict JSON object
+with `action` and optional `revision`. A row lock serializes competing actions.
+Pending decisions require matching revisions when supplied; stale evidence or a
+differently resolved action returns 409. Legacy requests without revisions use
+the current saved candidate. Retrying the same resolved action returns
+`replayed: true` without a second mutation/history entry.
+
+Wanted creation/reuse, review resolution and history share one transaction.
+Creation uses the candidate's captured root/profile/tags; add-only reuse returns
+`alreadyTracked: true` and retains all existing book settings/status/monitoring.
+Ignore changes no book. The existing create helper now supports a caller-owned
+transaction and hydrates the response before commit. No schema migration or
+external provider/acquisition request is required. Legacy dashboard summaries
+still use a bounded reader; they do not determine mutation membership.

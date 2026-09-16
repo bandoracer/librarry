@@ -557,6 +557,36 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert remaining_review["total"] == review_first["total"] - 1, remaining_review
         assert wanted_id not in {item["wantedItem"]["id"] for item in remaining_review["items"]}, remaining_review
         print("Packaged metadata review: imported conflicts, exact counts, full traversal, restart cursor and selected canonical confirmation verified")
+        # Persist controlled author candidates without any provider/indexer IO.
+        author_review_result = json.dumps({"provider": "fixture", "kind": "book",
+            "work": {"id": "author-review-work", "title": "Author review fixture", "authors": [{"name": "Fixture author"}]},
+            "edition": {"id": "author-review-edition", "format": "ebook"}}).replace("'", "''")
+        sql(f"insert into author_metadata_reviews(candidate_key,title,result,quality_profile,tags,root_folder_id) select 'page-'||i,'Author review fixture '||i,'{author_review_result}'::jsonb,'saved-profile','saved-tag','{author_root['id']}'::uuid from generate_series(1,7) i")
+        author_review_first = request("/api/v1/authors/metadata/review?limit=6")
+        assert author_review_first["total"] == 7 and len(author_review_first["reviews"]) == 6 and author_review_first["nextCursor"], author_review_first
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        author_review_next = request("/api/v1/authors/metadata/review?limit=6&cursor=" + author_review_first["nextCursor"])
+        assert len(author_review_next["reviews"]) == 1, author_review_next
+        candidate = author_review_next["reviews"][0]
+        assert candidate["id"] not in {row["id"] for row in author_review_first["reviews"]}
+        decision_path = "/api/v1/authors/metadata/review/" + candidate["id"] + "/resolve"
+        decision = {"action": "wanted", "revision": candidate["revision"]}
+        receipt = request(decision_path, decision)
+        assert receipt["wantedItem"]["rootFolderId"] == author_root["id"] and receipt["wantedItem"]["qualityProfile"] == "saved-profile" and receipt["wantedItem"]["tags"] == ["saved-tag"], receipt
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        replay = request(decision_path, decision)
+        assert replay["replayed"] and replay["wantedItem"]["id"] == receipt["wantedItem"]["id"], replay
+        try:
+            request(decision_path, {"action": "ignore"})
+            raise AssertionError("resolved wanted review accepted Ignore")
+        except urllib.error.HTTPError as error:
+            assert error.code == 409, error
+        assert sql(f"select count(*) from history_events where data->>'reviewId'='{candidate['id']}'") == "1"
+        assert request("/api/v1/authors/metadata/review?status=wanted")["filtered"] == 1
+        assert request("/api/v1/authors/metadata/review")["filtered"] == 6
+        print("Packaged author review: all candidates reachable, restart cursor, saved destination/profile/tags, replay receipt and exactly one history event verified")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
@@ -565,7 +595,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
                       "select * from librarry_book_file_evidence(null) order by wanted_id",
                       "select id,root_folder_id,quality_profile,tags from author_subscriptions order by id",
-                      "select id,root_folder_id from author_metadata_reviews order by id",
+                      "select id,root_folder_id,status,decision,wanted_item_id,result from author_metadata_reviews order by id",
                       "select id,state,cleanup_state,source_kind,request_key,replacement_cleanup_state,replacement_cleanup_error from import_operations order by id", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files order by id",
                       "select id,metadata->'verifiedDownload' from files order by id",
                       "select id,scope_key,request_key,state,external_id,result,selection,bookkeeping_required,bookkeeping_at from acquisition_intents order by id",

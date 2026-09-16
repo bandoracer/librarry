@@ -2101,23 +2101,6 @@ func (h *handler) monitorAuthors(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, run)
 }
 
-func (h *handler) authorMetadataReviews(w http.ResponseWriter, r *http.Request) {
-	if h.deps.Wanted == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
-		return
-	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	reviews, err := h.deps.Wanted.ListAuthorMetadataReviews(r.Context(), wanted.AuthorMetadataReviewQuery{
-		Status: r.URL.Query().Get("status"),
-		Limit:  limit,
-	})
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"reviews": reviews})
-}
-
 func (h *handler) resolveAuthorMetadataReview(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
@@ -2130,13 +2113,25 @@ func (h *handler) resolveAuthorMetadataReview(w http.ResponseWriter, r *http.Req
 	}
 	defer r.Body.Close()
 	var request wanted.AuthorMetadataReviewDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author metadata review decision payload"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, 400, map[string]any{"error": "expected one review decision"})
 		return
 	}
 	outcome, err := h.deps.Wanted.ResolveAuthorMetadataReview(r.Context(), id, request)
 	if err != nil {
 		status := http.StatusBadGateway
+		if errors.Is(err, wanted.ErrAuthorReviewChanged) {
+			status = http.StatusConflict
+		}
+		if errors.Is(err, wanted.ErrAuthorReviewDecision) {
+			status = http.StatusBadRequest
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
 		}

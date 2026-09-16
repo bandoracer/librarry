@@ -6496,3 +6496,7 @@ func TestLibraryConfigSurfacesRecycleBin(t *testing.T) {
 		t.Fatalf("expected recycle bin in config response, got %d %s", res.Code, res.Body.String())
 	}
 }
+
+func (fakeWanted) AuthorReviewCollection(context.Context, wanted.AuthorMetadataReviewQuery) (wanted.AuthorReviewCollection, error) {
+	return wanted.AuthorReviewCollection{Reviews: []wanted.AuthorMetadataReview{fakeAuthorMetadataReview("pending")}, Total: 1, Filtered: 1, Counts: map[string]int{"pending": 1}}, nil
+}

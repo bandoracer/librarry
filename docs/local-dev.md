@@ -1193,8 +1193,8 @@ continue to take precedence. Client outages leave uncertain book counts Unknown.
 Previous/Next and Refresh page work independently of metadata refresh. Check
 Author Batch and Force Author Batch check at most 50 subscriptions; each row's
 refresh targets that subscription only. These are subscription settings rows,
-not a deduplicated catalog of every writer in the library. The separate author
-review queue still uses its existing bounded reader.
+not a deduplicated catalog of every writer in the library. Author review candidates
+use the separate paged queue described below.
 
 
 ### Metadata Review
@@ -1213,3 +1213,21 @@ review instead of overwriting the owner's choice. If a conflicting field has no
 current value to keep, open the book details and choose a value; skipped books
 are reported explicitly. Refresh page reloads evidence without broadening the
 selection. Collection-wide resumable bulk jobs remain future work.
+
+
+### Author review candidates
+
+Library → Authors → Author review queue shows six candidates per page, with
+search, format and Pending/Wanted/Ignored/All decisions filters across the full
+queue. Counts cover all stored candidates; changing filters returns to page one.
+Previous reviews and Next reviews reach older candidates. A failed load offers
+Retry reviews rather than an empty-queue claim.
+
+Mark wanted uses the destination, profile and tags captured with the candidate.
+If the work is already tracked in that format, the decision links the existing
+book and preserves its destination, profile, tags, monitoring and removed/ignored
+state. Open tracked book to change those choices explicitly. Ignore saves the
+review decision without changing a tracked book. New candidate evidence requires
+a refresh before deciding. The book, decision and history commit together;
+retrying the same saved action returns its receipt, while a conflicting action
+returns 409. No provider lookup or download is triggered by review resolution.

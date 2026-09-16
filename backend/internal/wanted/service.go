@@ -649,62 +649,7 @@ func (s *Service) ResolveAuthorMetadataReview(ctx context.Context, id string, re
 	if !s.Available() {
 		return AuthorMetadataReviewDecision{}, errors.New("wanted service requires database persistence")
 	}
-	review, err := s.store.GetAuthorMetadataReview(ctx, id)
-	if err != nil {
-		return AuthorMetadataReviewDecision{}, err
-	}
-	if strings.TrimSpace(review.Status) != "pending" {
-		return AuthorMetadataReviewDecision{}, errors.New("author metadata review is already resolved")
-	}
-	switch strings.ToLower(strings.TrimSpace(request.Action)) {
-	case "wanted", "mark_wanted", "mark-wanted":
-		item, err := s.store.CreateWanted(ctx, CreateRequest{
-			RootFolderID:   review.RootFolderID,
-			Result:         review.Result,
-			Format:         review.Format,
-			QualityProfile: review.QualityProfile,
-			Tags:           review.Tags,
-		})
-		if err != nil {
-			return AuthorMetadataReviewDecision{}, err
-		}
-		resolved, err := s.store.ResolveAuthorMetadataReview(ctx, review.ID, "wanted", "wanted", item.ID)
-		if err != nil {
-			return AuthorMetadataReviewDecision{}, err
-		}
-		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-			EventType:  "author_metadata_review_wanted",
-			EntityType: "wanted_item",
-			EntityID:   item.ID,
-			Severity:   "info",
-			Message:    "Marked author metadata candidate wanted for " + item.Title,
-			Data: map[string]any{
-				"reviewId": resolved.ID,
-				"policy":   resolved.Policy,
-				"reason":   resolved.Reason,
-			},
-		})
-		return AuthorMetadataReviewDecision{Review: resolved, WantedItem: &item}, nil
-	case "ignore", "ignored", "skip":
-		resolved, err := s.store.ResolveAuthorMetadataReview(ctx, review.ID, "ignored", "ignored", "")
-		if err != nil {
-			return AuthorMetadataReviewDecision{}, err
-		}
-		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-			EventType:  "author_metadata_review_ignored",
-			EntityType: "author_metadata_review",
-			EntityID:   resolved.ID,
-			Severity:   "info",
-			Message:    "Ignored author metadata candidate for " + resolved.Title,
-			Data: map[string]any{
-				"policy": resolved.Policy,
-				"reason": resolved.Reason,
-			},
-		})
-		return AuthorMetadataReviewDecision{Review: resolved}, nil
-	default:
-		return AuthorMetadataReviewDecision{}, errors.New("author metadata review action must be wanted or ignore")
-	}
+	return s.store.ResolveAuthorReview(ctx, id, request)
 }
 
 func (s *Service) SearchReleases(ctx context.Context, wantedID string, request SearchReleasesRequest) (SearchOutcome, error) {

@@ -48,17 +48,38 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 	if !s.Configured() {
 		return WantedItem{}, errors.New("wanted store is unavailable")
 	}
-	format := wantedFormat(request)
-	result := request.Result
-	if strings.TrimSpace(result.Work.Title) == "" {
-		return WantedItem{}, errors.New("work title is required")
-	}
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return WantedItem{}, err
 	}
 	defer tx.Rollback()
+	item, err := s.createWantedInTransaction(ctx, tx, request)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return WantedItem{}, err
+	}
+	return item, nil
+}
+
+func wantedInTransaction(ctx context.Context, tx *sql.Tx, id string) (WantedItem, error) {
+	items, _, err := reviewBooks(ctx, tx, []string{id}, true)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	if len(items) == 0 {
+		return WantedItem{}, sql.ErrNoRows
+	}
+	return items[0], nil
+}
+
+func (s *Store) createWantedInTransaction(ctx context.Context, tx *sql.Tx, request CreateRequest) (WantedItem, error) {
+	format := wantedFormat(request)
+	result := request.Result
+	if strings.TrimSpace(result.Work.Title) == "" {
+		return WantedItem{}, errors.New("work title is required")
+	}
 	// Coordinate automatic bibliography adds with ordinary adds for the same
 	// provider work/format, including legacy synthetic edition source keys.
 	if result.Work.ID != "" {
@@ -69,21 +90,6 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 	}
 
 	rootFolderID := strings.TrimSpace(request.RootFolderID)
-	if rootFolderID != "" {
-		var rootFolderFormat string
-		err := tx.QueryRowContext(ctx, `
-			select media_format from root_folders where id::text = $1
-		`, rootFolderID).Scan(&rootFolderFormat)
-		if errors.Is(err, sql.ErrNoRows) {
-			return WantedItem{}, errors.New("root folder not found")
-		}
-		if err != nil {
-			return WantedItem{}, err
-		}
-		if reason := rootFolderFormatMismatchReason(rootFolderFormat, format); reason != "" {
-			return WantedItem{}, errors.New(reason)
-		}
-	}
 
 	if request.OnlyIfUntracked {
 		workID, _, err := lookupProviderEntityAliases(ctx, tx, workProviderAliases(result))
@@ -103,15 +109,28 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 			order by created_at, id limit 1`, format, workID, result.Provider,
 			result.Work.ID, result.Work.ID+":edition", candidateSourceKey(result)).Scan(&existingID)
 		if err == nil {
-			if err := tx.Rollback(); err != nil {
-				return WantedItem{}, err
-			}
-			item, err := s.GetWanted(ctx, existingID)
+			item, err := wantedInTransaction(ctx, tx, existingID)
 			item.alreadyTracked = true
 			return item, err
 		}
 		if !errors.Is(err, sql.ErrNoRows) {
 			return WantedItem{}, err
+		}
+	}
+
+	if rootFolderID != "" {
+		var rootFolderFormat string
+		err := tx.QueryRowContext(ctx, `
+			select media_format from root_folders where id::text = $1
+		`, rootFolderID).Scan(&rootFolderFormat)
+		if errors.Is(err, sql.ErrNoRows) {
+			return WantedItem{}, errors.New("root folder not found")
+		}
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if reason := rootFolderFormatMismatchReason(rootFolderFormat, format); reason != "" {
+			return WantedItem{}, errors.New(reason)
 		}
 	}
 
@@ -199,10 +218,7 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 	if err := ensureTagLabels(ctx, tx, request.Tags); err != nil {
 		return WantedItem{}, err
 	}
-	if err := tx.Commit(); err != nil {
-		return WantedItem{}, err
-	}
-	return s.GetWanted(ctx, wantedID)
+	return wantedInTransaction(ctx, tx, wantedID)
 }
 
 // rootFolderFormatMismatchReason explains why a root folder cannot host a
@@ -2395,7 +2411,7 @@ func (s *Store) ResolveAuthorMetadataReview(ctx context.Context, id string, stat
 			wanted_item_id = coalesce(nullif($4, '')::uuid, wanted_item_id),
 			updated_at = now(),
 			resolved_at = now()
-		where id::text = $1
+		where id::text = $1 and status='pending'
 		returning
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
@@ -2898,6 +2914,7 @@ func scanAuthorMetadataReview(row wantedScanner) (AuthorMetadataReview, error) {
 		value := resolvedAt.Time.UTC()
 		review.ResolvedAt = &value
 	}
+	review.Revision = authorReviewRevision(review)
 	return review, nil
 }
 

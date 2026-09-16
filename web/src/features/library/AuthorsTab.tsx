@@ -11,6 +11,7 @@ import {
 } from "../../lib/api";
 import type {
   AuthorCollectionOptions,
+  AuthorReviewOptions,
   AuthorFilterFields,
   AuthorFilterUpdateRequest,
   AuthorMetadataReview,
@@ -22,7 +23,7 @@ import type {
 } from "../../lib/api";
 import {
   keys,
-  useAuthorMetadataReviews,
+  useAuthorReviewCollection,
   useAuthorCollection,
   useMetadataProfiles,
   useRootFolders,
@@ -150,15 +151,21 @@ export function AuthorsTab() {
   const [format, setFormat] = useState<AuthorCollectionOptions["format"]>("all");
   const [status, setStatus] = useState<AuthorCollectionOptions["status"]>("monitored");
   const [cursors, setCursors] = useState<string[]>([""]);
-  useEffect(() => { const timer = setTimeout(() => { setQuerySearch(search); setCursors([""]); }, 250); return () => clearTimeout(timer); }, [search]);
+  useEffect(() => { if (search === querySearch) return; const timer = setTimeout(() => { setQuerySearch(search); setCursors([""]); }, 250); return () => clearTimeout(timer); }, [search, querySearch]);
   const subscriptionsQuery = useAuthorCollection({ q: querySearch, format, status, cursor: cursors[cursors.length - 1], limit: 100 });
-  const reviewsQuery = useAuthorMetadataReviews();
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewQuery, setReviewQuery] = useState("");
+  const [reviewStatus, setReviewStatus] = useState<AuthorReviewOptions["status"]>("pending");
+  const [reviewFormat, setReviewFormat] = useState<AuthorReviewOptions["format"]>("all");
+  const [reviewCursors, setReviewCursors] = useState<string[]>([""]);
+  useEffect(() => { if (reviewSearch === reviewQuery) return; const timer = setTimeout(() => { setReviewQuery(reviewSearch); setReviewCursors([""]); }, 250); return () => clearTimeout(timer); }, [reviewSearch, reviewQuery]);
+  const reviewsQuery = useAuthorReviewCollection({ q: reviewQuery, status: reviewStatus, format: reviewFormat, cursor: reviewCursors[reviewCursors.length - 1], limit: 6 });
   const metadataProfilesQuery = useMetadataProfiles();
   const rootsQuery = useRootFolders();
   const profilesQuery = useQualityProfiles();
   const collection = subscriptionsQuery.data;
   const subscriptions = collection?.authors ?? [];
-  const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
+  const reviews = useMemo(() => reviewsQuery.data?.reviews ?? [], [reviewsQuery.data]);
   const metadataProfiles = metadataProfilesQuery.data ?? [];
 
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
@@ -269,7 +276,7 @@ export function AuthorsTab() {
     try {
       if (skipped.reviewId) {
         const outcome = await resolveAuthorMetadataReview(skipped.reviewId, "wanted");
-        toast.success(`Marked “${outcome.wantedItem?.title ?? skipped.result.work.title}” wanted`);
+        toast.success(outcome.replayed ? "This review decision was already saved" : outcome.alreadyTracked ? "Already tracked; existing book settings retained" : `Marked “${outcome.wantedItem?.title ?? skipped.result.work.title}” wanted`);
       } else {
         const wantedFormat = skipped.result.edition?.format === "audiobook" ? "audiobook" : subscription.format;
         const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? [], subscription.rootFolderId);
@@ -287,8 +294,12 @@ export function AuthorsTab() {
     if (!review.id) return;
     setReviewActionID(`${review.id}:${action}`);
     try {
-      const outcome = await resolveAuthorMetadataReview(review.id, action);
-      if (action === "wanted") {
+      const outcome = await resolveAuthorMetadataReview(review.id, action, review.revision);
+      if (outcome.replayed) {
+        toast.success("This review decision was already saved");
+      } else if (outcome.alreadyTracked) {
+        toast.success("Already tracked; existing book settings retained");
+      } else if (action === "wanted") {
         toast.success(`Marked “${outcome.wantedItem?.title ?? review.title}” wanted`);
       } else {
         toast.success(`Ignored “${review.title || review.result.work.title}”`);
@@ -623,11 +634,7 @@ export function AuthorsTab() {
 
           <Card
             title="Author review queue"
-            subtitle={
-              reviews.length
-                ? `${reviews.length} skipped metadata candidate${reviews.length === 1 ? "" : "s"} need review.`
-                : "No skipped author candidates are pending review."
-            }
+            subtitle={`${reviews.length} shown · ${reviewsQuery.data?.filtered ?? 0} matching · ${reviewsQuery.data?.counts.pending ?? 0} pending`}
             actions={
               <Button
                 size="sm"
@@ -640,10 +647,26 @@ export function AuthorsTab() {
               </Button>
             }
           >
-            {reviewsQuery.isLoading ? (
+            <FormGrid>
+              <Field label="Search author reviews"><input aria-label="Search author reviews" value={reviewSearch} onChange={event => setReviewSearch(event.target.value)} /></Field>
+              <Field label="Review status"><select aria-label="Author review status" value={reviewStatus} onChange={event => { setReviewStatus(event.target.value as AuthorReviewOptions["status"]); setReviewCursors([""]); }}>
+                <option value="pending">Pending</option><option value="wanted">Wanted</option><option value="ignored">Ignored</option><option value="all">All decisions</option>
+              </select></Field>
+              <Field label="Review format"><select aria-label="Author review format" value={reviewFormat} onChange={event => { setReviewFormat(event.target.value as AuthorReviewOptions["format"]); setReviewCursors([""]); }}>
+                <option value="all">All formats</option><option value="ebook">Ebook</option><option value="audiobook">Audiobook</option>
+              </select></Field>
+            </FormGrid>
+            <div className="library-pagination">
+              <Button disabled={reviewCursors.length === 1 || reviewsQuery.isFetching || Boolean(reviewActionID)} onClick={() => setReviewCursors(value => value.slice(0, -1))}>Previous reviews</Button>
+              <span>Page {reviewCursors.length}</span>
+              <Button disabled={!reviewsQuery.data?.nextCursor || reviewsQuery.isFetching || Boolean(reviewActionID)} onClick={() => { if (reviewsQuery.data?.nextCursor) setReviewCursors(value => [...value, reviewsQuery.data!.nextCursor!]); }}>Next reviews</Button>
+            </div>
+            {reviewsQuery.isError ? (
+              <EmptyState title="Author reviews could not be loaded"><Button onClick={() => void reviewsQuery.refetch()}>Retry reviews</Button></EmptyState>
+            ) : reviewsQuery.isLoading ? (
               <LoadingRow label="Loading author reviews…" />
             ) : reviews.length ? (
-              reviews.slice(0, 6).map((review) => {
+              reviews.map((review) => {
                 const wantedActionID = `${review.id}:wanted`;
                 const ignoreActionID = `${review.id}:ignore`;
                 return (
@@ -661,6 +684,7 @@ export function AuthorsTab() {
                       </span>
                     </div>
                     <div className="wanted-review-queue-actions">
+                      {review.status !== "pending" ? (review.wantedId ? <Link to={`/library/book/${review.wantedId}`}>Open tracked book</Link> : <Badge>{review.status}</Badge>) : <>
                       <Button
                         size="sm"
                         disabled={Boolean(reviewActionID) && reviewActionID !== wantedActionID}
@@ -678,13 +702,14 @@ export function AuthorsTab() {
                       >
                         {reviewActionID === ignoreActionID ? "Ignoring" : "Ignore"}
                       </Button>
+                      </>}
                     </div>
                   </article>
                 );
               })
             ) : (
-              <EmptyState title="Nothing pending review">
-                Skipped author candidates appear here when the monitor holds books back per policy.
+              <EmptyState title="No matching author reviews">
+                Try another filter or refresh the queue.
               </EmptyState>
             )}
           </Card>
