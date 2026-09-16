@@ -807,8 +807,32 @@ prevents automatic reconciliation against a different server. Existing accepted
 imports can reserve a different upgrade, while replay of the original is a no-op.
 
 The ledger coordinates all production paths through `acquisition.Service.Grab`.
-Wanted history/current-release transactions and legacy adoption are separate
-reconciliation concerns; this does not claim complete S10 or live-client validation.
+Migration 0040 stores a sanitized release-selection snapshot before submission
+and records independent bookkeeping completion. After saving the accepted receipt,
+a short transaction links the exact client/download to that receipt and release,
+updates eligible wanted status, and inserts one `release_grabbed` history event.
+Receipt locking serializes retries. A database failure leaves acceptance durable
+and exposes **Finish recovery** in Activity; it cannot authorize a second send.
+Reconstruction of a missing download projection restores the association without
+repeating history. Receipt replay includes removed rows, so it cannot resurrect a
+removed row by confusing it with a failed persistence write. Existing migrated
+intents have no manufactured selection or new historical event.
+
+Acquisition does not update `wanted_items.current_release_id/score`. Native import
+commits that projection and one `book_imported` event per mapped book in the same
+transaction as all file/link/status records. The installed score comes from the
+saved acquisition decision, not a later search. Unfinished acceptance bookkeeping
+blocks import commit until recovered. A pack cannot lend one book's release score
+to another mapped book; unknown completed imports and manual replacements clear
+unproven installed-release identity. Failed upgrades preserve imported status, and
+failed-download blocklisting uses the download's saved release ID or exact hash,
+never an unrelated installed release. Legacy installed projections remain for
+separate review rather than being guessed from historical searches.
+
+Native and compatibility notification producers suppress replayed imports/grabs;
+worker grab counts exclude receipt replays. Notification delivery remains best
+effort, without a transactional outbox or an exactly-once remote-delivery claim.
+Broader worker/live-client and legacy qualification remain S10/S21 work.
 
 ### Persisted scan execution and local presence
 

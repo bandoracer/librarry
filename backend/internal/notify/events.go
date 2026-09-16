@@ -135,7 +135,7 @@ func TestEvent() Event {
 func EventsFromMonitorRun(source string, run wanted.MonitorRun) []Event {
 	var events []Event
 	for _, item := range run.Items {
-		if item.GrabbedDownload == nil {
+		if item.GrabbedDownload == nil || item.GrabbedDownload.Deduplicated {
 			continue
 		}
 		wantedItem := item.WantedItem
@@ -148,7 +148,7 @@ func EventsFromMonitorRun(source string, run wanted.MonitorRun) []Event {
 func EventsFromFeedSyncRun(source string, run wanted.FeedSyncRun) []Event {
 	var events []Event
 	for _, match := range run.Matches {
-		if match.GrabbedDownload == nil {
+		if match.GrabbedDownload == nil || match.GrabbedDownload.Deduplicated {
 			continue
 		}
 		wantedItem := match.WantedItem
@@ -162,7 +162,7 @@ func EventsFromFeedSyncRun(source string, run wanted.FeedSyncRun) []Event {
 func EventsFromUpgradeRun(source string, run wanted.UpgradeRun) []Event {
 	var events []Event
 	for _, item := range run.Items {
-		if item.GrabbedDownload == nil {
+		if item.GrabbedDownload == nil || item.GrabbedDownload.Deduplicated {
 			continue
 		}
 		wantedItem := item.WantedItem
@@ -178,7 +178,7 @@ func EventsFromFailedDownloadRun(source string, run wanted.FailedDownloadRun) []
 	for _, item := range run.Items {
 		wantedItem := item.WantedItem
 		events = append(events, DownloadFailureEvent(source, &wantedItem, item.Download, item.FailureReason))
-		if item.ReplacementDownload != nil {
+		if item.ReplacementDownload != nil && !item.ReplacementDownload.Deduplicated {
 			events = append(events, GrabEvent(source+":replacement", &wantedItem, item.ReplacementRelease, item.ReplacementDownload))
 		}
 	}
@@ -190,7 +190,7 @@ func EventsFromFailedDownloadRun(source string, run wanted.FailedDownloadRun) []
 func EventsFromCompletedImports(source string, outcome library.CompletedImportOutcome) []Event {
 	var events []Event
 	for _, result := range outcome.Results {
-		if result.Import == nil || !result.Import.Imported {
+		if result.Import == nil || !result.Import.Imported || result.Import.Skipped {
 			continue
 		}
 		events = append(events, ImportEvent(source, *result.Import))

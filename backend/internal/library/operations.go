@@ -342,6 +342,9 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 			return nil, errors.New("book was removed or its format changed while importing")
 		}
 	}
+	if err := commitImportBookkeeping(ctx, tx, op, stored, importedBooks); err != nil {
+		return nil, err
+	}
 	if op.DownloadRecordID != "" {
 		if _, err := tx.ExecContext(ctx, `update downloads set import_status='imported',imported_file_id=$2,imported_at=now(),import_error='',updated_at=now() where id=$1`, op.DownloadRecordID, stored[0].ID); err != nil {
 			return nil, err

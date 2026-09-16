@@ -62,6 +62,9 @@ func (h *handler) notifyDownloadGrab(ctx context.Context, source string, status 
 }
 
 func (h *handler) notifyReleaseImport(ctx context.Context, source string, outcome library.ImportOutcome) {
+	if !outcome.Imported || outcome.Skipped {
+		return
+	}
 	file := outcome.File
 	h.dispatchNotifications(ctx, notificationEvent{
 		EventType: notificationEventReleaseImport,
@@ -90,7 +93,7 @@ func (h *handler) notifyReviewImport(ctx context.Context, source string, outcome
 
 func (h *handler) notifyMonitorGrabs(ctx context.Context, source string, run wanted.MonitorRun) {
 	for _, item := range run.Items {
-		if item.GrabbedDownload == nil {
+		if item.GrabbedDownload == nil || item.GrabbedDownload.Deduplicated {
 			continue
 		}
 		wantedItem := item.WantedItem
@@ -106,7 +109,7 @@ func (h *handler) notifyMonitorGrabs(ctx context.Context, source string, run wan
 
 func (h *handler) notifyFeedGrabs(ctx context.Context, source string, run wanted.FeedSyncRun) {
 	for _, match := range run.Matches {
-		if match.GrabbedDownload == nil {
+		if match.GrabbedDownload == nil || match.GrabbedDownload.Deduplicated {
 			continue
 		}
 		wantedItem := match.WantedItem
@@ -124,7 +127,7 @@ func (h *handler) notifyFeedGrabs(ctx context.Context, source string, run wanted
 
 func (h *handler) notifyUpgradeGrabs(ctx context.Context, source string, run wanted.UpgradeRun) {
 	for _, item := range run.Items {
-		if item.GrabbedDownload == nil {
+		if item.GrabbedDownload == nil || item.GrabbedDownload.Deduplicated {
 			continue
 		}
 		wantedItem := item.WantedItem
@@ -156,7 +159,7 @@ func (h *handler) notifyFailedDownloads(ctx context.Context, source string, run 
 			Release:    item.ReplacementRelease,
 		}
 		h.dispatchNotifications(ctx, event)
-		if item.ReplacementDownload != nil {
+		if item.ReplacementDownload != nil && !item.ReplacementDownload.Deduplicated {
 			replacementEvent := notificationEvent{
 				EventType:  notificationEventGrab,
 				Source:     source + ":replacement",

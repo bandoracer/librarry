@@ -2071,7 +2071,7 @@ func (s *Store) MarkWantedStatus(ctx context.Context, wantedID string, status st
 	if status == "" {
 		return errors.New("wanted status is required")
 	}
-	_, err := s.db.ExecContext(ctx, `update wanted_items set status = $2, updated_at = now() where id = $1`, wantedID, status)
+	_, err := s.db.ExecContext(ctx, `update wanted_items set status = $2, updated_at = now() where id = $1 and status not in ('removed','ignored') and not (status='imported' and $2 in ('wanted','grabbed'))`, wantedID, status)
 	return err
 }
 

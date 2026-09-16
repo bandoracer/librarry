@@ -23,8 +23,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [acquisition recovery PR #7](https://github.com/bandoracer/librarry/pull/7),
 [persisted scan PR #8](https://github.com/bandoracer/librarry/pull/8),
 [repair preview PR #9](https://github.com/bandoracer/librarry/pull/9),
-[move reconciliation PR #10](https://github.com/bandoracer/librarry/pull/10), and the
-`codex/completed-replacement` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[move reconciliation PR #10](https://github.com/bandoracer/librarry/pull/10),
+[reviewed replacement PR #11](https://github.com/bandoracer/librarry/pull/11), and the
+`codex/acquisition-bookkeeping` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -76,8 +77,13 @@ silently authorize another add. Check client reconciles exact tags/infohashes on
 the original configured client. SABnzbd acknowledgement loss needs an explicit
 client-ID selection. Attach/release decisions require operator confirmation.
 This is contract-fixture and packaged restart qualification, not live-client proof.
-Legacy history/current-release repair and broader scheduled-worker qualification
-remain open under S10/S21.
+New acquisition receipts retain the selected release and score. Accepted downloads
+whose local bookkeeping failed remain visible and retryable, with one grab-history
+entry after recovery. Native import commits installed-release state and import
+history with the complete file set. Failed upgrades preserve imported status;
+blocklisting uses the failed download's identity. API/worker notifications skip
+replayed results. Legacy history/current-release repair, durable notification
+delivery and broader scheduled-worker qualification remain open under S10/S21.
 
 Library scans now persist their path queue and progress, resume through the
 scheduler after restart, and support cancellation/retry in Imports. The old file

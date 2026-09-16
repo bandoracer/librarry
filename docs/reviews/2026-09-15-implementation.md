@@ -90,7 +90,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S07 | Implemented with fixture qualification | Relational links, manifest/operation records and reconciliation report; live database-copy migration still pending |
 | S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
 | S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
-| S10 | Partial | Durable submission/reconciliation and Activity recovery implemented with fixtures; full worker, history/current-release and live-client qualification remain |
+| S10 | Partial | Durable submission/reconciliation, accepted bookkeeping, native installed-release/history commit and replay notification guards implemented with fixtures; full worker, legacy repair and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
@@ -521,3 +521,53 @@ cover restoring a physically missing destination under its existing ID/manual
 name, and rejecting an extra old file that appears after planning. The directory
 manifest is rechecked before transfer and before commit. These are disposable
 fixture results; no release, live upgrade or homelab qualification is implied.
+
+
+## Continuation: acquisition and import bookkeeping (S10)
+
+Branch: `codex/acquisition-bookkeeping`, based on reviewed replacement. The prior
+code changed a book's current release at grab time, before the selected upgrade
+was installed; it could also lose grab history after remote acceptance or send
+notifications again when retrying committed imports.
+
+Migration 0040 saves the selected release's sanitized ID/score/provenance before
+client submission, plus bookkeeping completion and an explicit download-to-intent
+link. The accepted client receipt commits first. A separate short transaction
+repairs download/release links, eligible wanted state and one grab-history entry.
+Failures remain visible as Accepted / Finish recovery in Activity, with no new-add
+controls. Concurrent receipt replays serialize, preserve current download progress
+and user removals, and do not duplicate history. Migrated intents do not gain
+invented release selections or retrospective history.
+
+Native import commits installed-release selection and one import event per mapped
+book alongside files, associations and status. A failed history write rolls back
+all database projections while retaining recoverable published bytes. Retry uses
+the same operation. Scores come from the saved acquisition, including a valid zero;
+a later search or a different book in a mapped pack cannot supply installed quality.
+Pending acquisition bookkeeping prevents import commit until recovered. Failed
+upgrades retain imported book state, and opaque-client failures use their own
+saved release identity instead of blocklisting the installed release. Native/API
+notification producers and worker grab counts suppress replayed outcomes. Remote
+notification delivery remains best effort, not a durable outbox.
+
+Qualification: full Go race/Postgres suite and vet passed, plus a focused real
+wanted-service → acquisition-service → local qBittorrent contract test. Tests cover
+lost acknowledgements, history-write failure, concurrent restart/replay, immutable
+score snapshots, removal preservation, missing projection repair, foreign release
+rejection, import-history rollback and mapped-book isolation. Production frontend
+build and 37 applicable desktop/mobile checks passed (one desktop case inapplicable);
+the accepted-recovery mobile state was inspected visually. The local ARM64 schema-40
+API passed actual restarts after acknowledgement loss and a forced history failure,
+repaired one history event without a second client add, and passed all existing
+packaged import/scan/replacement/auth checks. A 404,213-byte database dump restored
+matching history, selection, installed-release and bookkeeping state. Final focused
+acquisition/wanted race tests also verify recovery returns the repaired release link.
+Packaged web
+remains the earlier multipart snapshot; changed UI is qualified from current source.
+
+Reviewed replacement PR #11 at `8b91a2d54b7869568da1f67c1ae709d5ce3681a4` passed
+[CI run 35064804252](https://github.com/bandoracer/librarry/actions/runs/35064804252),
+including source/race/browser, packaged restart/restore, image scans and AMD64/ARM64
+API/web builds. No images were published or deployed. S09/S10 remain partial:
+changed-layout retirement, Calibre recovery, legacy repair, broader worker/fault
+qualification and the live release gates are still open.

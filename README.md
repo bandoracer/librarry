@@ -64,7 +64,7 @@ Current gaps:
   shows interrupted operations, retry controls and legacy link issues. Sources and
   existing destination files are retained until verified commit. Manual imports
   also have recovery plans, move cleanup and recoverable file replacement.
-  Calibre recovery, completed-download replacement, live upgrade qualification
+  Calibre recovery, retirement of different old chapter layouts, live upgrade qualification
   and unattended operation remain open.
 
 See [docs/status.md](docs/status.md) for the current work status, verified
@@ -90,7 +90,9 @@ separate step.
 
 With Postgres, acquisitions also keep a durable submission receipt. Activity can
 recover ambiguous client responses without blindly submitting another download,
-or attach an explicitly selected existing download. These stabilization changes
+or attach an explicitly selected existing download. Accepted downloads with failed
+local bookkeeping remain retryable, and a new grab no longer counts as an installed
+upgrade before its file set commits. These stabilization changes
 are unreleased; see [current status](docs/status.md) for qualification limits.
 
 ## Documentation

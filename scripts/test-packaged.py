@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 39, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 40, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -271,6 +271,18 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         docker("restart", API)
         wait_for(lambda: request("/api/v1/system/status"))
         sql(f"update acquisition_intents set next_check_at=null where id='{intent_id}'")
+        sql("alter table history_events add constraint fail_grab_history check(event_type<>'release_grabbed')")
+        try:
+            request(f"/api/v1/acquisition-recovery/{intent_id}", {"action": "check"})
+            raise AssertionError("history persistence failure reported success")
+        except urllib.error.HTTPError as error:
+            assert error.code == 502, error.code
+        pending = request("/api/v1/acquisition-recovery")["intents"]
+        assert len(pending) == 1 and pending[0]["state"] == "accepted", pending
+        assert sql(f"select count(*) from acquisition_intents where id='{intent_id}' and bookkeeping_at is null and state='accepted'") == "1"
+        sql("alter table history_events drop constraint fail_grab_history")
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
         reconciled = request(f"/api/v1/acquisition-recovery/{intent_id}", {"action": "check"})
         assert reconciled["download"]["deduplicated"] and reconciled["download"]["acquisitionId"] == intent_id, reconciled
         repeated = request("/api/v1/grabs", acquisition_request)
@@ -278,7 +290,9 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         stats = json.loads(docker("exec", CLIENT, "python", "-c", "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/fixture/stats').read().decode())"))
         assert stats["adds"] == 1, stats
         assert request("/api/v1/acquisition-recovery")["intents"] == []
-        print("Packaged acquisition: accepted-then-error retained; process restart reconciles exact download; duplicate request does not add again")
+        assert sql(f"select count(*) from history_events where event_type='release_grabbed' and data->>'acquisitionId'='{intent_id}'") == "1"
+        assert sql(f"select count(*) from downloads where acquisition_intent_id='{intent_id}'") == "1"
+        print("Packaged acquisition: acknowledgement loss reconciled; history failure retained accepted receipt; process restart repaired bookkeeping exactly once without another add")
         scan_root = media / "scan-library"
         scan_root.mkdir()
         for index in range(1201):
@@ -419,7 +433,10 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
                       "select id,state,cleanup_state,source_kind,request_key,replacement_cleanup_state,replacement_cleanup_error from import_operations order by id", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files order by id",
                       "select id,metadata->'verifiedDownload' from files order by id",
-                      "select id,scope_key,request_key,state,external_id,result from acquisition_intents order by id",
+                      "select id,scope_key,request_key,state,external_id,result,selection,bookkeeping_required,bookkeeping_at from acquisition_intents order by id",
+                      "select id,acquisition_intent_id,release_id from downloads order by id",
+                      "select id,event_type,entity_id,data from history_events order by id",
+                      "select id,current_release_id,current_release_score from wanted_items order by id",
                       "select id,state,phase,scanned,missing,moved from library_scan_jobs order by id",
                       "select * from library_scan_moves order by job_id,file_id",
                       "select * from library_scan_discoveries order by file_id",

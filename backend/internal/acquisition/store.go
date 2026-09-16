@@ -115,7 +115,10 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 		return nil, nil
 	}
 	args := []any{}
-	where := []string{"external_id is not null", "state <> 'removed'"}
+	where := []string{"external_id is not null"}
+	if !query.IncludeRemoved {
+		where = append(where, "state <> 'removed'")
+	}
 	if client := strings.TrimSpace(query.Client); client != "" {
 		args = append(args, client)
 		where = append(where, "client = $"+strconv.Itoa(len(args)))
@@ -148,7 +151,7 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 			size_bytes, downloaded_bytes, uploaded_bytes, download_rate, upload_rate,
 			eta_seconds, ratio, seeders, peers, added_at, completed_at, last_activity_at,
 			last_seen_at, import_status, coalesce(imported_file_id::text, ''), imported_at,
-			import_error, failure_reason, failed_at, retry_count, replacement_external_id
+			import_error, failure_reason, failed_at, retry_count, replacement_external_id,coalesce(release_id::text,''),coalesce(acquisition_intent_id::text,'')
 		from downloads
 		where ` + strings.Join(where, " and ") + `
 		order by coalesce(last_seen_at, updated_at, created_at) desc
@@ -170,7 +173,7 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 			&item.SizeBytes, &item.DownloadedBytes, &item.UploadedBytes, &item.DownloadRate, &item.UploadRate,
 			&item.ETASeconds, &item.Ratio, &item.Seeders, &item.Peers, &addedAt, &completedAt,
 			&lastActivityAt, &lastSeenAt, &item.ImportStatus, &item.ImportedFileID, &importedAt,
-			&item.ImportError, &item.FailureReason, &failedAt, &item.RetryCount, &item.ReplacementID,
+			&item.ImportError, &item.FailureReason, &failedAt, &item.RetryCount, &item.ReplacementID, &item.ReleaseID, &item.AcquisitionID,
 		); err != nil {
 			return nil, err
 		}

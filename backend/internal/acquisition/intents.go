@@ -61,6 +61,10 @@ func (s *integrationState) clientEndpoint(name string) string {
 func (s *integrationState) acquisitionCandidate(request DownloadRequest, client downloadClient) (AcquisitionIntent, error) {
 	name := clientName(client)
 	i := AcquisitionIntent{Client: name, Title: request.Title, Category: request.Category, InfoHash: torrentIdentity(request), EndpointHash: acquisitionHash(strings.TrimRight(s.clientEndpoint(name), "/"))}
+	if request.Selection != nil {
+		i.Selection = *request.Selection
+	}
+	i.Selection.Paused = request.Paused
 	for _, tag := range request.Tags {
 		if strings.HasPrefix(tag, "wanted:") {
 			id := strings.TrimPrefix(tag, "wanted:")
@@ -142,6 +146,7 @@ func acceptedClientIdentity(status DownloadStatus) bool {
 }
 func (s *integrationState) persistAcquisitionAcceptance(ctx context.Context, store acquisitionIntentStore, i AcquisitionIntent, status DownloadStatus) (DownloadStatus, error) {
 	status.AcquisitionID = i.ID
+	status.ReleaseID = i.Selection.ReleaseID
 	if strings.HasPrefix(status.Name, "http://") || strings.HasPrefix(status.Name, "https://") || strings.HasPrefix(status.Name, "magnet:") {
 		status.Name = "Download"
 	}
@@ -155,7 +160,7 @@ func (s *integrationState) persistAcquisitionAcceptance(ctx context.Context, sto
 	if err := s.storeDownloads(saveCtx, []DownloadStatus{status}); err != nil {
 		return status, fmt.Errorf("download accepted; acquisition %s retained its receipt but download persistence needs retry: %w", i.ID, err)
 	}
-	return status, nil
+	return status, store.FinalizeAcquisition(saveCtx, i.ID)
 }
 func (s *integrationState) markAcquisitionUncertain(ctx context.Context, store acquisitionIntentStore, i AcquisitionIntent, message string) error {
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
@@ -260,16 +265,31 @@ func (s *integrationState) reconcileClaimedAcquisition(ctx context.Context, stor
 // Replaying a receipt must not reset a live/imported row to the original queued
 // snapshot. Only repair a missing persistence write.
 func (s *integrationState) replayAcceptedAcquisition(ctx context.Context, status DownloadStatus) (DownloadStatus, error) {
-	rows, err := s.store.ListDownloads(ctx, DownloadListQuery{Client: status.Client, IDs: []string{status.ID}})
+	query := DownloadListQuery{Client: status.Client, IDs: []string{status.ID}, IncludeRemoved: true}
+	rows, err := s.store.ListDownloads(ctx, query)
+	if err != nil {
+		return status, err
+	}
+	if len(rows) == 0 {
+		if err := s.storeDownloads(ctx, []DownloadStatus{status}); err != nil {
+			return status, err
+		}
+	}
+	if err := s.store.(acquisitionIntentStore).FinalizeAcquisition(ctx, status.AcquisitionID); err != nil {
+		return status, err
+	}
+	// Recovery may have just repaired release/intent links. Return the committed
+	// projection, including a preserved removed/imported state, not the stale read.
+	rows, err = s.store.ListDownloads(ctx, query)
 	if err != nil {
 		return status, err
 	}
 	for _, row := range rows {
 		if row.Client == status.Client && row.ID == status.ID {
-			row.AcquisitionID = status.AcquisitionID
+			row.AcquisitionID = firstNonEmpty(row.AcquisitionID, status.AcquisitionID)
 			row.Deduplicated = true
 			return row, nil
 		}
 	}
-	return status, s.storeDownloads(ctx, []DownloadStatus{status})
+	return status, errors.New("accepted receipt retained but its download row is missing; retry recovery")
 }

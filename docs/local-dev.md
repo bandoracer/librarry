@@ -847,7 +847,7 @@ Postgres-backed acquisitions persist a reservation before sending to qBittorrent
 Transmission or SABnzbd. Manual adds, wanted grabs, monitor/feed/upgrade/recovery
 paths share this boundary. A book's wanted row is its format-specific acquisition
 scope; an exact release also has one active request across manual/worker paths.
-Deleted/explicitly failed downloads free the slot. A completed import permits a
+Deleted/explicitly failed downloads free the slot after accepted bookkeeping is complete. A completed import permits a
 different upgrade release; replaying its same request remains idempotent.
 
 Activity shows submitting/uncertain requests. **Check client** reads the original
@@ -859,6 +859,20 @@ SABnzbd after acknowledgement loss, since arbitrary intent tags do not round-tri
 **Allow new attempt** requires inspecting the client and acknowledging duplicate
 risk. It releases the reservation without starting a download. Active submissions
 cannot be released while their lease remains valid.
+
+An **Accepted · recovery needed** row means the remote submission succeeded but
+local persistence needs repair. **Finish recovery** reuses the saved receipt to
+restore the download link, book state and a single grab-history entry. It offers
+no attach/release/new-attempt controls. If a previous download row was removed,
+receipt recovery preserves that removal. If its persistence write never existed,
+recovery reconstructs it from the accepted snapshot without another client add.
+
+A selected upgrade is not yet an installed release. Native import records its
+installed release/score and import history only when all required files commit.
+An import interrupted by a history failure retries through Imports like other
+commit failures. Finish pending accepted-acquisition recovery in Activity before
+retrying an import whose message asks for it. Failed upgrades retain imported book
+status; replayed results do not send new import/grab notifications.
 
 GET `/api/v1/acquisition-recovery` returns up to 200 unresolved requests, oldest
 first. POST `/api/v1/acquisition-recovery/{id}` accepts `action: check`, or

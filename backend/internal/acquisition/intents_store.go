@@ -14,27 +14,43 @@ var ErrAcquisitionUncertain = errors.New("download acceptance is uncertain; reco
 var ErrAcquisitionActive = errors.New("this book already has an active acquisition; resolve it in Activity first")
 var ErrAcquisitionPersistence = errors.New("acquisition recovery requires database persistence")
 
+// AcquisitionSelection is a sanitized snapshot of the decision actually submitted.
+// It deliberately excludes provider URLs, client credentials and payload bodies.
+type AcquisitionSelection struct {
+	ReleaseID      string  `json:"releaseId"`
+	Score          float64 `json:"score"`
+	SourceID       string  `json:"sourceId"`
+	Title          string  `json:"title"`
+	Trigger        string  `json:"trigger"`
+	Forced         bool    `json:"forced"`
+	Paused         bool    `json:"paused"`
+	RejectedReason string  `json:"rejectedReason"`
+}
+
 type AcquisitionIntent struct {
-	ID             string          `json:"id"`
-	WantedID       string          `json:"wantedId,omitempty"`
-	Format         string          `json:"format,omitempty"`
-	Client         string          `json:"client"`
-	Title          string          `json:"title"`
-	State          string          `json:"state"`
-	ExternalID     string          `json:"downloadId,omitempty"`
-	LastError      string          `json:"lastError,omitempty"`
-	Attempts       int             `json:"attempts"`
-	CreatedAt      time.Time       `json:"createdAt"`
-	UpdatedAt      time.Time       `json:"updatedAt"`
-	NextCheckAt    *time.Time      `json:"nextCheckAt,omitempty"`
-	LeaseExpiresAt *time.Time      `json:"leaseExpiresAt,omitempty"`
-	ScopeKey       string          `json:"-"`
-	RequestKey     string          `json:"-"`
-	EndpointHash   string          `json:"-"`
-	InfoHash       string          `json:"-"`
-	Category       string          `json:"-"`
-	LeaseToken     string          `json:"-"`
-	Result         *DownloadStatus `json:"-"`
+	Selection           AcquisitionSelection `json:"-"`
+	BookkeepingRequired bool                 `json:"-"`
+	BookkeepingAt       *time.Time           `json:"bookkeepingAt,omitempty"`
+	ID                  string               `json:"id"`
+	WantedID            string               `json:"wantedId,omitempty"`
+	Format              string               `json:"format,omitempty"`
+	Client              string               `json:"client"`
+	Title               string               `json:"title"`
+	State               string               `json:"state"`
+	ExternalID          string               `json:"downloadId,omitempty"`
+	LastError           string               `json:"lastError,omitempty"`
+	Attempts            int                  `json:"attempts"`
+	CreatedAt           time.Time            `json:"createdAt"`
+	UpdatedAt           time.Time            `json:"updatedAt"`
+	NextCheckAt         *time.Time           `json:"nextCheckAt,omitempty"`
+	LeaseExpiresAt      *time.Time           `json:"leaseExpiresAt,omitempty"`
+	ScopeKey            string               `json:"-"`
+	RequestKey          string               `json:"-"`
+	EndpointHash        string               `json:"-"`
+	InfoHash            string               `json:"-"`
+	Category            string               `json:"-"`
+	LeaseToken          string               `json:"-"`
+	Result              *DownloadStatus      `json:"-"`
 }
 
 type acquisitionIntentStore interface {
@@ -43,20 +59,24 @@ type acquisitionIntentStore interface {
 	ListAcquisitions(context.Context) ([]AcquisitionIntent, error)
 	ClaimAcquisitionRecovery(context.Context, string) (AcquisitionIntent, error)
 	AcceptAcquisition(context.Context, AcquisitionIntent, DownloadStatus) error
+	FinalizeAcquisition(context.Context, string) error
 	UncertainAcquisition(context.Context, AcquisitionIntent, string) error
 	ReleaseAcquisition(context.Context, string) error
 }
 
-const intentColumns = `id::text,coalesce(wanted_item_id::text,''),media_format,client,title,state,external_id,last_error,attempts,created_at,updated_at,next_check_at,lease_expires_at,scope_key,request_key,endpoint_hash,info_hash,category,coalesce(lease_token::text,''),result`
+const intentColumns = `id::text,coalesce(wanted_item_id::text,''),media_format,client,title,state,external_id,last_error,attempts,created_at,updated_at,next_check_at,lease_expires_at,scope_key,request_key,endpoint_hash,info_hash,category,coalesce(lease_token::text,''),result,selection,bookkeeping_required,bookkeeping_at`
 
 type intentScanner interface{ Scan(...any) error }
 
 func scanIntent(row intentScanner) (AcquisitionIntent, error) {
 	var i AcquisitionIntent
-	var raw []byte
-	err := row.Scan(&i.ID, &i.WantedID, &i.Format, &i.Client, &i.Title, &i.State, &i.ExternalID, &i.LastError, &i.Attempts, &i.CreatedAt, &i.UpdatedAt, &i.NextCheckAt, &i.LeaseExpiresAt, &i.ScopeKey, &i.RequestKey, &i.EndpointHash, &i.InfoHash, &i.Category, &i.LeaseToken, &raw)
+	var raw, selection []byte
+	err := row.Scan(&i.ID, &i.WantedID, &i.Format, &i.Client, &i.Title, &i.State, &i.ExternalID, &i.LastError, &i.Attempts, &i.CreatedAt, &i.UpdatedAt, &i.NextCheckAt, &i.LeaseExpiresAt, &i.ScopeKey, &i.RequestKey, &i.EndpointHash, &i.InfoHash, &i.Category, &i.LeaseToken, &raw, &selection, &i.BookkeepingRequired, &i.BookkeepingAt)
 	if err == nil && len(raw) > 0 {
 		err = json.Unmarshal(raw, &i.Result)
+	}
+	if err == nil {
+		err = json.Unmarshal(selection, &i.Selection)
 	}
 	return i, err
 }
@@ -65,7 +85,7 @@ func (s *SQLDownloadStore) GetAcquisition(ctx context.Context, id string) (Acqui
 	return scanIntent(s.db.QueryRowContext(ctx, `select `+intentColumns+` from acquisition_intents where id=$1`, id))
 }
 func (s *SQLDownloadStore) ListAcquisitions(ctx context.Context) ([]AcquisitionIntent, error) {
-	rows, err := s.db.QueryContext(ctx, `select `+intentColumns+` from acquisition_intents where state in ('submitting','uncertain') order by created_at,id limit 200`)
+	rows, err := s.db.QueryContext(ctx, `select `+intentColumns+` from acquisition_intents where state in ('submitting','uncertain') or (state='accepted' and ((bookkeeping_required and bookkeeping_at is null) or not exists(select 1 from downloads d where d.client=acquisition_intents.client and d.external_id=acquisition_intents.external_id))) order by created_at,id limit 200`)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +123,7 @@ func (s *SQLDownloadStore) ClaimAcquisition(ctx context.Context, candidate Acqui
 			if err = tx.QueryRowContext(ctx, `select exists(select 1 from downloads where client=$1 and external_id=$2 and (state='removed' or failed_at is not null or (import_status='imported' and $3)))`, existing.Client, existing.ExternalID, existing.RequestKey != candidate.RequestKey).Scan(&terminal); err != nil {
 				return existing, false, err
 			}
-			if terminal {
+			if terminal && (!existing.BookkeepingRequired || existing.BookkeepingAt != nil) {
 				if _, err = tx.ExecContext(ctx, `update acquisition_intents set state='released',updated_at=now() where id=$1`, existing.ID); err != nil {
 					return existing, false, err
 				}
@@ -123,7 +143,7 @@ func (s *SQLDownloadStore) ClaimAcquisition(ctx context.Context, candidate Acqui
 	// An earlier raw grab may own this release under a different book scope.
 	// Retire only an explicitly failed/deleted receipt; an unknown or active
 	// download must still block a second submission.
-	if _, err := tx.ExecContext(ctx, `update acquisition_intents a set state='released',updated_at=now() where a.request_key=$1 and a.state='accepted' and exists(select 1 from downloads d where d.client=a.client and d.external_id=a.external_id and (d.state='removed' or d.failed_at is not null))`, candidate.RequestKey); err != nil {
+	if _, err := tx.ExecContext(ctx, `update acquisition_intents a set state='released',updated_at=now() where a.request_key=$1 and a.state='accepted' and (not a.bookkeeping_required or a.bookkeeping_at is not null) and exists(select 1 from downloads d where d.client=a.client and d.external_id=a.external_id and (d.state='removed' or d.failed_at is not null))`, candidate.RequestKey); err != nil {
 		return candidate, false, err
 	}
 	var otherRequest bool
@@ -150,8 +170,21 @@ func (s *SQLDownloadStore) ClaimAcquisition(ctx context.Context, candidate Acqui
 			return candidate, false, ErrAcquisitionActive
 		}
 	}
-	inserted, err := scanIntent(tx.QueryRowContext(ctx, `insert into acquisition_intents(scope_key,request_key,wanted_item_id,media_format,client,endpoint_hash,info_hash,title,category,state,lease_token,lease_expires_at)
- values($1,$2,nullif($3,'')::uuid,$4,$5,$6,$7,$8,$9,'submitting',gen_random_uuid(),clock_timestamp()+interval '2 minutes') returning `+intentColumns, candidate.ScopeKey, candidate.RequestKey, candidate.WantedID, candidate.Format, candidate.Client, candidate.EndpointHash, candidate.InfoHash, candidate.Title, candidate.Category))
+	if candidate.Selection.ReleaseID != "" {
+		if candidate.WantedID == "" {
+			return candidate, false, errors.New("release selection requires a wanted book")
+		}
+		err := tx.QueryRowContext(ctx, `select title,score,source_id,coalesce(rejected_reason,'') from releases where id=$1 and wanted_item_id=$2`, candidate.Selection.ReleaseID, candidate.WantedID).Scan(&candidate.Selection.Title, &candidate.Selection.Score, &candidate.Selection.SourceID, &candidate.Selection.RejectedReason)
+		if err != nil {
+			return candidate, false, fmt.Errorf("load selected release: %w", err)
+		}
+	}
+	selection, err := json.Marshal(candidate.Selection)
+	if err != nil {
+		return candidate, false, err
+	}
+	inserted, err := scanIntent(tx.QueryRowContext(ctx, `insert into acquisition_intents(scope_key,request_key,wanted_item_id,media_format,client,endpoint_hash,info_hash,title,category,state,lease_token,lease_expires_at,selection)
+ values($1,$2,nullif($3,'')::uuid,$4,$5,$6,$7,$8,$9,'submitting',gen_random_uuid(),clock_timestamp()+interval '2 minutes',$10::jsonb) returning `+intentColumns, candidate.ScopeKey, candidate.RequestKey, candidate.WantedID, candidate.Format, candidate.Client, candidate.EndpointHash, candidate.InfoHash, candidate.Title, candidate.Category, string(selection)))
 	if err != nil {
 		return candidate, false, err
 	}

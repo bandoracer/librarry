@@ -762,6 +762,8 @@ func (s *integrationState) mergeStoredDownloadState(ctx context.Context, downloa
 	}
 	for i := range downloads {
 		if item, ok := byID[downloadStateKey(downloads[i].Client, downloads[i].ID)]; ok {
+			downloads[i].ReleaseID = item.ReleaseID
+			downloads[i].AcquisitionID = item.AcquisitionID
 			downloads[i].ImportStatus = item.ImportStatus
 			downloads[i].ImportedFileID = item.ImportedFileID
 			downloads[i].ImportedAt = item.ImportedAt

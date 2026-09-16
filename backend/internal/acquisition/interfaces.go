@@ -40,20 +40,23 @@ type IndexerClient interface {
 }
 
 type DownloadRequest struct {
-	Client     string   `json:"client,omitempty"`
-	ReleaseURL string   `json:"releaseUrl"`
-	InfoHash   string   `json:"infoHash,omitempty"`
-	Title      string   `json:"title,omitempty"`
-	Protocol   string   `json:"protocol,omitempty"`
-	Category   string   `json:"category,omitempty"`
-	SavePath   string   `json:"savePath,omitempty"`
-	Paused     bool     `json:"paused"`
-	Tags       []string `json:"tags,omitempty"`
-	UploadName string   `json:"uploadName,omitempty"`
-	UploadData []byte   `json:"-"`
+	// Selection is set by the wanted service, never decoded from raw grab JSON.
+	Selection  *AcquisitionSelection `json:"-"`
+	Client     string                `json:"client,omitempty"`
+	ReleaseURL string                `json:"releaseUrl"`
+	InfoHash   string                `json:"infoHash,omitempty"`
+	Title      string                `json:"title,omitempty"`
+	Protocol   string                `json:"protocol,omitempty"`
+	Category   string                `json:"category,omitempty"`
+	SavePath   string                `json:"savePath,omitempty"`
+	Paused     bool                  `json:"paused"`
+	Tags       []string              `json:"tags,omitempty"`
+	UploadName string                `json:"uploadName,omitempty"`
+	UploadData []byte                `json:"-"`
 }
 
 type DownloadStatus struct {
+	ReleaseID       string     `json:"releaseId,omitempty"`
 	AcquisitionID   string     `json:"acquisitionId,omitempty"`
 	Deduplicated    bool       `json:"deduplicated,omitempty"`
 	SeedGoalMet     bool       `json:"seedGoalMet"`
@@ -250,10 +253,11 @@ type DownloadClient interface {
 }
 
 type DownloadListQuery struct {
-	IDs      []string
-	Client   string
-	Tag      string
-	Category string
+	IncludeRemoved bool `json:"-"`
+	IDs            []string
+	Client         string
+	Tag            string
+	Category       string
 }
 
 type DownloadActionRequest struct {

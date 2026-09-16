@@ -1051,7 +1051,9 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 					})
 				} else {
 					result.GrabbedDownload = &status
-					run.GrabbedCount++
+					if !status.Deduplicated {
+						run.GrabbedCount++
+					}
 				}
 			}
 		}
@@ -1187,7 +1189,9 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 				} else {
 					grabbedWanted[item.ID] = true
 					match.GrabbedDownload = &status
-					run.GrabbedCount++
+					if !status.Deduplicated {
+						run.GrabbedCount++
+					}
 				}
 			}
 			run.Matches = append(run.Matches, match)
@@ -1362,7 +1366,9 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 					})
 				} else {
 					result.ReplacementDownload = &status
-					run.GrabbedCount++
+					if !status.Deduplicated {
+						run.GrabbedCount++
+					}
 					_ = s.acquire.MarkDownloadReplacement(acquisition.WithDownloadClient(ctx, download.Client), download.ID, status.ID)
 				}
 			}
@@ -1530,7 +1536,9 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 					})
 				} else {
 					result.GrabbedDownload = &status
-					run.GrabbedCount++
+					if !status.Deduplicated {
+						run.GrabbedCount++
+					}
 				}
 			}
 		}
@@ -1569,6 +1577,7 @@ func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEve
 
 func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string, forced bool) (acquisition.DownloadStatus, error) {
 	status, err := s.acquire.Grab(ctx, acquisition.DownloadRequest{
+		Selection:  &acquisition.AcquisitionSelection{ReleaseID: release.ID, Trigger: trigger, Forced: forced, Paused: paused},
 		Client:     client,
 		ReleaseURL: release.DownloadURL,
 		InfoHash:   release.InfoHash,
@@ -1582,43 +1591,9 @@ func (s *Service) grabRelease(ctx context.Context, item WantedItem, release Rele
 	if err != nil {
 		return acquisition.DownloadStatus{}, err
 	}
-	if status.Deduplicated && status.ImportStatus == "imported" {
-		return status, nil
-	}
-	if err := s.store.MarkWantedStatus(ctx, item.ID, "grabbed"); err != nil {
-		return status, err
-	}
-	if err := s.store.MarkWantedCurrentRelease(ctx, item.ID, release); err != nil {
-		return status, err
-	}
-	if status.Deduplicated {
-		return status, nil
-	}
-	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-		EventType:  "release_grabbed",
-		EntityType: "wanted_item",
-		EntityID:   item.ID,
-		Severity:   "info",
-		Message:    grabHistoryMessage(item, forced),
-		Data: map[string]any{
-			"trigger":        trigger,
-			"releaseId":      release.ID,
-			"sourceId":       release.SourceID,
-			"downloadId":     status.ID,
-			"title":          release.Title,
-			"paused":         paused,
-			"forced":         forced,
-			"rejectedReason": release.RejectedReason,
-		},
-	})
+	// Persistent acquisition receipts own status/history repair. A grab does not
+	// change the installed release; native import commits that projection.
 	return status, nil
-}
-
-func grabHistoryMessage(item WantedItem, forced bool) string {
-	if forced {
-		return "Force grabbed manually selected release for " + item.Title
-	}
-	return "Grabbed approved release for " + item.Title
 }
 
 func (s *Service) pickRelease(ctx context.Context, wantedID string, releaseID string) (ReleaseDecision, error) {
@@ -1831,25 +1806,13 @@ func firstApprovedReplacement(releases []ReleaseDecision, failed acquisition.Dow
 	return ReleaseDecision{}, false
 }
 
-func (s *Service) currentReleaseScore(ctx context.Context, item WantedItem) float64 {
-	if item.CurrentReleaseScore > 0 {
-		return item.CurrentReleaseScore
-	}
-	releases, err := s.store.ListReleaseDecisions(ctx, item.ID)
-	if err != nil {
+func (s *Service) currentReleaseScore(_ context.Context, item WantedItem) float64 {
+	// Zero is a valid saved score. Fresh search results cannot establish the
+	// quality of installed files or rewrite the decision captured at acquisition.
+	if item.CurrentReleaseID == "" {
 		return 0
 	}
-	for _, release := range releases {
-		if item.CurrentReleaseID != "" && release.ID == item.CurrentReleaseID {
-			return release.Score
-		}
-	}
-	for _, release := range releases {
-		if release.Approved {
-			return release.Score
-		}
-	}
-	return 0
+	return item.CurrentReleaseScore
 }
 
 func (s *Service) qualityProfileForItem(ctx context.Context, item WantedItem) QualityProfile {

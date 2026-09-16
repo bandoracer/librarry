@@ -119,7 +119,7 @@ func TestBlocklistEntryForDownloadUsesMatchingReleaseIdentity(t *testing.T) {
 	}
 }
 
-func TestBlocklistEntryForDownloadFallsBackToCurrentRelease(t *testing.T) {
+func TestBlocklistEntryForDownloadDoesNotBlameInstalledRelease(t *testing.T) {
 	item := WantedItem{ID: "wanted-1", Title: "Project Hail Mary", CurrentReleaseID: "release-2"}
 	// SABnzbd-style opaque ID: not an infohash and no release infohash match.
 	download := acquisition.DownloadStatus{ID: "SABnzbd_nzo_abc123"}
@@ -130,8 +130,8 @@ func TestBlocklistEntryForDownloadFallsBackToCurrentRelease(t *testing.T) {
 	if entry.InfoHash != "" {
 		t.Fatalf("expected no infohash for opaque download id, got %q", entry.InfoHash)
 	}
-	if entry.Indexer != "Usenet Indexer" || entry.Protocol != "usenet" {
-		t.Fatalf("expected current release identity, got %+v", entry)
+	if entry.Indexer != "" || entry.Protocol != "" || entry.DownloadURLHash != "" {
+		t.Fatalf("unrelated installed release was blamed: %+v", entry)
 	}
 	if entry.Source != BlocklistSourceHistoryMarkFailed {
 		t.Fatalf("expected history-mark-failed source, got %q", entry.Source)
@@ -194,5 +194,15 @@ func TestBlocklistEntryJSONExposesWantedJoinFields(t *testing.T) {
 		if !strings.Contains(string(unlinked), fragment) {
 			t.Fatalf("expected %s in unlinked blocklist entry JSON, got %s", fragment, unlinked)
 		}
+	}
+}
+
+func TestBlocklistUsesSavedAcquisitionReleaseForOpaqueClientID(t *testing.T) {
+	item := WantedItem{ID: "wanted-1", CurrentReleaseID: "installed"}
+	download := acquisition.DownloadStatus{ID: "SABnzbd_nzo_abc123", ReleaseID: "upgrade"}
+	releases := []ReleaseDecision{{ID: "installed", WantedItemID: item.ID, Title: "Installed", DownloadURL: "https://fixture.invalid/old"}, {ID: "upgrade", WantedItemID: item.ID, Title: "Failed upgrade", Indexer: "Fixture", Protocol: "usenet", DownloadURL: "https://fixture.invalid/new"}}
+	entry := blocklistEntryForDownload(item, download, releases, "failed", BlocklistSourceAutoFailed)
+	if entry.Title != "Failed upgrade" || entry.DownloadURLHash != hashDownloadURL("https://fixture.invalid/new") {
+		t.Fatal(entry)
 	}
 }

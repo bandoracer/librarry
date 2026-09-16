@@ -25,22 +25,23 @@ export default function AcquisitionRecovery() {
     mutation.reset(); setDownloadId(""); setConfirmed(false); setDecision({ intent, action });
   }
   if (!query.isError && !query.data?.intents.length) return null;
-  return <Card title="Acquisitions needing review" subtitle="The client may have accepted these downloads. Resolve them before another request is sent.">
+  return <Card title="Acquisitions needing review" subtitle="Recover interrupted submissions and finish saving accepted downloads.">
     {query.isError ? <InlineNotice tone="danger">{query.error.message} <Button size="sm" onClick={() => void query.refetch()}>Try again</Button></InlineNotice> : null}
     {!decision && mutation.isError ? <InlineNotice tone="danger">{mutation.error.message}</InlineNotice> : null}
     {query.data?.intents.map(intent => {
+      const accepted = intent.state === "accepted";
       const leased = !!intent.leaseExpiresAt && Date.parse(intent.leaseExpiresAt) > Date.now();
       const backoff = !!intent.nextCheckAt && Date.parse(intent.nextCheckAt) > Date.now();
       return <div key={intent.id} className="acquisition-recovery-item">
-        <div><strong>{intent.title || "Download request"}</strong> <Badge tone="warn">{leased ? "In progress" : "Uncertain"}</Badge></div>
+        <div><strong>{intent.title || "Download request"}</strong> <Badge tone="warn">{accepted ? "Accepted · recovery needed" : leased ? "In progress" : "Uncertain"}</Badge></div>
         <p className="field-hint">{intent.client}{intent.format ? ` · ${intent.format}` : ""}</p>
         {intent.wantedId ? <Link to={`/library/book/${encodeURIComponent(intent.wantedId)}`}>View book</Link> : null}
-        <p>{intent.lastError || "A submission was interrupted before its result was saved."}</p>
+        <p>{intent.lastError || (accepted ? "The client accepted this download. Retry to finish saving its local records." : "A submission was interrupted before its result was saved.")}</p>
         {backoff ? <p className="field-hint">Next client check after {new Date(intent.nextCheckAt!).toLocaleTimeString()}.</p> : null}
         <div className="acquisition-recovery-actions">
-          <Button size="sm" disabled={leased || backoff || mutation.isPending} busy={mutation.isPending && mutation.variables.id === intent.id} onClick={() => mutation.mutate({ id: intent.id, action: "check" })}>Check client</Button>
-          <Button size="sm" disabled={leased || backoff || mutation.isPending} onClick={() => openDecision(intent, "attach")}>Attach existing download</Button>
-          <Button size="sm" variant="ghost" disabled={leased || mutation.isPending} onClick={() => openDecision(intent, "release")}>Allow new attempt…</Button>
+          <Button size="sm" disabled={leased || backoff || mutation.isPending} busy={mutation.isPending && mutation.variables.id === intent.id} onClick={() => mutation.mutate({ id: intent.id, action: "check" })}>{accepted ? "Finish recovery" : "Check client"}</Button>
+          {!accepted ? <Button size="sm" disabled={leased || backoff || mutation.isPending} onClick={() => openDecision(intent, "attach")}>Attach existing download</Button> : null}
+          {!accepted ? <Button size="sm" variant="ghost" disabled={leased || mutation.isPending} onClick={() => openDecision(intent, "release")}>Allow new attempt…</Button> : null}
         </div>
       </div>;
     })}

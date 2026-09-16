@@ -30,3 +30,26 @@ test("uncertain acquisitions retain errors and require an explicit release decis
   await expect(dialog).toBeHidden();
   await expect(page.getByText("Uncertain fixture", { exact: true })).toHaveCount(0);
 });
+
+test("accepted acquisitions retry local bookkeeping without offering a second submission", async ({ page }, testInfo) => {
+  const id = "00000000-0000-0000-0000-000000000020";
+  const intents = [{ id, title: "Accepted fixture", client: "qBittorrent", state: "accepted", attempts: 1 }];
+  await page.route("**/api/v1/acquisition-recovery", route => route.fulfill({ json: { intents, limit: 200 } }));
+  let attempts = 0;
+  await page.route(`**/api/v1/acquisition-recovery/${id}`, route => {
+    expect(route.request().postDataJSON()).toMatchObject({ action: "check" });
+    if (++attempts === 1) return route.fulfill({ status: 502, json: { error: "History persistence needs retry" } });
+    intents.splice(0);
+    return route.fulfill({ json: { download: { acquisitionId: id, deduplicated: true } } });
+  });
+  await page.goto("/downloads");
+  await expect(page.getByText("Accepted · recovery needed", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Allow new attempt…" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Attach existing download" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Finish recovery", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("History persistence needs retry");
+  await page.screenshot({ path: `../output/playwright/acquisition-bookkeeping-${testInfo.project.name}.png`, fullPage: true });
+  await page.getByRole("button", { name: "Finish recovery", exact: true }).click();
+  await expect(page.getByText("Accepted fixture", { exact: true })).toHaveCount(0);
+  expect(attempts).toBe(2);
+});
