@@ -22,8 +22,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [manual recovery PR #6](https://github.com/bandoracer/librarry/pull/6),
 [acquisition recovery PR #7](https://github.com/bandoracer/librarry/pull/7),
 [persisted scan PR #8](https://github.com/bandoracer/librarry/pull/8),
-[repair preview PR #9](https://github.com/bandoracer/librarry/pull/9), and the
-`codex/moved-file-reconciliation` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[repair preview PR #9](https://github.com/bandoracer/librarry/pull/9),
+[move reconciliation PR #10](https://github.com/bandoracer/librarry/pull/10), and the
+`codex/completed-replacement` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -52,10 +53,15 @@ sidecars, moves after commit and recoverable replacement of an existing file.
 Committed manual imports with unfinished cleanup remain visible and retryable.
 A configured recycle bin failure retains the previous file and reports an error.
 
-Completed-download replacement, Calibre handoff recovery and live upgrade
-qualification remain outside these verified guarantees. Completed downloads keep
-both on conflict; explicit replacement still requires further work. Existing
-single-book Calibre handoff is preserved; multipart Calibre roots require review.
+Completed-download review now supports replacing matching destinations. The
+preview binds both new and old content; old bytes are journaled before publication
+and kept until the complete replacement commits. Replacement-backup cleanup has
+its own retryable state and cannot authorize download-source deletion. Existing
+file IDs, book associations and manual names/notes survive. Keep both remains the
+default. Extra old chapters or unrelated files outside the new manifest require
+review; whole-book retirement across different chapter layouts, Calibre handoff
+recovery and live upgrades remain open. Existing single-book Calibre handoff is
+preserved; multipart Calibre roots require review.
 
 Multipart qualification uses generated local fixtures, adapter contract tests and
 disposable API/web/Postgres containers. It is not a live client or homelab

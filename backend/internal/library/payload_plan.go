@@ -135,6 +135,11 @@ func (s *Service) planPayload(ctx context.Context, payload DownloadPayload, requ
 	if len(reasons) > 0 {
 		return op, ImportOutcome{}, &PayloadReviewError{Payload: payload, Reasons: compactStrings(reasons)}
 	}
+	action := normalizeConflictAction(request.ConflictAction, request.Overwrite)
+	if action == "replace" && !confirmed {
+		return op, ImportOutcome{}, &PayloadReviewError{Payload: payload, Reasons: []string{"replacement requires a current destination preview and explicit book confirmation"}}
+	}
+	replacementDirs := []string{}
 	destinations := map[string]string{}
 	groupRoots := map[string]string{}
 	reservedDirectories := map[string]bool{}
@@ -190,6 +195,9 @@ func (s *Service) planPayload(ctx context.Context, payload DownloadPayload, requ
 				return op, ImportOutcome{}, err
 			}
 			destinations[id] = bookDir
+			if action == "replace" {
+				replacementDirs = append(replacementDirs, bookDir)
+			}
 			for _, f := range files {
 				relative, _ := filepath.Rel(groupRoot, f.SourcePath)
 				if err := appendPlannedFile(&op, f, filepath.Join(bookDir, relative), id); err != nil {
@@ -203,9 +211,6 @@ func (s *Service) planPayload(ctx context.Context, payload DownloadPayload, requ
 			}
 			if plan.Skipped {
 				return op, ImportOutcome{Skipped: true, DestinationPath: plan.DestinationPath, Message: plan.Message}, nil
-			}
-			if plan.Replaced {
-				return op, ImportOutcome{}, errors.New("replacement needs a recoverable replacement plan; use keep both")
 			}
 			destinations[id] = filepath.Dir(plan.DestinationPath)
 			if err := appendPlannedFile(&op, first, plan.DestinationPath, id); err != nil {
@@ -243,11 +248,16 @@ func (s *Service) planPayload(ctx context.Context, payload DownloadPayload, requ
 		if err != nil || strings.HasPrefix(relative, "..") {
 			relative = filepath.Base(f.SourcePath)
 		}
-		if err := appendPlannedFile(&op, f, filepath.Join(destinations[id], relative), ""); err != nil {
+		if err := appendPlannedFile(&op, f, filepath.Join(destinations[id], relative), id); err != nil {
 			return op, ImportOutcome{}, err
 		}
 	}
-	op.Metadata = map[string]any{"title": books[op.WantedID].Title, "author": books[op.WantedID].AuthorName, "payload": payload, "manualMapping": confirmed, "exclusions": exclusions, "mapping": mappings}
+	if action == "replace" {
+		if err := s.planCompletedReplacements(ctx, &op, replacementDirs); err != nil {
+			return op, ImportOutcome{}, &PayloadReviewError{Payload: payload, Reasons: []string{err.Error()}}
+		}
+	}
+	op.Metadata = map[string]any{"conflictAction": action, "replacementDirectories": replacementDirs, "title": books[op.WantedID].Title, "author": books[op.WantedID].AuthorName, "payload": payload, "manualMapping": confirmed, "exclusions": exclusions, "mapping": mappings}
 	return op, ImportOutcome{}, nil
 }
 
@@ -282,6 +292,21 @@ func planBookDirectory(path, action string, reserved map[string]bool) (string, e
 		return path, nil
 	} else if err != nil {
 		return "", err
+	}
+	if action == "replace" {
+		if reserved[path] {
+			return "", errors.New("multiple books cannot replace the same directory")
+		}
+		info, err := os.Lstat(path)
+		if err != nil {
+			return "", err
+		}
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil || resolved != path || !info.IsDir() {
+			return "", errors.New("replacement requires an existing directory without symlinks")
+		}
+		reserved[path] = true
+		return path, nil
 	}
 	if action != "rename" {
 		return "", errors.New("book directory already exists; keep both preserves complete file sets")

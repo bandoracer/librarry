@@ -882,3 +882,24 @@ old/new paths and retained IDs; `nextCursor` continues by file ID. Job/outcome
 immutable import manifest still names its original destinations. Reattachment
 cannot by itself establish a new cleanup receipt, current chapter completeness,
 or a unified wanted/book presence state.
+
+
+### Completed destination replacement
+
+Payload review accepts `conflictAction: replace` after explicit identity
+confirmation and a current preview token. Existing destination hashes and saved
+recovery paths participate in the plan fingerprint. Matching files and sidecars
+are staged and verified before their previous inodes are journaled at recovery
+paths. All library projections remain hidden until the complete operation commits.
+Publication and commit recheck book ownership; current file IDs and non-operational
+manual metadata are preserved while current import provenance records the new
+source. Different existing chapter layouts remain operator review work.
+
+Migration 0039 adds `replacement_cleanup_state` (`none`, `pending`, `cleaned`) and
+`replacement_cleanup_error`. This state tracks previous-file disposal, separately
+from `cleanup_state`, which governs remote download-source removal. Committed
+operations with pending replacement cleanup count as unfinished recovery work.
+Retry verifies the complete destination set before disposing of recorded backups.
+Download cleanup rejects pending replacement cleanup and still requires its
+independent whole-set/client/seed evidence. Historical import manifests are not
+rewritten to pretend the older version's receipt verifies newer bytes.

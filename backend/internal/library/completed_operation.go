@@ -56,7 +56,7 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		if err != nil {
 			return outcome, err
 		}
-		return s.finishManualOperation(ctx, op, outcome)
+		return s.finishOperationCleanup(ctx, op, outcome)
 	}
 	token, err := s.store.claimOperation(ctx, op.ID)
 	if err != nil {
@@ -97,6 +97,9 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		}
 	}()
 	if err := s.verifyOperationInventory(runCtx, op, false); err != nil {
+		return outcome, err
+	}
+	if err := verifyCompletedReplacementLayout(op); err != nil {
 		return outcome, err
 	}
 	records := make([]FileRecord, 0, len(op.Files))
@@ -196,6 +199,9 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 	if err := s.verifyOperationInventory(runCtx, op, false); err != nil {
 		return outcome, err
 	}
+	if err := verifyCompletedReplacementLayout(op); err != nil {
+		return outcome, err
+	}
 	// Re-check the whole set at the visibility boundary, including sources that a
 	// still-running download client may have modified during transfer.
 	for _, f := range op.Files {
@@ -233,14 +239,14 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		return outcome, err
 	}
 	outcome = ImportOutcome{File: records[0], Files: records, OperationID: op.ID, DestinationPath: records[0].Path, Imported: true, ImportMode: op.Mode}
-	if op.SourceKind == "manual" {
+	if op.SourceKind == "manual" || op.ReplacementCleanupState == "pending" {
 		cancel()
 		<-done
 		op, err = s.store.getOperation(ctx, op.ID)
 		if err != nil {
 			return outcome, err
 		}
-		return s.finishManualOperation(ctx, op, outcome)
+		return s.finishOperationCleanup(ctx, op, outcome)
 	}
 	return outcome, nil
 }

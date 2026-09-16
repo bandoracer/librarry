@@ -576,6 +576,12 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			}
 			err = saveErr
 		}
+		if err != nil && imported.Imported {
+			result.Status, result.Message, result.Import = "imported", err.Error(), &imported
+			outcome.Imported++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
 		if err != nil {
 			result.Status, result.Message = "error", err.Error()
 			outcome.Errored++

@@ -77,6 +77,11 @@ manual assignments, with old/new paths visible in scan history. A failed scan or
 unavailable root cannot publish partial missing-file results. Broader book-state
 reconciliation and live NAS qualification remain open.
 
+Completed-download review can replace matching destination files after a current
+preview. Previous bytes remain recoverable until the full import commits, and
+backup cleanup is tracked separately from download-source removal. Different old
+chapter layouts still require review; Keep both remains the default.
+
 Library repair preview in Imports explains broken legacy associations, duplicate
 file records, possible moves and unverified audiobook completeness. It checks
 saved evidence in pages and recommends review actions without changing files or

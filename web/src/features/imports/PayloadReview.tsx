@@ -14,9 +14,10 @@ export default function PayloadReview({ review }: { review: ImportReview }) {
   const [allBook, setAllBook] = useState(review.wantedId ?? "");
   const [confirmed, setConfirmed] = useState(false);
   const [mode, setMode] = useState<PayloadReviewRequest["importMode"]>("hardlinkOrCopy");
+  const [conflict, setConflict] = useState<PayloadReviewRequest["conflictAction"]>("rename");
   const valueFor = (file: PayloadFile) => assignments[file.relativePath] ?? (file.format === "sidecar" ? "" : review.wantedId ?? "");
   const request: PayloadReviewRequest = {
-    action: "import", wantedId: review.wantedId, importMode: mode, conflictAction: "rename", confirmIdentity: confirmed,
+    action: "import", wantedId: review.wantedId, importMode: mode, conflictAction: conflict, confirmIdentity: confirmed,
     mapping: files.filter(file => file.format !== "excluded").map(file => ({
       relativePath: file.relativePath, wantedId: valueFor(file) === retain ? undefined : valueFor(file), exclude: valueFor(file) === retain
     }))
@@ -45,6 +46,9 @@ export default function PayloadReview({ review }: { review: ImportReview }) {
       <label className="field">Transfer mode<select value={mode} onChange={event => setMode(event.target.value as PayloadReviewRequest["importMode"])} disabled={busy}>
         <option value="hardlinkOrCopy">Hardlink or copy</option><option value="copy">Copy</option><option value="hardlink">Hardlink</option>
       </select></label>
+      <label className="field">Existing destinations<select aria-label="Existing destinations" value={conflict} onChange={event => { setConflict(event.target.value as PayloadReviewRequest["conflictAction"]); setConfirmed(false); }} disabled={busy}>
+        <option value="rename">Keep both</option><option value="replace">Replace reviewed files</option>
+      </select></label>
     </div>
     <ol className="imports-payload-files">
       {files.map(file => <li key={file.relativePath}>
@@ -62,7 +66,7 @@ export default function PayloadReview({ review }: { review: ImportReview }) {
       </li>)}
     </ol>
     <label className="imports-payload-confirm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} />I checked these book assignments and any excluded files. These choices override conflicting metadata.</label>
-    <p className="field-hint">Existing library files are kept. Retaining a book file or sidecar in downloads blocks automatic source deletion.</p>
+    <p className="field-hint">{conflict === "replace" ? "Matching destinations will be replaced after their new copies verify. Existing bytes remain recoverable until the complete import commits. A different existing chapter set needs separate review." : "Existing library files are kept."} Retaining a book file or sidecar in downloads blocks automatic source deletion.</p>
     {preview.isError ? <InlineNotice tone="danger">{preview.error.message}</InlineNotice> : null}
     {resolve.isError ? <InlineNotice tone="danger">{resolve.error.message}</InlineNotice> : null}
     <div className="cell-actions">
@@ -73,7 +77,7 @@ export default function PayloadReview({ review }: { review: ImportReview }) {
     <Button disabled={!confirmed || busy} busy={preview.isPending} onClick={() => preview.mutate(request)}>Preview destinations</Button>
     {currentPreview ? <div className="imports-payload-preview">
       <h3>Import preview</h3>
-      <ol>{preview.data.operation.files.map((file, index) => <li key={`${file.sourcePath}:${index}`}><div className="imports-recovery-path">{file.sourcePath}</div><div className="imports-recovery-path">→ {file.destinationPath}</div></li>)}</ol>
+      <ol>{preview.data.operation.files.map((file, index) => <li key={`${file.sourcePath}:${index}`}><div className="imports-recovery-path">{file.sourcePath}</div><div className="imports-recovery-path">→ {file.destinationPath}</div>{file.previousPath ? <p className="field-hint">Replaces an existing {formatBytes(file.previousSizeBytes ?? 0)} file. The preview is bound to its current content.</p> : null}</li>)}</ol>
       <Button variant="primary" busy={resolve.isPending} disabled={busy} onClick={() => resolve.mutate({ ...request, previewToken: preview.data.fingerprint }, { onError: () => preview.reset() })}>Import this file set</Button>
     </div> : null}
   </Card>;

@@ -25,6 +25,9 @@ func (s *Service) verifyOperationCleanup(ctx context.Context, op ImportOperation
 	if op.State != "committed" {
 		return errors.New("import operation is not committed")
 	}
+	if op.ReplacementCleanupState == "pending" {
+		return errors.New("replacement backup cleanup is still pending")
+	}
 	if len(op.Files) == 0 {
 		return errors.New("import manifest is empty")
 	}

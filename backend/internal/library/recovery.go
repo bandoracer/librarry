@@ -28,10 +28,10 @@ func (s *Service) ImportRecovery(ctx context.Context) (ImportRecoveryReport, err
 	if !s.Available() {
 		return report, errors.New("import recovery requires database persistence")
 	}
-	if err := s.store.db.QueryRowContext(ctx, `select (select count(*) from import_operations where (state<>'committed' or (source_kind='manual' and cleanup_state<>'cleaned'))),(select count(*) from import_reconciliation_issues where resolved_at is null)`).Scan(&report.Unfinished, &report.Unresolved); err != nil {
+	if err := s.store.db.QueryRowContext(ctx, `select (select count(*) from import_operations where (state<>'committed' or (source_kind='manual' and cleanup_state<>'cleaned') or replacement_cleanup_state='pending')),(select count(*) from import_reconciliation_issues where resolved_at is null)`).Scan(&report.Unfinished, &report.Unresolved); err != nil {
 		return report, err
 	}
-	rows, err := s.store.db.QueryContext(ctx, `select id::text from import_operations order by ((state<>'committed' or (source_kind='manual' and cleanup_state<>'cleaned'))) desc,updated_at desc,id limit $1`, report.Limit)
+	rows, err := s.store.db.QueryContext(ctx, `select id::text from import_operations order by ((state<>'committed' or (source_kind='manual' and cleanup_state<>'cleaned') or replacement_cleanup_state='pending')) desc,updated_at desc,id limit $1`, report.Limit)
 	if err != nil {
 		return report, err
 	}

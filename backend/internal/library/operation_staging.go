@@ -161,6 +161,11 @@ func (s *Service) transferOperationFile(ctx context.Context, op ImportOperation,
 		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,1))`, file.DestinationPath); err != nil {
 			return err
 		}
+		if op.SourceKind != "manual" && op.Metadata["conflictAction"] == "replace" {
+			if err := fenceCompletedReplacementOwner(ctx, tx, file); err != nil {
+				return err
+			}
+		}
 		if file.PreviousPath != "" {
 			if err := s.prepareImportReplacement(ctx, op, file); err != nil {
 				return err

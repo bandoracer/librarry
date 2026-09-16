@@ -13,27 +13,29 @@ import (
 var ErrImportBusy = errors.New("this import is already being processed")
 
 type ImportOperation struct {
-	SourceKind       string                `json:"sourceKind"`
-	RequestKey       string                `json:"-"`
-	ID               string                `json:"id"`
-	DownloadRecordID string                `json:"downloadRecordId"`
-	Client           string                `json:"client"`
-	DownloadID       string                `json:"downloadId"`
-	WantedID         string                `json:"wantedId"`
-	SourceRoot       string                `json:"sourceRoot"`
-	DestinationRoot  string                `json:"destinationRoot"`
-	Format           string                `json:"format"`
-	Mode             string                `json:"mode"`
-	State            string                `json:"state"`
-	CleanupState     string                `json:"cleanupState"`
-	LastError        string                `json:"lastError,omitempty"`
-	CleanupError     string                `json:"cleanupError,omitempty"`
-	Attempts         int                   `json:"attempts"`
-	Metadata         map[string]any        `json:"metadata"`
-	Files            []ImportOperationFile `json:"files"`
-	CreatedAt        time.Time             `json:"createdAt"`
-	UpdatedAt        time.Time             `json:"updatedAt"`
-	LeaseToken       string                `json:"-"`
+	SourceKind              string                `json:"sourceKind"`
+	RequestKey              string                `json:"-"`
+	ID                      string                `json:"id"`
+	DownloadRecordID        string                `json:"downloadRecordId"`
+	Client                  string                `json:"client"`
+	DownloadID              string                `json:"downloadId"`
+	WantedID                string                `json:"wantedId"`
+	SourceRoot              string                `json:"sourceRoot"`
+	DestinationRoot         string                `json:"destinationRoot"`
+	Format                  string                `json:"format"`
+	Mode                    string                `json:"mode"`
+	State                   string                `json:"state"`
+	CleanupState            string                `json:"cleanupState"`
+	LastError               string                `json:"lastError,omitempty"`
+	ReplacementCleanupState string                `json:"replacementCleanupState"`
+	ReplacementCleanupError string                `json:"replacementCleanupError,omitempty"`
+	CleanupError            string                `json:"cleanupError,omitempty"`
+	Attempts                int                   `json:"attempts"`
+	Metadata                map[string]any        `json:"metadata"`
+	Files                   []ImportOperationFile `json:"files"`
+	CreatedAt               time.Time             `json:"createdAt"`
+	UpdatedAt               time.Time             `json:"updatedAt"`
+	LeaseToken              string                `json:"-"`
 }
 
 type ImportOperationFile struct {
@@ -75,9 +77,9 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	var raw []byte
 	err := s.db.QueryRowContext(ctx, `select io.id::text,coalesce(io.download_record_id::text,''),coalesce(d.client,''),coalesce(d.external_id,''),coalesce(io.wanted_item_id::text,''),
       io.source_root,io.destination_root,io.media_format,io.import_mode,io.state,io.cleanup_state,io.last_error,io.cleanup_error,
-      io.attempts,io.metadata,io.created_at,io.updated_at,io.source_kind,io.request_key
+      io.attempts,io.metadata,io.created_at,io.updated_at,io.source_kind,io.request_key,io.replacement_cleanup_state,io.replacement_cleanup_error
       from import_operations io left join downloads d on d.id=io.download_record_id where io.id=$1`, id).Scan(
-		&op.ID, &op.DownloadRecordID, &op.Client, &op.DownloadID, &op.WantedID, &op.SourceRoot, &op.DestinationRoot, &op.Format, &op.Mode, &op.State, &op.CleanupState, &op.LastError, &op.CleanupError, &op.Attempts, &raw, &op.CreatedAt, &op.UpdatedAt, &op.SourceKind, &op.RequestKey)
+		&op.ID, &op.DownloadRecordID, &op.Client, &op.DownloadID, &op.WantedID, &op.SourceRoot, &op.DestinationRoot, &op.Format, &op.Mode, &op.State, &op.CleanupState, &op.LastError, &op.CleanupError, &op.Attempts, &raw, &op.CreatedAt, &op.UpdatedAt, &op.SourceKind, &op.RequestKey, &op.ReplacementCleanupState, &op.ReplacementCleanupError)
 	if err != nil {
 		return op, err
 	}
@@ -162,19 +164,27 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 			return op, err
 		}
 		var occupied bool
-		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and (o.state<>'committed' or not $2)) or (not $2 and exists(select 1 from files where path=$1))`, path, manifestByPath[path].PreviousPath != "" || (op.SourceKind == "manual" && manifestByPath[path].SourcePath == path)).Scan(&occupied); err != nil {
+		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and (o.state<>'committed' or not $2)) or (not $2 and exists(select 1 from files where path=$1))`, path, (op.SourceKind != "manual" && op.Metadata["conflictAction"] == "replace") || manifestByPath[path].PreviousPath != "" || (op.SourceKind == "manual" && manifestByPath[path].SourcePath == path)).Scan(&occupied); err != nil {
 			return op, err
 		}
 		if occupied {
 			return op, errors.New("destination belongs to an existing import; choose another destination")
 		}
 	}
+	for _, file := range op.Files {
+		if op.SourceKind != "manual" && file.PreviousPath != "" {
+			op.ReplacementCleanupState = "pending"
+		}
+	}
+	if op.ReplacementCleanupState == "" {
+		op.ReplacementCleanupState = "none"
+	}
 	raw, err := json.Marshal(op.Metadata)
 	if err != nil {
 		return op, err
 	}
-	err = tx.QueryRowContext(ctx, `insert into import_operations(download_record_id,wanted_item_id,source_root,destination_root,media_format,import_mode,metadata,source_kind,request_key)
-      values($1,nullif($2,'')::uuid,$3,$4,$5,$6,$7::jsonb,$8,$9) returning id::text`, downloadID, op.WantedID, op.SourceRoot, op.DestinationRoot, op.Format, op.Mode, string(raw), op.SourceKind, op.RequestKey).Scan(&op.ID)
+	err = tx.QueryRowContext(ctx, `insert into import_operations(download_record_id,wanted_item_id,source_root,destination_root,media_format,import_mode,metadata,source_kind,request_key,replacement_cleanup_state)
+      values($1,nullif($2,'')::uuid,$3,$4,$5,$6,$7::jsonb,$8,$9,$10) returning id::text`, downloadID, op.WantedID, op.SourceRoot, op.DestinationRoot, op.Format, op.Mode, string(raw), op.SourceKind, op.RequestKey, op.ReplacementCleanupState).Scan(&op.ID)
 	if err != nil {
 		return op, err
 	}
@@ -251,6 +261,15 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 	if outstanding != 0 || len(records) == 0 {
 		return nil, errors.New("manifest is not completely verified")
 	}
+	if op.SourceKind != "manual" {
+		for _, file := range op.Files {
+			if op.Metadata["conflictAction"] == "replace" {
+				if err := fenceCompletedReplacementOwner(ctx, tx, file); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	// The visibility trigger sees this transaction's state, while scanners
 	// continue seeing the unfinished operation until the whole transaction commits.
 	if _, err := tx.ExecContext(ctx, `update import_operations set state='committed' where id=$1`, op.ID); err != nil {
@@ -261,6 +280,13 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 		wantedID, _ := record.Metadata["wantedId"].(string)
 		if wantedID == "" && op.SourceKind != "manual" {
 			return nil, errors.New("manifest book association is missing")
+		}
+		if op.SourceKind != "manual" && op.Metadata["conflictAction"] == "replace" {
+			var err error
+			record, err = preserveCompletedReplacementMetadata(ctx, tx, record)
+			if err != nil {
+				return nil, err
+			}
 		}
 		file, err := persistFile(ctx, tx, record, false)
 		if err != nil {

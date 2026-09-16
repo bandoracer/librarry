@@ -89,7 +89,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S06 | Partial | Latest multi-platform checks linked on PR #3; upgrade/rollback and candidate deployment remain |
 | S07 | Implemented with fixture qualification | Relational links, manifest/operation records and reconciliation report; live database-copy migration still pending |
 | S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
-| S09 | Partial | Durable native/manual plans, staging journals, move and manual replacement recovery; Calibre, completed-download replacement and broader disk fault qualification remain |
+| S09 | Partial | Durable native/manual plans, staging journals, move and reviewed destination replacement recovery; changed chapter-set retirement, Calibre and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation and Activity recovery implemented with fixtures; full worker, history/current-release and live-client qualification remain |
 | S11 | Implemented with fixture qualification | Persisted scans, guarded presence, unambiguous native move reattachment and legacy repair previews; controlled live NAS/root qualification remains S21/S24 |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
@@ -469,3 +469,55 @@ comparison). Existing packaged import/review/acquisition/scan/auth checks passed
 The local web image remains the earlier multipart snapshot; new history UI is
 qualified by current-source browser/build checks. Live NAS/mount proof remains
 outside this fixture result.
+
+
+## Continuation: reviewed completed-destination replacement (S09)
+
+Branch: `codex/completed-replacement`, based on moved-file reconciliation.
+Completed-download payload review now offers Keep both (default) or Replace
+reviewed files. Replacement requires a current preview and explicit book mapping.
+Its deterministic recovery paths bind the exact client/download, destination and
+old/new hashes, so a stale destination invalidates the preview without making
+preview generation mutate files. Ebook and matching multi-disc/sidecar sets use
+the existing staged-publication/recovery engine. Extra old files outside an
+incoming book-directory manifest are retained for review rather than mixed into
+a new chapter set or deleted implicitly. Complete retirement of a different old
+chapter layout remains S09 work; this is not full automatic upgrade qualification.
+
+Migration 0039 separates completed replacement-backup cleanup from download-source
+cleanup. A committed import with a blocked recycle path stays visible and
+retryable in Import recovery. Source removal cannot become eligible while backup
+cleanup is pending. New content verifies before each replacement; all saved old
+bytes remain available until the complete operation commits. Ownership is checked
+at preview, publication and commit, and current manual file names/notes survive.
+Retained file IDs keep historical download links; old import manifests remain
+unchanged. Retrying an already committed replacement resumes backup cleanup.
+
+Tests exercise ebook and multi-disc replacement, stable previews, stale old bytes,
+unknown extra chapters, changed book ownership, forced final database failure,
+service restart, retained source and previous hashes, file-ID preservation,
+manual metadata and blocked recycle cleanup. Frontend production build and 35
+applicable desktop/mobile browser checks passed (one desktop case inapplicable),
+including replacement-choice invalidation and independent backup/source status.
+
+Move reconciliation PR #10 at `c1f8f5f98787e6ccb16708bf6f93621d8daace20` passed
+[CI run 35063006004](https://github.com/bandoracer/librarry/actions/runs/35063006004),
+including source/race/browser checks, packaged qualification, image scans and
+AMD64/ARM64 builds. No images were published or deployed.
+
+
+The schema-39 ARM64 packaged API passed reviewed chapter/sidecar replacement with
+a forced final database failure, actual container restart and retry of the saved
+operation. It retained old bytes through failure, preserved original file IDs,
+cleaned recovery backups after commit and retained all download sources. A
+401,097-byte dump restored matching replacement-cleanup state and the existing
+import/acquisition/scan records. Existing packaged recovery and authentication
+checks passed. The local web image is the earlier multipart snapshot; the current
+UI passed its production build and 35 applicable browser checks, plus a final
+six-case desktop/mobile review run with mobile preview inspected visually.
+
+Full Go race/Postgres and vet checks passed. Final focused race tests additionally
+cover restoring a physically missing destination under its existing ID/manual
+name, and rejecting an extra old file that appears after planning. The directory
+manifest is rechecked before transfer and before commit. These are disposable
+fixture results; no release, live upgrade or homelab qualification is implied.

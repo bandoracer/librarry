@@ -56,22 +56,23 @@ func (s *Service) prepareImportReplacement(ctx context.Context, op ImportOperati
 	return nil
 }
 
-func (s *Service) finishManualOperation(ctx context.Context, op ImportOperation, outcome ImportOutcome) (ImportOutcome, error) {
-	if op.SourceKind != "manual" {
-		return outcome, nil
-	}
+func (s *Service) finishOperationCleanup(ctx context.Context, op ImportOperation, outcome ImportOutcome) (ImportOutcome, error) {
+	manual := op.SourceKind == "manual"
 	outcome.ConflictAction, _ = op.Metadata["conflictAction"].(string)
 	outcome.ConflictPath, _ = op.Metadata["conflictPath"].(string)
 	outcome.Hardlinked, _ = outcome.File.Metadata["hardlinked"].(bool)
 	for _, file := range op.Files {
 		outcome.Replaced = outcome.Replaced || file.PreviousPath != ""
 	}
-	if op.CleanupState == "cleaned" {
+	if !manual && op.ReplacementCleanupState != "pending" {
+		return outcome, nil
+	}
+	if manual && op.CleanupState == "cleaned" {
 		outcome.Moved = manualOperationMoved(op)
 		return outcome, nil
 	}
 	err := s.store.db.QueryRowContext(ctx, `update import_operations set lease_token=gen_random_uuid(),lease_expires_at=now()+interval '2 minutes'
- where id=$1 and source_kind='manual' and state='committed' and cleanup_state<>'cleaned' and (lease_expires_at is null or lease_expires_at<now()) returning lease_token::text`, op.ID).Scan(&op.LeaseToken)
+ where id=$1 and state='committed' and ((source_kind='manual' and cleanup_state<>'cleaned') or replacement_cleanup_state='pending') and (lease_expires_at is null or lease_expires_at<now()) returning lease_token::text`, op.ID).Scan(&op.LeaseToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		return outcome, ErrImportBusy
 	}
@@ -100,13 +101,13 @@ func (s *Service) finishManualOperation(ctx context.Context, op ImportOperation,
 	if err := s.cleanupManualFiles(runCtx, op); err != nil {
 		saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		_, saveErr := s.store.db.ExecContext(saveCtx, `update import_operations set cleanup_state='blocked',cleanup_error=$3,lease_token=null,lease_expires_at=null,updated_at=now() where id=$1 and lease_token=$2`, op.ID, op.LeaseToken, err.Error())
+		_, saveErr := s.store.db.ExecContext(saveCtx, `update import_operations set cleanup_state=case when source_kind='manual' then 'blocked' else cleanup_state end,cleanup_error=case when source_kind='manual' then $3 else cleanup_error end,replacement_cleanup_error=case when replacement_cleanup_state='pending' then $3 else replacement_cleanup_error end,lease_token=null,lease_expires_at=null,updated_at=now() where id=$1 and lease_token=$2`, op.ID, op.LeaseToken, err.Error())
 		return outcome, errors.Join(fmt.Errorf("import committed; cleanup needs retry: %w", err), saveErr)
 	}
 	result, err := s.store.db.ExecContext(ctx, `with moved as (
  update files f set metadata=f.metadata||'{"move":true,"importMode":"move"}'::jsonb from import_operation_files m,import_operations o
  where m.operation_id=o.id and m.file_id=f.id and m.source_removed and o.id=$1 and o.lease_token=$2 and o.lease_expires_at>now() and f.metadata->>'importOperationId'=o.id::text
- ) update import_operations set cleanup_state='cleaned',cleanup_error='',lease_token=null,lease_expires_at=null,updated_at=now() where id=$1 and lease_token=$2 and lease_expires_at>now()`, op.ID, op.LeaseToken)
+ ) update import_operations set cleanup_state=case when source_kind='manual' then 'cleaned' else cleanup_state end,cleanup_error=case when source_kind='manual' then '' else cleanup_error end,replacement_cleanup_state=case when replacement_cleanup_state='pending' then 'cleaned' else replacement_cleanup_state end,replacement_cleanup_error='',lease_token=null,lease_expires_at=null,updated_at=now() where id=$1 and lease_token=$2 and lease_expires_at>now()`, op.ID, op.LeaseToken)
 	if err != nil {
 		return outcome, err
 	}

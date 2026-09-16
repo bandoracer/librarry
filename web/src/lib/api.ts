@@ -3038,11 +3038,13 @@ export type ImportOperation = {
   wantedId: string;
   state: string;
   cleanupState: string;
+  replacementCleanupState?: "none" | "pending" | "cleaned";
+  replacementCleanupError?: string;
   lastError?: string;
   cleanupError?: string;
   attempts: number;
   metadata: { title?: string; author?: string };
-  files: { id: string; previousPath?: string; sourceRemoved?: boolean; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
+  files: { id: string; previousPath?: string; previousSizeBytes?: number; previousSha256?: string; sourceRemoved?: boolean; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
 };
 export type ImportRecoveryReport = {
   operations: ImportOperation[];
@@ -3071,7 +3073,7 @@ export type PayloadFile = {
 export type PayloadMapping = { relativePath: string; wantedId?: string; exclude?: boolean };
 export type PayloadReviewRequest = {
   action: "import"; wantedId?: string; importMode: "copy" | "hardlink" | "hardlinkOrCopy";
-  conflictAction: "rename"; mapping: PayloadMapping[]; confirmIdentity: boolean; previewToken?: string;
+  conflictAction: "rename" | "replace"; mapping: PayloadMapping[]; confirmIdentity: boolean; previewToken?: string;
 };
 export type PayloadPreview = { operation: ImportOperation; fingerprint: string };
 export async function previewPayloadReview(id: string, options: PayloadReviewRequest): Promise<PayloadPreview> {

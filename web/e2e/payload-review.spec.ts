@@ -41,3 +41,51 @@ test("payload mapping requires a current preview and preserves review errors", a
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   await page.screenshot({ path: `../output/playwright/payload-review-${testInfo.project.name}.png`, fullPage: true });
 });
+
+test("replacement changes require a fresh preview and expose existing destinations", async ({ page }, testInfo) => {
+  const id = "00000000-0000-0000-0000-000000000039";
+  const file = { relativePath: "Book.epub", sourcePath: "/downloads/Book.epub", format: "ebook", included: true, selected: true, progress: 1, sizeBytes: 2048 };
+  await page.route("**/api/v1/wanted?view=library", route => route.fulfill({ json: { wanted: [{ id, title: "Replacement Book", format: "ebook" }] } }));
+  await page.route("**/api/v1/library/import-reviews?*", route => route.fulfill({ json: { reviews: [{ id, wantedId: id, title: "Replacement Book", status: "pending", reason: "Review replacement", metadata: { payloadReview: true, payload: { files: [file] } } }] } }));
+  let previews = 0;
+  await page.route(`**/api/v1/library/import-reviews/${id}/preview`, route => {
+    const request = route.request().postDataJSON(); previews++;
+    return route.fulfill({ json: { fingerprint: `preview-${previews}`, operation: { files: [{ ...file, destinationPath: "/library/Book.epub", previousPath: request.conflictAction === "replace" ? "/library/.saved-previous" : undefined, previousSizeBytes: 1024 }] } } });
+  });
+  await page.route(`**/api/v1/library/import-reviews/${id}/resolve`, route => {
+    expect(route.request().postDataJSON()).toMatchObject({ conflictAction: "replace", previewToken: "preview-2", confirmIdentity: true });
+    return route.fulfill({ status: 409, json: { error: "Destination changed; refresh the replacement preview" } });
+  });
+  await page.goto("/imports");
+  const confirmation = page.getByRole("checkbox", { name: "I checked these book assignments", exact: false });
+  await confirmation.check();
+  await page.getByRole("button", { name: "Preview destinations", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Import this file set", exact: true })).toBeVisible();
+  await page.getByLabel("Existing destinations", { exact: true }).selectOption("replace");
+  await expect(confirmation).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Import this file set", exact: true })).toHaveCount(0);
+  await confirmation.check();
+  await page.getByRole("button", { name: "Preview destinations", exact: true }).click();
+  await expect(page.getByText(/Replaces an existing .*file. The preview is bound to its current content./)).toBeVisible();
+  await page.screenshot({ path: `../output/playwright/completed-replacement-${testInfo.project.name}.png`, fullPage: true });
+  await page.getByRole("button", { name: "Import this file set", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Destination changed; refresh the replacement preview");
+});
+
+test("completed replacement backup cleanup remains separate from download removal", async ({ page }) => {
+  const id = "00000000-0000-0000-0000-000000000039";
+  const operation = { id, sourceKind: "completed", state: "committed", cleanupState: "blocked", replacementCleanupState: "pending", replacementCleanupError: "Recycle folder unavailable; previous file retained", metadata: { title: "Replacement Book" }, files: [{ id: "file", sourcePath: "/downloads/Book.epub", destinationPath: "/library/Book.epub", previousPath: "/library/.previous", sizeBytes: 2048, state: "committed" }] };
+  await page.route("**/api/v1/library/import-recovery", route => route.fulfill({ json: { operations: [operation], issues: [], unfinished: operation.replacementCleanupState === "pending" ? 1 : 0, unresolved: 0, limit: 100 } }));
+  await page.route(`**/api/v1/library/import-operations/${id}/retry`, route => {
+    operation.replacementCleanupState = "cleaned"; operation.replacementCleanupError = "";
+    return route.fulfill({ json: { imported: true, skipped: true } });
+  });
+  await page.goto("/imports");
+  await page.getByText("Replacement Book", { exact: true }).click();
+  await expect(page.getByText("Replacement backups: cleanup pending", { exact: true })).toBeVisible();
+  await expect(page.getByText("Recycle folder unavailable; previous file retained", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Retry cleanup", exact: true }).click();
+  await expect(page.getByText("Replacement backups: cleanup complete", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Cleanup: source retained/)).toBeVisible();
+  await expect(page.getByText("Previous file recovery path: /library/.previous", { exact: true })).toHaveCount(0);
+});

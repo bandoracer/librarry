@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 38, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 39, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -315,6 +315,49 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert error.code == 502, error.code
         assert sql("select count(*) from files where scan_root='/fixture/scan-library' and presence_state='missing'") == "1"
         print("Packaged scans: 1,201 files resume through scheduler after process kill; missing file confirmed only after completion; unavailable root retains prior presence")
+        # Reviewed completed replacement must retain all old bytes until commit.
+        replacement_root = media / "downloads" / "Replacement"
+        replacement_root.mkdir()
+        replacement_files = []
+        for name in ("Disc 1/01.mp3", "Disc 1/02.mp3", "Disc 2/01.mp3", "cover.jpg"):
+            target = replacement_root / name
+            target.parent.mkdir(exist_ok=True)
+            target.write_bytes(b"controlled replacement chapter " + name.encode())
+            replacement_files.append({"name": "Replacement/" + name, "size": target.stat().st_size, "progress": 1, "priority": 1})
+        client_rows.append({"status": {"hash": "replacement-chapters", "name": "Replacement", "category": "books-audiobook", "save_path": "/fixture/downloads", "state": "pausedUP", "progress": 1, "tags": f"librarry,wanted:{audio_id}"}, "files": replacement_files})
+        (media / "client.json").write_text(json.dumps(client_rows))
+        replacement_download = sql(f"insert into downloads(client,external_id,name,category,save_path,state,progress,tags) values('qBittorrent','replacement-chapters','Replacement','books-audiobook','/fixture/downloads','pausedUP',1,'librarry,wanted:{audio_id}') returning id")
+        replacement_download = str(uuid.UUID(replacement_download.splitlines()[0]))
+        queued = request("/api/v1/library/import-completed", {"downloadIds": ["replacement-chapters"], "importMode": "copy", "conflictAction": "replace"})
+        assert queued["reviewQueued"] == 1, queued
+        replacement_review = next(row for row in request("/api/v1/library/import-reviews?status=pending")["reviews"] if row["downloadId"] == "replacement-chapters")
+        replacement_request = {"action": "import", "wantedId": audio_id, "confirmIdentity": True, "importMode": "copy", "conflictAction": "replace", "mapping": [{"relativePath": file["relativePath"], "wantedId": audio_id} for file in replacement_review["metadata"]["payload"]["files"] if file["format"] != "excluded"]}
+        replacement_preview = request(f"/api/v1/library/import-reviews/{replacement_review['id']}/preview", replacement_request)
+        assert all(file["previousPath"] for file in replacement_preview["operation"]["files"]), replacement_preview
+        sql(f"alter table import_operations add constraint inject_completed_replace check(download_record_id<>'{replacement_download}' or state<>'committed')")
+        try:
+            request(f"/api/v1/library/import-reviews/{replacement_review['id']}/resolve", {**replacement_request, "previewToken": replacement_preview["fingerprint"]})
+            raise AssertionError("replacement hid failed commit")
+        except urllib.error.HTTPError as error:
+            assert error.code >= 400
+        replacement_operation = next(row for row in request("/api/v1/library/import-recovery")["operations"] if row["downloadId"] == "replacement-chapters")
+        assert replacement_operation["state"] == "failed", replacement_operation
+        for file in replacement_operation["files"]:
+            previous = media / Path(file["previousPath"]).relative_to("/fixture")
+            assert hashlib.sha256(previous.read_bytes()).hexdigest() == file["previousSha256"]
+            assert (media / Path(file["sourcePath"]).relative_to("/fixture")).exists()
+        sql("alter table import_operations drop constraint inject_completed_replace")
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        replaced = request(f"/api/v1/library/import-operations/{replacement_operation['id']}/retry", {})
+        assert replaced["replaced"] is True and {file["id"] for file in replaced["files"]} == {file["id"] for file in audio_files}, replaced
+        completed_replacement = next(row for row in request("/api/v1/library/import-recovery")["operations"] if row["id"] == replacement_operation["id"])
+        assert completed_replacement["replacementCleanupState"] == "cleaned" and completed_replacement["cleanupState"] == "blocked", completed_replacement
+        for file in completed_replacement["files"]:
+            assert not (media / Path(file["previousPath"]).relative_to("/fixture")).exists()
+            assert (media / Path(file["sourcePath"]).relative_to("/fixture")).exists()
+        request(f"/api/v1/library/import-reviews/{replacement_review['id']}/resolve", {**replacement_request, "previewToken": replacement_preview["fingerprint"]})
+        print("Packaged completed replacement: reviewed chapter/sidecar replacements retain old bytes after failed commit; restart/retry preserves file IDs; backup cleanup never removes download sources")
         # Move a unique imported chapter outside the app, then interrupt the
         # reconciliation commit. The same original ID must survive restart/retry.
         request("/api/v1/library/scan", {"format": "audiobook"})
@@ -339,8 +382,8 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert reconciled["moved"] == 1 and reconciled["missing"] == 0, reconciled
         assert sql(f"select path from files where id='{chapter_id}'") == new_chapter_path
         assert sql(f"select count(*) from file_wanted_links where file_id='{chapter_id}' and wanted_item_id='{audio_id}'") == "1"
-        assert sql(f"select count(*) from file_download_links where file_id='{chapter_id}'") == "1"
-        assert sql(f"select destination_path from import_operation_files where file_id='{chapter_id}'") == old_chapter_path
+        assert sql(f"select count(*) from file_download_links where file_id='{chapter_id}'") == "2"
+        assert sql(f"select count(*) from import_operation_files where file_id='{chapter_id}' and destination_path<>'{old_chapter_path}'") == "0"
         history = request(f"/api/v1/library/scans/{failed_move['id']}/moves")
         assert len(history["moves"]) == 1 and history["moves"][0]["fileId"] == chapter_id, history
         assert history["moves"][0]["previousPath"] == old_chapter_path and history["moves"][0]["currentPath"] == new_chapter_path
@@ -374,7 +417,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
-                      "select id,state,cleanup_state,source_kind,request_key from import_operations order by id", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files order by id",
+                      "select id,state,cleanup_state,source_kind,request_key,replacement_cleanup_state,replacement_cleanup_error from import_operations order by id", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files order by id",
                       "select id,metadata->'verifiedDownload' from files order by id",
                       "select id,scope_key,request_key,state,external_id,result from acquisition_intents order by id",
                       "select id,state,phase,scanned,missing,moved from library_scan_jobs order by id",

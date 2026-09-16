@@ -946,3 +946,22 @@ completion can be resumed; cancellation leaves original identities unchanged.
 Records created before discovery evidence was introduced are retained for manual
 review rather than guessed into an existing book. Native file presence still
 needs broader unified book-state projection and live NAS qualification.
+
+
+### Replace reviewed completed-download destinations
+
+In a pending file-set review, choose **Replace reviewed files** under **Existing
+destinations**, confirm the book assignments, then preview again. The preview
+identifies existing files to replace and is bound to their current content.
+Changing the choice invalidates the preview. Keep both is the default.
+
+The old file bytes are retained at recorded recovery paths until the complete new
+set commits. **Import recovery** separately reports **Replacement backups** and
+source cleanup. A recycle-folder failure keeps backups and exposes **Retry
+cleanup**. Cleaning a replacement backup does not remove the download's source.
+
+A different book's assigned file or Calibre-managed file cannot be replaced by
+this flow. An existing book directory with extra old chapters/unknown files outside
+the new manifest requires review or Keep both; full old-layout retirement is not
+yet implemented. Matching chapter/sidecar replacements preserve tracked IDs and
+manual names/notes. Historical manifests continue describing their original bytes.
