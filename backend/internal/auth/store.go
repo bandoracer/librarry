@@ -32,23 +32,37 @@ func (s *Store) UpsertUser(ctx context.Context, username string, passwordHash st
 	if username == "" {
 		return User{}, errors.New("username is required")
 	}
-	existing, ok, err := s.GetUser(ctx)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return User{}, err
 	}
-	if ok {
-		row := s.db.QueryRowContext(ctx, `
-			update users set username = $2, password_hash = $3, updated_at = now()
-			where id = $1
-			returning id::text, username, password_hash, created_at, updated_at
-		`, existing.ID, username, passwordHash)
-		return scanUser(row)
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(761906101)`); err != nil {
+		return User{}, err
 	}
-	row := s.db.QueryRowContext(ctx, `
-		insert into users (username, password_hash) values ($1, $2)
-		returning id::text, username, password_hash, created_at, updated_at
-	`, username, passwordHash)
-	return scanUser(row)
+	existing, err := scanUser(tx.QueryRowContext(ctx, `select id::text, username, password_hash, created_at, updated_at from users order by created_at limit 1 for update`))
+	exists := err == nil
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return User{}, err
+	}
+	var user User
+	if exists {
+		user, err = scanUser(tx.QueryRowContext(ctx, `update users set username=$2, password_hash=$3, updated_at=now() where id=$1 returning id::text, username, password_hash, created_at, updated_at`, existing.ID, username, passwordHash))
+	} else {
+		user, err = scanUser(tx.QueryRowContext(ctx, `insert into users(username,password_hash) values($1,$2) returning id::text, username, password_hash, created_at, updated_at`, username, passwordHash))
+	}
+	if err != nil {
+		return User{}, err
+	}
+	if exists && (username != existing.Username || passwordHash != existing.PasswordHash) {
+		if _, err := tx.ExecContext(ctx, `delete from sessions where user_id=$1`, existing.ID); err != nil {
+			return User{}, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return User{}, err
+	}
+	return user, nil
 }
 
 func (s *Store) GetUser(ctx context.Context) (User, bool, error) {

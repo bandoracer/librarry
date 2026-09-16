@@ -91,3 +91,22 @@ func TestStaleLoginCannotCreateSessionAfterPasswordChange(t *testing.T) {
 		t.Fatalf("stale login was not rejected: %v", err)
 	}
 }
+
+func TestStartupCredentialReplacementRevokesSessions(t *testing.T) {
+	db := testdb.Open(t)
+	service := NewService(NewStore(db), nil)
+	ctx := context.Background()
+	if err := service.EnsureUser(ctx, "fixture", "initial-password"); err != nil {
+		t.Fatal(err)
+	}
+	login, err := service.Login(ctx, "fixture", "initial-password", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.EnsureUser(ctx, "fixture", "replacement-password"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := service.ValidateSession(ctx, login.Token); ok {
+		t.Fatal("old session survived startup credential replacement")
+	}
+}

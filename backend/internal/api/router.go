@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/auth"
 	"github.com/bandoracer/librarry/backend/internal/backups"
@@ -74,6 +76,7 @@ type configurableAcquisitionService interface {
 }
 
 type wantedService interface {
+	Get(ctx context.Context, id string) (wanted.WantedItem, error)
 	Create(ctx context.Context, request wanted.CreateRequest) (wanted.WantedItem, error)
 	List(ctx context.Context, status string) ([]wanted.WantedItem, error)
 	ListQualityProfiles(ctx context.Context) ([]wanted.QualityProfile, error)
@@ -436,6 +439,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/authors/metadata/review", handler.authorMetadataReviews)
 	mux.HandleFunc("POST /api/v1/authors/metadata/review/{id}/resolve", handler.resolveAuthorMetadataReview)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
+	mux.HandleFunc("GET /api/v1/wanted/{id}", handler.getWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
 	mux.HandleFunc("POST /api/v1/wanted/bulk", handler.bulkUpdateWanted)
 	mux.HandleFunc("PUT /api/v1/wanted/{id}", handler.updateWanted)
@@ -2143,6 +2147,32 @@ func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"wanted": items})
 }
 
+func (h *handler) getWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	var parsed pgtype.UUID
+	if err := parsed.Scan(id); err != nil || !parsed.Valid {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid book id"})
+		return
+	}
+	item, err := h.deps.Wanted.Get(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && (item.Status == "removed" || item.Status == "ignored")) {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "book not found"})
+		return
+	}
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "book could not be loaded"})
+		return
+	}
+	if annotated := h.deps.Wanted.AnnotateWantedStates(r.Context(), []wanted.WantedItem{item}); len(annotated) == 1 {
+		item = annotated[0]
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
 func (h *handler) bulkUpdateWanted(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
@@ -2918,9 +2948,10 @@ func (h *handler) libraryFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	files, err := h.deps.Library.ListFiles(r.Context(), library.FileListQuery{
-		Format: r.URL.Query().Get("format"),
-		Status: r.URL.Query().Get("status"),
-		Limit:  limit,
+		Format:   r.URL.Query().Get("format"),
+		Status:   r.URL.Query().Get("status"),
+		WantedID: r.URL.Query().Get("wantedId"),
+		Limit:    limit,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})

@@ -40,6 +40,7 @@ progress record, not a claim that the full stabilization plan is complete.
 - Hardcover HTTP-200 GraphQL errors and malformed data no longer masquerade as
   successful empty searches. Typesense documents are decoded; health reports
   configured without inventing token verification or rate limiting.
+- Direct book detail fetches and book-filtered file queries bypass collection caps. A 10,001-book/file database fixture verifies access to an old imported book; removed and unknown books return 404, outages remain distinct and retryable.
 - Library has an explicit server view, preserves imported books, hides removed
   entries, and rejects invalid views. Query callback arguments cannot become
   filters. Empty lists normalize to arrays.
@@ -55,15 +56,15 @@ progress record, not a claim that the full stabilization plan is complete.
 - Full Go suite passed with `-race` and disposable Postgres on Go 1.26.8.
 - Go vet and deployment render checks passed. Frontend unit tests and production
   build passed; the expanding browser suite is rerun after UI changes.
-- Final local browser run: 9 passed, one desktop-only inapplicable mobile test
+- Final local browser run: 13 passed, one desktop-only inapplicable mobile test
   skipped, at 1440 and 390 pixels. Covered fresh persisted lists, eight core
   routes, no console/page errors, no page overflow, outage recovery, dialog focus
-  containment/restoration, and mobile navigation accessibility.
+  containment/restoration, environment-owned auth controls, direct-book outage recovery, and mobile navigation accessibility.
 - `govulncheck` on Go 1.26.8 reported zero reachable vulnerabilities, zero affected
   imported packages. The remaining module-only advisory, GO-2026-5932, concerns
   unmaintained `golang.org/x/crypto/openpgp`, which this project does not import.
   npm audit after the router
-  update reported zero vulnerabilities. Initial OS scans found fixable OpenSSL/libuuid findings; package refresh and rescan are in progress.
+  update reported zero vulnerabilities. Initial OS scans found fixable OpenSSL/libuuid findings. After runtime package refresh, Trivy 0.74.0 reported zero OS findings in both ARM64 images; the API retains only the unused module advisory above.
 - An ARM64 API candidate image built and started. It reported Go 1.26.8, schema
   29, the injected commit/build timestamp, and auth `none`. Configured forms with
   no database exited with code 1 before listening.
@@ -83,12 +84,12 @@ progress record, not a claim that the full stabilization plan is complete.
 | S03 | Partial | Unified effective configuration/source/precedence view for settings beyond auth |
 | S04 | Implemented safety guard | Packaged safety regressions passed; controlled live qualification and multipart review UI remain |
 | S05 | Implemented | Read-only live audiobook search against the candidate |
-| S06 | Partial | Both packaged architectures, OS image scan, upgrade/rollback, candidate deployment |
+| S06 | Partial | Latest multi-platform CI readback, upgrade/rollback, candidate deployment |
 | S07 | Partial | Client isolation implemented; relational file/import-operation migrations not yet written |
 | S08–S11 | Not complete | Multipart sets, durable recovery/leases, resumable scans and legacy repair |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
-| S14 | Partial | Library view/query bug fixed; direct detail routes and verified lifecycle semantics remain |
+| S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
 | S15–S16 | Not complete | Pagination/counts/scale and full compatibility/migration contracts |
 | S17–S19 | Not complete | Setup, search/add, activity/import-review redesign and workflow qualification |
 | S20 | Partial | Empty state, recovery and keyboard fixes; populated/degraded/tablet/full accessibility review remains |
@@ -109,3 +110,16 @@ scope for subsequent implementation; this ledger must not be used to mark it don
 - [Go downloads](https://go.dev/dl/) and [nginx stable release](https://nginx.org/en/download.html).
 - [React Router navigation advisory](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6)
   motivated upgrading the router rather than leaving its version finding unresolved.
+
+## Candidate identity and CI follow-up
+
+- Packaged fixture qualification also passed on API source
+  `6130a6a6edbf2246051abfb5edea88b9a050a58d` with the refreshed web image.
+- The first expanded Linux CI qualification passed every application/restore
+  assertion, then failed fixture cleanup because the runner uid differed from
+  container uid 1000. The harness now returns only its unique fixture tree to
+  the runner owner before cleanup. Remote rerun remains required.
+- `scripts/test-packaged.py` is the maintained reproduction; it does not connect
+  to production clients or use provider credentials.
+- Trivy usage follows its [container image documentation](https://trivy.dev/docs/dev/guide/target/container_image/).
+  CI pins the scanner image digest and rejects fixable high/critical findings.

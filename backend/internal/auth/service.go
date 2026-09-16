@@ -100,8 +100,8 @@ func (s *Service) SaveConfig(ctx context.Context, method, username, password str
 	return nil
 }
 
-// EnsureUser seeds or updates the single user row (startup env seed and
-// PUT /api/v1/auth/config). An empty password keeps the stored hash and only
+// EnsureUser seeds or updates the single user row from startup configuration.
+// An empty password keeps the stored hash and only
 // renames the user.
 func (s *Service) EnsureUser(ctx context.Context, username string, password string) error {
 	if !s.Available() {

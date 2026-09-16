@@ -71,3 +71,18 @@ test("environment-owned authentication is visible and cannot be edited", async (
   await expect(page.getByLabel("Authentication username", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save authentication", exact: true })).toBeDisabled();
 });
+
+test("direct book links distinguish an outage from a missing book", async ({ page }) => {
+  const id = "00000000-0000-0000-0000-000000000001";
+  let unavailable = true;
+  await page.route(`**/api/v1/wanted/${id}`, route => route.fulfill({ status: unavailable ? 503 : 200, contentType: "application/json", body: JSON.stringify(unavailable ? { error: "fixture outage" } : { id, title: "Older imported book", authorName: "Fixture author", format: "ebook", status: "imported", monitored: true, qualityProfile: "standard" }) }));
+  await page.goto(`/library/book/${id}`);
+  await expect(page.getByRole("heading", { name: "Book unavailable", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Book not found", exact: true })).toHaveCount(0);
+  unavailable = false;
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Older imported book", exact: true })).toBeVisible();
+  await page.unroute(`**/api/v1/wanted/${id}`);
+  await page.goto(`/library/book/${id}`);
+  await expect(page.getByRole("heading", { name: "Book not found", exact: true })).toBeVisible();
+});

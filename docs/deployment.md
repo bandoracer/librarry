@@ -297,3 +297,13 @@ eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client
 Back up both Postgres and library/download data before upgrading. The local
 fixture restore check does not qualify restoration of the live homelab backup.
 No September candidate release or production rollback rehearsal is complete yet.
+
+### Candidate filesystem qualification
+
+The stabilization candidate stages data in the destination directory, then uses
+an atomic, non-overwriting hard link to publish the staged file. This requires
+hard-link support within the destination filesystem even in copy mode; source
+and destination may still be on different filesystems. Unsupported filesystems
+return an import error and retain the original. SMB/NFS mounts and interrupted
+multi-file recovery are not yet qualified. Run the packaged fixture tests on
+the intended storage before promoting this candidate.

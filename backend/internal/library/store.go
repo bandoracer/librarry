@@ -94,6 +94,10 @@ func (s *Store) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecor
 	}
 	args := []any{}
 	where := []string{}
+	if strings.TrimSpace(query.WantedID) != "" {
+		args = append(args, strings.TrimSpace(query.WantedID))
+		where = append(where, "metadata->>'wantedId' = $"+strconv.Itoa(len(args)))
+	}
 	if strings.TrimSpace(query.Format) != "" && strings.TrimSpace(query.Format) != "any" {
 		args = append(args, strings.TrimSpace(query.Format))
 		where = append(where, "media_format = $"+strconv.Itoa(len(args)))

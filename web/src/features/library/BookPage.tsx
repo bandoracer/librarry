@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
 import { updateWanted } from "../../lib/api";
-import { keys, useLibraryFiles, useWanted } from "../../lib/queries";
+import { keys, useLibraryFiles, useWantedItem } from "../../lib/queries";
 import { useToast } from "../../components/toast";
 import { Badge, Button, Card, EmptyState, InlineNotice, LoadingRow, PageHeader, ToolbarButton } from "../../components/ui";
 import { WantedEditForm } from "../wanted/components/WantedEditForm";
@@ -31,12 +31,12 @@ export default function BookPage() {
   const toast = useToast();
   const client = useQueryClient();
 
-  const wanted = useWanted();
-  const files = useLibraryFiles("any");
+  const wanted = useWantedItem(wantedId);
+  const files = useLibraryFiles("any", wantedId);
 
-  const wantedItems = useMemo(() => wanted.data ?? [], [wanted.data]);
+  const item = wanted.data;
+  const wantedItems = useMemo(() => item ? [item] : [], [item]);
   const libraryFiles = useMemo(() => files.data ?? [], [files.data]);
-  const item = useMemo(() => wantedItems.find((entry) => entry.id === wantedId), [wantedItems, wantedId]);
   const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
 
   const [isTogglingMonitored, setIsTogglingMonitored] = useState(false);
@@ -68,6 +68,10 @@ export default function BookPage() {
     );
   }
 
+  if (wanted.isError) {
+    return <><PageHeader title="Book unavailable" /><InlineNotice tone="danger">{libraryErrorMessage(wanted.error)}</InlineNotice><Button onClick={() => void wanted.refetch()}>Try again</Button></>;
+  }
+
   if (!item) {
     return (
       <>
@@ -86,7 +90,7 @@ export default function BookPage() {
               </Button>
             }
           >
-            It may have been removed, imported, or the link is stale.
+            It may have been removed, or the link is stale.
           </EmptyState>
         </Card>
       </>

@@ -1529,6 +1529,13 @@ export async function recoverFailedDownloads(options: {
   return (await response.json()) as FailedDownloadRun;
 }
 
+export async function fetchWantedItem(id: string): Promise<WantedItem | null> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(id)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(await apiError(response, "Book could not be loaded"));
+  return (await response.json()) as WantedItem;
+}
+
 export async function fetchWanted(view?: "cutoff-unmet" | "library"): Promise<WantedItem[]> {
   const params = new URLSearchParams();
   if (view) params.set("view", view);
@@ -1899,8 +1906,9 @@ export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
   return arrayPayload(payload.events);
 }
 
-export async function fetchLibraryFiles(format = "any", limit = 100): Promise<LibraryFile[]> {
+export async function fetchLibraryFiles(format = "any", limit = 100, wantedId?: string): Promise<LibraryFile[]> {
   const params = new URLSearchParams({ limit: String(limit) });
+  if (wantedId) params.set("wantedId", wantedId);
   if (format && format !== "any") params.set("format", format);
   const response = await fetch(`${apiBase}/api/v1/library/files?${params.toString()}`);
   if (!response.ok) {

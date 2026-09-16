@@ -47,9 +47,10 @@ type FileRecord struct {
 }
 
 type FileListQuery struct {
-	Format string `json:"format,omitempty"`
-	Status string `json:"status,omitempty"`
-	Limit  int    `json:"limit,omitempty"`
+	WantedID string `json:"wantedId,omitempty"`
+	Format   string `json:"format,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
 }
 
 type ScanRequest struct {

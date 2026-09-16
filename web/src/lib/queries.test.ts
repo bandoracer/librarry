@@ -33,3 +33,20 @@ describe("library query contract", () => {
     await expect(withDemoFallback(async () => { throw new Error("offline"); }, () => ["fake"])()).rejects.toThrow("offline");
   });
 });
+
+describe("direct book lookup", () => {
+  it("returns null only for a missing book and propagates outages", async () => {
+    const { fetchWantedItem } = await import("./api");
+    vi.stubGlobal("fetch", async () => new Response('{"error":"missing"}', { status: 404 }));
+    expect(await fetchWantedItem("book")).toBeNull();
+    vi.stubGlobal("fetch", async () => new Response('{"error":"offline"}', { status: 503 }));
+    await expect(fetchWantedItem("book")).rejects.toThrow("offline");
+  });
+  it("filters files by the book before applying the collection limit", async () => {
+    const { fetchLibraryFiles } = await import("./api");
+    const fetch = vi.fn(async () => new Response('{"files":[]}'));
+    vi.stubGlobal("fetch", fetch);
+    await fetchLibraryFiles("any", 100, "target-book");
+    expect(fetch).toHaveBeenCalledWith("/api/v1/library/files?limit=100&wantedId=target-book", expect.any(Object));
+  });
+});

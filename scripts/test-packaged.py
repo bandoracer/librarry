@@ -149,6 +149,11 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
                 print(docker("logs", "--tail", "30", name), file=sys.stderr)
         raise
     finally:
+        # Linux runners may have a different uid from the image's uid 1000.
+        # Return only this unique fixture tree to the harness owner before cleanup.
+        if API in CONTAINERS:
+            subprocess.run(DOCKER + ["exec", "--user", "0", API, "chown", "-R",
+                           f"{os.getuid()}:{os.getgid()}", "/fixture"], capture_output=True, check=False)
         for name in reversed(CONTAINERS):
             subprocess.run(DOCKER + ["rm", "-f", "-v", name], capture_output=True, check=False)
         subprocess.run(DOCKER + ["network", "rm", PREFIX], capture_output=True, check=False)

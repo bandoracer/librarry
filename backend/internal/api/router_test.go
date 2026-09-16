@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -4792,6 +4793,19 @@ func (fakeWanted) AnnotateDownloads(_ context.Context, downloads []acquisition.D
 
 func (fakeWanted) AnnotateWantedStates(_ context.Context, items []wanted.WantedItem) []wanted.WantedItem {
 	return items
+}
+
+func (fakeWanted) Get(ctx context.Context, id string) (wanted.WantedItem, error) {
+	items, err := (fakeWanted{}).List(ctx, "")
+	if err != nil {
+		return wanted.WantedItem{}, err
+	}
+	for _, item := range items {
+		if item.ID == id {
+			return item, nil
+		}
+	}
+	return wanted.WantedItem{}, sql.ErrNoRows
 }
 
 func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {

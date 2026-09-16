@@ -673,3 +673,13 @@ must still match the credential hash verified at login. Credential updates revok
 existing sessions, and session validation verifies the stored user identity.
 Environment-owned method/credentials are exposed as lock flags in auth status;
 the web settings form disables those controls and the API rejects overwrite attempts.
+
+### Direct native book lookup
+
+`GET /api/v1/wanted/{uuid}` retrieves one tracked book independently of collection
+limits. Removed/ignored/missing rows return 404; malformed IDs return 400; storage
+failure returns 503. `GET /api/v1/library/files?wantedId={uuid}` filters file
+associations before the result limit. Book routes use these queries and preserve
+the distinction between missing data and a retryable service failure. General
+collection pagination, author details and full presence reconciliation remain
+separate stabilization work.

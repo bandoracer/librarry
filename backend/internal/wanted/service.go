@@ -93,6 +93,14 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (WantedItem
 	return s.store.CreateWanted(ctx, request)
 }
 
+// Get retrieves a single tracked book independently of collection limits.
+func (s *Service) Get(ctx context.Context, id string) (WantedItem, error) {
+	if !s.Available() {
+		return WantedItem{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.GetWanted(ctx, id)
+}
+
 func (s *Service) List(ctx context.Context, status string) ([]WantedItem, error) {
 	if !s.Available() {
 		return []WantedItem{}, nil

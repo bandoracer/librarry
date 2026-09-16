@@ -23,6 +23,7 @@ import {
   fetchSystemStatus,
   fetchSystemTasks,
   fetchWanted,
+  fetchWantedItem,
   fetchWantedMetadata,
   fetchWantedMetadataReview,
   fetchWantedReleases,
@@ -117,6 +118,14 @@ export function libraryQueryOptions() {
 
 export function useWanted() {
   return useQuery(libraryQueryOptions());
+}
+
+export function useWantedItem(id: string) {
+  return useQuery({
+    queryKey: [...keys.wanted, "detail", id],
+    queryFn: withDemoFallback(() => fetchWantedItem(id), () => demoSeeds.wantedItems.find(item => item.id === id) ?? null),
+    enabled: Boolean(id)
+  });
 }
 
 /** Wanted items whose tracked file scores under the profile cutoff (server-defined view). */
@@ -259,11 +268,11 @@ export function useHistory(limit = 50) {
   });
 }
 
-export function useLibraryFiles(format = "any") {
+export function useLibraryFiles(format = "any", wantedId?: string) {
   return useQuery({
-    queryKey: keys.libraryFiles(format),
+    queryKey: wantedId ? [...keys.libraryFiles(format), "book", wantedId] : keys.libraryFiles(format),
     queryFn: withDemoFallback(
-      () => fetchLibraryFiles(format),
+      () => fetchLibraryFiles(format, 100, wantedId),
       () => []
     )
   });

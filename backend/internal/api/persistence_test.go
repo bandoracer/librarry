@@ -70,3 +70,60 @@ func TestStatusReportsStableBuildAndActiveAuthentication(t *testing.T) {
 		previous = timestamp
 	}
 }
+
+func TestDirectBookAndFileLookupBeyondCollectionCaps(t *testing.T) {
+	db := testdb.Open(t)
+	_, err := db.Exec(`insert into wanted_items(wanted_format,title,author_name,created_at) select 'ebook','Fixture '||n,'Author',now() + n * interval '1 second' from generate_series(1,10000) n`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	if err := db.QueryRow(`insert into wanted_items(wanted_format,title,author_name,status,created_at) values('ebook','Old imported book','Fixture Author','imported','2000-01-01') returning id::text`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`insert into files(media_format,path,title,metadata,updated_at) values('ebook','/fixture/target.epub','Old imported book',jsonb_build_object('wantedId',$1::text),'2000-01-01')`, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`insert into files(media_format,path,title) select 'ebook','/fixture/other-'||n||'.epub','Other book' from generate_series(1,10000) n`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ws := wanted.NewStore(db)
+	items, err := ws.ListWanted(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range items {
+		if item.ID == id {
+			t.Fatal("fixture must be beyond collection cap")
+		}
+	}
+	router := NewRouter(Dependencies{Config: config.Config{WebOrigin: "*"}, Metadata: metadata.NewService(nil), Wanted: wanted.NewService(ws, nil), Library: library.NewService(library.NewStore(db), library.Config{}, ws, nil)})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/wanted/"+id, nil))
+	var item wanted.WantedItem
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &item) != nil || item.ID != id || item.Status != "imported" {
+		t.Fatalf("detail: %d %s", response.Code, response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/library/files?wantedId="+id, nil))
+	var files struct {
+		Files []library.FileRecord `json:"files"`
+	}
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &files) != nil || len(files.Files) != 1 || files.Files[0].Path != "/fixture/target.epub" {
+		t.Fatalf("file lookup: %d %s", response.Code, response.Body.String())
+	}
+	if _, err := db.Exec(`update wanted_items set status='removed' where id=$1`, id); err != nil {
+		t.Fatal(err)
+	}
+	if got := requestStatus(t, router, httptest.NewRequest(http.MethodGet, "/api/v1/wanted/"+id, nil)); got != 404 {
+		t.Fatalf("removed book returned %d", got)
+	}
+	if got := requestStatus(t, router, httptest.NewRequest(http.MethodGet, "/api/v1/wanted/not-a-uuid", nil)); got != 400 {
+		t.Fatalf("invalid id returned %d", got)
+	}
+	if got := requestStatus(t, router, httptest.NewRequest(http.MethodGet, "/api/v1/wanted/00000000-0000-0000-0000-000000000001", nil)); got != 404 {
+		t.Fatalf("missing id returned %d", got)
+	}
+}
