@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   CheckSquare,
@@ -30,7 +31,7 @@ import {
   ToolbarButton
 } from "../../components/ui";
 import { useToast } from "../../components/toast";
-import { keys, useImportReviews, useInvalidatingMutation, useLibraryFiles } from "../../lib/queries";
+import { keys, useImportReviews, useInvalidatingMutation, useLibraryFiles, useWanted } from "../../lib/queries";
 import {
   importCompletedDownloads,
   importLibraryFile,
@@ -99,6 +100,9 @@ function mediaFormatTone(format: string) {
 
 export default function ImportsPage() {
   const toast = useToast();
+  const queryClient = useQueryClient();
+  const booksQuery = useWanted();
+  const [importWantedID, setImportWantedID] = useState("");
 
   /* ------------------------------ Form state ------------------------------ */
   const [scanRoot, setScanRoot] = useState("");
@@ -132,7 +136,7 @@ export default function ImportsPage() {
   const allFilesQuery = useLibraryFiles("any");
 
   const payloadReviews = (reviewsQuery.data ?? []).filter(review => review.status === "pending" && review.metadata?.payloadReview === true);
- const reviews = useMemo(() => (reviewsQuery.data ?? []).filter(review => review.status !== "pending" || review.metadata?.payloadReview !== true), [reviewsQuery.data]);
+  const reviews = useMemo(() => (reviewsQuery.data ?? []).filter(review => review.status !== "pending" || review.metadata?.payloadReview !== true), [reviewsQuery.data]);
   const pendingReviews = pendingReviewsQuery.data ?? [];
   const files = filesQuery.data ?? [];
   const allFiles = allFilesQuery.data ?? [];
@@ -142,7 +146,7 @@ export default function ImportsPage() {
     (args: { format: ScanFormat; root?: string }) => scanLibrary(args.format, { root: args.root }),
     [...fileKeys]
   );
-  const importMutation = useInvalidatingMutation(importLibraryFile, [...fileKeys, keys.wanted]);
+  const importMutation = useInvalidatingMutation(importLibraryFile, [...fileKeys, keys.wanted, keys.importRecovery]);
   const completedMutation = useInvalidatingMutation(importCompletedDownloads, [...fileKeys, ...reviewKeys, ...downstreamKeys]);
   const resolveMutation = useInvalidatingMutation(
     (args: { reviewId: string; options: Parameters<typeof resolveLibraryImportReview>[1] }) =>
@@ -227,6 +231,7 @@ export default function ImportsPage() {
     try {
       const outcome = await importMutation.mutateAsync({
         sourcePath,
+        wantedId: importWantedID || undefined,
         format: importFormat,
         move: importMode === "move",
         importMode,
@@ -241,16 +246,15 @@ export default function ImportsPage() {
       }
     } catch (error) {
       toast.error(errorText(error, "Library import failed"));
+      void queryClient.invalidateQueries({ queryKey: keys.importRecovery });
     }
   }
 
   async function runCompletedImport() {
     try {
       const outcome = await completedMutation.mutateAsync({
-        move: importMode === "move",
-        importMode,
-        conflictAction,
-        overwrite: conflictAction === "replace",
+        importMode: "hardlinkOrCopy",
+        conflictAction: "rename",
         limit: 50
       });
       setLastCompleted(outcome);
@@ -399,7 +403,7 @@ export default function ImportsPage() {
 
       <Card
         title="Scan & import"
-        subtitle="Scan a custom root or import a single file. Completed downloads retain their source; replacing an existing book requires review. Saved recovery plans retain their original settings."
+        subtitle="Scan a custom root or import a single file. Completed downloads retain their source. Manual replacements keep the previous file until the replacement is verified and saved."
       >
         <div className="imports-scan-grid">
           <div className="imports-block">
@@ -466,21 +470,29 @@ export default function ImportsPage() {
           <div className="imports-block">
             <span className="field-label">Manual file import</span>
             <FormGrid columns={2}>
-              <Field label="Source path" hint="File is matched against wanted items during import.">
+              <Field label="Source path" hint="Choose a book to link this file, or leave it unassigned.">
                 <input
+                  aria-label="Manual import source path"
                   value={importPath}
                   onChange={(event) => setImportPath(event.target.value)}
                   placeholder="Source file path to import into the library"
                 />
               </Field>
+              <Field label="Book (optional)">
+                <select aria-label="Book for manual import" value={importWantedID} onChange={event => setImportWantedID(event.target.value)}>
+                  <option value="">Keep existing association, or leave unassigned</option>
+                  {(booksQuery.data ?? []).filter(book => book.format === importFormat).map(book => <option key={book.id} value={book.id}>{book.title} — {book.authorName || "Unknown author"}</option>)}
+                </select>
+                {booksQuery.isError ? <span className="field-hint">Book choices unavailable. <Button size="sm" onClick={() => void booksQuery.refetch()}>Reload books</Button></span> : null}
+              </Field>
               <Field label="Format">
-                <select value={importFormat} onChange={(event) => setImportFormat(event.target.value as "ebook" | "audiobook")}>
+                <select aria-label="Manual import format" value={importFormat} onChange={(event) => { setImportFormat(event.target.value as "ebook" | "audiobook"); setImportWantedID(""); }}>
                   <option value="ebook">Ebook</option>
                   <option value="audiobook">Audiobook</option>
                 </select>
               </Field>
               <Field label="Mode">
-                <select value={importMode} onChange={(event) => setImportMode(event.target.value as ImportMode)}>
+                <select aria-label="Manual import mode" value={importMode} onChange={(event) => setImportMode(event.target.value as ImportMode)}>
                   <option value="copy">Copy</option>
                   <option value="move">Move</option>
                   <option value="hardlink">Hardlink</option>
@@ -488,7 +500,7 @@ export default function ImportsPage() {
                 </select>
               </Field>
               <Field label="Conflict">
-                <select value={conflictAction} onChange={(event) => setConflictAction(event.target.value as ConflictAction)}>
+                <select aria-label="Manual import conflict" value={conflictAction} onChange={(event) => setConflictAction(event.target.value as ConflictAction)}>
                   <option value="rename">Keep both</option>
                   <option value="replace">Replace</option>
                   <option value="skip">Skip</option>

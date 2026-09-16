@@ -62,8 +62,10 @@ Current gaps:
   a required destination preview.
 - Native completed imports persist verified manifests and recovery plans. Imports
   shows interrupted operations, retry controls and legacy link issues. Sources and
-  existing destination files are retained. Manual/Calibre recovery, replacement,
-  live upgrade qualification and unattended operation remain open.
+  existing destination files are retained until verified commit. Manual imports
+  also have recovery plans, move cleanup and recoverable file replacement.
+  Calibre recovery, completed-download replacement, live upgrade qualification
+  and unattended operation remain open.
 
 See [docs/status.md](docs/status.md) for the current work status, verified
 deployment notes, and known gaps.

@@ -818,8 +818,8 @@ preview. Required retained files block automatic source deletion.
 
 Skip/Reject stop automatic import of that client/download without deleting files.
 Use Resolved → Reopen review to reconsider. Reopening returns to manual review;
-the next worker run does not silently import it. Manual-path imports and Calibre
-handoff do not yet share the native completed-import recovery guarantee.
+the next worker run does not silently import it. Native manual imports share the
+durable execution engine; remote Calibre handoff recovery remains separate work.
 
 
 Native completed-import recovery records temporary copies before writing them.
@@ -827,3 +827,16 @@ Retry reclaims an interrupted operation's recorded stage before resuming its
 manifest. The recovery panel shows these temporary paths when present. Files
 without journal ownership are retained, including older `.librarry-copy-*` and
 `.librarry-import-*` leftovers; no directory-wide cleanup is performed.
+
+
+Manual file import also creates an operation, with an optional wanted book.
+Copy/hardlink/move retries reuse that operation rather than creating another
+renamed copy. Move removes sources only after the manifest and records commit.
+Configured same-basename extras are required members, so sidecar failures remain
+visible. CUE/playlist sidecars preserve the media basename to keep references valid.
+
+For manual Replace, the original remains at a recorded recovery path until the
+new file is verified and committed. If a configured recycle bin is unavailable,
+cleanup reports an error and retains that previous file. Repair the bin and use
+Imports → Import recovery → Retry cleanup. A committed manual copy with completed
+cleanup still retains its source; the UI distinguishes this from a completed move.

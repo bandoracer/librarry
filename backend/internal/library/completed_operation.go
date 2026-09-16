@@ -52,7 +52,11 @@ func verifyManifestPath(path string, file ImportOperationFile) error {
 
 func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (outcome ImportOutcome, resultErr error) {
 	if op.State == "committed" {
-		return s.committedOperationOutcome(ctx, op)
+		outcome, err := s.committedOperationOutcome(ctx, op)
+		if err != nil {
+			return outcome, err
+		}
+		return s.finishManualOperation(ctx, op, outcome)
 	}
 	token, err := s.store.claimOperation(ctx, op.ID)
 	if err != nil {
@@ -100,7 +104,7 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		if err := runCtx.Err(); err != nil {
 			return outcome, err
 		}
-		if !pathWithinRoot(f.SourcePath, op.SourceRoot) || !pathWithinRoot(f.DestinationPath, op.DestinationRoot) || pathWithinRoot(f.DestinationPath, op.SourceRoot) {
+		if !pathWithinRoot(f.SourcePath, op.SourceRoot) || !pathWithinRoot(f.DestinationPath, op.DestinationRoot) || (op.SourceKind != "manual" && pathWithinRoot(f.DestinationPath, op.SourceRoot)) {
 			return outcome, errors.New("manifest paths cross the import boundary")
 		}
 		if err := verifyManifestPath(f.SourcePath, f); err != nil {
@@ -116,12 +120,21 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		if err := s.reclaimImportStage(runCtx, op, f); err != nil {
 			return outcome, err
 		}
-		if _, err := os.Lstat(f.DestinationPath); errors.Is(err, os.ErrNotExist) {
+		published := verifyManifestPath(f.DestinationPath, f) == nil
+		if f.PreviousPath != "" && verifyPreviousImportFile(f) != nil {
+			published = false
+		}
+		if !published {
+			if f.PreviousPath == "" {
+				if _, err := os.Lstat(f.DestinationPath); err == nil {
+					return outcome, errors.New("destination differs from the saved import plan")
+				} else if !errors.Is(err, os.ErrNotExist) {
+					return outcome, err
+				}
+			}
 			if err := s.transferOperationFile(runCtx, op, f); err != nil {
 				return outcome, err
 			}
-		} else if err != nil {
-			return outcome, err
 		}
 
 		if err := verifyManifestPath(f.DestinationPath, f); err != nil {
@@ -154,9 +167,29 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 		record.Title, _ = op.Metadata["title"].(string)
 		record.AuthorName, _ = op.Metadata["author"].(string)
 		record.Metadata["wantedId"], record.Metadata["downloadId"], record.Metadata["downloadClient"] = f.WantedID, op.DownloadID, op.Client
+		if f.PreviousPath != "" {
+			record.Metadata["previousPath"] = f.PreviousPath
+			record.Metadata["replacedExisting"] = true
+		}
+		record.Metadata["requestedImportMode"] = op.Mode
+		record.Metadata["move"] = false
+		sourceInfo, statErr := os.Stat(f.SourcePath)
+		if statErr != nil {
+			return outcome, statErr
+		}
+		record.Metadata["hardlinked"] = os.SameFile(sourceInfo, info)
+		if value, ok := op.Metadata["conflictAction"]; ok {
+			record.Metadata["conflictAction"] = value
+		}
+		if value, ok := op.Metadata["conflictPath"]; ok {
+			record.Metadata["conflictPath"] = value
+		}
 		record.Metadata["importOperationId"] = op.ID
 		record.Metadata["importMode"] = op.Mode
-		record.Metadata["verifiedDownload"] = map[string]any{"client": op.Client, "id": op.DownloadID, "sha256": f.SHA256}
+		record.Metadata["verifiedDownload"] = nil
+		if op.SourceKind != "manual" {
+			record.Metadata["verifiedDownload"] = map[string]any{"client": op.Client, "id": op.DownloadID, "sha256": f.SHA256}
+		}
 		record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
 		records = append(records, record)
 	}
@@ -166,6 +199,11 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 	// Re-check the whole set at the visibility boundary, including sources that a
 	// still-running download client may have modified during transfer.
 	for _, f := range op.Files {
+		if f.PreviousPath != "" {
+			if err := verifyPreviousImportFile(f); err != nil {
+				return outcome, err
+			}
+		}
 		for _, path := range []string{f.SourcePath, f.DestinationPath} {
 			if err := verifyManifestPath(path, f); err != nil {
 				return outcome, err
@@ -177,6 +215,9 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 	}
 	for i := range records {
 		id, _ := records[i].Metadata["wantedId"].(string)
+		if id == "" && op.SourceKind == "manual" {
+			continue
+		}
 		current, err := s.lookupWanted(runCtx, id)
 		if err != nil {
 			return outcome, err
@@ -191,7 +232,17 @@ func (s *Service) runImportOperation(ctx context.Context, op ImportOperation) (o
 	if err != nil {
 		return outcome, err
 	}
-	return ImportOutcome{File: records[0], Files: records, OperationID: op.ID, DestinationPath: records[0].Path, Imported: true, ImportMode: op.Mode}, nil
+	outcome = ImportOutcome{File: records[0], Files: records, OperationID: op.ID, DestinationPath: records[0].Path, Imported: true, ImportMode: op.Mode}
+	if op.SourceKind == "manual" {
+		cancel()
+		<-done
+		op, err = s.store.getOperation(ctx, op.ID)
+		if err != nil {
+			return outcome, err
+		}
+		return s.finishManualOperation(ctx, op, outcome)
+	}
+	return outcome, nil
 }
 
 func (s *Service) committedOperationOutcome(ctx context.Context, op ImportOperation) (ImportOutcome, error) {

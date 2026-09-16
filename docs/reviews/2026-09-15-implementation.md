@@ -89,7 +89,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S06 | Partial | Latest multi-platform checks linked on PR #3; upgrade/rollback and candidate deployment remain |
 | S07 | Implemented with fixture qualification | Relational links, manifest/operation records and reconciliation report; live database-copy migration still pending |
 | S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
-| S09 | Partial | Durable native file-set plans, leases, atomic record commit, retry and cleanup status; manual/Calibre/replacement recovery and temporary-stage reclamation remain |
+| S09 | Partial | Durable native/manual plans, staging journals, move and manual replacement recovery; Calibre, completed-download replacement and broader disk fault qualification remain |
 | S10–S11 | Not complete | Acquisition intents, resumable scans and missing-file reconciliation |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
@@ -261,3 +261,39 @@ desktop case skipped). The schema-33 ARM64 API container restarted with a seeded
 journaled interrupted copy, reclaimed that exact file, preserved an unrelated
 file, resumed its original destination and completed the broader import/auth
 suite. A 116,148-byte isolated dump restored matching staging/manifest/link state.
+
+
+## Continuation: native manual imports and replacements
+
+Branch: `codex/manual-import-recovery`, based on the staging recovery branch.
+Migration 0034 adds manual request identity, optional book/download association,
+previous-file manifests and per-file move cleanup. Manual copy, hardlink, move,
+in-place adoption and file replacement now use the durable engine. Configured
+sidecars participate in verification rather than failing silently. Repeated
+requests reuse the operation, including after a moved source disappears.
+
+Replacement preserves the previous inode at a saved, hash-checked recovery path
+until the new content and database transaction commit. Pending replacement paths
+are excluded from native file queries. Filesystem publication and destructive
+cleanup hold a database ownership-row fence, preventing a lease takeover during
+the mutation. Committed manual operations with pending cleanup remain counted,
+visible and retryable. The manual form supports an explicit book assignment and
+keeps its move/conflict choices separate from completed-download imports. A configured recycle bin no longer falls back to permanent
+deletion when unavailable.
+
+New tests exercise all transfer modes, optional wanted identity, in-place import,
+failed final database commit, replacement rollback/retry, unavailable recycle-bin
+recovery, unacknowledged move deletion and takeover blocking during filesystem IO.
+The full Go race/Postgres suite, vet, frontend build and 21 desktop/mobile browser
+checks passed (one mobile-only check is inapplicable on desktop).
+
+The schema-34 ARM64 packaged API passed forced manual-commit failure followed by
+actual process restart, retry of the same saved destination, post-commit move
+cleanup and duplicate-request suppression. The broader payload/staging/review/auth
+suite passed; a 118,533-byte dump restored matching identities/manifests/cleanup.
+This remains fixture qualification. Calibre recovery and completed-download
+replacement remain open; the full S01–S25 plan is not complete.
+
+Staging PR #5 at `15e7743d5b872b20c007a53229963c89b1c1aba8` passed
+[CI run 35054590253](https://github.com/bandoracer/librarry/actions/runs/35054590253),
+including packaged qualification, image scans and AMD64/ARM64 image builds.

@@ -489,6 +489,25 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	if source == "." || source == "" {
 		return ImportOutcome{}, errors.New("source path is required")
 	}
+	abs, err := filepath.Abs(source)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	source, err = canonicalPlannedPath(abs)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	if leaf, statErr := os.Lstat(abs); statErr == nil && !leaf.Mode().IsRegular() {
+		return ImportOutcome{}, errors.New("manual import source must be a regular file")
+	}
+	request.SourcePath = source
+	request.originalScope = manualRequestScope(request)
+	if strings.TrimSpace(request.DownloadID) != "" && normalizeImportMode(request.ImportMode, request.Move) == "move" {
+		return ImportOutcome{}, errors.New("download imports must retain their sources; use copy or hardlink")
+	}
+	if outcome, found, resumeErr := s.resumeManualRequest(ctx, request); found || resumeErr != nil {
+		return outcome, resumeErr
+	}
 	info, err := os.Stat(source)
 	if err != nil {
 		return ImportOutcome{}, err
@@ -501,18 +520,40 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 		return ImportOutcome{}, errors.New("source file extension is not supported")
 	}
 	if strings.TrimSpace(request.Format) != "" && strings.TrimSpace(request.Format) != "any" {
-		format = normalizeFormat(request.Format)
+		if normalizeFormat(request.Format) != format {
+			return ImportOutcome{}, errors.New("requested format does not match the source file")
+		}
 	}
 
 	parsed := parsedBookForPath(source)
+	if request.WantedID == "" {
+		existing, err := s.store.FindFiles(ctx, nil, []string{source})
+		if err != nil {
+			return ImportOutcome{}, err
+		}
+		if len(existing) == 1 {
+			parsed.Title = firstNonEmpty(existing[0].Title, parsed.Title)
+			parsed.AuthorName = firstNonEmpty(existing[0].AuthorName, parsed.AuthorName)
+			var count int
+			if err := s.store.db.QueryRowContext(ctx, `select count(*),coalesce(min(wanted_item_id::text),'') from file_wanted_links where file_id=$1`, existing[0].ID).Scan(&count, &request.WantedID); err != nil {
+				return ImportOutcome{}, err
+			}
+			if count > 1 {
+				return ImportOutcome{}, errors.New("source belongs to several books; select one explicitly")
+			}
+		}
+	}
 	rootFolderID := ""
 	if strings.TrimSpace(request.WantedID) != "" {
 		item, err := s.lookupWanted(ctx, request.WantedID)
 		if err != nil {
 			return ImportOutcome{}, err
 		}
-		if strings.TrimSpace(item.Format) != "" {
-			format = normalizeFormat(item.Format)
+		if item.Status == "removed" || item.Status == "ignored" {
+			return ImportOutcome{}, errors.New("book is not eligible for import")
+		}
+		if item.Format != "" && item.Format != "any" && normalizeFormat(item.Format) != format {
+			return ImportOutcome{}, errors.New("wanted format does not match the source file")
 		}
 		parsed.Title = firstNonEmpty(item.Title, parsed.Title)
 		parsed.AuthorName = firstNonEmpty(item.AuthorName, parsed.AuthorName)
@@ -530,109 +571,7 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 		return s.importViaCalibre(ctx, request, folder, source, format, parsed, info)
 	}
 
-	root := s.importRootPath(ctx, format, rootFolderID)
-	destination := s.importDestinationPath(root, format, parsed, source)
-	if destination == "" {
-		return ImportOutcome{}, errors.New("library root is not configured")
-	}
-	mode := normalizeImportMode(request.ImportMode, request.Move)
-	conflictAction := normalizeConflictAction(request.ConflictAction, request.Overwrite)
-	plan, err := planImportDestination(source, destination, conflictAction)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if plan.Skipped {
-		return ImportOutcome{
-			DestinationPath: plan.DestinationPath,
-			Skipped:         true,
-			ImportMode:      mode,
-			ConflictAction:  plan.ConflictAction,
-			ConflictPath:    plan.ConflictPath,
-			Message:         plan.Message,
-		}, nil
-	}
-	destination = plan.DestinationPath
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-		return ImportOutcome{}, err
-	}
-	// Keep originals until both transfer and persistence succeed. Replacements
-	// retain a recoverable previous copy until the new record is committed.
-	transferMode := mode
-	if mode == "move" {
-		transferMode = "copy"
-	}
-	operation, err := importFile(source, destination, transferMode, plan.Replaced)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-
-	s.copyImportExtras(source, destination)
-	destinationInfo, err := os.Stat(destination)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	record := fileRecordFromPath(destination, format, destinationInfo, "imported")
-	record.SourcePath = source
-	record.Title = parsed.Title
-	record.AuthorName = parsed.AuthorName
-	record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
-	record.Metadata["move"] = operation.Moved
-	record.Metadata["importMode"] = operation.Mode
-	record.Metadata["requestedImportMode"] = mode
-	if operation.PreviousPath != "" {
-		record.Metadata["previousPath"] = operation.PreviousPath
-	}
-	record.Metadata["conflictAction"] = plan.ConflictAction
-	if plan.ConflictPath != "" {
-		record.Metadata["conflictPath"] = plan.ConflictPath
-	}
-	if plan.Replaced {
-		record.Metadata["replacedExisting"] = true
-	}
-	if operation.Hardlinked {
-		record.Metadata["hardlinked"] = true
-	}
-	if strings.TrimSpace(request.WantedID) != "" {
-		record.Metadata["wantedId"] = strings.TrimSpace(request.WantedID)
-	}
-	if strings.TrimSpace(request.DownloadID) != "" {
-		record.Metadata["downloadId"] = strings.TrimSpace(request.DownloadID)
-	}
-	if err := s.applyCalibreImport(ctx, destination, &record); err != nil {
-		return ImportOutcome{}, err
-	}
-	stored, err := s.store.UpsertFile(ctx, record)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if strings.TrimSpace(request.WantedID) != "" && s.wanted != nil {
-		if err := s.wanted.MarkWantedStatus(ctx, request.WantedID, "imported"); err != nil {
-			return ImportOutcome{}, fmt.Errorf("persist wanted import status: %w", err)
-		}
-	}
-	if mode == "move" && source != destination {
-		if err := os.Remove(source); err != nil {
-			return ImportOutcome{}, fmt.Errorf("import committed; source removal failed: %w", err)
-		}
-		operation.Moved = true
-		operation.Mode = "move"
-	}
-	if operation.PreviousPath != "" {
-		if err := s.discardFile(operation.PreviousPath); err != nil {
-			return ImportOutcome{}, fmt.Errorf("import committed; previous file retained at %s: %w", operation.PreviousPath, err)
-		}
-	}
-	return ImportOutcome{
-		File:            stored,
-		DestinationPath: destination,
-		Moved:           operation.Moved,
-		Imported:        true,
-		Replaced:        plan.Replaced,
-		Hardlinked:      operation.Hardlinked,
-		ImportMode:      operation.Mode,
-		ConflictAction:  plan.ConflictAction,
-		ConflictPath:    plan.ConflictPath,
-	}, nil
+	return s.importNativeManual(ctx, request, source, format, parsed, s.importRootPath(ctx, format, rootFolderID))
 }
 
 func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request CompletedImportRequest) (CompletedImportOutcome, error) {

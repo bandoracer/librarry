@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 33, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 34, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -232,13 +232,38 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert preview_destination.exists() and missing_source.exists()
         assert hashlib.sha256(preview_destination.read_bytes()).hexdigest() == digest
         print("Packaged review: read-only destination preview, stale-token rejection, explicit mapping import and source retention verified")
+
+        manual_source = media / "downloads" / "Manual.epub"
+        shutil.copyfile(source, manual_source)
+        manual_request = {"sourcePath": "/fixture/downloads/Manual.epub", "wantedId": wanted_id, "importMode": "move", "conflictAction": "rename"}
+        before_manual = request("/api/v1/library/files")["files"]
+        sql("alter table import_operations add constraint inject_manual_commit_failure check(source_kind<>'manual' or state<>'committed')")
+        try:
+            request("/api/v1/library/import", manual_request)
+            raise AssertionError("manual import hid a failed database commit")
+        except urllib.error.HTTPError as error:
+            assert error.code >= 400
+        manual_report = request("/api/v1/library/import-recovery")
+        manual_operation = next(operation for operation in manual_report["operations"] if operation.get("sourceKind") == "manual")
+        assert manual_operation["state"] == "failed" and manual_source.exists()
+        assert len(request("/api/v1/library/files")["files"]) == len(before_manual)
+        sql("alter table import_operations drop constraint inject_manual_commit_failure")
+        docker("restart", API)
+        wait_for(lambda: request("/api/v1/system/status"))
+        manual_result = request(f"/api/v1/library/import-operations/{manual_operation['id']}/retry", {})
+        assert manual_result["moved"] is True and not manual_source.exists(), manual_result
+        assert manual_result["operationId"] == manual_operation["id"]
+        assert request("/api/v1/library/import", manual_request)["skipped"] is True
+        manual_target = media / Path(manual_result["destinationPath"]).relative_to("/fixture")
+        assert hashlib.sha256(manual_target.read_bytes()).hexdigest() == digest
+        print("Packaged manual import: failed commit retains source and hides destination; process restart resumes original plan; move cleanup and idempotent retry verified")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
-                      "select id,state,cleanup_state from import_operations", "select operation_id,sha256,file_id,stage_path,stage_lease_token from import_operation_files",
+                      "select id,state,cleanup_state,source_kind,request_key from import_operations", "select operation_id,sha256,file_id,stage_path,stage_lease_token,previous_path,previous_sha256,source_removed from import_operation_files",
                       "select metadata->'verifiedDownload' from files"):
             assert sql(query) == sql(query, "librarry_restore"), query
         print("Isolated database restore verified:", len(dump), "bytes; file/download/wanted counts and receipt preserved")

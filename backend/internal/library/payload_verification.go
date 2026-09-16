@@ -26,6 +26,12 @@ func operationExclusions(op ImportOperation) (map[string]bool, error) {
 }
 
 func (s *Service) verifyOperationInventory(ctx context.Context, op ImportOperation, cleanup bool) error {
+	if op.SourceKind == "manual" {
+		if cleanup {
+			return errors.New("manual file import does not authorize download deletion")
+		}
+		return nil
+	}
 	payload, err := s.inspectDownloadPayload(ctx, acquisition.DownloadStatus{Client: op.Client, ID: op.DownloadID})
 	if err != nil {
 		return err

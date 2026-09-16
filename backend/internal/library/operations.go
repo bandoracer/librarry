@@ -13,6 +13,8 @@ import (
 var ErrImportBusy = errors.New("this import is already being processed")
 
 type ImportOperation struct {
+	SourceKind       string                `json:"sourceKind"`
+	RequestKey       string                `json:"-"`
 	ID               string                `json:"id"`
 	DownloadRecordID string                `json:"downloadRecordId"`
 	Client           string                `json:"client"`
@@ -35,20 +37,24 @@ type ImportOperation struct {
 }
 
 type ImportOperationFile struct {
-	StagePath       string `json:"stagePath,omitempty"`
-	StageLeaseToken string `json:"-"`
-	WantedID        string `json:"wantedId,omitempty"`
-	ID              string `json:"id"`
-	Order           int    `json:"order"`
-	RelativePath    string `json:"relativePath"`
-	SourcePath      string `json:"sourcePath"`
-	DestinationPath string `json:"destinationPath"`
-	SizeBytes       int64  `json:"sizeBytes"`
-	SHA256          string `json:"sha256"`
-	Format          string `json:"format"`
-	Required        bool   `json:"required"`
-	State           string `json:"state"`
-	FileID          string `json:"fileId,omitempty"`
+	PreviousPath      string `json:"previousPath,omitempty"`
+	PreviousSHA256    string `json:"previousSha256,omitempty"`
+	PreviousSizeBytes int64  `json:"previousSizeBytes,omitempty"`
+	SourceRemoved     bool   `json:"sourceRemoved,omitempty"`
+	StagePath         string `json:"stagePath,omitempty"`
+	StageLeaseToken   string `json:"-"`
+	WantedID          string `json:"wantedId,omitempty"`
+	ID                string `json:"id"`
+	Order             int    `json:"order"`
+	RelativePath      string `json:"relativePath"`
+	SourcePath        string `json:"sourcePath"`
+	DestinationPath   string `json:"destinationPath"`
+	SizeBytes         int64  `json:"sizeBytes"`
+	SHA256            string `json:"sha256"`
+	Format            string `json:"format"`
+	Required          bool   `json:"required"`
+	State             string `json:"state"`
+	FileID            string `json:"fileId,omitempty"`
 }
 
 func (s *Store) operationForDownload(ctx context.Context, client, externalID string) (ImportOperation, error) {
@@ -67,18 +73,18 @@ func (s *Store) operationForDownload(ctx context.Context, client, externalID str
 func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, error) {
 	var op ImportOperation
 	var raw []byte
-	err := s.db.QueryRowContext(ctx, `select io.id::text,io.download_record_id::text,d.client,d.external_id,io.wanted_item_id::text,
+	err := s.db.QueryRowContext(ctx, `select io.id::text,coalesce(io.download_record_id::text,''),coalesce(d.client,''),coalesce(d.external_id,''),coalesce(io.wanted_item_id::text,''),
       io.source_root,io.destination_root,io.media_format,io.import_mode,io.state,io.cleanup_state,io.last_error,io.cleanup_error,
-      io.attempts,io.metadata,io.created_at,io.updated_at
-      from import_operations io join downloads d on d.id=io.download_record_id where io.id=$1`, id).Scan(
-		&op.ID, &op.DownloadRecordID, &op.Client, &op.DownloadID, &op.WantedID, &op.SourceRoot, &op.DestinationRoot, &op.Format, &op.Mode, &op.State, &op.CleanupState, &op.LastError, &op.CleanupError, &op.Attempts, &raw, &op.CreatedAt, &op.UpdatedAt)
+      io.attempts,io.metadata,io.created_at,io.updated_at,io.source_kind,io.request_key
+      from import_operations io left join downloads d on d.id=io.download_record_id where io.id=$1`, id).Scan(
+		&op.ID, &op.DownloadRecordID, &op.Client, &op.DownloadID, &op.WantedID, &op.SourceRoot, &op.DestinationRoot, &op.Format, &op.Mode, &op.State, &op.CleanupState, &op.LastError, &op.CleanupError, &op.Attempts, &raw, &op.CreatedAt, &op.UpdatedAt, &op.SourceKind, &op.RequestKey)
 	if err != nil {
 		return op, err
 	}
 	if err = json.Unmarshal(raw, &op.Metadata); err != nil {
 		return op, err
 	}
-	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,''),stage_path,coalesce(stage_lease_token::text,'') from import_operation_files where operation_id=$1 order by file_order,id`, id)
+	rows, err := s.db.QueryContext(ctx, `select id::text,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,state,coalesce(file_id::text,''),coalesce(wanted_item_id::text,''),stage_path,coalesce(stage_lease_token::text,''),previous_path,previous_sha256,previous_size_bytes,source_removed from import_operation_files where operation_id=$1 order by file_order,id`, id)
 	if err != nil {
 		return op, err
 	}
@@ -86,7 +92,7 @@ func (s *Store) getOperation(ctx context.Context, id string) (ImportOperation, e
 	op.Files = []ImportOperationFile{}
 	for rows.Next() {
 		var f ImportOperationFile
-		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID, &f.WantedID, &f.StagePath, &f.StageLeaseToken); err != nil {
+		if err := rows.Scan(&f.ID, &f.Order, &f.RelativePath, &f.SourcePath, &f.DestinationPath, &f.SizeBytes, &f.SHA256, &f.Format, &f.Required, &f.State, &f.FileID, &f.WantedID, &f.StagePath, &f.StageLeaseToken, &f.PreviousPath, &f.PreviousSHA256, &f.PreviousSizeBytes, &f.SourceRemoved); err != nil {
 			return op, err
 		}
 		op.Files = append(op.Files, f)
@@ -103,19 +109,32 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 		return op, err
 	}
 	defer tx.Rollback()
-	var count int
+	if op.SourceKind == "" {
+		op.SourceKind = "completed"
+	}
 	var downloadID sql.NullString
-	if err := tx.QueryRowContext(ctx, `select count(*),(array_agg(id::text order by id))[1] from downloads where lower(client)=lower($1) and external_id=$2`, op.Client, op.DownloadID).Scan(&count, &downloadID); err != nil {
-		return op, err
-	}
-	if count != 1 {
-		return op, errors.New("download identity is missing or ambiguous; retain source for review")
-	}
-	if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, downloadID.String); err != nil {
-		return op, err
-	}
 	var existing string
-	err = tx.QueryRowContext(ctx, `select id::text from import_operations where download_record_id=$1`, downloadID.String).Scan(&existing)
+	if op.SourceKind == "manual" {
+		if op.RequestKey == "" {
+			return op, errors.New("manual import requires request identity")
+		}
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,2))`, op.RequestKey); err != nil {
+			return op, err
+		}
+		err = tx.QueryRowContext(ctx, `select id::text from import_operations where source_kind='manual' and request_key=$1`, op.RequestKey).Scan(&existing)
+	} else {
+		var count int
+		if err := tx.QueryRowContext(ctx, `select count(*),(array_agg(id::text order by id))[1] from downloads where lower(client)=lower($1) and external_id=$2`, op.Client, op.DownloadID).Scan(&count, &downloadID); err != nil {
+			return op, err
+		}
+		if count != 1 {
+			return op, errors.New("download identity is missing or ambiguous; retain source for review")
+		}
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, downloadID.String); err != nil {
+			return op, err
+		}
+		err = tx.QueryRowContext(ctx, `select id::text from import_operations where download_record_id=$1`, downloadID.String).Scan(&existing)
+	}
 	if err == nil {
 		if err := tx.Commit(); err != nil {
 			return op, err
@@ -125,14 +144,17 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 	if !errors.Is(err, sql.ErrNoRows) {
 		return op, err
 	}
+
 	if op.Metadata == nil {
 		op.Metadata = map[string]any{}
 	}
 	// Reserve paths across operations before any filesystem publication. All
 	// contenders acquire locks in sorted order to avoid multi-file deadlocks.
 	paths := make([]string, 0, len(op.Files))
+	manifestByPath := map[string]ImportOperationFile{}
 	for _, f := range op.Files {
 		paths = append(paths, f.DestinationPath)
+		manifestByPath[f.DestinationPath] = f
 	}
 	sort.Strings(paths)
 	for _, path := range paths {
@@ -140,7 +162,7 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 			return op, err
 		}
 		var occupied bool
-		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files where destination_path=$1) or exists(select 1 from files where path=$1)`, path).Scan(&occupied); err != nil {
+		if err := tx.QueryRowContext(ctx, `select exists(select 1 from import_operation_files f join import_operations o on o.id=f.operation_id where f.destination_path=$1 and (o.state<>'committed' or not $2)) or (not $2 and exists(select 1 from files where path=$1))`, path, manifestByPath[path].PreviousPath != "" || (op.SourceKind == "manual" && manifestByPath[path].SourcePath == path)).Scan(&occupied); err != nil {
 			return op, err
 		}
 		if occupied {
@@ -151,14 +173,14 @@ func (s *Store) planOperation(ctx context.Context, op ImportOperation) (ImportOp
 	if err != nil {
 		return op, err
 	}
-	err = tx.QueryRowContext(ctx, `insert into import_operations(download_record_id,wanted_item_id,source_root,destination_root,media_format,import_mode,metadata)
-      values($1,$2,$3,$4,$5,$6,$7::jsonb) returning id::text`, downloadID.String, op.WantedID, op.SourceRoot, op.DestinationRoot, op.Format, op.Mode, string(raw)).Scan(&op.ID)
+	err = tx.QueryRowContext(ctx, `insert into import_operations(download_record_id,wanted_item_id,source_root,destination_root,media_format,import_mode,metadata,source_kind,request_key)
+      values($1,nullif($2,'')::uuid,$3,$4,$5,$6,$7::jsonb,$8,$9) returning id::text`, downloadID, op.WantedID, op.SourceRoot, op.DestinationRoot, op.Format, op.Mode, string(raw), op.SourceKind, op.RequestKey).Scan(&op.ID)
 	if err != nil {
 		return op, err
 	}
 	for _, f := range op.Files {
-		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,wanted_item_id)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,nullif($10,'')::uuid)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required, f.WantedID); err != nil {
+		if _, err := tx.ExecContext(ctx, `insert into import_operation_files(operation_id,file_order,relative_path,source_path,destination_path,size_bytes,sha256,media_format,required,wanted_item_id,previous_path,previous_sha256,previous_size_bytes)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,nullif($10,'')::uuid,$11,$12,$13)`, op.ID, f.Order, f.RelativePath, f.SourcePath, f.DestinationPath, f.SizeBytes, f.SHA256, f.Format, f.Required, f.WantedID, f.PreviousPath, f.PreviousSHA256, f.PreviousSizeBytes); err != nil {
 			return op, err
 		}
 	}
@@ -237,14 +259,14 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 	stored := make([]FileRecord, 0, len(records))
 	for _, record := range records {
 		wantedID, _ := record.Metadata["wantedId"].(string)
-		if wantedID == "" {
+		if wantedID == "" && op.SourceKind != "manual" {
 			return nil, errors.New("manifest book association is missing")
 		}
 		file, err := persistFile(ctx, tx, record, false)
 		if err != nil {
 			return nil, err
 		}
-		result, err := tx.ExecContext(ctx, `update import_operation_files set file_id=$3,state='committed',updated_at=now() where operation_id=$1 and destination_path=$2 and media_format<>'sidecar' and wanted_item_id=$4`, op.ID, file.Path, file.ID, wantedID)
+		result, err := tx.ExecContext(ctx, `update import_operation_files set file_id=$3,state='committed',updated_at=now() where operation_id=$1 and destination_path=$2 and media_format<>'sidecar' and coalesce(wanted_item_id::text,'')=$4`, op.ID, file.Path, file.ID, wantedID)
 		if err != nil {
 			return nil, err
 		}
@@ -252,11 +274,15 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 		if err != nil || n != 1 {
 			return nil, errors.New("file does not match import manifest")
 		}
-		if _, err := tx.ExecContext(ctx, `insert into file_wanted_links(file_id,wanted_item_id) values($1,$2) on conflict do nothing`, file.ID, wantedID); err != nil {
-			return nil, err
+		if wantedID != "" {
+			if _, err := tx.ExecContext(ctx, `insert into file_wanted_links(file_id,wanted_item_id) values($1,$2) on conflict do nothing`, file.ID, wantedID); err != nil {
+				return nil, err
+			}
 		}
-		if _, err := tx.ExecContext(ctx, `insert into file_download_links(file_id,download_record_id) values($1,$2) on conflict do nothing`, file.ID, op.DownloadRecordID); err != nil {
-			return nil, err
+		if op.DownloadRecordID != "" {
+			if _, err := tx.ExecContext(ctx, `insert into file_download_links(file_id,download_record_id) values($1,$2) on conflict do nothing`, file.ID, op.DownloadRecordID); err != nil {
+				return nil, err
+			}
 		}
 		stored = append(stored, file)
 	}
@@ -272,7 +298,9 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 	importedBooks := map[string]string{}
 	for _, record := range records {
 		id, _ := record.Metadata["wantedId"].(string)
-		importedBooks[id] = record.MediaFormat
+		if id != "" {
+			importedBooks[id] = record.MediaFormat
+		}
 	}
 	for id, format := range importedBooks {
 		result, err := tx.ExecContext(ctx, `update wanted_items set status='imported',updated_at=now() where id=$1 and status not in ('removed','ignored') and wanted_format in ('any',$2)`, id, format)
@@ -284,8 +312,10 @@ func (s *Store) commitOperation(ctx context.Context, op ImportOperation, records
 			return nil, errors.New("book was removed or its format changed while importing")
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `update downloads set import_status='imported',imported_file_id=$2,imported_at=now(),import_error='',updated_at=now() where id=$1`, op.DownloadRecordID, stored[0].ID); err != nil {
-		return nil, err
+	if op.DownloadRecordID != "" {
+		if _, err := tx.ExecContext(ctx, `update downloads set import_status='imported',imported_file_id=$2,imported_at=now(),import_error='',updated_at=now() where id=$1`, op.DownloadRecordID, stored[0].ID); err != nil {
+			return nil, err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `update import_operations set state='committed',committed_at=now(),lease_token=null,lease_expires_at=null,last_error='',updated_at=now() where id=$1`, op.ID); err != nil {
 		return nil, err

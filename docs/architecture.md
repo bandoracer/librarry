@@ -734,9 +734,10 @@ it. Explicitly retained book/sidecar files prevent cleanup. Skip/reject disposit
 are scoped to the client/download and persist across polling. Resolving with
 `action: "reopen"` returns a skipped/rejected payload review to pending.
 
-This engine covers native completed imports and reviewed completed payloads.
-Manual-path imports, Calibre handoff and replacement remain S09 work. Existing single-book Calibre imports retain their
-previous behavior and cannot claim a native verified-cleanup receipt.
+This engine covers native completed imports, reviewed completed payloads and
+native manual imports. Calibre handoff and completed-download replacement remain
+S09 work. Existing single-book Calibre imports retain their previous behavior
+and cannot claim a native verified-cleanup receipt.
 
 
 ### Journaled native import staging
@@ -749,4 +750,34 @@ inside the destination parent. It never sweeps directories by prefix. Missing
 stages are safe to retry; symlinks or forged journal paths require review.
 Directory synchronization precedes clearing the journal. Imports displays pending
 temporary paths alongside their manifest files. Unrecorded stages from older
-versions and manual/Calibre operations require separate operator investigation.
+versions and Calibre operations require separate operator investigation.
+
+
+### Manual import and replacement recovery
+
+Migration 0034 allows `source_kind=manual` operations without invented download or
+wanted associations. Request scope and source-manifest hashes identify retries;
+an unfinished request resumes its saved destinations even after settings change.
+A moved source can be absent when retrying a committed operation. An unassociated
+manual file remains valid, and adopting/replacing an existing file without a new
+book assignment preserves its established canonical identity.
+
+Manual source files and configured same-basename extras enter the manifest. Move
+copies/verifies/commits first, then records source removal per file. In-place
+adoption never removes the file. A download-linked manual request cannot move a
+seeding source. Explicit format mismatches are rejected before transfer.
+
+Replacement records the previous size/hash and a recovery path in the plan. Only
+a verified new stage permits retirement of the previous name; an exclusive hard
+link retains the old inode first. Both the new content and previous copy are
+checked before database commit. Pending replacement destinations are hidden from
+native file list/detail queries. The previous copy is discarded or recycled only
+after commit. A configured recycle-bin failure retains it; it never degrades to
+permanent deletion. Completed manual cleanup has its own recorded state and can
+be retried without repeating the import.
+
+Publication and destructive cleanup hold the import ownership row lock across
+the filesystem mutation, closing the check/act lease-takeover window. This
+coordinates Librarry workers; it is not an atomic filesystem/Postgres transaction.
+The recovery API includes committed manual operations with pending cleanup in
+its unfinished count; the UI offers Retry cleanup and shows retained backup paths.

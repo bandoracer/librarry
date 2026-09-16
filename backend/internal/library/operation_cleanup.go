@@ -9,6 +9,9 @@ import (
 )
 
 func (s *Service) verifyOperationCleanup(ctx context.Context, op ImportOperation, download acquisition.DownloadStatus, inventory []acquisition.DownloadFile) (resultErr error) {
+	if op.SourceKind == "manual" {
+		return errors.New("manual imports do not authorize download deletion")
+	}
 	defer func() {
 		state, message := "eligible", ""
 		if resultErr != nil {

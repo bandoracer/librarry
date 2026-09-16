@@ -69,6 +69,7 @@ type ScanOutcome struct {
 }
 
 type ImportRequest struct {
+	originalScope  string
 	SourcePath     string `json:"sourcePath"`
 	WantedID       string `json:"wantedId,omitempty"`
 	DownloadID     string `json:"downloadId,omitempty"`

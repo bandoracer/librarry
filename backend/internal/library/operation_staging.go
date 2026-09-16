@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -65,7 +66,7 @@ func (s *Service) reclaimImportStage(ctx context.Context, op ImportOperation, fi
 		return nil
 	}
 	if file.StageLeaseToken == "" || file.StagePath != manifestStagePath(file, file.StageLeaseToken) ||
-		!pathWithinRoot(file.StagePath, op.DestinationRoot) || pathWithinRoot(file.StagePath, op.SourceRoot) {
+		!pathWithinRoot(file.StagePath, op.DestinationRoot) || (op.SourceKind != "manual" && pathWithinRoot(file.StagePath, op.SourceRoot)) {
 		return errors.New("invalid recorded import staging path; retain for review")
 	}
 	if err := s.store.renewOperation(ctx, op.ID, op.LeaseToken); err != nil {
@@ -156,11 +157,22 @@ func (s *Service) transferOperationFile(ctx context.Context, op ImportOperation,
 	if err := s.store.renewOperation(ctx, op.ID, op.LeaseToken); err != nil {
 		return err
 	}
-	if err := os.Link(path, file.DestinationPath); err != nil {
-		return fmt.Errorf("publish verified import: %w", err)
-	}
-	if err := syncImportDirectory(filepath.Dir(path)); err != nil {
+	if err := s.store.withOperationFence(ctx, op, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,1))`, file.DestinationPath); err != nil {
+			return err
+		}
+		if file.PreviousPath != "" {
+			if err := s.prepareImportReplacement(ctx, op, file); err != nil {
+				return err
+			}
+		}
+		if err := os.Link(path, file.DestinationPath); err != nil {
+			return fmt.Errorf("publish verified import: %w", err)
+		}
+		return syncImportDirectory(filepath.Dir(path))
+	}); err != nil {
 		return err
 	}
+
 	return s.reclaimImportStage(ctx, op, file)
 }

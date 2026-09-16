@@ -16,8 +16,10 @@ plans and recovery controls, scoped download mutations, authentication failure h
 configuration snapshots, repeated Prowlarr categories, CI tests, and UI recovery.
 See the [implementation ledger](reviews/2026-09-15-implementation.md) for evidence.
 
-These changes are **unreleased work in [draft PR #3](https://github.com/bandoracer/librarry/pull/3)**, not a certification of the current
-homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+These changes are **unreleased work**: [safety/recovery PR #3](https://github.com/bandoracer/librarry/pull/3),
+[multipart PR #4](https://github.com/bandoracer/librarry/pull/4),
+[staging recovery PR #5](https://github.com/bandoracer/librarry/pull/5), and the
+`codex/manual-import-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -40,10 +42,16 @@ Native completed imports save immutable manifests and use expiring worker leases
 A failed database commit can resume without duplicating published chapters;
 uncommitted destinations remain hidden from scans. New native staging files are
 journaled and reclaimed on retry; unrecorded older stages remain untouched.
-Imports displays operation and reconciliation reports with retry controls. Replacement of existing destinations
-is retained for review; use keep both. Manual-path imports, Calibre handoff and
-live upgrade qualification remain outside these verified recovery guarantees. Existing single-book Calibre handoff is preserved;
-multipart imports into Calibre roots require review.
+Imports displays operation and reconciliation reports with retry controls. Native
+manual imports now use the same ledger, including configured same-basename
+sidecars, moves after commit and recoverable replacement of an existing file.
+Committed manual imports with unfinished cleanup remain visible and retryable.
+A configured recycle bin failure retains the previous file and reports an error.
+
+Completed-download replacement, Calibre handoff recovery and live upgrade
+qualification remain outside these verified guarantees. Completed downloads keep
+both on conflict; explicit replacement still requires further work. Existing
+single-book Calibre handoff is preserved; multipart Calibre roots require review.
 
 Multipart qualification uses generated local fixtures, adapter contract tests and
 disposable API/web/Postgres containers. It is not a live client or homelab

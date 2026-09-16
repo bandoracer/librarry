@@ -101,7 +101,7 @@ func (s *Store) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecor
 		limit = 200
 	}
 	args := []any{}
-	where := []string{}
+	where := []string{"not exists(select 1 from import_operation_files pending_file join import_operations pending_op on pending_op.id=pending_file.operation_id where pending_file.destination_path=files.path and pending_op.state<>'committed')"}
 	if strings.TrimSpace(query.WantedID) != "" {
 		args = append(args, strings.TrimSpace(query.WantedID))
 		where = append(where, "exists (select 1 from file_wanted_links fl where fl.file_id=files.id and fl.wanted_item_id::text = $"+strconv.Itoa(len(args))+")")
@@ -158,7 +158,7 @@ func (s *Store) FindFiles(ctx context.Context, ids []string, paths []string) ([]
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
 			import_status, metadata, modified_at, created_at, updated_at
 		from files
-		where ` + strings.Join(where, " or ") + `
+		where (` + strings.Join(where, " or ") + `) and not exists(select 1 from import_operation_files pending_file join import_operations pending_op on pending_op.id=pending_file.operation_id where pending_file.destination_path=files.path and pending_op.state<>'committed')
 		order by updated_at desc
 	`
 	rows, err := s.db.QueryContext(ctx, sqlText, args...)

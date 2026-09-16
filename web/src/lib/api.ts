@@ -3022,6 +3022,8 @@ export async function deleteMetadataProfile(id: string): Promise<void> {
 }
 
 export type ImportOperation = {
+  sourceKind?: "completed" | "manual";
+  mode?: string;
   id: string;
   client: string;
   downloadId: string;
@@ -3032,7 +3034,7 @@ export type ImportOperation = {
   cleanupError?: string;
   attempts: number;
   metadata: { title?: string; author?: string };
-  files: { id: string; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
+  files: { id: string; previousPath?: string; sourceRemoved?: boolean; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
 };
 export type ImportRecoveryReport = {
   operations: ImportOperation[];
