@@ -541,8 +541,9 @@ export default function LibraryPage() {
         title="Library"
         subtitle={subtitle}
         actions={
-          tab === "books" && wantedItems.length > 0 ? (
+          tab === "books" ? (
             <>
+              {wantedItems.length > 0 ? <>
               <ToolbarButton
                 icon={RadioTower}
                 label="Refresh Monitored"
@@ -566,13 +567,14 @@ export default function LibraryPage() {
                 busy={feedSyncMutation.isPending}
                 onClick={() => void handleFeedSync()}
               />
+              </> : null}
               <ToolbarButton
                 icon={FolderPen}
                 label="Rename Files"
                 title="Preview and apply file renames against the naming templates"
                 onClick={() => setRenameOpen(true)}
               />
-              <ToolbarButton
+              {wantedItems.length > 0 ? <ToolbarButton
                 icon={Pencil}
                 label={editMode ? "Done" : "Edit Mode"}
                 tone={editMode ? "accent" : undefined}
@@ -583,10 +585,8 @@ export default function LibraryPage() {
                     return !current;
                   });
                 }}
-              />
+              /> : null}
             </>
-          ) : tab === "books" ? (
-            <ToolbarButton icon={FolderPen} label="Rename Files" title="Preview file renames, including unassigned files" onClick={() => setRenameOpen(true)} />
           ) : undefined
         }
       >

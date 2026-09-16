@@ -32,9 +32,16 @@ test("an unavailable authentication service offers recovery", async ({ page }) =
 });
 
 test("dialogs trap keyboard focus and restore their trigger", async ({ page }) => {
-  await page.route("**/api/v1/library/books?**", route => route.fulfill({ json: { total: 1, filtered: 1, counts: { missing: 1 }, recordedFiles: 0, downloads: "notConfigured", books: [{ id: "fixture", title: "Fixture book", authorName: "Fixture author", format: "ebook", qualityProfile: "Default", status: "wanted", derivedState: "missing", monitored: true }] } }));
+  let finishBooks: () => void = () => {};
+  const booksReady = new Promise<void>(resolve => { finishBooks = resolve; });
+  await page.route("**/api/v1/library/books?**", async route => { await booksReady; return route.fulfill({ json: { total: 1, filtered: 1, counts: { missing: 1 }, recordedFiles: 0, downloads: "notConfigured", books: [{ id: "fixture", title: "Fixture book", authorName: "Fixture author", format: "ebook", qualityProfile: "Default", status: "wanted", derivedState: "missing", monitored: true }] } }); });
   await page.goto("/library");
   const trigger = page.getByRole("button", { name: "Rename Files" });
+  await expect(trigger).toBeVisible();
+  const originalTrigger = await trigger.elementHandle();
+  finishBooks();
+  await expect(page.getByRole("button", { name: "RSS Sync" })).toBeVisible();
+  expect(await originalTrigger!.evaluate(element => element.isConnected)).toBe(true);
   await trigger.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
