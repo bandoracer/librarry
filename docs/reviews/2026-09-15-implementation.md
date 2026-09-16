@@ -1016,3 +1016,13 @@ to incomplete after chapter deletion and scan, then returned to complete after
 restoration and scan. The 406,904-byte backup restored successfully. All client
 requests targeted isolated fixtures; no real acquisition/provider request,
 production deployment, release, live NAS qualification or image publication.
+
+
+Hosted presence qualification initially failed on Linux because the runner user
+could not unlink an API-owned chapter directory. The chapter-loss fixture now
+removes/restores its controlled file inside the disposable container, preserving
+normal application ownership. The corrected local package run passed, including
+a 406,432-byte restore; hosted qualification is pending on the follow-up commit.
+The first local retry from `/tmp` failed because that directory is not shared with
+Colima; moving the isolated checkout under the shared home directory resolved the
+fixture mount. Neither failure changed production state.

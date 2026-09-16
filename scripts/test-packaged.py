@@ -461,13 +461,13 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         current_audio = next(file for file in request("/api/v1/library/files")["files"] if file["id"] == audio_files[0]["id"])
         lost_chapter = media / Path(current_audio["path"]).relative_to("/fixture")
         chapter_bytes = lost_chapter.read_bytes()
-        lost_chapter.unlink()
+        docker("exec", "--user", "0", API, "rm", "--", current_audio["path"])
         loss_scan = request("/api/v1/library/scans", {"root": "/fixture/audiobooks"})
         wait_for(lambda: completed_scan(loss_scan["id"]))
         incomplete = request("/api/v1/wanted/" + audio_book_id)
         assert incomplete["derivedState"] == "incomplete", incomplete
         assert incomplete["stateEvidence"]["files"]["state"] == "incomplete", incomplete
-        lost_chapter.write_bytes(chapter_bytes)
+        docker("exec", "--user", "0", "-i", API, "tee", current_audio["path"], binary=True, input=chapter_bytes)
         restored_scan = request("/api/v1/library/scans", {"root": "/fixture/audiobooks"})
         wait_for(lambda: completed_scan(restored_scan["id"]))
         restored_book = request("/api/v1/wanted/" + audio_book_id)
