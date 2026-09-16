@@ -1947,3 +1947,15 @@ and book mutations fifteen seconds including selection and lock waits. Single-ID
 selection currently hydrates the full compatibility collection, which is complete
 but more expensive than the native local selector. Other legacy collections,
 unsupported payload fields and real Readarr-client qualification remain open.
+
+### Cold-statistics file evidence
+
+Migration 0058 preserves the `librarry_book_file_evidence` contract while fencing
+its linked-file lookup with a lateral subquery. The file is looked up by the
+recorded link ID before the media-format condition is applied. Without that
+boundary, missing column statistics can cause Postgres to choose a media-format
+index scan for every book, including books with no linked files. The regression
+fixture disables auto-analysis, includes many unrelated files and one recorded
+link, and bounds examined file rows rather than relying on a machine-specific
+latency assertion or a particular join type. Existing compatibility page
+validation, five-second deadline and evidence rules remain unchanged.

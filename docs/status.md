@@ -27,6 +27,13 @@ reason behind HTTP 502, and grab failures retain recovery instructions. The
 collapsed tablet sidebar's theme control keeps its accessible name. This is
 partial journey evidence; see the [operator review](reviews/2026-09-16-candidate-journey.md).
 
+Candidate qualification exposed a cold-statistics performance failure: the
+compatibility missing-books page could time out after a large import before
+Postgres analyzed the new rows. Append-only migration 0058 fences file lookup by
+the recorded link ID, preventing repeated scans of unrelated files. The existing
+page deadlines, completeness rules and result counts remain unchanged. A cold
+10,001-book regression demonstrates the old broad scan and verifies bounded work.
+
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation
 branch adds exact client payload selection, protected scan observations,

@@ -2,6 +2,7 @@ package wanted
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 	"sync"
@@ -109,6 +110,75 @@ func TestCompatibilityWantedPagesCompleteAndBounded(t *testing.T) {
 	}
 	sort.Slice(times, func(i, j int) bool { return times[i] < times[j] })
 	t.Logf("10001 missing books, 101 offset pages, p95 %s", times[len(times)*95/100])
+}
+
+func TestCompatibilityMissingPageWithColdUnrelatedFiles(t *testing.T) {
+	db := testdb.Open(t)
+	// A fresh import can have no column statistics until autovacuum catches up.
+	// Do not ANALYZE this fixture: that masks repeated scans of unrelated files.
+	for _, table := range []string{"wanted_items", "files", "file_wanted_links"} {
+		if _, err := db.Exec("alter table " + table + " set (autovacuum_enabled=false)"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`insert into wanted_items(id,wanted_format,title,status,monitored)
+ select md5(n::text)::uuid,'ebook','Fresh book','wanted',true from generate_series(1,10001)n`); err != nil {
+		t.Fatal(err)
+	}
+	testdb.SeedRange(t, db, 1201, `insert into files(media_format,path,size_bytes,presence_state,import_status)
+ select 'ebook','/fixture/unrelated-'||n||'.epub',10,'present','imported' from generate_series($1::integer,$2::integer)n`)
+	if _, err := db.Exec(`insert into files(media_format,path,size_bytes,presence_state,import_status,metadata)
+ values('ebook','/fixture/linked.epub',10,'present','imported',jsonb_build_object('wantedId',md5('1')::uuid::text))`); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(NewStore(db), nil)
+	tx, args, err := service.collectionSnapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	var raw []byte
+	err = tx.QueryRowContext(context.Background(), `explain(analyze,format json) `+bookCollectionSQL+
+		`select derived_state,count(*),count(*) filter(where monitored and derived_state=$4) from stateful group by derived_state`, append(args, "missing")...).Scan(&raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type planNode struct {
+		Relation string     `json:"Relation Name"`
+		Rows     float64    `json:"Actual Rows"`
+		Removed  float64    `json:"Rows Removed by Filter"`
+		Loops    float64    `json:"Actual Loops"`
+		Plans    []planNode `json:"Plans"`
+	}
+	var plans []struct{ Plan planNode }
+	if err := json.Unmarshal(raw, &plans); err != nil || len(plans) != 1 {
+		t.Fatalf("query plan: %s: %v", raw, err)
+	}
+	var scanned float64
+	var visit func(planNode)
+	visit = func(node planNode) {
+		if node.Relation == "files" {
+			scanned += (node.Rows + node.Removed) * node.Loops
+		}
+		for _, child := range node.Plans {
+			visit(child)
+		}
+	}
+	visit(plans[0].Plan)
+	// Bound the work, not elapsed time on a shared runner or a specific plan
+	// shape. Hash joins, materialized scans and linked-ID probes all qualify.
+	if scanned > 1202*4 {
+		t.Fatalf("cold evidence repeatedly scanned unrelated files: %.0f examined rows for 1202 recorded files", scanned)
+	}
+	tx.Rollback()
+	start := time.Now()
+	page, err := service.CompatibilityBookPage(context.Background(), CompatibilityBookPageQuery{
+		Page: 1, PageSize: 1000, State: "missing", SortKey: "title", SortDirection: "ascending",
+	})
+	if err != nil || page.Total != 10000 || len(page.Books) != 1000 || page.StateCounts["missing"] != 10000 {
+		t.Fatalf("cold collection: total=%d rows=%d states=%v err=%v", page.Total, len(page.Books), page.StateCounts, err)
+	}
+	t.Logf("cold 10,001-book page with 1,201 unrelated files: %s; file rows examined: %.0f", time.Since(start), scanned)
 }
 
 func TestCompatibilityMutationRollsBackAndFencesStaleBooks(t *testing.T) {

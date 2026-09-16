@@ -62,7 +62,7 @@ func TestCompatibilityBooksReachWholeLibraryAndValidateTargets(t *testing.T) {
 			} `json:"records"`
 		}
 		if r.Code != 200 || json.Unmarshal(r.Body.Bytes(), &result) != nil || result.Total != 10000 || len(result.Records) != 1000 {
-			t.Fatal(page, r.Code, result.Total, len(result.Records))
+			t.Fatal(page, r.Code, result.Total, len(result.Records), r.Body.String())
 		}
 		for _, item := range result.Records {
 			if seen[item.ID] || item.ID == oldID {

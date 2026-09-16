@@ -51,3 +51,25 @@ The source build reports development identity; final release qualification must
 use paired image digests and embedded source identity. Production-copy upgrade,
 rollback, platform runtime qualification and observation remain open in the
 [release checklist](../release-checklist.md).
+
+## Qualification blocker: cold-statistics evidence lookup
+
+[Candidate run 35149005103](https://github.com/bandoracer/librarry/actions/runs/35149005103)
+failed the large-library API test: after returning 10,001 compatible book resources,
+the first missing-books page returned 503. The candidate's packaged qualification
+and image builds were correctly skipped. This was not treated as a green release
+or dismissed by retrying the unchanged build.
+
+A local EXPLAIN ANALYZE reproduction showed the file-evidence join reading 1,202
+files once per book: 12,021,202 examined file rows for 10,001 books, mostly without
+links. The cold count query took approximately 1.18 seconds versus 34 milliseconds
+after ANALYZE. Two evaluations plus hydration could exceed the endpoint's existing
+five-second budget under CI load.
+
+Migration 0058 keeps the linked-ID lookup separate from the format condition so
+missing statistics cannot select that broad per-book scan. No earlier migration
+was rewritten and no timeout or collection limit was relaxed. A regression with
+auto-analysis disabled fails against `5f77359` on excessive examined file rows and
+passes with the migration; the repaired 1,000-book page took about 103 milliseconds
+locally. The existing complete-collection, file-evidence and cutoff fixtures also
+pass. These are fixture measurements, not a NAS latency guarantee.
