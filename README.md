@@ -75,6 +75,12 @@ cancellation/retry in Imports. File limits apply per batch. A failed scan or
 unavailable root cannot publish partial missing-file results; automatic moved-file
 reattachment and broader book-state reconciliation remain open.
 
+Library repair preview in Imports explains broken legacy associations, duplicate
+file records, possible moves and unverified audiobook completeness. It checks
+saved evidence in pages and recommends review actions without changing files or
+associations. Continue through all pages; current disk/client verification is a
+separate step.
+
 With Postgres, acquisitions also keep a durable submission receipt. Activity can
 recover ambiguous client responses without blindly submitting another download,
 or attach an explicitly selected existing download. These stabilization changes

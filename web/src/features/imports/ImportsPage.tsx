@@ -62,6 +62,7 @@ import {
 } from "./lib";
 import "./imports.css";
 import ImportRecovery from "./ImportRecovery";
+import LibraryRepairPreview from "./LibraryRepairPreview";
 import ScanJobs, { scanJobsKey, useLibraryScanJobs } from "./ScanJobs";
 import PayloadReview from "./PayloadReview";
 
@@ -412,6 +413,7 @@ export default function ImportsPage() {
       {payloadReviews.map(review => <PayloadReview key={`${review.id}:${review.updatedAt}`} review={review} />)}
       <ImportRecovery />
       <ScanJobs query={scanJobs} />
+      <LibraryRepairPreview />
 
       <Card
         title="Scan & import"

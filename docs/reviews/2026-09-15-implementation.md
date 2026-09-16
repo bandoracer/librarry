@@ -91,7 +91,7 @@ progress record, not a claim that the full stabilization plan is complete.
 | S08 | Implemented with fixture qualification | Exact adapter inventories, complete chapter sets, sidecars and reviewed per-book mapping; real-client qualification remains S21/S24 |
 | S09 | Partial | Durable native/manual plans, staging journals, move and manual replacement recovery; Calibre, completed-download replacement and broader disk fault qualification remain |
 | S10 | Partial | Durable submission/reconciliation and Activity recovery implemented with fixtures; full worker, history/current-release and live-client qualification remain |
-| S11 | Partial | Persisted scans, cancellation/retry and guarded local presence implemented; moved-file reattachment and legacy repair previews remain |
+| S11 | Partial | Persisted scans, cancellation/retry, guarded local presence and read-only legacy repair previews implemented; automatic moved-file reattachment remains |
 | S12 | Partial | Error/shape handling fixed; rich provider traversal, caching, credentials and live qualification pending |
 | S13 | Not complete | Matching corpus and full author monitoring policy qualification |
 | S14 | Partial | Library view and direct book/file queries fixed; author detail lookup and full verified lifecycle semantics remain |
@@ -372,3 +372,48 @@ isolated fixture evidence, not a live media-root or NAS-mount qualification.
 Acquisition PR #7 at `7443a908f16005806016ad36094866b6521a3d95` passed
 [CI run 35058040266](https://github.com/bandoracer/librarry/actions/runs/35058040266),
 including packaged qualification, image scans and AMD64/ARM64 builds.
+
+
+## Continuation: library repair preview (S11)
+
+Branch: `codex/library-repair-preview`, based on persisted scans. Imports can now
+inspect saved evidence for broken book/download associations, duplicate recorded
+SHA-256/size/format groups, possible moved files, legacy audiobook imports without
+complete manifests, and committed-manifest discrepancies. Findings show exact
+identifiers, sample paths, total candidate counts, reasons and recommended actions.
+Single-file audiobooks are explicitly not assumed incomplete. Intentional copies,
+hardlinks, deliberate moves and replacements remain review decisions.
+
+The API reads each page in a read-only repeatable-read transaction and inspects at
+most 100 entities. Keyset cursors traverse files, imported downloads and committed
+operations, including pages with no findings. Candidate samples are explicitly
+limited to 20 while totals remain visible. Pages are live observations, not one
+frozen cross-page snapshot. Raw file metadata/provider credentials are not returned.
+Generating the report never rewrites links, manifests, presence or cleanup state,
+and cannot authorize deletion or fuzzy reassignment. Automatic unambiguous move
+reattachment is still outstanding under S11.
+
+Database tests cover malformed/ambiguous legacy IDs, missing exact links, recorded
+content duplicates, one-versus-many move candidates, incomplete-scan exclusion,
+healthy imports and later missing/deleted tracked files. A before/after record
+snapshot verifies that previewing makes no writes. A 205-file fixture verifies
+pagination across clean pages. API tests cover empty lists, invalid cursors,
+unavailable persistence and absence of a mutation route. Desktop/mobile browser
+coverage exercises clean-page continuation, request failure/retry, evidence paths,
+long content hashes, fresh reports and no horizontal overflow.
+
+Persisted-scan PR #8 at `161efe2233fd33c0c0526bbe7a42d30cb3918e14` passed
+[CI run 35060952968](https://github.com/bandoracer/librarry/actions/runs/35060952968),
+including source/race/browser checks, packaged restart/restore qualification,
+image scans and AMD64/ARM64 builds. No images were published or deployed.
+
+
+Qualification for the repair preview: full Go race/Postgres suite and vet passed;
+production frontend build and 29 applicable desktop/mobile browser checks passed
+(one desktop case is inapplicable). The local ARM64 packaged API inspected all
+report pages over 1,200 records, exposed controlled legacy/duplicate/audiobook
+findings, rejected unauthenticated access, and left file rows byte-for-byte
+unchanged. The existing recovery/scan/auth harness also passed, including a
+295,860-byte database restore. These are disposable fixture results, not a live
+library audit. The packaged local web image is the earlier multipart snapshot;
+new report UI behavior is covered by the current-source browser/build checks.

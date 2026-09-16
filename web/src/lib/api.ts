@@ -3129,3 +3129,18 @@ export async function controlLibraryScan(options: { id: string; action: "cancel"
  if (!response.ok) throw new Error(await apiError(response,"Scan action failed"));
  return response.json();
 }
+
+export type LibraryRepairFinding = {
+  id: string; kind: string; subjectId: string; path: string; reason: string; proposedAction: string;
+  evidence: Record<string, unknown>;
+};
+export type LibraryRepairPreview = {
+  findings: LibraryRepairFinding[]; checked: number; section: string;
+  nextCursor?: string; generatedAt: string; readOnly: boolean;
+};
+export async function fetchLibraryRepairPreview(cursor = ""): Promise<LibraryRepairPreview> {
+  const response = await fetch(`${apiBase}/api/v1/library/repair-preview${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
+  if (!response.ok) throw new Error(await apiError(response, "Library repair preview unavailable"));
+  const data = await response.json();
+  return { ...data, findings: arrayPayload(data.findings) };
+}

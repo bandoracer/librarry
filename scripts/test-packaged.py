@@ -315,6 +315,26 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert error.code == 502, error.code
         assert sql("select count(*) from files where scan_root='/fixture/scan-library' and presence_state='missing'") == "1"
         print("Packaged scans: 1,201 files resume through scheduler after process kill; missing file confirmed only after completion; unavailable root retains prior presence")
+        # A read-only legacy report must inspect all pages, including clean ones.
+        sql("insert into files(media_format,path,size_bytes,checksum,import_status,metadata) values"
+            "('audiobook','/fixture/legacy-one.mp3',42,repeat('a',64),'imported','{\"wantedId\":\"missing-book\"}'),"
+            "('audiobook','/fixture/legacy-two.mp3',42,repeat('a',64),'imported','{}')")
+        snapshot_query = "select md5(jsonb_agg(to_jsonb(f) order by id)::text) from files f"
+        before_preview = sql(snapshot_query)
+        cursor, findings, checked = "", [], 0
+        for _ in range(100):
+            preview = request("/api/v1/library/repair-preview" + ("?cursor=" + cursor if cursor else ""))
+            assert preview["readOnly"] is True and isinstance(preview["findings"], list), preview
+            checked += preview["checked"]
+            findings.extend(preview["findings"])
+            cursor = preview.get("nextCursor", "")
+            if not cursor:
+                break
+        else:
+            raise AssertionError("repair preview did not finish")
+        assert checked > 1201 and {"wanted_link", "duplicate_content", "legacy_audio_file"}.issubset({f["kind"] for f in findings}), findings
+        assert sql(snapshot_query) == before_preview
+        print("Packaged repair preview: all pages inspected; legacy link, duplicate and unverified audiobook evidence explained; file records unchanged")
         dump = docker("exec", PG, "pg_dump", "-U", "postgres", "-Fc", "librarry_test", binary=True)
         docker("exec", PG, "createdb", "-U", "postgres", "librarry_restore")
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
@@ -335,6 +355,11 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         try:
             request("/api/v1/wanted?view=library")
             raise AssertionError("forms allowed an unauthenticated request")
+        except urllib.error.HTTPError as error:
+            assert error.code == 401
+        try:
+            request("/api/v1/library/repair-preview")
+            raise AssertionError("repair preview bypassed forms authentication")
         except urllib.error.HTTPError as error:
             assert error.code == 401
         assert request("/api/v1/login", {"username": "fixture", "password": "fixture-password"})["authenticated"] is True

@@ -117,3 +117,7 @@
 
 .imports-root-confirm { display: flex; align-items: flex-start; gap: .5rem; font-size: .8rem; line-height: 1.5; }
 .imports-root-confirm input { flex: 0 0 auto; margin-top: .2rem; }
+
+.imports-repair-evidence { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .4rem 1rem; }
+.imports-repair-evidence dt { color: var(--text-muted); }
+.imports-repair-evidence dd { margin: 0; overflow-wrap: anywhere; }

@@ -836,3 +836,22 @@ New verified imports are present; historical records are unknown until observed.
 This stage exposes presence through native file responses and Imports. It does not
 yet implement moved-file reattachment, legacy repair previews or the shared domain
 projection required by S11/S14/S16.
+
+
+### Library repair evidence
+
+`GET /api/v1/library/repair-preview?cursor=...` produces a read-only page of repair
+findings. An opaque validated keyset cursor traverses files, imported downloads
+and committed import operations. Each request uses one repeatable-read read-only
+transaction, checks at most 100 entities and returns `checked`, `section`,
+`generatedAt`, `findings` and an optional `nextCursor`. Empty findings do not mean
+completion while a cursor remains. Concurrent changes can affect later pages;
+this is not a persistent frozen audit artifact.
+
+Findings cover unresolved/missing exact associations, same-content record groups,
+possible move candidates from completed scans, unverified legacy audiobook
+completeness and discrepancies against historical import manifests. Samples expose
+up to 20 related records and total counts. Evidence uses selected fields, never
+raw file metadata. This endpoint does not touch media or clients, mutate records,
+create verification receipts, or apply proposed actions. Existing authentication
+middleware protects it. Automatic move reconciliation remains separate work.

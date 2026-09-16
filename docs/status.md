@@ -20,8 +20,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [multipart PR #4](https://github.com/bandoracer/librarry/pull/4),
 [staging recovery PR #5](https://github.com/bandoracer/librarry/pull/5),
 [manual recovery PR #6](https://github.com/bandoracer/librarry/pull/6),
-[acquisition recovery PR #7](https://github.com/bandoracer/librarry/pull/7), and the
-`codex/resumable-scans` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[acquisition recovery PR #7](https://github.com/bandoracer/librarry/pull/7),
+[persisted scan PR #8](https://github.com/bandoracer/librarry/pull/8), and the
+`codex/library-repair-preview` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -78,8 +79,12 @@ rescans without duplicate records. Files expose separate local presence evidence
 missing observations apply only after all roots complete successfully and are
 rechecked before commit. Unavailable/changed roots and lost nested-device evidence
 retain previous presence. Legacy records are not declared missing until a scan
-has positively observed them. Automatic moved-file reattachment, legacy repair
-previews and unified book/presence projections remain S11/S14 work.
+has positively observed them. Imports now offers a paginated, read-only repair preview for broken legacy
+associations, duplicate recorded content, possible moves, unverified audiobook
+completeness and discrepancies against committed manifests. Every finding explains
+the evidence and a recommended action; this preview does not verify current bytes
+or apply repairs. Automatic moved-file reattachment and unified book/presence
+projections remain S11/S14 work.
 
 Hardcover tokens currently establish configured state, not proven authentication.
 Book search handles Typesense result documents and GraphQL failures. Rich

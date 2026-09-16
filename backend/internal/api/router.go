@@ -503,6 +503,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/library/files/rename", handler.renameLibraryFiles)
 	mux.HandleFunc("POST /api/v1/library/calibre/conversions/refresh", handler.refreshCalibreConversions)
 	mux.HandleFunc("GET /api/v1/library/import-recovery", handler.importRecovery)
+	mux.HandleFunc("GET /api/v1/library/repair-preview", handler.libraryRepairPreview)
 	mux.HandleFunc("POST /api/v1/library/import-operations/{id}/retry", handler.retryImportOperation)
 	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/resolve-bulk", handler.resolveImportReviewsBulk)

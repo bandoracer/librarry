@@ -900,3 +900,26 @@ later scan can mark it missing. Native verified imports mark their destinations
 present. Imports displays missing local files explicitly. Broader wanted/library/
 compatible-API presence semantics, moved-file reattachment and legacy repair
 previews remain outstanding; scans never fuzzy-reassign a file automatically.
+
+
+### Preview legacy library repairs
+
+In Imports, choose **Preview library repairs**, then **Continue report** until
+all pages are checked. Clean pages still have to be continued. A failed page can
+be retried without discarding earlier findings; **Start a fresh report** reruns
+from the beginning. The report shows why a record needs review and recommends an
+action. It makes no changes.
+
+A duplicate recorded hash is not permission to delete a file. Verify fresh bytes,
+intentional copies/hardlinks and book assignments first. A legacy audiobook marked
+imported can still lack evidence that every chapter arrived; single-file books
+can be valid. Compare the original client inventory to actual destinations.
+Possible move candidates require fresh path/content verification before the old
+file identity is reattached. Deliberate moves and replacements can explain a
+historical import-manifest discrepancy; keep that original history intact.
+
+The report inspects saved database evidence rather than current media or client
+inventories. Related-record samples show up to 20 paths with full candidate
+counts. Each page is a current observation; start a fresh report after other
+library changes. Automatic repair and automatic moved-file reattachment are not
+provided by this preview.
