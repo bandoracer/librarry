@@ -8,9 +8,17 @@ yet ready to replace a production Readarr instance unattended.
 
 ## September stabilization work
 
-Work pauses at the owner’s request after the compatibility book continuation.
-See the [pause-point assessment](reviews/2026-09-16-pause-point.md) for implemented
-work, remaining gates and the suggested review order.
+Bounded release review and qualification have resumed; feature expansion stays
+frozen. The [pause-point assessment](reviews/2026-09-16-pause-point.md) preserves
+the prior checkpoint. The [release-boundary review](reviews/2026-09-16-release-boundary.md)
+rejects PR #3 as a standalone release because later fixes address reachable
+recovery failures. The [short release checklist](release-checklist.md) now governs
+delivery, while S01–S25 remains the longer-term backlog.
+
+This candidate combines the existing PR #50 stack with publication isolation.
+Automatic builds cannot advance `latest` or version aliases; explicit candidate
+publication records unique tags and digests. No release, deployment or live
+qualification is implied by these repository changes.
 
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation

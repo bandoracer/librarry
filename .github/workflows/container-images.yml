@@ -18,23 +18,30 @@ on:
       - "go.sum"
       - "web/**"
   workflow_dispatch:
+    inputs:
+      publish_candidate:
+        description: "Publish candidate images for qualification (never latest or a release tag)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   verify:
     uses: ./.github/workflows/checks.yml
   qualify:
-    needs: verify
+    needs: [verify, publication]
     name: Qualify packaged application
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Build native candidate images
+        env:
+          CANDIDATE_VERSION: ${{ needs.publication.outputs.tag }}
         run: |
-          docker build --build-arg COMMIT="$GITHUB_SHA" --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" -f deploy/Dockerfile.api -t librarry-api:stabilization .
+          docker build --build-arg VERSION="$CANDIDATE_VERSION" --build-arg COMMIT="$GITHUB_SHA" --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" -f deploy/Dockerfile.api -t librarry-api:stabilization .
           docker build -f deploy/Dockerfile.web -t librarry-web:stabilization .
       - name: Verify packaged imports and isolated restore
         env:
@@ -57,10 +64,26 @@ jobs:
           name: image-vulnerability-reports
           path: output/security/*-scan.json
           if-no-files-found: ignore
+  publication:
+    name: Check image publication policy
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.policy.outputs.publish }}
+      tag: ${{ steps.policy.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/test-image-publication.py
+      - id: policy
+        env:
+          INPUT_PUBLISH_CANDIDATE: ${{ inputs.publish_candidate }}
+        run: python3 scripts/image-publication.py
   build:
-    needs: [verify, qualify]
+    needs: [publication, verify, qualify]
     name: Build ${{ matrix.image.name }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -85,14 +108,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          flavor: latest=false
           tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.publication.outputs.tag }}
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        if: needs.publication.outputs.publish == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -104,15 +125,45 @@ jobs:
         run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Build and optionally push image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '0.4.2-dev' }}
+            VERSION=${{ needs.publication.outputs.tag }}
             COMMIT=${{ github.sha }}
             BUILD_TIME=${{ steps.identity.outputs.time }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ needs.publication.outputs.publish == 'true' }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Record published candidate digest
+        if: needs.publication.outputs.publish == 'true'
+        env:
+          CANDIDATE_TAG: ${{ needs.publication.outputs.tag }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          digest = os.environ["DIGEST"]
+          if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+              raise SystemExit("Build did not return a candidate digest")
+          record = {"sourceCommit": os.environ["GITHUB_SHA"],
+                    "image": os.environ["IMAGE"], "tag": os.environ["CANDIDATE_TAG"],
+                    "digest": digest, "runId": os.environ["GITHUB_RUN_ID"],
+                    "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"]}
+          with open("candidate.json", "w") as output:
+              json.dump(record, output, indent=2)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+              output.write(f"Candidate for qualification: `{record['image']}@{digest}`\n")
+          PY
+
+      - name: Upload candidate identity
+        if: needs.publication.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-${{ matrix.image.name }}
+          path: candidate.json

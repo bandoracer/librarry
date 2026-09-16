@@ -2,6 +2,12 @@
 
 This directory contains the public deployment surfaces for Librarry.
 
+Image builds do not automatically publish on merge or version tags. Candidate
+publication requires an explicit manual workflow input and produces a unique
+candidate tag plus recorded digests. Existing `latest` images are unchanged.
+See the [publication policy](../docs/deployment.md#images) and
+[release gates](../docs/release-checklist.md) before installing a candidate.
+
 | Target | File | Notes |
 | --- | --- | --- |
 | Generic Docker Compose | [docker-compose.yml](docker-compose.yml) + [.env.example](.env.example) | Pulls published GHCR images and starts Postgres, API, and web. |

@@ -1,7 +1,8 @@
 # Librarry stabilization and polish plan
 
-Status: paused at owner request after the compatibility book change; see the
-[pause-point assessment](reviews/2026-09-16-pause-point.md). Work is preserved across stacked stabilization PRs. See the [implementation ledger](reviews/2026-09-15-implementation.md) for completed changes, evidence, and remaining gates. The full plan is not complete.
+Status: feature expansion frozen; bounded release review and qualification resumed.
+Use the [release checklist](release-checklist.md) for current delivery gates and the
+[pause-point assessment](reviews/2026-09-16-pause-point.md) for the preserved checkpoint. Work is preserved across stacked stabilization PRs. See the [implementation ledger](reviews/2026-09-15-implementation.md) for completed changes, evidence, and remaining gates. The full plan is not complete.
 
 Prepared September 15, 2026 against checkout `6c1f32e`. Based on the [product and reliability audit](reviews/2026-09-15-audit.md), current implementation, and standing product decisions. The earlier [parity plan](parity-plan.md) remains a historical implementation record. This document describes the next body of work; it does not certify existing features or deployments.
 

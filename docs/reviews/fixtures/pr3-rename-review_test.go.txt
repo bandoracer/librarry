@@ -1,0 +1,29 @@
+package library
+
+import (
+    "context"
+    "os"
+    "path/filepath"
+    "testing"
+
+    "github.com/bandoracer/librarry/backend/internal/testdb"
+)
+
+func TestReleaseReviewRenameKeepsSourceWhenPersistenceFails(t *testing.T) {
+    db := testdb.Open(t)
+    store := NewStore(db)
+    root := t.TempDir()
+    source, destination := filepath.Join(root, "Before.epub"), filepath.Join(root, "After.epub")
+    if err := os.WriteFile(source, []byte("controlled fixture"), 0600); err != nil { t.Fatal(err) }
+    file, err := store.UpsertFile(context.Background(), FileRecord{Path: source, MediaFormat: "ebook", Title: "Before", ImportStatus: "imported"})
+    if err != nil { t.Fatal(err) }
+    if _, err := db.Exec(`alter table files add constraint release_review_reject_rename check(path not like '%After.epub')`); err != nil { t.Fatal(err) }
+    service := NewService(store, Config{EbookRoot: root}, nil, nil)
+    if _, err := service.applyRename(context.Background(), RenameFilePreview{File: file, SourcePath: source, DestinationPath: destination}); err == nil { t.Fatal("injected persistence error was not returned") }
+    var persisted string
+    if err := db.QueryRow(`select path from files where id=$1`, file.ID).Scan(&persisted); err != nil { t.Fatal(err) }
+    _, sourceErr := os.Stat(source)
+    _, destinationErr := os.Stat(destination)
+    t.Logf("source missing=%v, destination present=%v, database still points to source=%v", os.IsNotExist(sourceErr), destinationErr == nil, persisted == source)
+    if sourceErr != nil { t.Fatal("rename removed the recorded source before its new path was persisted") }
+}
