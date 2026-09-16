@@ -2120,3 +2120,60 @@ No schema migration is required; the database remains at schema 51. No productio
 rollout, real-provider mutation or live-library change occurred. Support diagnostics
 and the full readiness/freshness matrix remain open under S23; the full plan and
 live soak are not marked complete.
+
+## Redacted support and separate readiness (2026-09-16 continuation)
+
+PR #41 is fully green in run 35124142466: all five jobs, including packaged
+qualification, the disposable Calibre contract and both images, passed.
+
+System now offers an on-demand, authenticated JSON support download. Its explicit
+allowlist contains build/version/runtime identity, an unknown image-digest marker,
+current bounded database connectivity, numeric Postgres version when discoverable,
+startup schema, selected effective settings, anonymous root status and recorded
+provider/worker observations. Free-text errors, names, URLs, credentials, paths,
+book metadata and notification targets never enter the report. Unknown values and
+unavailable sections are explicit. No provider/client request or notification is
+triggered, and provider request/success timestamps remain unchanged.
+
+`/healthz` remains process liveness. `/readyz` is a separate public probe returning
+only status/check time; it returns 503 without usable database connectivity and
+recovers when persistence responds. nginx proxies both routes. Neither probe
+claims workflow readiness or external-service health. Support root checks have a
+500ms timeout and at most four concurrent filesystem calls, so a stalled NAS
+cannot grow unbounded goroutines or indefinitely hold a report response.
+
+The export uses a new read-only root-location query. The ordinary root-list method
+can seed root records, update effective config and perform unbounded stat/disk
+calls; those side effects are inappropriate for support generation. Regression
+coverage proves exporting an empty root table does not seed it, exporting saved
+roots does not change config, and private root names/paths remain omitted. A
+present directory is explicitly not proof of mount identity, available bytes,
+write permission or media integrity.
+
+Verification:
+
+- Full PostgreSQL ordinary and race suites pass; after the read-only root-query change, API
+  races pass in 22.217s and library races in 155.224s. Tests cover poison values in
+  every string config field, credential-bearing task failures, API-key protection,
+  provider-request counts/timestamps, empty arrays, partial outages, saturated
+  filesystem-check capacity, absent directories and recovery.
+- 105 desktop/mobile browser tests pass with one expected skip. Actual JSON
+  download contents, failed-download retry, no automatic support requests and
+  live API export are exercised. The 390px support card screenshot was visually
+  inspected. All 14 web unit tests, production build, vet, deployment checks and
+  whitespace checks pass.
+- Packaged API/web/Postgres qualification verifies the nginx routes, real build
+  marker, selected redaction checks, directory disappearance/recovery, database
+  outage/recovery and healthy liveness throughout. Directory changes are made in
+  the container namespace to avoid host-to-VM filesystem propagation ambiguity.
+  Existing restart/import/rename/recovery/authentication regressions still pass,
+  as does a 461,710-byte isolated schema-51 restore.
+- Candidate images are `librarry-api:support-diagnostics` and
+  `librarry-web:support-diagnostics`, with API marker
+  `working-tree-support-diagnostics`. These are local fixture images, not published
+  artifacts or a deployed production build.
+
+No migration is needed. Full S23 acceptance remains open: live NAS/mount identity,
+stuck-import diagnosis, recorded client-version evidence and the end-to-end
+freshness/recovery matrix still require work. No production change, release,
+real-provider mutation or unattended soak occurred.

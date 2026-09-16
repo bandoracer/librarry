@@ -3404,3 +3404,13 @@ export async function resolveNotificationDelivery(delivery: NotificationDelivery
   });
   if (!response.ok) throw new Error(await apiError(response, "Notification decision failed"));
 }
+
+export async function fetchSupportReport(): Promise<Record<string, unknown>> {
+  const response = await fetch(`${apiBase}/api/v1/system/support`, { cache: "no-store" });
+  if (!response.ok) throw new Error(await apiError(response, "Support report could not be downloaded"));
+  const report: unknown = await response.json();
+  if (!report || typeof report !== "object" || !("formatVersion" in report) || report.formatVersion !== 1) {
+    throw new Error("The API returned an unsupported support report.");
+  }
+  return report as Record<string, unknown>;
+}

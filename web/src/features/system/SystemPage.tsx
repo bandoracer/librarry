@@ -1,5 +1,6 @@
 import React from "react";
 import TaskRunHistory from "./TaskRunHistory";
+import SupportDiagnostics from "./SupportDiagnostics";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Archive, BookOpenCheck, HardDrive, HardDriveDownload, HeartPulse, ListChecks, Play, RefreshCw, Timer, Trash2 } from "lucide-react";
@@ -500,6 +501,8 @@ export default function SystemPage() {
           </>
         )}
       </Card>
+
+      <SupportDiagnostics />
 
       <Card
         title="Health"

@@ -53,8 +53,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [native notification PR #37](https://github.com/bandoracer/librarry/pull/37),
 [compatibility notification PR #38](https://github.com/bandoracer/librarry/pull/38),
 [worker diagnostics PR #39](https://github.com/bandoracer/librarry/pull/39),
-[notification retention PR #40](https://github.com/bandoracer/librarry/pull/40), and
-the `codex/worker-availability-status` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[notification retention PR #40](https://github.com/bandoracer/librarry/pull/40),
+[worker availability PR #41](https://github.com/bandoracer/librarry/pull/41), and
+the `codex/support-diagnostics` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -69,13 +70,25 @@ is local qualification. Hourly History Maintenance now compacts notification
 details only after every recipient has been resolved for 90 days, preserving
 unreviewed stopped deliveries and permanent compact source-event records against
 replay. The same task prunes old reviewed failures for disabled workers. Support
-diagnostics and live readiness/freshness qualification remain open under S23.
+diagnostics are now available as a redacted, on-demand export; broader live
+readiness/freshness qualification remains open under S23.
 All built-in workers now stay visible when disabled or unavailable, with reasons
 and retained history. Local configuration is separated from shared peer activity;
 blocked workers have no local next run and refuse manual task execution. Readarr
 task times come from persisted evidence rather than the current clock. Import-list
 scheduling has its own enable flag, default true, across all installers. Small
 screens keep each task name, reason, timing and controls in one readable row.
+
+System now downloads a versioned support report containing build identity,
+Postgres connectivity/version, startup schema, selected effective settings,
+anonymous root observations, recorded provider evidence and worker status.
+Credentials, URLs, paths, book metadata and free-text errors are omitted by an
+allowlist. The report makes no provider/client requests and preserves unknown
+versions, digest and timestamps. `/healthz` is liveness; `/readyz` checks database
+connectivity through both API and nginx, returning 503 without usable persistence.
+Neither probe claims media, provider or end-to-end workflow health. Directory
+checks are time-bounded and do not certify mount identity or write permission.
+No September live readiness or NAS qualification is implied.
 
 Automatic native import now accepts single books and identifiable audiobook
 chapter sets from complete client inventories. All required chapters and relevant

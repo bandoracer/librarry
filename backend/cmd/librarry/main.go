@@ -254,6 +254,7 @@ func main() {
 	registerTask(taskPolicy(backupTask(logger, backupService, cfg), cfg.BackupEnabled, backupService.Available(), "LIBRARRY_BACKUP_ENABLED", "Database persistence and a backup directory are required."))
 
 	deps := api.Dependencies{
+		Database:        schedulerDB,
 		SchemaMigration: schemaMigration,
 		Logger:          logger,
 		Config:          cfg,

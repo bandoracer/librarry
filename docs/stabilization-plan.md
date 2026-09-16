@@ -312,8 +312,10 @@ success. Partial failures now report degraded; reviewed failures can expire afte
 source-event replay barriers and hourly reviewed-history maintenance for disabled
 workers. Worker status now retains disabled/unavailable definitions and reasons,
 with local scheduling separated from shared run evidence; compatibility timestamps
-come from recorded runs. Support export and the full freshness/readiness acceptance
-matrix remain open.
+come from recorded runs. Redacted on-demand support export and a database
+readiness probe are implemented with local fixture qualification. The full live
+freshness/readiness acceptance matrix, mount identity, import-stall classification
+and remote version observations remain open.
 
 **Scope:** reliable task history with operation IDs, counts, durations, failures, last success, and next action. Persist enough history for restart diagnosis without unbounded per-minute growth. Add retention for routine history while preserving unresolved failures and important import/acquisition evidence.
 

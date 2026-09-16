@@ -114,6 +114,37 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
               ("version", "commit", "buildTime", "migrationVersion", "runtimeVersion", "authentication")}))
+        assert request("/readyz")["status"] == "ready"
+        support = request("/api/v1/system/support")
+        assert support["build"]["commit"] == status["commit"] and support["build"]["imageDigest"] == "unknown", support
+        assert support["database"]["status"] == "ready" and support["database"]["serverVersionNumber"] >= 160000, support
+        assert len(support["tasks"]) == 13, support["tasks"]
+        serialized = json.dumps(support)
+        for private in ("fixture-only", "fixture-client", "/fixture/ebooks", "/fixture/audiobooks", PG):
+            assert private not in serialized, private
+        assert next(root for root in support["roots"] if root["role"] == "audiobook")["status"] == "directory_present"
+        docker("exec", API, "mv", "/fixture/audiobooks", "/fixture/audiobooks-hidden")
+        try:
+            missing = request("/api/v1/system/support")
+            assert next(root for root in missing["roots"] if root["role"] == "audiobook")["status"] == "missing", missing
+            assert request("/readyz")["status"] == "ready", "external/root degradation must not cause readiness restart loops"
+        finally:
+            docker("exec", API, "mv", "/fixture/audiobooks-hidden", "/fixture/audiobooks")
+        restored_root = request("/api/v1/system/support")
+        assert next(root for root in restored_root["roots"] if root["role"] == "audiobook")["status"] == "directory_present"
+        docker("stop", PG)
+        try:
+            request("/readyz")
+            raise AssertionError("database outage was reported ready")
+        except urllib.error.HTTPError as error:
+            assert error.code == 503 and json.load(error)["status"] == "not_ready"
+        assert request("/healthz")["ok"] is True
+        outage = request("/api/v1/system/support")
+        assert outage["database"]["status"] == "unavailable" and outage["sections"]["tasks"] == "unavailable", outage
+        docker("start", PG)
+        wait_for(lambda: docker("exec", PG, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"))
+        assert wait_for(lambda: request("/readyz"))["status"] == "ready"
+        print("Packaged support: redacted build/config/roots/tasks; missing directory and database outage/recovery; nginx readiness distinct from liveness")
         provider_status = {p["name"]: p for p in request("/api/v1/providers/health")["providers"]}
         assert provider_status["Open Library"]["status"] == "configured", provider_status
         assert "lastCheckedAt" not in provider_status["Open Library"], provider_status

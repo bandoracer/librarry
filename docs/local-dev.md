@@ -1476,3 +1476,20 @@ state, settings or files, and does not contact receivers. Busy delivery/review
 sessions are skipped and retried on a later pass. Maintenance has a 30-second
 notification deadline, records actual committed counts, and rolls back any event
 whose compaction cannot finish. A later batch resumes the remaining history.
+
+### Support reports and probes
+
+In System, select **Download support report** to save `librarry-support.json`.
+The same authenticated read is `GET /api/v1/system/support`. It reports the real
+API build, selected effective settings, database connectivity/version, startup
+schema, anonymous directory checks and recorded provider/task evidence. It omits
+credentials, URLs, private paths, book metadata and free-text logs. Review before
+sharing. Partial sections and unknown values are explicit; no external checks or
+notifications are triggered by the export.
+
+Use `/healthz` for liveness and `/readyz` for database readiness. A process without
+Postgres can answer metadata requests but returns 503 from readiness. A successful
+readiness check does not guarantee provider availability, mounts, writable media,
+complete imports or a successful backup. The existing setup checklist is separate
+from this current-connectivity probe. Worker failures and last success are retained
+in System Tasks; downloading support does not acknowledge or clear them.

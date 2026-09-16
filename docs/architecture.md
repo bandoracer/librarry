@@ -249,6 +249,8 @@ Initial API surface:
   - `GET /api/v1/system/task/{id}`
 - Librarry-native endpoints:
   - `GET /healthz`
+  - `GET /readyz` (database connectivity only)
+  - `GET /api/v1/system/support` (redacted authenticated attachment)
   - `GET /api/v1/providers/health`
   - `GET /api/v1/providers/diagnostics`
   - `GET /api/v1/readiness`
@@ -1671,3 +1673,35 @@ ImportListSync uses its own actual interval and enable flag rather than feed-syn
 settings. `LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults true and is forwarded by
 all deployment variants. Explicit native/compatibility sync commands remain
 separate from scheduled execution. No schema migration is needed for this change.
+
+### Redacted operational support
+
+`GET /api/v1/system/support` uses the ordinary API/session authentication policy
+and returns a non-cacheable attachment (`formatVersion: 1`). System downloads it
+on demand. The API explicitly selects safe fields rather than serializing config,
+logs, provider diagnostics, task errors or notification payloads. It includes build
+identity, an explicitly unknown image digest, a current bounded Postgres ping and
+numeric server version when readable, schema observed at process startup, selected
+automation flags, effective library policy, anonymous roots and registered worker
+status. Unknown enum values are reported as unknown. All list fields remain arrays.
+Sections that cannot be read are marked unavailable; failures do not erase the
+other evidence or expose underlying connection errors.
+
+Metadata provider observations are process-local and retain their actual request
+and success times. Snapshot generation does not perform provider/download-client
+IO or manufacture fresh observations. Client endpoints are reduced to configured
+booleans; unrecorded reachability and remote versions stay unknown. Worker policy
+and next run belong to this instance; saved runs can come from peers. Only built-in
+provider/task identities are exported. Free-text names, errors, outcomes, paths,
+URLs, usernames, credentials and book metadata are excluded. This report is not a
+complete configuration backup or historical incident log.
+
+`GET /readyz` returns only `status` and `checkedAt`: 200 when the current database
+ping succeeds, otherwise 503. It is public like `/healthz`, which checks liveness
+and stays 200 during a database outage. Both are proxied by nginx. Readiness does
+not depend on remote providers or root presence and does not certify schema
+compatibility after startup, media integrity or workflow completion. Root checks
+in the protected support report have a 500ms deadline and a process-wide cap of
+four in-flight filesystem calls so stalled NAS calls cannot accumulate unbounded
+goroutines. A directory being present does not prove it is the expected mount or
+that it is writable. Missing directories, errors and timeouts remain distinct.

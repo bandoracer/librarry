@@ -5,7 +5,7 @@ Librarry is distributed as a three-service self-hosted stack:
 - `ghcr.io/bandoracer/librarry-api`: Go API, migrations, background workers,
   metadata providers, download-client integrations, scans, and imports.
 - `ghcr.io/bandoracer/librarry-web`: nginx serving the React app and proxying
-  `/api/` plus `/healthz` to the API service.
+  `/api/` plus `/healthz` and `/readyz` to the API service.
 - `postgres:16-alpine`: persistent Librarry database.
 
 The default web port is `30200`. Keep the API private on the Compose network and
@@ -352,3 +352,22 @@ API instance when pausing automation across a shared database.
 `LIBRARRY_IMPORT_LIST_SYNC_ENABLED=true` is now explicitly forwarded by generic,
 source-build, TrueNAS and Unraid templates. Set it false to pause list scheduling
 without changing feed sync or removing explicit per-list/compatibility commands.
+
+### Liveness, readiness and support
+
+The API and web nginx expose `/healthz` for process liveness and `/readyz` for a
+current database-connectivity check. Readiness returns 503 if persistence is
+unconfigured or unavailable and recovers when the database responds. Its response
+contains only status and check time. It does not probe external integrations or
+claim that mounts, imports or backups are healthy. Keep liveness restart policies
+separate from readiness routing so a database outage does not cause restart loops.
+
+System's **Download support report** uses the usual API/session authentication.
+The report includes build identity, schema at startup, selected effective settings,
+Postgres version when readable, anonymous roots and recorded provider/worker
+observations. It never includes credentials, URLs, private paths, book metadata or
+free-text logs. Unknown remote versions and image digest remain unknown: use your
+container runtime to obtain the actual deployed manifest digest. Provider times
+are process-local request evidence and are not refreshed by downloading. Root
+presence is not NAS/mount/write-permission certification. No production restore or
+unattended soak is implied by a successful export.

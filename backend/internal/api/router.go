@@ -35,6 +35,7 @@ import (
 const maxGrabUploadBytes = 64 << 20
 
 type Dependencies struct {
+	Database        *sql.DB
 	SchemaMigration string
 	Logger          *slog.Logger
 	Config          config.Config
@@ -186,6 +187,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /ping", handler.compatPing)
 	mux.HandleFunc("HEAD /ping", handler.compatPing)
 	mux.HandleFunc("GET /healthz", handler.health)
+	mux.HandleFunc("GET /readyz", handler.operationalReadiness)
+	mux.HandleFunc("GET /api/v1/system/support", handler.supportDiagnostics)
 	mux.HandleFunc("GET /api/v1/health", handler.compatHealth)
 	mux.HandleFunc("GET /api/v1/system/status", handler.compatSystemStatus)
 	mux.HandleFunc("GET /api/v1/system/routes", handler.compatSystemRoutes)

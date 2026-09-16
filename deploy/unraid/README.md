@@ -120,3 +120,9 @@ commands remain available. It is independent of feed sync. System → Tasks keep
 disabled/unavailable workers visible with reasons and retained shared history.
 Flags apply to each API instance; update every instance to stop scheduled work
 across a deployment.
+
+The same portal exposes `/readyz` for current database connectivity (200 ready,
+503 without usable persistence). `/healthz` remains process liveness; neither
+certifies external clients, mounts or completed imports. System can download a
+redacted support report without contacting providers. See
+[probe and support semantics](../../docs/deployment.md#liveness-readiness-and-support).
