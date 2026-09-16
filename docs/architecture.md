@@ -1904,3 +1904,46 @@ The shared collection projection materializes the wanted-ID/file-evidence join
 before work/profile enrichment. The new work index otherwise changes the planner's
 join order, rescanning wanted rows for every evidence row. This boundary retains
 indexed identity lookups without quadratic collection reads.
+
+
+### Complete compatibility book reads and atomic selected edits
+
+Readarr-compatible `GET /api/v1/book` returns the complete active book array;
+removed and ignored records are excluded. Details, release targets and selected
+book/upgrade search commands resolve against the same complete collection. The native UUID
+(`librarryId`) takes precedence, followed by the emitted numeric ID and then a
+unique raw work/edition/source alias. Titles and hashes of aliases are not book
+identities. Missing selections fail; ambiguous aliases or numeric collisions
+return 409 instead of choosing a record. Numeric IDs still use the historical
+31-bit hash; a persistent collision-free mapping remains open under S16.
+
+Missing and cutoff pages share native book/file/download/quality evidence in a
+read-only repeatable-read transaction with one download-client observation.
+An imported lifecycle string alone does not establish presence. Partial chapter
+sets remain incomplete; uncertain files or unavailable client evidence remain
+unknown. The response adds `librarryStateCounts`, `librarryUnknownBooks` and
+`librarryDownloads`, and records carry their derived state/evidence. Quality
+profiles and owner metadata are hydrated in the same database snapshot.
+
+`page` is 1–1,000,000 and `pageSize` 1–1,000 (defaults 1 and 100). Sort keys are
+`title`, `authorTitle`, `releaseDate` and `id`, with `ascending` or `descending`
+and a deterministic UUID tiebreaker. Invalid, empty or repeated paging/sort values
+return 400. Counts cover the entire filtered collection; only the selected page
+is hydrated. Migration 0057 supplies the SQL equivalent of the existing numeric
+ID function for honest numeric sorting. Unknown release dates are not invented
+from creation timestamps. Separate page requests do not freeze ongoing edits.
+
+Book monitor/editor/delete accepts at most 500 selected identities. Every target
+must resolve before writing. A transaction locks targets in UUID order, verifies
+that each is still active with its reviewed update timestamp, and commits all
+book changes/overrides/tag creation together. Stale targets return 409; an unknown
+or inactive target returns 404; storage failures return 503. Delete retires
+tracking and disables monitoring; it does not delete media. Lost responses should
+be reconciled by rereading the records. This transaction guarantee is specific to
+these book operations, not author editors or multi-file manual imports.
+
+Full-array reads have a ten-second deadline, bounded wanted pages five seconds,
+and book mutations fifteen seconds including selection and lock waits. Single-ID
+selection currently hydrates the full compatibility collection, which is complete
+but more expensive than the native local selector. Other legacy collections,
+unsupported payload fields and real Readarr-client qualification remain open.

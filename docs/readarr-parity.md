@@ -1,5 +1,11 @@
 # Readarr Parity Audit
 
+> September 2026: the historical milestone claims below are not production
+> qualification. Use [current status](status.md) and the
+> [stabilization plan](stabilization-plan.md). Compatibility book collection and
+> atomic selection fixes are locally tested; numeric identity mapping, other
+> resource contracts and real migration remain incomplete.
+
 > **v0.4.0 (2026-07-02): the ten model/nomenclature inconsistencies found in
 > the post-v0.3.0 audit are closed** — quality ladder + release profiles +
 > quality definitions, named metadata profiles, Wanted as a pure gap view

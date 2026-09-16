@@ -79,6 +79,10 @@ progress record, not a claim that the full stabilization plan is complete.
 
 ## Plan accounting
 
+This table records the earlier baseline accounting. The
+[September 16 pause-point assessment](2026-09-16-pause-point.md) summarizes current
+progress across all subsequent continuations below.
+
 | Work | State | Remaining gate or scope |
 |---|---|---|
 | S01 | Substantially implemented | Live predeployment file/database inventory and backup-copy restore |
@@ -2527,3 +2531,58 @@ The ordinary full Go suite also passes (library 161.961s, wanted 118.127s).
 This checks saved tracking identities; live
 presence badges, legacy readers, compatibility and all-matching jobs remain open.
 No production deployment, image publication or release is implied.
+
+
+## S14–S16 continuation — Complete compatibility books and atomic edits
+
+The compatibility book array and identity readers previously searched only 200
+rows. Missing detection used a 500-file prefix, title guesses and imported status;
+monitor/editor/delete could match title hashes, skip missing selections and leave
+partial writes. These routes now read the complete active collection, derive
+presence/cutoff from native evidence and validate every selected identity.
+
+Missing/cutoff pages use bounded SQL pagination, exact counts, deterministic
+sorts and one client observation per snapshot. Invalid or repeated paging/sort
+arguments fail. Unknown/incomplete evidence remains visible in response extensions.
+Actual release dates and file counts replace invented creation dates/presence.
+Migration 0057 matches the existing numeric hash in SQL for numeric sorting.
+
+Native UUIDs and emitted numeric IDs resolve before unique raw aliases. Ambiguous
+aliases/collisions fail; titles and alias hashes cannot select a book. Selected
+monitor/editor/delete locks all reviewed records, checks active status/revisions,
+and commits metadata overrides, tags and book updates together. Any target or
+write failure rolls back the batch. Invalid explicit release identities cannot
+fall through to unscoped search/grab. Storage outages do not return empty success.
+
+Qualification:
+
+- 10,001 active book resources are reachable, with direct old numeric-ID lookup
+  and presence beyond the old 500-file prefix. The full array took 2.67 seconds
+  in the focused local race run; this is intentionally an array contract, not a
+  bounded interactive page performance claim.
+- 10,001 missing books traverse 101 bounded pages without gaps or duplicates,
+  local race-enabled p95 74.5ms. Tests cover numeric/date sorting, native cutoff
+  parity including legacy scores, missing imported files, incomplete audiobooks,
+  unknown evidence and one download-client observation per snapshot.
+- Real database/API fixtures cover invalid mixed monitor/edit/delete selections,
+  exact mutations, tag rollback after a later write failure, inactive/stale
+  revisions, one concurrent winner and actual numeric hash collisions. Invalid
+  release identities perform no acquisition call.
+- Fifteen web units, all 143 browser checks (one expected skip), production build,
+  Go vet and deployment checks pass.
+- API/web candidates `librarry-api:compat-books` and `librarry-web:compat-books`
+  report marker `working-tree-compat-books`, schema 57. Packaged tests verify
+  251 old identities across restart, native/compatible partial-audio and missing
+  agreement, atomic invalid selections, exact mutation readback, existing
+  import/auth/recovery behavior and a 465,707-byte isolated database restore,
+  including the restored numeric ID function.
+
+Full race-enabled integration tests pass (library 200.887s, wanted 223.426s).
+
+Persistent collision-free numeric mapping, other compatibility resources and
+payload fields, full-array selection cost, and real Readarr migration/client
+qualification remain open. This atomicity guarantee does not apply to multi-file
+manual import or author-editor batches. No production deployment or release.
+The owner requested a pause after this change; see the pause-point assessment.
+
+The ordinary full Go/Postgres suite also passes (library 165.430s, wanted 128.769s).

@@ -77,6 +77,9 @@ type configurableAcquisitionService interface {
 }
 
 type wantedService interface {
+	CompatibilityBooks(ctx context.Context) ([]wanted.WantedItem, error)
+	CompatibilityBookPage(context.Context, wanted.CompatibilityBookPageQuery) (wanted.CompatibilityBookPage, error)
+	ApplyCompatibilityBooks(context.Context, wanted.CompatibilityBookMutation) ([]wanted.WantedItem, error)
 	Get(ctx context.Context, id string) (wanted.WantedItem, error)
 	Create(ctx context.Context, request wanted.CreateRequest) (wanted.WantedItem, error)
 	List(ctx context.Context, status string) ([]wanted.WantedItem, error)

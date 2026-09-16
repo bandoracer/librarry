@@ -1080,6 +1080,7 @@ func TestCompatWantedMissingAndQualityProfiles(t *testing.T) {
 		t.Fatalf("expected single missing book payload, got %d: %s", res.Code, res.Body.String())
 	}
 
+	router = NewRouter(Dependencies{Config: config.Config{WebOrigin: "*"}, Wanted: fakeCompatCutoffWanted{}})
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/wanted/cutoff?page=1&pageSize=10", nil)
 	res = httptest.NewRecorder()
 	router.ServeHTTP(res, req)
@@ -1154,7 +1155,8 @@ func TestCompatWantedMissingUsesLibraryPresence(t *testing.T) {
 		Config:   config.Config{WebOrigin: "*"},
 		Metadata: metadata.NewService(nil),
 		Wanted: fakeMissingWanted{items: []wanted.WantedItem{{
-			ID:             "wanted-1",
+			ID:           "wanted-1",
+			DerivedState: "downloaded", StateEvidence: &wanted.BookStateEvidence{Files: wanted.FileEvidence{State: "present", PresentFiles: 1}, Downloads: "notConfigured"},
 			WorkID:         "openlibrary:OL1W",
 			Title:          "Project Hail Mary",
 			AuthorName:     "Andy Weir",
@@ -1165,7 +1167,8 @@ func TestCompatWantedMissingUsesLibraryPresence(t *testing.T) {
 			CreatedAt:      now,
 			UpdatedAt:      now,
 		}, {
-			ID:             "wanted-2",
+			ID:           "wanted-2",
+			DerivedState: "missing", StateEvidence: &wanted.BookStateEvidence{Files: wanted.FileEvidence{State: "missing"}, Downloads: "notConfigured"},
 			WorkID:         "openlibrary:OL2W",
 			Title:          "The Martian",
 			AuthorName:     "Andy Weir",
@@ -4739,6 +4742,104 @@ func (fakeWanted) Get(ctx context.Context, id string) (wanted.WantedItem, error)
 		}
 	}
 	return wanted.WantedItem{}, sql.ErrNoRows
+}
+
+func (f fakeWanted) ApplyCompatibilityBooks(ctx context.Context, r wanted.CompatibilityBookMutation) ([]wanted.WantedItem, error) {
+	items := []wanted.WantedItem{}
+	for _, edit := range r.Books {
+		if r.Delete {
+			if err := f.DeleteWanted(ctx, edit.ID); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		item, err := f.UpdateWanted(ctx, edit.ID, edit.Update)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+func (f *fakeMutableWanted) ApplyCompatibilityBooks(ctx context.Context, r wanted.CompatibilityBookMutation) ([]wanted.WantedItem, error) {
+	items := []wanted.WantedItem{}
+	for _, edit := range r.Books {
+		if r.Delete {
+			if err := f.DeleteWanted(ctx, edit.ID); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		item, err := f.UpdateWanted(ctx, edit.ID, edit.Update)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+type fakeCompatCutoffWanted struct{ fakeWanted }
+
+func (f fakeCompatCutoffWanted) CompatibilityBooks(ctx context.Context) ([]wanted.WantedItem, error) {
+	items, err := f.fakeWanted.CompatibilityBooks(ctx)
+	for i := range items {
+		items[i].DerivedState = "cutoffUnmet"
+		items[i].StateEvidence.Files = wanted.FileEvidence{State: "present", PresentFiles: 1}
+	}
+	return items, err
+}
+func fakeCompatibilityPage(items []wanted.WantedItem, q wanted.CompatibilityBookPageQuery) wanted.CompatibilityBookPage {
+	result := wanted.CompatibilityBookPage{Books: []wanted.WantedItem{}, Downloads: "notConfigured"}
+	for _, item := range items {
+		if item.DerivedState == q.State && item.Monitored {
+			result.Books = append(result.Books, item)
+		}
+		if item.DerivedState == "unknown" {
+			result.Unknown++
+		}
+	}
+	result.Total = len(result.Books)
+	start := (q.Page - 1) * q.PageSize
+	if start > len(result.Books) {
+		start = len(result.Books)
+	}
+	end := start + q.PageSize
+	if end > len(result.Books) {
+		end = len(result.Books)
+	}
+	result.Books = result.Books[start:end]
+	return result
+}
+func (f fakeWanted) CompatibilityBookPage(ctx context.Context, q wanted.CompatibilityBookPageQuery) (wanted.CompatibilityBookPage, error) {
+	items, err := f.CompatibilityBooks(ctx)
+	return fakeCompatibilityPage(items, q), err
+}
+func (f fakeCompatCutoffWanted) CompatibilityBookPage(ctx context.Context, q wanted.CompatibilityBookPageQuery) (wanted.CompatibilityBookPage, error) {
+	items, err := f.CompatibilityBooks(ctx)
+	return fakeCompatibilityPage(items, q), err
+}
+func (f fakeMissingWanted) CompatibilityBookPage(ctx context.Context, q wanted.CompatibilityBookPageQuery) (wanted.CompatibilityBookPage, error) {
+	items, err := f.CompatibilityBooks(ctx)
+	return fakeCompatibilityPage(items, q), err
+}
+func (f emptyListWanted) CompatibilityBookPage(ctx context.Context, q wanted.CompatibilityBookPageQuery) (wanted.CompatibilityBookPage, error) {
+	return fakeCompatibilityPage(nil, q), nil
+}
+
+func (fakeWanted) CompatibilityBooks(ctx context.Context) ([]wanted.WantedItem, error) {
+	items, err := (fakeWanted{}).List(ctx, "")
+	for i := range items {
+		items[i].DerivedState = "missing"
+		items[i].StateEvidence = &wanted.BookStateEvidence{Files: wanted.FileEvidence{State: "missing"}, Downloads: "notConfigured", Quality: "available"}
+	}
+	return items, err
+}
+func (emptyListWanted) CompatibilityBooks(context.Context) ([]wanted.WantedItem, error) {
+	return []wanted.WantedItem{}, nil
+}
+func (f fakeMissingWanted) CompatibilityBooks(context.Context) ([]wanted.WantedItem, error) {
+	return f.items, nil
 }
 
 func (fakeWanted) List(context.Context, string) ([]wanted.WantedItem, error) {

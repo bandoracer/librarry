@@ -1102,6 +1102,19 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 	if !s.Configured() {
 		return WantedItem{}, errors.New("wanted store is unavailable")
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	defer tx.Rollback()
+	item, err := updateWantedInTransaction(ctx, tx, id, request)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	return item, tx.Commit()
+}
+
+func updateWantedInTransaction(ctx context.Context, tx *sql.Tx, id string, request WantedUpdateRequest) (WantedItem, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return WantedItem{}, errors.New("wanted item id is required")
@@ -1123,7 +1136,7 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 	if request.TagsSet {
 		tags.Valid = true
 		tags.String = tagLabelsString(request.Tags)
-		if err := ensureTagLabels(ctx, s.db, request.Tags); err != nil {
+		if err := ensureTagLabels(ctx, tx, request.Tags); err != nil {
 			return WantedItem{}, err
 		}
 	}
@@ -1132,12 +1145,6 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 		rootFolderID.Valid = true
 		rootFolderID.String = strings.TrimSpace(*request.RootFolderID)
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return WantedItem{}, err
-	}
-	defer tx.Rollback()
-
 	result, err := tx.ExecContext(ctx, `
 		update wanted_items set
 			title = case when $2 = '' then title else $2 end,
@@ -1187,10 +1194,7 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 			return WantedItem{}, err
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return WantedItem{}, err
-	}
-	return s.GetWanted(ctx, id)
+	return wantedInTransaction(ctx, tx, id)
 }
 
 func upsertWantedManualOverride(ctx context.Context, tx *sql.Tx, wantedID string, fieldName string, value string) error {

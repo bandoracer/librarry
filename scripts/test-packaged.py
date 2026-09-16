@@ -109,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         BASE = "http://127.0.0.1:" + port
         status = wait_for(lambda: request("/api/v1/system/status"))
         expected_commit = os.environ.get("EXPECTED_COMMIT")
-        assert status["authentication"] == "none" and status["migrationVersion"] >= 49, status
+        assert status["authentication"] == "none" and status["migrationVersion"] >= 57, status
         if expected_commit:
             assert status["commit"] == expected_commit, status
         print("Packaged status:", json.dumps({key: status[key] for key in
@@ -579,6 +579,9 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         incomplete_page = request("/api/v1/library/books?state=incomplete")
         assert audio_book_id in {book["id"] for book in incomplete_page["books"]}, incomplete_page
         assert incomplete_page["filtered"] == incomplete_page["counts"]["incomplete"], incomplete_page
+        compat_incomplete = request("/api/v1/book/" + audio_book_id)
+        assert compat_incomplete["librarryDerivedState"] == "incomplete" and not compat_incomplete["hasFile"], compat_incomplete
+        assert audio_book_id not in {book["librarryId"] for book in request("/api/v1/wanted/missing")["records"]}
         docker("exec", "--user", "0", "-i", API, "tee", current_audio["path"], binary=True, input=chapter_bytes)
         restored_scan = request("/api/v1/library/scans", {"root": "/fixture/audiobooks"})
         wait_for(lambda: completed_scan(restored_scan["id"]))
@@ -781,6 +784,34 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         assert len(choice_ids) == 251
         pinned_choice = request("/api/v1/library/book-choices?q=absent-choice&selectedId=" + selected_choice["id"])
         assert pinned_choice["filtered"] == 0 and pinned_choice["selected"] == selected_choice
+        compat_books = request("/api/v1/book")
+        assert choice_ids <= {book["librarryId"] for book in compat_books}
+        old_choice = next(book for book in compat_books if book["librarryId"] == selected_choice["id"])
+        assert request("/api/v1/book/" + str(old_choice["id"]))["librarryId"] == selected_choice["id"]
+        for method, path, payload in (
+            ("PUT", "/api/v1/book/monitor", {"bookIds": [old_choice["id"], "absent"], "monitored": True}),
+            ("PUT", "/api/v1/book/editor", {"bookIds": [old_choice["id"], "absent"], "title": "Must not save"}),
+            ("DELETE", "/api/v1/book/editor", {"bookIds": [old_choice["id"], "absent"]}),
+        ):
+            try:
+                request(path, payload, method=method)
+                raise AssertionError("partial compatibility mutation succeeded")
+            except urllib.error.HTTPError as error:
+                assert error.code == 404
+        unchanged = request("/api/v1/wanted/" + selected_choice["id"])
+        assert not unchanged["monitored"] and unchanged["title"] == selected_choice["title"] and unchanged["status"] != "removed"
+        request("/api/v1/book/monitor", {"bookIds": [old_choice["id"]], "monitored": True}, method="PUT")
+        assert request("/api/v1/wanted/" + selected_choice["id"])["monitored"]
+        missing = request("/api/v1/wanted/missing?pageSize=1000")
+        assert selected_choice["id"] in {book["librarryId"] for book in missing["records"]}, missing
+        native_missing = request("/api/v1/library/books?state=missing&monitor=monitored")
+        assert missing["totalRecords"] == native_missing["filtered"]
+        request("/api/v1/book/" + str(old_choice["id"]), {"title": "Choice fixture edited"}, method="PUT")
+        assert request("/api/v1/wanted/" + selected_choice["id"])["title"] == "Choice fixture edited"
+        request("/api/v1/book/" + str(old_choice["id"]), method="DELETE")
+        deleted_choice = request("/api/v1/wanted/" + selected_choice["id"])
+        assert deleted_choice["status"] == "removed" and not deleted_choice["monitored"]
+        print("Packaged compatibility: 251 old identities across restart, native presence agreement, atomic invalid selections and exact edit/monitor/delete readback")
         sql("delete from wanted_items where title like 'Choice fixture %'")
         print("Packaged book choices: 251 identities across restart, selected identity preserved outside search and page, no acquisition mutation")
         def active_book_ids():
@@ -871,6 +902,7 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         docker("exec", "-i", PG, "pg_restore", "-U", "postgres", "-d", "librarry_restore", "--exit-on-error", binary=True, input=dump)
         for query in ("select count(*) from schema_migrations", "select count(*) from wanted_items",
                       "select count(*) from downloads", "select count(*) from files",
+                      "select id,librarry_book_compat_id(id) from wanted_items order by id",
                       "select count(*) from file_wanted_links", "select count(*) from file_download_links",
                       "select * from file_rename_claims order by file_id",
                       "select * from calibre_handoffs order by id",

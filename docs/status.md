@@ -8,6 +8,10 @@ yet ready to replace a production Readarr instance unattended.
 
 ## September stabilization work
 
+Work pauses at the owner’s request after the compatibility book continuation.
+See the [pause-point assessment](reviews/2026-09-16-pause-point.md) for implemented
+work, remaining gates and the suggested review order.
+
 The [audit](reviews/2026-09-15-audit.md) and [execution plan](stabilization-plan.md)
 separate current risks from the older milestone record below. The implementation
 branch adds exact client payload selection, protected scan observations,
@@ -61,10 +65,21 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [dashboard counts PR #45](https://github.com/bandoracer/librarry/pull/45),
 [import reviews PR #46](https://github.com/bandoracer/librarry/pull/46),
 [book choices PR #47](https://github.com/bandoracer/librarry/pull/47),
-[removed book recovery PR #48](https://github.com/bandoracer/librarry/pull/48), and
-the `codex/search-book-identity` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[removed book recovery PR #48](https://github.com/bandoracer/librarry/pull/48),
+[search identity PR #49](https://github.com/bandoracer/librarry/pull/49), and
+the `codex/compat-book-collections` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
+
+
+Compatibility book reads now reach all active records. Missing/cutoff pages use
+the native evidence rules, complete counts and bounded SQL pages. Selected book
+monitor/edit/delete validates every identity and commits the batch atomically;
+missing, inactive, ambiguous or concurrently changed targets fail explicitly.
+Partial chapter sets remain incomplete, and imported status cannot hide lost
+media. Numeric IDs retain their legacy hash; collisions are rejected on lookup,
+but collision-free resource mapping and real Readarr migration are still open.
+These changes do not qualify other compatibility resources or unattended use.
 
 Worker history now preserves unreviewed failures beyond the 100-success retention
 window. Task history has pagination, reversible review, counts, available operation

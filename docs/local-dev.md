@@ -1615,3 +1615,22 @@ Search refreshes its saved matches. No settings are overwritten and removed book
 are not restored by Add. An unknown edition format uses the selected search
 format consistently for both lookup and insertion; a concrete edition retains its
 own format. Search checks tracking identity, not live download/file presence.
+
+
+### Compatibility book qualification
+
+Readarr-compatible book reads now include all active records, with missing/cutoff
+pages based on native file evidence. Select books by their emitted numeric ID or
+`librarryId`; title matching is no longer accepted. Missing/inactive IDs reject a
+whole monitor/editor/delete request, and ambiguous aliases return 409. Refresh
+before retrying a conflicting selection. Delete removes tracking, not files.
+
+Run `scripts/test-integration.sh` with `LIBRARRY_TEST_DATABASE_URL` for the
+10,001-book traversal, lost/partial files, quality cutoff, numeric sorting,
+ambiguous identities, atomic rollback and concurrent-edit fixtures.
+`scripts/test-packaged.py` checks complete older identities across restart,
+native/compatible state agreement and mutation readback using disposable data.
+A client that ignores `librarryStateCounts`, `librarryUnknownBooks` and
+`librarryDownloads` cannot interpret an empty missing page as proof of health.
+Persistent collision-free numeric IDs, complete non-book compatibility and a
+real Readarr migration remain unqualified.

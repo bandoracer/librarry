@@ -208,6 +208,13 @@ For general torrent administration such as global rules, plugin management,
 advanced ratio policies, non-book downloads, peer banning, tracker-wide tuning,
 or detailed client settings, the external client remains the source of truth.
 
+The unreleased stabilization branch also removes the compatibility book list's
+200-record cap. Missing/cutoff pages use native file evidence, and selected book
+monitor/edit/delete operations reject missing or ambiguous targets atomically.
+This is partial compatibility: persistent numeric identity mapping and real
+Readarr migration/consumer qualification remain outstanding. See the
+[stabilization plan](docs/stabilization-plan.md) for release gates.
+
 ## Librarry vs. Readarr
 
 Readarr is the obvious reference point, but it has been retired by the Servarr

@@ -1,6 +1,7 @@
 # Librarry stabilization and polish plan
 
-Status: execution in progress across stacked stabilization PRs. See the [implementation ledger](reviews/2026-09-15-implementation.md) for completed changes, evidence, and remaining gates. The full plan is not complete.
+Status: paused at owner request after the compatibility book change; see the
+[pause-point assessment](reviews/2026-09-16-pause-point.md). Work is preserved across stacked stabilization PRs. See the [implementation ledger](reviews/2026-09-15-implementation.md) for completed changes, evidence, and remaining gates. The full plan is not complete.
 
 Prepared September 15, 2026 against checkout `6c1f32e`. Based on the [product and reliability audit](reviews/2026-09-15-audit.md), current implementation, and standing product decisions. The earlier [parity plan](parity-plan.md) remains a historical implementation record. This document describes the next body of work; it does not certify existing features or deployments.
 
@@ -236,8 +237,10 @@ search and pages with pinned selections. Removed/ignored books now have complete
 paging and an explicit, revision-checked restore that retains settings and file
 links. Search now checks complete provider-backed identities, displays inactive
 and ambiguous matches, and guards adds against overwriting existing tracking.
-Other legacy readers, search presence evidence, compatibility and resumable
-all-matching jobs remain open; neither milestone is complete. See the implementation ledger for qualification.
+Compatibility book arrays and missing/cutoff pages now reach the complete active
+collection with native state evidence; selected book edits validate and commit
+atomically. Other legacy readers, search presence evidence, broader compatibility
+and resumable all-matching jobs remain open; neither milestone is complete. See the implementation ledger for qualification.
 
 ### S16 — Readarr compatibility and migration
 

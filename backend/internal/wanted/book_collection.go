@@ -224,13 +224,13 @@ const bookCollectionSQL = `with profiles as (
  select * from jsonb_to_recordset($1::jsonb) as p(name text,format text,cutoff double precision,upgrade boolean)
 ), tracked as materialized (
  select wi.id,wi.work_id,wi.title,wi.author_name,wi.wanted_format,wi.quality_profile,
- wi.metadata_provider,wi.monitored,wi.created_at,wi.current_release_id,wi.current_release_score,
+ wi.metadata_provider,wi.monitored,wi.created_at,wi.release_date,wi.current_release_id,wi.current_release_score,
  e.file_state,e.file_reason,e.present_files,e.required_files
  from wanted_items wi join librarry_book_file_evidence(null) e on e.wanted_id=wi.id
  where wi.status not in ('removed','ignored')
 ), base as (
  select wi.id,coalesce(nullif(wi.title,''),w.title,'') as title,coalesce(wi.author_name,'') as author_name,
- wi.wanted_format,coalesce(wi.quality_profile,'standard') as quality_profile,coalesce(wi.metadata_provider,'') as metadata_provider,wi.monitored,wi.created_at,
+ wi.wanted_format,coalesce(wi.quality_profile,'standard') as quality_profile,coalesce(wi.metadata_provider,'') as metadata_provider,wi.monitored,wi.created_at,wi.release_date,
  case when wi.current_release_id is null then 0 else wi.current_release_score end as score,
  coalesce(p.cutoff,d.cutoff) as cutoff,coalesce(p.upgrade,d.upgrade) as upgrade,
  wi.file_state,wi.file_reason,wi.present_files,wi.required_files
