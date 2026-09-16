@@ -89,6 +89,43 @@ func (s *Store) createWantedInTransaction(ctx context.Context, tx *sql.Tx, reque
 		}
 	}
 
+	if request.PreserveExisting {
+		candidate := candidateBookIdentity(result, format)
+		aliases, err := bookMatchAliases([]BookMatchCandidate{candidate})
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if len(aliases) == 0 {
+			return WantedItem{}, fmt.Errorf("%w: a provider identity is required", ErrBookMatches)
+		}
+		// Shared identity locks serialize native adds even when their primary
+		// provider differs. Locks have a common order across merged candidates.
+		locks := map[string]bool{}
+		for _, a := range aliases {
+			locks[a.Provider+"|"+a.Source+"|"+format] = true
+		}
+		ordered := make([]string, 0, len(locks))
+		for key := range locks {
+			ordered = append(ordered, key)
+		}
+		sort.Strings(ordered)
+		for _, key := range ordered {
+			if _, err = tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, "wanted-preserve:"+key); err != nil {
+				return WantedItem{}, err
+			}
+		}
+		if err = lockMatchedWorks(ctx, tx, aliases, format); err != nil {
+			return WantedItem{}, err
+		}
+		matches, err := matchBooks(ctx, tx, []BookMatchCandidate{candidate})
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if matches.Matches[0].Total > 0 {
+			return WantedItem{}, ErrBookAlreadyTracked
+		}
+	}
+
 	rootFolderID := strings.TrimSpace(request.RootFolderID)
 
 	if request.OnlyIfUntracked {
@@ -209,9 +246,13 @@ func (s *Store) createWantedInTransaction(ctx context.Context, tx *sql.Tx, reque
 			release_date = coalesce(excluded.release_date, wanted_items.release_date),
 			root_folder_id = coalesce(excluded.root_folder_id, wanted_items.root_folder_id),
 			updated_at = now()
+		where not $17
 		returning id
 	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, tagLabelsString(request.Tags),
-		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result), rootFolderID, request.InitialMonitored).Scan(&wantedID)
+		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result), rootFolderID, request.InitialMonitored, request.PreserveExisting).Scan(&wantedID)
+	if errors.Is(err, sql.ErrNoRows) && request.PreserveExisting {
+		return WantedItem{}, ErrBookAlreadyTracked
+	}
 	if err != nil {
 		return WantedItem{}, err
 	}

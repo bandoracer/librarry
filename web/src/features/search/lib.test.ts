@@ -16,3 +16,10 @@ describe("edition format while changing search filters", () => {
     expect(searchResultWantedFormat(unknown, "audiobook")).toBe("audiobook");
   });
 });
+
+it("never treats a title or unknown author as provider identity", () => {
+  const result: SearchResult = { provider: "Hardcover", kind: "book", work: { id: "hardcover:1", title: "The Book" }, confidence: "high", score: 1, matchedOn: [] };
+  const unrelated = { id: "other", format: "ebook", title: "Book", authorName: "", sourceProvider: "Hardcover", sourceKey: "hardcover:2" } as WantedItem;
+  expect(searchResultExistingWanted(result, [unrelated], "ebook")).toBeUndefined();
+  expect(searchResultExistingWanted(result, [{ ...unrelated, sourceKey: "hardcover:1", title: "Owner title" }], "ebook")?.id).toBe("other");
+});

@@ -802,6 +802,17 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         docker("restart", API)
         wait_for(lambda: request("/api/v1/system/status"))
         assert request("/api/v1/library/removed-books?q=" + wanted_id)["books"][0]["id"] == wanted_id
+        identity_candidate = {"key": "imported", "provider": before_removal["sourceProvider"], "sourceKey": before_removal["sourceKey"], "format": before_removal["format"]}
+        identity_matches = request("/api/v1/library/book-matches", {"candidates": [identity_candidate]})["matches"]
+        assert len(identity_matches) == 1 and identity_matches[0]["total"] == 1
+        assert identity_matches[0]["books"][0]["id"] == wanted_id and identity_matches[0]["books"][0]["status"] == "removed"
+        preserved_add = {"result": {"provider": before_removal["sourceProvider"], "work": {"id": "fixture-identity-check", "title": "Should never overwrite"}, "edition": {"id": before_removal["sourceKey"]}}, "format": before_removal["format"], "preserveExisting": True, "qualityProfile": "changed", "tags": ["changed"]}
+        try:
+            request("/api/v1/wanted", preserved_add)
+            raise AssertionError("preserved add reactivated a removed book")
+        except urllib.error.HTTPError as error:
+            assert error.code == 409
+        assert request("/api/v1/wanted/" + wanted_id)["updatedAt"] == removed_book["updatedAt"]
         restore_request = {"updatedAt": removed_book["updatedAt"], "monitored": False}
         restored_book = request("/api/v1/wanted/" + wanted_id + "/restore", restore_request)
         assert restored_book["status"] == "wanted" and not restored_book["monitored"]
@@ -818,6 +829,10 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
             assert error.code == 409
         assert int(sql(f"select count(*) from history_events where event_type='wanted_restored' and entity_id='{wanted_id}'").splitlines()[0]) == 1
         print("Packaged removed book: survives restart, explicit restore retains saved settings/file links, defaults unmonitored and rejects replay")
+        identity_matches = request("/api/v1/library/book-matches", {"candidates": [identity_candidate]})["matches"]
+        assert identity_matches[0]["total"] == 1 and identity_matches[0]["books"][0]["status"] == "wanted"
+        print("Packaged search identity: saved book found across restart/removal/restore; guarded add preserves owner settings and never reactivates it")
+
         # A saved uncertain send must survive the image restart and database restore.
         # This journal fixture never contacts a Calibre server; real remote effects
         # are exercised separately by scripts/test-calibre.py.

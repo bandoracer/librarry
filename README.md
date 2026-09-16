@@ -367,6 +367,8 @@ Sources: [Readarr GitHub repository](https://github.com/Readarr/Readarr),
   basic set-fields metadata sync, configured output-format conversion starts
   with immediate and scheduled refreshable status snapshots, and delete-books
   handoff when deleting Calibre-backed files physically.
+- Search checks saved provider identities across the complete library. Removed and
+  ambiguous matches remain visible; repeated adds preserve existing settings.
 - Removed and ignored books have a searchable, paged recovery view. Explicit
   restore keeps existing file links, history, metadata overrides and settings,
   with monitoring off by default and a stale-review check before applying.

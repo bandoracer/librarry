@@ -70,18 +70,10 @@ export function searchResultExistingWanted(result: SearchResult, items: WantedIt
   const wantedFormatValue = searchResultWantedFormat(result, currentFormat);
   const provider = result.provider.trim().toLowerCase();
   const sourceKey = searchResultWantedSourceKey(result).trim().toLowerCase();
-  const title = normalizedWantedText(result.work.title);
-  const author = normalizedWantedText(firstAuthorName(result));
-  return items.find((item) => {
-    if (item.format !== wantedFormatValue) return false;
-    const itemProvider = (item.sourceProvider || "").trim().toLowerCase();
-    const itemSourceKey = (item.sourceKey || "").trim().toLowerCase();
-    if (provider && sourceKey && itemProvider === provider && itemSourceKey === sourceKey) return true;
+  return items.find((item) => item.format === wantedFormatValue && provider && sourceKey &&
+    (item.sourceProvider || "").trim().toLowerCase() === provider &&
+    (item.sourceKey || "").trim().toLowerCase() === sourceKey);
 
-    const itemTitle = normalizedWantedText(item.title);
-    const itemAuthor = normalizedWantedText(item.authorName || "");
-    return Boolean(title && itemTitle === title && (!author || !itemAuthor || itemAuthor === author));
-  });
 }
 
 export function searchResultScoreLabel(result: SearchResult) {

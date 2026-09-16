@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -26,6 +27,9 @@ import {
 import { useToast } from "../../components/toast";
 import {
   createWanted,
+  fetchBookMatches,
+  type BookMatchCandidate,
+  type BookMatch,
   grabRelease,
   searchMetadata,
   searchReleases,
@@ -47,8 +51,7 @@ import {
   useMetadataProfiles,
   useQualityProfiles,
   useRootFolders,
-  useTags,
-  useWanted
+  useTags
 } from "../../lib/queries";
 import { demoModeEnabled, demoSeeds, withDemoFallback } from "../../lib/demo";
 import { formatBytes } from "../../lib/format";
@@ -80,6 +83,7 @@ import {
   searchResultTitle,
   searchResultVisibleForFilters,
   searchResultWantedFormat,
+  searchResultWantedSourceKey,
   searchResultWantedReviewReasons,
   uniqueSearchProviders,
   wantedFormat,
@@ -153,7 +157,6 @@ export default function SearchPage() {
   // "" = use the format's default root folder; ids are validated per format.
   const [rootFolderID, setRootFolderID] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [addedByKey, setAddedByKey] = useState<Record<string, WantedItem>>({});
   const [searchOnAdd, setSearchOnAdd] = useState(storedSearchOnAdd);
 
   const [releases, setReleases] = useState<Release[]>([]);
@@ -165,7 +168,6 @@ export default function SearchPage() {
   // --- Shared data -----------------------------------------------------------
   const librarySettings = useLibrarySettings();
   const language = librarySettings.data?.settings.standardSearchLanguage || "English";
-  const wantedItems = useWanted().data ?? [];
   const authorSubscriptions = useAuthorSubscriptions().data ?? [];
   const qualityProfiles = useQualityProfiles().data ?? [];
   const rootFolders = useRootFolders().data ?? [];
@@ -192,15 +194,33 @@ export default function SearchPage() {
     evidenceFilter !== "all" ? evidenceFilter : ""
   ].filter(Boolean).length;
 
-  const wantedBySearchKey = useMemo(() => {
-    const entries = new Map<string, WantedItem>();
-    results.forEach((result) => {
-      const key = searchResultKey(result);
-      const item = searchResultExistingWanted(result, wantedItems, format) ?? addedByKey[key];
-      if (item) entries.set(key, item);
-    });
-    return entries;
-  }, [results, wantedItems, format, addedByKey]);
+  const matchCandidates = useMemo(() => Array.from(new Map(results.filter(searchResultCanBeWanted).map(result => {
+    const candidate: BookMatchCandidate = { key: searchResultKey(result), provider: result.provider,
+      workIds: [result.work.id, ...(result.work.providerIds ?? [])].filter(Boolean),
+      editionIds: [result.edition?.id ?? "", ...(result.edition?.providerIds ?? [])].filter(Boolean),
+      sourceKey: searchResultWantedSourceKey(result), format: searchResultWantedFormat(result, format) };
+    return [candidate.key, candidate] as const;
+  })).values()), [results, format]);
+  const bookMatches = useQuery({
+    queryKey: [...keys.wanted, "search-identities", matchCandidates],
+    enabled: matchCandidates.length > 0,
+    queryFn: ({ signal }) => withDemoFallback(() => fetchBookMatches(matchCandidates, signal), () =>
+      matchCandidates.map(candidate => {
+        const result = results.find(result => searchResultKey(result) === candidate.key)!;
+        const book = searchResultExistingWanted(result, demoSeeds.wantedItems, format);
+        return { key: candidate.key, total: book ? 1 : 0, books: book ? [book] : [] };
+      }))(),
+    refetchInterval: 30_000
+  });
+  const matchesReady = bookMatches.isSuccess && !bookMatches.isError;
+  const wantedBySearchKey = useMemo(() => new Map<string, BookMatch>(
+    matchesReady ? bookMatches.data.map(match => [match.key, match]) : []
+  ), [matchesReady, bookMatches.data]);
+  function trackingLabel(match: BookMatch) {
+    if (match.total > 1) return `${match.total} saved matches`;
+    const status = match.books[0]?.status;
+    return status === "removed" ? "Removed" : status === "ignored" ? "Ignored" : "Tracked";
+  }
 
   const selected = useMemo(
     () =>
@@ -210,7 +230,7 @@ export default function SearchPage() {
     [visibleResults, results, selectedKey]
   );
   const selectedSearchKey = selected ? searchResultKey(selected) : "";
-  const selectedExistingWanted = selectedSearchKey ? wantedBySearchKey.get(selectedSearchKey) : undefined;
+  const selectedExistingWanted = selectedSearchKey ? wantedBySearchKey.get(selectedSearchKey)?.total : 0;
   const selectedIsBookCandidate = Boolean(selected && searchResultCanBeWanted(selected));
   const selectedCanBeWanted = selectedIsBookCandidate && !selectedExistingWanted;
   const selectedCanSearchReleases = selectedIsBookCandidate;
@@ -363,7 +383,7 @@ export default function SearchPage() {
   // --- Mutations --------------------------------------------------------------
   const addWanted = useInvalidatingMutation(
     (args: { result: SearchResult; format: string; profile: string; tags: string[]; rootFolderId?: string }) =>
-      createWanted(args.result, args.format, args.profile, args.tags, args.rootFolderId),
+      createWanted(args.result, args.format, args.profile, args.tags, args.rootFolderId, true),
     [keys.wanted, keys.acquisitionQueue]
   );
 
@@ -393,9 +413,10 @@ export default function SearchPage() {
     if (!searchResultCanBeWanted(result)) return;
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
-    if (existing) {
+    if (!matchesReady || !existing) return;
+    if (existing.total) {
       setPendingReview(null);
-      openWanted(existing);
+      if (existing.total === 1) openWanted(existing.books[0]);
       return;
     }
     if (!options.force && searchResultNeedsWantedReview(result)) {
@@ -407,14 +428,14 @@ export default function SearchPage() {
     addWanted.mutate(
       {
         result,
-        format: result.edition?.format ?? format,
+        format: searchResultWantedFormat(result, format),
         profile: effectiveProfile,
         tags: tagLabels,
         rootFolderId: effectiveRootFolderID || undefined
       },
       {
         onSuccess: async (item) => {
-          setAddedByKey((current) => ({ ...current, [key]: item }));
+          void bookMatches.refetch();
           setPendingReview(null);
           if (!searchOnAdd) {
             toast.success(`Added "${item.title}" to Wanted — open its book page to search and grab releases.`);
@@ -440,6 +461,7 @@ export default function SearchPage() {
           }
         },
         onError: (error) => {
+          void bookMatches.refetch();
           toast.error(error instanceof Error ? error.message : "Mark wanted failed");
         }
       }
@@ -589,7 +611,7 @@ export default function SearchPage() {
             {searchResultSourceLabel(result)}
           </Badge>
           <Badge tone={confidenceTone(result.confidence)}>{result.confidence}</Badge>
-          {existing ? <Badge tone="success">Tracked</Badge> : null}
+          {existing?.total ? <Badge tone="neutral">{trackingLabel(existing)}</Badge> : null}
           <span className="search-result-score">{searchResultScoreLabel(result)}</span>
         </span>
       </button>
@@ -599,7 +621,7 @@ export default function SearchPage() {
   function renderDetail(result: SearchResult) {
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
-    const canBeWanted = searchResultCanBeWanted(result) && !existing;
+    const canBeWanted = searchResultCanBeWanted(result) && !existing?.total;
     const reviewReasons = canBeWanted ? searchResultWantedReviewReasons(result) : [];
     const sources = searchResultSourceNames(result);
     return (
@@ -624,7 +646,7 @@ export default function SearchPage() {
               <Badge tone="neutral" title={sources.join(", ")}>
                 {searchResultSourceLabel(result)}
               </Badge>
-              {existing ? <Badge tone="success">Tracked</Badge> : null}
+              {existing?.total ? <Badge tone="neutral">{trackingLabel(existing)}</Badge> : null}
             </div>
           </div>
         </div>
@@ -639,16 +661,20 @@ export default function SearchPage() {
           ))}
         </div>
 
-        {existing ? (
-          <div className="search-tracked-callout" aria-label="Existing wanted item">
-            <Badge tone="success">Already tracked</Badge>
-            <span>
-              {existing.derivedState === "cutoffUnmet" ? "cutoff unmet" : existing.derivedState || existing.status} ·{" "}
-              {existing.format}
-            </span>
-            <Button size="sm" icon={HardDriveDownload} onClick={() => openWanted(existing)}>
-              Open wanted
-            </Button>
+        {searchResultCanBeWanted(result) && !matchesReady ? (
+          bookMatches.isError ? <InlineNotice tone="danger">
+            <strong>Library check unavailable. </strong>
+            {bookMatches.error instanceof Error ? bookMatches.error.message : "Retry before adding this book."}
+            <Button size="sm" onClick={() => void bookMatches.refetch()}>Retry library check</Button>
+          </InlineNotice> : <LoadingRow label="Checking saved book identities…" />
+        ) : existing?.total ? (
+          <div className="search-tracked-callout" aria-label="Saved book matches">
+            <Badge tone="neutral">{trackingLabel(existing)}</Badge>
+            <span>Matched by saved provider identity and format. Open a book to inspect its files or restore tracking.</span>
+            {existing.books.map(book => <Button key={book.id} size="sm" icon={HardDriveDownload} onClick={() => openWanted(book)}>
+              {book.title} · {book.format} · {book.status} · {book.sourceKey || book.id}
+            </Button>)}
+            {existing.total > existing.books.length ? <span>Showing {existing.books.length} of {existing.total} saved matches. Resolve duplicates in Library before adding.</span> : null}
           </div>
         ) : null}
 
@@ -772,15 +798,16 @@ export default function SearchPage() {
         ) : null}
 
         <div className="search-detail-actions">
-          {existing ? (
-            <Button icon={HardDriveDownload} onClick={() => openWanted(existing)}>
-              Open wanted
+          {existing?.total === 1 ? (
+            <Button icon={HardDriveDownload} onClick={() => openWanted(existing.books[0])}>
+              Open book
             </Button>
           ) : canBeWanted ? (
             <Button
               variant="primary"
               icon={HardDriveDownload}
               busy={addWanted.isPending}
+              disabled={!matchesReady}
               onClick={() => requestAddBook(result)}
             >
               {addWanted.isPending ? "Adding" : reviewReasons.length ? "Review & Add Book" : "Add Book"}
@@ -1045,6 +1072,7 @@ export default function SearchPage() {
               variant="primary"
               icon={HardDriveDownload}
               busy={addWanted.isPending}
+              disabled={!matchesReady}
               onClick={() => pendingReview && requestAddBook(pendingReview, { force: true })}
             >
               {addWanted.isPending ? "Adding" : "Add anyway"}

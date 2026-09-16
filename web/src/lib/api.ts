@@ -1774,7 +1774,8 @@ export async function createWanted(
   format: string,
   qualityProfile = "standard",
   tags: string[] = [],
-  rootFolderId?: string
+  rootFolderId?: string,
+  preserveExisting = false
 ): Promise<WantedItem> {
   const wantedFormat = format === "audiobook" ? "audiobook" : "ebook";
   const response = await fetch(`${apiBase}/api/v1/wanted`, {
@@ -1783,6 +1784,7 @@ export async function createWanted(
     body: JSON.stringify({
       result,
       format: wantedFormat,
+      preserveExisting,
       qualityProfile,
       tags,
       ...(rootFolderId ? { rootFolderId } : {})
@@ -3489,4 +3491,21 @@ export async function restoreBook(id: string, options: { updatedAt: string; moni
   const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(id)}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(options) });
   if (!response.ok) throw new Error(await apiError(response, "Book could not be restored; refresh to check its current state"));
   return response.json();
+}
+
+export type BookMatchCandidate = { key: string; provider: string; workIds: string[]; editionIds: string[]; sourceKey: string; format: "ebook" | "audiobook" };
+export type BookMatch = { key: string; total: number; books: WantedItem[] };
+export async function fetchBookMatches(candidates: BookMatchCandidate[], signal?: AbortSignal): Promise<BookMatch[]> {
+  const matches: BookMatch[] = [];
+  for (let start = 0; start < candidates.length; start += 100) {
+    const batch = candidates.slice(start, start + 100);
+    const response = await fetch(`${apiBase}/api/v1/library/book-matches`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates: batch }), signal });
+    if (!response.ok) throw new Error(await apiError(response, "Library identity check failed"));
+    const data = await response.json();
+    if (!Array.isArray(data.matches) || data.matches.length !== batch.length || batch.some(candidate => data.matches.filter((m: BookMatch) => m.key === candidate.key && Number.isInteger(m.total) && m.total >= 0 && Array.isArray(m.books) && m.books.length === Math.min(m.total, 10)).length !== 1)) {
+      throw new Error("Library identity check was incomplete; retry before adding a book");
+    }
+    matches.push(...data.matches);
+  }
+  return matches;
 }

@@ -60,8 +60,9 @@ These changes are **unreleased work**: [safety/recovery PR #3](https://github.co
 [import recovery PR #44](https://github.com/bandoracer/librarry/pull/44),
 [dashboard counts PR #45](https://github.com/bandoracer/librarry/pull/45),
 [import reviews PR #46](https://github.com/bandoracer/librarry/pull/46),
-[book choices PR #47](https://github.com/bandoracer/librarry/pull/47), and
-the `codex/removed-book-recovery` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
+[book choices PR #47](https://github.com/bandoracer/librarry/pull/47),
+[removed book recovery PR #48](https://github.com/bandoracer/librarry/pull/48), and
+the `codex/search-book-identity` continuation. They do not certify the current homelab. The September audit found the LAN portal reachable and reporting 0.4.0;
 the Cosmos hostname returned 502. Earlier successful Cosmos checks below are
 historical. No September production rollout or unattended soak is complete.
 
@@ -158,6 +159,14 @@ indexes. Manual and payload book-choice selectors now search/page all active sav
 books through a database-only endpoint. Selected identities remain visible outside
 the current search/page; owner-edited labels win. Migration 0054 adds a supporting
 creation/identity index. Removed/ignored records are excluded from new choices.
+
+Search now checks the complete saved collection using typed provider identities
+and format rather than the first 200 wanted rows or title similarity. Removed,
+ignored and ambiguous matches remain explicit. Lookup failures disable Add until
+retry succeeds. Search adds request transactional preservation: existing tracking
+returns a conflict without changing settings or restoring a removed record. This
+local check does not claim current file presence, and legacy callers that omit the
+preservation flag retain their existing behavior.
 
 Removed and ignored books now have a complete searchable Library view with
 creation-time pages and exact counts. Explicit restore preserves saved file links,

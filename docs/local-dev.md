@@ -1600,3 +1600,18 @@ response is interrupted, refresh the list/details before retrying.
 Direct links to inactive books show their status and the same explicit Restore
 flow. Their regular monitoring/edit/release controls return after restoration;
 file and provenance inspection remain available.
+
+### Search library identity checks
+
+Search checks saved work/edition/provider identities and the selected format before
+allowing Add. This includes older, imported, unmonitored, removed and ignored books.
+Titles alone are not identity evidence. Saved owner-edited titles appear on the
+book buttons; provider source keys distinguish multiple matches. Open a saved book
+to inspect file evidence or use its explicit restore flow.
+
+A failed or incomplete check keeps Add disabled and offers Retry library check.
+If another session adds the book first, the server rejects the repeated add and
+Search refreshes its saved matches. No settings are overwritten and removed books
+are not restored by Add. An unknown edition format uses the selected search
+format consistently for both lookup and insertion; a concrete edition retains its
+own format. Search checks tracking identity, not live download/file presence.

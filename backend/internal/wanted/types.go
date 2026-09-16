@@ -21,6 +21,8 @@ type Acquisition interface {
 }
 
 type CreateRequest struct {
+	// PreserveExisting rejects an add that would alter an existing tracking target.
+	PreserveExisting bool `json:"preserveExisting,omitempty"`
 	// InitialMonitored applies only on insertion; existing tracking is unchanged.
 	InitialMonitored *bool                 `json:"-"`
 	OnlyIfUntracked  bool                  `json:"-"`

@@ -114,8 +114,15 @@ func TestDirectBookAndFileLookupBeyondCollectionCaps(t *testing.T) {
 	if _, err := db.Exec(`update wanted_items set status='removed' where id=$1`, id); err != nil {
 		t.Fatal(err)
 	}
-	if got := requestStatus(t, router, httptest.NewRequest(http.MethodGet, "/api/v1/wanted/"+id, nil)); got != 404 {
-		t.Fatalf("removed book returned %d", got)
+	for _, status := range []string{"removed", "ignored"} {
+		if _, err := db.Exec(`update wanted_items set status=$1,monitored=false where id=$2`, status, id); err != nil {
+			t.Fatal(err)
+		}
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/wanted/"+id, nil))
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &item) != nil || item.Status != status || item.Monitored {
+			t.Fatalf("inactive detail: %d %s", response.Code, response.Body.String())
+		}
 	}
 	if got := requestStatus(t, router, httptest.NewRequest(http.MethodGet, "/api/v1/wanted/not-a-uuid", nil)); got != 400 {
 		t.Fatalf("invalid id returned %d", got)

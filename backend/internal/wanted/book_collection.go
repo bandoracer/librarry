@@ -217,21 +217,26 @@ func (s wantedWithExtra) Scan(dest ...any) error { return s.row.Scan(append(dest
 const bookFilterSQL = `($4='' or strpos(lower(title||' '||author_name||' '||quality_profile||' '||metadata_provider||' '||derived_state),lower($4))>0)
  and ($5='all' or wanted_format=$5) and ($6='all' or monitored=($6='monitored')) and ($7='all' or derived_state=$7)`
 
-// Materialize derived states before cursor filtering so the planner cannot
-// repeatedly scan the evidence projection once for each candidate book.
+// Join evidence to wanted IDs before enriching works/profiles. Otherwise new
+// work indexes can make a misestimated evidence projection rescan every wanted
+// row for every book. Materialize derived states before cursor filtering too.
 const bookCollectionSQL = `with profiles as (
  select * from jsonb_to_recordset($1::jsonb) as p(name text,format text,cutoff double precision,upgrade boolean)
+), tracked as materialized (
+ select wi.id,wi.work_id,wi.title,wi.author_name,wi.wanted_format,wi.quality_profile,
+ wi.metadata_provider,wi.monitored,wi.created_at,wi.current_release_id,wi.current_release_score,
+ e.file_state,e.file_reason,e.present_files,e.required_files
+ from wanted_items wi join librarry_book_file_evidence(null) e on e.wanted_id=wi.id
+ where wi.status not in ('removed','ignored')
 ), base as (
  select wi.id,coalesce(nullif(wi.title,''),w.title,'') as title,coalesce(wi.author_name,'') as author_name,
  wi.wanted_format,coalesce(wi.quality_profile,'standard') as quality_profile,coalesce(wi.metadata_provider,'') as metadata_provider,wi.monitored,wi.created_at,
  case when wi.current_release_id is null then 0 else wi.current_release_score end as score,
  coalesce(p.cutoff,d.cutoff) as cutoff,coalesce(p.upgrade,d.upgrade) as upgrade,
- e.file_state,e.file_reason,e.present_files,e.required_files
- from wanted_items wi left join works w on w.id=wi.work_id
- join librarry_book_file_evidence(null) e on e.wanted_id=wi.id
+ wi.file_state,wi.file_reason,wi.present_files,wi.required_files
+ from tracked wi left join works w on w.id=wi.work_id
  left join profiles p on p.name=coalesce(nullif(lower(btrim(wi.quality_profile)),''),'standard') and p.format=wi.wanted_format
  join profiles d on d.name='' and d.format=wi.wanted_format
- where wi.status not in ('removed','ignored')
 ), stateful as materialized (
  select *,case
  when file_state='present' then case when monitored and upgrade and not(score>0 and score<1000) and score<cutoff then 'cutoffUnmet' else 'downloaded' end

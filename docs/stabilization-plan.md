@@ -234,7 +234,9 @@ selection; resolved history includes imported, skipped and rejected decisions.
 Manual/payload book selectors now reach all active identities through local
 search and pages with pinned selections. Removed/ignored books now have complete
 paging and an explicit, revision-checked restore that retains settings and file
-links. Other legacy readers, search badges, compatibility and resumable
+links. Search now checks complete provider-backed identities, displays inactive
+and ambiguous matches, and guards adds against overwriting existing tracking.
+Other legacy readers, search presence evidence, compatibility and resumable
 all-matching jobs remain open; neither milestone is complete. See the implementation ledger for qualification.
 
 ### S16 — Readarr compatibility and migration

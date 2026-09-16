@@ -2473,3 +2473,57 @@ Qualification:
 This does not recover deleted bytes or finish search-badge, legacy-reader,
 compatibility or all-matching-job work. No production deployment or release is
 implied.
+
+
+## S14/S15 continuation — Complete search identity checks
+
+Search previously checked a 200-row wanted list and accepted normalized-title
+similarity as proof of identity. That could hide an older tracked book, block a
+different work with the same title, or re-add a removed record through the legacy
+upsert. A bounded local batch lookup now checks exact saved source identities and
+typed work/edition provenance across the full collection, retaining format and
+inactive-state distinctions. Counts are exact; up to ten saved matches per
+candidate are shown without choosing an ambiguous target. Owner-edited labels and
+source keys stay visible. Failed or incomplete lookup disables Add with retry.
+
+Search adds opt into transactional preservation. Shared provider and local-work
+locks serialize competing adds; existing identities and insert conflicts return
+409 without modifying settings or lifecycle. Legacy callers retain their prior
+contract. Unknown edition formats now use the chosen format for insertion as well
+as lookup. Concrete editions retain their format while the next search changes.
+
+The full race gate exposed a query-plan regression from the new identity indexes:
+a 10,001-book count rescanned 100,010,000 rejected join pairs and took 17,259ms.
+Materializing the wanted-ID/evidence join before work/profile enrichment reduced
+the same measured count to 39.5ms with the indexes (37.3ms without). Existing full
+collection traversal tests cover this boundary; timeouts were not relaxed.
+
+The packaged test also exposed an older detail-route contract that hid inactive
+records. Direct native lookup now returns removed/ignored records for the explicit
+recovery UI; missing records still return 404. Real API and packaged checks cover
+this, in addition to mocked UI recovery tests.
+
+Qualification:
+
+- 100 identity candidates against 10,002 records pass at local race-enabled p95
+  73.1ms. Tests cover merged/typed provenance, same-title nonmatches, inactive
+  records, formats, owner overrides, ambiguity and concurrent preserved adds
+  through both merged and previously saved aliases.
+- With the planner fix, all 404 pages of the 10,001-book fixture pass at p95
+  84.9ms; the 1,002-author/10,001-book fixture's slowest page is 392.8ms.
+- All 143 desktop/mobile browser tests pass with one expected skip, including
+  incomplete/error lookup, retry, concurrent-add reconciliation, format changes
+  and exact guarded mutation payloads. Mobile layout was inspected.
+- Fifteen web units, production build, Go vet and deployment contracts pass.
+  Full race-enabled integration tests pass (wanted 188.516s; unchanged library
+  package reused its successful cached run).
+- API/web images `librarry-api:search-identity` and `librarry-web:search-identity`
+  report marker `working-tree-search-identity`, schema 56. Packaged checks pass
+  identity lookup across restart/removal/restore, preserved-add rejection,
+  inactive detail readback, existing import/authentication regressions and a
+  465,200-byte isolated database restore.
+
+The ordinary full Go suite also passes (library 161.961s, wanted 118.127s).
+This checks saved tracking identities; live
+presence badges, legacy readers, compatibility and all-matching jobs remain open.
+No production deployment, image publication or release is implied.

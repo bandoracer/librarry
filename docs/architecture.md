@@ -728,8 +728,9 @@ the web settings form disables those controls and the API rejects overwrite atte
 ### Direct native book lookup
 
 `GET /api/v1/wanted/{uuid}` retrieves one tracked book independently of collection
-limits. Removed/ignored/missing rows return 404; malformed IDs return 400; storage
-failure returns 503. `GET /api/v1/library/files?wantedId={uuid}` filters file
+limits. Removed and ignored rows remain readable for explicit recovery; only
+missing records return 404. Malformed IDs return 400 and storage failure returns
+503. Reading an inactive record does not restore or monitor it. `GET /api/v1/library/files?wantedId={uuid}` filters file
 associations before the result limit. Book routes use these queries and preserve
 the distinction between missing data and a retryable service failure. General
 collection pagination and compatibility reconciliation remain separate stabilization
@@ -1869,3 +1870,37 @@ have a five-second deadline and restore ten seconds, including lock waits. No
 acquisition or file mutation is performed by restore. Monitoring can allow later
 scheduled work only when explicitly selected. The legacy update API remains
 available for existing integrations.
+
+### Search identity lookup and preserved adds
+
+`POST /api/v1/library/book-matches` accepts `candidates` with a unique `key`,
+`provider`, `workIds`, `editionIds`, `sourceKey` and ebook/audiobook `format`.
+The authenticated, no-store route bounds bodies to 1 MiB, batches to 100 candidates,
+combined work/edition IDs to 64 per candidate, keys to 2048 bytes and identities to
+512 bytes. Unknown fields, duplicate candidate keys, trailing JSON and invalid
+formats fail with 400. Storage failures return 503, not empty matches. Reads have a
+five-second deadline and a repeatable-read snapshot.
+
+Matching joins exact provider/source identities and typed work/edition provenance
+against all wanted rows in the requested format, including removed/ignored rows.
+Legacy work/format source placeholders remain recognized. Titles and author-name
+similarity are not identity evidence. Each candidate returns its exact `total`
+and up to ten saved books, ordered active before inactive, then creation time/UUID.
+Owner overrides are hydrated in a batch. No provider, client or filesystem probe
+runs. Schema 0056 indexes wanted work/format and edition/format joins. The UI shows
+ambiguity explicitly and validates the complete response before permitting Add.
+These are tracking badges, not current file-presence claims.
+
+Search sends `preserveExisting: true` on native wanted creation. Ordered identity
+locks and existing local work locks coordinate concurrent preserved adds, including
+merged and previously saved provider aliases. The transaction rechecks identities
+before changing metadata; any existing tracking returns 409. An insert conflict
+also returns 409 and rolls back instead of updating the owner record. Creation has
+a ten-second HTTP deadline. Existing callers that omit the opt-in flag retain the
+legacy upsert contract; automated author additions retain OnlyIfUntracked behavior.
+No duplicate is selected for mutation and no inactive record is silently restored.
+
+The shared collection projection materializes the wanted-ID/file-evidence join
+before work/profile enrichment. The new work index otherwise changes the planner's
+join order, rescanning wanted rows for every evidence row. This boundary retains
+indexed identity lookups without quadratic collection reads.

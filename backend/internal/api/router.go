@@ -451,6 +451,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/library/authors/{key}", handler.libraryAuthorDetail)
 	mux.HandleFunc("GET /api/v1/library/books", handler.libraryBookCollection)
 	mux.HandleFunc("GET /api/v1/library/book-choices", handler.bookChoices)
+	mux.HandleFunc("POST /api/v1/library/book-matches", handler.bookMatches)
 	mux.HandleFunc("GET /api/v1/library/removed-books", handler.removedBooks)
 	mux.HandleFunc("POST /api/v1/wanted/{id}/restore", handler.restoreBook)
 	mux.HandleFunc("GET /api/v1/library/authors", handler.libraryAuthorCollection)
@@ -2208,7 +2209,7 @@ func (h *handler) getWanted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := h.deps.Wanted.Get(r.Context(), id)
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && (item.Status == "removed" || item.Status == "ignored")) {
+	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "book not found"})
 		return
 	}
@@ -2259,13 +2260,18 @@ func (h *handler) createWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted payload"})
 		return
 	}
-	item, err := h.deps.Wanted.Create(r.Context(), request)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	item, err := h.deps.Wanted.Create(ctx, request)
 	if err != nil {
 		// Root-folder validation (unknown id, format mismatch) is caller
 		// error, not an upstream failure.
 		status := http.StatusBadGateway
-		if strings.Contains(err.Error(), "root folder") {
+		if strings.Contains(err.Error(), "root folder") || errors.Is(err, wanted.ErrBookMatches) {
 			status = http.StatusBadRequest
+		}
+		if errors.Is(err, wanted.ErrBookAlreadyTracked) {
+			status = http.StatusConflict
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
