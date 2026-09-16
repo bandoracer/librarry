@@ -162,9 +162,11 @@ with tempfile.TemporaryDirectory(prefix=PREFIX, dir=ROOT / "output") as temp:
         stage_token = str(uuid.uuid4())
         stage_path = str(Path(planned_destination).parent / f".librarry-stage-{file_id}-{stage_token}")
         local_stage = media / Path(stage_path).relative_to("/fixture")
-        local_stage.write_bytes(b"interrupted staged copy")
         unrelated_stage = local_stage.parent / ".librarry-stage-unowned"
-        unrelated_stage.write_bytes(b"retain unowned bytes")
+        # Destination directories belong to the API uid; Linux CI's host uid
+        # may differ. Seed the interrupted bytes as the same container user.
+        docker("exec", API, "sh", "-ec", 'printf "%s" "interrupted staged copy" > "$1"; printf "%s" "retain unowned bytes" > "$2"',
+               "fixture-stage", stage_path, str(Path(stage_path).parent / ".librarry-stage-unowned"))
         sql(f"update import_operation_files set stage_path='{stage_path}',stage_lease_token='{stage_token}' where id='{file_id}'")
         docker("restart", API)
         wait_for(lambda: request("/api/v1/system/status"))
