@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -25,6 +27,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/notify"
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 	"github.com/bandoracer/librarry/backend/internal/scheduler"
 	"github.com/bandoracer/librarry/backend/internal/tags"
 	"github.com/bandoracer/librarry/backend/internal/wanted"
@@ -35,6 +38,10 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 
+	if err := config.ValidateEnvironment(); err != nil {
+		logger.Error("invalid environment configuration", "error", err)
+		os.Exit(1)
+	}
 	cfg := config.FromEnv()
 	ctx, cancelApp := context.WithCancel(context.Background())
 	defer cancelApp()
@@ -46,6 +53,8 @@ func main() {
 	var authStore *auth.Store
 	var tagsStore *tags.Store
 	var importListStore *importlists.Store
+	var schemaMigration string
+	var schedulerDB *sql.DB
 
 	if cfg.DatabaseURL != "" {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -54,9 +63,14 @@ func main() {
 			os.Exit(1)
 		}
 		defer db.Close()
+		schedulerDB = db
 
 		if err := database.ApplyMigrations(ctx, db, cfg.MigrationsDir); err != nil {
 			logger.Error("database migrations failed", "error", err)
+			os.Exit(1)
+		}
+		if err := db.QueryRowContext(ctx, "select coalesce(max(version), '') from schema_migrations").Scan(&schemaMigration); err != nil {
+			logger.Error("read applied migration", "error", err)
 			os.Exit(1)
 		}
 		downloadStore = acquisition.NewSQLDownloadStore(db)
@@ -72,7 +86,36 @@ func main() {
 		logger.Warn("LIBRARRY_DATABASE_URL is not set; starting without database-backed persistence")
 	}
 
+	// Auth (M6.2): an explicit LIBRARRY_AUTH_METHOD wins at boot; otherwise a
+	// UI-persisted method (compat resource auth-config) is restored.
+	authService := auth.NewService(authStore, logger)
+	method, err := bootAuthMethod(ctx, compatStore, cfg)
+	if err != nil {
+		logger.Error("authentication configuration failed", "error", err)
+		os.Exit(1)
+	}
+	authService.SetMethod(method)
+	if method != auth.MethodNone && !authService.Available() {
+		logger.Error("configured authentication requires database persistence")
+		os.Exit(1)
+	}
+	if cfg.AuthUsername != "" && cfg.AuthPassword != "" && authService.Available() {
+		if err := authService.EnsureUser(ctx, cfg.AuthUsername, cfg.AuthPassword); err != nil {
+			logger.Error("auth user seed failed", "error", err)
+			os.Exit(1)
+		}
+	}
+	if authService.Method() != auth.MethodNone && !authService.HasUser(ctx) {
+		logger.Error("configured authentication requires a usable user; supply LIBRARRY_AUTH_USERNAME and LIBRARRY_AUTH_PASSWORD")
+		os.Exit(1)
+	}
+	if authService.Method() != auth.MethodNone {
+		logger.Info("api authentication enabled", "method", authService.Method())
+	}
+
+	providerClient := providerhttp.NewClient(12 * time.Second)
 	providers := metadata.DefaultProviders(metadata.ProviderConfig{
+		HTTPClient:     providerClient,
 		HardcoverToken: cfg.HardcoverToken,
 		GoogleAPIKey:   cfg.GoogleBooksAPIKey,
 		HTTPTimeout:    12 * time.Second,
@@ -146,7 +189,7 @@ func main() {
 	if compatStore != nil {
 		rootFolders = compatStore
 	}
-	libraryService := library.NewService(libraryStore, libraryConfig, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), rootFolders)
+	libraryService := library.NewService(libraryStore, libraryConfig, wantedStore, downloadStore).WithCalibre(calibre.NewClient(nil), rootFolders).WithDownloadInspector(acquire)
 	if libraryService.Available() {
 		// Native root folders (when present) win over the env/compat roots.
 		if err := libraryService.SyncConfigFromRootFolders(ctx); err != nil {
@@ -156,24 +199,11 @@ func main() {
 	wantedService.SetDefaultSearchLanguage(libraryConfig.StandardSearchLanguage)
 	notifier := notify.NewService(notifyStore, logger)
 
-	// Auth (M6.2): an explicit LIBRARRY_AUTH_METHOD wins at boot; otherwise a
-	// UI-persisted method (compat resource auth-config) is restored.
-	authService := auth.NewService(authStore, logger)
-	authService.SetMethod(bootAuthMethod(ctx, logger, compatStore, cfg))
-	if cfg.AuthUsername != "" && cfg.AuthPassword != "" && authService.Available() {
-		if err := authService.EnsureUser(ctx, cfg.AuthUsername, cfg.AuthPassword); err != nil {
-			logger.Warn("auth user seed failed", "error", err)
-		}
-	}
-	if authService.Method() != auth.MethodNone {
-		logger.Info("api authentication enabled", "method", authService.Method())
-	}
-
 	// Import lists (M6.3): Hardcover-native list sync.
 	importListService := importlists.NewService(
 		importListStore,
 		wantedService,
-		importlists.NewHardcoverClient(nil, cfg.HardcoverToken),
+		importlists.NewHardcoverClient(providerClient, cfg.HardcoverToken),
 		logger,
 	)
 
@@ -187,53 +217,57 @@ func main() {
 	// Background workers register with the scheduler registry, which owns the
 	// startup-timer/ticker loops and powers the System Tasks view plus manual
 	// run-now triggers.
-	registry := scheduler.NewRegistry(logger)
+	registry := scheduler.NewRegistry(logger).WithDatabase(schedulerDB)
 	registerTask := func(task scheduler.Task) {
 		if err := registry.Register(task); err != nil {
 			logger.Error("task registration failed", "task", task.ID, "error", err)
+		} else {
+			logger.Info("background task registered", "task", task.ID, "enabled", task.DisabledReason == "", "available", task.UnavailableReason == "", "disabled_reason", task.DisabledReason, "unavailable_reason", task.UnavailableReason)
 		}
 	}
-	if cfg.MonitorEnabled && wantedService.Available() {
-		registerTask(wantedMonitorTask(logger, wantedService, notifier, cfg))
-	}
-	if cfg.AuthorMonitorEnabled && wantedService.Available() {
-		registerTask(authorMonitorTask(logger, wantedService, cfg))
-	}
-	if cfg.FeedSyncEnabled && wantedService.Available() {
-		registerTask(feedSyncTask(logger, wantedService, notifier, cfg))
-	}
-	if cfg.FailedDownloadEnabled && wantedService.Available() {
-		registerTask(failedDownloadRecoveryTask(logger, wantedService, notifier, cfg))
-	}
-	if cfg.UpgradeSearchEnabled && wantedService.Available() {
-		registerTask(upgradeSearchTask(logger, wantedService, notifier, cfg))
-	}
-	if cfg.CalibreRefreshEnabled && libraryService.Available() {
-		registerTask(calibreConversionRefreshTask(logger, libraryService, cfg))
-	}
-	if cfg.CompletedImportEnabled && libraryService.Available() {
-		registerTask(completedDownloadImportTask(logger, libraryService, acquire, notifier, cfg))
-	}
-	if importListService.Available() {
-		registerTask(importListSyncTask(logger, importListService, cfg))
-	}
-	if cfg.BackupEnabled && backupService.Available() {
-		registerTask(backupTask(logger, backupService, cfg))
-	}
+	registerTask(taskPolicy(scheduler.Task{ID: "history-maintenance", Name: "History Maintenance", Interval: time.Hour, StartupDelay: time.Minute, Run: func(runCtx context.Context, trigger string) (string, error) {
+		report, err := notifier.PruneHistory(runCtx)
+		reviewedRuns := 0
+		if err == nil {
+			reviewedRuns, err = registry.PruneReviewedHistory(runCtx)
+		}
+		scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"eventsCompacted": report.Events, "deliveriesPruned": report.Deliveries, "attemptsPruned": report.Attempts, "actionsPruned": report.Actions, "busySkipped": report.Skipped, "reviewedRunsPruned": reviewedRuns}, NextAction: "Review database availability and history maintenance logs."})
+		return fmt.Sprintf("Compacted %d notification events, %d deliveries and %d reviewed worker runs", report.Events, report.Deliveries, reviewedRuns), err
+	}}, true, notifier.Available(), "", "Database persistence is required."))
+	registerTask(taskPolicy(scheduler.Task{ID: "notification-delivery", Name: "Notification Delivery", Interval: 15 * time.Second, StartupDelay: 3 * time.Second, Run: func(runCtx context.Context, trigger string) (string, error) {
+		report, err := notifier.RunPendingDetailed(runCtx)
+		scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"processed": report.Processed, "accepted": report.Accepted, "retry": report.Retry, "failed": report.Failed, "uncertain": report.Uncertain, "cancelled": report.Cancelled}, Errors: report.Failed + report.Uncertain, NextAction: "Review notification delivery in Settings Connect."})
+		return fmt.Sprintf("Processed %d notification deliveries", report.Processed), err
+	}}, true, notifier.Available(), "", "Database persistence is required."))
+	registerTask(taskPolicy(scheduler.Task{ID: "library-scan", Name: "Library Scan Progress", Interval: 5 * time.Second, StartupDelay: 2 * time.Second, Run: func(runCtx context.Context, trigger string) (string, error) {
+		err := libraryService.RunPendingScans(runCtx)
+		return "Advanced pending library scans", err
+	}}, true, libraryService.Available(), "", "Database persistence is required."))
+	registerTask(taskPolicy(wantedMonitorTask(logger, wantedService, cfg), cfg.MonitorEnabled, wantedService.Available(), "LIBRARRY_MONITOR_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(authorMonitorTask(logger, wantedService, cfg), cfg.AuthorMonitorEnabled, wantedService.Available(), "LIBRARRY_AUTHOR_MONITOR_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(feedSyncTask(logger, wantedService, cfg), cfg.FeedSyncEnabled, wantedService.Available(), "LIBRARRY_FEED_SYNC_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(failedDownloadRecoveryTask(logger, wantedService, cfg), cfg.FailedDownloadEnabled, wantedService.Available(), "LIBRARRY_FAILED_DOWNLOAD_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(upgradeSearchTask(logger, wantedService, cfg), cfg.UpgradeSearchEnabled, wantedService.Available(), "LIBRARRY_UPGRADE_SEARCH_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(calibreConversionRefreshTask(logger, libraryService, cfg), cfg.CalibreRefreshEnabled, libraryService.Available(), "LIBRARRY_CALIBRE_REFRESH_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(completedDownloadImportTask(logger, libraryService, acquire, cfg), cfg.CompletedImportEnabled, libraryService.Available(), "LIBRARRY_COMPLETED_IMPORT_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(importListSyncTask(logger, importListService, cfg), cfg.ImportListSyncEnabled, importListService.Available(), "LIBRARRY_IMPORT_LIST_SYNC_ENABLED", "Database persistence is required."))
+	registerTask(taskPolicy(backupTask(logger, backupService, cfg), cfg.BackupEnabled, backupService.Available(), "LIBRARRY_BACKUP_ENABLED", "Database persistence and a backup directory are required."))
 
 	deps := api.Dependencies{
-		Logger:      logger,
-		Config:      cfg,
-		Metadata:    metadataService,
-		Acquire:     acquire,
-		Wanted:      wantedService,
-		Library:     libraryService,
-		Notify:      notifier,
-		Scheduler:   registry,
-		Auth:        authService,
-		ImportLists: importListService,
-		Tags:        tagsStore,
-		Backups:     backupService,
+		Database:        schedulerDB,
+		SchemaMigration: schemaMigration,
+		Logger:          logger,
+		Config:          cfg,
+		Metadata:        metadataService,
+		Acquire:         acquire,
+		Wanted:          wantedService,
+		Library:         libraryService,
+		Notify:          notifier,
+		Scheduler:       registry,
+		Auth:            authService,
+		ImportLists:     importListService,
+		Tags:            tagsStore,
+		Backups:         backupService,
 	}
 	if compatStore != nil {
 		deps.Compat = compatStore
@@ -242,9 +276,9 @@ func main() {
 	deps.Health = healthEvaluator
 	registerTask(healthCheckTask(healthEvaluator))
 
+	router := api.NewRouter(deps)
 	var monitorWG sync.WaitGroup
 	registry.Start(ctx, &monitorWG)
-	router := api.NewRouter(deps)
 
 	server := &http.Server{
 		Addr:              cfg.ListenAddr,
@@ -274,12 +308,12 @@ func main() {
 	}
 }
 
-func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func feedSyncTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.FeedSyncInterval
 	if interval <= 0 {
 		interval = 15 * time.Minute
 	}
-	logger.Info("feed sync enabled", "interval", interval, "auto_grab", cfg.FeedSyncAutoGrab)
+	logger.Debug("feed sync configuration", "interval", interval, "auto_grab", cfg.FeedSyncAutoGrab)
 	return scheduler.Task{
 		ID:           "feed-sync",
 		Name:         "Feed Sync",
@@ -295,11 +329,11 @@ func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify
 				// arr parity: automated grabs start immediately; blocklist backstops failures.
 				Paused: false,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"releasesSeen": outcome.ReleasesSeen, "matched": outcome.MatchedCount, "grabbed": outcome.GrabbedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review feed history and provider health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("feed sync failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromFeedSyncRun("feed-sync", outcome))
 			logger.Info(
 				"feed sync completed",
 				"trigger", trigger,
@@ -318,7 +352,7 @@ func feedSyncTask(logger *slog.Logger, service *wanted.Service, notifier *notify
 	}
 }
 
-func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.FailedDownloadInterval
 	if interval <= 0 {
 		interval = 30 * time.Minute
@@ -327,7 +361,7 @@ func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, no
 	if stalledMinutes <= 0 {
 		stalledMinutes = int((24 * time.Hour) / time.Minute)
 	}
-	logger.Info("failed download recovery enabled", "interval", interval, "auto_grab", cfg.FailedDownloadAutoGrab, "remove_failed", cfg.FailedDownloadRemove)
+	logger.Debug("failed download recovery configuration", "interval", interval, "auto_grab", cfg.FailedDownloadAutoGrab, "remove_failed", cfg.FailedDownloadRemove)
 	return scheduler.Task{
 		ID:           "failed-download-recovery",
 		Name:         "Failed Download Recovery",
@@ -346,11 +380,11 @@ func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, no
 				RemoveFailed:      cfg.FailedDownloadRemove,
 				DeleteFailedFiles: cfg.FailedDownloadDeleteFiles,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.DownloadsChecked, "failed": outcome.FailedCount, "grabbed": outcome.GrabbedCount, "removed": outcome.RemovedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review Activity recovery and client health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("failed download recovery failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromFailedDownloadRun("failed-download-recovery", outcome))
 			logger.Info(
 				"failed download recovery completed",
 				"trigger", trigger,
@@ -370,7 +404,7 @@ func failedDownloadRecoveryTask(logger *slog.Logger, service *wanted.Service, no
 	}
 }
 
-func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.UpgradeSearchInterval
 	if interval <= 0 {
 		interval = 12 * time.Hour
@@ -379,7 +413,7 @@ func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *n
 	if minSearchIntervalMinutes <= 0 {
 		minSearchIntervalMinutes = int((12 * time.Hour) / time.Minute)
 	}
-	logger.Info("upgrade search enabled", "interval", interval, "auto_grab", cfg.UpgradeSearchAutoGrab, "min_delta", cfg.UpgradeSearchMinDelta)
+	logger.Debug("upgrade search configuration", "interval", interval, "auto_grab", cfg.UpgradeSearchAutoGrab, "min_delta", cfg.UpgradeSearchMinDelta)
 	return scheduler.Task{
 		ID:           "upgrade-search",
 		Name:         "Upgrade Search",
@@ -397,11 +431,11 @@ func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *n
 				AutoGrab:                 cfg.UpgradeSearchAutoGrab,
 				Paused:                   false,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.WantedChecked, "upgrades": outcome.UpgradeCount, "grabbed": outcome.GrabbedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review upgrade history and provider health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("upgrade search failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromUpgradeRun("upgrade-search", outcome))
 			logger.Info(
 				"upgrade search completed",
 				"trigger", trigger,
@@ -419,7 +453,7 @@ func upgradeSearchTask(logger *slog.Logger, service *wanted.Service, notifier *n
 	}
 }
 
-func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, cfg config.Config) scheduler.Task {
 	interval := cfg.MonitorInterval
 	if interval <= 0 {
 		interval = 30 * time.Minute
@@ -428,7 +462,7 @@ func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, notifier *n
 	if searchIntervalMinutes <= 0 {
 		searchIntervalMinutes = int((6 * time.Hour) / time.Minute)
 	}
-	logger.Info("wanted monitor enabled", "interval", interval, "auto_grab", cfg.MonitorAutoGrab)
+	logger.Debug("wanted monitor configuration", "interval", interval, "auto_grab", cfg.MonitorAutoGrab)
 	return scheduler.Task{
 		ID:           "wanted-monitor",
 		Name:         "Wanted Monitor",
@@ -444,11 +478,11 @@ func wantedMonitorTask(logger *slog.Logger, service *wanted.Service, notifier *n
 				AutoGrab:                 cfg.MonitorAutoGrab,
 				MinSearchIntervalMinutes: searchIntervalMinutes,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.WantedChecked, "approved": outcome.ApprovedCount, "grabbed": outcome.GrabbedCount, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review wanted history and provider health.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("wanted monitor run failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(runCtx, notify.EventsFromMonitorRun("wanted-monitor", outcome))
 			logger.Info(
 				"wanted monitor run completed",
 				"trigger", trigger,
@@ -475,7 +509,7 @@ func authorMonitorTask(logger *slog.Logger, service *wanted.Service, cfg config.
 	if syncIntervalMinutes <= 0 {
 		syncIntervalMinutes = int((24 * time.Hour) / time.Minute)
 	}
-	logger.Info("author monitor enabled", "interval", interval)
+	logger.Debug("author monitor configuration", "interval", interval)
 	return scheduler.Task{
 		ID:           "author-monitor",
 		Name:         "Author Monitor",
@@ -490,6 +524,7 @@ func authorMonitorTask(logger *slog.Logger, service *wanted.Service, cfg config.
 				SearchLimit:            20,
 				MinSyncIntervalMinutes: syncIntervalMinutes,
 			})
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.AuthorsChecked, "found": outcome.ItemsFound, "created": outcome.WantedCreated, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review author monitoring history.", OperationIDs: []string{outcome.ID}})
 			if err != nil {
 				logger.Warn("author monitor run failed", "trigger", trigger, "error", err)
 				return "", err
@@ -539,9 +574,9 @@ type recycleBinCleaner interface {
 // arr "Remove Completed" behavior: imported downloads whose client reports
 // seeding has finished are deleted with their data (imports use
 // hardlink-or-copy, so the library copy survives).
-func completedDownloadImportTask(logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadClient, notifier *notify.Service, cfg config.Config) scheduler.Task {
+func completedDownloadImportTask(logger *slog.Logger, service completedDownloadImportService, downloads completedDownloadClient, cfg config.Config) scheduler.Task {
 	interval := completedImportInterval(cfg)
-	logger.Info("completed download import enabled", "interval", interval, "limit", completedImportLimit(cfg), "remove_after_seeding", cfg.CompletedRemoveEnabled)
+	logger.Debug("completed download import configuration", "interval", interval, "limit", completedImportLimit(cfg), "remove_after_seeding", cfg.CompletedRemoveEnabled)
 	return scheduler.Task{
 		ID:           "completed-import",
 		Name:         "Completed Download Import",
@@ -549,31 +584,41 @@ func completedDownloadImportTask(logger *slog.Logger, service completedDownloadI
 		StartupDelay: 45 * time.Second,
 		Run: func(ctx context.Context, trigger string) (string, error) {
 			outcome, err := runCompletedDownloadImportOnce(ctx, service, downloads, cfg)
+			removed, recycled, cleanupErrors := 0, 0, 0
+			defer func() {
+				operationIDs := []string{}
+				for _, item := range outcome.Results {
+					if item.Import != nil {
+						operationIDs = append(operationIDs, item.Import.OperationID, item.Import.CalibreHandoffID)
+					}
+				}
+				scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.Checked, "imported": outcome.Imported, "reviewQueued": outcome.ReviewQueued, "removed": removed, "recycled": recycled, "errors": outcome.Errored + cleanupErrors}, Errors: outcome.Errored + cleanupErrors, OperationIDs: operationIDs, NextAction: "Review Imports recovery and download-client status."})
+			}()
 			if err != nil {
 				logger.Warn("completed download import failed", "trigger", trigger, "error", err)
 				return "", err
 			}
-			notifier.DispatchAll(ctx, notify.EventsFromCompletedImports("completed-import", outcome))
-			removed := 0
 			if cfg.CompletedRemoveEnabled {
-				removed, err = runCompletedDownloadRemovalOnce(ctx, downloads)
+				removed, err = runCompletedDownloadRemovalOnce(ctx, downloads, service)
 				if err != nil {
+					cleanupErrors++
 					logger.Warn("completed download removal failed", "trigger", trigger, "error", err)
 				}
 			}
 			// Recycle-bin retention cleanup rides the same tick (no-op when
 			// LIBRARRY_RECYCLE_BIN is unset).
-			recycled := 0
 			if cleaner, ok := service.(recycleBinCleaner); ok && strings.TrimSpace(cfg.RecycleBin) != "" {
 				recycled, err = cleaner.CleanupRecycleBin(time.Now().UTC())
 				if err != nil {
+					cleanupErrors++
 					logger.Warn("recycle bin cleanup failed", "trigger", trigger, "error", err)
 				}
 			}
+
 			// Unresolved reviews re-count every tick (dedup happens in the store),
 			// so only imports, removals, and errors get Info-level noise.
 			level := slog.LevelDebug
-			if outcome.Imported > 0 || outcome.Errored > 0 || removed > 0 || recycled > 0 {
+			if outcome.Imported > 0 || outcome.Errored+cleanupErrors > 0 || removed > 0 || recycled > 0 {
 				level = slog.LevelInfo
 			}
 			logger.Log(
@@ -588,11 +633,11 @@ func completedDownloadImportTask(logger *slog.Logger, service completedDownloadI
 				"skipped", outcome.Skipped,
 				"removed", removed,
 				"recycle_bin_purged", recycled,
-				"errors", outcome.Errored,
+				"errors", outcome.Errored+cleanupErrors,
 			)
 			return fmt.Sprintf(
 				"%d checked, %d imported, %d review queued, %d removed, %d errors",
-				outcome.Checked, outcome.Imported, outcome.ReviewQueued, removed, outcome.Errored,
+				outcome.Checked, outcome.Imported, outcome.ReviewQueued, removed, outcome.Errored+cleanupErrors,
 			), nil
 		},
 	}
@@ -614,7 +659,25 @@ func runCompletedDownloadImportOnce(ctx context.Context, service completedDownlo
 // runCompletedDownloadRemovalOnce deletes imported, seed-finished downloads
 // (with their data) from the download client. It lists fresh state so the
 // downloads imported earlier in the same tick are eligible immediately.
-func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownloadClient) (int, error) {
+type completedDownloadVerifier interface {
+	VerifyCompletedDownload(context.Context, acquisition.DownloadStatus, []acquisition.DownloadFile) error
+}
+type completedCleanupRecorder interface {
+	RecordCompletedCleanup(context.Context, acquisition.DownloadStatus, error) error
+}
+type completedDownloadInspector interface {
+	DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error)
+}
+
+func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownloadClient, service any) (int, error) {
+	verifier, ok := service.(completedDownloadVerifier)
+	if !ok {
+		return 0, fmt.Errorf("completed cleanup requires import verification")
+	}
+	inspector, ok := client.(completedDownloadInspector)
+	if !ok {
+		return 0, fmt.Errorf("completed cleanup requires client file inventory")
+	}
 	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	rows, err := client.Downloads(runCtx, acquisition.DownloadListQuery{Tag: "librarry"})
@@ -627,12 +690,35 @@ func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownlo
 		if !completedDownloadRemovalEligible(download) {
 			continue
 		}
+		details, err := inspector.DownloadDetails(runCtx, download.ID, download.Client)
+		if err == nil {
+			err = verifier.VerifyCompletedDownload(runCtx, download, details.Files)
+		}
+		if err != nil {
+			if recorder, ok := service.(completedCleanupRecorder); ok {
+				if persistErr := recorder.RecordCompletedCleanup(runCtx, download, err); persistErr != nil && firstErr == nil {
+					firstErr = fmt.Errorf("persist cleanup failure: %w", persistErr)
+				}
+			}
+			if firstErr == nil {
+				firstErr = fmt.Errorf("cleanup retained %s: %w", download.ID, err)
+			}
+			continue
+		}
 		result, err := client.DownloadAction(runCtx, acquisition.DownloadActionRequest{
 			Action:      acquisition.DownloadActionDelete,
 			Client:      download.Client,
 			IDs:         []string{download.ID},
 			DeleteFiles: true,
 		})
+		if err == nil && !result.Applied {
+			err = fmt.Errorf("download client did not apply cleanup")
+		}
+		if recorder, ok := service.(completedCleanupRecorder); ok {
+			if persistErr := recorder.RecordCompletedCleanup(runCtx, download, err); persistErr != nil && firstErr == nil {
+				firstErr = fmt.Errorf("persist remote cleanup outcome: %w", persistErr)
+			}
+		}
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
@@ -647,11 +733,10 @@ func runCompletedDownloadRemovalOnce(ctx context.Context, client completedDownlo
 }
 
 // completedDownloadRemovalEligible reports whether an imported download has
-// finished seeding and can be deleted with its data: qBittorrent parks
-// finished torrents in stoppedUP (5.x) or pausedUP (4.x), and Transmission
-// reports stopped-and-done torrents as completed.
+// finished seeding. A stopped state alone is insufficient: the client must
+// also report a satisfied seed goal. Import verification is a separate gate.
 func completedDownloadRemovalEligible(download acquisition.DownloadStatus) bool {
-	if !strings.EqualFold(strings.TrimSpace(download.ImportStatus), "imported") {
+	if !download.SeedGoalMet || download.Progress < 1 || !strings.EqualFold(strings.TrimSpace(download.ImportStatus), "imported") {
 		return false
 	}
 	state := strings.ToLower(strings.TrimSpace(download.State))
@@ -681,7 +766,7 @@ func completedImportLimit(cfg config.Config) int {
 
 func calibreConversionRefreshTask(logger *slog.Logger, service calibreConversionRefreshService, cfg config.Config) scheduler.Task {
 	interval, _ := calibreConversionRefreshSchedule(cfg)
-	logger.Info("calibre conversion refresh enabled", "interval", interval, "limit", calibreConversionRefreshLimit(cfg), "max_attempts", calibreConversionRefreshMaxAttempts(cfg))
+	logger.Debug("calibre conversion refresh configuration", "interval", interval, "limit", calibreConversionRefreshLimit(cfg), "max_attempts", calibreConversionRefreshMaxAttempts(cfg))
 	return scheduler.Task{
 		ID:           "calibre-refresh",
 		Name:         "Calibre Conversion Refresh",
@@ -689,6 +774,7 @@ func calibreConversionRefreshTask(logger *slog.Logger, service calibreConversion
 		StartupDelay: 75 * time.Second,
 		Run: func(ctx context.Context, trigger string) (string, error) {
 			outcome, err := runCalibreConversionRefreshOnce(ctx, logger, service, cfg, trigger)
+			scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.Checked, "refreshed": outcome.Refreshed, "skipped": outcome.Skipped, "errors": outcome.Errored}, Errors: outcome.Errored, NextAction: "Review Calibre handoffs in Imports."})
 			if err != nil {
 				logger.Warn("calibre conversion refresh failed", "trigger", trigger, "error", err)
 				return "", err
@@ -711,25 +797,27 @@ func calibreConversionRefreshTask(logger *slog.Logger, service calibreConversion
 
 // bootAuthMethod resolves the auth method at startup: explicit env wins, then
 // the UI-persisted compat resource, then none.
-func bootAuthMethod(ctx context.Context, logger *slog.Logger, compatStore *compatstore.Store, cfg config.Config) string {
-	if method := auth.NormalizeMethod(cfg.AuthMethod); method != "" {
-		return method
-	}
+func bootAuthMethod(ctx context.Context, compatStore *compatstore.Store, cfg config.Config) (string, error) {
 	if cfg.AuthMethod != "" {
-		logger.Warn("unrecognized LIBRARRY_AUTH_METHOD; falling back to none", "value", cfg.AuthMethod)
+		if method := auth.NormalizeMethod(cfg.AuthMethod); method != "" {
+			return method, nil
+		}
+		return "", fmt.Errorf("LIBRARRY_AUTH_METHOD must be none, basic, or forms")
 	}
 	if compatStore != nil {
-		if resource, ok, err := compatStore.GetResource(ctx, "auth-config", 1); err != nil {
-			logger.Warn("persisted auth method unavailable", "error", err)
-		} else if ok {
-			if raw, ok := resource.Payload["method"].(string); ok {
-				if method := auth.NormalizeMethod(strings.ToLower(strings.TrimSpace(raw))); method != "" {
-					return method
-				}
+		resource, ok, err := compatStore.GetResource(ctx, "auth-config", 1)
+		if err != nil {
+			return "", fmt.Errorf("read persisted authentication: %w", err)
+		}
+		if ok {
+			raw, _ := resource.Payload["method"].(string)
+			if method := auth.NormalizeMethod(raw); method != "" {
+				return method, nil
 			}
+			return "", fmt.Errorf("persisted authentication method is invalid")
 		}
 	}
-	return auth.MethodNone
+	return auth.MethodNone, nil
 }
 
 // importListSyncTask keeps enabled import lists in sync with their Hardcover
@@ -739,7 +827,7 @@ func importListSyncTask(logger *slog.Logger, service *importlists.Service, cfg c
 	if interval <= 0 {
 		interval = 24 * time.Hour
 	}
-	logger.Info("import list sync enabled", "interval", interval)
+	logger.Debug("import list sync configuration", "interval", interval)
 	return scheduler.Task{
 		ID:           "import-list-sync",
 		Name:         "Import List Sync",
@@ -749,6 +837,7 @@ func importListSyncTask(logger *slog.Logger, service *importlists.Service, cfg c
 			runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 			defer cancel()
 			outcome, err := service.Sync(runCtx, nil, trigger)
+			scheduler.RecordRunDetails(runCtx, scheduler.RunDetails{Counts: map[string]int{"checked": outcome.ListsChecked, "found": outcome.EntriesFound, "created": outcome.WantedCreated, "errors": outcome.ErrorCount}, Errors: outcome.ErrorCount, NextAction: "Review import-list history and provider health."})
 			if err != nil {
 				logger.Warn("import list sync failed", "trigger", trigger, "error", err)
 				return "", err
@@ -762,10 +851,14 @@ func importListSyncTask(logger *slog.Logger, service *importlists.Service, cfg c
 				"wanted_created", outcome.WantedCreated,
 				"errors", outcome.ErrorCount,
 			)
-			return fmt.Sprintf(
+			message := fmt.Sprintf(
 				"%d lists checked, %d entries, %d wanted created, %d errors",
 				outcome.ListsChecked, outcome.EntriesFound, outcome.WantedCreated, outcome.ErrorCount,
-			), nil
+			)
+			if outcome.ErrorCount > 0 {
+				return message, errors.New(outcome.Message)
+			}
+			return message, nil
 		},
 	}
 }
@@ -780,7 +873,7 @@ func backupTask(logger *slog.Logger, service *backups.Service, cfg config.Config
 	if retention <= 0 {
 		retention = 4
 	}
-	logger.Info("scheduled backups enabled", "interval", interval, "retention", retention, "dir", cfg.BackupDir)
+	logger.Debug("scheduled backups configuration", "interval", interval, "retention", retention, "dir", cfg.BackupDir)
 	return scheduler.Task{
 		ID:           "backup",
 		Name:         "Database Backup",
@@ -798,6 +891,11 @@ func backupTask(logger *slog.Logger, service *backups.Service, cfg config.Config
 			if pruneErr != nil {
 				logger.Warn("backup retention prune failed", "trigger", trigger, "error", pruneErr)
 			}
+			errors := 0
+			if pruneErr != nil {
+				errors = 1
+			}
+			scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"created": 1, "bytes": int(backup.SizeBytes), "pruned": pruned, "errors": errors}, Errors: errors, NextAction: "Review backup storage and retention permissions."})
 			return fmt.Sprintf("%s created (%d bytes), %d pruned", backup.Name, backup.SizeBytes, pruned), nil
 		},
 	}
@@ -823,6 +921,7 @@ func healthCheckTask(evaluator *api.HealthEvaluator) scheduler.Task {
 					errored++
 				}
 			}
+			scheduler.RecordRunDetails(ctx, scheduler.RunDetails{Counts: map[string]int{"checked": len(checks), "warnings": warnings, "errors": errored}, Errors: errored, NextAction: "Review System health checks."})
 			return fmt.Sprintf("%d checks, %d warnings, %d errors", len(checks), warnings, errored), nil
 		},
 	}
@@ -872,4 +971,14 @@ func calibreConversionRefreshMaxAttempts(cfg config.Config) int {
 		return 10
 	}
 	return cfg.CalibreRefreshMaxAttempts
+}
+
+func taskPolicy(task scheduler.Task, enabled, available bool, setting, unavailableReason string) scheduler.Task {
+	if !enabled {
+		task.DisabledReason = setting + " is false. Enable it and restart this API instance to resume scheduling."
+	}
+	if !available {
+		task.UnavailableReason = unavailableReason
+	}
+	return task
 }

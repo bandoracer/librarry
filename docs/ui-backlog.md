@@ -1,5 +1,10 @@
 # UI Surface Backlog & Phantom-UI Ledger
 
+> Historical audit/implementation record. Some gaps below were addressed by
+> later stabilization work. Use [current status](status.md), the
+> [release checklist](release-checklist.md) and the [guides](README.md) for
+> current readiness and behavior.
+
 Last updated: 2026-07-01 (frontend migration pass).
 
 This document tracks every UI surface that needs more work under the hood.

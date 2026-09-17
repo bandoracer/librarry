@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 )
 
 const hardcoverGraphQLURL = "https://api.hardcover.app/v1/graphql"
@@ -24,9 +27,18 @@ type HardcoverClient struct {
 
 func NewHardcoverClient(client *http.Client, token string) *HardcoverClient {
 	if client == nil {
-		client = &http.Client{Timeout: 15 * time.Second}
+		client = providerhttp.NewClient(15 * time.Second)
 	}
-	return &HardcoverClient{client: client, token: strings.TrimSpace(token), url: hardcoverGraphQLURL}
+	clone := *client
+	if clone.Timeout <= 0 || clone.Timeout > 30*time.Second {
+		clone.Timeout = 15 * time.Second
+	}
+	client = &clone
+	token = strings.TrimSpace(token)
+	if len(token) >= 7 && strings.EqualFold(token[:7], "Bearer ") {
+		token = strings.TrimSpace(token[7:])
+	}
+	return &HardcoverClient{client: client, token: token, url: hardcoverGraphQLURL}
 }
 
 // WithURL overrides the GraphQL endpoint (tests).
@@ -41,8 +53,9 @@ func (c *HardcoverClient) Configured() bool {
 	return c != nil && c.token != ""
 }
 
-// FetchList resolves settings.listId into list entries.
-func (c *HardcoverClient) FetchList(ctx context.Context, settings map[string]string, limit int) ([]Entry, error) {
+// FetchList resolves the complete visible list before returning any entries.
+// pageSize is a request batch size, never a total catalog limit.
+func (c *HardcoverClient) FetchList(ctx context.Context, settings map[string]string, pageSize int) ([]Entry, error) {
 	if !c.Configured() {
 		return nil, errors.New("hardcover token is not configured (set LIBRARRY_HARDCOVER_TOKEN)")
 	}
@@ -50,81 +63,138 @@ func (c *HardcoverClient) FetchList(ctx context.Context, settings map[string]str
 	if listID == "" {
 		listID = strings.TrimSpace(settings["listID"])
 	}
-	if listID == "" {
-		return nil, errors.New("import list settings.listId is required")
+	numericID, err := strconv.ParseInt(listID, 10, 32)
+	if err != nil || numericID <= 0 {
+		return nil, errors.New("import list settings.listId must be a positive numeric Hardcover list id")
 	}
-	numericID, err := strconv.Atoi(listID)
-	if err != nil {
-		return nil, fmt.Errorf("import list settings.listId must be a numeric Hardcover list id: %q", listID)
+	if pageSize <= 0 || pageSize > 200 {
+		pageSize = 200
 	}
-	if limit <= 0 || limit > 500 {
-		limit = 200
-	}
-
-	payload := map[string]any{
-		"query": `query LibrarryListBooks($listId: Int!, $limit: Int!) {
-			list_books(where: {list_id: {_eq: $listId}}, limit: $limit) {
-				book {
-					id
-					title
-					release_date
-					cached_image
-					cached_contributors
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	entries := make([]Entry, 0)
+	seenBooks := map[string]bool{}
+	cursor, rowsSeen, expectedCount := int64(0), 0, -1
+	var updatedAt string
+	for page := 0; page < 101; page++ {
+		var data struct {
+			List *struct {
+				ID        int64           `json:"id"`
+				Count     *int            `json:"books_count"`
+				UpdatedAt json.RawMessage `json:"updated_at"`
+				Rows      []struct {
+					ID     int64          `json:"id"`
+					ListID int64          `json:"list_id"`
+					BookID int64          `json:"book_id"`
+					Book   map[string]any `json:"book"`
+				} `json:"list_books"`
+			} `json:"lists_by_pk"`
+		}
+		err := c.query(ctx, `query LibrarryListBooks($listId: Int!, $after: Int!, $limit: Int!) {
+			lists_by_pk(id: $listId) {
+				id books_count updated_at
+				list_books(where: {id: {_gt: $after}}, order_by: {id: asc}, limit: $limit) {
+					id list_id book_id
+					book { id title release_date cached_image cached_contributors }
 				}
 			}
-		}`,
-		"variables": map[string]any{
-			"listId": numericID,
-			"limit":  limit,
-		},
+		}`, map[string]any{"listId": numericID, "after": cursor, "limit": pageSize}, &data)
+		if err != nil {
+			return nil, err
+		}
+		list := data.List
+		if list == nil || list.ID != numericID {
+			return nil, errors.New("Hardcover list is unavailable; verify its ID and visibility to this token")
+		}
+		if list.Count == nil || *list.Count < 0 || *list.Count > 10000 || len(list.UpdatedAt) == 0 || list.Rows == nil {
+			return nil, errors.New("Hardcover list completeness could not be verified (maximum 10,000 entries)")
+		}
+		var stamp *string
+		if json.Unmarshal(list.UpdatedAt, &stamp) != nil {
+			return nil, errors.New("Hardcover list returned an invalid modification timestamp")
+		}
+		// updated_at is nullable in Hardcover's schema. Compare known values
+		// without treating a legitimate null as missing response data.
+		stampValue := ""
+		if stamp != nil {
+			stampValue = *stamp
+		}
+		if expectedCount < 0 {
+			expectedCount, updatedAt = *list.Count, stampValue
+		}
+		if expectedCount != *list.Count || updatedAt != stampValue {
+			return nil, errors.New("Hardcover list changed during traversal; retry the sync")
+		}
+		if len(list.Rows) == 0 {
+			if rowsSeen != expectedCount {
+				return nil, errors.New("Hardcover list ended before its declared entry count; retry the sync")
+			}
+			return entries, nil
+		}
+		if len(list.Rows) > pageSize || rowsSeen+len(list.Rows) > expectedCount {
+			return nil, errors.New("Hardcover list returned inconsistent pagination")
+		}
+		for _, row := range list.Rows {
+			if row.ID <= cursor || row.ID > 2147483647 || row.ListID != numericID || row.BookID <= 0 || row.BookID > 2147483647 {
+				return nil, errors.New("Hardcover list returned an invalid or repeated entry identity")
+			}
+			entry, ok := entryFromHardcoverBook(row.Book)
+			if !ok || entry.SourceKey != "hardcover:"+strconv.FormatInt(row.BookID, 10) {
+				return nil, errors.New("Hardcover list contains unavailable or invalid book metadata")
+			}
+			cursor = row.ID
+			rowsSeen++
+			if !seenBooks[entry.SourceKey] {
+				seenBooks[entry.SourceKey] = true
+				entries = append(entries, entry)
+			}
+		}
 	}
-	body, err := json.Marshal(payload)
+	return nil, errors.New("Hardcover list traversal exceeded 101 pages; retry with a larger page size")
+}
+
+func (c *HardcoverClient) query(ctx context.Context, query string, variables map[string]any, data any) error {
+	body, err := json.Marshal(map[string]any{"query": query, "variables": variables})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return errors.New("Hardcover list endpoint is invalid")
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "librarry/0.1")
-
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, err
+		var notSent *providerhttp.NotSentError
+		if errors.As(err, &notSent) {
+			return notSent
+		}
+		return errors.New("Hardcover list request failed; check the connection and request budget")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("hardcover list fetch returned %s", resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("Hardcover list request returned HTTP %d", resp.StatusCode)
 	}
-
 	var decoded struct {
-		Data struct {
-			ListBooks []struct {
-				Book map[string]any `json:"book"`
-			} `json:"list_books"`
-		} `json:"data"`
-		Errors []struct {
-			Message string `json:"message"`
-		} `json:"errors"`
+		Data   json.RawMessage   `json:"data"`
+		Errors []json.RawMessage `json:"errors"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return nil, err
+	// Bound response memory independently of the declared row count.
+	body, err = io.ReadAll(io.LimitReader(resp.Body, (4<<20)+1))
+	if err != nil || len(body) > 4<<20 || json.Unmarshal(body, &decoded) != nil {
+		return errors.New("Hardcover list response could not be decoded within its size limit")
 	}
 	if len(decoded.Errors) > 0 {
-		return nil, fmt.Errorf("hardcover list fetch failed: %s", decoded.Errors[0].Message)
+		return errors.New("Hardcover rejected the list query; check API access and list permissions")
 	}
-
-	entries := make([]Entry, 0, len(decoded.Data.ListBooks))
-	for _, row := range decoded.Data.ListBooks {
-		entry, ok := entryFromHardcoverBook(row.Book)
-		if !ok {
-			continue
-		}
-		entries = append(entries, entry)
+	decoder := json.NewDecoder(bytes.NewReader(decoded.Data))
+	decoder.UseNumber()
+	if decoder.Decode(data) != nil {
+		return errors.New("Hardcover list response is missing valid data")
 	}
-	return entries, nil
+	return nil
 }
 
 // entryFromHardcoverBook maps one raw Hardcover book record onto an Entry,

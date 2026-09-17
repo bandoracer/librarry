@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -831,81 +832,6 @@ func TestCalibreSettingsForDestinationUsesBestMatchingRoot(t *testing.T) {
 	}
 }
 
-func TestApplyCalibreImportAddsCalibreMetadata(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "ebooks")
-	destination := filepath.Join(root, "Andy Weir", "Project Hail Mary.epub")
-	importer := &fakeCalibreImporter{
-		id: 77,
-		convertResult: calibre.ConvertResult{
-			Jobs:    []calibre.ConvertJob{{OutputFormat: "AZW3", JobID: 901}},
-			Skipped: []string{"EPUB"},
-		},
-		conversionStatuses: []calibre.ConversionStatus{{
-			OutputFormat: "AZW3",
-			JobID:        901,
-			Running:      true,
-			OK:           false,
-			Log:          "working",
-		}},
-	}
-	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, fakeRootFolders{roots: []compatdata.RootFolder{{
-		Path: root,
-		Metadata: map[string]any{
-			"isCalibreLibrary": true,
-			"host":             "calibre.local",
-			"library":          "Main",
-			"outputFormat":     "EPUB,AZW3",
-			"outputProfile":    "kindle",
-		},
-	}}})
-	record := FileRecord{
-		Path:       destination,
-		Title:      "Project Hail Mary",
-		AuthorName: "Andy Weir",
-		Extension:  ".epub",
-		Metadata:   map[string]any{"isbn13": "9780593135204"},
-	}
-
-	if err := service.applyCalibreImport(context.Background(), destination, &record); err != nil {
-		t.Fatal(err)
-	}
-	if importer.request.Path != destination || importer.request.Settings.Host != "calibre.local" {
-		t.Fatalf("unexpected importer request: %+v", importer.request)
-	}
-	if record.Metadata["calibreId"] != 77 || record.Metadata["calibreLibrary"] != "Main" ||
-		record.Metadata["calibreOutputFormat"] != "EPUB,AZW3" || record.Metadata["calibreOutputProfile"] != "kindle" ||
-		record.Metadata["calibreMetadataSyncedAt"] == "" {
-		t.Fatalf("expected Calibre metadata, got %#v", record.Metadata)
-	}
-	if len(importer.setFieldsRequests) != 1 || importer.setFieldsRequests[0].ID != 77 ||
-		importer.setFieldsRequests[0].Metadata.Title != "Project Hail Mary" ||
-		len(importer.setFieldsRequests[0].Metadata.Authors) != 1 ||
-		importer.setFieldsRequests[0].Metadata.Authors[0] != "Andy Weir" ||
-		importer.setFieldsRequests[0].Metadata.Identifiers["isbn"] != "9780593135204" {
-		t.Fatalf("unexpected Calibre set-fields request: %+v", importer.setFieldsRequests)
-	}
-	if len(importer.convertRequests) != 1 || importer.convertRequests[0].ID != 77 ||
-		importer.convertRequests[0].InputFormat != ".epub" ||
-		importer.convertRequests[0].Settings.OutputFormat != "EPUB,AZW3" {
-		t.Fatalf("unexpected Calibre conversion request: %+v", importer.convertRequests)
-	}
-	jobs, _ := record.Metadata["calibreConversionJobs"].([]map[string]any)
-	if len(jobs) != 1 || jobs[0]["outputFormat"] != "AZW3" || jobs[0]["jobId"] != int64(901) ||
-		record.Metadata["calibreConversionStartedAt"] == "" {
-		t.Fatalf("expected conversion metadata, got %#v", record.Metadata)
-	}
-	if len(importer.pollRequests) != 1 || importer.pollRequests[0].MaxAttempts != 1 ||
-		len(importer.pollRequests[0].Jobs) != 1 || importer.pollRequests[0].Jobs[0].JobID != 901 {
-		t.Fatalf("unexpected Calibre poll request: %+v", importer.pollRequests)
-	}
-	statuses, _ := record.Metadata["calibreConversionStatuses"].([]map[string]any)
-	if len(statuses) != 1 || statuses[0]["jobId"] != int64(901) || statuses[0]["running"] != true ||
-		statuses[0]["ok"] != false || statuses[0]["log"] != "working" ||
-		record.Metadata["calibreConversionPolledAt"] == "" {
-		t.Fatalf("expected conversion status metadata, got %#v", record.Metadata)
-	}
-}
-
 func TestApplyCalibreDeleteUsesStoredCalibreID(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "ebooks")
 	destination := filepath.Join(root, "Andy Weir", "Project Hail Mary.epub")
@@ -957,7 +883,7 @@ func TestCalibreConversionMetadataParsesJSONShapes(t *testing.T) {
 		"calibreConversionJobs": []any{
 			map[string]any{"outputFormat": "AZW3", "jobId": float64(901)},
 			map[string]any{"outputFormat": "MOBI", "jobId": "902"},
-			map[string]any{"outputFormat": "ignored", "jobId": float64(0)},
+			map[string]any{"outputFormat": "ignored", "jobId": float64(-1)},
 		},
 		"calibreConversionStatuses": []any{
 			map[string]any{"outputFormat": "AZW3", "jobId": float64(901), "running": true, "ok": false, "wasAborted": false, "log": "working"},
@@ -1162,12 +1088,13 @@ func TestLocateDownloadSourceFindsNamedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	path, _ = filepath.EvalSymlinks(path)
 	if got != path || format != "ebook" {
 		t.Fatalf("expected %s ebook, got %s %s", path, got, format)
 	}
 }
 
-func TestLocateDownloadSourceFindsBestFileInFolder(t *testing.T) {
+func TestLocateDownloadSourceRejectsAmbiguousFolder(t *testing.T) {
 	dir := t.TempDir()
 	folder := filepath.Join(dir, "Book Folder")
 	if err := os.MkdirAll(folder, 0o755); err != nil {
@@ -1182,16 +1109,13 @@ func TestLocateDownloadSourceFindsBestFileInFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, format, err := locateDownloadSource(acquisition.DownloadStatus{
+	_, _, err := locateDownloadSource(acquisition.DownloadStatus{
 		Name:     "Book Folder",
 		SavePath: dir,
 		Category: "books-ebook",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != large || format != "ebook" {
-		t.Fatalf("expected %s ebook, got %s %s", large, got, format)
+	if err == nil {
+		t.Fatal("multiple supported files must require review")
 	}
 }
 
@@ -1218,69 +1142,6 @@ func TestCalibreSettingsFromRootFolderMapsConnection(t *testing.T) {
 	}
 }
 
-func TestCalibreHandoffRecordDispatchesSourceToCalibre(t *testing.T) {
-	dir := t.TempDir()
-	source := filepath.Join(dir, "Andy Weir - Project Hail Mary.epub")
-	writeTestEPUB(t, source, `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns:dc="http://purl.org/dc/elements/1.1/">
-  <metadata>
-    <dc:title>Project Hail Mary</dc:title>
-    <dc:creator>Andy Weir</dc:creator>
-  </metadata>
-</package>`)
-	info, err := os.Stat(source)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	importer := &fakeCalibreImporter{id: 42}
-	service := NewService(nil, Config{}, nil, nil).WithCalibre(importer, nil)
-	folder := RootFolder{
-		ID:          "calibre-root",
-		Path:        filepath.Join(dir, "calibre-library"),
-		MediaFormat: "ebook",
-		Calibre: RootFolderCalibre{
-			Enabled:  true,
-			Host:     "calibre.local",
-			Port:     8080,
-			Username: "reader",
-			Password: "secret",
-			Library:  "Main",
-		},
-	}
-
-	record, err := service.calibreHandoffRecord(context.Background(), calibreSettingsFromRootFolder(folder), source,
-		"ebook", parsedBook{Title: "Project Hail Mary", AuthorName: "Andy Weir"}, info)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The handoff posts the source file to the root's Calibre server instead
-	// of moving it into the naming layout.
-	if importer.request.Path != source || importer.request.Settings.Host != "calibre.local" ||
-		importer.request.Settings.Library != "Main" {
-		t.Fatalf("unexpected calibre add-book request: %+v", importer.request)
-	}
-	// Calibre add-book reports only a book id, so the tracked file keeps the
-	// source path with import status "calibre".
-	if record.Path != source || record.SourcePath != source {
-		t.Fatalf("expected record to keep source path, got %+v", record)
-	}
-	if record.ImportStatus != "calibre" {
-		t.Fatalf("expected calibre import status, got %q", record.ImportStatus)
-	}
-	if record.Metadata["importMode"] != "calibre" || record.Metadata["calibreId"] != 42 {
-		t.Fatalf("expected calibre import metadata, got %#v", record.Metadata)
-	}
-}
-
-func TestCalibreHandoffRecordRequiresCalibreClient(t *testing.T) {
-	service := NewService(nil, Config{}, nil, nil)
-	_, err := service.calibreHandoffRecord(context.Background(), calibre.Settings{}, "/tmp/book.epub", "ebook", parsedBook{}, nil)
-	if err == nil || !strings.Contains(err.Error(), "calibre integration is unavailable") {
-		t.Fatalf("expected calibre unavailable error, got %v", err)
-	}
-}
-
 func TestCalibreManagedRenamePreviewSkipsWithReason(t *testing.T) {
 	file := FileRecord{
 		ID:          "file-1",
@@ -1296,5 +1157,27 @@ func TestCalibreManagedRenamePreviewSkipsWithReason(t *testing.T) {
 	}
 	if preview.SourcePath != file.Path || preview.DestinationPath != file.Path {
 		t.Fatalf("expected unchanged paths, got %+v", preview)
+	}
+}
+
+func TestCalibreJobZeroSurvivesMetadataRoundTrip(t *testing.T) {
+	jobs := []calibre.ConvertJob{{JobID: 0, OutputFormat: "TXT"}}
+	statuses := []calibre.ConversionStatus{{JobID: 0, OutputFormat: "TXT", Running: false, OK: true}}
+	metadata := map[string]any{"calibreConversionJobs": calibreConversionJobMetadata(jobs), "calibreConversionStatuses": calibreConversionStatusMetadata(statuses)}
+	raw, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &metadata); err != nil {
+		t.Fatal(err)
+	}
+	parsedJobs, parsedStatuses := calibreConversionJobsFromMetadata(metadata), calibreConversionStatusesFromMetadata(metadata)
+	if len(parsedJobs) != 1 || parsedJobs[0].JobID != 0 || len(parsedStatuses) != 1 || !parsedStatuses[0].OK || calibreConversionNeedsRefresh(parsedJobs, parsedStatuses) {
+		t.Fatal(parsedJobs, parsedStatuses)
+	}
+	for _, invalid := range []map[string]any{{}, {"jobId": nil}, {"jobId": "bad"}, {"jobId": 1.5}, {"jobId": -1}} {
+		if _, ok := calibreJobID(invalid); ok {
+			t.Fatal("invalid ID accepted", invalid)
+		}
 	}
 }

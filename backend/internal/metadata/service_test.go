@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestSearchDetailedMergesDuplicateISBNResults(t *testing.T) {
+func TestMergeMergesDuplicateISBNResults(t *testing.T) {
 	service := NewService([]Provider{
 		staticMetadataProvider{name: "Open Library", results: []SearchResult{{
 			Provider: "Open Library",
@@ -55,7 +55,7 @@ func TestSearchDetailedMergesDuplicateISBNResults(t *testing.T) {
 		}}},
 	})
 
-	outcome := service.SearchDetailed(context.Background(), Query{Query: "9780593135204", Type: SearchTypeBook, Format: FormatEbook, Limit: 10})
+	outcome := mergeFixtureProviderResults(t, service, Query{Query: "9780593135204", Type: SearchTypeBook, Format: FormatEbook, Limit: 10})
 	if len(outcome.Results) != 1 {
 		t.Fatalf("expected duplicate ISBN records to merge, got %d results: %+v", len(outcome.Results), outcome.Results)
 	}
@@ -136,7 +136,7 @@ func TestSearchDetailedMergesHardcoverWorkWithOpenLibraryEdition(t *testing.T) {
 	}
 }
 
-func TestSearchDetailedDoesNotMergeSameTitleDifferentAuthors(t *testing.T) {
+func TestMergeDoesNotMergeSameTitleDifferentAuthors(t *testing.T) {
 	service := NewService([]Provider{
 		staticMetadataProvider{name: "Open Library", results: []SearchResult{{
 			Provider: "Open Library",
@@ -152,13 +152,13 @@ func TestSearchDetailedDoesNotMergeSameTitleDifferentAuthors(t *testing.T) {
 		}}},
 	})
 
-	outcome := service.SearchDetailed(context.Background(), Query{Query: "The Long Way", Type: SearchTypeBook, Limit: 10})
+	outcome := mergeFixtureProviderResults(t, service, Query{Query: "The Long Way", Type: SearchTypeBook, Limit: 10})
 	if len(outcome.Results) != 2 {
 		t.Fatalf("expected distinct authors to stay separate, got %d results", len(outcome.Results))
 	}
 }
 
-func TestSearchDetailedDoesNotMergeConflictingConcreteFormatsForAnyQuery(t *testing.T) {
+func TestMergeDoesNotMergeConflictingConcreteFormatsForAnyQuery(t *testing.T) {
 	service := NewService([]Provider{
 		staticMetadataProvider{name: "Open Library", results: []SearchResult{{
 			Provider: "Open Library",
@@ -176,7 +176,7 @@ func TestSearchDetailedDoesNotMergeConflictingConcreteFormatsForAnyQuery(t *test
 		}}},
 	})
 
-	outcome := service.SearchDetailed(context.Background(), Query{Query: "Same Book Same Author", Type: SearchTypeBook, Format: FormatAny, Limit: 10})
+	outcome := mergeFixtureProviderResults(t, service, Query{Query: "Same Book Same Author", Type: SearchTypeBook, Format: FormatAny, Limit: 10})
 	if len(outcome.Results) != 2 {
 		t.Fatalf("expected ebook and audiobook editions to stay separate for any-format search, got %d results", len(outcome.Results))
 	}
@@ -250,4 +250,19 @@ func hasString(values []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+// Merging imported/provider records remains a separate contract from deciding
+// whether another network provider needs to run for a new user search.
+func mergeFixtureProviderResults(t *testing.T, service *Service, query Query) SearchOutcome {
+	t.Helper()
+	var results []SearchResult
+	for _, provider := range service.providers {
+		rows, err := provider.Search(context.Background(), query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, rows...)
+	}
+	return SearchOutcome{Results: mergeEquivalentResults(query, results)}
 }

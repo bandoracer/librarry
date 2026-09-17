@@ -33,3 +33,24 @@ LIBRARRY_AUDIOBOOK_LIBRARY_ROOT=/data/media/books/audiobooks
 
 See [../docs/deployment.md](../docs/deployment.md) for the full install guide,
 upgrade commands, backups, reverse proxy guidance, and NAS-specific notes.
+
+## Candidate selection and automation
+
+Installer defaults select historical `latest` images. Select both qualified
+candidate digests explicitly for a controlled rollout. [Current status](../docs/status.md)
+distinguishes candidate publication, production-copy rollback qualification and
+actual deployment; the live rollout and observation gate remain open.
+
+Scheduled auto-grab and removal defaults are enabled. Review the
+[automation and import controls](../docs/deployment.md#stabilization-candidate-configuration)
+before connecting real clients. Back up database, configuration and media; follow
+[upgrade and rollback instructions](../docs/deployment.md#upgrade) for your target.
+
+
+
+`LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults to `true`. Set it to `false` and
+recreate the API container to pause scheduled list sync; explicit list-sync
+commands remain available. It is independent of feed sync. System → Tasks keeps
+disabled/unavailable workers visible with reasons and retained shared history.
+Flags apply to each API instance; update every instance to stop scheduled work
+across a deployment.

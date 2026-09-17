@@ -135,8 +135,8 @@ func TestAuthorResultMatchesSubscription(t *testing.T) {
 		t.Fatal("expected provider key author match")
 	}
 	nameMatch := metadata.SearchResult{Work: metadata.Work{Authors: []metadata.Author{{ID: "other", Name: "Andy Weir"}}}}
-	if !authorResultMatchesSubscription(subscription, nameMatch) {
-		t.Fatal("expected normalized author name match")
+	if authorResultMatchesSubscription(subscription, nameMatch) {
+		t.Fatal("name must not override a different author identity")
 	}
 	miss := metadata.SearchResult{Work: metadata.Work{Authors: []metadata.Author{{ID: "other", Name: "Terry Pratchett"}}}}
 	if authorResultMatchesSubscription(subscription, miss) {

@@ -408,7 +408,7 @@ func (s *Service) wantedItemForDownload(ctx context.Context, download acquisitio
 // blocklistEntryForDownload derives the release identity of a download.
 // Download-client IDs are infohashes for qBittorrent and Transmission, so the
 // ID doubles as the infohash when it looks like one; the stored release
-// decision (matched by infohash or current-release linkage) supplies indexer,
+// decision (matched by its saved acquisition release ID or exact infohash) supplies indexer,
 // protocol, and download URL identity.
 func blocklistEntryForDownload(item WantedItem, download acquisition.DownloadStatus, releases []ReleaseDecision, reason string, source string) BlocklistEntry {
 	entry := BlocklistEntry{
@@ -434,17 +434,19 @@ func blocklistEntryForDownload(item WantedItem, download acquisition.DownloadSta
 }
 
 func releaseForDownload(item WantedItem, download acquisition.DownloadStatus, releases []ReleaseDecision) (ReleaseDecision, bool) {
+	if download.ReleaseID != "" {
+		for _, release := range releases {
+			if release.ID == download.ReleaseID && (release.WantedItemID == "" || release.WantedItemID == item.ID) {
+				return release, true
+			}
+		}
+		// A missing saved release cannot justify blocklisting the installed release.
+		return ReleaseDecision{}, false
+	}
 	downloadID := strings.TrimSpace(download.ID)
 	for _, release := range releases {
 		if downloadID != "" && strings.EqualFold(strings.TrimSpace(release.InfoHash), downloadID) {
 			return release, true
-		}
-	}
-	if item.CurrentReleaseID != "" {
-		for _, release := range releases {
-			if release.ID == item.CurrentReleaseID {
-				return release, true
-			}
 		}
 	}
 	return ReleaseDecision{}, false

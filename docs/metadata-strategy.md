@@ -9,11 +9,14 @@ normalizing multiple providers into a local canonical model with provenance.
    ebook, and audiobook metadata. It requires a backend-only token.
 2. Open Library is the open-data backbone for works, authors, editions, ISBNs,
    and covers. Author identity lookup uses the Open Library author search API,
-   while monitored authors with Open Library IDs use the works-by-author API so
-   author subscriptions are tied to a stable provider identity instead of a
-   loose title search.
-3. Google Books is an exact fallback for ISBN and title lookups. It should not be
-   used for author bibliography crawling.
+   while monitoring verifies the author and traverses every works page. Hardcover
+   monitoring likewise follows stable author IDs and paginated book contributions.
+   Limited/name-only search results cannot establish complete author coverage.
+3. Google Books runs after primary providers only when no suitable exact ISBN or
+   full-title match exists. Returned matches are validated, including ISBN
+   checksums/equivalence, title/subtitle, known format and language. It never runs
+   for author, bibliography or series queries. See [provider setup](provider-setup.md)
+   for exact lookup rules and limits.
 4. Local OPF sidecars, embedded EPUB package metadata, MP3 ID3 tags, and
    M4B/MP4 metadata atoms are high-confidence import evidence.
 5. Manual overrides always win.
@@ -29,8 +32,12 @@ Exact identifiers beat fuzzy matching:
   identifiers, dates, publisher fields, covers, and match evidence are retained
   as provenance.
 - Title plus author identity can be medium-confidence.
-- Author subscriptions prefer provider keys, then normalized author names, when
-  deciding whether a returned work belongs to the monitored author.
+- Author subscriptions require stable provider identities and match those IDs or
+  explicit provider aliases. A matching name cannot override a different ID.
+  Same-name author search results remain separate without common identity evidence.
+- Original publication dates are separate from edition dates and drive whole-work
+  first/latest policies when available. Non-writing or unknown Hardcover credits
+  enter review before policies select eligible works.
 - Ambiguous title-only matches go to manual review.
 - Format selection is explicit: ebook and audiobook editions must not silently
   collapse into the same file target.
@@ -40,3 +47,13 @@ Exact identifiers beat fuzzy matching:
 Goodreads, Amazon, and Audible scraping are intentionally excluded from core.
 They can be future optional plugins only if the legal and operational risk is
 made explicit.
+
+
+Native metadata Review uses the same field evidence as direct book provenance,
+including imported and unmonitored tracked books. Text comparison retains Unicode
+letters, marks and numbers and normalizes canonical composition. The wanted
+media format is the owner's acquisition choice; a provider describing an ebook
+edition does not by itself create a conflict for an audiobook target. Its format
+remains visible as provider evidence. Keep current confirms a displayed evidence
+revision and protects newer owner corrections or cleared overrides. Fields with
+no current value still require an explicit choice in the book's metadata editor.

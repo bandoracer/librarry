@@ -52,9 +52,9 @@ type Entry struct {
 	ReleaseDate string
 }
 
-// ListFetcher resolves a list definition's settings into entries.
+// ListFetcher returns a complete list or an error. pageSize is not a total limit.
 type ListFetcher interface {
-	FetchList(ctx context.Context, settings map[string]string, limit int) ([]Entry, error)
+	FetchList(ctx context.Context, settings map[string]string, pageSize int) ([]Entry, error)
 }
 
 // SyncItem is the per-entry outcome of a sync run.

@@ -21,6 +21,17 @@ const (
 // supplies (an unknown language or page count never rejects), except
 // skip-missing-isbn, whose whole point is rejecting ISBN-less candidates.
 func authorResultFilterReason(subscription AuthorSubscription, result metadata.SearchResult) string {
+	if key := metadata.CanonicalAuthorKey(subscription.ProviderKey); strings.HasPrefix(key, "hardcover-author:") {
+		authored := false
+		for _, author := range result.Work.Authors {
+			if metadata.CanonicalAuthorKey(author.ID) == key && (strings.EqualFold(author.Role, "Author") || strings.EqualFold(author.Role, "Writer")) {
+				authored = true
+			}
+		}
+		if !authored {
+			return "Selected person has no verified writing credit; review this contribution before adding the book."
+		}
+	}
 	if reason := languageFilterReason(subscription.AllowedLanguages, result.Edition.Language); reason != "" {
 		return reason
 	}
@@ -41,13 +52,13 @@ func languageFilterReason(allowed []string, language string) string {
 	if len(allowed) == 0 {
 		return ""
 	}
-	language = strings.ToLower(strings.TrimSpace(language))
+	language = metadata.LanguageName(language)
 	if language == "" {
 		return ""
 	}
 	for _, candidate := range allowed {
-		candidate = strings.ToLower(candidate)
-		if candidate == language || strings.HasPrefix(language, candidate) || strings.HasPrefix(candidate, language) {
+		candidate = metadata.LanguageName(candidate)
+		if candidate == language || candidate == "any" || candidate == "all" {
 			return ""
 		}
 	}

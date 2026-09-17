@@ -41,24 +41,6 @@ func (c *SABnzbdClient) Configured() bool {
 	return c.baseURL != "" && c.apiKey != ""
 }
 
-func (c *SABnzbdClient) Health(ctx context.Context) IntegrationHealth {
-	if c.baseURL == "" {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_SABNZBD_URL."}
-	}
-	if c.apiKey == "" {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_SABNZBD_API_KEY."}
-	}
-	var payload sabVersionResponse
-	if err := c.api(ctx, url.Values{"mode": {"version"}}, &payload); err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	message := "Ready"
-	if payload.Version != "" {
-		message = "Ready; version " + payload.Version
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
-}
-
 func (c *SABnzbdClient) Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error) {
 	if !c.Configured() {
 		return DownloadStatus{}, ErrIntegrationNotConfigured
@@ -81,7 +63,7 @@ func (c *SABnzbdClient) Add(ctx context.Context, request DownloadRequest) (Downl
 	}
 	id := firstString(payload.NZOIDs)
 	if id == "" {
-		id = releaseID(request.ReleaseURL)
+		return DownloadStatus{}, errors.New("SABnzbd accepted add without a download ID; reconcile before retrying")
 	}
 	if request.Paused && id != "" {
 		_, _ = c.Action(ctx, DownloadActionRequest{Action: DownloadActionStop, IDs: []string{id}})
@@ -312,7 +294,12 @@ func (c *SABnzbdClient) historyDetails(ctx context.Context, id string) (Download
 		return DownloadDetails{}, false, nil
 	}
 	slot := history.History.Slots[0]
+	inventorySource, payloadRoot := "", ""
+	if strings.EqualFold(strings.TrimSpace(slot.Status), "completed") && slot.FailMessage == "" && strings.TrimSpace(slot.Storage) != "" {
+		inventorySource, payloadRoot = "completed-directory", slot.Storage
+	}
 	return DownloadDetails{
+		InventorySource: inventorySource, PayloadRoot: payloadRoot,
 		Status:     slot.DownloadStatus(time.Now().UTC()),
 		Properties: slot.DownloadProperties(),
 	}, true, nil

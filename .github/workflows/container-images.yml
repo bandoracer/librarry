@@ -8,14 +8,12 @@ on:
       - "v*"
   pull_request:
     paths:
-      - ".github/workflows/container-images.yml"
-      - "scripts/image-publication.py"
-      - "scripts/test-image-publication.py"
+      - ".github/workflows/**"
+      - "scripts/**"
+      - ".mise.toml"
       - ".dockerignore"
       - "backend/**"
-      - "deploy/Dockerfile.api"
-      - "deploy/Dockerfile.web"
-      - "deploy/nginx.conf"
+      - "deploy/**"
       - "go.mod"
       - "go.sum"
       - "web/**"
@@ -31,6 +29,41 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    uses: ./.github/workflows/checks.yml
+  qualify:
+    needs: [verify, publication]
+    name: Qualify packaged application
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native candidate images
+        env:
+          CANDIDATE_VERSION: ${{ needs.publication.outputs.tag }}
+        run: |
+          docker build --build-arg VERSION="$CANDIDATE_VERSION" --build-arg COMMIT="$GITHUB_SHA" --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" -f deploy/Dockerfile.api -t librarry-api:stabilization .
+          docker build -f deploy/Dockerfile.web -t librarry-web:stabilization .
+      - name: Verify packaged imports and isolated restore
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          python3 scripts/test-packaged.py
+          python3 scripts/test-worker-packaged.py
+          python3 scripts/test-notification-packaged.py
+      - name: Scan candidate images
+        run: |
+          mkdir -p output/security
+          for component in api web; do
+            docker save "librarry-$component:stabilization" -o "output/security/$component-image.tar"
+            docker run --rm -v "$PWD/output/security:/scan" aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image --input "/scan/$component-image.tar" --scanners vuln --quiet --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 --format json --output "/scan/$component-scan.json"
+          done
+      - name: Upload image scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-vulnerability-reports
+          path: output/security/*-scan.json
+          if-no-files-found: ignore
   publication:
     name: Check image publication policy
     runs-on: ubuntu-latest
@@ -45,7 +78,7 @@ jobs:
           INPUT_PUBLISH_CANDIDATE: ${{ inputs.publish_candidate }}
         run: python3 scripts/image-publication.py
   build:
-    needs: publication
+    needs: [publication, verify, qualify]
     name: Build ${{ matrix.image.name }}
     runs-on: ubuntu-latest
     permissions:
@@ -87,6 +120,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Record build identity
+        id: identity
+        run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build and optionally push image
         id: build
         uses: docker/build-push-action@v6
@@ -94,6 +131,10 @@ jobs:
           context: .
           file: ${{ matrix.image.dockerfile }}
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ needs.publication.outputs.tag }}
+            COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ steps.identity.outputs.time }}
           push: ${{ needs.publication.outputs.publish == 'true' }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}

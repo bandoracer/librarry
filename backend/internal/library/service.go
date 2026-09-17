@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -38,6 +39,10 @@ type DownloadStore interface {
 	MarkDownloadImportError(ctx context.Context, id string, message string) error
 }
 
+type DownloadInspector interface {
+	DownloadDetails(context.Context, string, string) (acquisition.DownloadDetails, error)
+}
+
 type RootFolderProvider interface {
 	ListRootFolders(ctx context.Context) ([]compatdata.RootFolder, error)
 }
@@ -47,9 +52,10 @@ type RootFolderProvider interface {
 const calibreManagedRenameReason = "managed by Calibre"
 
 type importFileOperation struct {
-	Mode       string
-	Moved      bool
-	Hardlinked bool
+	PreviousPath string
+	Mode         string
+	Moved        bool
+	Hardlinked   bool
 }
 
 type importDestinationPlan struct {
@@ -85,10 +91,18 @@ type Service struct {
 	downloads   DownloadStore
 	calibre     calibre.Manager
 	rootFolders RootFolderProvider
+	inspector   DownloadInspector
 }
 
 func NewService(store *Store, config Config, wanted WantedStore, downloads DownloadStore) *Service {
 	return &Service{store: store, config: config, wanted: wanted, downloads: downloads}
+}
+
+func (s *Service) WithDownloadInspector(inspector DownloadInspector) *Service {
+	if s != nil {
+		s.inspector = inspector
+	}
+	return s
 }
 
 func (s *Service) WithCalibre(manager calibre.Manager, rootFolders RootFolderProvider) *Service {
@@ -208,7 +222,7 @@ func (s *Service) RefreshCalibreConversions(ctx context.Context, request Calibre
 	if !s.Available() {
 		return CalibreConversionRefreshOutcome{}, errors.New("library service requires database persistence")
 	}
-	if s.calibre == nil || s.rootFolders == nil {
+	if s.calibre == nil {
 		return CalibreConversionRefreshOutcome{}, errors.New("calibre integration is unavailable")
 	}
 	ids := compactStrings(request.IDs)
@@ -227,13 +241,53 @@ func (s *Service) RefreshCalibreConversions(ctx context.Context, request Calibre
 	if err != nil {
 		return CalibreConversionRefreshOutcome{}, err
 	}
-	outcome := CalibreConversionRefreshOutcome{}
+	outcome := CalibreConversionRefreshOutcome{Results: []CalibreConversionRefreshResult{}}
+	if len(ids) == 0 && len(paths) == 0 {
+		rows, e := s.store.db.QueryContext(ctx, `select id::text from calibre_handoffs where phase in ('accepted','converting','ready') and not exists(select 1 from jsonb_array_elements(progress) c where c->>'state' in ('starting','polling','unknown','failed')) order by updated_at,id limit $1`, limit)
+		if e != nil {
+			return outcome, e
+		}
+		handoffs := []string{}
+		for rows.Next() {
+			var id string
+			if e = rows.Scan(&id); e != nil {
+				rows.Close()
+				return outcome, e
+			}
+			handoffs = append(handoffs, id)
+		}
+		e = rows.Err()
+		rows.Close()
+		if e != nil {
+			return outcome, e
+		}
+		for _, id := range handoffs {
+			imported, e := s.RetryCalibreHandoff(ctx, id)
+			result := CalibreConversionRefreshResult{CalibreHandoffID: id, File: imported.File, Message: imported.Message, Status: "refreshed"}
+			outcome.Checked++
+			if e != nil {
+				result.Status = "error"
+				result.Message = e.Error()
+				outcome.Errored++
+			} else {
+				outcome.Refreshed++
+			}
+			outcome.Results = append(outcome.Results, result)
+		}
+	}
 	for _, file := range files {
 		if outcome.Checked >= limit {
 			break
 		}
 		outcome.Checked++
 		result := CalibreConversionRefreshResult{File: file}
+		if metadataString(file.Metadata, "calibreHandoffId") != "" {
+			result.Status = "skipped"
+			result.Message = "Saved Calibre handoff owns conversion recovery; terminal status cannot be polled twice"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
 		jobs := calibreConversionJobsFromMetadata(file.Metadata)
 		if len(jobs) == 0 {
 			result.Status = "skipped"
@@ -318,10 +372,20 @@ func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, a
 	if len(ids) == 0 && len(paths) == 0 {
 		return RenameFilesOutcome{}, errors.New("at least one file id or path is required")
 	}
-	outcome := RenameFilesOutcome{Requested: len(ids) + len(paths)}
+	outcome := RenameFilesOutcome{Requested: len(ids) + len(paths), Previews: []RenameFilePreview{}, Results: []RenameFileResult{}}
 	files, err := s.store.FindFiles(ctx, ids, paths)
 	if err != nil {
 		return RenameFilesOutcome{}, err
+	}
+	if request.Revisions != nil {
+		if len(request.Revisions) != len(files) {
+			return outcome, errors.New("rename selection changed; refresh the preview")
+		}
+		for _, file := range files {
+			if request.Revisions[file.ID] == "" {
+				return outcome, errors.New("every selected file requires its preview revision")
+			}
+		}
 	}
 	if len(files) == 0 {
 		outcome.Skipped = outcome.Requested
@@ -355,17 +419,22 @@ func (s *Service) renameFiles(ctx context.Context, request RenameFilesRequest, a
 		}
 		if preview.Noop {
 			outcome.Skipped++
-			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "skipped", Message: "file already matches naming template"})
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "skipped", Message: firstNonEmpty(preview.Reason, "file already matches naming template")})
 			continue
 		}
-		renamed, err := s.applyRename(ctx, preview)
+		if expected, ok := request.Revisions[file.ID]; ok && expected != preview.Revision {
+			outcome.Errored++
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "error", Message: "rename preview changed; refresh before applying"})
+			continue
+		}
+		renamed, operationID, err := s.applyRename(ctx, preview)
 		if err != nil {
 			outcome.Errored++
-			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, Status: "error", Message: err.Error()})
+			outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, OperationID: operationID, Status: "error", Message: err.Error()})
 			continue
 		}
 		outcome.Renamed++
-		outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, File: &renamed, Status: "renamed"})
+		outcome.Results = append(outcome.Results, RenameFileResult{Preview: preview, OperationID: operationID, File: &renamed, Status: "renamed"})
 	}
 	if unmatched := outcome.Requested - len(files); unmatched > 0 {
 		outcome.Skipped += unmatched
@@ -380,59 +449,6 @@ func (s *Service) ListImportReviews(ctx context.Context, query ReviewListQuery) 
 	return s.store.ListImportReviews(ctx, query)
 }
 
-func (s *Service) Scan(ctx context.Context, request ScanRequest) (ScanOutcome, error) {
-	if !s.Available() {
-		return ScanOutcome{}, errors.New("library service requires database persistence")
-	}
-	roots := s.scanRoots(ctx, request)
-	outcome := ScanOutcome{Roots: roots}
-	limit := request.Limit
-	if limit <= 0 || limit > 5000 {
-		limit = 1000
-	}
-	for _, root := range roots {
-		if strings.TrimSpace(root) == "" {
-			continue
-		}
-		walkErr := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-			if err != nil {
-				outcome.Errors = append(outcome.Errors, err.Error())
-				return nil
-			}
-			if entry.IsDir() {
-				return nil
-			}
-			if outcome.Scanned >= limit {
-				return filepath.SkipAll
-			}
-			format, ok := classifyFile(path)
-			if !ok || !formatAllowed(request.Format, format) {
-				outcome.Skipped++
-				return nil
-			}
-			info, err := entry.Info()
-			if err != nil {
-				outcome.Errors = append(outcome.Errors, err.Error())
-				return nil
-			}
-			record := fileRecordFromPath(path, format, info, "available")
-			stored, err := s.store.UpsertFile(ctx, record)
-			if err != nil {
-				outcome.Errors = append(outcome.Errors, err.Error())
-				return nil
-			}
-			outcome.Scanned++
-			outcome.Upserted++
-			outcome.Files = append(outcome.Files, stored)
-			return nil
-		})
-		if walkErr != nil {
-			outcome.Errors = append(outcome.Errors, walkErr.Error())
-		}
-	}
-	return outcome, nil
-}
-
 func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutcome, error) {
 	if !s.Available() {
 		return ImportOutcome{}, errors.New("library service requires database persistence")
@@ -440,6 +456,28 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 	source := filepath.Clean(strings.TrimSpace(request.SourcePath))
 	if source == "." || source == "" {
 		return ImportOutcome{}, errors.New("source path is required")
+	}
+	abs, err := filepath.Abs(source)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	source, err = canonicalPlannedPath(abs)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	if leaf, statErr := os.Lstat(abs); statErr == nil && !leaf.Mode().IsRegular() {
+		return ImportOutcome{}, errors.New("manual import source must be a regular file")
+	}
+	request.SourcePath = source
+	request.originalScope = manualRequestScope(request)
+	if strings.TrimSpace(request.DownloadID) != "" && normalizeImportMode(request.ImportMode, request.Move) == "move" {
+		return ImportOutcome{}, errors.New("download imports must retain their sources; use copy or hardlink")
+	}
+	if outcome, found, err := s.resumeCalibreRequest(ctx, request); found || err != nil {
+		return outcome, err
+	}
+	if outcome, found, resumeErr := s.resumeManualRequest(ctx, request); found || resumeErr != nil {
+		return outcome, resumeErr
 	}
 	info, err := os.Stat(source)
 	if err != nil {
@@ -453,18 +491,40 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 		return ImportOutcome{}, errors.New("source file extension is not supported")
 	}
 	if strings.TrimSpace(request.Format) != "" && strings.TrimSpace(request.Format) != "any" {
-		format = normalizeFormat(request.Format)
+		if normalizeFormat(request.Format) != format {
+			return ImportOutcome{}, errors.New("requested format does not match the source file")
+		}
 	}
 
 	parsed := parsedBookForPath(source)
+	if request.WantedID == "" {
+		existing, err := s.store.FindFiles(ctx, nil, []string{source})
+		if err != nil {
+			return ImportOutcome{}, err
+		}
+		if len(existing) == 1 {
+			parsed.Title = firstNonEmpty(existing[0].Title, parsed.Title)
+			parsed.AuthorName = firstNonEmpty(existing[0].AuthorName, parsed.AuthorName)
+			var count int
+			if err := s.store.db.QueryRowContext(ctx, `select count(*),coalesce(min(wanted_item_id::text),'') from file_wanted_links where file_id=$1`, existing[0].ID).Scan(&count, &request.WantedID); err != nil {
+				return ImportOutcome{}, err
+			}
+			if count > 1 {
+				return ImportOutcome{}, errors.New("source belongs to several books; select one explicitly")
+			}
+		}
+	}
 	rootFolderID := ""
 	if strings.TrimSpace(request.WantedID) != "" {
 		item, err := s.lookupWanted(ctx, request.WantedID)
 		if err != nil {
 			return ImportOutcome{}, err
 		}
-		if strings.TrimSpace(item.Format) != "" {
-			format = normalizeFormat(item.Format)
+		if item.Status == "removed" || item.Status == "ignored" {
+			return ImportOutcome{}, errors.New("book is not eligible for import")
+		}
+		if item.Format != "" && item.Format != "any" && normalizeFormat(item.Format) != format {
+			return ImportOutcome{}, errors.New("wanted format does not match the source file")
 		}
 		parsed.Title = firstNonEmpty(item.Title, parsed.Title)
 		parsed.AuthorName = firstNonEmpty(item.AuthorName, parsed.AuthorName)
@@ -478,108 +538,30 @@ func (s *Service) Import(ctx context.Context, request ImportRequest) (ImportOutc
 
 	// Calibre-managed destination roots skip the move/hardlink+naming path:
 	// the source file is handed to the root's Calibre content server instead.
-	if folder, ok := resolveImportRootFolder(s.nativeRootFolders(ctx), format, rootFolderID); ok && folder.Calibre.Enabled {
+	roots, err := s.store.ListRootFolders(ctx)
+	if err != nil {
+		return ImportOutcome{}, err
+	}
+	if folder, ok := resolveImportRootFolder(roots, format, rootFolderID); ok && folder.Calibre.Enabled {
 		return s.importViaCalibre(ctx, request, folder, source, format, parsed, info)
 	}
 
-	root := s.importRootPath(ctx, format, rootFolderID)
-	destination := s.importDestinationPath(root, format, parsed, source)
-	if destination == "" {
-		return ImportOutcome{}, errors.New("library root is not configured")
-	}
-	mode := normalizeImportMode(request.ImportMode, request.Move)
-	conflictAction := normalizeConflictAction(request.ConflictAction, request.Overwrite)
-	plan, err := planImportDestination(source, destination, conflictAction)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if plan.Skipped {
-		return ImportOutcome{
-			DestinationPath: plan.DestinationPath,
-			Skipped:         true,
-			ImportMode:      mode,
-			ConflictAction:  plan.ConflictAction,
-			ConflictPath:    plan.ConflictPath,
-			Message:         plan.Message,
-		}, nil
-	}
-	destination = plan.DestinationPath
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-		return ImportOutcome{}, err
-	}
-	if plan.Replaced {
-		// Route the replaced file through the recycle bin when configured
-		// (plain remove otherwise).
-		if err := s.discardFile(destination); err != nil {
-			return ImportOutcome{}, err
-		}
-	}
-	operation, err := importFile(source, destination, mode, false)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	s.copyImportExtras(source, destination)
-	destinationInfo, err := os.Stat(destination)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	record := fileRecordFromPath(destination, format, destinationInfo, "imported")
-	record.SourcePath = source
-	record.Title = parsed.Title
-	record.AuthorName = parsed.AuthorName
-	record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
-	record.Metadata["move"] = operation.Moved
-	record.Metadata["importMode"] = operation.Mode
-	record.Metadata["conflictAction"] = plan.ConflictAction
-	if plan.ConflictPath != "" {
-		record.Metadata["conflictPath"] = plan.ConflictPath
-	}
-	if plan.Replaced {
-		record.Metadata["replacedExisting"] = true
-	}
-	if operation.Hardlinked {
-		record.Metadata["hardlinked"] = true
-	}
-	if strings.TrimSpace(request.WantedID) != "" {
-		record.Metadata["wantedId"] = strings.TrimSpace(request.WantedID)
-	}
-	if strings.TrimSpace(request.DownloadID) != "" {
-		record.Metadata["downloadId"] = strings.TrimSpace(request.DownloadID)
-	}
-	if err := s.applyCalibreImport(ctx, destination, &record); err != nil {
-		return ImportOutcome{}, err
-	}
-	stored, err := s.store.UpsertFile(ctx, record)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if strings.TrimSpace(request.WantedID) != "" && s.wanted != nil {
-		_ = s.wanted.MarkWantedStatus(ctx, request.WantedID, "imported")
-	}
-	return ImportOutcome{
-		File:            stored,
-		DestinationPath: destination,
-		Moved:           operation.Moved,
-		Imported:        true,
-		Replaced:        plan.Replaced,
-		Hardlinked:      operation.Hardlinked,
-		ImportMode:      operation.Mode,
-		ConflictAction:  plan.ConflictAction,
-		ConflictPath:    plan.ConflictPath,
-	}, nil
+	return s.importNativeManual(ctx, request, source, format, parsed, s.importRootPath(ctx, format, rootFolderID))
 }
 
 func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acquisition.DownloadStatus, request CompletedImportRequest) (CompletedImportOutcome, error) {
 	if !s.Available() {
 		return CompletedImportOutcome{}, errors.New("library service requires database persistence")
 	}
+	if normalizeImportMode(request.ImportMode, request.Move) == "move" {
+		return CompletedImportOutcome{}, errors.New("completed downloads require copy or hardlink mode so sources remain available until verified cleanup")
+	}
 	limit := request.Limit
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
 	allowedIDs := stringSet(request.DownloadIDs)
-	mappings := s.remotePathMappings(ctx)
-	outcome := CompletedImportOutcome{}
+	outcome := CompletedImportOutcome{Results: []DownloadImportResult{}}
 	for _, download := range downloads {
 		if outcome.Checked >= limit {
 			break
@@ -588,115 +570,97 @@ func (s *Service) ImportCompletedDownloads(ctx context.Context, downloads []acqu
 			continue
 		}
 		outcome.Checked++
-		result := DownloadImportResult{
-			Download: download,
-			WantedID: wantedIDFromTags(download.Tags),
-		}
-		if !isCompletedDownload(download) {
+		runCtx := acquisition.WithDownloadClient(ctx, download.Client)
+		result := DownloadImportResult{Download: download, WantedID: wantedIDFromTags(download.Tags)}
+		if !isCompletedDownload(download) || download.ImportStatus == "imported" {
 			result.Status = "skipped"
-			result.Message = "download is not complete"
+			result.Message = "download is not complete or is already imported"
 			outcome.Skipped++
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
-		if strings.TrimSpace(download.ImportStatus) == "imported" {
-			result.Status = "skipped"
-			result.Message = "download is already imported"
-			outcome.Skipped++
-			outcome.Results = append(outcome.Results, result)
-			continue
-		}
-		sourcePath, format, err := locateDownloadSource(remapDownloadSavePath(download, mappings))
-		if err != nil {
-			result.Status = "error"
-			result.Message = err.Error()
+		disposition, dispositionErr := s.store.payloadReviewDisposition(runCtx, download.Client, download.ID)
+		if dispositionErr != nil {
+			result.Status, result.Message = "error", dispositionErr.Error()
 			outcome.Errored++
-			if s.downloads != nil {
-				_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
-			}
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
-		result.SourcePath = sourcePath
-		format = firstNonEmpty(formatFromDownload(download), format)
-		if strings.TrimSpace(result.WantedID) == "" {
-			if completedImportAutoMatchEnabled(request) {
-				match, err := s.completedImportAutoMatch(ctx, sourcePath, format)
-				if err != nil {
-					result.Status = "error"
-					result.Message = err.Error()
-					outcome.Errored++
-					if s.downloads != nil {
-						_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+		if disposition == "skipped" || disposition == "rejected" {
+			result.Status, result.Message = "skipped", "payload review was "+disposition+"; reopen it in Imports to try again"
+			outcome.Skipped++
+			outcome.Results = append(outcome.Results, result)
+			continue
+		}
+		existing, err := s.store.operationForDownload(runCtx, download.Client, download.ID)
+		var imported ImportOutcome
+		if err == nil {
+			result.WantedID = existing.WantedID
+			imported, err = s.runImportOperation(runCtx, existing)
+		} else if errors.Is(err, sql.ErrNoRows) {
+			var payload DownloadPayload
+			payload, err = s.inspectDownloadPayload(runCtx, download)
+			if err == nil {
+				media := []PayloadFile{}
+				for _, f := range payload.Files {
+					if f.Format == "ebook" || f.Format == "audiobook" {
+						media = append(media, f)
 					}
-					outcome.Results = append(outcome.Results, result)
-					continue
 				}
-				if match.WantedID != "" {
-					result.WantedID = match.WantedID
-					result.AutoMatched = true
-					result.Message = match.Message
+				if len(media) > 0 {
+					result.SourcePath = media[0].SourcePath
+				}
+				if result.WantedID == "" && len(media) == 1 && media[0].Included && completedImportAutoMatchEnabled(request) {
+					var match completedImportAutoMatch
+					match, err = s.completedImportAutoMatch(runCtx, media[0].SourcePath, media[0].Format)
+					if err == nil {
+						result.WantedID = match.WantedID
+						result.AutoMatched = match.WantedID != ""
+						result.Message = match.Message
+					}
+				}
+				if err == nil && disposition == "pending" {
+					err = &PayloadReviewError{Payload: payload, Reasons: []string{"download awaits an explicit import review decision"}}
+				}
+				if err == nil {
+					imported, err = s.importCompletedPayload(runCtx, download, payload, ImportRequest{WantedID: result.WantedID, DownloadID: download.ID, ImportMode: request.ImportMode, ConflictAction: request.ConflictAction, Overwrite: request.Overwrite}, nil, false)
 				}
 			}
 		}
-		if strings.TrimSpace(result.WantedID) == "" {
-			review, err := s.queueImportReview(ctx, download, sourcePath, format, "download is not linked to a wanted item")
-			if err != nil {
-				result.Status = "error"
-				result.Message = err.Error()
-				outcome.Errored++
-				if s.downloads != nil {
-					_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
-				}
+		var reviewErr *PayloadReviewError
+		if errors.As(err, &reviewErr) {
+			review, saveErr := s.queuePayloadReview(runCtx, download, reviewErr.Payload, result.WantedID, reviewErr.Error())
+			if saveErr == nil {
+				result.Status, result.Message, result.Review = "review", review.Reason, &review
+				outcome.ReviewQueued++
 				outcome.Results = append(outcome.Results, result)
 				continue
 			}
-			result.Status = "review"
-			result.Message = review.Reason
-			result.Review = &review
-			outcome.ReviewQueued++
+			err = saveErr
+		}
+		if err != nil && imported.Imported {
+			result.Status, result.Message, result.Import = "imported", err.Error(), &imported
+			outcome.Imported++
 			outcome.Results = append(outcome.Results, result)
 			continue
 		}
-		imported, err := s.Import(ctx, ImportRequest{
-			SourcePath:     sourcePath,
-			WantedID:       result.WantedID,
-			DownloadID:     download.ID,
-			Format:         format,
-			Move:           request.Move,
-			ImportMode:     request.ImportMode,
-			ConflictAction: request.ConflictAction,
-			Overwrite:      request.Overwrite,
-		})
 		if err != nil {
-			result.Status = "error"
-			result.Message = err.Error()
+			result.Status, result.Message = "error", err.Error()
 			outcome.Errored++
 			if s.downloads != nil {
-				_ = s.downloads.MarkDownloadImportError(ctx, download.ID, err.Error())
+				if persistErr := s.downloads.MarkDownloadImportError(runCtx, download.ID, err.Error()); persistErr != nil {
+					result.Message += "; persist import error: " + persistErr.Error()
+				}
 			}
-			outcome.Results = append(outcome.Results, result)
-			continue
-		}
-		if imported.Skipped {
-			result.Status = "skipped"
-			result.Message = imported.Message
-			result.Import = &imported
+		} else if imported.Skipped {
+			result.Status, result.Message, result.Import = "skipped", imported.Message, &imported
 			outcome.Skipped++
-			outcome.Results = append(outcome.Results, result)
-			continue
-		}
-		result.Status = "imported"
-		if result.AutoMatched && result.Message == "" {
-			result.Message = "auto-matched unique high-confidence wanted item"
-		}
-		result.Import = &imported
-		outcome.Imported++
-		if result.AutoMatched {
-			outcome.AutoMatched++
-		}
-		if s.downloads != nil {
-			_ = s.downloads.MarkDownloadImported(ctx, download.ID, imported.File.ID)
+		} else {
+			result.Status, result.Import = "imported", &imported
+			outcome.Imported++
+			if result.AutoMatched {
+				outcome.AutoMatched++
+			}
 		}
 		outcome.Results = append(outcome.Results, result)
 	}
@@ -711,8 +675,15 @@ func (s *Service) ResolveImportReview(ctx context.Context, id string, request Re
 	if err != nil {
 		return ReviewDecisionOutcome{}, err
 	}
+	if strings.EqualFold(strings.TrimSpace(request.Action), "reopen") {
+		resolved, reopenErr := s.store.reopenPayloadReview(ctx, review.ID)
+		return ReviewDecisionOutcome{Review: resolved}, reopenErr
+	}
 	if review.Status != "pending" {
 		return ReviewDecisionOutcome{}, errors.New("import review is already resolved")
+	}
+	if client, ok := review.Metadata["downloadClient"].(string); ok {
+		ctx = acquisition.WithDownloadClient(ctx, client)
 	}
 	action := strings.ToLower(strings.TrimSpace(request.Action))
 	if action == "" {
@@ -720,6 +691,10 @@ func (s *Service) ResolveImportReview(ctx context.Context, id string, request Re
 	}
 	switch action {
 	case "import":
+		if review.Metadata["payloadReview"] == true {
+			request.Action = "import"
+			return s.resolvePayloadReview(ctx, review, request)
+		}
 		wantedID := firstNonEmpty(request.WantedID, review.WantedID)
 		if strings.TrimSpace(wantedID) == "" && importReviewRequiresWantedSelection(review) {
 			return ReviewDecisionOutcome{}, errors.New("wanted item selection is required for ambiguous import review")
@@ -848,6 +823,16 @@ func calibreManagedRenamePreview(file FileRecord) RenameFilePreview {
 }
 
 func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, overwrite bool) (RenameFilePreview, error) {
+	if preview, found, err := s.resumeRenamePreview(ctx, file); found || err != nil {
+		return preview, err
+	}
+	if reason, err := s.renameSetRestriction(ctx, file); err != nil {
+		return RenameFilePreview{}, err
+	} else if reason != "" {
+		p := RenameFilePreview{File: file, SourcePath: file.Path, DestinationPath: file.Path, RelativePath: filepath.Base(file.Path), Noop: true, Reason: reason}
+		p.Revision = renameRevision(p)
+		return p, nil
+	}
 	source := filepath.Clean(strings.TrimSpace(file.Path))
 	if source == "" || source == "." {
 		return RenameFilePreview{}, errors.New("file path is required")
@@ -863,11 +848,22 @@ func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, ove
 	}
 	ext := firstNonEmpty(file.Extension, filepath.Ext(source))
 	root := s.renameRootForFile(ctx, file)
+	if s.Available() && root != "" {
+		var err error
+		root, err = canonicalPlannedPath(root)
+		if err != nil {
+			return RenameFilePreview{}, err
+		}
+	}
 	destination := s.destinationPathIn(root, file.MediaFormat, parsed, ext)
 	if destination == "" {
 		return RenameFilePreview{}, errors.New("library root is not configured")
 	}
 	destination = filepath.Clean(destination)
+	if !strings.EqualFold(filepath.Ext(destination), filepath.Ext(source)) {
+		return RenameFilePreview{}, errors.New("naming template must keep the file extension; renaming does not convert the book")
+	}
+
 	if !overwrite && source != destination {
 		destination = availableDestination(destination)
 	}
@@ -883,42 +879,16 @@ func (s *Service) renamePreviewForFile(ctx context.Context, file FileRecord, ove
 			exists = true
 		}
 	}
-	return RenameFilePreview{
+	preview := RenameFilePreview{
 		File:            file,
 		SourcePath:      source,
 		DestinationPath: destination,
 		RelativePath:    relativePath,
 		Exists:          exists,
 		Noop:            source == destination,
-	}, nil
-}
-
-func (s *Service) applyRename(ctx context.Context, preview RenameFilePreview) (FileRecord, error) {
-	if err := os.MkdirAll(filepath.Dir(preview.DestinationPath), 0o755); err != nil {
-		return FileRecord{}, err
 	}
-	if err := copyOrMoveFile(preview.SourcePath, preview.DestinationPath, true); err != nil {
-		return FileRecord{}, err
-	}
-	info, err := os.Stat(preview.DestinationPath)
-	if err != nil {
-		return FileRecord{}, err
-	}
-	file := preview.File
-	file.Path = preview.DestinationPath
-	file.Extension = strings.ToLower(filepath.Ext(preview.DestinationPath))
-	file.SizeBytes = info.Size()
-	modified := info.ModTime().UTC()
-	file.ModifiedAt = &modified
-	if strings.TrimSpace(file.ImportStatus) == "" {
-		file.ImportStatus = "imported"
-	}
-	if file.Metadata == nil {
-		file.Metadata = map[string]any{}
-	}
-	file.Metadata["renamedAt"] = time.Now().UTC().Format(time.RFC3339)
-	file.Metadata["previousPath"] = preview.SourcePath
-	return s.store.UpdateFile(ctx, file)
+	preview.Revision = renameRevision(preview)
+	return preview, nil
 }
 
 type namingPolicy struct {
@@ -953,84 +923,6 @@ func (s *Service) lookupWanted(ctx context.Context, id string) (wanted.WantedIte
 	return s.wanted.GetWanted(ctx, id)
 }
 
-func (s *Service) applyCalibreImport(ctx context.Context, destination string, record *FileRecord) error {
-	if s == nil || s.calibre == nil || s.rootFolders == nil || record == nil {
-		return nil
-	}
-	settings, ok, err := s.calibreSettingsForDestination(ctx, destination)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return nil
-	}
-	return s.applyCalibreImportWithSettings(ctx, settings, destination, record)
-}
-
-// applyCalibreImportWithSettings posts path to the Calibre content server
-// (add-book), syncs metadata, and starts conversions per the settings,
-// recording Calibre state onto the file record.
-func (s *Service) applyCalibreImportWithSettings(ctx context.Context, settings calibre.Settings, path string, record *FileRecord) error {
-	if s == nil || s.calibre == nil || record == nil {
-		return errors.New("calibre integration is unavailable")
-	}
-	result, err := s.calibre.AddBook(ctx, calibre.AddBookRequest{
-		Settings: settings,
-		Path:     path,
-	})
-	if err != nil {
-		return err
-	}
-	if record.Metadata == nil {
-		record.Metadata = map[string]any{}
-	}
-	record.Metadata["calibreId"] = result.ID
-	record.Metadata["calibreImportedAt"] = time.Now().UTC().Format(time.RFC3339)
-	record.Metadata["calibreHost"] = settings.Host
-	record.Metadata["calibreLibrary"] = settings.Library
-	record.Metadata["calibreOutputFormat"] = settings.OutputFormat
-	record.Metadata["calibreOutputProfile"] = settings.OutputProfile
-	metadata := calibreMetadataFromRecord(*record)
-	if calibreMetadataHasChanges(metadata) {
-		if err := s.calibre.SetFields(ctx, calibre.SetFieldsRequest{
-			Settings: settings,
-			ID:       result.ID,
-			Metadata: metadata,
-		}); err != nil {
-			return err
-		}
-		record.Metadata["calibreMetadataSyncedAt"] = time.Now().UTC().Format(time.RFC3339)
-	}
-	conversion, err := s.calibre.Convert(ctx, calibre.ConvertRequest{
-		Settings:    settings,
-		ID:          result.ID,
-		InputFormat: firstNonEmpty(record.Extension, filepath.Ext(record.Path)),
-	})
-	if err != nil {
-		return err
-	}
-	if len(conversion.Jobs) > 0 || len(conversion.Skipped) > 0 {
-		record.Metadata["calibreConversionJobs"] = calibreConversionJobMetadata(conversion.Jobs)
-		record.Metadata["calibreConversionSkipped"] = conversion.Skipped
-		record.Metadata["calibreConversionStartedAt"] = time.Now().UTC().Format(time.RFC3339)
-	}
-	if len(conversion.Jobs) > 0 {
-		statuses, err := s.calibre.PollConversions(ctx, calibre.PollConversionsRequest{
-			Settings:    settings,
-			Jobs:        conversion.Jobs,
-			MaxAttempts: 1,
-		})
-		if err != nil {
-			return err
-		}
-		if len(statuses) > 0 {
-			record.Metadata["calibreConversionStatuses"] = calibreConversionStatusMetadata(statuses)
-			record.Metadata["calibreConversionPolledAt"] = time.Now().UTC().Format(time.RFC3339)
-		}
-	}
-	return nil
-}
-
 // importViaCalibre is the import path for Calibre-managed native roots: the
 // source file is handed to the root's Calibre content server (add-book plus
 // optional conversion) instead of being moved/hardlinked into the naming
@@ -1038,56 +930,7 @@ func (s *Service) applyCalibreImportWithSettings(ctx context.Context, settings c
 // path), so the tracked file keeps the source path with import status
 // "calibre".
 func (s *Service) importViaCalibre(ctx context.Context, request ImportRequest, folder RootFolder, source string, format string, parsed parsedBook, info fs.FileInfo) (ImportOutcome, error) {
-	record, err := s.calibreHandoffRecord(ctx, calibreSettingsFromRootFolder(folder), source, format, parsed, info)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if strings.TrimSpace(folder.ID) != "" {
-		record.Metadata["rootFolderId"] = strings.TrimSpace(folder.ID)
-	}
-	if strings.TrimSpace(request.WantedID) != "" {
-		record.Metadata["wantedId"] = strings.TrimSpace(request.WantedID)
-	}
-	if strings.TrimSpace(request.DownloadID) != "" {
-		record.Metadata["downloadId"] = strings.TrimSpace(request.DownloadID)
-	}
-	stored, err := s.store.UpsertFile(ctx, record)
-	if err != nil {
-		return ImportOutcome{}, err
-	}
-	if strings.TrimSpace(request.WantedID) != "" && s.wanted != nil {
-		_ = s.wanted.MarkWantedStatus(ctx, request.WantedID, "imported")
-	}
-	return ImportOutcome{
-		File:            stored,
-		DestinationPath: stored.Path,
-		Imported:        true,
-		ImportMode:      "calibre",
-		Message:         fmt.Sprintf("handed to Calibre-managed root %q", folder.Path),
-	}, nil
-}
-
-// calibreHandoffRecord builds the tracked file record for a Calibre-managed
-// import and performs the Calibre handoff (add-book, metadata sync, optional
-// conversion). The record keeps the source path because the Calibre client
-// reports the new book asynchronously by id, not by library path.
-func (s *Service) calibreHandoffRecord(ctx context.Context, settings calibre.Settings, source string, format string, parsed parsedBook, info fs.FileInfo) (FileRecord, error) {
-	if s == nil || s.calibre == nil {
-		return FileRecord{}, errors.New("calibre integration is unavailable")
-	}
-	record := fileRecordFromPath(source, format, info, "calibre")
-	record.SourcePath = source
-	record.Title = firstNonEmpty(parsed.Title, record.Title)
-	record.AuthorName = firstNonEmpty(parsed.AuthorName, record.AuthorName)
-	if record.Metadata == nil {
-		record.Metadata = map[string]any{}
-	}
-	record.Metadata["importedAt"] = time.Now().UTC().Format(time.RFC3339)
-	record.Metadata["importMode"] = "calibre"
-	if err := s.applyCalibreImportWithSettings(ctx, settings, source, &record); err != nil {
-		return FileRecord{}, err
-	}
-	return record, nil
+	return s.planCalibreHandoff(ctx, request, folder, source, format, parsed, info)
 }
 
 // calibreSettingsFromRootFolder maps a native root folder's Calibre config
@@ -1107,7 +950,27 @@ func calibreSettingsFromRootFolder(folder RootFolder) calibre.Settings {
 }
 
 func (s *Service) applyCalibreDelete(ctx context.Context, file FileRecord) error {
-	if s == nil || s.calibre == nil || s.rootFolders == nil {
+	if s == nil || s.calibre == nil {
+		return nil
+	}
+	if id := metadataString(file.Metadata, "calibreHandoffId"); id != "" {
+		if !s.Available() {
+			return errors.New("saved Calibre handoff is unavailable")
+		}
+		h, err := scanCalibreHandoff(s.store.db.QueryRowContext(ctx, `select `+handoffColumns+` from calibre_handoffs where id::text=$1 and file_id=$2 and phase='committed'`, id, file.ID))
+		if err != nil {
+			return err
+		}
+		settings, err := s.handoffSettings(ctx, &h)
+		if err != nil {
+			return err
+		}
+		if err = s.calibre.DeleteBooks(ctx, calibre.DeleteBooksRequest{Settings: settings, IDs: []int{h.BookID}}); err != nil {
+			return errors.New("could not delete the book from its original Calibre library")
+		}
+		return nil
+	}
+	if s.rootFolders == nil {
 		return nil
 	}
 	calibreID := metadataInt(file.Metadata, "calibreId", 0)
@@ -1209,7 +1072,7 @@ func calibreIdentifiers(record FileRecord) map[string]string {
 func calibreConversionJobMetadata(jobs []calibre.ConvertJob) []map[string]any {
 	result := make([]map[string]any, 0, len(jobs))
 	for _, job := range jobs {
-		if strings.TrimSpace(job.OutputFormat) == "" || job.JobID <= 0 {
+		if strings.TrimSpace(job.OutputFormat) == "" || job.JobID < 0 {
 			continue
 		}
 		result = append(result, map[string]any{
@@ -1223,7 +1086,7 @@ func calibreConversionJobMetadata(jobs []calibre.ConvertJob) []map[string]any {
 func calibreConversionStatusMetadata(statuses []calibre.ConversionStatus) []map[string]any {
 	result := make([]map[string]any, 0, len(statuses))
 	for _, status := range statuses {
-		if status.JobID <= 0 {
+		if status.JobID < 0 {
 			continue
 		}
 		record := map[string]any{
@@ -1251,8 +1114,8 @@ func calibreConversionJobsFromMetadata(metadata map[string]any) []calibre.Conver
 	}
 	var result []calibre.ConvertJob
 	appendJob := func(record map[string]any) {
-		jobID := metadataMapInt64(record, "jobId")
-		if jobID <= 0 {
+		jobID, valid := calibreJobID(record)
+		if !valid {
 			return
 		}
 		result = append(result, calibre.ConvertJob{
@@ -1282,8 +1145,8 @@ func calibreConversionStatusesFromMetadata(metadata map[string]any) []calibre.Co
 	}
 	var result []calibre.ConversionStatus
 	appendStatus := func(record map[string]any) {
-		jobID := metadataMapInt64(record, "jobId")
-		if jobID <= 0 {
+		jobID, valid := calibreJobID(record)
+		if !valid {
 			return
 		}
 		result = append(result, calibre.ConversionStatus{
@@ -2300,46 +2163,85 @@ func copyOrMoveFile(source string, destination string, move bool) error {
 	return err
 }
 
-func importFile(source string, destination string, mode string, replace bool) (importFileOperation, error) {
+func importFile(source string, destination string, mode string, replace bool) (operation importFileOperation, resultErr error) {
 	source = filepath.Clean(strings.TrimSpace(source))
 	destination = filepath.Clean(strings.TrimSpace(destination))
 	mode = normalizeImportMode(mode, false)
-	operation := importFileOperation{Mode: mode, Moved: mode == "move"}
+	operation.Mode = mode
 	if source == destination {
-		operation.Moved = false
 		return operation, nil
 	}
-	if replace {
-		if err := os.Remove(destination); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return operation, err
-		}
+	// Transfer first, to a unique path on the destination filesystem.
+	stage, err := os.CreateTemp(filepath.Dir(destination), ".librarry-import-*")
+	if err != nil {
+		return operation, err
 	}
+	stagePath := stage.Name()
+	if err := stage.Close(); err != nil {
+		os.Remove(stagePath)
+		return operation, err
+	}
+	if err := os.Remove(stagePath); err != nil {
+		return operation, err
+	}
+	defer os.Remove(stagePath)
 	switch mode {
-	case "move":
-		if err := os.Rename(source, destination); err == nil {
-			return operation, nil
-		}
-		if err := copyFile(source, destination); err != nil {
-			return operation, err
-		}
-		return operation, os.Remove(source)
-	case "hardlink":
-		if err := os.Link(source, destination); err != nil {
-			return operation, err
-		}
-		operation.Hardlinked = true
-		return operation, nil
-	case "hardlinkOrCopy":
-		if err := os.Link(source, destination); err == nil {
+	case "hardlink", "hardlinkOrCopy":
+		if err := os.Link(source, stagePath); err == nil {
 			operation.Hardlinked = true
-			return operation, nil
+		} else if mode == "hardlink" {
+			return operation, err
+		} else {
+			operation.Mode = "copy"
+			if err := copyFile(source, stagePath); err != nil {
+				return operation, err
+			}
 		}
-		operation.Mode = "copy"
-		return operation, copyFile(source, destination)
 	default:
 		operation.Mode = "copy"
-		return operation, copyFile(source, destination)
+		if err := copyFile(source, stagePath); err != nil {
+			return operation, err
+		}
 	}
+	if replace {
+		if _, err := os.Lstat(destination); err == nil {
+			backup, err := os.CreateTemp(filepath.Dir(destination), ".librarry-previous-*")
+			if err != nil {
+				return operation, err
+			}
+			previous := backup.Name()
+			if err := backup.Close(); err != nil {
+				os.Remove(previous)
+				return operation, err
+			}
+			if err := os.Rename(destination, previous); err != nil {
+				os.Remove(previous)
+				return operation, err
+			}
+			operation.PreviousPath = previous
+			defer func() {
+				if resultErr != nil {
+					if _, err := os.Lstat(destination); errors.Is(err, os.ErrNotExist) {
+						_ = os.Rename(previous, destination)
+					}
+				}
+			}()
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return operation, err
+		}
+	}
+	// Link publishes atomically without overwriting a concurrent import.
+	if err := os.Link(stagePath, destination); err != nil {
+		return operation, err
+	}
+	if mode == "move" {
+		if err := os.Remove(source); err != nil {
+			return operation, err
+		}
+		operation.Moved = true
+		operation.Mode = "move"
+	}
+	return operation, nil
 }
 
 func removeLibraryFile(path string) error {
@@ -2359,17 +2261,47 @@ func copyFile(source string, destination string) error {
 		return err
 	}
 	defer src.Close()
-
-	dst, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	info, err := src.Stat()
 	if err != nil {
 		return err
 	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
+	if !info.Mode().IsRegular() {
+		return errors.New("import source must be a regular file")
+	}
+	dst, err := os.CreateTemp(filepath.Dir(destination), ".librarry-copy-*")
+	if err != nil {
 		return err
 	}
-	return dst.Sync()
+	defer os.Remove(dst.Name())
+	defer dst.Close()
+	digest := sha256.New()
+	size, err := io.Copy(dst, io.TeeReader(src, digest))
+	if err != nil {
+		return err
+	}
+	if size != info.Size() {
+		return errors.New("import source size changed during copy")
+	}
+	if err := dst.Chmod(0o644); err != nil {
+		return err
+	}
+	if err := dst.Sync(); err != nil {
+		return err
+	}
+	if err := dst.Close(); err != nil {
+		return err
+	}
+	hash, err := contentHash(source)
+	if err != nil {
+		return err
+	}
+	if hash != hex.EncodeToString(digest.Sum(nil)) {
+		return errors.New("import source changed during copy")
+	}
+	if err := os.Link(dst.Name(), destination); err != nil {
+		return err
+	}
+	return nil
 }
 
 func availableDestination(path string) string {
@@ -2416,63 +2348,58 @@ func wantedOverrideValue(item wanted.WantedItem, field string) string {
 	return ""
 }
 
+// locateDownloadSource only inspects the named payload. A client's save path
+// is often shared by many downloads and must never be searched as a fallback.
 func locateDownloadSource(download acquisition.DownloadStatus) (string, string, error) {
 	savePath := filepath.Clean(strings.TrimSpace(download.SavePath))
-	if savePath == "." || savePath == "" {
-		return "", "", errors.New("download save path is empty")
-	}
 	name := strings.TrimSpace(download.Name)
-	var candidates []string
-	if name != "" {
-		candidates = append(candidates, filepath.Join(savePath, name))
+	if !filepath.IsAbs(savePath) || name == "" || name == "." || name == ".." || filepath.Base(name) != name {
+		return "", "", errors.New("download requires an absolute save path and an exact payload name")
 	}
-	candidates = append(candidates, savePath)
-	for _, candidate := range candidates {
-		info, err := os.Stat(candidate)
-		if err != nil {
-			continue
-		}
-		if !info.IsDir() {
-			if format, ok := classifyFile(candidate); ok {
-				return candidate, format, nil
-			}
-			continue
-		}
-		if path, format, ok := bestBookFile(candidate, formatFromDownload(download)); ok {
-			return path, format, nil
-		}
+	root, err := filepath.EvalSymlinks(savePath)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve download root: %w", err)
 	}
-	return "", "", errors.New("no supported ebook or audiobook file found in completed download")
-}
-
-func bestBookFile(root string, preferredFormat string) (string, string, bool) {
-	type candidate struct {
-		path   string
-		format string
-		size   int64
+	payload := filepath.Join(root, name)
+	// Some clients report the actual payload as their save path.
+	if filepath.Base(savePath) == name {
+		payload = root
 	}
-	var best candidate
-	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
+	info, err := os.Lstat(payload)
+	if err != nil {
+		return "", "", fmt.Errorf("named download payload unavailable: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", "", errors.New("symlink payload requires review")
+	}
+	var files []string
+	err = filepath.WalkDir(payload, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return errors.New("symlink in download payload requires review")
+		}
+		if entry.IsDir() {
 			return nil
 		}
-		format, ok := classifyFile(path)
-		if !ok {
-			return nil
-		}
-		if preferredFormat != "" && preferredFormat != "any" && format != preferredFormat {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return nil
-		}
-		if best.path == "" || info.Size() > best.size {
-			best = candidate{path: path, format: format, size: info.Size()}
+		if _, ok := classifyFile(path); ok {
+			files = append(files, path)
 		}
 		return nil
 	})
-	return best.path, best.format, best.path != ""
+	if err != nil {
+		return "", "", fmt.Errorf("inspect download payload: %w", err)
+	}
+	if len(files) != 1 {
+		return "", "", fmt.Errorf("download has %d supported files; complete payload mapping requires review", len(files))
+	}
+	format, _ := classifyFile(files[0])
+	preferred := formatFromDownload(download)
+	if preferred != "" && preferred != format {
+		return "", "", errors.New("payload format conflicts with download category")
+	}
+	return files[0], format, nil
 }
 
 func isCompletedDownload(download acquisition.DownloadStatus) bool {
@@ -2532,4 +2459,34 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// Calibre's first conversion job is 0. Missing/malformed values must remain
+// distinguishable from that valid ID when JSON metadata is loaded after restart.
+func calibreJobID(record map[string]any) (int64, bool) {
+	value, exists := record["jobId"]
+	if !exists || value == nil {
+		return 0, false
+	}
+	var id int64
+	switch v := value.(type) {
+	case int:
+		id = int64(v)
+	case int64:
+		id = v
+	case float64:
+		id = int64(v)
+		if float64(id) != v {
+			return 0, false
+		}
+	case string:
+		var err error
+		id, err = strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		if err != nil {
+			return 0, false
+		}
+	default:
+		return 0, false
+	}
+	return id, id >= 0
 }

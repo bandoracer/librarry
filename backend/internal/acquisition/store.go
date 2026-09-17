@@ -3,6 +3,7 @@ package acquisition
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,9 @@ func NewSQLDownloadStore(db *sql.DB) *SQLDownloadStore {
 func (s *SQLDownloadStore) UpsertDownloads(ctx context.Context, downloads []DownloadStatus) error {
 	if s == nil || s.db == nil || len(downloads) == 0 {
 		return nil
+	}
+	if err := s.restoreAcquisitionLinks(ctx, downloads); err != nil {
+		return err
 	}
 	for _, download := range downloads {
 		if strings.TrimSpace(download.ID) == "" {
@@ -111,7 +115,10 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 		return nil, nil
 	}
 	args := []any{}
-	where := []string{"external_id is not null", "state <> 'removed'"}
+	where := []string{"external_id is not null"}
+	if !query.IncludeRemoved {
+		where = append(where, "state <> 'removed'")
+	}
 	if client := strings.TrimSpace(query.Client); client != "" {
 		args = append(args, client)
 		where = append(where, "client = $"+strconv.Itoa(len(args)))
@@ -144,7 +151,7 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 			size_bytes, downloaded_bytes, uploaded_bytes, download_rate, upload_rate,
 			eta_seconds, ratio, seeders, peers, added_at, completed_at, last_activity_at,
 			last_seen_at, import_status, coalesce(imported_file_id::text, ''), imported_at,
-			import_error, failure_reason, failed_at, retry_count, replacement_external_id
+			import_error, failure_reason, failed_at, retry_count, replacement_external_id,coalesce(release_id::text,''),coalesce(acquisition_intent_id::text,'')
 		from downloads
 		where ` + strings.Join(where, " and ") + `
 		order by coalesce(last_seen_at, updated_at, created_at) desc
@@ -166,7 +173,7 @@ func (s *SQLDownloadStore) ListDownloads(ctx context.Context, query DownloadList
 			&item.SizeBytes, &item.DownloadedBytes, &item.UploadedBytes, &item.DownloadRate, &item.UploadRate,
 			&item.ETASeconds, &item.Ratio, &item.Seeders, &item.Peers, &addedAt, &completedAt,
 			&lastActivityAt, &lastSeenAt, &item.ImportStatus, &item.ImportedFileID, &importedAt,
-			&item.ImportError, &item.FailureReason, &failedAt, &item.RetryCount, &item.ReplacementID,
+			&item.ImportError, &item.FailureReason, &failedAt, &item.RetryCount, &item.ReplacementID, &item.ReleaseID, &item.AcquisitionID,
 		); err != nil {
 			return nil, err
 		}
@@ -187,7 +194,7 @@ func (s *SQLDownloadStore) MarkDownloadsDeleted(ctx context.Context, ids []strin
 		return nil
 	}
 	for _, id := range compactStrings(ids) {
-		if _, err := s.db.ExecContext(ctx, `
+		if _, err := s.execDownloadMutation(ctx, `
 			update downloads
 			set state = 'removed', last_seen_at = now(), updated_at = now()
 			where external_id = $1
@@ -202,7 +209,7 @@ func (s *SQLDownloadStore) MarkDownloadFailed(ctx context.Context, id string, re
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set failure_reason = $2,
 			failed_at = coalesce(failed_at, now()),
@@ -216,7 +223,7 @@ func (s *SQLDownloadStore) ClearDownloadFailure(ctx context.Context, id string) 
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set failure_reason = '',
 			failed_at = null,
@@ -236,7 +243,7 @@ func (s *SQLDownloadStore) MarkDownloadReplacement(ctx context.Context, id strin
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set retry_count = retry_count + 1,
 			replacement_external_id = $2,
@@ -250,7 +257,7 @@ func (s *SQLDownloadStore) MarkDownloadImported(ctx context.Context, id string, 
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set import_status = 'imported',
 			imported_file_id = nullif($2, '')::uuid,
@@ -266,7 +273,7 @@ func (s *SQLDownloadStore) MarkDownloadImportError(ctx context.Context, id strin
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.execDownloadMutation(ctx, `
 		update downloads
 		set import_status = 'error',
 			import_error = $2,
@@ -292,4 +299,38 @@ func importStatusForDownload(download DownloadStatus) string {
 		return "ready"
 	}
 	return "pending"
+}
+
+// WithDownloadClient binds external IDs to their owning client for store
+// mutations. Legacy callers without a client can only mutate a unique ID.
+type downloadClientContextKey struct{}
+
+func WithDownloadClient(ctx context.Context, client string) context.Context {
+	return context.WithValue(ctx, downloadClientContextKey{}, strings.TrimSpace(client))
+}
+
+// DownloadClientFromContext returns the client scope used for exact download identity.
+func DownloadClientFromContext(ctx context.Context) string {
+	client, _ := ctx.Value(downloadClientContextKey{}).(string)
+	return client
+}
+
+func (s *SQLDownloadStore) execDownloadMutation(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	client, _ := ctx.Value(downloadClientContextKey{}).(string)
+	args = append(args, client)
+	parameter := "$" + strconv.Itoa(len(args))
+	query += ` and id = (select min(candidate.id::text)::uuid from downloads candidate
+ where candidate.external_id = $1 and (` + parameter + ` = '' or lower(candidate.client) = lower(` + parameter + `)) having count(*) = 1)`
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if count != 1 {
+		return result, fmt.Errorf("download ID was not found or is ambiguous; specify its client")
+	}
+	return result, nil
 }

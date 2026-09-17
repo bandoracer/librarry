@@ -1,8 +1,13 @@
+import { fetchImportReviewCollection, type ImportReviewOptions } from "./api";
+import { fetchFileCollection, type FileCollectionOptions, fetchAuthorReviewCollection, type AuthorReviewOptions } from "./api";
 import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAcquisitionQueue,
   fetchAuthorMetadataReviews,
   fetchAuthorSubscriptions,
+  fetchAuthorCollection,
+  type AuthorCollectionOptions,
+  fetchAuthorDetail,
   fetchBlocklist,
   fetchDiskSpace,
   fetchDownloads,
@@ -10,6 +15,8 @@ import {
   fetchIntegrationHealth,
   fetchIntegrationSettings,
   fetchLibraryFiles,
+  fetchBookCollection,
+  type BookCollectionOptions,
   fetchLibraryImportReviews,
   fetchLibrarySettings,
   fetchNotificationTargets,
@@ -23,13 +30,16 @@ import {
   fetchSystemStatus,
   fetchSystemTasks,
   fetchWanted,
+  fetchWantedItem,
   fetchWantedMetadata,
   fetchWantedMetadataReview,
+  type MetadataReviewOptions,
   fetchWantedReleases,
   knownQualityIds,
   type DownloadListOptions
 } from "./api";
 import { demoModeEnabled, demoSeeds, withDemoFallback } from "./demo";
+import { demoBookCollection } from "./demoBookCollection";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +53,7 @@ export const queryClient = new QueryClient({
 
 /** Query keys shared across features; invalidate through these, not string literals. */
 export const keys = {
+ importRecovery: ["import-recovery"] as const,
   providerHealth: ["provider-health"] as const,
   integrationHealth: ["integration-health"] as const,
   integrationSettings: ["integration-settings"] as const,
@@ -51,6 +62,7 @@ export const keys = {
   readiness: ["readiness"] as const,
   readarrCompatibility: ["readarr-compatibility"] as const,
   wanted: ["wanted"] as const,
+  bookCollection: (options: BookCollectionOptions) => ["wanted", "collection", options] as const,
   wantedCutoffUnmet: ["wanted", "cutoff-unmet"] as const,
   wantedMetadataReview: ["wanted-metadata-review"] as const,
   wantedMetadata: (wantedID: string) => ["wanted-metadata", wantedID] as const,
@@ -107,11 +119,23 @@ export function useReadarrCompatibility() {
   });
 }
 
-export function useWanted() {
-  return useQuery({
+export function libraryQueryOptions() {
+  return {
     queryKey: keys.wanted,
-    queryFn: withDemoFallback(fetchWanted, () => demoSeeds.wantedItems),
+    queryFn: withDemoFallback(() => fetchWanted("library"), () => demoSeeds.wantedItems.filter((item) => !["removed", "ignored"].includes(item.status))),
     refetchInterval: 30_000
+  };
+}
+
+export function useWanted() {
+  return useQuery(libraryQueryOptions());
+}
+
+export function useWantedItem(id: string) {
+  return useQuery({
+    queryKey: [...keys.wanted, "detail", id],
+    queryFn: withDemoFallback(() => fetchWantedItem(id), () => demoSeeds.wantedItems.find(item => item.id === id) ?? null),
+    enabled: Boolean(id)
   });
 }
 
@@ -128,10 +152,16 @@ export function useCutoffUnmet(enabled = true) {
   });
 }
 
-export function useWantedMetadataReview() {
+export function useWantedMetadataReview(options: MetadataReviewOptions = {}) {
   return useQuery({
-    queryKey: keys.wantedMetadataReview,
-    queryFn: withDemoFallback(fetchWantedMetadataReview, () => demoSeeds.wantedMetadataReview)
+    queryKey: [...keys.wantedMetadataReview, options],
+    queryFn: ({ signal }) => withDemoFallback(() => fetchWantedMetadataReview(options, signal), () => {
+      const seed = demoSeeds.wantedMetadataReview;
+      const q = (options.q ?? "").trim().toLowerCase();
+      const items = seed.items.filter(({ wantedItem: item }) => (!options.format || options.format === "all" || options.format === item.format) && [item.title, item.authorName, item.sourceProvider, item.qualityProfile].join(" ").toLowerCase().includes(q));
+      return { ...seed, filtered: items.length, items: options.cursor ? [] : items.slice(0, options.limit ?? 100) };
+    })(),
+    refetchInterval: 30_000
   });
 }
 
@@ -168,11 +198,11 @@ export function useWantedReleases(wantedID: string) {
   });
 }
 
-export function useAcquisitionQueue() {
+export function useAcquisitionQueue(limit?: number) {
   return useQuery({
-    queryKey: keys.acquisitionQueue,
+    queryKey: limit ? [...keys.acquisitionQueue, { limit }] : keys.acquisitionQueue,
     queryFn: withDemoFallback(
-      () => fetchAcquisitionQueue(),
+      () => fetchAcquisitionQueue({ limit }),
       () => ({
         generatedAt: new Date().toISOString(),
         summary: { total: 0, needsSearch: 0, readyToGrab: 0, queued: 0, importReady: 0, imported: 0, blocked: 0 },
@@ -180,6 +210,14 @@ export function useAcquisitionQueue() {
       })
     ),
     refetchInterval: 30_000
+  });
+}
+
+export function useAuthorDetail(key: string, cursor = "") {
+  return useQuery({
+    queryKey: [...keys.wanted, "author", key, cursor],
+    queryFn: () => fetchAuthorDetail(key, cursor),
+    enabled: Boolean(key)
   });
 }
 
@@ -191,6 +229,13 @@ export function useAuthorSubscriptions() {
       () => []
     )
   });
+}
+
+export function useAuthorReviewCollection(options: AuthorReviewOptions) {
+  return useQuery({ queryKey: [...keys.authorMetadataReviews, "collection", options], queryFn: withDemoFallback(
+    () => fetchAuthorReviewCollection(options),
+    () => ({ reviews: [], total: 0, filtered: 0, counts: {} })
+  ) });
 }
 
 export function useAuthorMetadataReviews() {
@@ -255,11 +300,17 @@ export function useHistory(limit = 50) {
   });
 }
 
-export function useLibraryFiles(format = "any") {
+export function useFileCollection(options: FileCollectionOptions) {
+  return useQuery({ queryKey: [...keys.libraryFiles("any"), "collection", options], queryFn: withDemoFallback(
+    () => fetchFileCollection(options), () => ({ files: [], total: 0, filtered: 0, counts: {} })
+  ) });
+}
+
+export function useLibraryFiles(format = "any", wantedId?: string) {
   return useQuery({
-    queryKey: keys.libraryFiles(format),
+    queryKey: wantedId ? [...keys.libraryFiles(format), "book", wantedId] : keys.libraryFiles(format),
     queryFn: withDemoFallback(
-      () => fetchLibraryFiles(format),
+      () => fetchLibraryFiles(format, 100, wantedId),
       () => []
     )
   });
@@ -413,19 +464,13 @@ export function useCalendar(start: string, end: string, unmonitored: boolean) {
 
 /**
  * Session/auth state, polled every minute. Any fetch failure resolves to an
- * open install ({method:"none", authenticated:true}) so installs without the
- * auth endpoints — or with an unreachable API — are never locked out.
+ * demo install only when demo mode is explicitly enabled. Real failures remain
+ * errors so the UI can offer connection recovery without inventing auth state.
  */
 export function useAuthStatus() {
   return useQuery<AuthStatus>({
     queryKey: m6Keys.authStatus,
-    queryFn: async () => {
-      try {
-        return await fetchAuthStatus();
-      } catch {
-        return { method: "none", authenticated: true };
-      }
-    },
+    queryFn: withDemoFallback<AuthStatus>(fetchAuthStatus, () => ({ method: "none", authenticated: true })),
     refetchInterval: 60_000,
     retry: 0
   });
@@ -504,4 +549,17 @@ export function useMetadataProfiles() {
     queryKey: metadataProfileKeys.metadataProfiles,
     queryFn: withDemoFallback(fetchMetadataProfiles, () => [])
   });
+}
+
+export function useBookCollection(options: BookCollectionOptions = {}, enabled = true) {
+  return useQuery({ queryKey: keys.bookCollection(options), queryFn: ({ signal }) => withDemoFallback(() => fetchBookCollection(options, signal), () => demoBookCollection(options))(), enabled, refetchInterval: 30_000 });
+}
+
+export function useAuthorCollection(options: AuthorCollectionOptions = {}) {
+  return useQuery({ queryKey: [...keys.authorSubscriptions, "collection", options], queryFn: ({ signal }) => withDemoFallback(() => fetchAuthorCollection(options, signal), () => ({ authors: [], total: 0, filtered: 0, downloads: "notConfigured", observedAt: new Date().toISOString(), nextCursor: undefined }))(), refetchInterval: 30_000 });
+}
+
+
+export function useImportReviewCollection(options: ImportReviewOptions) {
+  return useQuery({ queryKey: [...keys.importReviews(options.status ?? "pending"), "collection", options], queryFn: ({ signal }) => withDemoFallback(() => fetchImportReviewCollection(options, signal), () => ({ reviews: [], total: 0, filtered: 0, counts: { pending: 0, resolved: 0 }, observedAt: new Date().toISOString() }))(), refetchInterval: 30_000 });
 }

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -89,5 +90,29 @@ func jsonResponse(body string) *http.Response {
 		Status:     "200 OK",
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
+	}
+}
+
+func TestHardcoverDoesNotHideProviderErrors(t *testing.T) {
+	for _, body := range []string{`{"errors":[{"message":"invalid token"}],"data":null}`, `{"data":{"search":{"results":null}}}`, `{"data":{"search":{"results":{}}}}`} {
+		provider := NewHardcoverProvider(&http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) { return jsonResponse(body), nil })}, "fixture-token")
+		if _, err := provider.Search(context.Background(), Query{Query: "Moby Dick"}); err == nil {
+			t.Fatalf("accepted provider failure: %s", body)
+		}
+	}
+}
+
+func TestHardcoverDecodesTypesenseDocuments(t *testing.T) {
+	provider := NewHardcoverProvider(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		var body struct{ Query string }
+		json.NewDecoder(req.Body).Decode(&body)
+		if strings.Contains(body.Query, "SearchBookDetails") {
+			return jsonResponse(`{"data":{"books":[{"id":1,"title":"Moby Dick","contributions":[{"contribution":"Author","author":{"id":7,"name":"Herman Melville"}}]}]}}`), nil
+		}
+		return jsonResponse(`{"data":{"search":{"results":{"hits":[{"document":{"id":1,"title":"Moby Dick","author_names":["Herman Melville"]}}]}}}}`), nil
+	})}, "fixture-token")
+	results, err := provider.Search(context.Background(), Query{Query: "Moby Dick"})
+	if err != nil || len(results) != 1 || results[0].Work.Authors[0].Name != "Herman Melville" {
+		t.Fatalf("%+v %v", results, err)
 	}
 }

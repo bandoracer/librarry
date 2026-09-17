@@ -495,7 +495,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 0;
+  padding: 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -671,3 +671,8 @@
   width: 30px;
   height: 44px;
 }
+
+.wanted-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.wanted-pagination > span { font-size: 0.8rem; color: var(--muted); }
+
+.wanted-review-filters { margin-bottom: 14px; }

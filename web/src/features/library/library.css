@@ -443,3 +443,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+.library-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.library-pagination > span { font-size: 0.8rem; color: var(--muted); }
+
+.library-file-name { display: grid; gap: 0.35rem; min-width: 14rem; max-width: 32rem; }
+.library-file-name code { overflow-wrap: anywhere; white-space: normal; font-size: 0.75rem; }
+
+.book-rename-path { overflow-wrap: anywhere; white-space: normal; }
+
+.library-removed-filters, .library-removed-paging, .library-removed-badges { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin: .75rem 0; }
+.library-removed-filters { align-items: end; }
+.library-removed-filters label { display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
+.library-removed-filters label:first-child { flex: 1 1 240px; }
+.library-removed-filters input { width: 100%; min-width: 0; }
+.library-removed-list { padding: 0; list-style: none; }
+.library-removed-list li { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding: 1rem 0; }
+.library-removed-list li > div { min-width: 0; flex: 1 1 240px; overflow-wrap: anywhere; }
+.library-removed-list p { margin: .4rem 0; }
+.library-restore-monitor { display: flex; align-items: start; gap: .5rem; }
+.library-restore-monitor input { margin-top: .25rem; flex: 0 0 auto; }

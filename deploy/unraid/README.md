@@ -89,3 +89,38 @@ docker exec librarry-postgres pg_dump -U librarry librarry > librarry.sql
 Both `librarry-api` and `librarry-web` GHCR packages are public, so Unraid can
 pull them without a GitHub login. The stack supports the normal Unraid x86_64
 servers and ARM64 Docker hosts.
+
+## Candidate selection and automation
+
+Installer defaults select historical `latest` images. Select both qualified
+candidate digests explicitly for a controlled rollout. [Current status](../../docs/status.md)
+distinguishes candidate publication, production-copy rollback qualification and
+actual deployment; the live rollout and observation gate remain open.
+
+Scheduled auto-grab and removal defaults are enabled. Review the
+[automation and import controls](../../docs/deployment.md#stabilization-candidate-configuration)
+before connecting real clients. Back up database, configuration and media; follow
+[upgrade and rollback instructions](../../docs/deployment.md#upgrade) for your target.
+
+
+
+Hourly History Maintenance compacts notification detail only after all recipients
+have been resolved for 90 days. Unresolved deliveries and compact event identities
+remain in Postgres; include both in backups. Restore with notification egress
+isolated until later receiver acceptance is reconciled. Compaction cannot protect
+against acceptance that happened after the backup. See the
+[retention policy](../../docs/guides/operations.md#notification-history-retention).
+
+
+`LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults to `true`. Set it to `false` and
+recreate the API container to pause scheduled list sync; explicit list-sync
+commands remain available. It is independent of feed sync. System → Tasks keeps
+disabled/unavailable workers visible with reasons and retained shared history.
+Flags apply to each API instance; update every instance to stop scheduled work
+across a deployment.
+
+The same portal exposes `/readyz` for current database connectivity (200 ready,
+503 without usable persistence). `/healthz` remains process liveness; neither
+certifies external clients, mounts or completed imports. System can download a
+redacted support report without contacting providers. See
+[probe and support semantics](../../docs/deployment.md#liveness-readiness-and-support).

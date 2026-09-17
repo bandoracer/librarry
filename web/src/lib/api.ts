@@ -1,4 +1,9 @@
 export type ProviderHealth = {
+  lastCheckedAt?: string;
+  lastSuccessAt?: string;
+  reachable?: boolean;
+  authenticated?: boolean;
+  retryAfter?: string;
   name: string;
   status: string;
   configured: boolean;
@@ -12,7 +17,8 @@ export type SearchResult = {
   work: {
     id: string;
     title: string;
-    authors?: Array<{ id: string; name: string; providerIds?: string[] }>;
+    authors?: Array<{ id: string; name: string; role?: string; providerIds?: string[] }>;
+    firstPublishDate?: string;
     firstPublishYear?: number;
     description?: string;
     series?: string;
@@ -22,6 +28,11 @@ export type SearchResult = {
   };
   edition?: {
     id: string;
+    workId?: string;
+    pages?: number;
+    coverUrl?: string;
+    audioSeconds?: number;
+    contributors?: Array<{ id: string; name: string; role?: string; providerIds?: string[] }>;
     title: string;
     format: "any" | "ebook" | "audiobook";
     language?: string;
@@ -40,6 +51,16 @@ export type SearchResult = {
 export type MetadataSearchType = "book" | "author" | "series";
 
 export type IntegrationHealth = {
+ lastCheckedAt?: string;
+ lastSuccessAt?: string;
+ lastVersionAt?: string;
+ retryAfter?: string;
+ version?: string;
+ freshness?: "never_checked" | "fresh" | "stale";
+ observedStatus?: string;
+ checking?: boolean;
+ reachable?: boolean;
+ authenticated?: boolean;
   name: string;
   configured: boolean;
   status: string;
@@ -417,6 +438,8 @@ export type DownloadRebalancePlan = {
 };
 
 export type WantedItem = {
+  rootFolderId?: string;
+  authors?: AuthorIdentity[];
   id: string;
   workId?: string;
   editionId?: string;
@@ -426,7 +449,13 @@ export type WantedItem = {
   format: "ebook" | "audiobook";
   qualityProfile: string;
   status: string;
-  derivedState?: "unmonitored" | "missing" | "downloading" | "downloaded" | "cutoffUnmet";
+  derivedState?: "unmonitored" | "missing" | "downloading" | "downloaded" | "cutoffUnmet" | "incomplete" | "unknown";
+  stateEvidence?: {
+    files: { state: "present" | "missing" | "incomplete" | "unknown" | "unavailable"; reason: string; presentFiles: number; requiredFiles?: number };
+    downloads: "fresh" | "partial" | "unavailable" | "notConfigured";
+    quality: "available" | "unavailable";
+    message?: string;
+  };
   monitored: boolean;
   tags?: string[];
   sourceProvider?: string;
@@ -507,6 +536,7 @@ export type MetadataProvenance = {
 };
 
 export type MetadataReviewItem = {
+  revision?: string;
   wantedItem: WantedItem;
   fields: MetadataFieldEvidence[];
   conflictCount: number;
@@ -516,12 +546,18 @@ export type MetadataReviewItem = {
   lastFetchedAt?: string;
 };
 
+export type MetadataReviewOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; cursor?: string; limit?: number };
 export type MetadataReviewQueue = {
+  total: number;
+  filtered: number;
+  conflictCount: number;
+  nextCursor?: string;
   items: MetadataReviewItem[];
   generatedAt: string;
 };
 
 export type MetadataReviewConfirmRequest = {
+  revisions?: Record<string, string>;
   wantedIds?: string[];
   all?: boolean;
 };
@@ -599,7 +635,29 @@ export function knownQualityIds(mediaFormat: QualityProfile["mediaFormat"]): str
   return [...ebookQualityIds, ...audiobookQualityIds];
 }
 
+export type AuthorIdentity = { id: string; name: string; provider?: string; providerKey?: string; nameOnly?: boolean };
+export type AuthorDetail = {
+  author: AuthorIdentity;
+  subscriptions: AuthorSubscription[];
+  books: WantedItem[];
+  totalBooks: number;
+  nextCursor?: string;
+  choices: AuthorIdentity[];
+  choicesTruncated?: boolean;
+};
+
+export async function fetchAuthorDetail(key: string, cursor = ""): Promise<AuthorDetail | null> {
+  const params = new URLSearchParams({ limit: "100" });
+  if (cursor) params.set("cursor", cursor);
+  const response = await fetch(`${apiBase}/api/v1/library/authors/${encodeURIComponent(key)}?${params}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(await apiError(response, "Author could not be loaded"));
+  const detail = await response.json() as AuthorDetail;
+  return { ...detail, books: arrayPayload(detail.books), subscriptions: arrayPayload(detail.subscriptions), choices: arrayPayload(detail.choices) };
+}
+
 export type AuthorSubscription = {
+  rootFolderId?: string;
   id: string;
   provider: string;
   providerKey: string;
@@ -620,6 +678,7 @@ export type AuthorSubscription = {
 export type AuthorMissingBookPolicy = "all" | "future" | "missing" | "existing" | "first" | "latest" | "none";
 
 export type AuthorUpdateRequest = {
+  rootFolderId?: string;
   authorName?: string;
   qualityProfile?: string;
   status?: string;
@@ -647,6 +706,8 @@ export type AuthorSkippedItem = {
 };
 
 export type AuthorMetadataReview = {
+  revision?: string;
+  rootFolderId?: string;
   id: string;
   authorSubscriptionId?: string;
   provider: string;
@@ -668,6 +729,8 @@ export type AuthorMetadataReview = {
 };
 
 export type AuthorMetadataReviewDecision = {
+  replayed?: boolean;
+  alreadyTracked?: boolean;
   review: AuthorMetadataReview;
   wantedItem?: WantedItem;
 };
@@ -709,6 +772,7 @@ export type ReleaseDecision = {
 };
 
 export type AcquisitionQueueSummary = {
+  unknown?: number;
   total: number;
   needsSearch: number;
   readyToGrab: number;
@@ -732,6 +796,8 @@ export type AcquisitionQueueItem = {
 };
 
 export type AcquisitionQueue = {
+  downloads?: string;
+  previewLimit?: number;
   items: AcquisitionQueueItem[];
   summary: AcquisitionQueueSummary;
   generatedAt: string;
@@ -747,6 +813,7 @@ type WantedSearchPayload = Omit<WantedSearchOutcome, "releases"> & {
 };
 
 export type MonitorItemResult = {
+  skippedReason?: string;
   wantedItem: WantedItem;
   releasesFound: number;
   approvedCount: number;
@@ -772,6 +839,7 @@ export type MonitorRun = {
 };
 
 export type FeedSyncMatch = {
+  skippedReason?: string;
   wantedItem: WantedItem;
   release: ReleaseDecision;
   grabbedDownload?: DownloadStatus;
@@ -779,6 +847,7 @@ export type FeedSyncMatch = {
 };
 
 export type FeedSyncRun = {
+  matchesTruncated?: boolean;
   id: string;
   trigger: string;
   status: string;
@@ -822,6 +891,7 @@ export type FailedDownloadRun = {
 };
 
 export type UpgradeItemResult = {
+  skippedReason?: string;
   wantedItem: WantedItem;
   currentScore: number;
   cutoffScore: number;
@@ -858,6 +928,7 @@ export type HistoryEvent = {
 };
 
 export type LibraryFile = {
+ presenceState?: "unknown" | "present" | "missing";
   id: string;
   editionId?: string;
   mediaFormat: "ebook" | "audiobook";
@@ -876,6 +947,11 @@ export type LibraryFile = {
 };
 
 export type LibraryScanOutcome = {
+ jobId?: string;
+ state?: string;
+ phase?: string;
+ hasMore?: boolean;
+ missing?: number; moved?: number;
   roots: string[];
   scanned: number;
   upserted: number;
@@ -885,6 +961,8 @@ export type LibraryScanOutcome = {
 };
 
 export type LibraryImportOutcome = {
+ operationId?: string;
+ files?: LibraryFile[];
   file: LibraryFile;
   destinationPath: string;
   moved: boolean;
@@ -1047,6 +1125,14 @@ async function apiError(response: Response, label: string) {
   return `${label}: ${detail || response.status}`;
 }
 
+async function releaseSearchError(response: Response, label: string) {
+  const message = await apiError(response, label);
+  if (message === `${label}: integration is not configured`) {
+    return "Prowlarr is not configured. Open Settings → Indexers to configure it, then retry the release search.";
+  }
+  return message;
+}
+
 function arrayPayload<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : [];
 }
@@ -1186,7 +1272,7 @@ export async function searchReleases(query: string, format: string, language = "
     body: JSON.stringify({ query, format, languages: language && language !== "Any" ? [language] : [], limit: 12 })
   });
   if (!response.ok) {
-    throw new Error(`Release search failed: ${response.status}`);
+    throw new Error(await releaseSearchError(response, "Release search failed"));
   }
   const payload = (await response.json()) as { releases?: Release[] | null };
   return arrayPayload(payload.releases);
@@ -1208,7 +1294,7 @@ export async function grabRelease(release: Release, format: string): Promise<Dow
     })
   });
   if (!response.ok) {
-    throw new Error(`Grab failed: ${response.status}`);
+    throw new Error(await apiError(response, "Grab failed"));
   }
   return (await response.json()) as DownloadStatus;
 }
@@ -1239,7 +1325,7 @@ export async function grabManualDownload(request: {
       body: form
     });
     if (!response.ok) {
-      throw new Error(`Manual upload failed: ${response.status}`);
+      throw await apiError(response, "Manual upload failed");
     }
     return (await response.json()) as DownloadStatus;
   }
@@ -1257,7 +1343,7 @@ export async function grabManualDownload(request: {
     })
   });
   if (!response.ok) {
-    throw new Error(`Manual grab failed: ${response.status}`);
+    throw await apiError(response, "Manual grab failed");
   }
   return (await response.json()) as DownloadStatus;
 }
@@ -1529,7 +1615,14 @@ export async function recoverFailedDownloads(options: {
   return (await response.json()) as FailedDownloadRun;
 }
 
-export async function fetchWanted(view?: "cutoff-unmet"): Promise<WantedItem[]> {
+export async function fetchWantedItem(id: string): Promise<WantedItem | null> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(id)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(await apiError(response, "Book could not be loaded"));
+  return (await response.json()) as WantedItem;
+}
+
+export async function fetchWanted(view?: "cutoff-unmet" | "library"): Promise<WantedItem[]> {
   const params = new URLSearchParams();
   if (view) params.set("view", view);
   const query = params.toString();
@@ -1581,7 +1674,9 @@ export async function subscribeAuthor(
   format: string,
   qualityProfile = "standard",
   missingBookPolicy: AuthorMissingBookPolicy = "all",
-  metadataProfileId?: string
+  metadataProfileId?: string,
+  rootFolderId?: string,
+  tags: string[] = []
 ): Promise<AuthorSubscription> {
   const response = await fetch(`${apiBase}/api/v1/authors`, {
     method: "POST",
@@ -1590,6 +1685,8 @@ export async function subscribeAuthor(
       result,
       format: format === "audiobook" ? "audiobook" : "ebook",
       qualityProfile,
+      tags,
+      ...(rootFolderId ? { rootFolderId } : {}),
       monitorNewItems: missingBookPolicy !== "none",
       missingBookPolicy,
       ...(metadataProfileId ? { metadataProfileId } : {})
@@ -1622,6 +1719,17 @@ export async function deleteAuthorSubscription(authorID: string): Promise<void> 
   }
 }
 
+export type AuthorReviewOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; status?: "pending" | "wanted" | "ignored" | "all"; cursor?: string; limit?: number };
+export type AuthorReviewCollection = { reviews: AuthorMetadataReview[]; total: number; filtered: number; counts: Record<string, number>; nextCursor?: string };
+export async function fetchAuthorReviewCollection(options: AuthorReviewOptions): Promise<AuthorReviewCollection> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "") params.set(key, String(value));
+  const response = await fetch(`${apiBase}/api/v1/authors/metadata/review?${params}`);
+  if (!response.ok) throw new Error(await apiError(response, "Author reviews could not be loaded"));
+  const payload = await response.json() as AuthorReviewCollection;
+  return { ...payload, reviews: arrayPayload(payload.reviews), counts: payload.counts ?? {} };
+}
+
 export async function fetchAuthorMetadataReviews(status = "pending", limit = 100): Promise<AuthorMetadataReview[]> {
   const params = new URLSearchParams({ status, limit: String(limit) });
   const response = await fetch(`${apiBase}/api/v1/authors/metadata/review?${params.toString()}`);
@@ -1632,11 +1740,11 @@ export async function fetchAuthorMetadataReviews(status = "pending", limit = 100
   return arrayPayload(payload.reviews);
 }
 
-export async function resolveAuthorMetadataReview(reviewId: string, action: "wanted" | "ignore"): Promise<AuthorMetadataReviewDecision> {
+export async function resolveAuthorMetadataReview(reviewId: string, action: "wanted" | "ignore", revision?: string): Promise<AuthorMetadataReviewDecision> {
   const response = await fetch(`${apiBase}/api/v1/authors/metadata/review/${encodeURIComponent(reviewId)}/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action })
+    body: JSON.stringify({ action, revision })
   });
   if (!response.ok) {
     throw new Error(await apiError(response, "Author metadata review update failed"));
@@ -1674,7 +1782,8 @@ export async function createWanted(
   format: string,
   qualityProfile = "standard",
   tags: string[] = [],
-  rootFolderId?: string
+  rootFolderId?: string,
+  preserveExisting = false
 ): Promise<WantedItem> {
   const wantedFormat = format === "audiobook" ? "audiobook" : "ebook";
   const response = await fetch(`${apiBase}/api/v1/wanted`, {
@@ -1683,6 +1792,7 @@ export async function createWanted(
     body: JSON.stringify({
       result,
       format: wantedFormat,
+      preserveExisting,
       qualityProfile,
       tags,
       ...(rootFolderId ? { rootFolderId } : {})
@@ -1733,12 +1843,15 @@ export async function fetchWantedMetadata(wantedID: string): Promise<MetadataPro
   return (await response.json()) as MetadataProvenance;
 }
 
-export async function fetchWantedMetadataReview(): Promise<MetadataReviewQueue> {
-  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/review`);
+export async function fetchWantedMetadataReview(options: MetadataReviewOptions = {}, signal?: AbortSignal): Promise<MetadataReviewQueue> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/wanted/metadata/review?${params}`, { signal });
   if (!response.ok) {
     throw new Error(await apiError(response, "Wanted metadata review failed"));
   }
-  return (await response.json()) as MetadataReviewQueue;
+  const data = await response.json() as MetadataReviewQueue;
+  return { ...data, items: arrayPayload(data.items) };
 }
 
 export async function confirmWantedMetadataReviewCanonical(request: MetadataReviewConfirmRequest): Promise<MetadataReviewConfirmOutcome> {
@@ -1784,7 +1897,7 @@ export async function searchWantedReleases(wantedID: string, language = "English
     body: JSON.stringify({ limit: 20, language })
   });
   if (!response.ok) {
-    throw new Error(`Wanted release search failed: ${response.status}`);
+    throw new Error(await releaseSearchError(response, "Wanted release search failed"));
   }
   return normalizeWantedSearchOutcome((await response.json()) as WantedSearchPayload);
 }
@@ -1808,7 +1921,7 @@ export async function grabWanted(wantedID: string, releaseID?: string, options: 
     })
   });
   if (!response.ok) {
-    throw new Error(`Wanted grab failed: ${response.status}`);
+    throw new Error(await apiError(response, "Wanted grab failed"));
   }
   return (await response.json()) as DownloadStatus;
 }
@@ -1875,7 +1988,7 @@ export async function runUpgradeSearch(options: {
     body: JSON.stringify({
       trigger: "manual",
       wantedIds: options.wantedIds ?? [],
-      limit: options.limit ?? 50,
+      limit: options.limit ?? (options.wantedIds?.length || 50),
       searchLimit: options.searchLimit ?? 20,
       minScoreDelta: options.minScoreDelta ?? 5,
       autoGrab: options.autoGrab ?? false,
@@ -1884,7 +1997,7 @@ export async function runUpgradeSearch(options: {
     })
   });
   if (!response.ok) {
-    throw new Error(`Upgrade search failed: ${response.status}`);
+    throw new Error(await apiError(response, "Upgrade search failed"));
   }
   return (await response.json()) as UpgradeRun;
 }
@@ -1899,8 +2012,20 @@ export async function fetchHistory(limit = 50): Promise<HistoryEvent[]> {
   return arrayPayload(payload.events);
 }
 
-export async function fetchLibraryFiles(format = "any", limit = 100): Promise<LibraryFile[]> {
+export type FileCollectionOptions = { q?: string; wantedId?: string; format?: "all" | "any" | "ebook" | "audiobook"; presence?: "all" | "present" | "missing" | "unknown"; sort?: "path" | "title" | "updated"; cursor?: string; limit?: number };
+export type FileCollection = { files: (LibraryFile & { wantedIds: string[] })[]; total: number; filtered: number; counts: Record<string, number>; nextCursor?: string; observedAt?: string };
+export async function fetchFileCollection(options: FileCollectionOptions): Promise<FileCollection> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) if (value !== undefined && value !== "") params.set(key, String(value));
+  const response = await fetch(`${apiBase}/api/v1/library/files/collection?${params}`);
+  if (!response.ok) throw new Error(await apiError(response, "Files could not be loaded"));
+  const payload = await response.json() as FileCollection;
+  return { ...payload, files: arrayPayload(payload.files).map(file => ({ ...file, wantedIds: arrayPayload(file.wantedIds) })), counts: payload.counts ?? {} };
+}
+
+export async function fetchLibraryFiles(format = "any", limit = 100, wantedId?: string): Promise<LibraryFile[]> {
   const params = new URLSearchParams({ limit: String(limit) });
+  if (wantedId) params.set("wantedId", wantedId);
   if (format && format !== "any") params.set("format", format);
   const response = await fetch(`${apiBase}/api/v1/library/files?${params.toString()}`);
   if (!response.ok) {
@@ -1920,14 +2045,15 @@ export async function fetchLibraryImportReviews(status = "pending", limit = 100)
   return arrayPayload(payload.reviews);
 }
 
-export async function scanLibrary(format = "any", options: { root?: string; limit?: number } = {}): Promise<LibraryScanOutcome> {
+export async function scanLibrary(format = "any", options: { root?: string; limit?: number; acceptRootChange?: boolean } = {}): Promise<LibraryScanOutcome> {
   const root = options.root?.trim();
-  const body: { format: string; limit: number; root?: string } = {
+  const body: { format: string; limit: number; root?: string; acceptRootChange?: boolean } = {
+    acceptRootChange: options.acceptRootChange,
     format,
     limit: options.limit ?? 1000
   };
   if (root) body.root = root;
-  const response = await fetch(`${apiBase}/api/v1/library/scan`, {
+  const response = await fetch(`${apiBase}/api/v1/library/scans`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -1935,7 +2061,8 @@ export async function scanLibrary(format = "any", options: { root?: string; limi
   if (!response.ok) {
     throw new Error(await apiError(response, "Library scan failed"));
   }
-  return (await response.json()) as LibraryScanOutcome;
+  const job = await response.json() as LibraryScanJob;
+  return { ...job, jobId: job.id, hasMore: job.state === "queued" || job.state === "running", files: [] };
 }
 
 export async function importLibraryFile(options: {
@@ -1989,13 +2116,16 @@ export async function importCompletedDownloads(options: {
 export async function resolveLibraryImportReview(
   reviewId: string,
   options: {
-    action: "import" | "skip" | "reject";
+    action: "import" | "skip" | "reject" | "reopen";
     wantedId?: string;
     format?: string;
     move?: boolean;
     importMode?: "copy" | "move" | "hardlink" | "hardlinkOrCopy";
     conflictAction?: "rename" | "replace" | "skip" | "fail";
     overwrite?: boolean;
+    mapping?: PayloadMapping[];
+    confirmIdentity?: boolean;
+    previewToken?: string;
   }
 ): Promise<ReviewDecisionOutcome> {
   const response = await fetch(`${apiBase}/api/v1/library/import-reviews/${encodeURIComponent(reviewId)}/resolve`, {
@@ -2242,6 +2372,23 @@ export async function deleteRemotePathMapping(id: string): Promise<void> {
   }
 }
 
+export type BookRenamePreview = {
+  wantedId: string; title: string; revision: string; sourceFolder: string; destinationFolder: string;
+  mediaFiles: number; companionFiles: number; noop: boolean; operationId?: string;
+  files: { relativePath: string; sourcePath: string; destinationPath: string; sizeBytes: number; format: string; fileId?: string }[];
+};
+export async function previewBookRename(id: string): Promise<BookRenamePreview> {
+  const response = await fetch(`${apiBase}/api/v1/library/books/${encodeURIComponent(id)}/rename/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  if (!response.ok) throw new Error(await apiError(response, "Book folder preview failed"));
+  const result = await response.json() as BookRenamePreview;
+  return { ...result, files: result.files ?? [] };
+}
+export async function renameBookFolder(id: string, revision: string): Promise<LibraryImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/books/${encodeURIComponent(id)}/rename`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision }) });
+  if (!response.ok) throw new Error(await apiError(response, "Book folder rename failed; check Imports for recovery"));
+  return response.json() as Promise<LibraryImportOutcome>;
+}
+
 /* ------------------------------ Library rename ----------------------------- */
 
 /*
@@ -2252,12 +2399,16 @@ export async function deleteRemotePathMapping(id: string): Promise<void> {
  */
 
 export type LibraryRenameRequest = {
+  revisions?: Record<string, string>;
   ids?: string[];
   paths?: string[];
   overwrite?: boolean;
 };
 
 export type LibraryRenamePreviewItem = {
+  revision?: string;
+  operationId?: string;
+  reason?: string;
   file: LibraryFile;
   sourcePath: string;
   destinationPath: string;
@@ -2267,6 +2418,7 @@ export type LibraryRenamePreviewItem = {
 };
 
 export type LibraryRenameResult = {
+  operationId?: string;
   preview: LibraryRenamePreviewItem;
   file?: LibraryFile;
   status: string;
@@ -2323,6 +2475,9 @@ export async function renameLibraryFiles(request: LibraryRenameRequest): Promise
 
 /** One scheduler-registered worker: interval cadence plus last/next run facts. */
 export type SystemTask = {
+  enabled?: boolean; available?: boolean; disabledReason?: string; unavailableReason?: string; lastFinishedAt?: string;
+  lastSuccessAt?: string; lastSuccessRunId?: string; unreviewedFailures?: number; durationMs?: number; details?: TaskRunDetails;
+  runState?: string;
   id: string;
   name: string;
   interval: string;
@@ -2538,6 +2693,8 @@ export function calendarFeedURL(options: { pastDays: number; futureDays: number 
 export type AuthMethod = "none" | "basic" | "forms";
 
 export type AuthStatus = {
+  methodLocked?: boolean;
+  credentialsLocked?: boolean;
   method: AuthMethod;
   authenticated: boolean;
   username?: string;
@@ -3004,4 +3161,359 @@ export async function deleteMetadataProfile(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(await apiError(response, "Metadata profile delete failed"));
   }
+}
+
+export type ImportOperation = {
+  recovery?: { observedAt: string; recordedAt: string; leasePurpose?: "transfer" | "cleanup" | "none"; leaseState: "held" | "expired" | "none" | "not_applicable"; leaseExpiresAt?: string; verifiedFiles: number; totalFiles: number };
+  sourceKind?: "completed" | "manual";
+  mode?: string;
+  id: string;
+  client: string;
+  downloadId: string;
+  wantedId: string;
+  state: string;
+  cleanupState: string;
+  replacementCleanupState?: "none" | "pending" | "cleaned";
+  replacementCleanupError?: string;
+  lastError?: string;
+  cleanupError?: string;
+  attempts: number;
+  metadata: { title?: string; author?: string; renameFileId?: string; renameWantedId?: string };
+  files: { id: string; previousPath?: string; previousSizeBytes?: number; previousSha256?: string; sourceRemoved?: boolean; stagePath?: string; wantedId?: string; sourcePath: string; destinationPath: string; sizeBytes: number; state: string; sha256: string }[];
+};
+export type CalibreHandoff = {
+  id: string; sourcePath: string; rootFolderId: string; wantedId?: string;
+  phase: string; bookId?: number; lastError?: string; attempts: number;
+  conversions: { format: string; state: string; jobId?: number }[];
+};
+export type RecoveryPage = { total: number; nextCursor?: string };
+export type ImportRecoveryQuery = { unfinishedOnly?: boolean; operationsCursor?: string; calibreCursor?: string; issuesCursor?: string };
+export type ImportRecoveryReport = {
+  operationsPage?: RecoveryPage;
+  calibrePage?: RecoveryPage;
+  issuesPage?: RecoveryPage;
+  calibreHandoffs: CalibreHandoff[];
+  calibreUnfinished: number;
+  operations: ImportOperation[];
+  issues: { fileId: string; path: string; kind: string; reason: string }[];
+  unfinished: number;
+  unresolved: number;
+  limit: number;
+};
+export async function fetchImportRecovery(query: ImportRecoveryQuery = {}): Promise<ImportRecoveryReport> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (value) params.set(key, String(value));
+  const response = await fetch(`${apiBase}/api/v1/library/import-recovery${params.size ? `?${params}` : ""}`);
+  if (!response.ok) throw new Error(await apiError(response, "Import recovery could not be loaded"));
+  const payload = await response.json() as ImportRecoveryReport;
+  return { ...payload, calibreHandoffs: arrayPayload(payload.calibreHandoffs), calibreUnfinished: payload.calibreUnfinished || 0, operations: arrayPayload(payload.operations), issues: arrayPayload(payload.issues) };
+}
+export async function retryImportOperation(id: string): Promise<LibraryImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-operations/${encodeURIComponent(id)}/retry`, { method: "POST" });
+  if (!response.ok) throw new Error(await apiError(response, "Import retry failed"));
+  return response.json();
+}
+
+export type PayloadFile = {
+  relativePath: string; sourcePath: string; format: string; sizeBytes: number;
+  progress: number; selected?: boolean | null; included: boolean; reason?: string;
+  title?: string; author?: string; album?: string; track?: string;
+};
+export type PayloadMapping = { relativePath: string; wantedId?: string; exclude?: boolean };
+export type PayloadReviewRequest = {
+  action: "import"; wantedId?: string; importMode: "copy" | "hardlink" | "hardlinkOrCopy";
+  conflictAction: "rename" | "replace"; mapping: PayloadMapping[]; confirmIdentity: boolean; previewToken?: string;
+};
+export type PayloadPreview = { operation: ImportOperation; fingerprint: string };
+export async function previewPayloadReview(id: string, options: PayloadReviewRequest): Promise<PayloadPreview> {
+  const response = await fetch(`${apiBase}/api/v1/library/import-reviews/${encodeURIComponent(id)}/preview`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(options)
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Import preview failed"));
+  return response.json();
+}
+
+export type AcquisitionIntent = {
+  id: string;
+  wantedId?: string;
+  format?: string;
+  client: string;
+  title: string;
+  state: "submitting" | "uncertain" | "accepted" | "released";
+  downloadId?: string;
+  lastError?: string;
+  attempts: number;
+  nextCheckAt?: string;
+  leaseExpiresAt?: string;
+};
+
+export async function fetchAcquisitionRecovery(): Promise<{ intents: AcquisitionIntent[]; limit: number }> {
+  const response = await fetch(`${apiBase}/api/v1/acquisition-recovery`);
+  if (!response.ok) throw new Error(await apiError(response, "Acquisition recovery unavailable"));
+  const data = await response.json();
+  return { intents: data.intents ?? [], limit: data.limit ?? 200 };
+}
+
+export async function resolveAcquisition(request: { id: string; action: "check" | "attach" | "release"; downloadId?: string; confirmed?: boolean }): Promise<void> {
+  const { id, ...body } = request;
+  const response = await fetch(`${apiBase}/api/v1/acquisition-recovery/${encodeURIComponent(id)}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Acquisition still needs review"));
+}
+
+export type LibraryScanJob = {
+ id: string; format: string; roots: string[];
+ state: "queued" | "running" | "failed" | "cancelled" | "completed";
+ phase: "discover" | "reconcile" | "complete";
+ cancelRequested: boolean; scanned: number; upserted: number; skipped: number; missing: number; moved?: number;
+ lastError?: string;
+};
+export async function fetchLibraryScans(): Promise<{ scans: LibraryScanJob[]; limit: number }> {
+ const response = await fetch(`${apiBase}/api/v1/library/scans`);
+ if (!response.ok) throw new Error(await apiError(response,"Scan progress unavailable"));
+ const data = await response.json();
+ return { scans: arrayPayload(data.scans), limit: data.limit ?? 100 };
+}
+export async function controlLibraryScan(options: { id: string; action: "cancel" | "retry" }): Promise<LibraryScanJob> {
+ const response = await fetch(`${apiBase}/api/v1/library/scans/${encodeURIComponent(options.id)}`, { method:"POST", headers:{"Content-Type":"application/json"},body:JSON.stringify({action:options.action}) });
+ if (!response.ok) throw new Error(await apiError(response,"Scan action failed"));
+ return response.json();
+}
+
+export type LibraryRepairFinding = {
+  id: string; kind: string; subjectId: string; path: string; reason: string; proposedAction: string;
+  evidence: Record<string, unknown>;
+};
+export type LibraryRepairPreview = {
+  findings: LibraryRepairFinding[]; checked: number; section: string;
+  nextCursor?: string; generatedAt: string; readOnly: boolean;
+};
+export async function fetchLibraryRepairPreview(cursor = ""): Promise<LibraryRepairPreview> {
+  const response = await fetch(`${apiBase}/api/v1/library/repair-preview${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
+  if (!response.ok) throw new Error(await apiError(response, "Library repair preview unavailable"));
+  const data = await response.json();
+  return { ...data, findings: arrayPayload(data.findings) };
+}
+
+export type LibraryScanMove = {
+  fileId: string; previousPath: string; currentPath: string; sha256: string; sizeBytes: number; createdAt: string;
+};
+export async function fetchLibraryScanMoves(id: string, cursor = ""): Promise<{ moves: LibraryScanMove[]; nextCursor?: string }> {
+  const response = await fetch(`${apiBase}/api/v1/library/scans/${encodeURIComponent(id)}/moves${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
+  if (!response.ok) throw new Error(await apiError(response, "Reattached file history unavailable"));
+  const data = await response.json();
+  return { ...data, moves: arrayPayload(data.moves) };
+}
+
+export async function checkProviderConnection(name: string): Promise<ProviderHealth> {
+ const response = await fetch(`${apiBase}/api/v1/providers/${encodeURIComponent(name)}/check`, { method: "POST" });
+ if (!response.ok) throw new Error(await apiError(response, "Provider check failed"));
+ return response.json();
+}
+
+export type BookCollectionOptions = {
+  q?: string;
+  format?: "all" | "ebook" | "audiobook";
+  monitor?: "all" | "monitored" | "unmonitored";
+  state?: "all" | "missing" | "incomplete" | "unknown" | "downloading" | "cutoffUnmet" | "downloaded" | "unmonitored";
+  sort?: "status" | "title" | "author" | "added";
+  cursor?: string;
+  limit?: number;
+};
+export type BookCollection = {
+  books: WantedItem[];
+  total: number;
+  filtered: number;
+  counts: Record<string, number>;
+  recordedFiles: number;
+  nextCursor?: string;
+  downloads: string;
+  observedAt: string;
+};
+export async function fetchBookCollection(options: BookCollectionOptions = {}, signal?: AbortSignal): Promise<BookCollection> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/books?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Book collection could not be loaded"));
+  const page = await response.json() as BookCollection;
+  return { ...page, books: arrayPayload(page.books) };
+}
+
+export type AuthorCollectionOptions = {
+  q?: string;
+  format?: "all" | "ebook" | "audiobook";
+  status?: "all" | "monitored" | "unmonitored";
+  cursor?: string;
+  limit?: number;
+};
+export type AuthorCollectionItem = AuthorSubscription & {
+  counts: Record<string, number>;
+  totalBooks: number;
+  identityLinked: boolean;
+};
+export type AuthorCollection = {
+  authors: AuthorCollectionItem[];
+  total: number;
+  filtered: number;
+  nextCursor?: string;
+  downloads: string;
+  observedAt: string;
+};
+export async function fetchAuthorCollection(options: AuthorCollectionOptions = {}, signal?: AbortSignal): Promise<AuthorCollection> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/authors?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Author subscriptions could not be loaded"));
+  const page = await response.json() as AuthorCollection;
+  return { ...page, authors: arrayPayload(page.authors) };
+}
+
+export async function retryCalibreHandoff(id: string): Promise<LibraryImportOutcome> {
+  const response = await fetch(`${apiBase}/api/v1/library/calibre-handoffs/${encodeURIComponent(id)}/retry`, { method: "POST" });
+  if (!response.ok) throw new Error(await apiError(response, "Calibre handoff retry failed"));
+  return response.json();
+}
+export async function resolveCalibreHandoff(request: { id: string; action: string; confirm: boolean; bookId?: number; format?: string }): Promise<LibraryImportOutcome> {
+  const { id, ...decision } = request;
+  const response = await fetch(`${apiBase}/api/v1/library/calibre-handoffs/${encodeURIComponent(id)}/resolve`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(decision)
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Calibre recovery decision failed"));
+  return response.json();
+}
+
+export type TaskRunDetails = { counts?: Record<string, number>; operationIds?: string[]; errors?: number; nextAction?: string };
+export type TaskRun = { id: string; taskId: string; trigger: string; state: string; startedAt: string; heartbeatAt: string; finishedAt?: string; outcome?: string; error?: string; reviewedAt?: string; durationMs?: number; details?: TaskRunDetails };
+export type TaskRunPage = { runs: TaskRun[]; total: number; limit: number; offset: number };
+export async function fetchTaskRuns(id: string, view = "all", offset = 0): Promise<TaskRunPage> {
+  const query = view === "all" && offset === 0 ? "" : `?view=${encodeURIComponent(view)}&offset=${offset}&limit=100`;
+  const response = await fetch(`${apiBase}/api/v1/system/tasks/${encodeURIComponent(id)}/runs${query}`);
+  if (!response.ok) throw new Error(await apiError(response, "Task history could not be loaded"));
+  const payload = await response.json() as Partial<TaskRunPage>;
+  const runs = arrayPayload(payload.runs);
+  return { runs, total: payload.total ?? runs.length, limit: payload.limit ?? 100, offset: payload.offset ?? offset };
+}
+export async function reviewTaskRun(taskId: string, run: TaskRun, reviewed: boolean): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/system/tasks/${encodeURIComponent(taskId)}/runs/${encodeURIComponent(run.id)}/review`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewed, expectedState: run.state, expectedReviewedAt: run.reviewedAt ?? null })
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Task review failed"));
+}
+
+export type NotificationDelivery = {
+  resolvedAt?: string;
+  targetKind: "native" | "compat";
+  id: string;
+  eventId: string;
+  event: { type: string; title: string; message: string; fields: Record<string, string> };
+  targetId: string;
+  targetName: string;
+  targetType: string;
+  targetRevision: string;
+  currentTargetRevision: string | null;
+  targetAvailable: boolean;
+  state: "pending" | "sending" | "retry" | "accepted" | "failed" | "uncertain" | "cancelled";
+  attempts: number;
+  statusCode: number | null;
+  message: string;
+  nextAttemptAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type NotificationDeliveryPage = { items: NotificationDelivery[]; total: number; limit: number; offset: number };
+export async function fetchNotificationDeliveries(offset = 0): Promise<NotificationDeliveryPage> {
+  const response = await fetch(`${apiBase}/api/v1/notification-deliveries?limit=25&offset=${offset}`);
+  if (!response.ok) throw new Error(await apiError(response, "Notification history refresh failed"));
+  const page = await response.json() as NotificationDeliveryPage;
+  return { ...page, items: page.items ?? [] };
+}
+export async function resolveNotificationDelivery(delivery: NotificationDelivery, action: "retry" | "accepted" | "cancel"): Promise<void> {
+  const response = await fetch(`${apiBase}/api/v1/notification-deliveries/${encodeURIComponent(delivery.id)}/resolve`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, confirm: true, expectedUpdatedAt: delivery.updatedAt, expectedTargetRevision: delivery.currentTargetRevision })
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Notification decision failed"));
+}
+
+export async function fetchSupportReport(): Promise<Record<string, unknown>> {
+  const response = await fetch(`${apiBase}/api/v1/system/support`, { cache: "no-store" });
+  if (!response.ok) throw new Error(await apiError(response, "Support report could not be downloaded"));
+  const report: unknown = await response.json();
+  if (!report || typeof report !== "object" || !("formatVersion" in report) || report.formatVersion !== 1) {
+    throw new Error("The API returned an unsupported support report.");
+  }
+  return report as Record<string, unknown>;
+}
+
+export async function checkIntegrationConnection(name: string): Promise<IntegrationHealth> {
+ const response=await fetch(`${apiBase}/api/v1/integrations/${encodeURIComponent(name)}/check`, {method:"POST"});
+ if (!response.ok) throw new Error(await apiError(response,"Integration check failed"));
+ return response.json();
+}
+
+
+export type AttentionCounts = { observedAt: string; importReviews: number; importOperations: number; calibreHandoffs: number; legacyLinks: number };
+export async function fetchAttentionCounts(): Promise<AttentionCounts> {
+  const response = await fetch(`${apiBase}/api/v1/system/attention`);
+  if (!response.ok) throw new Error(await apiError(response, "Recovery counts could not be loaded"));
+  return response.json();
+}
+
+
+export type ImportReviewOptions = { status?: "pending" | "resolved" | "all"; format?: "all" | "ebook" | "audiobook" | "unknown"; kind?: "all" | "file" | "payload"; q?: string; cursor?: string; limit?: number };
+export type ImportReviewCollection = { reviews: ImportReview[]; total: number; filtered: number; counts: { pending: number; resolved: number }; nextCursor?: string; observedAt: string };
+export async function fetchImportReviewCollection(options: ImportReviewOptions, signal?: AbortSignal): Promise<ImportReviewCollection> {
+  const params = new URLSearchParams({ view: "collection" });
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/import-reviews?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Import reviews could not be loaded"));
+  const data = await response.json() as ImportReviewCollection;
+  return { ...data, reviews: arrayPayload(data.reviews) };
+}
+
+export type BookChoice = { id: string; title: string; authorName: string; format: string };
+export type BookChoicesOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; selectedId?: string; cursor?: string; limit?: number };
+export type BookChoices = { books: BookChoice[]; selected?: BookChoice; total: number; filtered: number; nextCursor?: string; observedAt: string };
+export async function fetchBookChoices(options: BookChoicesOptions, signal?: AbortSignal): Promise<BookChoices> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/book-choices?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Book choices could not be loaded"));
+  const data = await response.json() as BookChoices;
+  return { ...data, books: arrayPayload(data.books) };
+}
+
+export type RemovedBooksOptions = { q?: string; format?: "all" | "ebook" | "audiobook"; status?: "removed" | "ignored" | "all"; cursor?: string; limit?: number };
+export type RemovedBooks = { books: WantedItem[]; total: number; filtered: number; counts: { removed: number; ignored: number }; nextCursor?: string; observedAt: string };
+export async function fetchRemovedBooks(options: RemovedBooksOptions, signal?: AbortSignal): Promise<RemovedBooks> {
+  const params = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => { if (value !== undefined && value !== "") params.set(key, String(value)); });
+  const response = await fetch(`${apiBase}/api/v1/library/removed-books?${params}`, { signal });
+  if (!response.ok) throw new Error(await apiError(response, "Removed books could not be loaded"));
+  const data = await response.json() as RemovedBooks;
+  return { ...data, books: arrayPayload(data.books) };
+}
+export async function restoreBook(id: string, options: { updatedAt: string; monitored: boolean }): Promise<WantedItem> {
+  const response = await fetch(`${apiBase}/api/v1/wanted/${encodeURIComponent(id)}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(options) });
+  if (!response.ok) throw new Error(await apiError(response, "Book could not be restored; refresh to check its current state"));
+  return response.json();
+}
+
+export type BookMatchCandidate = { key: string; provider: string; workIds: string[]; editionIds: string[]; sourceKey: string; format: "ebook" | "audiobook" };
+export type BookMatch = { key: string; total: number; books: WantedItem[] };
+export async function fetchBookMatches(candidates: BookMatchCandidate[], signal?: AbortSignal): Promise<BookMatch[]> {
+  const matches: BookMatch[] = [];
+  for (let start = 0; start < candidates.length; start += 100) {
+    const batch = candidates.slice(start, start + 100);
+    const response = await fetch(`${apiBase}/api/v1/library/book-matches`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidates: batch }), signal });
+    if (!response.ok) throw new Error(await apiError(response, "Library identity check failed"));
+    const data = await response.json();
+    if (!Array.isArray(data.matches) || data.matches.length !== batch.length || batch.some(candidate => data.matches.filter((m: BookMatch) => m.key === candidate.key && Number.isInteger(m.total) && m.total >= 0 && Array.isArray(m.books) && m.books.length === Math.min(m.total, 10)).length !== 1)) {
+      throw new Error("Library identity check was incomplete; retry before adding a book");
+    }
+    matches.push(...data.matches);
+  }
+  return matches;
 }

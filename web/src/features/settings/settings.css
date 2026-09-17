@@ -281,3 +281,7 @@
     grid-template-columns: 1fr;
   }
 }
+
+.notification-delivery-entry { overflow-wrap: anywhere; padding-block: 0.5rem; border-bottom: 1px solid var(--border); }
+
+.notification-delivery-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding-top: 0.5rem; }

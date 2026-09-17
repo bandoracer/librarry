@@ -1,0 +1,85 @@
+name: Verification
+on:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: librarry-test
+          POSTGRES_DB: librarry_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      LIBRARRY_TEST_DATABASE_URL: postgres://postgres:librarry-test@127.0.0.1:5432/librarry_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Go vet and Postgres race tests
+        run: |
+          go vet ./...
+          scripts/test-integration.sh
+      - name: Frontend unit tests and build
+        working-directory: web
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - name: Browser smoke tests
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:browser
+      - name: Deployment configuration contracts
+        run: scripts/check-deployment.sh
+      - name: Upload failing browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-evidence
+          path: output/playwright
+          if-no-files-found: ignore
+  calibre:
+    name: Disposable Calibre contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: librarry-test
+          POSTGRES_DB: librarry_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      LIBRARRY_TEST_DATABASE_URL: postgres://postgres:librarry-test@127.0.0.1:5432/librarry_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build isolated Calibre fixture
+        run: docker build -f scripts/fixtures/calibre/Dockerfile -t librarry-calibre:fixture .
+      - name: Verify Digest and Basic upload, metadata, conversion and deletion
+        run: |
+          python3 scripts/test-calibre.py
+          LIBRARRY_CALIBRE_AUTH_MODE=basic python3 scripts/test-calibre.py

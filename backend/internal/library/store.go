@@ -25,9 +25,27 @@ func (s *Store) Configured() bool {
 }
 
 func (s *Store) UpsertFile(ctx context.Context, file FileRecord) (FileRecord, error) {
+	return s.upsertFile(ctx, file, false)
+}
+
+// ObserveFile records filesystem evidence without replacing authoritative
+// associations, manual names, original source paths, or import provenance.
+func (s *Store) ObserveFile(ctx context.Context, file FileRecord) (FileRecord, error) {
+	return s.upsertFile(ctx, file, true)
+}
+
+func (s *Store) upsertFile(ctx context.Context, file FileRecord, observation bool) (FileRecord, error) {
 	if !s.Configured() {
 		return FileRecord{}, errors.New("library store is unavailable")
 	}
+	return persistFile(ctx, s.db, file, observation)
+}
+
+type fileWriter interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func persistFile(ctx context.Context, db fileWriter, file FileRecord, observation bool) (FileRecord, error) {
 	if strings.TrimSpace(file.Path) == "" {
 		return FileRecord{}, errors.New("file path is required")
 	}
@@ -44,7 +62,7 @@ func (s *Store) UpsertFile(ctx context.Context, file FileRecord) (FileRecord, er
 	if err != nil {
 		return FileRecord{}, err
 	}
-	row := s.db.QueryRowContext(ctx, `
+	row := db.QueryRowContext(ctx, `
 		insert into files (
 			edition_id, media_format, path, source_path, title, author_name,
 			extension, size_bytes, checksum, import_status, metadata, modified_at
@@ -55,22 +73,22 @@ func (s *Store) UpsertFile(ctx context.Context, file FileRecord) (FileRecord, er
 		on conflict (path) do update set
 			edition_id = coalesce(excluded.edition_id, files.edition_id),
 			media_format = excluded.media_format,
-			source_path = excluded.source_path,
-			title = excluded.title,
-			author_name = excluded.author_name,
+			source_path = case when $13 then files.source_path else excluded.source_path end,
+			title = case when $13 then files.title else excluded.title end,
+			author_name = case when $13 then files.author_name else excluded.author_name end,
 			extension = excluded.extension,
 			size_bytes = excluded.size_bytes,
-			checksum = excluded.checksum,
-			import_status = excluded.import_status,
-			metadata = excluded.metadata,
+			checksum = case when $13 and excluded.checksum='' then files.checksum else excluded.checksum end,
+			import_status = case when $13 then files.import_status else excluded.import_status end,
+			metadata = case when $13 then files.metadata || jsonb_build_object('scanEvidence', excluded.metadata) else excluded.metadata end,
 			modified_at = excluded.modified_at,
 			updated_at = now()
 		returning
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 	`, file.EditionID, file.MediaFormat, file.Path, file.SourcePath, file.Title, file.AuthorName,
-		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, file.ImportStatus, string(raw), file.ModifiedAt)
+		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, file.ImportStatus, string(raw), file.ModifiedAt, observation)
 	return scanFile(row)
 }
 
@@ -83,7 +101,11 @@ func (s *Store) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecor
 		limit = 200
 	}
 	args := []any{}
-	where := []string{}
+	where := []string{"not exists(select 1 from import_operation_files pending_file join import_operations pending_op on pending_op.id=pending_file.operation_id where pending_file.destination_path=files.path and pending_op.state<>'committed')"}
+	if strings.TrimSpace(query.WantedID) != "" {
+		args = append(args, strings.TrimSpace(query.WantedID))
+		where = append(where, "exists (select 1 from file_wanted_links fl where fl.file_id=files.id and fl.wanted_item_id::text = $"+strconv.Itoa(len(args))+")")
+	}
 	if strings.TrimSpace(query.Format) != "" && strings.TrimSpace(query.Format) != "any" {
 		args = append(args, strings.TrimSpace(query.Format))
 		where = append(where, "media_format = $"+strconv.Itoa(len(args)))
@@ -97,7 +119,7 @@ func (s *Store) ListFiles(ctx context.Context, query FileListQuery) ([]FileRecor
 		select
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 		from files
 	`
 	if len(where) > 0 {
@@ -134,9 +156,9 @@ func (s *Store) FindFiles(ctx context.Context, ids []string, paths []string) ([]
 		select
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 		from files
-		where ` + strings.Join(where, " or ") + `
+		where (` + strings.Join(where, " or ") + `) and not exists(select 1 from import_operation_files pending_file join import_operations pending_op on pending_op.id=pending_file.operation_id where pending_file.destination_path=files.path and pending_op.state<>'committed')
 		order by updated_at desc
 	`
 	rows, err := s.db.QueryContext(ctx, sqlText, args...)
@@ -161,7 +183,7 @@ func (s *Store) DeleteFiles(ctx context.Context, ids []string, paths []string) (
 		returning
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 	`
 	rows, err := s.db.QueryContext(ctx, sqlText, args...)
 	if err != nil {
@@ -205,7 +227,7 @@ func (s *Store) UpdateFile(ctx context.Context, file FileRecord) (FileRecord, er
 		returning
 			id, coalesce(edition_id::text, ''), media_format, path, source_path,
 			title, author_name, extension, coalesce(size_bytes, 0), coalesce(checksum, ''),
-			import_status, metadata, modified_at, created_at, updated_at
+			import_status, metadata, modified_at, created_at, updated_at, presence_state
 	`, strings.TrimSpace(file.ID), strings.TrimSpace(file.Path), file.SourcePath, file.Title, file.AuthorName,
 		file.Extension, nullableInt64(file.SizeBytes), file.Checksum, firstNonEmpty(file.ImportStatus, "imported"), string(raw), file.ModifiedAt)
 	return scanFile(row)
@@ -227,7 +249,7 @@ func (s *Store) CreateImportReview(ctx context.Context, review ImportReview) (Im
 	if review.Metadata == nil {
 		review.Metadata = map[string]any{}
 	}
-	existing, err := s.findPendingImportReviewBySource(ctx, review.SourcePath)
+	existing, err := s.findPendingImportReviewBySource(ctx, review.SourcePath, review.DownloadID, review.Metadata["downloadClient"])
 	if err == nil {
 		return existing, nil
 	}
@@ -261,7 +283,7 @@ func (s *Store) CreateImportReview(ctx context.Context, review ImportReview) (Im
 	if !errors.Is(err, sql.ErrNoRows) {
 		return ImportReview{}, err
 	}
-	return s.findPendingImportReviewBySource(ctx, review.SourcePath)
+	return s.findPendingImportReviewBySource(ctx, review.SourcePath, review.DownloadID, review.Metadata["downloadClient"])
 }
 
 func (s *Store) ListImportReviews(ctx context.Context, query ReviewListQuery) ([]ImportReview, error) {
@@ -354,17 +376,17 @@ func (s *Store) ResolveImportReview(ctx context.Context, id string, status strin
 	return scanImportReview(row)
 }
 
-func (s *Store) findPendingImportReviewBySource(ctx context.Context, sourcePath string) (ImportReview, error) {
+func (s *Store) findPendingImportReviewBySource(ctx context.Context, sourcePath, downloadID string, client any) (ImportReview, error) {
 	row := s.db.QueryRowContext(ctx, `
 		select
 			id, source_path, download_id, coalesce(wanted_item_id::text, ''), media_format,
 			title, author_name, coalesce(size_bytes, 0), reason, status, decision,
 			destination_path, metadata, created_at, updated_at, resolved_at
 		from import_reviews
-		where source_path = $1 and status = 'pending'
+		where source_path = $1 and download_id=$2 and lower(coalesce(metadata->>'downloadClient',''))=lower(coalesce($3::text,'')) and status = 'pending'
 		order by created_at desc
 		limit 1
-	`, strings.TrimSpace(sourcePath))
+	`, strings.TrimSpace(sourcePath), downloadID, client)
 	return scanImportReview(row)
 }
 
@@ -391,7 +413,7 @@ func scanFile(row fileScanner) (FileRecord, error) {
 	if err := row.Scan(
 		&file.ID, &file.EditionID, &file.MediaFormat, &file.Path, &file.SourcePath,
 		&file.Title, &file.AuthorName, &file.Extension, &file.SizeBytes, &file.Checksum,
-		&file.ImportStatus, &raw, &modifiedAt, &file.CreatedAt, &file.UpdatedAt,
+		&file.ImportStatus, &raw, &modifiedAt, &file.CreatedAt, &file.UpdatedAt, &file.PresenceState,
 	); err != nil {
 		return FileRecord{}, err
 	}

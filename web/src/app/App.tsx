@@ -5,9 +5,10 @@ import { AppLayout } from "./AppLayout";
 import { defaultPath } from "./nav";
 import { queryClient, useAuthStatus } from "../lib/queries";
 import { ToastProvider } from "../components/toast";
-import { LoadingRow } from "../components/ui";
+import { Button, LoadingRow } from "../components/ui";
 
 const DashboardPage = lazy(() => import("../features/dashboard/DashboardPage"));
+const RemovedBooksPage = lazy(() => import("../features/library/RemovedBooksPage"));
 const LibraryPage = lazy(() => import("../features/library/LibraryPage"));
 const AuthorPage = lazy(() => import("../features/library/AuthorPage"));
 const BookPage = lazy(() => import("../features/library/BookPage"));
@@ -22,11 +23,16 @@ const LoginPage = lazy(() => import("../features/auth/LoginPage"));
 
 /**
  * Forms-auth gate: unauthenticated sessions see the login page. API-key
- * clients and none/basic installs pass straight through (useAuthStatus
- * resolves open on any failure so a broken probe can never lock the UI).
+ * clients and none/basic installs pass after a successful status probe.
  */
 function AuthGate(props: { children: React.ReactNode }) {
   const auth = useAuthStatus();
+  if (auth.isPending) return <div className="page-loading"><LoadingRow /></div>;
+  if (auth.isError) return <main className="workspace" role="alert">
+    <h1>Can’t connect to Librarry</h1>
+    <p>Check that the server is running, then try again.</p>
+    <Button onClick={() => void auth.refetch()} disabled={auth.isFetching}>Try again</Button>
+  </main>;
   if (auth.data && auth.data.method === "forms" && !auth.data.authenticated) {
     return <LoginPage />;
   }
@@ -45,12 +51,15 @@ export function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/library" element={<LibraryPage />} />
               <Route path="/library/authors" element={<LibraryPage />} />
+              <Route path="/library/removed" element={<RemovedBooksPage />} />
               <Route path="/library/author/:authorId" element={<AuthorPage />} />
               <Route path="/library/book/:wantedId" element={<BookPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/wanted" element={<WantedPage />} />
               <Route path="/wanted/cutoff-unmet" element={<WantedPage />} />
               <Route path="/wanted/review" element={<WantedPage />} />
+              <Route path="/wanted/incomplete" element={<WantedPage />} />
+              <Route path="/wanted/unknown" element={<WantedPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/downloads" element={<ActivityPage />} />
               <Route path="/downloads/history" element={<ActivityPage />} />

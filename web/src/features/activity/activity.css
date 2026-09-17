@@ -259,3 +259,9 @@
   white-space: nowrap;
   max-width: 440px;
 }
+
+.acquisition-recovery-item { padding: 1rem 0; overflow-wrap: anywhere; }
+.acquisition-recovery-item + .acquisition-recovery-item { border-top: 1px solid var(--border); }
+.acquisition-recovery-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.acquisition-recovery-confirm { display: flex; align-items: flex-start; gap: .5rem; margin-top: 1rem; }
+.acquisition-recovery-confirm input { flex: 0 0 auto; margin-top: .25rem; }

@@ -1,0 +1,22 @@
+name: Feature request
+description: Describe a book-management workflow that Librarry could improve.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Operator problem
+      description: What are you trying to accomplish, and where does the current workflow fall short?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Desired behavior
+      description: Describe the result, relevant alternatives and whether manual review is needed.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Librarry focuses on book metadata, acquisition, import and library management.
+        General torrent/Usenet administration stays with external download clients.

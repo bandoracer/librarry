@@ -26,9 +26,14 @@ type QBittorrentClient struct {
 
 func NewQBittorrentClient(baseURL string, username string, password string, client *http.Client) *QBittorrentClient {
 	if client == nil {
-		jar, _ := cookiejar.New(nil)
-		client = &http.Client{Timeout: 30 * time.Second, Jar: jar}
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
+	if client.Jar == nil {
+		copy := *client
+		copy.Jar, _ = cookiejar.New(nil)
+		client = &copy
+	}
+
 	return &QBittorrentClient{
 		baseURL:  strings.TrimRight(baseURL, "/"),
 		username: strings.TrimSpace(username),
@@ -41,37 +46,6 @@ func (c *QBittorrentClient) Name() string { return "qBittorrent" }
 
 func (c *QBittorrentClient) Configured() bool {
 	return c.baseURL != ""
-}
-
-func (c *QBittorrentClient) Health(ctx context.Context) IntegrationHealth {
-	if !c.Configured() {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_QBITTORRENT_URL."}
-	}
-	if err := c.login(ctx); err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v2/transfer/info", nil)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: resp.Status}
-	}
-	var decoded struct {
-		ConnectionStatus string `json:"connection_status"`
-		DHTNodes         int    `json:"dht_nodes"`
-	}
-	_ = json.NewDecoder(resp.Body).Decode(&decoded)
-	message := "Ready"
-	if decoded.ConnectionStatus != "" {
-		message = fmt.Sprintf("VPN %s; %d DHT nodes", decoded.ConnectionStatus, decoded.DHTNodes)
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
 }
 
 func (c *QBittorrentClient) EnsureCategory(ctx context.Context, category string, savePath string) error {
@@ -234,26 +208,29 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 		return nil, fmt.Errorf("qBittorrent list returned %s", resp.Status)
 	}
 	var raw []struct {
-		Hash         string  `json:"hash"`
-		Name         string  `json:"name"`
-		State        string  `json:"state"`
-		Progress     float64 `json:"progress"`
-		SavePath     string  `json:"save_path"`
-		Category     string  `json:"category"`
-		Tags         string  `json:"tags"`
-		Size         int64   `json:"size"`
-		TotalSize    int64   `json:"total_size"`
-		Downloaded   int64   `json:"downloaded"`
-		Uploaded     int64   `json:"uploaded"`
-		DownloadRate int64   `json:"dlspeed"`
-		UploadRate   int64   `json:"upspeed"`
-		ETA          int64   `json:"eta"`
-		Ratio        float64 `json:"ratio"`
-		Seeders      int     `json:"num_seeds"`
-		Peers        int     `json:"num_leechs"`
-		AddedOn      int64   `json:"added_on"`
-		CompletionOn int64   `json:"completion_on"`
-		LastActivity int64   `json:"last_activity"`
+		MaxRatio       *float64 `json:"max_ratio"`
+		MaxSeedingTime *int64   `json:"max_seeding_time"`
+		SeedingTime    int64    `json:"seeding_time"`
+		Hash           string   `json:"hash"`
+		Name           string   `json:"name"`
+		State          string   `json:"state"`
+		Progress       float64  `json:"progress"`
+		SavePath       string   `json:"save_path"`
+		Category       string   `json:"category"`
+		Tags           string   `json:"tags"`
+		Size           int64    `json:"size"`
+		TotalSize      int64    `json:"total_size"`
+		Downloaded     int64    `json:"downloaded"`
+		Uploaded       int64    `json:"uploaded"`
+		DownloadRate   int64    `json:"dlspeed"`
+		UploadRate     int64    `json:"upspeed"`
+		ETA            int64    `json:"eta"`
+		Ratio          float64  `json:"ratio"`
+		Seeders        int      `json:"num_seeds"`
+		Peers          int      `json:"num_leechs"`
+		AddedOn        int64    `json:"added_on"`
+		CompletionOn   int64    `json:"completion_on"`
+		LastActivity   int64    `json:"last_activity"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, err
@@ -266,6 +243,7 @@ func (c *QBittorrentClient) List(ctx context.Context, query DownloadListQuery) (
 			size = item.TotalSize
 		}
 		statuses = append(statuses, DownloadStatus{
+			SeedGoalMet:     (item.MaxRatio != nil && *item.MaxRatio >= 0 && item.Ratio >= *item.MaxRatio) || (item.MaxSeedingTime != nil && *item.MaxSeedingTime >= 0 && item.SeedingTime/60 >= *item.MaxSeedingTime),
 			Client:          c.Name(),
 			ID:              item.Hash,
 			Name:            item.Name,
@@ -471,11 +449,12 @@ func (c *QBittorrentClient) Details(ctx context.Context, id string) (DownloadDet
 		return DownloadDetails{}, err
 	}
 	return DownloadDetails{
-		Status:     statuses[0],
-		Properties: properties,
-		Files:      files,
-		Trackers:   trackers,
-		Peers:      peers,
+		Status:          statuses[0],
+		InventorySource: "client-files",
+		Properties:      properties,
+		Files:           files,
+		Trackers:        trackers,
+		Peers:           peers,
 	}, nil
 }
 
@@ -794,7 +773,7 @@ func (c *QBittorrentClient) files(ctx context.Context, id string) ([]DownloadFil
 		Name         string  `json:"name"`
 		Size         int64   `json:"size"`
 		Progress     float64 `json:"progress"`
-		Priority     int     `json:"priority"`
+		Priority     *int    `json:"priority"`
 		Availability float64 `json:"availability"`
 		IsSeed       bool    `json:"is_seed"`
 		PieceRange   []int   `json:"piece_range"`
@@ -805,12 +784,19 @@ func (c *QBittorrentClient) files(ctx context.Context, id string) ([]DownloadFil
 	files := make([]DownloadFile, 0, len(raw))
 	for i, item := range raw {
 		firstPiece, lastPiece := pieceRange(item.PieceRange)
+		var selected *bool
+		priority := 0
+		if item.Priority != nil {
+			priority = *item.Priority
+			selected = new(priority > 0)
+		}
 		files = append(files, DownloadFile{
 			ID:           i,
 			Name:         item.Name,
 			SizeBytes:    item.Size,
 			Progress:     item.Progress,
-			Priority:     item.Priority,
+			Priority:     priority,
+			Selected:     selected,
 			Availability: item.Availability,
 			IsSeed:       item.IsSeed,
 			FirstPiece:   firstPiece,
@@ -1164,8 +1150,8 @@ func (c *QBittorrentClient) login(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 400 || !strings.Contains(strings.ToLower(string(body)), "ok") {
-		return fmt.Errorf("qBittorrent login failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
+	if resp.StatusCode >= 400 || strings.TrimSpace(string(body)) != "Ok." {
+		return errors.New("qBittorrent login failed; check credentials and access rules")
 	}
 	return nil
 }

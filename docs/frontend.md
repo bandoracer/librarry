@@ -1,6 +1,7 @@
 # Frontend Architecture
 
-Last updated: 2026-07-01.
+Navigation reviewed: September 16, 2026. See [current status](status.md) for
+qualification and deployment boundaries.
 
 The web UI is a Vite + React 18 + TypeScript single-page app served as static
 files (nginx in Docker, the Vite dev server locally). In July 2026 it was
@@ -49,29 +50,33 @@ Conventions:
   next action, never a blank panel or a raw `refresh failed: 500` banner.
 - **Cross-page flows use URL contracts**, not shared state:
   - `/search?query=<text>&mode=book|author` prefills and auto-runs a search.
-  - `/wanted?item=<id>` selects a wanted item; `&search=1` also triggers a
-    release search; `?filter=missing|review|wanted|grabbed|all` sets the list
-    filter; `?tab=authors` opens author subscriptions.
+  - `/library/book/:wantedId` and `/library/author/:authorId` open details.
+    `/library/authors` lists subscriptions; `/library/removed` restores tracking.
+  - `/wanted` is the missing view; `/wanted/cutoff-unmet`, `/wanted/review`,
+    `/wanted/incomplete` and `/wanted/unknown` select other evidence views.
+    Legacy `?item=<id>` links redirect to book details; `?tab=authors` redirects
+    to Library authors.
   - `/downloads?state=failed` (and other states) pre-filters the queue;
     `/downloads/history` opens the History tab.
-  - `/settings`, `/settings/media`, `/settings/profiles`,
-    `/settings/connections`, `/settings/import` address the settings tabs.
+  - `/settings/*` addresses settings sections; see the route-to-tab mapping in
+    `features/settings/SettingsPage.tsx` for supported section names.
 
 ## Navigation
 
-Route paths are stable API (bookmarks, reverse-proxy rules, deployed E2E
-flows). The 2026-07 redesign changed labels and ordering only:
+Treat routes as contracts for bookmarks and proxy fallback. Current primary
+areas and their related routes:
 
 | Path         | Label          | Notes                                        |
 | ------------ | -------------- | -------------------------------------------- |
 | `/dashboard` | Dashboard      | Needs-attention queues, pipeline, health     |
-| `/library`   | Library        | Default route; authors + monitored books     |
+| `/library`   | Library        | Default route; Books, Authors, Removed     |
 | `/search`    | Add New        | Metadata search → add book / monitor author  |
-| `/wanted`    | Wanted         | Books + Authors tabs, releases, provenance   |
-| `/downloads` | Activity       | Queue + History tabs                         |
+| `/wanted`    | Wanted         | Missing/cutoff/review/incomplete/unknown   |
+| `/calendar` | Calendar | Recorded release dates and feed |
+| `/downloads` | Activity       | Queue, History and Blocklist                         |
 | `/imports`   | Library Import | Scans, manual import, import reviews         |
-| `/providers` | System         | Setup checklist, health, Readarr compat      |
-| `/settings`  | Settings       | General/Media/Profiles/Connections/Import    |
+| `/providers` | System         | Setup, health, tasks, backups, compatibility      |
+| `/settings`  | Settings       | Configuration sections under /settings/*    |
 
 Responsive behavior: full sidebar ≥1100px, icon rail 720–1099px, hamburger +
 overlay drawer <720px. The pre-migration UI hid most navigation on small
@@ -112,3 +117,32 @@ npm run build   # tsc -b && vite build → web/dist
 ```
 
 Pages are lazy-loaded (`React.lazy`) so each feature is its own chunk.
+
+
+## Native book pages
+
+Library books and Wanted gap tabs use `useBookCollection`, with filters, sort and
+cursor in the query key beneath `keys.wanted`. Existing book mutations therefore
+invalidate the new collection cache. Fetches pass TanStack's abort signal. Text
+filtering is debounced; page/filter/tab changes clear selections. Counts come from
+the server and remain distinct from the number of displayed rows. Database errors
+render retry states, not empty-library success. Metadata Review now has its own native paged collection and global counters. Explicit demo builds keep seeded
+book filtering/paging through `demoBookCollection`; production failures propagate.
+
+
+The Authors tab now uses `useAuthorCollection`, under the author-subscription
+invalidation key. It displays server totals and per-subscription native book
+counts, pages 100 subscriptions at a time, and filters the entire subscription
+collection. It does not fetch capped wanted/file/review lists to infer ownership
+by name. Unlinked identities, client uncertainty and retryable collection errors
+are explicit. The separate author review panel retains its existing reader.
+
+
+Wanted → Review passes search/format/cursor/limit through `useWantedMetadataReview`
+with abort signals and options in the cache key. Page/filter/tab changes clear
+selection. Review revisions travel with Keep current so changed evidence returns
+409 and remains selected for review/retry; successful confirmation clears the
+selection and invalidates book/provenance/review caches. Missing canonical values
+require a choice in book details and contribute to the skipped count. The active
+Wanted tab scrolls into horizontal view on narrow screens without moving the
+whole page vertically. Explicit demo seeds also honor the new review filters.

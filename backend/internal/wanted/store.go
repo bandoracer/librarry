@@ -2,16 +2,21 @@ package wanted
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
+	"golang.org/x/text/unicode/norm"
 )
 
 type Store struct {
@@ -43,19 +48,113 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 	if !s.Configured() {
 		return WantedItem{}, errors.New("wanted store is unavailable")
 	}
-	format := wantedFormat(request)
-	result := request.Result
-	if strings.TrimSpace(result.Work.Title) == "" {
-		return WantedItem{}, errors.New("work title is required")
-	}
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return WantedItem{}, err
 	}
 	defer tx.Rollback()
+	item, err := s.createWantedInTransaction(ctx, tx, request)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return WantedItem{}, err
+	}
+	return item, nil
+}
+
+func wantedInTransaction(ctx context.Context, tx *sql.Tx, id string) (WantedItem, error) {
+	items, _, err := reviewBooks(ctx, tx, []string{id}, true)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	if len(items) == 0 {
+		return WantedItem{}, sql.ErrNoRows
+	}
+	return items[0], nil
+}
+
+func (s *Store) createWantedInTransaction(ctx context.Context, tx *sql.Tx, request CreateRequest) (WantedItem, error) {
+	format := wantedFormat(request)
+	result := request.Result
+	if strings.TrimSpace(result.Work.Title) == "" {
+		return WantedItem{}, errors.New("work title is required")
+	}
+	// Coordinate automatic bibliography adds with ordinary adds for the same
+	// provider work/format, including legacy synthetic edition source keys.
+	if result.Work.ID != "" {
+		lockKey := "wanted-work:" + strings.ToLower(result.Provider) + "|" + result.Work.ID + "|" + format
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
+			return WantedItem{}, err
+		}
+	}
+
+	if request.PreserveExisting {
+		candidate := candidateBookIdentity(result, format)
+		aliases, err := bookMatchAliases([]BookMatchCandidate{candidate})
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if len(aliases) == 0 {
+			return WantedItem{}, fmt.Errorf("%w: a provider identity is required", ErrBookMatches)
+		}
+		// Shared identity locks serialize native adds even when their primary
+		// provider differs. Locks have a common order across merged candidates.
+		locks := map[string]bool{}
+		for _, a := range aliases {
+			locks[a.Provider+"|"+a.Source+"|"+format] = true
+		}
+		ordered := make([]string, 0, len(locks))
+		for key := range locks {
+			ordered = append(ordered, key)
+		}
+		sort.Strings(ordered)
+		for _, key := range ordered {
+			if _, err = tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, "wanted-preserve:"+key); err != nil {
+				return WantedItem{}, err
+			}
+		}
+		if err = lockMatchedWorks(ctx, tx, aliases, format); err != nil {
+			return WantedItem{}, err
+		}
+		matches, err := matchBooks(ctx, tx, []BookMatchCandidate{candidate})
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if matches.Matches[0].Total > 0 {
+			return WantedItem{}, ErrBookAlreadyTracked
+		}
+	}
 
 	rootFolderID := strings.TrimSpace(request.RootFolderID)
+
+	if request.OnlyIfUntracked {
+		workID, _, err := lookupProviderEntityAliases(ctx, tx, workProviderAliases(result))
+		if err != nil {
+			return WantedItem{}, err
+		}
+		if workID != "" {
+			if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, "wanted-existing-work:"+workID+"|"+format); err != nil {
+				return WantedItem{}, err
+			}
+		}
+		var existingID string
+		err = tx.QueryRowContext(ctx, `select id::text from wanted_items
+			where wanted_format = $1 and (
+				work_id = nullif($2, '')::uuid or
+				(metadata_provider = $3 and source_key in ($4, $5, $6)))
+			order by created_at, id limit 1`, format, workID, result.Provider,
+			result.Work.ID, result.Work.ID+":edition", candidateSourceKey(result)).Scan(&existingID)
+		if err == nil {
+			item, err := wantedInTransaction(ctx, tx, existingID)
+			item.alreadyTracked = true
+			return item, err
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return WantedItem{}, err
+		}
+	}
+
 	if rootFolderID != "" {
 		var rootFolderFormat string
 		err := tx.QueryRowContext(ctx, `
@@ -98,8 +197,8 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 		insert into wanted_items (
 			work_id, edition_id, wanted_format, quality_profile, status,
 			title, author_name, cover_url, metadata_provider, source_key, tags,
-			series, series_position, first_publish_year, release_date, root_folder_id
-		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, nullif($15, '')::uuid)
+			series, series_position, first_publish_year, release_date, root_folder_id, monitored
+		) values ($1, $2, $3, $4, 'wanted', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, nullif($15, '')::uuid, coalesce($16, true))
 		on conflict (metadata_provider, source_key, wanted_format)
 			where metadata_provider <> '' and source_key <> ''
 		do update set
@@ -147,19 +246,20 @@ func (s *Store) CreateWanted(ctx context.Context, request CreateRequest) (Wanted
 			release_date = coalesce(excluded.release_date, wanted_items.release_date),
 			root_folder_id = coalesce(excluded.root_folder_id, wanted_items.root_folder_id),
 			updated_at = now()
+		where not $17
 		returning id
 	`, workID, editionID, format, qualityProfile, result.Work.Title, authorName, result.Work.CoverURL, sourceProvider, sourceKey, tagLabelsString(request.Tags),
-		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result), rootFolderID).Scan(&wantedID)
+		strings.TrimSpace(result.Work.Series), strings.TrimSpace(result.Work.SeriesPosition), result.Work.FirstPublishYear, wantedReleaseDate(result), rootFolderID, request.InitialMonitored, request.PreserveExisting).Scan(&wantedID)
+	if errors.Is(err, sql.ErrNoRows) && request.PreserveExisting {
+		return WantedItem{}, ErrBookAlreadyTracked
+	}
 	if err != nil {
 		return WantedItem{}, err
 	}
 	if err := ensureTagLabels(ctx, tx, request.Tags); err != nil {
 		return WantedItem{}, err
 	}
-	if err := tx.Commit(); err != nil {
-		return WantedItem{}, err
-	}
-	return s.GetWanted(ctx, wantedID)
+	return wantedInTransaction(ctx, tx, wantedID)
 }
 
 // rootFolderFormatMismatchReason explains why a root folder cannot host a
@@ -329,7 +429,7 @@ func (s *Store) ListWantedWithFiles(ctx context.Context) ([]WantedItem, error) {
 			and wi.status not in ('removed', 'ignored')
 			and exists (
 				select 1 from files f
-				where f.metadata->>'wantedId' = wi.id::text
+				where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
 			)
 		order by wi.created_at desc
 		limit 200
@@ -364,7 +464,7 @@ func (s *Store) WantedIDsWithFiles(ctx context.Context) (map[string]bool, error)
 		from wanted_items wi
 		where exists (
 			select 1 from files f
-			where f.metadata->>'wantedId' = wi.id::text
+			where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
 		)
 	`)
 	if err != nil {
@@ -397,7 +497,7 @@ func (s *Store) WantedSourceKeysWithFiles(ctx context.Context) (map[string]bool,
 			and wi.source_key <> ''
 			and exists (
 				select 1 from files f
-				where f.metadata->>'wantedId' = wi.id::text
+				where exists (select 1 from file_wanted_links fl where fl.file_id=f.id and fl.wanted_item_id=wi.id)
 			)
 	`)
 	if err != nil {
@@ -420,7 +520,11 @@ func (s *Store) ListQualityProfiles(ctx context.Context) ([]QualityProfile, erro
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
 	}
-	rows, err := s.db.QueryContext(ctx, `
+	return listQualityProfiles(ctx, s.db)
+}
+
+func listQualityProfiles(ctx context.Context, reader wantedDetailReader) ([]QualityProfile, error) {
+	rows, err := reader.QueryContext(ctx, `
 		select
 			id, name, media_format, qualities, cutoff_quality,
 			min_score, cutoff_score, min_seeders,
@@ -583,17 +687,25 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 	if err := ensureTagLabels(ctx, s.db, subscription.Tags); err != nil {
 		return AuthorSubscription{}, err
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	defer tx.Rollback()
+	if err := validateAuthorRoot(ctx, tx, subscription.RootFolderID, subscription.Format); err != nil {
+		return AuthorSubscription{}, err
+	}
+	row := tx.QueryRowContext(ctx, `
 		insert into author_subscriptions (
 			provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			metadata_profile_id
+			metadata_profile_id, root_folder_id
 		) values (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9,
 			$10, $11, $12, $13,
-			nullif($14, '')::uuid
+			nullif($14, '')::uuid, nullif($15, '')::uuid
 		)
 		on conflict (provider, provider_key, wanted_format)
 			where provider <> '' and provider_key <> ''
@@ -609,18 +721,39 @@ func (s *Store) UpsertAuthorSubscription(ctx context.Context, subscription Autho
 			skip_missing_isbn = excluded.skip_missing_isbn or author_subscriptions.skip_missing_isbn,
 			min_pages = case when excluded.min_pages <> 0 then excluded.min_pages else author_subscriptions.min_pages end,
 			metadata_profile_id = coalesce(excluded.metadata_profile_id, author_subscriptions.metadata_profile_id),
+			root_folder_id = coalesce(excluded.root_folder_id, author_subscriptions.root_folder_id),
 			updated_at = now()
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 	`, subscription.Provider, subscription.ProviderKey, subscription.AuthorName, subscription.Format,
 		subscription.QualityProfile, subscription.Status, subscription.MonitorNewItems, subscription.MissingBookPolicy, tagLabelsString(subscription.Tags),
 		joinFilterTerms(subscription.AllowedLanguages), joinFilterTerms(subscription.MustNotContain), subscription.SkipMissingISBN, subscription.MinPages,
-		subscription.MetadataProfileID)
-	return scanAuthorSubscription(row)
+		subscription.MetadataProfileID, subscription.RootFolderID)
+	saved, err := scanAuthorSubscription(row)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AuthorSubscription{}, err
+	}
+	return saved, nil
+}
+
+func (s *Store) GetAuthorSubscription(ctx context.Context, id string) (AuthorSubscription, error) {
+	if !s.Configured() {
+		return AuthorSubscription{}, errors.New("wanted store is unavailable")
+	}
+	return scanAuthorSubscription(s.db.QueryRowContext(ctx, `
+		select id, provider, provider_key, author_name, wanted_format, quality_profile,
+			status, monitor_new_items, missing_book_policy, tags,
+			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''), last_sync_at, created_at, updated_at
+		from author_subscriptions where id::text = $1
+	`, strings.TrimSpace(id)))
 }
 
 func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]AuthorSubscription, error) {
@@ -638,7 +771,7 @@ func (s *Store) ListAuthorSubscriptions(ctx context.Context, status string) ([]A
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		`+where+`
@@ -735,7 +868,24 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			return AuthorSubscription{}, err
 		}
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	defer tx.Rollback()
+	var format string
+	if err := tx.QueryRowContext(ctx, `select wanted_format from author_subscriptions where id::text=$1 for update`, id).Scan(&format); err != nil {
+		return AuthorSubscription{}, err
+	}
+	rootFolderID := sql.NullString{}
+	if request.RootFolderID != nil {
+		rootFolderID.Valid = true
+		rootFolderID.String = strings.TrimSpace(*request.RootFolderID)
+		if err := validateAuthorRoot(ctx, tx, rootFolderID.String, format); err != nil {
+			return AuthorSubscription{}, err
+		}
+	}
+	row := tx.QueryRowContext(ctx, `
 		update author_subscriptions set
 			author_name = case when $2 = '' then author_name else $2 end,
 			quality_profile = case when $3 = '' then quality_profile else $3 end,
@@ -748,17 +898,25 @@ func (s *Store) UpdateAuthorSubscription(ctx context.Context, id string, request
 			skip_missing_isbn = coalesce($10, skip_missing_isbn),
 			min_pages = coalesce($11, min_pages),
 			metadata_profile_id = case when $12::text is null then metadata_profile_id else nullif($12::text, '')::uuid end,
+			root_folder_id = case when $13::text is null then root_folder_id else nullif($13::text, '')::uuid end,
 			updated_at = now()
 		where id::text = $1
 		returning
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 	`, id, strings.TrimSpace(request.AuthorName), qualityProfile, status, monitorNewItems, tags, missingBookPolicy,
-		allowedLanguages, mustNotContain, skipMissingISBN, minPages, metadataProfileID)
-	return scanAuthorSubscription(row)
+		allowedLanguages, mustNotContain, skipMissingISBN, minPages, metadataProfileID, rootFolderID)
+	saved, err := scanAuthorSubscription(row)
+	if err != nil {
+		return AuthorSubscription{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AuthorSubscription{}, err
+	}
+	return saved, nil
 }
 
 func (s *Store) DeleteAuthorSubscription(ctx context.Context, id string) error {
@@ -808,21 +966,21 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 			id, provider, provider_key, author_name, wanted_format, quality_profile,
 			status, monitor_new_items, missing_book_policy, tags,
 			allowed_languages, must_not_contain, skip_missing_isbn, min_pages,
-			coalesce(metadata_profile_id::text, ''),
+			coalesce(metadata_profile_id::text, ''), coalesce(root_folder_id::text, ''),
 			last_sync_at, created_at, updated_at
 		from author_subscriptions
 		where status = 'monitored'
 			and monitor_new_items = true
 			and missing_book_policy <> 'none'
-			and ($1::boolean or last_sync_at is null or last_sync_at <= $2)
+			and ($1::boolean or ((last_sync_at is null or last_sync_at <= $2) and (last_sync_attempt_at is null or last_sync_attempt_at <= $6)))
 			and (
 				($4 = '' and $5 = '')
 				or ($4 <> '' and id::text = any(string_to_array($4, ',')))
 				or ($5 <> '' and provider_key = any(string_to_array($5, ',')))
 			)
-		order by coalesce(last_sync_at, 'epoch'::timestamptz), author_name
+		order by coalesce(last_sync_attempt_at, last_sync_at, 'epoch'::timestamptz), author_name, id
 		limit $3
-		`, force, cutoff, limit, authorIDList, providerKeyList)
+		`, force, cutoff, limit, authorIDList, providerKeyList, workerCheckCutoff(minInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -839,15 +997,28 @@ func (s *Store) ListDueAuthorSubscriptions(ctx context.Context, limit int, minIn
 	return subscriptions, rows.Err()
 }
 
-func (s *Store) MarkAuthorSubscriptionSynced(ctx context.Context, id string) error {
+func (s *Store) MarkAuthorSubscriptionSynced(ctx context.Context, id string, expectedUpdatedAt time.Time) error {
 	if !s.Configured() {
 		return errors.New("wanted store is unavailable")
 	}
 	if strings.TrimSpace(id) == "" {
-		return nil
+		return errors.New("author subscription id is required")
 	}
-	_, err := s.db.ExecContext(ctx, `update author_subscriptions set last_sync_at = now(), updated_at = now() where id = $1`, id)
-	return err
+	result, err := s.db.ExecContext(ctx, `update author_subscriptions
+		set last_sync_at = now(), updated_at = now()
+		where id = $1 and updated_at = $2 and status = 'monitored'
+			and monitor_new_items and missing_book_policy <> 'none'`, id, expectedUpdatedAt)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return errors.New("author settings changed during refresh; refresh again to apply current settings")
+	}
+	return nil
 }
 
 func (s *Store) StartAuthorMonitorRun(ctx context.Context, trigger string) (AuthorMonitorRun, error) {
@@ -931,6 +1102,19 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 	if !s.Configured() {
 		return WantedItem{}, errors.New("wanted store is unavailable")
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	defer tx.Rollback()
+	item, err := updateWantedInTransaction(ctx, tx, id, request)
+	if err != nil {
+		return WantedItem{}, err
+	}
+	return item, tx.Commit()
+}
+
+func updateWantedInTransaction(ctx context.Context, tx *sql.Tx, id string, request WantedUpdateRequest) (WantedItem, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return WantedItem{}, errors.New("wanted item id is required")
@@ -952,7 +1136,7 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 	if request.TagsSet {
 		tags.Valid = true
 		tags.String = tagLabelsString(request.Tags)
-		if err := ensureTagLabels(ctx, s.db, request.Tags); err != nil {
+		if err := ensureTagLabels(ctx, tx, request.Tags); err != nil {
 			return WantedItem{}, err
 		}
 	}
@@ -961,12 +1145,6 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 		rootFolderID.Valid = true
 		rootFolderID.String = strings.TrimSpace(*request.RootFolderID)
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return WantedItem{}, err
-	}
-	defer tx.Rollback()
-
 	result, err := tx.ExecContext(ctx, `
 		update wanted_items set
 			title = case when $2 = '' then title else $2 end,
@@ -1016,10 +1194,7 @@ func (s *Store) UpdateWanted(ctx context.Context, id string, request WantedUpdat
 			return WantedItem{}, err
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return WantedItem{}, err
-	}
-	return s.GetWanted(ctx, id)
+	return wantedInTransaction(ctx, tx, id)
 }
 
 func upsertWantedManualOverride(ctx context.Context, tx *sql.Tx, wantedID string, fieldName string, value string) error {
@@ -1095,12 +1270,10 @@ func (s *Store) ClearWantedManualOverrides(ctx context.Context, wantedID string,
 	}
 	defer tx.Rollback()
 
-	var exists bool
-	if err := tx.QueryRowContext(ctx, `select exists(select 1 from wanted_items where id::text = $1)`, wantedID).Scan(&exists); err != nil {
+	// Use the same book-before-override lock order as confirmation and edits.
+	var lockedID string
+	if err := tx.QueryRowContext(ctx, `select id from wanted_items where id::text=$1 for update`, wantedID).Scan(&lockedID); err != nil {
 		return WantedItem{}, err
-	}
-	if !exists {
-		return WantedItem{}, sql.ErrNoRows
 	}
 	for _, field := range normalizedFields {
 		if _, err := tx.ExecContext(ctx, `
@@ -1122,75 +1295,7 @@ func (s *Store) ClearWantedManualOverrides(ctx context.Context, wantedID string,
 }
 
 func (s *Store) WantedMetadataProvenance(ctx context.Context, wantedID string) (MetadataProvenance, error) {
-	if !s.Configured() {
-		return MetadataProvenance{}, errors.New("wanted store is unavailable")
-	}
-	wantedID = strings.TrimSpace(wantedID)
-	if wantedID == "" {
-		return MetadataProvenance{}, errors.New("wanted item id is required")
-	}
-	item, err := s.GetWanted(ctx, wantedID)
-	if err != nil {
-		return MetadataProvenance{}, err
-	}
-	rows, err := s.db.QueryContext(ctx, `
-		with target_entities as (
-			select wi.work_id as entity_id
-			from wanted_items wi
-			where wi.id::text = $1 and wi.work_id is not null
-			union
-			select wi.edition_id as entity_id
-			from wanted_items wi
-			where wi.id::text = $1 and wi.edition_id is not null
-			union
-			select wa.author_id as entity_id
-			from wanted_items wi
-			join work_authors wa on wa.work_id = wi.work_id
-			where wi.id::text = $1
-		)
-		select
-			pr.id::text, pr.provider, pr.provider_key, pr.entity_type,
-			coalesce(pr.entity_id::text, ''), pr.confidence, pr.fetched_at, pr.raw
-		from provider_records pr
-		join target_entities te on te.entity_id = pr.entity_id
-		order by
-			case pr.entity_type
-				when 'work' then 0
-				when 'edition' then 1
-				when 'author' then 2
-				else 3
-			end,
-			pr.confidence desc,
-			pr.fetched_at desc
-	`, wantedID)
-	if err != nil {
-		return MetadataProvenance{}, err
-	}
-	defer rows.Close()
-
-	records := []ProviderMetadataRecord{}
-	for rows.Next() {
-		var record ProviderMetadataRecord
-		var raw []byte
-		if err := rows.Scan(
-			&record.ID, &record.Provider, &record.ProviderKey, &record.EntityType,
-			&record.EntityID, &record.Confidence, &record.FetchedAt, &raw,
-		); err != nil {
-			return MetadataProvenance{}, err
-		}
-		record.Values = metadataValuesFromProviderRaw(raw)
-		records = append(records, record)
-	}
-	if err := rows.Err(); err != nil {
-		return MetadataProvenance{}, err
-	}
-	return MetadataProvenance{
-		WantedItem:      item,
-		Records:         records,
-		Fields:          metadataFieldEvidence(item, records),
-		ManualOverrides: item.ManualOverrides,
-		GeneratedAt:     time.Now().UTC(),
-	}, nil
+	return s.metadataProvenanceSnapshot(ctx, wantedID)
 }
 
 func (s *Store) ProviderISBNsForWanted(ctx context.Context, wantedIDs []string) (map[string][]string, error) {
@@ -1260,32 +1365,7 @@ func (s *Store) ProviderISBNsForWanted(ctx context.Context, wantedIDs []string) 
 }
 
 func (s *Store) WantedMetadataReviewQueue(ctx context.Context) (MetadataReviewQueue, error) {
-	if !s.Configured() {
-		return MetadataReviewQueue{}, errors.New("wanted store is unavailable")
-	}
-	items, err := s.ListWanted(ctx, "")
-	if err != nil {
-		return MetadataReviewQueue{}, err
-	}
-	reviewItems := []MetadataReviewItem{}
-	for _, item := range items {
-		if wantedItemReviewSkipped(item) {
-			continue
-		}
-		provenance, err := s.WantedMetadataProvenance(ctx, item.ID)
-		if err != nil {
-			return MetadataReviewQueue{}, err
-		}
-		review := metadataReviewItem(provenance)
-		if !metadataReviewRequiresOperator(review) {
-			continue
-		}
-		reviewItems = append(reviewItems, review)
-	}
-	return MetadataReviewQueue{
-		Items:       reviewItems,
-		GeneratedAt: time.Now().UTC(),
-	}, nil
+	return s.MetadataReviewCollection(ctx, MetadataReviewQuery{})
 }
 
 func (s *Store) ApplyWantedMetadataCorrection(ctx context.Context, wantedID string, request MetadataCorrectionRequest) (MetadataProvenance, error) {
@@ -1318,12 +1398,10 @@ func (s *Store) ApplyWantedMetadataCorrections(ctx context.Context, wantedID str
 	}
 	defer tx.Rollback()
 
-	var exists bool
-	if err := tx.QueryRowContext(ctx, `select exists(select 1 from wanted_items where id::text = $1)`, wantedID).Scan(&exists); err != nil {
+	// Use the same book-before-override lock order as confirmation and edits.
+	var lockedID string
+	if err := tx.QueryRowContext(ctx, `select id from wanted_items where id::text=$1 for update`, wantedID).Scan(&lockedID); err != nil {
 		return MetadataProvenance{}, err
-	}
-	if !exists {
-		return MetadataProvenance{}, sql.ErrNoRows
 	}
 
 	if metadataCorrectionsIncludeWantedColumns(values) {
@@ -1421,17 +1499,64 @@ func resetWantedFieldFromProvider(ctx context.Context, tx *sql.Tx, wantedID stri
 }
 
 func (s *Store) attachWantedManualOverrides(ctx context.Context, items []WantedItem) ([]WantedItem, error) {
+	return attachWantedDetails(ctx, s.db, items)
+}
+
+type wantedDetailReader interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func attachWantedDetails(ctx context.Context, reader wantedDetailReader, items []WantedItem) ([]WantedItem, error) {
 	if len(items) == 0 {
 		return items, nil
 	}
-	for index := range items {
-		overrides, err := s.ListWantedManualOverrides(ctx, items[index].ID)
-		if err != nil {
+	ids := make([]string, len(items))
+	positions := make(map[string]int, len(items))
+	for i := range items {
+		ids[i], positions[items[i].ID] = items[i].ID, i
+		items[i].ManualOverrides = nil
+		items[i].Authors = nil
+	}
+	rows, err := reader.QueryContext(ctx, `select entity_id::text,field_name,value,coalesce(reason,''),created_at,updated_at
+		from manual_overrides where entity_type='wanted_item' and entity_id=any($1::uuid[]) order by entity_id,field_name`, ids)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id string
+		var override ManualOverride
+		var raw []byte
+		if err := rows.Scan(&id, &override.FieldName, &raw, &override.Reason, &override.CreatedAt, &override.UpdatedAt); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		items[index].ManualOverrides = overrides
+		override.Value = manualOverrideValueString(raw)
+		i := positions[id]
+		items[i].ManualOverrides = append(items[i].ManualOverrides, override)
 	}
-	return items, nil
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	rows, err = reader.QueryContext(ctx, `select distinct wi.id::text,a.id::text,a.canonical_name from wanted_items wi
+		join work_authors wa on wa.work_id=wi.work_id join authors a on a.id=wa.author_id
+		where wi.id=any($1::uuid[]) and lower(wa.role) in ('author','writer') and not `+authorManualOverrideSQL+`
+		order by wi.id::text,a.canonical_name,a.id::text`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var author AuthorIdentity
+		if err := rows.Scan(&id, &author.ID, &author.Name); err != nil {
+			return nil, err
+		}
+		i := positions[id]
+		items[i].Authors = append(items[i].Authors, author)
+	}
+	return items, rows.Err()
 }
 
 func metadataValuesFromProviderRaw(raw []byte) MetadataRecordValues {
@@ -1514,8 +1639,10 @@ func metadataFieldEvidence(item WantedItem, records []ProviderMetadataRecord) []
 			CanonicalSource: source,
 			Protected:       protected,
 			ReviewResolved:  reviewResolved,
-			Conflict:        !reviewResolved && metadataFieldHasConflict(canonical, candidates, protected),
-			Candidates:      candidates,
+			// The requested acquisition format is an owner choice. A provider
+			// describing another edition format is not a metadata conflict.
+			Conflict:   spec.name != "format" && !reviewResolved && metadataFieldHasConflict(canonical, candidates, protected),
+			Candidates: candidates,
 		})
 	}
 	return evidence
@@ -1533,7 +1660,7 @@ func metadataFieldCandidates(spec metadataFieldSpec, records []ProviderMetadataR
 			if value == "" {
 				continue
 			}
-			key := strings.Join([]string{record.Provider, record.ProviderKey, normalizeText(value)}, "\x00")
+			key := strings.Join([]string{record.Provider, record.ProviderKey, normalizeMetadataValue(value)}, "\x00")
 			if seen[key] {
 				continue
 			}
@@ -1554,9 +1681,9 @@ func metadataFieldCandidates(spec metadataFieldSpec, records []ProviderMetadataR
 
 func metadataFieldHasConflict(canonical string, candidates []MetadataFieldCandidate, protected bool) bool {
 	distinct := map[string]bool{}
-	canonicalKey := normalizeText(canonical)
+	canonicalKey := normalizeMetadataValue(canonical)
 	for _, candidate := range candidates {
-		key := normalizeText(candidate.Value)
+		key := normalizeMetadataValue(candidate.Value)
 		if key == "" {
 			continue
 		}
@@ -1584,7 +1711,22 @@ func oneValue(value string) []string {
 	return []string{value}
 }
 
+func metadataReviewRevision(provenance MetadataProvenance) string {
+	raw, _ := json.Marshal(struct {
+		ID     string
+		Fields []MetadataFieldEvidence
+	}{provenance.WantedItem.ID, provenance.Fields})
+	digest := sha256.Sum256(raw)
+	return hex.EncodeToString(digest[:])
+}
+
 func metadataReviewItem(provenance MetadataProvenance) MetadataReviewItem {
+	review := metadataReviewSummary(provenance)
+	review.Revision = metadataReviewRevision(provenance)
+	return review
+}
+
+func metadataReviewSummary(provenance MetadataProvenance) MetadataReviewItem {
 	fields := []MetadataFieldEvidence{}
 	conflictCount := 0
 	protectedCount := 0
@@ -1618,7 +1760,7 @@ func metadataReviewRequiresOperator(review MetadataReviewItem) bool {
 
 func wantedItemReviewSkipped(item WantedItem) bool {
 	switch strings.ToLower(strings.TrimSpace(item.Status)) {
-	case "removed", "ignored", "imported":
+	case "removed", "ignored":
 		return true
 	default:
 		return false
@@ -1851,6 +1993,11 @@ func (s *Store) DeleteWanted(ctx context.Context, id string) error {
 }
 
 func (s *Store) UpsertReleaseDecisions(ctx context.Context, wantedID string, decisions []ReleaseDecision) ([]ReleaseDecision, error) {
+	return s.upsertReleaseDecisions(ctx, wantedID, decisions, true, nil)
+}
+
+// Feed observations do not reset the full indexer-search retry clock.
+func (s *Store) upsertReleaseDecisions(ctx context.Context, wantedID string, decisions []ReleaseDecision, markSearched bool, expectedUpdatedAt *time.Time) ([]ReleaseDecision, error) {
 	if !s.Configured() {
 		return nil, errors.New("wanted store is unavailable")
 	}
@@ -1860,6 +2007,15 @@ func (s *Store) UpsertReleaseDecisions(ctx context.Context, wantedID string, dec
 	}
 	defer tx.Rollback()
 
+	if expectedUpdatedAt != nil {
+		var currentID string
+		if err := tx.QueryRowContext(ctx, `select id from wanted_items where id=$1 and updated_at=$2 for update`, wantedID, *expectedUpdatedAt).Scan(&currentID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, errors.New("book settings changed during release search; search again")
+			}
+			return nil, err
+		}
+	}
 	stored := make([]ReleaseDecision, 0, len(decisions))
 	for _, decision := range decisions {
 		categories := strings.Join(decision.Categories, ",")
@@ -1904,8 +2060,10 @@ func (s *Store) UpsertReleaseDecisions(ctx context.Context, wantedID string, dec
 		decision.CreatedAt = createdAt
 		stored = append(stored, decision)
 	}
-	if _, err := tx.ExecContext(ctx, `update wanted_items set last_search_at = now(), updated_at = now() where id = $1`, wantedID); err != nil {
-		return nil, err
+	if markSearched {
+		if _, err := tx.ExecContext(ctx, `update wanted_items set last_search_at = now(), updated_at = now() where id = $1`, wantedID); err != nil {
+			return nil, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
@@ -1978,16 +2136,12 @@ func (s *Store) ListDueWanted(ctx context.Context, limit int, minInterval time.D
 			wi.tags, wi.release_date, wi.last_search_at, wi.last_upgrade_search_at, wi.created_at, wi.updated_at
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
-		where wi.status in ('wanted', 'grabbed')
+		where wi.status in ('wanted', 'grabbed', 'imported')
 			and wi.monitored = true
-			and not exists (
-				select 1 from files f
-				where f.metadata->>'wantedId' = wi.id::text
-			)
-			and ($1::boolean or wi.last_search_at is null or wi.last_search_at <= $2)
-		order by coalesce(wi.last_search_at, 'epoch'::timestamptz), wi.created_at
+			and ($1::boolean or ((wi.last_search_at is null or wi.last_search_at <= $2) and (wi.last_monitor_checked_at is null or wi.last_monitor_checked_at <= $4)))
+		order by coalesce(wi.last_monitor_checked_at, wi.last_search_at, 'epoch'::timestamptz), wi.created_at, wi.id
 		limit $3
-	`, force, cutoff, limit)
+	`, force, cutoff, limit, workerCheckCutoff(minInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -2015,11 +2169,11 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 		minInterval = 12 * time.Hour
 	}
 	cleanIDs := compactStrings(ids)
-	args := []any{force, time.Now().UTC().Add(-minInterval)}
+	args := []any{force, time.Now().UTC().Add(-minInterval), workerCheckCutoff(minInterval)}
 	where := []string{
-		"wi.status in ('grabbed', 'imported')",
+		"wi.status in ('wanted', 'grabbed', 'imported')",
 		"wi.monitored = true",
-		"($1::boolean or wi.last_upgrade_search_at is null or wi.last_upgrade_search_at <= $2)",
+		"($1::boolean or ((wi.last_upgrade_search_at is null or wi.last_upgrade_search_at <= $2) and (wi.last_upgrade_checked_at is null or wi.last_upgrade_checked_at <= $3)))",
 	}
 	if len(cleanIDs) > 0 {
 		for _, id := range cleanIDs {
@@ -2044,7 +2198,7 @@ func (s *Store) ListUpgradeWanted(ctx context.Context, ids []string, limit int, 
 		from wanted_items wi
 		left join works w on w.id = wi.work_id
 		where `+strings.Join(where, " and ")+`
-		order by coalesce(wi.last_upgrade_search_at, 'epoch'::timestamptz), wi.created_at
+		order by coalesce(wi.last_upgrade_checked_at, wi.last_upgrade_search_at, 'epoch'::timestamptz), wi.created_at, wi.id
 		limit $`+strconv.Itoa(len(args))+`
 	`, args...)
 	if err != nil {
@@ -2071,7 +2225,7 @@ func (s *Store) MarkWantedStatus(ctx context.Context, wantedID string, status st
 	if status == "" {
 		return errors.New("wanted status is required")
 	}
-	_, err := s.db.ExecContext(ctx, `update wanted_items set status = $2, updated_at = now() where id = $1`, wantedID, status)
+	_, err := s.db.ExecContext(ctx, `update wanted_items set status = $2, updated_at = now() where id = $1 and status not in ('removed','ignored') and not (status='imported' and $2 in ('wanted','grabbed'))`, wantedID, status)
 	return err
 }
 
@@ -2172,11 +2326,11 @@ func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMet
 		insert into author_metadata_reviews (
 			author_subscription_id, provider, candidate_key, title, author_name,
 			wanted_format, quality_profile, tags, policy, reason, status, decision,
-			wanted_item_id, result
+			wanted_item_id, result, root_folder_id
 		) values (
 			nullif($1, '')::uuid, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10, $11, $12,
-			nullif($13, '')::uuid, $14::jsonb
+			nullif($13, '')::uuid, $14::jsonb, nullif($15, '')::uuid
 		)
 		on conflict (author_subscription_id, candidate_key, wanted_format)
 		do update set
@@ -2184,6 +2338,7 @@ func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMet
 			title = excluded.title,
 			author_name = excluded.author_name,
 			quality_profile = excluded.quality_profile,
+			root_folder_id = excluded.root_folder_id,
 			tags = excluded.tags,
 			policy = excluded.policy,
 			reason = excluded.reason,
@@ -2194,10 +2349,10 @@ func (s *Store) UpsertAuthorMetadataReview(ctx context.Context, review AuthorMet
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 	`, review.AuthorSubscriptionID, review.Provider, review.CandidateKey, review.Title, review.AuthorName,
 		review.Format, review.QualityProfile, tagLabelsString(review.Tags), review.Policy, review.Reason,
-		review.Status, review.Decision, review.WantedID, string(raw))
+		review.Status, review.Decision, review.WantedID, string(raw), strings.TrimSpace(review.RootFolderID))
 	saved, err := scanAuthorMetadataReview(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return s.findAuthorMetadataReviewByCandidate(ctx, review.AuthorSubscriptionID, review.CandidateKey, review.Format)
@@ -2211,7 +2366,7 @@ func (s *Store) findAuthorMetadataReviewByCandidate(ctx context.Context, authorS
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 		from author_metadata_reviews
 		where author_subscription_id = nullif($1, '')::uuid
 			and candidate_key = $2
@@ -2244,7 +2399,7 @@ func (s *Store) ListAuthorMetadataReviews(ctx context.Context, query AuthorMetad
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 		from author_metadata_reviews
 	`
 	if len(where) > 0 {
@@ -2280,7 +2435,7 @@ func (s *Store) GetAuthorMetadataReview(ctx context.Context, id string) (AuthorM
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 		from author_metadata_reviews
 		where id::text = $1
 	`, strings.TrimSpace(id))
@@ -2301,12 +2456,12 @@ func (s *Store) ResolveAuthorMetadataReview(ctx context.Context, id string, stat
 			wanted_item_id = coalesce(nullif($4, '')::uuid, wanted_item_id),
 			updated_at = now(),
 			resolved_at = now()
-		where id::text = $1
+		where id::text = $1 and status='pending'
 		returning
 			id, coalesce(author_subscription_id::text, ''), provider, candidate_key,
 			title, author_name, wanted_format, quality_profile, tags, policy, reason,
 			status, decision, coalesce(wanted_item_id::text, ''), result,
-			created_at, updated_at, resolved_at
+			created_at, updated_at, resolved_at, coalesce(root_folder_id::text, '')
 	`, strings.TrimSpace(id), strings.TrimSpace(status), strings.TrimSpace(decision), strings.TrimSpace(wantedID))
 	return scanAuthorMetadataReview(row)
 }
@@ -2410,6 +2565,7 @@ func (s *Store) FinishFeedSyncRun(ctx context.Context, run FeedSyncRun) (FeedSyn
 		return FeedSyncRun{}, err
 	}
 	finished.Matches = run.Matches
+	finished.MatchesTruncated = run.MatchesTruncated
 	return finished, nil
 }
 
@@ -2577,37 +2733,60 @@ func (s *Store) upsertWork(ctx context.Context, tx *sql.Tx, result metadata.Sear
 }
 
 func (s *Store) upsertPrimaryAuthor(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, workID string, raw []byte) (string, error) {
-	if len(result.Work.Authors) == 0 || strings.TrimSpace(result.Work.Authors[0].Name) == "" {
-		return "", nil
+	// Different works can share contributors. Lock every alias in stable order
+	// before resolving IDs, so concurrent adds cannot split one stored identity.
+	locks := []string{}
+	for _, author := range result.Work.Authors {
+		if strings.TrimSpace(author.Name) == "" {
+			continue
+		}
+		for _, alias := range authorProviderAliases(result, author) {
+			locks = append(locks, "wanted-author:"+strings.ToLower(alias.Provider)+"|"+strings.ToLower(alias.Key))
+		}
 	}
-	author := result.Work.Authors[0]
-	aliases := authorProviderAliases(result, author)
-	id, ok, err := lookupProviderEntityAliases(ctx, tx, aliases)
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		if err := tx.QueryRowContext(ctx, `
-			insert into authors(canonical_name, sort_name)
-			values ($1, $2)
-			returning id
-		`, author.Name, sortValue(author.Name)).Scan(&id); err != nil {
+	sort.Strings(locks)
+	for _, key := range compactStrings(locks) {
+		if _, err := tx.ExecContext(ctx, `select pg_advisory_xact_lock(hashtextextended($1,0))`, key); err != nil {
 			return "", err
 		}
-	} else {
-		_, _ = tx.ExecContext(ctx, `update authors set canonical_name = $1, sort_name = $2, updated_at = now() where id = $3`, author.Name, sortValue(author.Name), id)
 	}
-	if err := insertProviderAliases(ctx, tx, aliases, "author", id, raw, result.Score); err != nil {
-		return "", err
+	primary := ""
+	primaryWriter := false
+	for _, author := range result.Work.Authors {
+		if strings.TrimSpace(author.Name) == "" {
+			continue
+		}
+		role := strings.ToLower(strings.TrimSpace(author.Role))
+		if role == "" {
+			role = "author"
+		}
+		writer := role == "author" || role == "writer"
+		if primary == "" || (writer && !primaryWriter) {
+			primary = author.Name
+			primaryWriter = writer
+		}
+		aliases := authorProviderAliases(result, author)
+		id, ok, err := lookupProviderEntityAliases(ctx, tx, aliases)
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			if err := tx.QueryRowContext(ctx, `insert into authors(canonical_name,sort_name) values($1,$2) returning id`, author.Name, sortValue(author.Name)).Scan(&id); err != nil {
+				return "", err
+			}
+		} else {
+			if _, err := tx.ExecContext(ctx, `update authors set canonical_name=$1,sort_name=$2,updated_at=now() where id=$3`, author.Name, sortValue(author.Name), id); err != nil {
+				return "", err
+			}
+		}
+		if err := insertProviderAliases(ctx, tx, aliases, "author", id, raw, result.Score); err != nil {
+			return "", err
+		}
+		if _, err := tx.ExecContext(ctx, `insert into work_authors(work_id,author_id,role) values($1,$2,$3) on conflict do nothing`, workID, id, role); err != nil {
+			return "", err
+		}
 	}
-	if _, err := tx.ExecContext(ctx, `
-		insert into work_authors(work_id, author_id, role)
-		values ($1, $2, 'author')
-		on conflict do nothing
-	`, workID, id); err != nil {
-		return "", err
-	}
-	return author.Name, nil
+	return primary, nil
 }
 
 func (s *Store) upsertEdition(ctx context.Context, tx *sql.Tx, result metadata.SearchResult, workID string, format string, raw []byte) (string, error) {
@@ -2743,7 +2922,7 @@ func scanAuthorSubscription(row wantedScanner) (AuthorSubscription, error) {
 		&subscription.AuthorName, &subscription.Format, &subscription.QualityProfile,
 		&subscription.Status, &subscription.MonitorNewItems, &subscription.MissingBookPolicy, &tags,
 		&allowedLanguages, &mustNotContain, &subscription.SkipMissingISBN, &subscription.MinPages,
-		&subscription.MetadataProfileID,
+		&subscription.MetadataProfileID, &subscription.RootFolderID,
 		&lastSyncAt, &subscription.CreatedAt, &subscription.UpdatedAt,
 	); err != nil {
 		return AuthorSubscription{}, err
@@ -2768,7 +2947,7 @@ func scanAuthorMetadataReview(row wantedScanner) (AuthorMetadataReview, error) {
 		&review.ID, &review.AuthorSubscriptionID, &review.Provider, &review.CandidateKey,
 		&review.Title, &review.AuthorName, &review.Format, &review.QualityProfile,
 		&tags, &review.Policy, &review.Reason, &review.Status, &review.Decision,
-		&review.WantedID, &raw, &review.CreatedAt, &review.UpdatedAt, &resolvedAt,
+		&review.WantedID, &raw, &review.CreatedAt, &review.UpdatedAt, &resolvedAt, &review.RootFolderID,
 	); err != nil {
 		return AuthorMetadataReview{}, err
 	}
@@ -2780,6 +2959,7 @@ func scanAuthorMetadataReview(row wantedScanner) (AuthorMetadataReview, error) {
 		value := resolvedAt.Time.UTC()
 		review.ResolvedAt = &value
 	}
+	review.Revision = authorReviewRevision(review)
 	return review, nil
 }
 
@@ -2952,8 +3132,12 @@ func authorProviderAliases(result metadata.SearchResult, author metadata.Author)
 }
 
 func editionProviderAliases(result metadata.SearchResult, format string) []providerAlias {
-	fallbackKey := result.Provider + ":edition:" + result.Work.ID + ":" + format
-	return providerAliases(result.Provider, append([]string{result.Edition.ID, fallbackKey}, result.Edition.ProviderIDs...))
+	keys := append([]string{result.Edition.ID}, result.Edition.ProviderIDs...)
+	if len(compactStrings(keys)) == 0 {
+		keys = []string{result.Provider + ":edition:" + result.Work.ID + ":" + format}
+	}
+	// A work/format placeholder is not an alias for every concrete edition.
+	return providerAliases(result.Provider, keys)
 }
 
 func providerAliases(fallbackProvider string, keys []string) []providerAlias {
@@ -2977,7 +3161,7 @@ func providerAliases(fallbackProvider string, keys []string) []providerAlias {
 func providerNameFromMetadataKey(key string, fallbackProvider string) string {
 	value := strings.ToLower(strings.TrimSpace(key))
 	switch {
-	case strings.HasPrefix(value, "hardcover:") || strings.HasPrefix(value, "hardcover-author:"):
+	case strings.HasPrefix(value, "hardcover:") || strings.HasPrefix(value, "hardcover-author:") || strings.HasPrefix(value, "hardcover-edition:"):
 		return "Hardcover"
 	case strings.HasPrefix(value, "openlibrary:") || strings.HasPrefix(value, "/authors/") || strings.HasPrefix(value, "/works/"):
 		return "Open Library"
@@ -3035,6 +3219,7 @@ func normalizeAuthorSubscription(subscription AuthorSubscription) AuthorSubscrip
 	subscription.QualityProfile = normalizeQualityProfile(subscription.QualityProfile)
 	subscription.Tags = compactTagLabels(subscription.Tags)
 	subscription.MetadataProfileID = strings.TrimSpace(subscription.MetadataProfileID)
+	subscription.RootFolderID = strings.TrimSpace(subscription.RootFolderID)
 	subscription.AllowedLanguages = normalizeFilterTerms(subscription.AllowedLanguages)
 	subscription.MustNotContain = normalizeFilterTerms(subscription.MustNotContain)
 	if subscription.MinPages < 0 {
@@ -3178,4 +3363,21 @@ func nullableInt64(value int64) any {
 		return nil
 	}
 	return value
+}
+
+// Metadata comparison retains non-ASCII letters and numbers; unrelated CJK or
+// accented values must not collapse to the same empty ASCII matching key.
+func normalizeMetadataValue(value string) string {
+	var out strings.Builder
+	spaced := true
+	for _, r := range strings.ToLower(norm.NFC.String(value)) {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsMark(r) {
+			out.WriteRune(r)
+			spaced = false
+		} else if !spaced {
+			out.WriteByte(' ')
+			spaced = true
+		}
+	}
+	return strings.TrimSpace(out.String())
 }

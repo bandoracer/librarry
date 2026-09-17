@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -20,8 +21,9 @@ type Service struct {
 	logger *slog.Logger
 	now    func() time.Time
 
-	mu     sync.RWMutex
-	method string
+	configMu sync.Mutex
+	mu       sync.RWMutex
+	method   string
 }
 
 func NewService(store UserStore, logger *slog.Logger) *Service {
@@ -58,8 +60,48 @@ func (s *Service) SetMethod(method string) {
 	s.mu.Unlock()
 }
 
-// EnsureUser seeds or updates the single user row (startup env seed and
-// PUT /api/v1/auth/config). An empty password keeps the stored hash and only
+// SaveConfig commits credentials and method together before changing enforcement.
+// Stores without atomic configuration persistence cannot report a successful save.
+func (s *Service) SaveConfig(ctx context.Context, method, username, password string) error {
+	if !s.Available() {
+		return ErrUnavailable
+	}
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+	method = NormalizeMethod(strings.ToLower(strings.TrimSpace(method)))
+	if method == "" {
+		return fmt.Errorf("%w: method must be none, basic, or forms", ErrInvalidConfig)
+	}
+	username = strings.TrimSpace(username)
+	if password != "" && username == "" {
+		return fmt.Errorf("%w: username is required with a password", ErrInvalidConfig)
+	}
+	if username == "" && method != MethodNone && !s.HasUser(ctx) {
+		return fmt.Errorf("%w: username and password are required to enable authentication", ErrInvalidConfig)
+	}
+	store, ok := s.store.(interface {
+		SaveConfig(context.Context, string, string, string) error
+	})
+	if !ok {
+		return ErrUnavailable
+	}
+	hash := ""
+	if password != "" {
+		var err error
+		hash, err = HashPassword(password)
+		if err != nil {
+			return fmt.Errorf("%w: password cannot be stored", ErrInvalidConfig)
+		}
+	}
+	if err := store.SaveConfig(ctx, method, username, hash); err != nil {
+		return err
+	}
+	s.SetMethod(method)
+	return nil
+}
+
+// EnsureUser seeds or updates the single user row from startup configuration.
+// An empty password keeps the stored hash and only
 // renames the user.
 func (s *Service) EnsureUser(ctx context.Context, username string, password string) error {
 	if !s.Available() {
@@ -141,9 +183,10 @@ func (s *Service) Login(ctx context.Context, username string, password string, r
 	}
 	expiresAt := s.now().Add(ttl)
 	if err := s.store.CreateSession(ctx, Session{
-		TokenHash: HashSessionToken(token),
-		UserID:    user.ID,
-		ExpiresAt: expiresAt,
+		TokenHash:      HashSessionToken(token),
+		CredentialHash: user.PasswordHash,
+		UserID:         user.ID,
+		ExpiresAt:      expiresAt,
 	}); err != nil {
 		return LoginResult{}, err
 	}
@@ -168,7 +211,7 @@ func (s *Service) ValidateSession(ctx context.Context, token string) (User, bool
 		return User{}, false
 	}
 	user, ok, err := s.store.GetUser(ctx)
-	if err != nil || !ok {
+	if err != nil || !ok || user.ID != session.UserID {
 		return User{}, false
 	}
 	return user, true

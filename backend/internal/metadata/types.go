@@ -26,12 +26,14 @@ type Query struct {
 }
 
 type Author struct {
+	Role        string   `json:"role,omitempty"`
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	ProviderIDs []string `json:"providerIds,omitempty"`
 }
 
 type Work struct {
+	FirstPublishDate string   `json:"firstPublishDate,omitempty"`
 	ID               string   `json:"id"`
 	Title            string   `json:"title"`
 	Authors          []Author `json:"authors"`
@@ -44,6 +46,9 @@ type Work struct {
 }
 
 type Edition struct {
+	CoverURL      string      `json:"coverUrl,omitempty"`
+	AudioSeconds  int         `json:"audioSeconds,omitempty"`
+	Contributors  []Author    `json:"contributors,omitempty"`
 	ID            string      `json:"id"`
 	WorkID        string      `json:"workId,omitempty"`
 	Title         string      `json:"title"`
@@ -69,11 +74,16 @@ type SearchResult struct {
 }
 
 type ProviderHealth struct {
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	Configured bool      `json:"configured"`
-	Message    string    `json:"message"`
-	CheckedAt  time.Time `json:"checkedAt"`
+	LastCheckedAt *time.Time `json:"lastCheckedAt,omitempty"`
+	LastSuccessAt *time.Time `json:"lastSuccessAt,omitempty"`
+	Reachable     *bool      `json:"reachable,omitempty"`
+	Authenticated *bool      `json:"authenticated,omitempty"`
+	RetryAfter    *time.Time `json:"retryAfter,omitempty"`
+	Name          string     `json:"name"`
+	Status        string     `json:"status"`
+	Configured    bool       `json:"configured"`
+	Message       string     `json:"message"`
+	CheckedAt     time.Time  `json:"checkedAt"`
 }
 
 type Diagnostic struct {

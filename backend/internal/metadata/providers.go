@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,9 +9,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bandoracer/librarry/backend/internal/providerhttp"
 )
 
 type ProviderConfig struct {
+	HTTPClient     *http.Client
 	HardcoverToken string
 	GoogleAPIKey   string
 	HTTPTimeout    time.Duration
@@ -23,7 +25,10 @@ func DefaultProviders(cfg ProviderConfig) []Provider {
 	if timeout == 0 {
 		timeout = 10 * time.Second
 	}
-	client := &http.Client{Timeout: timeout}
+	client := cfg.HTTPClient
+	if client == nil {
+		client = providerhttp.NewClient(timeout)
+	}
 	return []Provider{
 		NewHardcoverProvider(client, cfg.HardcoverToken),
 		NewOpenLibraryProvider(client),
@@ -33,21 +38,27 @@ func DefaultProviders(cfg ProviderConfig) []Provider {
 }
 
 type HardcoverProvider struct {
-	client *http.Client
-	token  string
+	observation *providerObservation
+	client      *http.Client
+	token       string
 }
 
 func NewHardcoverProvider(client *http.Client, token string) *HardcoverProvider {
-	return &HardcoverProvider{client: client, token: strings.TrimSpace(token)}
+	token = strings.TrimSpace(token)
+	if strings.HasPrefix(strings.ToLower(token), "bearer ") {
+		token = strings.TrimSpace(token[7:])
+	}
+	client = boundedProviderClient(client)
+	return &HardcoverProvider{client: client, token: token, observation: observedClient("Hardcover", true, client, "api.hardcover.app")}
 }
 
 func (p *HardcoverProvider) Name() string { return "Hardcover" }
 
 func (p *HardcoverProvider) Health(ctx Context) ProviderHealth {
 	if p.token == "" {
-		return health(p.Name(), "missing_credentials", false, "Set LIBRARRY_HARDCOVER_TOKEN to enable rich metadata.")
+		return p.observation.health(false, "Set LIBRARRY_HARDCOVER_TOKEN to enable rich metadata.")
 	}
-	return health(p.Name(), "ready", true, "Token configured; requests are rate-limited by the backend.")
+	return p.observation.health(true, "Token configured; connection has not been checked.")
 }
 
 func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
@@ -56,116 +67,86 @@ func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
 		Configured: p.token != "",
 		Capabilities: []string{
 			"book search",
-			"author search",
-			"series and edition enrichment",
-			"ebook/audiobook metadata",
+			"author identity search",
+			"paginated author bibliography",
+			"work publication metadata",
 		},
 		Notes: []string{"Primary rich metadata provider. Token stays server-side."},
 	}
 }
 
-func (p *HardcoverProvider) Search(ctx Context, query Query) ([]SearchResult, error) {
+func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchResult, err error) {
 	if p.token == "" {
 		return nil, nil
 	}
 	if query.Type == SearchTypeAuthor {
+		return p.searchAuthors(ctx, query)
+	}
+	if query.Type == SearchTypeAuthorWorks {
+		if hardcoverAuthorID(query.ProviderKey) == 0 {
+			return nil, nil
+		}
+		return p.Bibliography(ctx, query)
+	}
+	if query.Type == SearchTypeSeries {
 		return nil, nil
 	}
-
-	payload := map[string]any{
-		"query": `query SearchBooks($query: String!, $limit: Int!) {
-			search(query: $query, query_type: "Book", per_page: $limit, page: 1) {
-				ids
-				results
-			}
-		}`,
-		"variables": map[string]any{
-			"query": query.Query,
-			"limit": clampLimit(query.Limit),
-		},
+	if lookup, ok := exactBookLookup(query); ok && lookup.isbn != "" {
+		return p.searchISBN(ctx, query, lookup.isbn)
 	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(asContext(ctx), http.MethodPost, "https://api.hardcover.app/v1/graphql", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+p.token)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "librarry/0.1")
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("hardcover search returned %s", resp.Status)
-	}
-
 	var decoded struct {
-		Data struct {
-			Search struct {
-				Results []map[string]any `json:"results"`
-			} `json:"search"`
-		} `json:"data"`
+		Search struct {
+			Results json.RawMessage `json:"results"`
+		} `json:"search"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+	var rawResults []map[string]any
+	if err := p.graphQL(ctx, `query SearchBooks($query: String!, $limit: Int!) {
+		search(query: $query, query_type: "Book", per_page: $limit, page: 1) { ids results }
+	}`, map[string]any{"query": query.Query, "limit": clampLimit(query.Limit)}, &decoded, func() error {
+		var parseErr error
+		rawResults, parseErr = hardcoverSearchDocuments(decoded.Search.Results)
+		if parseErr != nil {
+			return parseErr
+		}
+		if len(rawResults) > clampLimit(query.Limit) {
+			return providerValidationError("Hardcover search exceeded its requested result bound")
+		}
+		for _, doc := range rawResults {
+			if hardcoverDocumentID(doc["id"]) == 0 || strings.TrimSpace(stringValue(doc["title"])) == "" {
+				return providerValidationError("Hardcover book result lacks a stable identity or title")
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
-	results := make([]SearchResult, 0, len(decoded.Data.Search.Results))
-	for _, raw := range decoded.Data.Search.Results {
-		title := stringValue(raw["title"])
-		if title == "" {
-			continue
+	ids := []int64{}
+	seen := map[int64]bool{}
+	for _, raw := range rawResults {
+		id := hardcoverDocumentID(raw["id"])
+		if !seen[id] {
+			ids = append(ids, id)
+			seen[id] = true
 		}
-		authorName := ""
-		if contributors, ok := raw["contributions"].([]any); ok && len(contributors) > 0 {
-			if first, ok := contributors[0].(map[string]any); ok {
-				authorName = stringValue(first["author_name"])
-			}
-		}
-		id := fmt.Sprintf("hardcover:%v", raw["id"])
-		result := SearchResult{
-			Provider: p.Name(),
-			Kind:     SearchTypeBook,
-			Work: Work{
-				ID:    id,
-				Title: title,
-				Authors: []Author{{
-					ID:   stableID("hardcover-author", authorName),
-					Name: authorName,
-				}},
-				CoverURL: stringValue(raw["image_url"]),
-				ProviderIDs: []string{
-					id,
-				},
-			},
-			Score:        scoreResult(query, title, authorName, nil),
-			Confidence:   confidence(scoreResult(query, title, authorName, nil)),
-			MatchedOn:    []string{"hardcover search"},
-			RawSourceKey: id,
-		}
-		results = append(results, result)
 	}
-	return results, nil
+	return p.enrichBookSearch(ctx, query, ids)
 }
 
 type OpenLibraryProvider struct {
-	client *http.Client
+	observation *providerObservation
+	client      *http.Client
 }
 
 func NewOpenLibraryProvider(client *http.Client) *OpenLibraryProvider {
-	return &OpenLibraryProvider{client: client}
+	client = boundedProviderClient(client)
+	return &OpenLibraryProvider{client: client, observation: observedClient("Open Library", false, client, "openlibrary.org")}
 }
 
 func (p *OpenLibraryProvider) Name() string { return "Open Library" }
 
 func (p *OpenLibraryProvider) Health(ctx Context) ProviderHealth {
-	return health(p.Name(), "ready", true, "Open API configured as the open-data backbone.")
+	return p.observation.health(true, "Open API configured; connection has not been checked.")
 }
 
 func (p *OpenLibraryProvider) Diagnostics(ctx Context) Diagnostic {
@@ -182,10 +163,15 @@ func (p *OpenLibraryProvider) Diagnostics(ctx Context) Diagnostic {
 	}
 }
 
-func (p *OpenLibraryProvider) Search(ctx Context, query Query) ([]SearchResult, error) {
+func (p *OpenLibraryProvider) Search(ctx Context, query Query) (results []SearchResult, err error) {
 	if strings.TrimSpace(query.Query) == "" {
 		return nil, errors.New("query is required")
 	}
+	finish, err := p.observation.begin(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { err = finish(err) }()
 	switch query.Type {
 	case SearchTypeAuthor:
 		return p.searchAuthors(ctx, query)
@@ -207,14 +193,11 @@ func (p *OpenLibraryProvider) searchAuthors(ctx Context, query Query) ([]SearchR
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("open library author search returned %s", resp.Status)
-	}
 
 	var decoded struct {
 		Docs []struct {
@@ -226,6 +209,10 @@ func (p *OpenLibraryProvider) searchAuthors(ctx Context, query Query) ([]SearchR
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
+	}
+
+	if decoded.Docs == nil {
+		return nil, errors.New("missing provider result list")
 	}
 
 	results := make([]SearchResult, 0, len(decoded.Docs))
@@ -269,14 +256,11 @@ func (p *OpenLibraryProvider) searchAuthorWorks(ctx Context, query Query, author
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("open library author works returned %s", resp.Status)
-	}
 
 	var decoded struct {
 		Entries []struct {
@@ -288,6 +272,10 @@ func (p *OpenLibraryProvider) searchAuthorWorks(ctx Context, query Query, author
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
+	}
+
+	if decoded.Entries == nil {
+		return nil, errors.New("missing provider result list")
 	}
 
 	authorID := "openlibrary:" + authorKey
@@ -349,14 +337,11 @@ func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("open library search returned %s", resp.Status)
-	}
 
 	var decoded struct {
 		Docs []struct {
@@ -373,6 +358,10 @@ func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
+	}
+
+	if decoded.Docs == nil {
+		return nil, errors.New("missing provider result list")
 	}
 
 	results := make([]SearchResult, 0, len(decoded.Docs))
@@ -424,21 +413,23 @@ func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 }
 
 type GoogleBooksProvider struct {
-	client *http.Client
-	apiKey string
+	observation *providerObservation
+	client      *http.Client
+	apiKey      string
 }
 
 func NewGoogleBooksProvider(client *http.Client, apiKey string) *GoogleBooksProvider {
-	return &GoogleBooksProvider{client: client, apiKey: strings.TrimSpace(apiKey)}
+	client = boundedProviderClient(client)
+	return &GoogleBooksProvider{client: client, apiKey: strings.TrimSpace(apiKey), observation: observedClient("Google Books", true, client, "www.googleapis.com")}
 }
 
 func (p *GoogleBooksProvider) Name() string { return "Google Books" }
 
 func (p *GoogleBooksProvider) Health(ctx Context) ProviderHealth {
 	if p.apiKey == "" {
-		return health(p.Name(), "missing_credentials", false, "Set LIBRARRY_GOOGLE_BOOKS_API_KEY for exact fallback lookup.")
+		return p.observation.health(false, "Set LIBRARRY_GOOGLE_BOOKS_API_KEY for exact fallback lookup.")
 	}
-	return health(p.Name(), "ready", true, "Configured as exact ISBN/title fallback only.")
+	return p.observation.health(true, "API key configured; connection has not been checked.")
 }
 
 func (p *GoogleBooksProvider) Diagnostics(ctx Context) Diagnostic {
@@ -458,17 +449,31 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	if p.apiKey == "" {
 		return nil, nil
 	}
-	if query.Type == SearchTypeAuthor {
+	if _, eligible := exactBookLookup(query); !eligible {
 		return nil, nil
 	}
+	finish, err := p.observation.begin(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	results, err := p.searchBooks(ctx, query)
+	return results, finish(err)
+}
+func (p *GoogleBooksProvider) searchBooks(ctx Context, query Query) ([]SearchResult, error) {
 	values := url.Values{}
-	if query.Type == SearchTypeAuthorWorks {
-		values.Set("q", "inauthor:"+query.Query)
+	lookup, eligible := exactBookLookup(query)
+	if !eligible {
+		return []SearchResult{}, nil
+	}
+	if lookup.isbn != "" {
+		values.Set("q", "isbn:"+lookup.isbn)
 	} else {
-		values.Set("q", query.Query)
+		values.Set("q", "intitle:"+strconv.Quote(strings.TrimSpace(query.Query)))
 	}
 	values.Set("maxResults", strconv.Itoa(clampLimit(query.Limit)))
-	values.Set("projection", "lite")
+	values.Set("projection", "full")
+	values.Set("printType", "books")
+	values.Set("fields", "totalItems,items(id,volumeInfo(title,subtitle,authors,publishedDate,publisher,pageCount,industryIdentifiers,imageLinks/thumbnail,language),saleInfo/isEbook)")
 	values.Set("key", p.apiKey)
 
 	req, err := http.NewRequestWithContext(asContext(ctx), http.MethodGet, "https://www.googleapis.com/books/v1/volumes?"+values.Encode(), nil)
@@ -477,20 +482,23 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 	}
 	req.Header.Set("User-Agent", "librarry/0.1")
 
-	resp, err := p.client.Do(req)
+	resp, err := providerRequest(p.client, req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("google books search returned %s", resp.Status)
-	}
 
 	var decoded struct {
-		Items []struct {
-			ID         string `json:"id"`
+		TotalItems *int `json:"totalItems"`
+		Items      []struct {
+			ID       string `json:"id"`
+			SaleInfo struct {
+				IsEbook bool `json:"isEbook"`
+			} `json:"saleInfo"`
 			VolumeInfo struct {
 				Title               string   `json:"title"`
+				Subtitle            string   `json:"subtitle"`
+				Language            string   `json:"language"`
 				Authors             []string `json:"authors"`
 				PublishedDate       string   `json:"publishedDate"`
 				Publisher           string   `json:"publisher"`
@@ -509,6 +517,10 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 		return nil, err
 	}
 
+	if decoded.TotalItems == nil || *decoded.TotalItems < 0 || (*decoded.TotalItems > 0 && decoded.Items == nil) {
+		return nil, errors.New("missing provider result count or list")
+	}
+
 	results := make([]SearchResult, 0, len(decoded.Items))
 	for _, item := range decoded.Items {
 		var isbns []string
@@ -517,27 +529,40 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 				isbns = append(isbns, identifier.Identifier)
 			}
 		}
+		title := strings.TrimSpace(item.VolumeInfo.Title)
+		if subtitle := strings.TrimSpace(item.VolumeInfo.Subtitle); subtitle != "" {
+			title += ": " + subtitle
+		}
+		if strings.TrimSpace(item.ID) == "" || strings.TrimSpace(item.VolumeInfo.Title) == "" {
+			continue
+		}
+		format := FormatAny
+		if item.SaleInfo.IsEbook {
+			format = FormatEbook
+		}
+		authors := []Author{}
+		for _, name := range compactStrings(item.VolumeInfo.Authors) {
+			authors = append(authors, Author{ID: stableID("googlebooks-author", name), Name: name})
+		}
 		author := first(item.VolumeInfo.Authors)
-		score := scoreResult(query, item.VolumeInfo.Title, author, isbns)
+		score := scoreResult(query, title, author, isbns)
 		workID := "googlebooks:" + item.ID
-		results = append(results, SearchResult{
+		result := SearchResult{
 			Provider: p.Name(),
 			Kind:     SearchTypeBook,
 			Work: Work{
-				ID:       workID,
-				Title:    item.VolumeInfo.Title,
-				CoverURL: item.VolumeInfo.ImageLinks.Thumbnail,
-				Authors: []Author{{
-					ID:   stableID("googlebooks-author", author),
-					Name: author,
-				}},
+				ID:          workID,
+				Title:       title,
+				CoverURL:    item.VolumeInfo.ImageLinks.Thumbnail,
+				Authors:     authors,
 				ProviderIDs: []string{workID},
 			},
 			Edition: Edition{
 				ID:            workID + ":edition",
 				WorkID:        workID,
-				Title:         item.VolumeInfo.Title,
-				Format:        inferFormat(query.Format, isbns),
+				Title:         title,
+				Format:        format,
+				Language:      item.VolumeInfo.Language,
 				ISBNs:         compactStrings(isbns),
 				Publisher:     item.VolumeInfo.Publisher,
 				PublishedDate: item.VolumeInfo.PublishedDate,
@@ -546,9 +571,20 @@ func (p *GoogleBooksProvider) Search(ctx Context, query Query) ([]SearchResult, 
 			},
 			Score:        score,
 			Confidence:   confidence(score),
-			MatchedOn:    matchedOn(query, item.VolumeInfo.Title, author, isbns),
+			MatchedOn:    matchedOn(query, title, author, isbns),
 			RawSourceKey: item.ID,
-		})
+		}
+		if !lookup.matches(result) || !resultFitsQuery(query, result) {
+			continue
+		}
+		if lookup.isbn != "" {
+			result.Score = 0.99
+			result.Confidence = confidence(result.Score)
+			result.MatchedOn = []string{"exact ISBN fallback"}
+		} else {
+			result.MatchedOn = append(result.MatchedOn, "exact title fallback")
+		}
+		results = append(results, result)
 	}
 	return results, nil
 }
@@ -588,4 +624,37 @@ func health(name string, status string, configured bool, message string) Provide
 		Message:    message,
 		CheckedAt:  time.Now().UTC(),
 	}
+}
+
+// Hardcover returns Typesense search JSON; retain array support for older
+// recorded responses while rejecting malformed/missing data as provider errors.
+func hardcoverSearchDocuments(raw json.RawMessage) ([]map[string]any, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, fmt.Errorf("hardcover search response is missing results")
+	}
+	var list []map[string]any
+	if raw[0] == '[' {
+		if err := json.Unmarshal(raw, &list); err != nil {
+			return nil, err
+		}
+		return list, nil
+	}
+	var envelope struct {
+		Hits *[]struct {
+			Document map[string]any `json:"document"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return nil, fmt.Errorf("invalid hardcover results: %w", err)
+	}
+	if envelope.Hits == nil {
+		return nil, fmt.Errorf("hardcover search response is missing hits")
+	}
+	for _, hit := range *envelope.Hits {
+		if hit.Document == nil {
+			return nil, fmt.Errorf("hardcover search hit is missing document")
+		}
+		list = append(list, hit.Document)
+	}
+	return list, nil
 }

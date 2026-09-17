@@ -8,7 +8,8 @@ import (
 )
 
 type Service struct {
-	providers []Provider
+	providers    []Provider
+	searchCaches []*providerSearchCache
 }
 
 type ProviderError struct {
@@ -23,7 +24,11 @@ type SearchOutcome struct {
 }
 
 func NewService(providers []Provider) *Service {
-	return &Service{providers: providers}
+	s := &Service{providers: append([]Provider(nil), providers...)}
+	for range providers {
+		s.searchCaches = append(s.searchCaches, newProviderSearchCache())
+	}
+	return s
 }
 
 func (s *Service) Providers() []Provider {
@@ -68,24 +73,58 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 		query.Limit = 10
 	}
 
-	var merged []SearchResult
+	merged := []SearchResult{}
 	var providerErrors []ProviderError
-	for _, provider := range s.providers {
-		results, err := provider.Search(ctx, query)
+	fallback := []int{}
+	requestQuery := query
+	lookup, lookupEligible := exactBookLookup(query)
+	if lookupEligible && lookup.isbn != "" {
+		requestQuery.Query = lookup.isbn
+	}
+	collect := func(index int, exactOnly bool) {
+		provider := s.providers[index]
+		results, err := s.searchCaches[index].search(ctx, requestQuery, provider)
 		if err != nil {
-			providerErrors = append(providerErrors, ProviderError{
-				Provider: provider.Name(),
-				Message:  err.Error(),
-			})
+			providerErrors = append(providerErrors, ProviderError{Provider: provider.Name(), Message: err.Error()})
+			return
+		}
+		for _, result := range results {
+			if !resultFitsQuery(query, result) || (exactOnly && !lookup.matches(result)) {
+				continue
+			}
+			merged = append(merged, result)
+		}
+	}
+	// Fallback ordering is policy, independent of constructor/provider order.
+	for index, provider := range s.providers {
+		if query.Type == SearchTypeAuthorWorks {
+			key := CanonicalAuthorKey(query.ProviderKey)
+			if strings.HasPrefix(key, "openlibrary:") && provider.Name() != "Open Library" || strings.HasPrefix(key, "hardcover-author:") && provider.Name() != "Hardcover" {
+				continue
+			}
+		}
+		if provider.Name() == "Google Books" {
+			fallback = append(fallback, index)
 			continue
 		}
-		merged = append(merged, results...)
+		collect(index, false)
+	}
+	if lookupEligible && !hasExactPrimaryMatch(query, merged) {
+		for _, provider := range fallback {
+			collect(provider, true)
+		}
 	}
 
 	merged = mergeEquivalentResults(query, merged)
 	merged = filterResultsByPreferredLanguage(merged, query.PreferredLanguage)
 
 	sort.SliceStable(merged, func(i, j int) bool {
+		if lookupEligible {
+			left, right := lookup.matches(merged[i]), lookup.matches(merged[j])
+			if left != right {
+				return left
+			}
+		}
 		if merged[i].Score == merged[j].Score {
 			return providerRank(merged[i].Provider) < providerRank(merged[j].Provider)
 		}
@@ -116,6 +155,9 @@ func filterResultsByPreferredLanguage(results []SearchResult, preferred string) 
 }
 
 func resultMatchesPreferredLanguage(result SearchResult, preferred string) bool {
+	if preferred = normalizePreferredLanguage(preferred); preferred == "" || preferred == "Any" {
+		return true
+	}
 	language := strings.TrimSpace(result.Edition.Language)
 	if language == "" {
 		return true
@@ -143,6 +185,9 @@ func languageMatchesPreference(language string, preferred string) bool {
 	preferred = normalizeLanguageName(preferred)
 	return language == "" || preferred == "" || language == preferred
 }
+
+// LanguageName normalizes supported language names/codes without prefix guessing.
+func LanguageName(language string) string { return normalizeLanguageName(language) }
 
 func normalizeLanguageName(language string) string {
 	normalized := strings.ToLower(strings.TrimSpace(language))

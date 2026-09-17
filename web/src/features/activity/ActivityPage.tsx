@@ -81,6 +81,7 @@ import AddDownloadModal from "./AddDownloadModal";
 import ManageClientsModal from "./ManageClientsModal";
 import DownloadDetailsPanel from "./DownloadDetailsPanel";
 import HistoryTab from "./HistoryTab";
+import AcquisitionRecovery from "./AcquisitionRecovery";
 import BlocklistTab from "./BlocklistTab";
 import "./activity.css";
 
@@ -109,7 +110,7 @@ export default function ActivityPage() {
           </NavLink>
         )}
       />
-      {isBlocklist ? <BlocklistTab /> : isHistory ? <HistoryTab /> : <QueueTab />}
+      {isBlocklist ? <BlocklistTab /> : isHistory ? <HistoryTab /> : <><AcquisitionRecovery /><QueueTab /></>}
     </>
   );
 }

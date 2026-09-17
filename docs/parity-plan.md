@@ -1,5 +1,10 @@
 # Readarr Parity Plan
 
+> Historical audit/implementation record. Some gaps below were addressed by
+> later stabilization work. Use [current status](status.md), the
+> [release checklist](release-checklist.md) and the [guides](README.md) for
+> current readiness and behavior.
+
 > **Status: executed in v0.2.0 (2026-07-01)** — all six milestones landed in
 > one release (delay profiles skipped by owner decision; CDH-remove and
 > auto-grab defaults set to arr parity). Verified: full Go test suite, web

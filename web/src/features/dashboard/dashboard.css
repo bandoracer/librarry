@@ -79,3 +79,5 @@
   width: 1%;
   white-space: nowrap;
 }
+
+.dashboard-attention-observed { margin-inline: 16px; }

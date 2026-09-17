@@ -39,10 +39,11 @@ func webhookPayload(event Event) map[string]any {
 	payload := map[string]any{
 		"eventType":    webhookEventType(event.Type),
 		"application":  "Librarry",
+		"eventId":      event.ID,
 		"instanceName": "Librarry",
 		"title":        event.Title,
 		"message":      event.Message,
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"timestamp":    eventTimestamp(event),
 	}
 	if len(event.Fields) > 0 {
 		fields := map[string]any{}
@@ -147,7 +148,7 @@ func discordPayload(event Event) map[string]any {
 		"title":       event.Title,
 		"description": event.Message,
 		"color":       discordColor(event.Type),
-		"timestamp":   time.Now().UTC().Format(time.RFC3339),
+		"timestamp":   eventTimestamp(event),
 		"footer":      map[string]any{"text": "Librarry"},
 	}
 	if len(event.Fields) > 0 {
@@ -239,4 +240,11 @@ func sortedFieldKeys(fields map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func eventTimestamp(event Event) string {
+	if event.OccurredAt.IsZero() {
+		return time.Now().UTC().Format(time.RFC3339)
+	}
+	return event.OccurredAt.UTC().Format(time.RFC3339)
 }

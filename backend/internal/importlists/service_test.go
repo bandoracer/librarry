@@ -152,15 +152,12 @@ func TestSyncListMonitorNoneRootFolderAndSearchOnAdd(t *testing.T) {
 	if outcome.WantedCreated != 1 {
 		t.Fatalf("unexpected outcome: %+v", outcome)
 	}
-	if len(gateway.updates) != 1 {
-		t.Fatalf("expected one update, got %+v", gateway.updates)
+	if len(gateway.updates) != 0 || len(gateway.creates) != 1 {
+		t.Fatalf("defaults must be in the initial creation: %+v", gateway)
 	}
-	update := gateway.updates[0]
-	if update.Monitored == nil || *update.Monitored {
-		t.Fatalf("expected monitored=false for monitor=none, got %+v", update)
-	}
-	if update.RootFolderID == nil || *update.RootFolderID != "root-7" {
-		t.Fatalf("expected root folder pin, got %+v", update)
+	create := gateway.creates[0]
+	if create.InitialMonitored == nil || *create.InitialMonitored || !create.OnlyIfUntracked || create.RootFolderID != "root-7" {
+		t.Fatalf("missing atomic add-only defaults: %+v", create)
 	}
 	// monitor=none suppresses search-on-add (nothing to grab for an
 	// unmonitored book).

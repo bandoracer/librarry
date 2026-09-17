@@ -86,7 +86,7 @@ Docker Compose:
 ```bash
 cd deploy
 cp .env.example .env
-docker compose up --build
+docker compose -f docker-compose.build.yml up --build
 ```
 
 ## Implementation Rules
@@ -131,7 +131,11 @@ When adding or changing product behavior, update the relevant docs:
 - `docs/status.md` for verified status, known gaps, and deployment reality.
 - `docs/deployment.md` plus the relevant `deploy/*/README.md` when changing
   Docker, TrueNAS, Unraid, image, port, path, permission, or backup behavior.
-- `docs/local-dev.md` for configuration, environment, and operator flows.
-- `docs/architecture.md` for API surfaces or system design changes.
+- `docs/local-dev.md` for development setup and verification.
+- `docs/guides/*` for operator configuration and recovery flows; use
+  `docs/README.md` to find the relevant guide.
+- `CHANGELOG.md` for user-visible changes under Unreleased.
+- `docs/architecture.md` for system design and `docs/reference/*` for detailed
+  API, identity, persistence and transaction contracts.
 - `docs/metadata-strategy.md` for metadata policy changes.
 - `docs/provider-setup.md` for provider credential or behavior changes.

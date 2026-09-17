@@ -1,14 +1,12 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/bandoracer/librarry/backend/internal/auth"
-	compatdata "github.com/bandoracer/librarry/backend/internal/compat"
 )
 
 // Auth middleware (M6.2, arr parity): API keys always work for compat
@@ -77,10 +75,9 @@ func withAuth(apiKey string, authService *auth.Service, next http.Handler) http.
 	})
 }
 
-// effectiveAuthMethod degrades to none when the users table is unavailable
-// (no database) so a broken install cannot lock the operator out.
+// Persistence failure must never turn requested authentication off.
 func effectiveAuthMethod(authService *auth.Service) string {
-	if authService == nil || !authService.Available() {
+	if authService == nil {
 		return auth.MethodNone
 	}
 	return authService.Method()
@@ -113,8 +110,10 @@ func openAPIAuthPath(r *http.Request) bool {
 func (h *handler) authStatus(w http.ResponseWriter, r *http.Request) {
 	method := effectiveAuthMethod(h.deps.Auth)
 	status := map[string]any{
-		"method":        method,
-		"authenticated": false,
+		"method":            method,
+		"authenticated":     false,
+		"methodLocked":      strings.TrimSpace(h.deps.Config.AuthMethod) != "",
+		"credentialsLocked": strings.TrimSpace(h.deps.Config.AuthUsername) != "",
 	}
 	apiKey := strings.TrimSpace(h.deps.Config.APIKey)
 	switch {
@@ -224,36 +223,27 @@ func (h *handler) updateAuthConfig(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "authentication requires database persistence"})
 		return
 	}
-	if strings.TrimSpace(payload.Username) != "" {
-		if err := h.deps.Auth.EnsureUser(r.Context(), payload.Username, payload.Password); err != nil {
+	if configured := auth.NormalizeMethod(h.deps.Config.AuthMethod); configured != "" && configured != method {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "authentication method is controlled by LIBRARRY_AUTH_METHOD"})
+		return
+	}
+	if configured := strings.TrimSpace(h.deps.Config.AuthUsername); configured != "" &&
+		((strings.TrimSpace(payload.Username) != "" && strings.TrimSpace(payload.Username) != configured) || payload.Password != "") {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "credentials are controlled by LIBRARRY_AUTH_USERNAME and LIBRARRY_AUTH_PASSWORD"})
+		return
+	}
+	if err := h.deps.Auth.SaveConfig(r.Context(), method, payload.Username, payload.Password); err != nil {
+		if errors.Is(err, auth.ErrInvalidConfig) {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-			return
+		} else {
+			if h.deps.Logger != nil {
+				h.deps.Logger.Warn("auth configuration persistence failed", "error", err)
+			}
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "authentication settings could not be persisted"})
 		}
-	}
-	if method != auth.MethodNone && !h.deps.Auth.HasUser(r.Context()) {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "username and password are required to enable authentication"})
 		return
 	}
-	h.deps.Auth.SetMethod(method)
-	h.persistAuthMethod(r.Context(), method)
 	writeJSON(w, http.StatusOK, map[string]any{"method": method})
-}
-
-// persistAuthMethod stores the method in a compat resource so restarts keep
-// the UI-chosen mode (an explicit LIBRARRY_AUTH_METHOD env still wins at boot).
-func (h *handler) persistAuthMethod(ctx context.Context, method string) {
-	if h.deps.Compat == nil {
-		return
-	}
-	_, err := h.deps.Compat.UpsertResource(ctx, compatdata.Resource{
-		ResourceType: authConfigResourceType,
-		CompatID:     1,
-		Name:         "auth-config",
-		Payload:      map[string]any{"method": method},
-	})
-	if err != nil && h.deps.Logger != nil {
-		h.deps.Logger.Warn("auth method persistence failed", "error", err)
-	}
 }
 
 // authConfigResourceType is the compat resource that persists the auth method.

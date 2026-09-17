@@ -54,7 +54,7 @@ func TestDiscardLibraryFileKeepsBothWhenNameCollides(t *testing.T) {
 	}
 }
 
-func TestDiscardLibraryFileFallsBackToRemoveWhenBinUnusable(t *testing.T) {
+func TestDiscardLibraryFileRetainsOriginalWhenBinUnusable(t *testing.T) {
 	dir := t.TempDir()
 	// The "bin" is a regular file, so MkdirAll inside it fails.
 	bin := filepath.Join(dir, "recycle")
@@ -66,11 +66,11 @@ func TestDiscardLibraryFileFallsBackToRemoveWhenBinUnusable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := discardLibraryFile(bin, source, time.Now().UTC()); err != nil {
-		t.Fatal(err)
+	if err := discardLibraryFile(bin, source, time.Now().UTC()); err == nil {
+		t.Fatal("unavailable recycle bin reported success")
 	}
-	if _, err := os.Stat(source); !os.IsNotExist(err) {
-		t.Fatalf("expected fallback remove to delete the file, stat err=%v", err)
+	if data, err := os.ReadFile(source); err != nil || string(data) != "book" {
+		t.Fatalf("original was lost: %s %v", data, err)
 	}
 }
 

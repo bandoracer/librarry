@@ -11,9 +11,8 @@ import (
 const recycleBinDayLayout = "2006-01-02"
 
 // discardFile removes a library file, moving it into the configured recycle
-// bin (<bin>/<yyyy-mm-dd>/<original-name>) when one is set. It degrades to a
-// plain remove when the bin cannot be used (cross-filesystem copy failure,
-// unwritable bin, ...), so deletes never wedge on recycle-bin problems.
+// bin (<bin>/<yyyy-mm-dd>/<original-name>) when one is set. An unavailable
+// configured bin retains the original and reports an error.
 func (s *Service) discardFile(path string) error {
 	config := s.Config()
 	return discardLibraryFile(config.RecycleBin, path, time.Now().UTC())
@@ -33,19 +32,23 @@ func discardLibraryFile(bin string, path string, now time.Time) error {
 	}
 	day := filepath.Join(bin, now.Format(recycleBinDayLayout))
 	if err := os.MkdirAll(day, 0o755); err != nil {
-		return removeLibraryFile(path)
+		return err
 	}
 	destination := availableDestination(filepath.Join(day, filepath.Base(path)))
-	if err := os.Rename(path, destination); err == nil {
-		return nil
+	// Exclusive publication preserves a concurrent recycled file with the same
+	// name. The copy helper checks bytes before the original is removed.
+	if err := os.Link(path, destination); err != nil {
+		if err := copyFile(path, destination); err != nil {
+			return err
+		}
 	}
-	// Rename fails across filesystems; fall back to copy + remove, and to a
-	// plain remove when even the copy fails.
-	if err := copyFile(path, destination); err == nil {
-		return removeLibraryFile(path)
+	if err := syncImportDirectory(day); err != nil {
+		return err
 	}
-	_ = os.Remove(destination)
-	return removeLibraryFile(path)
+	if err := removeLibraryFile(path); err != nil {
+		return err
+	}
+	return syncImportDirectory(filepath.Dir(path))
 }
 
 // CleanupRecycleBin deletes recycle-bin day folders older than the configured

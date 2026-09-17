@@ -36,7 +36,7 @@ export const navItems: NavItem[] = [
     path: "/library",
     label: "Library",
     icon: Library,
-    subtitle: "Monitored authors and books"
+    subtitle: "Books and authors"
   },
   {
     id: "search",

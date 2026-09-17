@@ -1,23 +1,25 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
+import { ArrowLeft, BookOpen, ExternalLink, FolderPen } from "lucide-react";
 import { updateWanted } from "../../lib/api";
-import { keys, useLibraryFiles, useWanted } from "../../lib/queries";
+import { keys, useWantedItem } from "../../lib/queries";
 import { useToast } from "../../components/toast";
 import { Badge, Button, Card, EmptyState, InlineNotice, LoadingRow, PageHeader, ToolbarButton } from "../../components/ui";
 import { WantedEditForm } from "../wanted/components/WantedEditForm";
 import { ProvenancePanel } from "../wanted/components/ProvenancePanel";
 import { ReleasesPanel } from "../wanted/components/ReleasesPanel";
 import {
-  libraryAuthorPath,
+  libraryWantedAuthorPath,
   libraryBookOverviewLine,
   libraryErrorMessage,
   presenceLabel,
   presenceTone,
-  wantedPresenceMap
 } from "./lib";
 import "./library.css";
+import RestoreBookDialog from "./RestoreBookDialog";
+import { BookFiles } from "./FileBrowser";
+import { RenameBookFolder } from "./RenameBookFolder";
 
 /**
  * Book detail page (route: /library/book/:wantedId): a routable version of
@@ -31,17 +33,14 @@ export default function BookPage() {
   const toast = useToast();
   const client = useQueryClient();
 
-  const wanted = useWanted();
-  const files = useLibraryFiles("any");
-
-  const wantedItems = useMemo(() => wanted.data ?? [], [wanted.data]);
-  const libraryFiles = useMemo(() => files.data ?? [], [files.data]);
-  const item = useMemo(() => wantedItems.find((entry) => entry.id === wantedId), [wantedItems, wantedId]);
-  const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
+  const wanted = useWantedItem(wantedId);
+  const item = wanted.data;
 
   const [isTogglingMonitored, setIsTogglingMonitored] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
 
-  const authorPath = item ? libraryAuthorPath(item.authorName) : "/library";
+  const authorPath = item ? libraryWantedAuthorPath(item) : "/library";
 
   async function toggleMonitored() {
     if (!item) return;
@@ -68,6 +67,10 @@ export default function BookPage() {
     );
   }
 
+  if (wanted.isError) {
+    return <><PageHeader title="Book unavailable" /><InlineNotice tone="danger">{libraryErrorMessage(wanted.error)}</InlineNotice><Button onClick={() => void wanted.refetch()}>Try again</Button></>;
+  }
+
   if (!item) {
     return (
       <>
@@ -86,14 +89,15 @@ export default function BookPage() {
               </Button>
             }
           >
-            It may have been removed, imported, or the link is stale.
+            It may have been removed, or the link is stale.
           </EmptyState>
         </Card>
       </>
     );
   }
 
-  const state = presence.get(item.id) ?? "missing";
+  const state = item.derivedState ?? "unknown";
+  const inactive = ["removed", "ignored"].includes(item.status);
 
   return (
     <>
@@ -108,6 +112,7 @@ export default function BookPage() {
               title="Back to the author page"
               onClick={() => navigate(authorPath)}
             />
+            <ToolbarButton icon={FolderPen} label="Rename book folder" title="Preview a complete book folder move while preserving chapter names" onClick={() => setRenameOpen(true)} />
             <ToolbarButton
               icon={ExternalLink}
               label="Wanted Queue"
@@ -118,8 +123,8 @@ export default function BookPage() {
         }
       />
       <div className="library-page">
-        {wanted.error ? <InlineNotice tone="danger">{libraryErrorMessage(wanted.error)}</InlineNotice> : null}
-
+        {inactive ? <InlineNotice tone="info">This book is {item.status} and is excluded from the active Library and automatic acquisition. File records and history remain saved. <Button size="sm" onClick={() => setRestoreOpen(true)}>Restore…</Button> <Link to="/library/removed">Removed books</Link></InlineNotice> : null}
+        {restoreOpen ? <RestoreBookDialog book={item} onClose={() => setRestoreOpen(false)} onRestored={() => { setRestoreOpen(false); toast.success("Book restored to Library."); }} /> : null}
         <Card padded>
           <div className="library-book-header">
             {item.coverUrl ? (
@@ -143,13 +148,17 @@ export default function BookPage() {
                 ) : null}
               </div>
               <p className="library-book-header-line">{libraryBookOverviewLine(item)}</p>
+              {item.stateEvidence ? <p className="library-book-header-line" role="status">
+                {item.stateEvidence.message || item.stateEvidence.files.reason}
+                {item.stateEvidence.files.state === "present" ? " Based on recorded import or scan observations; files are not checked during this page load." : ""}
+              </p> : null}
               <p className="library-book-header-line">
                 By{" "}
                 <Link to={authorPath} className="library-book-header-author">
                   {item.authorName || "Unknown author"}
                 </Link>
               </p>
-              <label className="library-monitor-toggle" title={item.monitored ? "Unmonitor this book" : "Monitor this book"}>
+              {!inactive ? <label className="library-monitor-toggle" title={item.monitored ? "Unmonitor this book" : "Monitor this book"}>
                 <input
                   type="checkbox"
                   checked={item.monitored}
@@ -158,14 +167,16 @@ export default function BookPage() {
                   aria-label={`${item.title} monitored`}
                 />
                 <span>Monitored</span>
-              </label>
+              </label> : null}
             </div>
           </div>
         </Card>
 
-        <WantedEditForm item={item} onDeleted={() => navigate(authorPath)} />
+        <RenameBookFolder wantedId={item.id} open={renameOpen} onClose={() => setRenameOpen(false)} />
+        <BookFiles key={item.id} wantedId={item.id} />
+        {!inactive ? <WantedEditForm item={item} onDeleted={() => navigate("/library/removed")} /> : null}
         <ProvenancePanel key={`provenance-${item.id}`} item={item} />
-        <ReleasesPanel key={`releases-${item.id}`} item={item} />
+        {!inactive ? <ReleasesPanel key={`releases-${item.id}`} item={item} /> : null}
       </div>
     </>
   );

@@ -51,8 +51,10 @@ cannot find the completed file.
 
 The default web port is `30200`. Put the app behind TrueNAS local networking,
 Cosmos, Cloudflare Access, or another trusted access boundary before exposing it
-outside your LAN. Set `LIBRARRY_API_KEY` when the API is reachable by anything
-other than trusted local users.
+outside your LAN. Set `LIBRARRY_AUTH_METHOD=forms` and unique
+`LIBRARRY_AUTH_USERNAME` / `LIBRARRY_AUTH_PASSWORD` values in the API environment.
+The template leaves these blank, so configure them before first start. Use
+`LIBRARRY_API_KEY` separately for compatible clients and feeds.
 
 To pin a release, replace `:latest` with a published version tag in both Librarry
 image references.
@@ -78,6 +80,40 @@ container name with the Postgres container name shown by TrueNAS:
 docker exec <postgres-container> pg_dump -U librarry librarry > librarry.sql
 ```
 
-After the first GHCR publish, verify the `librarry-api` and `librarry-web`
-packages are public in GitHub's package settings before installing on a NAS that
-does not authenticate to GHCR.
+Verify that the chosen API/web pair can be pulled on your NAS. Candidate
+identity and runtime evidence are recorded in the [qualification report](../../docs/reviews/2026-09-16-release-qualification.md).
+
+## Candidate selection and automation
+
+Installer defaults select historical `latest` images. Select both qualified
+candidate digests explicitly for a controlled rollout. [Current status](../../docs/status.md)
+distinguishes candidate publication, production-copy rollback qualification and
+actual deployment; the live rollout and observation gate remain open.
+
+Scheduled auto-grab and removal defaults are enabled. Review the
+[automation and import controls](../../docs/deployment.md#stabilization-candidate-configuration)
+before connecting real clients. Back up database, configuration and media; follow
+[upgrade and rollback instructions](../../docs/deployment.md#upgrade) for your target.
+
+
+
+Hourly History Maintenance compacts notification detail only after all recipients
+have been resolved for 90 days. Unresolved deliveries and compact event identities
+remain in Postgres; include both in backups. Restore with notification egress
+isolated until later receiver acceptance is reconciled. Compaction cannot protect
+against acceptance that happened after the backup. See the
+[retention policy](../../docs/guides/operations.md#notification-history-retention).
+
+
+`LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults to `true`. Set it to `false` and
+recreate the API container to pause scheduled list sync; explicit list-sync
+commands remain available. It is independent of feed sync. System → Tasks keeps
+disabled/unavailable workers visible with reasons and retained shared history.
+Flags apply to each API instance; update every instance to stop scheduled work
+across a deployment.
+
+The same portal exposes `/readyz` for current database connectivity (200 ready,
+503 without usable persistence). `/healthz` remains process liveness; neither
+certifies external clients, mounts or completed imports. System can download a
+redacted support report without contacting providers. See
+[probe and support semantics](../../docs/deployment.md#liveness-readiness-and-support).

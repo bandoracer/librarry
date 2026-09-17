@@ -8,86 +8,87 @@ import (
 )
 
 type Config struct {
-	ListenAddr                string
-	APIKey                    string
-	DatabaseURL               string
-	MigrationsDir             string
-	HardcoverToken            string
-	GoogleBooksAPIKey         string
-	ProwlarrURL               string
-	ProwlarrAPIKey            string
-	QBittorrentURL            string
-	QBittorrentUser           string
-	QBittorrentPass           string
-	TransmissionURL           string
-	TransmissionUser          string
-	TransmissionPass          string
-	SABnzbdURL                string
-	SABnzbdAPIKey             string
-	SABnzbdUser               string
-	SABnzbdPass               string
-	EbookCategory             string
-	AudiobookCategory         string
-	BookTorrentRoot           string
-	EbookLibraryRoot          string
-	AudiobookLibraryRoot      string
-	NamingAuthorFolder        string
-	NamingBookFolder          string
-	NamingFileName            string
-	NamingSpaceReplacement    string
+	ListenAddr             string `env:"LIBRARRY_LISTEN_ADDR"`
+	APIKey                 string `env:"LIBRARRY_API_KEY"`
+	DatabaseURL            string `env:"LIBRARRY_DATABASE_URL"`
+	MigrationsDir          string `env:"LIBRARRY_MIGRATIONS_DIR"`
+	HardcoverToken         string `env:"LIBRARRY_HARDCOVER_TOKEN"`
+	GoogleBooksAPIKey      string `env:"LIBRARRY_GOOGLE_BOOKS_API_KEY"`
+	ProwlarrURL            string `env:"LIBRARRY_PROWLARR_URL"`
+	ProwlarrAPIKey         string `env:"LIBRARRY_PROWLARR_API_KEY"`
+	QBittorrentURL         string `env:"LIBRARRY_QBITTORRENT_URL"`
+	QBittorrentUser        string `env:"LIBRARRY_QBITTORRENT_USERNAME"`
+	QBittorrentPass        string `env:"LIBRARRY_QBITTORRENT_PASSWORD"`
+	TransmissionURL        string `env:"LIBRARRY_TRANSMISSION_URL"`
+	TransmissionUser       string `env:"LIBRARRY_TRANSMISSION_USERNAME"`
+	TransmissionPass       string `env:"LIBRARRY_TRANSMISSION_PASSWORD"`
+	SABnzbdURL             string `env:"LIBRARRY_SABNZBD_URL"`
+	SABnzbdAPIKey          string `env:"LIBRARRY_SABNZBD_API_KEY"`
+	SABnzbdUser            string `env:"LIBRARRY_SABNZBD_USERNAME"`
+	SABnzbdPass            string `env:"LIBRARRY_SABNZBD_PASSWORD"`
+	EbookCategory          string `env:"LIBRARRY_EBOOK_CATEGORY"`
+	AudiobookCategory      string `env:"LIBRARRY_AUDIOBOOK_CATEGORY"`
+	BookTorrentRoot        string `env:"LIBRARRY_BOOK_TORRENT_ROOT"`
+	EbookLibraryRoot       string `env:"LIBRARRY_EBOOK_LIBRARY_ROOT"`
+	AudiobookLibraryRoot   string `env:"LIBRARRY_AUDIOBOOK_LIBRARY_ROOT"`
+	NamingAuthorFolder     string `env:"LIBRARRY_NAMING_AUTHOR_FOLDER"`
+	NamingBookFolder       string `env:"LIBRARRY_NAMING_BOOK_FOLDER"`
+	NamingFileName         string `env:"LIBRARRY_NAMING_FILE_NAME"`
+	NamingSpaceReplacement string `env:"LIBRARRY_NAMING_SPACE_REPLACEMENT"`
 	// RenameBooks applies the naming templates on import. When false, imports
 	// keep the source basename inside the author folder (arr renaming-off
 	// behavior). Librarry defaults on; Readarr defaults off.
-	RenameBooks            bool
-	StandardSearchLanguage string
-	RecycleBin                string
-	RecycleBinRetention       time.Duration
-	ImportExtraFiles          string
-	MonitorEnabled            bool
-	MonitorInterval           time.Duration
-	MonitorSearchInterval     time.Duration
-	MonitorLimit              int
-	MonitorAutoGrab           bool
-	AuthorMonitorEnabled      bool
-	AuthorMonitorInterval     time.Duration
-	AuthorMonitorSyncInterval time.Duration
-	AuthorMonitorLimit        int
-	FeedSyncEnabled           bool
-	FeedSyncInterval          time.Duration
-	FeedSyncLimit             int
-	FeedSyncAutoGrab          bool
-	FailedDownloadEnabled     bool
-	FailedDownloadInterval    time.Duration
-	FailedDownloadStalledAge  time.Duration
-	FailedDownloadLimit       int
-	FailedDownloadAutoGrab    bool
-	FailedDownloadRemove      bool
-	FailedDownloadDeleteFiles bool
-	UpgradeSearchEnabled      bool
-	UpgradeSearchInterval     time.Duration
-	UpgradeSearchLimit        int
-	UpgradeSearchAutoGrab     bool
-	UpgradeSearchMinDelta     float64
-	CalibreRefreshEnabled     bool
-	CalibreRefreshInterval    time.Duration
-	CalibreRefreshLimit       int
-	CalibreRefreshMaxAttempts int
-	CompletedImportEnabled    bool
-	CompletedImportInterval   time.Duration
-	CompletedImportLimit      int
-	CompletedImportMode       string
-	CompletedRemoveEnabled    bool
+	RenameBooks               bool          `env:"LIBRARRY_RENAME_BOOKS"`
+	StandardSearchLanguage    string        `env:"LIBRARRY_STANDARD_SEARCH_LANGUAGE"`
+	RecycleBin                string        `env:"LIBRARRY_RECYCLE_BIN"`
+	RecycleBinRetention       time.Duration `env:"LIBRARRY_RECYCLE_BIN_RETENTION"`
+	ImportExtraFiles          string        `env:"LIBRARRY_IMPORT_EXTRA_FILES"`
+	MonitorEnabled            bool          `env:"LIBRARRY_MONITOR_ENABLED"`
+	MonitorInterval           time.Duration `env:"LIBRARRY_MONITOR_INTERVAL"`
+	MonitorSearchInterval     time.Duration `env:"LIBRARRY_MONITOR_SEARCH_INTERVAL"`
+	MonitorLimit              int           `env:"LIBRARRY_MONITOR_LIMIT"`
+	MonitorAutoGrab           bool          `env:"LIBRARRY_MONITOR_AUTO_GRAB"`
+	AuthorMonitorEnabled      bool          `env:"LIBRARRY_AUTHOR_MONITOR_ENABLED"`
+	AuthorMonitorInterval     time.Duration `env:"LIBRARRY_AUTHOR_MONITOR_INTERVAL"`
+	AuthorMonitorSyncInterval time.Duration `env:"LIBRARRY_AUTHOR_MONITOR_SYNC_INTERVAL"`
+	AuthorMonitorLimit        int           `env:"LIBRARRY_AUTHOR_MONITOR_LIMIT"`
+	FeedSyncEnabled           bool          `env:"LIBRARRY_FEED_SYNC_ENABLED"`
+	FeedSyncInterval          time.Duration `env:"LIBRARRY_FEED_SYNC_INTERVAL"`
+	FeedSyncLimit             int           `env:"LIBRARRY_FEED_SYNC_LIMIT"`
+	FeedSyncAutoGrab          bool          `env:"LIBRARRY_FEED_SYNC_AUTO_GRAB"`
+	FailedDownloadEnabled     bool          `env:"LIBRARRY_FAILED_DOWNLOAD_ENABLED"`
+	FailedDownloadInterval    time.Duration `env:"LIBRARRY_FAILED_DOWNLOAD_INTERVAL"`
+	FailedDownloadStalledAge  time.Duration `env:"LIBRARRY_FAILED_DOWNLOAD_STALLED_AGE"`
+	FailedDownloadLimit       int           `env:"LIBRARRY_FAILED_DOWNLOAD_LIMIT"`
+	FailedDownloadAutoGrab    bool          `env:"LIBRARRY_FAILED_DOWNLOAD_AUTO_GRAB"`
+	FailedDownloadRemove      bool          `env:"LIBRARRY_FAILED_DOWNLOAD_REMOVE"`
+	FailedDownloadDeleteFiles bool          `env:"LIBRARRY_FAILED_DOWNLOAD_DELETE_FILES"`
+	UpgradeSearchEnabled      bool          `env:"LIBRARRY_UPGRADE_SEARCH_ENABLED"`
+	UpgradeSearchInterval     time.Duration `env:"LIBRARRY_UPGRADE_SEARCH_INTERVAL"`
+	UpgradeSearchLimit        int           `env:"LIBRARRY_UPGRADE_SEARCH_LIMIT"`
+	UpgradeSearchAutoGrab     bool          `env:"LIBRARRY_UPGRADE_SEARCH_AUTO_GRAB"`
+	UpgradeSearchMinDelta     float64       `env:"LIBRARRY_UPGRADE_SEARCH_MIN_DELTA"`
+	CalibreRefreshEnabled     bool          `env:"LIBRARRY_CALIBRE_REFRESH_ENABLED"`
+	CalibreRefreshInterval    time.Duration `env:"LIBRARRY_CALIBRE_REFRESH_INTERVAL"`
+	CalibreRefreshLimit       int           `env:"LIBRARRY_CALIBRE_REFRESH_LIMIT"`
+	CalibreRefreshMaxAttempts int           `env:"LIBRARRY_CALIBRE_REFRESH_MAX_ATTEMPTS"`
+	CompletedImportEnabled    bool          `env:"LIBRARRY_COMPLETED_IMPORT_ENABLED"`
+	CompletedImportInterval   time.Duration `env:"LIBRARRY_COMPLETED_IMPORT_INTERVAL"`
+	CompletedImportLimit      int           `env:"LIBRARRY_COMPLETED_IMPORT_LIMIT"`
+	CompletedImportMode       string        `env:"LIBRARRY_COMPLETED_IMPORT_MODE"`
+	CompletedRemoveEnabled    bool          `env:"LIBRARRY_COMPLETED_REMOVE_ENABLED"`
 	// AuthMethod is the arr-style API auth mode: "none" (default), "basic",
 	// or "forms". Empty means "unset by env" so a UI-persisted method can win.
-	AuthMethod             string
-	AuthUsername           string
-	AuthPassword           string
-	ImportListSyncInterval time.Duration
-	BackupEnabled          bool
-	BackupInterval         time.Duration
-	BackupRetention        int
-	BackupDir              string
-	WebOrigin              string
+	AuthMethod             string        `env:"LIBRARRY_AUTH_METHOD"`
+	AuthUsername           string        `env:"LIBRARRY_AUTH_USERNAME"`
+	AuthPassword           string        `env:"LIBRARRY_AUTH_PASSWORD"`
+	ImportListSyncEnabled  bool          `env:"LIBRARRY_IMPORT_LIST_SYNC_ENABLED"`
+	ImportListSyncInterval time.Duration `env:"LIBRARRY_IMPORT_LIST_SYNC_INTERVAL"`
+	BackupEnabled          bool          `env:"LIBRARRY_BACKUP_ENABLED"`
+	BackupInterval         time.Duration `env:"LIBRARRY_BACKUP_INTERVAL"`
+	BackupRetention        int           `env:"LIBRARRY_BACKUP_RETENTION"`
+	BackupDir              string        `env:"LIBRARRY_BACKUP_DIR"`
+	WebOrigin              string        `env:"LIBRARRY_WEB_ORIGIN"`
 }
 
 func FromEnv() Config {
@@ -161,6 +162,7 @@ func FromEnv() Config {
 		AuthMethod:                strings.ToLower(strings.TrimSpace(os.Getenv("LIBRARRY_AUTH_METHOD"))),
 		AuthUsername:              strings.TrimSpace(os.Getenv("LIBRARRY_AUTH_USERNAME")),
 		AuthPassword:              os.Getenv("LIBRARRY_AUTH_PASSWORD"),
+		ImportListSyncEnabled:     envBool("LIBRARRY_IMPORT_LIST_SYNC_ENABLED", true),
 		ImportListSyncInterval:    envDuration("LIBRARRY_IMPORT_LIST_SYNC_INTERVAL", 24*time.Hour),
 		BackupEnabled:             envBool("LIBRARRY_BACKUP_ENABLED", true),
 		BackupInterval:            envDuration("LIBRARRY_BACKUP_INTERVAL", 168*time.Hour),

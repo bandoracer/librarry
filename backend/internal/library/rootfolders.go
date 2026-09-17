@@ -291,6 +291,34 @@ func (s *Service) ListRootFolders(ctx context.Context) ([]RootFolder, error) {
 	return decorateRootFolders(folders), nil
 }
 
+// RootLocation is configuration only, with no Calibre credentials or filesystem
+// observations. Support reads must not seed roots, change effective config, or
+// use ListRootFolders' unbounded filesystem decoration.
+type RootLocation struct {
+	Path        string
+	MediaFormat string
+}
+
+func (s *Service) RootLocations(ctx context.Context) ([]RootLocation, error) {
+	if !s.Available() {
+		return nil, errors.New("library service requires database persistence")
+	}
+	rows, err := s.store.db.QueryContext(ctx, `select path, media_format from root_folders order by media_format, created_at, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	locations := []RootLocation{}
+	for rows.Next() {
+		var location RootLocation
+		if err := rows.Scan(&location.Path, &location.MediaFormat); err != nil {
+			return nil, err
+		}
+		locations = append(locations, location)
+	}
+	return locations, rows.Err()
+}
+
 func (s *Service) CreateRootFolder(ctx context.Context, folder RootFolder) (RootFolder, error) {
 	if !s.Available() {
 		return RootFolder{}, errors.New("library service requires database persistence")

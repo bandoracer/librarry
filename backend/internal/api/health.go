@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
@@ -56,51 +55,35 @@ type healthRoot struct {
 type HealthEvaluator struct {
 	handler *handler
 	notify  *notify.Service
-
-	mu        sync.Mutex
-	lastState map[string]string
 }
 
 func NewHealthEvaluator(deps Dependencies) *HealthEvaluator {
 	return &HealthEvaluator{
-		handler:   &handler{deps: deps},
-		notify:    deps.Notify,
-		lastState: map[string]string{},
+		handler: &handler{deps: deps},
+		notify:  deps.Notify,
 	}
 }
 
 // Evaluate runs every check, dispatches ok-to-bad transition notifications,
 // and returns the full check list.
 func (e *HealthEvaluator) Evaluate(ctx context.Context) []HealthCheck {
+	if checker, ok := e.handler.deps.Acquire.(interface{ CheckIntegrations(context.Context) }); ok {
+		checker.CheckIntegrations(ctx)
+	}
 	checks := evaluateHealthChecks(e.handler.healthInputs(ctx))
-	e.mu.Lock()
-	nextState, events := healthTransitions(e.lastState, checks)
-	e.lastState = nextState
-	e.mu.Unlock()
-	if e.notify != nil && len(events) > 0 {
-		e.notify.DispatchAll(ctx, events)
+	if e.notify != nil && e.notify.Available() {
+		observeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		for _, check := range checks {
+			if err := e.notify.ObserveHealth(observeCtx, check.ID, check.Severity, check.Name, check.Message); err != nil {
+				if e.handler.deps.Logger != nil {
+					e.handler.deps.Logger.Warn("health notification state could not be saved", "check", check.ID)
+				}
+				break
+			}
+		}
 	}
 	return checks
-}
-
-// healthTransitions computes the next last-state map and the healthIssue
-// events for checks that newly turned bad (unknown or ok before, warning or
-// error now).
-func healthTransitions(lastState map[string]string, checks []HealthCheck) (map[string]string, []notify.Event) {
-	nextState := make(map[string]string, len(checks))
-	var events []notify.Event
-	for _, check := range checks {
-		nextState[check.ID] = check.Severity
-		if check.Severity == healthSeverityOK {
-			continue
-		}
-		previous, seen := lastState[check.ID]
-		if seen && previous != healthSeverityOK {
-			continue
-		}
-		events = append(events, notify.HealthIssueEvent(check.Name, check.Severity, check.Message))
-	}
-	return nextState, events
 }
 
 // healthInputs gathers the live snapshot the pure rules evaluate.
@@ -210,7 +193,10 @@ func indexerHealthCheck(inputs healthInputs) HealthCheck {
 			return check
 		}
 		check.Severity = healthSeverityError
-		check.Message = "Prowlarr is unreachable: " + integration.Message
+		if integration.Status == "configured" || integration.Status == "stale" {
+			check.Severity = healthSeverityWarning
+		}
+		check.Message = "Prowlarr: " + integration.Message
 		return check
 	}
 	check.Severity = healthSeverityError
@@ -223,6 +209,7 @@ func downloadClientHealthCheck(inputs healthInputs) HealthCheck {
 	configured := 0
 	var readyNames []string
 	var configuredNames []string
+	unknown := false
 	for _, integration := range inputs.integrations {
 		if integration.Name == "Prowlarr" {
 			continue
@@ -230,6 +217,7 @@ func downloadClientHealthCheck(inputs healthInputs) HealthCheck {
 		if integration.Configured {
 			configured++
 			configuredNames = append(configuredNames, integration.Name)
+			unknown = unknown || integration.Status == "configured" || integration.Status == "stale"
 		}
 		if integration.Status == "ready" {
 			readyNames = append(readyNames, integration.Name)
@@ -241,7 +229,10 @@ func downloadClientHealthCheck(inputs healthInputs) HealthCheck {
 		check.Message = joinNames(readyNames) + " ready for grabs."
 	case configured > 0:
 		check.Severity = healthSeverityError
-		check.Message = joinNames(configuredNames) + " configured but unreachable. Check credentials and network access."
+		check.Message = joinNames(configuredNames) + " have no current successful connection check. Review integration status."
+		if unknown {
+			check.Severity = healthSeverityWarning
+		}
 	default:
 		check.Severity = healthSeverityError
 		check.Message = "No download client is configured. Configure qBittorrent, Transmission, or SABnzbd."
@@ -356,12 +347,9 @@ func formatBytes(value int64) string {
 }
 
 func (h *handler) systemHealth(w http.ResponseWriter, r *http.Request) {
-	var checks []HealthCheck
-	if h.deps.Health != nil {
-		checks = h.deps.Health.Evaluate(r.Context())
-	} else {
-		checks = evaluateHealthChecks(h.healthInputs(r.Context()))
-	}
+	// Reading status must not probe integrations or emit health notifications.
+	// The scheduled/manual Health Check task owns those effects.
+	checks := evaluateHealthChecks(h.healthInputs(r.Context()))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"checks":      checks,
 		"generatedAt": time.Now().UTC(),

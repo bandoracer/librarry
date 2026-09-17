@@ -38,34 +38,69 @@ func buildAuthorPolicyContext(subscription AuthorSubscription, candidates []meta
 		now:     now.UTC(),
 		hasFile: map[string]bool{},
 	}
-	var firstDate, latestDate time.Time
-	var firstDated, latestDated bool
-	for index, candidate := range candidates {
+	type datedCandidate struct {
+		key        string
+		start, end time.Time
+	}
+	dated := []datedCandidate{}
+	released := []datedCandidate{}
+	unknownDate, uncertainReleased := false, false
+	tomorrow := time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day()+1, 0, 0, 0, 0, time.UTC)
+	for _, candidate := range candidates {
 		key := authorMetadataReviewCandidateKey(candidate)
 		if sourceKeysWithFiles != nil {
 			fileKey := wantedSourceFileKey(candidate.Provider, candidateSourceKey(candidate), subscription.Format)
 			policyCtx.hasFile[key] = sourceKeysWithFiles[fileKey]
 		}
 		published, hasDate := resultPublicationDate(candidate)
-		if hasDate {
-			if !firstDated || published.Time.Before(firstDate) {
-				firstDated = true
-				firstDate = published.Time
-				policyCtx.firstKey = key
-			}
-			if !latestDated || published.Time.After(latestDate) {
-				latestDated = true
-				latestDate = published.Time
-				policyCtx.latestKey = key
-			}
+		if !hasDate {
+			unknownDate = true
 			continue
 		}
-		// Fall back to discovery order when no candidate carries a date.
-		if !firstDated && policyCtx.firstKey == "" {
-			policyCtx.firstKey = key
+		entry := datedCandidate{key: key, start: published.Time, end: publicationEnd(published)}
+		dated = append(dated, entry)
+		if !entry.end.After(tomorrow) {
+			released = append(released, entry)
+		} else if entry.start.Before(tomorrow) {
+			uncertainReleased = true
 		}
-		if !latestDated && index == len(candidates)-1 {
-			policyCtx.latestKey = key
+	}
+	// Partial dates represent intervals. Overlap and unknown dates cannot prove
+	// a first/latest work; discovery order must not decide automatic acquisition.
+	if !unknownDate && len(dated) > 0 {
+		first := dated[0]
+		for _, candidate := range dated {
+			if candidate.start.Before(first.start) {
+				first = candidate
+			}
+		}
+		unique := true
+		for _, other := range dated {
+			if first.key != other.key && first.end.After(other.start) {
+				unique = false
+				break
+			}
+		}
+		if unique {
+			policyCtx.firstKey = first.key
+		}
+		if !uncertainReleased && len(released) > 0 {
+			latest := released[0]
+			for _, candidate := range released {
+				if candidate.start.After(latest.start) {
+					latest = candidate
+				}
+			}
+			unique = true
+			for _, other := range released {
+				if latest.key != other.key && other.end.After(latest.start) {
+					unique = false
+					break
+				}
+			}
+			if unique {
+				policyCtx.latestKey = latest.key
+			}
 		}
 	}
 	return policyCtx
@@ -74,8 +109,8 @@ func buildAuthorPolicyContext(subscription AuthorSubscription, candidates []meta
 // authorResultAllowedByPolicy implements the monitor-mode selection semantics:
 // all (everything), future (published after subscription), none (nothing),
 // missing (books without library files), existing (books with files or future
-// releases), first (only the earliest discovered book), latest (the most
-// recent book plus future releases).
+// releases), first (only the unambiguously earliest dated book), latest (the most
+// recent published book plus future releases).
 func authorResultAllowedByPolicy(subscription AuthorSubscription, result metadata.SearchResult, policyCtx authorPolicyContext) (bool, string) {
 	key := authorMetadataReviewCandidateKey(result)
 	switch normalizeAuthorMissingBookPolicy(subscription.MissingBookPolicy, subscription.MonitorNewItems) {
@@ -97,6 +132,9 @@ func authorResultAllowedByPolicy(subscription AuthorSubscription, result metadat
 		}
 		return false, "existing policy requires a library file or a future publication"
 	case "first":
+		if policyCtx.firstKey == "" {
+			return false, "first policy cannot establish publication order from missing or overlapping dates"
+		}
 		if key == policyCtx.firstKey {
 			return true, ""
 		}
@@ -108,7 +146,10 @@ func authorResultAllowedByPolicy(subscription AuthorSubscription, result metadat
 		if future, _ := authorResultIsFuture(subscription, result, policyCtx.now); future {
 			return true, ""
 		}
-		return false, "latest policy only monitors the most recent or future books"
+		if policyCtx.latestKey == "" {
+			return false, "latest policy cannot establish the most recent published book from missing or overlapping dates"
+		}
+		return false, "latest policy only monitors the most recent published or future books"
 	default:
 		return true, ""
 	}
@@ -123,25 +164,25 @@ func authorResultIsFuture(subscription AuthorSubscription, result metadata.Searc
 	if cutoff.IsZero() {
 		cutoff = now
 	}
-	switch published.Precision {
-	case "year":
-		if published.Time.Year() >= cutoff.Year() {
-			return true, ""
-		}
-	case "month":
-		publishedMonth := time.Date(published.Time.Year(), published.Time.Month(), 1, 0, 0, 0, 0, time.UTC)
-		cutoffMonth := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
-		if !publishedMonth.Before(cutoffMonth) {
-			return true, ""
-		}
-	default:
-		publishedDay := time.Date(published.Time.Year(), published.Time.Month(), published.Time.Day(), 0, 0, 0, 0, time.UTC)
-		cutoffDay := time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), cutoff.UTC().Day(), 0, 0, 0, 0, time.UTC)
-		if !publishedDay.Before(cutoffDay) {
-			return true, ""
-		}
+	cutoff = time.Date(cutoff.UTC().Year(), cutoff.UTC().Month(), cutoff.UTC().Day(), 0, 0, 0, 0, time.UTC)
+	if !published.Time.Before(cutoff) {
+		return true, ""
+	}
+	if publicationEnd(published).After(cutoff) {
+		return false, "publication date is too imprecise to establish the subscription cutoff"
 	}
 	return false, "published before the author subscription cutoff"
+}
+
+func publicationEnd(published publicationDate) time.Time {
+	switch published.Precision {
+	case "year":
+		return published.Time.AddDate(1, 0, 0)
+	case "month":
+		return published.Time.AddDate(0, 1, 0)
+	default:
+		return published.Time.AddDate(0, 0, 1)
+	}
 }
 
 func candidateSourceKey(result metadata.SearchResult) string {

@@ -106,9 +106,12 @@ func TestAuthorPolicyLatestSelectsMostRecentAndFuture(t *testing.T) {
 	oldest := policyTestCandidate("edition-1", "The Martian", "2014-02-11")
 	latest := policyTestCandidate("edition-2", "Project Hail Mary", "2021-05-04")
 	future := policyTestCandidate("edition-3", "Project Next", "2027-03-01")
-	policyCtx := buildAuthorPolicyContext(subscription, []metadata.SearchResult{oldest, latest, future}, nil, time.Now().UTC())
+	policyCtx := buildAuthorPolicyContext(subscription, []metadata.SearchResult{oldest, latest, future}, nil, time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC))
 
-	// The future title carries the newest date, so it is both "latest" and future.
+	// Announced books do not displace the latest already-published book.
+	if allowed, reason := authorResultAllowedByPolicy(subscription, latest, policyCtx); !allowed {
+		t.Fatal("future book displaced latest published", reason)
+	}
 	if allowed, _ := authorResultAllowedByPolicy(subscription, future, policyCtx); !allowed {
 		t.Fatal("expected future book to be allowed under latest policy")
 	}
@@ -117,22 +120,22 @@ func TestAuthorPolicyLatestSelectsMostRecentAndFuture(t *testing.T) {
 	}
 
 	// Without the future title, the newest published book wins.
-	policyCtx = buildAuthorPolicyContext(subscription, []metadata.SearchResult{oldest, latest}, nil, time.Now().UTC())
+	policyCtx = buildAuthorPolicyContext(subscription, []metadata.SearchResult{oldest, latest}, nil, time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC))
 	if allowed, _ := authorResultAllowedByPolicy(subscription, latest, policyCtx); !allowed {
 		t.Fatal("expected most recent book to be allowed under latest policy")
 	}
 }
 
-func TestBuildAuthorPolicyContextFallsBackToDiscoveryOrder(t *testing.T) {
+func TestBuildAuthorPolicyContextRequiresDatesInsteadOfDiscoveryOrder(t *testing.T) {
 	subscription := policyTestSubscription("first")
 	undatedA := policyTestCandidate("edition-1", "Book A", "")
 	undatedB := policyTestCandidate("edition-2", "Book B", "")
 	policyCtx := buildAuthorPolicyContext(subscription, []metadata.SearchResult{undatedA, undatedB}, nil, time.Now().UTC())
-	if policyCtx.firstKey != authorMetadataReviewCandidateKey(undatedA) {
-		t.Fatalf("expected first discovered candidate as firstKey, got %q", policyCtx.firstKey)
+	if policyCtx.firstKey != "" || policyCtx.latestKey != "" {
+		t.Fatal("unknown chronology invented an ordering", policyCtx)
 	}
-	if policyCtx.latestKey != authorMetadataReviewCandidateKey(undatedB) {
-		t.Fatalf("expected last discovered candidate as latestKey, got %q", policyCtx.latestKey)
+	if allowed, reason := authorResultAllowedByPolicy(subscription, undatedA, policyCtx); allowed || reason == "" {
+		t.Fatal(allowed, reason)
 	}
 }
 

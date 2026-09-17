@@ -44,24 +44,6 @@ func (c *TransmissionClient) Configured() bool {
 	return c.baseURL != ""
 }
 
-func (c *TransmissionClient) Health(ctx context.Context) IntegrationHealth {
-	if !c.Configured() {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_TRANSMISSION_URL."}
-	}
-	var payload struct {
-		Version    string `json:"version"`
-		RPCVersion int    `json:"rpc-version"`
-	}
-	if err := c.rpc(ctx, "session-get", map[string]any{}, &payload); err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	message := "Ready"
-	if payload.Version != "" {
-		message = "Ready; version " + payload.Version
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
-}
-
 func (c *TransmissionClient) Add(ctx context.Context, request DownloadRequest) (DownloadStatus, error) {
 	if !c.Configured() {
 		return DownloadStatus{}, ErrIntegrationNotConfigured
@@ -88,7 +70,10 @@ func (c *TransmissionClient) Add(ctx context.Context, request DownloadRequest) (
 	if torrent.ID == 0 && torrent.HashString == "" {
 		torrent = payload["torrent-duplicate"]
 	}
-	id := firstNonEmpty(torrent.HashString, strconv.Itoa(torrent.ID), request.InfoHash, releaseID(request.ReleaseURL))
+	if torrent.ID == 0 && torrent.HashString == "" {
+		return DownloadStatus{}, errors.New("Transmission accepted add without a download ID; reconcile before retrying")
+	}
+	id := firstNonEmpty(torrent.HashString, strconv.Itoa(torrent.ID))
 	labels := transmissionLabels(request)
 	if len(labels) > 0 && strings.TrimSpace(id) != "" {
 		_ = c.rpc(ctx, "torrent-set", map[string]any{"ids": []string{id}, "labels": labels}, nil)
@@ -741,6 +726,7 @@ type transmissionTorrentAdded struct {
 }
 
 type transmissionTorrent struct {
+	IsFinished         bool     `json:"isFinished"`
 	ID                 int      `json:"id"`
 	HashString         string   `json:"hashString"`
 	Name               string   `json:"name"`
@@ -911,6 +897,7 @@ func (t transmissionTorrent) DownloadStatus(now time.Time) DownloadStatus {
 	}
 	return DownloadStatus{
 		Client:          "Transmission",
+		SeedGoalMet:     t.IsFinished,
 		ID:              firstNonEmpty(t.HashString, strconv.Itoa(t.ID)),
 		Name:            t.Name,
 		State:           state,
@@ -971,11 +958,12 @@ func (t transmissionTorrentDetail) DownloadDetails(now time.Time) DownloadDetail
 		Comment:            strings.TrimSpace(t.Comment),
 	}
 	return DownloadDetails{
-		Status:     status,
-		Properties: properties,
-		Files:      t.DownloadFiles(),
-		Trackers:   t.DownloadTrackers(),
-		Peers:      t.DownloadPeers(),
+		Status:          status,
+		Properties:      properties,
+		Files:           t.DownloadFiles(),
+		InventorySource: "client-files",
+		Trackers:        t.DownloadTrackers(),
+		Peers:           t.DownloadPeers(),
 	}
 }
 
@@ -983,8 +971,10 @@ func (t transmissionTorrentDetail) DownloadFiles() []DownloadFile {
 	files := make([]DownloadFile, 0, len(t.Files))
 	for i, file := range t.Files {
 		stat := transmissionFileStat{Wanted: true}
+		var selected *bool
 		if i < len(t.FileStats) {
 			stat = t.FileStats[i]
+			selected = new(stat.Wanted)
 		}
 		files = append(files, DownloadFile{
 			ID:        i,
@@ -992,6 +982,7 @@ func (t transmissionTorrentDetail) DownloadFiles() []DownloadFile {
 			SizeBytes: file.Length,
 			Progress:  transmissionFileProgress(file, stat),
 			Priority:  transmissionFilePriority(stat),
+			Selected:  selected,
 		})
 	}
 	return files
@@ -1470,7 +1461,7 @@ func transmissionStatusFields() []string {
 	return []string{
 		"id", "hashString", "name", "status", "percentDone", "downloadDir",
 		"totalSize", "downloadedEver", "uploadedEver", "rateDownload",
-		"rateUpload", "eta", "uploadRatio", "peersConnected",
+		"rateUpload", "eta", "uploadRatio", "peersConnected", "isFinished",
 		"peersGettingFromUs", "peersSendingToUs", "addedDate", "doneDate",
 		"activityDate", "error", "errorString", "labels",
 	}

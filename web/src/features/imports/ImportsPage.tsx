@@ -1,10 +1,11 @@
+import { FileBrowser, useFileBrowser } from "../library/FileBrowser";
+import "../library/library.css";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   CheckSquare,
-  FileCheck2,
-  FolderInput,
   FolderSearch,
   HardDriveDownload,
   Inbox,
@@ -30,7 +31,7 @@ import {
   ToolbarButton
 } from "../../components/ui";
 import { useToast } from "../../components/toast";
-import { keys, useImportReviews, useInvalidatingMutation, useLibraryFiles } from "../../lib/queries";
+import { keys, useImportReviewCollection, useInvalidatingMutation } from "../../lib/queries";
 import {
   importCompletedDownloads,
   importLibraryFile,
@@ -39,6 +40,7 @@ import {
   scanLibrary,
   type CompletedImportOutcome,
   type ImportReview,
+  type ImportReviewOptions,
   type LibraryImportOutcome,
   type LibraryScanOutcome,
   type ReviewBulkDecisionOutcome
@@ -60,21 +62,24 @@ import {
   stringMetadataValue
 } from "./lib";
 import "./imports.css";
+import ImportRecovery from "./ImportRecovery";
+import LibraryRepairPreview from "./LibraryRepairPreview";
+import ScanJobs, { scanJobsKey, useLibraryScanJobs } from "./ScanJobs";
+import PayloadReview from "./PayloadReview";
+import BookChoiceSelect from "./BookChoiceSelect";
 
 type ScanFormat = "ebook" | "audiobook" | "any";
 type ImportMode = "copy" | "move" | "hardlink" | "hardlinkOrCopy";
 type ConflictAction = "rename" | "replace" | "skip" | "fail";
 type ReviewAction = "import" | "skip" | "reject";
 type ReviewStatusFilter = "pending" | "resolved" | "all";
-type FileFormatFilter = "any" | "ebook" | "audiobook";
 
 const pageSubtitle = navItems.find((item) => item.id === "imports")?.subtitle;
 
 const fileKeys = [keys.libraryFiles("any"), keys.libraryFiles("ebook"), keys.libraryFiles("audiobook")] as const;
 const reviewKeys = [keys.importReviews("pending"), keys.importReviews("resolved"), keys.importReviews("all")] as const;
-const downstreamKeys = [keys.downloads(), keys.history(), keys.wanted] as const;
+const downstreamKeys = [keys.importRecovery, keys.downloads(), keys.history(), keys.wanted] as const;
 
-const TRACKED_FILE_ROW_CAP = 100;
 
 function plural(count: number, singular: string, pluralWord = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralWord}`;
@@ -97,9 +102,13 @@ function mediaFormatTone(format: string) {
 
 export default function ImportsPage() {
   const toast = useToast();
+  const queryClient = useQueryClient();
+  const [importWantedID, setImportWantedID] = useState("");
 
   /* ------------------------------ Form state ------------------------------ */
   const [scanRoot, setScanRoot] = useState("");
+ const [acceptRootChange, setAcceptRootChange] = useState(false);
+ const [scanRootReviewRequired, setScanRootReviewRequired] = useState(false);
   const [importPath, setImportPath] = useState("");
   const [importFormat, setImportFormat] = useState<"ebook" | "audiobook">("ebook");
   const [importMode, setImportMode] = useState<ImportMode>("copy");
@@ -107,6 +116,10 @@ export default function ImportsPage() {
 
   /* ---------------------------- Review selection --------------------------- */
   const [reviewStatus, setReviewStatus] = useState<ReviewStatusFilter>("pending");
+  const [reviewCursors, setReviewCursors] = useState([""]);
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewFormat, setReviewFormat] = useState<ImportReviewOptions["format"]>("all");
+  const [reviewKind, setReviewKind] = useState<ImportReviewOptions["kind"]>("all");
   const [selectedReviewIDs, setSelectedReviewIDs] = useState<string[]>([]);
   const [reviewWantedChoices, setReviewWantedChoices] = useState<Record<string, string>>({});
   const [reviewActionID, setReviewActionID] = useState("");
@@ -115,31 +128,40 @@ export default function ImportsPage() {
 
   /* ------------------------------ Last outcomes ---------------------------- */
   const [scanActionID, setScanActionID] = useState("");
-  const [lastScan, setLastScan] = useState<LibraryScanOutcome | null>(null);
+  const scanJobs = useLibraryScanJobs();
+  const [lastScanResult, setLastScan] = useState<LibraryScanOutcome | null>(null);
+  const savedScan = scanJobs.data?.scans.find(scan => scan.id === lastScanResult?.jobId);
+  const lastScan = lastScanResult && savedScan ? { ...lastScanResult, ...savedScan, hasMore: savedScan.state === "queued" || savedScan.state === "running", errors: savedScan.lastError ? [savedScan.lastError] : [] } : lastScanResult;
   const [lastImport, setLastImport] = useState<LibraryImportOutcome | null>(null);
   const [lastCompleted, setLastCompleted] = useState<CompletedImportOutcome | null>(null);
   const [lastBulk, setLastBulk] = useState<ReviewBulkDecisionOutcome | null>(null);
 
   /* ------------------------------ Tracked files ---------------------------- */
-  const [fileFormat, setFileFormat] = useState<FileFormatFilter>("any");
+  const fileBrowser = useFileBrowser();
 
   /* --------------------------------- Queries ------------------------------- */
-  const reviewsQuery = useImportReviews(reviewStatus);
-  const pendingReviewsQuery = useImportReviews("pending");
-  const filesQuery = useLibraryFiles(fileFormat);
-  const allFilesQuery = useLibraryFiles("any");
+  const reviewsQuery = useImportReviewCollection({ status: reviewStatus, q: reviewSearch, format: reviewFormat, kind: reviewKind, cursor: reviewCursors[reviewCursors.length - 1], limit: 50 });
+  const fileCollection = fileBrowser.query.isError ? undefined : fileBrowser.query.data;
 
-  const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
-  const pendingReviews = pendingReviewsQuery.data ?? [];
-  const files = filesQuery.data ?? [];
-  const allFiles = allFilesQuery.data ?? [];
+  const reviewCollection = reviewsQuery.isError ? undefined : reviewsQuery.data;
+  const payloadReviews = (reviewCollection?.reviews ?? []).filter(review => review.status === "pending" && review.metadata?.payloadReview === true);
+  const reviews = useMemo(() => (reviewCollection?.reviews ?? []).filter(review => review.status !== "pending" || review.metadata?.payloadReview !== true), [reviewCollection]);
+  const pendingReviewCount = reviewCollection?.counts?.pending;
+  function clearReviewSelection() { setSelectedReviewIDs([]); setReviewWantedChoices({}); setBulkModalOpen(false); }
+  function resetReviewPages() { setReviewCursors([""]); clearReviewSelection(); }
+  function reviewPaging(location: string) { return <nav className="imports-review-paging" aria-label={`${location} import review pages`}>
+    <span className="field-hint">{reviewCollection?.filtered ?? "—"} matching · {reviewCollection?.total ?? "—"} total · Page {reviewCursors.length}</span>
+    <Button size="sm" disabled={reviewsQuery.isFetching || reviewBusy || reviewCursors.length === 1} onClick={() => { clearReviewSelection(); setReviewCursors(previous => previous.slice(0, -1)); }}>Previous reviews</Button>
+    <Button size="sm" disabled={reviewsQuery.isFetching || reviewBusy || !reviewCollection?.nextCursor} onClick={() => { const next = reviewCollection?.nextCursor; if (next) { clearReviewSelection(); setReviewCursors(previous => [...previous, next]); } }}>Next reviews</Button>
+    {reviewCursors.length > 1 ? <Button size="sm" disabled={reviewBusy} onClick={resetReviewPages}>First review page</Button> : null}
+  </nav>; }
 
   /* -------------------------------- Mutations ------------------------------ */
   const scanMutation = useInvalidatingMutation(
-    (args: { format: ScanFormat; root?: string }) => scanLibrary(args.format, { root: args.root }),
-    [...fileKeys]
+    (args: { format: ScanFormat; root?: string; acceptRootChange?: boolean }) => scanLibrary(args.format, { root: args.root, acceptRootChange: args.acceptRootChange }),
+    [...fileKeys, scanJobsKey]
   );
-  const importMutation = useInvalidatingMutation(importLibraryFile, [...fileKeys, keys.wanted]);
+  const importMutation = useInvalidatingMutation(importLibraryFile, [...fileKeys, keys.wanted, keys.importRecovery]);
   const completedMutation = useInvalidatingMutation(importCompletedDownloads, [...fileKeys, ...reviewKeys, ...downstreamKeys]);
   const resolveMutation = useInvalidatingMutation(
     (args: { reviewId: string; options: Parameters<typeof resolveLibraryImportReview>[1] }) =>
@@ -203,17 +225,22 @@ export default function ImportsPage() {
   async function runScan(actionID: string, format: ScanFormat, root?: string) {
     setScanActionID(actionID);
     try {
-      const outcome = await scanMutation.mutateAsync({ format, root });
+      const outcome = await scanMutation.mutateAsync({ format, root, acceptRootChange: !!root && acceptRootChange });
       setLastScan(outcome);
-      const message = `Scanned ${plural(outcome.roots.length, "root")}, ${plural(outcome.upserted, "new file")} (${outcome.scanned} seen, ${outcome.skipped} skipped)`;
+      setScanRootReviewRequired(false);
+      const message = outcome.hasMore ? `Scan continues in the background: ${outcome.scanned} files checked so far.` : `Scan complete: ${outcome.scanned} files checked, ${outcome.missing ?? 0} missing.`;
       if (outcome.errors?.length) {
         toast.notify(`${message}; ${plural(outcome.errors.length, "error")}`, "warn");
       } else {
         toast.success(message);
       }
     } catch (error) {
-      toast.error(errorText(error, "Library scan failed"));
+      const message = errorText(error, "Library scan failed");
+      if (root && message.includes("identity changed")) setScanRootReviewRequired(true);
+      toast.error(message);
     } finally {
+      void queryClient.invalidateQueries({ queryKey: scanJobsKey });
+      setAcceptRootChange(false);
       setScanActionID("");
     }
   }
@@ -224,6 +251,7 @@ export default function ImportsPage() {
     try {
       const outcome = await importMutation.mutateAsync({
         sourcePath,
+        wantedId: importWantedID || undefined,
         format: importFormat,
         move: importMode === "move",
         importMode,
@@ -238,16 +266,15 @@ export default function ImportsPage() {
       }
     } catch (error) {
       toast.error(errorText(error, "Library import failed"));
+      void queryClient.invalidateQueries({ queryKey: keys.importRecovery });
     }
   }
 
   async function runCompletedImport() {
     try {
       const outcome = await completedMutation.mutateAsync({
-        move: importMode === "move",
-        importMode,
-        conflictAction,
-        overwrite: conflictAction === "replace",
+        importMode: "hardlinkOrCopy",
+        conflictAction: "rename",
         limit: 50
       });
       setLastCompleted(outcome);
@@ -336,7 +363,6 @@ export default function ImportsPage() {
   /* ------------------------------ Render helpers --------------------------- */
 
   const reviewsError = reviewsQuery.error ? libraryErrorMessage(reviewsQuery.error.message) : "";
-  const filesError = filesQuery.error ? libraryErrorMessage(filesQuery.error.message) : "";
 
   const bulkFailures = lastBulk ? lastBulk.results.filter((result) => result.status === "error") : [];
   const reviewTitleByID = useMemo(() => {
@@ -346,11 +372,6 @@ export default function ImportsPage() {
     }
     return map;
   }, [reviews]);
-
-  const visibleFiles = files.slice(0, TRACKED_FILE_ROW_CAP);
-  const trackedSubtitle = lastScan
-    ? `${lastScan.upserted} files indexed from ${plural(lastScan.roots.length, "root")} on the last scan.`
-    : `${plural(allFiles.length, "tracked file")} from library scans and imports.`;
 
   return (
     <>
@@ -391,9 +412,13 @@ export default function ImportsPage() {
         }
       />
 
+      <div id="recovery"><ImportRecovery /></div>
+      <ScanJobs query={scanJobs} />
+      <LibraryRepairPreview />
+
       <Card
         title="Scan & import"
-        subtitle="Scan a custom root or import a single file. Mode and conflict settings also apply to completed-download and review imports."
+        subtitle="Scan a custom root or import a single file. Completed downloads retain their source. Manual replacements keep the previous file until the replacement is verified and saved."
       >
         <div className="imports-scan-grid">
           <div className="imports-block">
@@ -402,7 +427,7 @@ export default function ImportsPage() {
               <Field label="Root" hint="Absolute path to scan outside the configured library roots.">
                 <input
                   value={scanRoot}
-                  onChange={(event) => setScanRoot(event.target.value)}
+                  onChange={(event) => { setScanRoot(event.target.value); setAcceptRootChange(false); setScanRootReviewRequired(false); }}
                   placeholder="/data/media/books/ebooks"
                 />
               </Field>
@@ -433,6 +458,7 @@ export default function ImportsPage() {
                 </Button>
               </div>
             </div>
+            {scanRootReviewRequired ? <label className="imports-root-confirm"><input type="checkbox" checked={acceptRootChange} onChange={event => setAcceptRootChange(event.target.checked)} />I verified the library is mounted correctly; use this replacement folder.</label> : null}
             {lastScan ? (
               <div className="imports-outcome" aria-label="Last scanned roots">
                 <span className="field-label">{isScanning ? "Scanning" : "Last scan"}</span>
@@ -460,21 +486,25 @@ export default function ImportsPage() {
           <div className="imports-block">
             <span className="field-label">Manual file import</span>
             <FormGrid columns={2}>
-              <Field label="Source path" hint="File is matched against wanted items during import.">
+              <Field label="Source path" hint="Choose a book to link this file, or leave it unassigned.">
                 <input
+                  aria-label="Manual import source path"
                   value={importPath}
                   onChange={(event) => setImportPath(event.target.value)}
                   placeholder="Source file path to import into the library"
                 />
               </Field>
+              <div className="field"><span className="field-label">Book (optional)</span>
+                <BookChoiceSelect key={importFormat} label="Book for manual import" value={importWantedID} onChange={setImportWantedID} format={importFormat} emptyLabel="Keep existing association, or leave unassigned" disabled={importMutation.isPending} />
+              </div>
               <Field label="Format">
-                <select value={importFormat} onChange={(event) => setImportFormat(event.target.value as "ebook" | "audiobook")}>
+                <select aria-label="Manual import format" value={importFormat} onChange={(event) => { setImportFormat(event.target.value as "ebook" | "audiobook"); setImportWantedID(""); }}>
                   <option value="ebook">Ebook</option>
                   <option value="audiobook">Audiobook</option>
                 </select>
               </Field>
               <Field label="Mode">
-                <select value={importMode} onChange={(event) => setImportMode(event.target.value as ImportMode)}>
+                <select aria-label="Manual import mode" value={importMode} onChange={(event) => setImportMode(event.target.value as ImportMode)}>
                   <option value="copy">Copy</option>
                   <option value="move">Move</option>
                   <option value="hardlink">Hardlink</option>
@@ -482,7 +512,7 @@ export default function ImportsPage() {
                 </select>
               </Field>
               <Field label="Conflict">
-                <select value={conflictAction} onChange={(event) => setConflictAction(event.target.value as ConflictAction)}>
+                <select aria-label="Manual import conflict" value={conflictAction} onChange={(event) => setConflictAction(event.target.value as ConflictAction)}>
                   <option value="rename">Keep both</option>
                   <option value="replace">Replace</option>
                   <option value="skip">Skip</option>
@@ -524,9 +554,9 @@ export default function ImportsPage() {
         </div>
       </Card>
 
-      <Card
-        title="Pending import reviews"
-        subtitle="Files that need a manual wanted-item match before they can be imported."
+      <div id="reviews"><Card
+        title="Import reviews"
+        subtitle="Review files and download payloads. Bulk selection applies only to file reviews on the current page."
         actions={
           <Segmented<ReviewStatusFilter>
             ariaLabel="Import review status filter"
@@ -537,24 +567,33 @@ export default function ImportsPage() {
             ]}
             value={reviewStatus}
             onChange={(value) => {
+              if (reviewBusy) return;
               setReviewStatus(value);
-              setSelectedReviewIDs([]);
+              resetReviewPages();
             }}
           />
         }
       >
+        <div className="imports-review-filters">
+          <label>Search reviews<input aria-label="Search import reviews" maxLength={256} value={reviewSearch} disabled={reviewBusy} onChange={event => { setReviewSearch(event.target.value); resetReviewPages(); }} placeholder="Title, author, path or reason" /></label>
+          <label>Format<select aria-label="Import review format" value={reviewFormat} disabled={reviewBusy} onChange={event => { setReviewFormat(event.target.value as ImportReviewOptions["format"]); resetReviewPages(); }}><option value="all">All formats</option><option value="ebook">Ebooks</option><option value="audiobook">Audiobooks</option><option value="unknown">Unknown format</option></select></label>
+          <label>Review type<select aria-label="Import review type" value={reviewKind} disabled={reviewBusy} onChange={event => { setReviewKind(event.target.value as ImportReviewOptions["kind"]); resetReviewPages(); }}><option value="all">All reviews</option><option value="file">File matches</option><option value="payload">Download payloads</option></select></label>
+        </div>
+        {reviewPaging("Top")}
+        <p className="field-hint">Newest created reviews first. Updates and retries keep their place; new reviews appear on the first page. Counts reflect the current database snapshot.</p>
+        {payloadReviews.map(review => <PayloadReview key={`${review.id}:${review.updatedAt}`} review={review} />)}
         <div className="imports-statbar-wrap">
           <StatBar
             stats={[
-              { label: "Tracked", value: allFiles.length },
+              { label: "Tracked", value: fileCollection?.total ?? "—" },
               {
                 label: "Imported",
-                value: allFiles.filter((file) => file.importStatus === "imported").length,
+                value: fileCollection?.counts.imported ?? "—",
                 tone: "success"
               },
-              { label: "Review", value: pendingReviews.length, tone: pendingReviews.length ? "warn" : "neutral" },
-              { label: "Ebooks", value: allFiles.filter((file) => file.mediaFormat === "ebook").length },
-              { label: "Audiobooks", value: allFiles.filter((file) => file.mediaFormat === "audiobook").length },
+              { label: "Pending reviews", value: pendingReviewCount ?? "—", tone: pendingReviewCount ? "warn" : "neutral" },
+              { label: "Ebooks", value: fileCollection?.counts.ebook ?? "—" },
+              { label: "Audiobooks", value: fileCollection?.counts.audiobook ?? "—" },
               { label: "Scanned", value: lastScan?.scanned ?? 0 },
               { label: "Skipped", value: lastScan?.skipped ?? 0 }
             ]}
@@ -563,7 +602,7 @@ export default function ImportsPage() {
 
         {reviewsError ? (
           <InlineNotice tone={isPersistenceRequiredError(reviewsQuery.error?.message ?? "") ? "info" : "danger"}>
-            {reviewsError}
+            {reviewsError} <Button size="sm" onClick={() => void reviewsQuery.refetch()}>Retry reviews</Button>
           </InlineNotice>
         ) : null}
 
@@ -581,9 +620,11 @@ export default function ImportsPage() {
 
         {reviewsQuery.isLoading ? (
           <LoadingRow label="Loading import reviews…" />
+        ) : reviewsQuery.isError ? <p className="field-hint">Review records are unavailable.</p> : reviews.length === 0 && payloadReviews.length > 0 ? (
+          <p className="field-hint">{payloadReviews.length} download review{payloadReviews.length === 1 ? " needs" : "s need"} file assignments on this page.</p>
         ) : reviews.length === 0 ? (
-          <EmptyState icon={Inbox} title={reviewStatus === "pending" ? "No pending import reviews" : "No import reviews"}>
-            Completed downloads that cannot be matched automatically land here for a manual decision.
+          <EmptyState icon={Inbox} title="No reviews on this page">
+            Change the filters or return to the first page to see other reviews.
           </EmptyState>
         ) : (
           <>
@@ -594,7 +635,7 @@ export default function ImportsPage() {
                 disabled={selectableReviewIDs.length === 0 || reviewBusy}
                 onClick={toggleAllReviews}
               >
-                {allReviewsSelected ? "Clear all" : "Select all"}
+                {allReviewsSelected ? "Clear page selection" : "Select page"}
               </Button>
               <span className="field-hint">{selectedReviews.length} selected</span>
               <Button
@@ -637,6 +678,7 @@ export default function ImportsPage() {
                           <input
                             type="checkbox"
                             checked={selected}
+                            disabled={reviewBusy}
                             onChange={() => toggleReviewSelection(review)}
                             aria-label={`Select ${review.title || review.sourcePath}`}
                           />
@@ -672,7 +714,7 @@ export default function ImportsPage() {
                               onChange={(event) =>
                                 setReviewWantedChoices((current) => ({ ...current, [review.id]: event.target.value }))
                               }
-                              disabled={Boolean(review.wantedId)}
+                              disabled={reviewBusy || Boolean(review.wantedId)}
                               aria-label={requiresWantedChoice ? "Choose wanted match" : "Wanted match"}
                             >
                               <option value="">{requiresWantedChoice ? "Select a wanted item" : "No wanted item"}</option>
@@ -735,6 +777,7 @@ export default function ImportsPage() {
                           </div>
                         ) : (
                           <div className="cell-actions">
+                            {review.metadata?.payloadReview === true && ["skipped", "rejected"].includes(review.status) ? <Button size="sm" disabled={resolveMutation.isPending} onClick={() => resolveMutation.mutate({ reviewId: review.id, options: { action: "reopen" } })}>Reopen review</Button> : null}
                             <Badge tone={importStatusTone(review.decision || review.status)}>
                               {review.decision || review.status}
                             </Badge>
@@ -748,109 +791,10 @@ export default function ImportsPage() {
             </DataTable>
           </>
         )}
-      </Card>
+        {reviewPaging("Bottom")}
+      </Card></div>
 
-      <Card
-        title="Tracked files"
-        subtitle={trackedSubtitle}
-        actions={
-          <Segmented<FileFormatFilter>
-            ariaLabel="Tracked file format filter"
-            options={[
-              { value: "any", label: "All" },
-              { value: "ebook", label: "Ebooks" },
-              { value: "audiobook", label: "Audiobooks" }
-            ]}
-            value={fileFormat}
-            onChange={setFileFormat}
-          />
-        }
-      >
-        {filesError ? (
-          <InlineNotice tone={isPersistenceRequiredError(filesQuery.error?.message ?? "") ? "info" : "danger"}>
-            {filesError}
-          </InlineNotice>
-        ) : null}
-
-        {filesQuery.isLoading ? (
-          <LoadingRow label="Loading tracked files…" />
-        ) : visibleFiles.length === 0 ? (
-          <EmptyState
-            icon={FolderInput}
-            title="No tracked files"
-            actions={
-              <Button
-                icon={FolderSearch}
-                disabled={isScanning}
-                busy={scanActionID === "empty:any"}
-                onClick={() => runScan("empty:any", "any")}
-              >
-                Scan all roots
-              </Button>
-            }
-          >
-            Run a library scan or import a completed download to start tracking files.
-          </EmptyState>
-        ) : (
-          <>
-            <DataTable>
-              <thead>
-                <tr>
-                  <th>File</th>
-                  <th>Author</th>
-                  <th>Format</th>
-                  <th>Status</th>
-                  <th>Size</th>
-                  <th>Type</th>
-                  <th>Wanted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleFiles.map((file) => {
-                  const wantedID =
-                    stringMetadataValue(file.metadata?.wantedId) || stringMetadataValue(file.metadata?.librarryWantedId);
-                  return (
-                    <tr key={file.id || file.path}>
-                      <td>
-                        <div className="imports-review-file">
-                          <span className="cell-primary">{file.title || fileName(file.path)}</span>
-                          <span className="cell-muted" title={file.path}>
-                            {truncateMiddle(file.path, 64)}
-                          </span>
-                        </div>
-                      </td>
-                      <td>{file.authorName || "Unknown author"}</td>
-                      <td>
-                        <Badge tone={mediaFormatTone(file.mediaFormat)}>{file.mediaFormat}</Badge>
-                      </td>
-                      <td>
-                        <Badge tone={importStatusTone(file.importStatus)}>{file.importStatus || "available"}</Badge>
-                      </td>
-                      <td>{formatBytes(file.sizeBytes ?? 0)}</td>
-                      <td>
-                        <span className="cell-muted">{file.extension || "file"}</span>
-                      </td>
-                      <td>
-                        {wantedID ? (
-                          <Link to="/wanted" title={`Bound to wanted item ${wantedID}`}>
-                            <FileCheck2 size={13} aria-hidden /> Wanted
-                          </Link>
-                        ) : (
-                          <span className="cell-muted">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </DataTable>
-            <span className="field-hint imports-table-caption">
-              Showing {visibleFiles.length} of {files.length} tracked files
-              {files.length >= TRACKED_FILE_ROW_CAP ? " (most recent first, capped at 100)" : ""}.
-            </span>
-          </>
-        )}
-      </Card>
+      <FileBrowser model={fileBrowser} />
 
       <Modal
         title="Resolve selected reviews"

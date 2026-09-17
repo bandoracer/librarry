@@ -35,7 +35,7 @@ type Service struct {
 }
 
 type MetadataSearch interface {
-	Search(ctx context.Context, query metadata.Query) ([]metadata.SearchResult, error)
+	AuthorBibliography(ctx context.Context, query metadata.Query) ([]metadata.SearchResult, error)
 }
 
 type ReleaseRestrictionProvider interface {
@@ -93,6 +93,14 @@ func (s *Service) Create(ctx context.Context, request CreateRequest) (WantedItem
 	return s.store.CreateWanted(ctx, request)
 }
 
+// Get retrieves a single tracked book independently of collection limits.
+func (s *Service) Get(ctx context.Context, id string) (WantedItem, error) {
+	if !s.Available() {
+		return WantedItem{}, errors.New("wanted service requires database persistence")
+	}
+	return s.store.GetWanted(ctx, id)
+}
+
 func (s *Service) List(ctx context.Context, status string) ([]WantedItem, error) {
 	if !s.Available() {
 		return []WantedItem{}, nil
@@ -113,11 +121,21 @@ func (s *Service) ListCutoffUnmet(ctx context.Context) ([]WantedItem, error) {
 	if err != nil {
 		return nil, err
 	}
+	ids := make([]string, len(items))
+	for i := range items {
+		ids[i] = items[i].ID
+	}
+	files, err := s.store.WantedFileEvidence(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	profiles, err := s.store.ListQualityProfiles(ctx)
+	if err != nil {
+		return nil, err
+	}
 	unmet := make([]WantedItem, 0, len(items))
 	for _, item := range items {
-		profile := s.qualityProfileForItem(ctx, item)
-		score := s.currentReleaseScore(ctx, item)
-		if cutoffUnmet(profile, score) {
+		if files[item.ID].State == "present" && cutoffUnmet(profileFromList(profiles, item), s.currentReleaseScore(ctx, item)) {
 			unmet = append(unmet, item)
 		}
 	}
@@ -244,48 +262,15 @@ func (s *Service) ApplyMetadataCorrections(ctx context.Context, id string, reque
 }
 
 func (s *Service) ConfirmMetadataReviewCanonical(ctx context.Context, request MetadataReviewConfirmRequest) (MetadataReviewConfirmOutcome, error) {
-	if !s.Available() {
-		return MetadataReviewConfirmOutcome{}, errors.New("wanted service requires database persistence")
-	}
-	queue, err := s.store.WantedMetadataReviewQueue(ctx)
+	var err error
+	request, err = normalizeReviewSelection(request)
 	if err != nil {
 		return MetadataReviewConfirmOutcome{}, err
 	}
-	selected := normalizedMetadataReviewIDSet(request.WantedIDs)
-	if !request.All && len(selected) == 0 {
-		return MetadataReviewConfirmOutcome{}, errors.New("at least one wanted id is required")
+	if !s.Available() {
+		return MetadataReviewConfirmOutcome{}, errors.New("wanted service requires database persistence")
 	}
-	outcome := MetadataReviewConfirmOutcome{
-		Status:      "ok",
-		Items:       []MetadataProvenance{},
-		GeneratedAt: time.Now().UTC(),
-	}
-	for _, item := range queue.Items {
-		wantedID := strings.TrimSpace(item.WantedItem.ID)
-		if wantedID == "" {
-			outcome.SkippedItems++
-			continue
-		}
-		if !request.All && !selected[wantedID] {
-			continue
-		}
-		corrections := metadataReviewCanonicalCorrections(item)
-		if len(corrections) == 0 {
-			outcome.SkippedItems++
-			continue
-		}
-		provenance, err := s.store.ApplyWantedMetadataCorrections(ctx, wantedID, MetadataCorrectionBatchRequest{Corrections: corrections})
-		if err != nil {
-			return MetadataReviewConfirmOutcome{}, err
-		}
-		outcome.ItemsReviewed++
-		outcome.FieldsConfirmed += len(corrections)
-		outcome.Items = append(outcome.Items, provenance)
-	}
-	if outcome.ItemsReviewed == 0 && outcome.SkippedItems == 0 {
-		outcome.Status = "empty"
-	}
-	return outcome, nil
+	return s.store.ConfirmMetadataReviewCanonical(ctx, request)
 }
 
 func (s *Service) ListQualityProfiles(ctx context.Context) ([]QualityProfile, error) {
@@ -441,10 +426,6 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 	if limit <= 0 || limit > 200 {
 		limit = defaultWantedMonitorLimit
 	}
-	searchLimit := request.SearchLimit
-	if searchLimit <= 0 || searchLimit > 50 {
-		searchLimit = defaultWantedMonitorSearchLimit
-	}
 	minSyncInterval := defaultAuthorSyncInterval
 	if request.MinSyncIntervalMinutes > 0 {
 		minSyncInterval = time.Duration(request.MinSyncIntervalMinutes) * time.Minute
@@ -471,19 +452,18 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 
 		result := AuthorMonitorItemResult{Subscription: subscription}
-		// Effective add-filters: the referenced metadata profile wins over the
-		// per-author override columns when set; lookup failures fall back to
-		// the stored overrides and count as run errors.
-		effective, filterErr := s.resolveAuthorSubscriptionFilters(ctx, subscription)
-		if filterErr != nil {
-			result.Error = filterErr.Error()
-			run.ErrorCount++
+		if err := s.store.markWorkerChecked(ctx, subscription.ID, "author"); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				result.Error = err.Error()
+				run.ErrorCount++
+				run.Items = append(run.Items, result)
+			}
+			continue
 		}
-		results, err := s.metadata.Search(ctx, metadata.Query{
+		results, err := s.metadata.AuthorBibliography(ctx, metadata.Query{
 			Query:       subscription.AuthorName,
 			Type:        metadata.SearchTypeAuthorWorks,
 			Format:      metadata.MediaFormat(subscription.Format),
-			Limit:       searchLimit,
 			ProviderKey: subscription.ProviderKey,
 		})
 		run.AuthorsChecked++
@@ -493,19 +473,80 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 			run.Items = append(run.Items, result)
 			continue
 		}
+		// Provider IO may take minutes. Re-read the owner configuration before
+		// using its results, including stops/removals and referenced profiles.
+		current, err := s.store.GetAuthorSubscription(ctx, subscription.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			current = subscription
+			current.Status = "removed"
+			current.MonitorNewItems = false
+		} else if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		subscription = current
+		result.Subscription = subscription
+		if subscription.Status != "monitored" || !subscription.MonitorNewItems || subscription.MissingBookPolicy == "none" {
+			result.ResultsFound = len(results)
+			result.SkippedCount = len(results)
+			run.ItemsFound += len(results)
+			for _, candidate := range results {
+				if len(result.SkippedItems) >= defaultAuthorSkippedItemsLimit {
+					break
+				}
+				result.SkippedItems = append(result.SkippedItems, AuthorSkippedItem{Result: candidate, Policy: subscription.MissingBookPolicy, Reason: "author monitoring stopped while the bibliography was loading"})
+			}
+			run.Items = append(run.Items, result)
+			continue
+		}
+		effective, filterErr := s.resolveAuthorSubscriptionFilters(ctx, subscription)
+		if filterErr != nil {
+			result.Error = filterErr.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		// Include exclusions changed while the bibliography was loading.
+		exclusions, err := s.store.authorExclusionSnapshot(ctx, []AuthorSubscription{subscription})
+		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+
 		matched := make([]metadata.SearchResult, 0, len(results))
 		for _, candidate := range results {
 			if authorResultMatchesSubscription(subscription, candidate) {
 				matched = append(matched, candidate)
 			}
 		}
-		policyCtx, policyErr := s.authorPolicyContext(ctx, subscription, matched, time.Now().UTC())
+		policyCandidates := make([]metadata.SearchResult, 0, len(matched))
+		for _, candidate := range matched {
+			if exclusions.reason(subscription, candidate) == "" && authorResultFilterReason(effective, candidate) == "" {
+				policyCandidates = append(policyCandidates, candidate)
+			}
+		}
+		policyCtx, policyErr := s.authorPolicyContext(ctx, subscription, policyCandidates, time.Now().UTC())
 		if policyErr != nil {
 			result.Error = policyErr.Error()
 			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
 		}
 		for _, candidate := range matched {
 			result.ResultsFound++
+			// Saved exclusions/ignored reviews are owner decisions, not provider
+			// suggestions. They cannot be bypassed by a new policy or edition.
+			if reason := exclusions.reason(subscription, candidate); reason != "" {
+				result.SkippedCount++
+				if len(result.SkippedItems) < defaultAuthorSkippedItemsLimit {
+					result.SkippedItems = append(result.SkippedItems, AuthorSkippedItem{Result: candidate, Policy: subscription.MissingBookPolicy, Reason: reason})
+				}
+				continue
+			}
 			// Add-filters (language allowlist, must-not-contain, ISBN, page
 			// count) run before the missing-book policy; both paths land in
 			// the review queue as skipped entries with explicit reasons.
@@ -538,14 +579,20 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 				continue
 			}
 			item, err := s.store.CreateWanted(ctx, CreateRequest{
-				Result:         candidate,
-				Format:         subscription.Format,
-				QualityProfile: subscription.QualityProfile,
-				Tags:           subscription.Tags,
+				OnlyIfUntracked: true,
+				RootFolderID:    subscription.RootFolderID,
+				Result:          candidate,
+				Format:          subscription.Format,
+				QualityProfile:  subscription.QualityProfile,
+				Tags:            subscription.Tags,
 			})
 			if err != nil {
 				result.Error = err.Error()
 				run.ErrorCount++
+				continue
+			}
+			if item.alreadyTracked {
+				result.SkippedCount++
 				continue
 			}
 			result.WantedItems = append(result.WantedItems, item)
@@ -553,9 +600,15 @@ func (s *Service) MonitorAuthors(ctx context.Context, request AuthorMonitorReque
 		}
 		run.ItemsFound += result.ResultsFound
 		run.WantedCreated += result.WantedCreated
-		if err := s.store.MarkAuthorSubscriptionSynced(ctx, subscription.ID); err != nil {
+		if result.Error != "" {
+			run.Items = append(run.Items, result)
+			continue
+		}
+		if err := s.store.MarkAuthorSubscriptionSynced(ctx, subscription.ID, subscription.UpdatedAt); err != nil {
 			result.Error = err.Error()
 			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
 		}
 		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
 			EventType:  "author_subscription_synced",
@@ -596,61 +649,7 @@ func (s *Service) ResolveAuthorMetadataReview(ctx context.Context, id string, re
 	if !s.Available() {
 		return AuthorMetadataReviewDecision{}, errors.New("wanted service requires database persistence")
 	}
-	review, err := s.store.GetAuthorMetadataReview(ctx, id)
-	if err != nil {
-		return AuthorMetadataReviewDecision{}, err
-	}
-	if strings.TrimSpace(review.Status) != "pending" {
-		return AuthorMetadataReviewDecision{}, errors.New("author metadata review is already resolved")
-	}
-	switch strings.ToLower(strings.TrimSpace(request.Action)) {
-	case "wanted", "mark_wanted", "mark-wanted":
-		item, err := s.store.CreateWanted(ctx, CreateRequest{
-			Result:         review.Result,
-			Format:         review.Format,
-			QualityProfile: review.QualityProfile,
-			Tags:           review.Tags,
-		})
-		if err != nil {
-			return AuthorMetadataReviewDecision{}, err
-		}
-		resolved, err := s.store.ResolveAuthorMetadataReview(ctx, review.ID, "wanted", "wanted", item.ID)
-		if err != nil {
-			return AuthorMetadataReviewDecision{}, err
-		}
-		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-			EventType:  "author_metadata_review_wanted",
-			EntityType: "wanted_item",
-			EntityID:   item.ID,
-			Severity:   "info",
-			Message:    "Marked author metadata candidate wanted for " + item.Title,
-			Data: map[string]any{
-				"reviewId": resolved.ID,
-				"policy":   resolved.Policy,
-				"reason":   resolved.Reason,
-			},
-		})
-		return AuthorMetadataReviewDecision{Review: resolved, WantedItem: &item}, nil
-	case "ignore", "ignored", "skip":
-		resolved, err := s.store.ResolveAuthorMetadataReview(ctx, review.ID, "ignored", "ignored", "")
-		if err != nil {
-			return AuthorMetadataReviewDecision{}, err
-		}
-		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-			EventType:  "author_metadata_review_ignored",
-			EntityType: "author_metadata_review",
-			EntityID:   resolved.ID,
-			Severity:   "info",
-			Message:    "Ignored author metadata candidate for " + resolved.Title,
-			Data: map[string]any{
-				"policy": resolved.Policy,
-				"reason": resolved.Reason,
-			},
-		})
-		return AuthorMetadataReviewDecision{Review: resolved}, nil
-	default:
-		return AuthorMetadataReviewDecision{}, errors.New("author metadata review action must be wanted or ignore")
-	}
+	return s.store.ResolveAuthorReview(ctx, id, request)
 }
 
 func (s *Service) SearchReleases(ctx context.Context, wantedID string, request SearchReleasesRequest) (SearchOutcome, error) {
@@ -695,12 +694,20 @@ func (s *Service) searchReleasesForItem(ctx context.Context, item WantedItem, re
 		}
 		return decisions[i].Score > decisions[j].Score
 	})
-	stored, err := s.store.UpsertReleaseDecisions(ctx, item.ID, decisions)
+	stored, err := s.store.upsertReleaseDecisions(ctx, item.ID, decisions, true, &item.UpdatedAt)
 	if err != nil {
 		return SearchOutcome{}, err
 	}
-	item, _ = s.store.GetWanted(ctx, item.ID)
-	return SearchOutcome{WantedItem: item, Releases: stored}, nil
+	current, err := s.store.GetWanted(ctx, item.ID)
+	if err != nil {
+		return SearchOutcome{}, err
+	}
+	// The injected default language is a query input, not an owner override.
+	comparison := wantedItemWithDefaultSearchLanguage(current, language)
+	if !sameWantedAcquisitionSettings(comparison, item) {
+		return SearchOutcome{}, errors.New("book settings changed during release search; search again")
+	}
+	return SearchOutcome{WantedItem: current, Releases: stored}, nil
 }
 
 func releaseSearchQueryForWanted(item WantedItem, limit int) acquisition.ReleaseSearchQuery {
@@ -833,30 +840,41 @@ func (s *Service) AcquisitionQueue(ctx context.Context, query AcquisitionQueueQu
 	if strings.EqualFold(status, "all") {
 		status = ""
 	}
-	items, err := s.store.ListWanted(ctx, status)
-	if err != nil {
-		return AcquisitionQueue{}, err
-	}
 	limit := query.Limit
 	if limit <= 0 || limit > 200 {
 		limit = 200
 	}
-	if len(items) > limit {
-		items = items[:limit]
+	items, err := s.store.acquisitionPreview(ctx, status, limit)
+	if err != nil {
+		return AcquisitionQueue{}, err
 	}
 
 	downloadsByWanted := map[string][]acquisition.DownloadStatus{}
+	evidence := "notConfigured"
 	if s.acquire != nil {
-		downloads, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"})
-		if err == nil {
-			downloadsByWanted = groupDownloadsByWantedID(downloads)
+		if _, ok := s.acquire.(liveDownloadEvidenceSource); ok {
+			snapshot := s.liveBookDownloads(ctx)
+			evidence = snapshot.Status
+			downloadsByWanted = groupDownloadsByWantedID(snapshot.Downloads)
+		} else {
+			evidence = "unavailable"
+			snapshot, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"})
+			if err == nil {
+				evidence = "fresh"
+				downloadsByWanted = groupDownloadsByWantedID(snapshot)
+			}
 		}
 	}
-
-	queue := AcquisitionQueue{
-		Items:       make([]AcquisitionQueueItem, 0, len(items)),
-		GeneratedAt: time.Now().UTC(),
+	switch evidence {
+	case "fresh", "notConfigured", "partial", "unavailable":
+	default:
+		evidence = "unavailable"
 	}
+	summary, err := s.store.acquisitionSummary(ctx, status, downloadsByWanted, evidence)
+	if err != nil {
+		return AcquisitionQueue{}, err
+	}
+	queue := AcquisitionQueue{Items: make([]AcquisitionQueueItem, 0, len(items)), Summary: summary, GeneratedAt: time.Now().UTC(), Downloads: evidence, PreviewLimit: limit}
 	for _, item := range items {
 		if item.Status == "removed" || item.Status == "ignored" {
 			continue
@@ -866,25 +884,13 @@ func (s *Service) AcquisitionQueue(ctx context.Context, query AcquisitionQueueQu
 			return AcquisitionQueue{}, err
 		}
 		row := acquisitionQueueItem(item, releases, downloadsByWanted[item.ID])
-		queue.Items = append(queue.Items, row)
-		queue.Summary.Total++
-		switch row.State {
-		case "needs_search":
-			queue.Summary.NeedsSearch++
-		case "ready_to_grab":
-			queue.Summary.ReadyToGrab++
-		case "queued", "downloading":
-			queue.Summary.Queued++
-		case "import_ready":
-			queue.Summary.ImportReady++
-		case "imported":
-			queue.Summary.Imported++
-		default:
-			if row.State == "blocked" {
-				queue.Summary.Blocked++
-			}
+		if (evidence == "partial" || evidence == "unavailable") && len(row.Downloads) == 0 && item.Status != "imported" {
+			row.State = "unknown"
+			row.NextAction = "Restore download-client visibility"
 		}
+		queue.Items = append(queue.Items, row)
 	}
+
 	return queue, nil
 }
 
@@ -947,34 +953,45 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 		return finished, err
 	}
 
-	// Readarr semantics: a grabbed book with a live download is in flight and
-	// skipped; one whose download vanished is treated as missing and searched
-	// again. When the client is unreachable we cannot tell the difference, so
-	// grabbed candidates are skipped rather than risking a double grab.
-	inFlight := map[string]bool{}
-	clientReachable := false
-	if s.acquire != nil {
-		if downloads, err := s.acquire.Downloads(ctx, acquisition.DownloadListQuery{Tag: "librarry"}); err == nil {
-			clientReachable = true
-			for id := range groupDownloadsByWantedID(downloads) {
-				inFlight[id] = true
-			}
+	evidence, err := s.workerEvidence(ctx, items)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishMonitorRun(ctx, run)
+		if finishErr != nil {
+			return finished, finishErr
 		}
+		return finished, err
 	}
 
 	for _, item := range items {
-		if inFlight[item.ID] || (item.Status == "grabbed" && !clientReachable) {
+		if err := ctx.Err(); err != nil {
+			run.Status = "canceled"
+			run.Message = err.Error()
+			return s.store.FinishMonitorRun(context.Background(), run)
+		}
+		result := MonitorItemResult{WantedItem: item}
+		current, checkErr := s.checkedWorkerItem(ctx, item, "monitor")
+		if checkErr != nil {
+			run.WantedChecked++
+			if errors.Is(checkErr, sql.ErrNoRows) {
+				result.SkippedReason = "book is no longer monitored"
+			} else {
+				result.Error = checkErr.Error()
+				run.ErrorCount++
+			}
+			run.Items = append(run.Items, result)
 			continue
 		}
-		select {
-		case <-ctx.Done():
-			run.Status = "canceled"
-			run.Message = ctx.Err().Error()
-			return s.store.FinishMonitorRun(context.Background(), run)
-		default:
+		item = current
+		result.WantedItem = item
+		if reason := evidence.skipReason(item, false); reason != "" {
+			run.WantedChecked++
+			result.SkippedReason = reason
+			run.Items = append(run.Items, result)
+			continue
 		}
-
-		result := MonitorItemResult{WantedItem: item}
 		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
 		run.WantedChecked++
 		if err != nil {
@@ -1043,7 +1060,9 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 					})
 				} else {
 					result.GrabbedDownload = &status
-					run.GrabbedCount++
+					if !status.Deduplicated {
+						run.GrabbedCount++
+					}
 				}
 			}
 		}
@@ -1057,6 +1076,15 @@ func (s *Service) Monitor(ctx context.Context, request MonitorRequest) (MonitorR
 		run.Status = "completed"
 	}
 	run.Message = monitorMessage(run)
+	reasons := []string{}
+	for _, item := range run.Items {
+		if item.SkippedReason != "" {
+			reasons = append(reasons, item.SkippedReason)
+		}
+	}
+	if len(reasons) > 0 {
+		run.Message += fmt.Sprintf("; skipped %d (%s)", len(reasons), reasons[0])
+	}
 	return s.store.FinishMonitorRun(ctx, run)
 }
 
@@ -1103,87 +1131,122 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 		return finished, err
 	}
 
-	items, err := s.store.ListWanted(ctx, "wanted")
-	if err != nil {
-		run.Status = "failed"
-		run.ErrorCount = 1
-		run.Message = err.Error()
-		finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
-		if finishErr != nil {
-			return FeedSyncRun{}, finishErr
+	after := ""
+	for {
+		if err := ctx.Err(); err != nil {
+			run.Status = "canceled"
+			run.Message = err.Error()
+			return s.store.FinishFeedSyncRun(context.Background(), run)
 		}
-		return finished, err
-	}
-
-	grabbedWanted := map[string]bool{}
-	for _, item := range items {
-		if !formatMatchesRequest(request.Format, item.Format) {
-			continue
-		}
-		options, err := s.releaseEvaluationOptions(ctx, item)
+		items, err := s.store.listFeedWantedPage(ctx, after, request.Format)
 		if err != nil {
+			run.Status = "failed"
 			run.ErrorCount++
-			run.Matches = append(run.Matches, FeedSyncMatch{WantedItem: item, Error: err.Error()})
-			continue
+			run.Message = err.Error()
+			finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+			if finishErr != nil {
+				return finished, finishErr
+			}
+			return finished, err
 		}
-		var decisions []ReleaseDecision
-		for _, release := range releases {
-			if !feedReleaseMatchesWanted(item, release) {
+		if len(items) == 0 {
+			break
+		}
+		evidence, err := s.workerEvidence(ctx, items)
+		if err != nil {
+			run.Status = "failed"
+			run.ErrorCount++
+			run.Message = err.Error()
+			finished, finishErr := s.store.FinishFeedSyncRun(ctx, run)
+			if finishErr != nil {
+				return finished, finishErr
+			}
+			return finished, err
+		}
+		grabbedWanted := map[string]bool{}
+		for _, item := range items {
+			if !formatMatchesRequest(request.Format, item.Format) {
 				continue
 			}
-			decisions = append(decisions, evaluateReleaseWithOptions(item, release, options))
-		}
-		if len(decisions) == 0 {
-			continue
-		}
-		sort.SliceStable(decisions, func(i, j int) bool {
-			if decisions[i].Approved != decisions[j].Approved {
-				return decisions[i].Approved
-			}
-			if decisions[i].Score == decisions[j].Score {
-				return decisions[i].Seeders > decisions[j].Seeders
-			}
-			return decisions[i].Score > decisions[j].Score
-		})
-		stored, err := s.store.UpsertReleaseDecisions(ctx, item.ID, decisions)
-		if err != nil {
-			run.ErrorCount++
-			run.Matches = append(run.Matches, FeedSyncMatch{WantedItem: item, Error: err.Error()})
-			continue
-		}
-		for _, decision := range stored {
-			match := FeedSyncMatch{WantedItem: item, Release: decision}
-			run.MatchedCount++
-			if decision.Approved {
-				run.ApprovedCount++
-			} else {
-				run.RejectedCount++
-			}
-			if request.AutoGrab && decision.Approved && !grabbedWanted[item.ID] {
-				status, err := s.grabRelease(ctx, item, decision, request.Paused, "", "feed", false)
-				if err != nil {
-					match.Error = err.Error()
-					run.ErrorCount++
-					_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-						EventType:  "feed_grab_failed",
-						EntityType: "wanted_item",
-						EntityID:   item.ID,
-						Severity:   "error",
-						Message:    "Feed grab failed for " + item.Title,
-						Data: map[string]any{
-							"error":     err.Error(),
-							"releaseId": decision.ID,
-							"title":     decision.Title,
-						},
-					})
-				} else {
-					grabbedWanted[item.ID] = true
-					match.GrabbedDownload = &status
-					run.GrabbedCount++
+			matching := []acquisition.Release{}
+			for _, release := range releases {
+				if feedReleaseMatchesWanted(item, release) {
+					matching = append(matching, release)
 				}
 			}
-			run.Matches = append(run.Matches, match)
+			if len(matching) == 0 {
+				continue
+			}
+			if reason := evidence.skipReason(item, false); reason != "" {
+				appendFeedMatch(&run, FeedSyncMatch{WantedItem: item, SkippedReason: reason})
+				continue
+			}
+			options, err := s.releaseEvaluationOptions(ctx, item)
+			if err != nil {
+				run.ErrorCount++
+				appendFeedMatch(&run, FeedSyncMatch{WantedItem: item, Error: err.Error()})
+				continue
+			}
+			var decisions []ReleaseDecision
+			for _, release := range matching {
+				decisions = append(decisions, evaluateReleaseWithOptions(item, release, options))
+			}
+			if len(decisions) == 0 {
+				continue
+			}
+			sort.SliceStable(decisions, func(i, j int) bool {
+				if decisions[i].Approved != decisions[j].Approved {
+					return decisions[i].Approved
+				}
+				if decisions[i].Score == decisions[j].Score {
+					return decisions[i].Seeders > decisions[j].Seeders
+				}
+				return decisions[i].Score > decisions[j].Score
+			})
+			stored, err := s.store.upsertReleaseDecisions(ctx, item.ID, decisions, false, nil)
+			if err != nil {
+				run.ErrorCount++
+				appendFeedMatch(&run, FeedSyncMatch{WantedItem: item, Error: err.Error()})
+				continue
+			}
+			for _, decision := range stored {
+				match := FeedSyncMatch{WantedItem: item, Release: decision}
+				run.MatchedCount++
+				if decision.Approved {
+					run.ApprovedCount++
+				} else {
+					run.RejectedCount++
+				}
+				if request.AutoGrab && decision.Approved && !grabbedWanted[item.ID] {
+					status, err := s.grabRelease(ctx, item, decision, request.Paused, "", "feed", false)
+					if err != nil {
+						match.Error = err.Error()
+						run.ErrorCount++
+						_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
+							EventType:  "feed_grab_failed",
+							EntityType: "wanted_item",
+							EntityID:   item.ID,
+							Severity:   "error",
+							Message:    "Feed grab failed for " + item.Title,
+							Data: map[string]any{
+								"error":     err.Error(),
+								"releaseId": decision.ID,
+								"title":     decision.Title,
+							},
+						})
+					} else {
+						grabbedWanted[item.ID] = true
+						match.GrabbedDownload = &status
+						if !status.Deduplicated {
+							run.GrabbedCount++
+						}
+					}
+				}
+				appendFeedMatch(&run, match)
+			}
 		}
+
+		after = items[len(items)-1].ID
 	}
 
 	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
@@ -1206,6 +1269,9 @@ func (s *Service) FeedSync(ctx context.Context, request FeedSyncRequest) (FeedSy
 		run.Status = "completed"
 	}
 	run.Message = feedSyncMessage(run)
+	if run.MatchesTruncated {
+		run.Message += "; showing the first 1,000 match details; counters include all evaluated matches"
+	}
 	return s.store.FinishFeedSyncRun(ctx, run)
 }
 
@@ -1270,7 +1336,7 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 
 		result := FailedDownloadResult{Download: download, FailureReason: reason}
 		run.FailedCount++
-		if err := s.acquire.MarkDownloadFailed(ctx, download.ID, reason); err != nil {
+		if err := s.acquire.MarkDownloadFailed(acquisition.WithDownloadClient(ctx, download.Client), download.ID, reason); err != nil {
 			result.Error = err.Error()
 			run.ErrorCount++
 			run.Items = append(run.Items, result)
@@ -1354,8 +1420,10 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 					})
 				} else {
 					result.ReplacementDownload = &status
-					run.GrabbedCount++
-					_ = s.acquire.MarkDownloadReplacement(ctx, download.ID, status.ID)
+					if !status.Deduplicated {
+						run.GrabbedCount++
+					}
+					_ = s.acquire.MarkDownloadReplacement(acquisition.WithDownloadClient(ctx, download.Client), download.ID, status.ID)
 				}
 			}
 		}
@@ -1412,13 +1480,9 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		return UpgradeRun{}, errors.New("acquisition service is unavailable")
 	}
 
-	run, err := s.store.StartUpgradeRun(ctx, request.Trigger)
+	request, err := NormalizeUpgradeRequest(request)
 	if err != nil {
 		return UpgradeRun{}, err
-	}
-	limit := request.Limit
-	if limit <= 0 || limit > 200 {
-		limit = defaultWantedMonitorLimit
 	}
 	searchLimit := request.SearchLimit
 	if searchLimit <= 0 || searchLimit > 50 {
@@ -1429,7 +1493,21 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		minSearchInterval = time.Duration(request.MinSearchIntervalMinutes) * time.Minute
 	}
 
-	items, err := s.store.ListUpgradeWanted(ctx, request.WantedIDs, limit, minSearchInterval, request.Force)
+	var items []WantedItem
+	var selectionSkips map[string]string
+	if len(request.WantedIDs) > 0 {
+		items, selectionSkips, err = s.store.selectedUpgradeBooks(ctx, request.WantedIDs, minSearchInterval, request.Force)
+		if err != nil {
+			return UpgradeRun{}, err
+		}
+	}
+	run, err := s.store.StartUpgradeRun(ctx, request.Trigger)
+	if err != nil {
+		return UpgradeRun{}, err
+	}
+	if len(request.WantedIDs) == 0 {
+		items, err = s.store.ListUpgradeWanted(ctx, nil, request.Limit, minSearchInterval, request.Force)
+	}
 	if err != nil {
 		run.Status = "failed"
 		run.ErrorCount = 1
@@ -1441,6 +1519,28 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		return finished, err
 	}
 
+	evidence, err := s.workerEvidence(ctx, items)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount = 1
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishUpgradeRun(ctx, run)
+		if finishErr != nil {
+			return finished, finishErr
+		}
+		return finished, err
+	}
+	profiles, err := s.store.ListQualityProfiles(ctx)
+	if err != nil {
+		run.Status = "failed"
+		run.ErrorCount++
+		run.Message = err.Error()
+		finished, finishErr := s.store.FinishUpgradeRun(ctx, run)
+		if finishErr != nil {
+			return finished, finishErr
+		}
+		return finished, err
+	}
 	for _, item := range items {
 		select {
 		case <-ctx.Done():
@@ -1450,7 +1550,31 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		default:
 		}
 
-		profile := s.qualityProfileForItem(ctx, item)
+		if reason := selectionSkips[item.ID]; reason != "" {
+			run.WantedChecked++
+			run.Items = append(run.Items, UpgradeItemResult{WantedItem: item, SkippedReason: reason})
+			continue
+		}
+		current, checkErr := s.checkedWorkerItem(ctx, item, "upgrade")
+		if checkErr != nil {
+			result := UpgradeItemResult{WantedItem: item}
+			run.WantedChecked++
+			if errors.Is(checkErr, sql.ErrNoRows) {
+				result.SkippedReason = "book is no longer monitored"
+			} else {
+				result.Error = checkErr.Error()
+				run.ErrorCount++
+			}
+			run.Items = append(run.Items, result)
+			continue
+		}
+		item = current
+		if reason := evidence.skipReason(item, true); reason != "" {
+			run.WantedChecked++
+			run.Items = append(run.Items, UpgradeItemResult{WantedItem: item, SkippedReason: reason})
+			continue
+		}
+		profile := profileFromList(profiles, item)
 		currentScore := s.currentReleaseScore(ctx, item)
 		cutoff := profile.CutoffCompositeScore()
 		result := UpgradeItemResult{
@@ -1458,16 +1582,21 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 			CurrentScore: currentScore,
 			CutoffScore:  cutoff,
 		}
-		if !profile.UpgradeAllowed {
+		if !cutoffUnmet(profile, currentScore) {
 			run.WantedChecked++
-			_ = s.store.MarkWantedUpgradeSearched(ctx, item.ID)
+			result.SkippedReason = "quality profile does not need an upgrade"
 			run.Items = append(run.Items, result)
 			continue
 		}
 		outcome, err := s.searchReleasesForItem(ctx, item, SearchReleasesRequest{Limit: searchLimit})
 		run.WantedChecked++
-		_ = s.store.MarkWantedUpgradeSearched(ctx, item.ID)
 		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
+		if err := s.store.MarkWantedUpgradeSearched(ctx, item.ID); err != nil {
 			result.Error = err.Error()
 			run.ErrorCount++
 			run.Items = append(run.Items, result)
@@ -1504,7 +1633,7 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 				},
 			})
 			if request.AutoGrab {
-				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "upgrade", false)
+				status, err := s.grabRelease(ctx, outcome.WantedItem, release, request.Paused, "", "upgrade", false, acquisition.AcquisitionSelection{CurrentScore: &currentScore, CutoffScore: &cutoff})
 				if err != nil {
 					result.Error = err.Error()
 					run.ErrorCount++
@@ -1522,7 +1651,9 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 					})
 				} else {
 					result.GrabbedDownload = &status
-					run.GrabbedCount++
+					if !status.Deduplicated {
+						run.GrabbedCount++
+					}
 				}
 			}
 		}
@@ -1549,6 +1680,15 @@ func (s *Service) SearchUpgrades(ctx context.Context, request UpgradeRequest) (U
 		run.Status = "completed"
 	}
 	run.Message = upgradeMessage(run)
+	reasons := []string{}
+	for _, item := range run.Items {
+		if item.SkippedReason != "" {
+			reasons = append(reasons, item.SkippedReason)
+		}
+	}
+	if len(reasons) > 0 {
+		run.Message += fmt.Sprintf("; skipped %d (%s)", len(reasons), reasons[0])
+	}
 	return s.store.FinishUpgradeRun(ctx, run)
 }
 
@@ -1559,8 +1699,20 @@ func (s *Service) History(ctx context.Context, query HistoryQuery) ([]HistoryEve
 	return s.store.ListHistory(ctx, query)
 }
 
-func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string, forced bool) (acquisition.DownloadStatus, error) {
+func (s *Service) grabRelease(ctx context.Context, item WantedItem, release ReleaseDecision, paused bool, client string, trigger string, forced bool, details ...acquisition.AcquisitionSelection) (acquisition.DownloadStatus, error) {
+	if trigger != "manual" {
+		if err := s.validateAutomaticGrab(ctx, item, release, trigger); err != nil {
+			return acquisition.DownloadStatus{}, err
+		}
+	}
+
+	selection := &acquisition.AcquisitionSelection{ReleaseID: release.ID, Trigger: trigger, Forced: forced, Paused: paused}
+	if len(details) > 0 {
+		selection.CurrentScore = details[0].CurrentScore
+		selection.CutoffScore = details[0].CutoffScore
+	}
 	status, err := s.acquire.Grab(ctx, acquisition.DownloadRequest{
+		Selection:  selection,
 		Client:     client,
 		ReleaseURL: release.DownloadURL,
 		InfoHash:   release.InfoHash,
@@ -1574,37 +1726,9 @@ func (s *Service) grabRelease(ctx context.Context, item WantedItem, release Rele
 	if err != nil {
 		return acquisition.DownloadStatus{}, err
 	}
-	if err := s.store.MarkWantedStatus(ctx, item.ID, "grabbed"); err != nil {
-		return status, err
-	}
-	if err := s.store.MarkWantedCurrentRelease(ctx, item.ID, release); err != nil {
-		return status, err
-	}
-	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
-		EventType:  "release_grabbed",
-		EntityType: "wanted_item",
-		EntityID:   item.ID,
-		Severity:   "info",
-		Message:    grabHistoryMessage(item, forced),
-		Data: map[string]any{
-			"trigger":        trigger,
-			"releaseId":      release.ID,
-			"sourceId":       release.SourceID,
-			"downloadId":     status.ID,
-			"title":          release.Title,
-			"paused":         paused,
-			"forced":         forced,
-			"rejectedReason": release.RejectedReason,
-		},
-	})
+	// Persistent acquisition receipts own status/history repair. A grab does not
+	// change the installed release; native import commits that projection.
 	return status, nil
-}
-
-func grabHistoryMessage(item WantedItem, forced bool) string {
-	if forced {
-		return "Force grabbed manually selected release for " + item.Title
-	}
-	return "Grabbed approved release for " + item.Title
 }
 
 func (s *Service) pickRelease(ctx context.Context, wantedID string, releaseID string) (ReleaseDecision, error) {
@@ -1817,25 +1941,13 @@ func firstApprovedReplacement(releases []ReleaseDecision, failed acquisition.Dow
 	return ReleaseDecision{}, false
 }
 
-func (s *Service) currentReleaseScore(ctx context.Context, item WantedItem) float64 {
-	if item.CurrentReleaseScore > 0 {
-		return item.CurrentReleaseScore
-	}
-	releases, err := s.store.ListReleaseDecisions(ctx, item.ID)
-	if err != nil {
+func (s *Service) currentReleaseScore(_ context.Context, item WantedItem) float64 {
+	// Zero is a valid saved score. Fresh search results cannot establish the
+	// quality of installed files or rewrite the decision captured at acquisition.
+	if item.CurrentReleaseID == "" {
 		return 0
 	}
-	for _, release := range releases {
-		if item.CurrentReleaseID != "" && release.ID == item.CurrentReleaseID {
-			return release.Score
-		}
-	}
-	for _, release := range releases {
-		if release.Approved {
-			return release.Score
-		}
-	}
-	return 0
+	return item.CurrentReleaseScore
 }
 
 func (s *Service) qualityProfileForItem(ctx context.Context, item WantedItem) QualityProfile {
@@ -1908,6 +2020,7 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 	missingBookPolicy := normalizeAuthorMissingBookPolicy(request.MissingBookPolicy, monitorNewItems)
 	monitorNewItems = missingBookPolicy != "none"
 	return AuthorSubscription{
+		RootFolderID:      strings.TrimSpace(request.RootFolderID),
 		Provider:          provider,
 		ProviderKey:       providerKey,
 		AuthorName:        authorName,
@@ -1926,21 +2039,15 @@ func authorSubscriptionFromRequest(request AuthorSubscribeRequest) AuthorSubscri
 }
 
 func authorResultMatchesSubscription(subscription AuthorSubscription, result metadata.SearchResult) bool {
-	if len(result.Work.Authors) == 0 {
+	key := metadata.CanonicalAuthorKey(subscription.ProviderKey)
+	if key == "" {
 		return false
 	}
-	subscriptionKey := strings.TrimSpace(subscription.ProviderKey)
-	subscriptionName := normalizeText(subscription.AuthorName)
 	for _, author := range result.Work.Authors {
-		if subscriptionKey != "" && strings.EqualFold(subscriptionKey, strings.TrimSpace(author.ID)) {
-			return true
-		}
-		authorName := normalizeText(author.Name)
-		if authorName == "" || subscriptionName == "" {
-			continue
-		}
-		if authorName == subscriptionName || strings.Contains(authorName, subscriptionName) || strings.Contains(subscriptionName, authorName) {
-			return true
+		for _, candidate := range append([]string{author.ID}, author.ProviderIDs...) {
+			if metadata.CanonicalAuthorKey(candidate) == key {
+				return true
+			}
 		}
 	}
 	return false
@@ -1948,6 +2055,7 @@ func authorResultMatchesSubscription(subscription AuthorSubscription, result met
 
 func authorMetadataReviewFromSkipped(subscription AuthorSubscription, result metadata.SearchResult, reason string) AuthorMetadataReview {
 	return AuthorMetadataReview{
+		RootFolderID:         subscription.RootFolderID,
 		AuthorSubscriptionID: subscription.ID,
 		Provider:             result.Provider,
 		CandidateKey:         authorMetadataReviewCandidateKey(result),
@@ -1969,7 +2077,7 @@ type publicationDate struct {
 }
 
 func resultPublicationDate(result metadata.SearchResult) (publicationDate, bool) {
-	if published, ok := parsePublicationDate(result.Edition.PublishedDate); ok {
+	if published, ok := parsePublicationDate(result.Work.FirstPublishDate); ok {
 		return published, true
 	}
 	if result.Work.FirstPublishYear > 0 {
@@ -1977,6 +2085,9 @@ func resultPublicationDate(result metadata.SearchResult) (publicationDate, bool)
 			Time:      time.Date(result.Work.FirstPublishYear, 1, 1, 0, 0, 0, 0, time.UTC),
 			Precision: "year",
 		}, true
+	}
+	if published, ok := parsePublicationDate(result.Edition.PublishedDate); ok {
+		return published, true
 	}
 	return publicationDate{}, false
 }
@@ -2033,7 +2144,7 @@ func authorMonitorMessage(run AuthorMonitorRun) string {
 
 func upgradeMessage(run UpgradeRun) string {
 	if run.WantedChecked == 0 {
-		return strings.TrimSpace(run.Status) + ": no grabbed or imported wanted items due for upgrade search"
+		return strings.TrimSpace(run.Status) + ": no monitored books due for upgrade checks"
 	}
 	return fmt.Sprintf(
 		"%s: checked %d wanted items, found %d releases, upgrades %d, grabbed %d, errors %d",

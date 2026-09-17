@@ -32,12 +32,10 @@ import {
 import { useToast } from "../../components/toast";
 import {
   keys,
-  useAuthorSubscriptions,
   useInvalidatingMutation,
-  useLibraryFiles,
   useLibrarySettings,
   useQualityProfiles,
-  useWanted
+  useBookCollection
 } from "../../lib/queries";
 import {
   bulkUpdateWanted,
@@ -55,21 +53,16 @@ import { navItems } from "../../app/nav";
 import { RenameFilesModal } from "../settings/RenameFilesModal";
 import { AuthorsTab } from "./AuthorsTab";
 import {
-  buildLibraryAuthorRows,
-  compareLibraryBooks,
   isPersistenceRequiredError,
-  libraryAuthorPath,
-  libraryBookMatchesMonitorFilter,
+  libraryWantedAuthorPath,
   libraryBookOverviewLine,
   libraryBookPath,
-  libraryBookVisibleForFilter,
   libraryErrorMessage,
   librarySortLabels,
   loadLibraryViewMode,
   presenceLabel,
   presenceTone,
   storeLibraryViewMode,
-  summarizeWantedItems,
   wantedPresenceMap,
   type LibraryFormatFilter,
   type LibraryMonitorFilter,
@@ -78,9 +71,8 @@ import {
 } from "./lib";
 import "./library.css";
 
-const BOOK_ROW_CAP = 80;
 
-const subtitle = navItems.find((item) => item.id === "library")?.subtitle ?? "Monitored authors and books";
+const subtitle = navItems.find((item) => item.id === "library")?.subtitle ?? "Books and authors";
 
 const formatOptions: { value: LibraryFormatFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -111,9 +103,6 @@ export default function LibraryPage() {
 
   const tab: "books" | "authors" = location.pathname.endsWith("/authors") ? "authors" : "books";
 
-  const wanted = useWanted();
-  const files = useLibraryFiles("any");
-  const subscriptions = useAuthorSubscriptions();
   const librarySettings = useLibrarySettings();
   const profiles = useQualityProfiles();
 
@@ -122,7 +111,6 @@ export default function LibraryPage() {
   const [monitorFilter, setMonitorFilter] = useState<LibraryMonitorFilter>("all");
   const [sortMode, setSortMode] = useState<LibrarySortMode>("status");
   const [viewMode, setViewMode] = useState<LibraryViewMode>(() => loadLibraryViewMode());
-  const [showAllBooks, setShowAllBooks] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -133,42 +121,31 @@ export default function LibraryPage() {
   const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
   const [bulkFailures, setBulkFailures] = useState<WantedBulkItemResult[]>([]);
 
-  const wantedItems = useMemo(() => wanted.data ?? [], [wanted.data]);
-  const libraryFiles = useMemo(() => files.data ?? [], [files.data]);
-  const authorSubscriptions = useMemo(() => subscriptions.data ?? [], [subscriptions.data]);
+  const [debouncedText, setDebouncedText] = useState(textFilter);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedText(textFilter), 250);
+    return () => window.clearTimeout(timer);
+  }, [textFilter]);
+  const filterKey = JSON.stringify([debouncedText, formatFilter, monitorFilter, sortMode]);
+  const [pagination, setPagination] = useState<{ key: string; cursors: string[] }>({ key: "", cursors: [""] });
+  const cursors = pagination.key === filterKey ? pagination.cursors : [""];
+  const cursor = cursors[cursors.length - 1];
+  const wanted = useBookCollection({ q: debouncedText, format: formatFilter, monitor: monitorFilter, sort: sortMode, cursor, limit: 100 }, tab === "books");
+  const wantedItems = useMemo(() => wanted.data?.books ?? [], [wanted.data]);
   const qualityProfiles = useMemo(() => profiles.data ?? [], [profiles.data]);
-
-  const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
-  const wantedSummary = useMemo(() => summarizeWantedItems(wantedItems, presence), [wantedItems, presence]);
-  const authorRows = useMemo(
-    () => buildLibraryAuthorRows(authorSubscriptions, wantedItems, presence),
-    [authorSubscriptions, wantedItems, presence]
-  );
-  const summary = useMemo(
-    () => ({
-      authors: authorRows.length,
-      monitoredAuthors: authorSubscriptions.length,
-      monitoredBooks: wantedItems.filter((item) => item.monitored).length,
-      missing: wantedSummary.missing,
-      downloading: wantedSummary.downloading,
-      downloaded: wantedSummary.downloaded,
-      files: libraryFiles.length
-    }),
-    [authorRows.length, authorSubscriptions.length, libraryFiles.length, wantedItems, wantedSummary]
-  );
-
-  const visibleBooks = useMemo(
-    () =>
-      wantedItems
-        .filter(
-          (item) =>
-            libraryBookVisibleForFilter(item, presence.get(item.id), textFilter, formatFilter) &&
-            libraryBookMatchesMonitorFilter(item, monitorFilter)
-        )
-        .sort((a, b) => compareLibraryBooks(a, b, presence, sortMode)),
-    [wantedItems, presence, textFilter, formatFilter, monitorFilter, sortMode]
-  );
-  const shownBooks = showAllBooks ? visibleBooks : visibleBooks.slice(0, BOOK_ROW_CAP);
+  const presence = useMemo(() => wantedPresenceMap(wantedItems, []), [wantedItems]);
+  const summary = {
+    books: wanted.data?.total ?? 0,
+    missing: wanted.data?.counts.missing ?? 0,
+    incomplete: wanted.data?.counts.incomplete ?? 0,
+    unknown: wanted.data?.counts.unknown ?? 0,
+    downloading: wanted.data?.counts.downloading ?? 0,
+    downloaded: wanted.data?.counts.downloaded ?? 0,
+    cutoffUnmet: wanted.data?.counts.cutoffUnmet ?? 0,
+    files: wanted.data?.recordedFiles ?? 0
+  };
+  const shownBooks = wantedItems;
+  useEffect(() => { setSelectedBookIDs([]); }, [filterKey, cursor, textFilter]);
 
   const filtersActive = Boolean(textFilter.trim()) || formatFilter !== "all" || monitorFilter !== "all";
 
@@ -234,7 +211,7 @@ export default function LibraryPage() {
         toast.notify(
           force
             ? "No author subscriptions to monitor yet — add authors from Add New."
-            : "No authors due for a refresh — use Update All to re-check every subscription.",
+            : "No authors due for a refresh — use Check Author Batch to check the next 50 subscriptions.",
           "info"
         );
         return;
@@ -345,7 +322,7 @@ export default function LibraryPage() {
 
   const noticeMessages = useMemo(() => {
     const seen = new Set<string>();
-    return [wanted.error, subscriptions.error, files.error]
+    return [wanted.error]
       .filter((error): error is Error => error instanceof Error)
       .map((error) => libraryErrorMessage(error))
       .filter((message) => {
@@ -353,15 +330,12 @@ export default function LibraryPage() {
         seen.add(message);
         return true;
       });
-  }, [wanted.error, subscriptions.error, files.error]);
+  }, [wanted.error]);
 
   const dueBusy = monitorMutation.isPending && monitorMutation.variables === false;
   const forceBusy = monitorMutation.isPending && monitorMutation.variables === true;
 
-  const booksSubtitle =
-    shownBooks.length < visibleBooks.length
-      ? `Showing ${shownBooks.length} of ${visibleBooks.length}`
-      : `${visibleBooks.length} shown`;
+  const booksSubtitle = `${shownBooks.length} shown · ${wanted.data?.filtered ?? 0} matching · ${summary.books} total`;
 
   /* ------------------------------ Books views ------------------------------ */
 
@@ -444,7 +418,7 @@ export default function LibraryPage() {
                   </div>
                 </td>
                 <td>
-                  <Link className="library-author-link" to={libraryAuthorPath(item.authorName)}>
+                  <Link className="library-author-link" to={libraryWantedAuthorPath(item)}>
                     {item.authorName || "Unknown author"}
                   </Link>
                 </td>
@@ -497,7 +471,7 @@ export default function LibraryPage() {
                 <Link className="library-poster-title" to={libraryBookPath(item.id)}>
                   {item.title}
                 </Link>
-                <Link className="library-poster-author" to={libraryAuthorPath(item.authorName)}>
+                <Link className="library-poster-author" to={libraryWantedAuthorPath(item)}>
                   {item.authorName || "Unknown author"}
                 </Link>
               </div>
@@ -543,7 +517,7 @@ export default function LibraryPage() {
                   <Badge tone={presenceTone(state)}>{presenceLabel(state)}</Badge>
                   <Badge>{item.format}</Badge>
                 </div>
-                <Link className="library-overview-author" to={libraryAuthorPath(item.authorName)}>
+                <Link className="library-overview-author" to={libraryWantedAuthorPath(item)}>
                   {item.authorName || "Unknown author"}
                 </Link>
                 <p className="library-overview-line">{libraryBookOverviewLine(item)}</p>
@@ -558,7 +532,8 @@ export default function LibraryPage() {
 
   const tabs = [
     { label: "Books", to: "/library", active: tab === "books" },
-    { label: "Authors", to: "/library/authors", active: tab === "authors" }
+    { label: "Authors", to: "/library/authors", active: tab === "authors" },
+    { label: "Removed", to: "/library/removed", active: false }
   ];
 
   return (
@@ -569,6 +544,7 @@ export default function LibraryPage() {
         actions={
           tab === "books" ? (
             <>
+              {wantedItems.length > 0 ? <>
               <ToolbarButton
                 icon={RadioTower}
                 label="Refresh Monitored"
@@ -579,8 +555,8 @@ export default function LibraryPage() {
               />
               <ToolbarButton
                 icon={RefreshCw}
-                label="Update All"
-                title="Force-monitor every author subscription"
+                label="Check Author Batch"
+                title="Check the next 50 author subscriptions, including those not yet due"
                 busy={forceBusy}
                 disabled={monitorMutation.isPending}
                 onClick={() => void handleMonitor(true)}
@@ -592,13 +568,14 @@ export default function LibraryPage() {
                 busy={feedSyncMutation.isPending}
                 onClick={() => void handleFeedSync()}
               />
+              </> : null}
               <ToolbarButton
                 icon={FolderPen}
                 label="Rename Files"
                 title="Preview and apply file renames against the naming templates"
                 onClick={() => setRenameOpen(true)}
               />
-              <ToolbarButton
+              {wantedItems.length > 0 ? <ToolbarButton
                 icon={Pencil}
                 label={editMode ? "Done" : "Edit Mode"}
                 tone={editMode ? "accent" : undefined}
@@ -609,7 +586,7 @@ export default function LibraryPage() {
                     return !current;
                   });
                 }}
-              />
+              /> : null}
             </>
           ) : undefined
         }
@@ -640,15 +617,18 @@ export default function LibraryPage() {
           </InlineNotice>
         ))}
 
+        {wanted.data && ["partial", "unavailable"].includes(wanted.data.downloads) ? <InlineNotice tone="warn">Download status is unavailable or incomplete. Books without verified media may show Unknown.</InlineNotice> : null}
+        {(summary.books > 0 || filtersActive) ? <>
         <StatBar
           stats={[
-            { label: "Authors", value: summary.authors },
-            { label: "Monitored", value: summary.monitoredAuthors },
-            { label: "Books", value: summary.monitoredBooks },
+            { label: "Books", value: summary.books },
             { label: "Missing", value: summary.missing, tone: summary.missing > 0 ? "danger" : "neutral" },
             { label: "Downloading", value: summary.downloading, tone: summary.downloading > 0 ? "info" : "neutral" },
             { label: "Downloaded", value: summary.downloaded, tone: summary.downloaded > 0 ? "success" : "neutral" },
-            { label: "Files", value: summary.files }
+            { label: "Cutoff unmet", value: summary.cutoffUnmet, tone: summary.cutoffUnmet > 0 ? "warn" : "neutral" },
+            { label: "Incomplete", value: summary.incomplete, tone: summary.incomplete > 0 ? "warn" : "neutral" },
+            { label: "Unknown", value: summary.unknown, tone: summary.unknown > 0 ? "warn" : "neutral" },
+            { label: "Recorded files", value: summary.files }
           ]}
         />
 
@@ -681,13 +661,15 @@ export default function LibraryPage() {
           <Segmented options={viewOptions} value={viewMode} onChange={changeViewMode} ariaLabel="Books view mode" />
         </div>
 
+        </> : null}
+
         {editMode ? (
           <Card className="library-bulk-card">
             <div className="library-bulkbar" aria-label="Library mass editor">
               <div className="library-bulkbar-text">
                 <strong>Mass editor</strong>
                 <span>
-                  {shownSelectedIDs.length} selected · {shownBooks.length} shown
+                  {shownSelectedIDs.length} selected on this page · {shownBooks.length} shown
                 </span>
               </div>
               <Button size="sm" icon={allShownSelected ? CheckSquare : Square} onClick={toggleAllShown}>
@@ -769,19 +751,20 @@ export default function LibraryPage() {
         ) : null}
 
         <Card
-          title="Monitored books"
+          title="Books"
           subtitle={booksSubtitle}
           padded={false}
           actions={
-            visibleBooks.length > BOOK_ROW_CAP ? (
-              <Button size="sm" variant="ghost" onClick={() => setShowAllBooks((current) => !current)}>
-                {showAllBooks ? `Show first ${BOOK_ROW_CAP}` : `Show all ${visibleBooks.length}`}
-              </Button>
-            ) : undefined
+            <div className="library-pagination" aria-label="Book pages">
+              <Button size="sm" disabled={cursors.length < 2 || wanted.isFetching || Boolean(bulkAction)} onClick={() => setPagination({ key: filterKey, cursors: cursors.slice(0, -1) })}>Previous</Button>
+              <span>Page {cursors.length}</span>
+              <Button size="sm" disabled={!wanted.data?.nextCursor || wanted.isFetching || Boolean(bulkAction)} onClick={() => setPagination({ key: filterKey, cursors: [...cursors, wanted.data?.nextCursor ?? ""] })}>Next</Button>
+              <Button size="sm" disabled={wanted.isFetching || Boolean(bulkAction)} onClick={() => void wanted.refetch()}>Refresh page</Button>
+            </div>
           }
         >
           {wanted.isLoading ? (
-            <LoadingRow label="Loading monitored books…" />
+            <LoadingRow label="Loading books…" />
           ) : shownBooks.length ? (
             viewMode === "posters" ? (
               renderPostersView()
@@ -793,9 +776,9 @@ export default function LibraryPage() {
           ) : (
             <EmptyState
               icon={BookOpen}
-              title={filtersActive ? "No monitored books match this filter" : "No monitored books yet"}
+              title={wanted.isError ? "Books could not be loaded" : cursor ? "No books on this page" : filtersActive ? "No books match these filters" : "Your library is empty"}
               actions={
-                filtersActive ? (
+                cursor ? <Button size="sm" onClick={() => setPagination({ key: filterKey, cursors: [""] })}>First page</Button> : wanted.isError ? <Button size="sm" onClick={() => void wanted.refetch()}>Retry</Button> : filtersActive ? (
                   <Button size="sm" onClick={clearFilters}>
                     Clear filters
                   </Button>
@@ -806,11 +789,7 @@ export default function LibraryPage() {
                 )
               }
             >
-              {filtersActive
-                ? "Adjust the filters to see the rest of the library plan."
-                : wanted.isError
-                  ? "Books are unavailable until the error above is resolved."
-                  : "Search metadata, monitor authors, and mark books wanted to build the library plan."}
+              {wanted.isError ? "Retry loading the collection." : cursor ? "The collection may have changed. Return to the first page to refresh your view." : filtersActive ? "Adjust the filters to see more books." : "Find a book or author to start building your library."}
             </EmptyState>
           )}
         </Card>

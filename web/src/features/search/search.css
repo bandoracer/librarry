@@ -329,3 +329,5 @@
   gap: 8px;
   margin-top: 12px;
 }
+
+.search-tracked-callout .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }

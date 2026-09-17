@@ -238,15 +238,15 @@ func TestFeedAuthRequiresAPIKeyWhenConfigured(t *testing.T) {
 	}
 }
 
-func TestAuthConfigEndpointSwitchesMethod(t *testing.T) {
+func TestAuthConfigEndpointRequiresDurablePersistence(t *testing.T) {
 	router, service := newAuthTestRouter(t, auth.MethodNone, "secret")
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/config", strings.NewReader(`{"method":"forms"}`))
 	req.Header.Set("X-Api-Key", "secret")
-	if got := requestStatus(t, router, req); got != http.StatusOK {
-		t.Fatalf("expected auth config 200, got %d", got)
+	if got := requestStatus(t, router, req); got != http.StatusServiceUnavailable {
+		t.Fatalf("expected auth config 503 without persistence, got %d", got)
 	}
-	if service.Method() != auth.MethodForms {
-		t.Fatalf("expected method forms, got %s", service.Method())
+	if service.Method() != auth.MethodNone {
+		t.Fatalf("failed persistence must preserve method, got %s", service.Method())
 	}
 
 	// Switching on auth without any user fails loudly.
@@ -260,5 +260,46 @@ func TestAuthConfigEndpointSwitchesMethod(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/auth/config", strings.NewReader(`{"method":"forms"}`))
 	if got := requestStatus(t, bare, req); got != http.StatusBadRequest {
 		t.Fatalf("expected 400 enabling auth without user, got %d", got)
+	}
+}
+
+func TestUnavailablePersistenceDoesNotDisableAuthentication(t *testing.T) {
+	for _, method := range []string{auth.MethodForms, auth.MethodBasic} {
+		service := auth.NewService(nil, slog.Default())
+		service.SetMethod(method)
+		router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*"}, Metadata: metadata.NewService(nil), Auth: service})
+		if got := requestStatus(t, router, httptest.NewRequest(http.MethodGet, "/api/v1/wanted", nil)); got != http.StatusUnauthorized {
+			t.Fatalf("%s became open: %d", method, got)
+		}
+	}
+}
+
+func TestEnvironmentOwnedCredentialsCannotBeOverwritten(t *testing.T) {
+	store := newMemoryAuthStore()
+	service := auth.NewService(store, slog.Default())
+	if err := service.EnsureUser(context.Background(), "fixture", "environment-password"); err != nil {
+		t.Fatal(err)
+	}
+	router := NewRouter(Dependencies{Logger: slog.Default(), Config: config.Config{WebOrigin: "*", AuthUsername: "fixture", AuthMethod: "none"}, Metadata: metadata.NewService(nil), Auth: service})
+	for _, payload := range []string{`{"method":"forms"}`, `{"method":"none","username":"replacement","password":"new-password"}`, `{"method":"none","username":"fixture","password":"new-password"}`} {
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/config", strings.NewReader(payload))
+		if got := requestStatus(t, router, req); got != http.StatusConflict {
+			t.Fatalf("expected conflict, got %d", got)
+		}
+	}
+	if _, ok := service.VerifyPassword(context.Background(), "fixture", "environment-password"); !ok {
+		t.Fatal("environment credential changed")
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/auth/status", nil))
+	var status map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if status["methodLocked"] != true || status["credentialsLocked"] != true {
+		t.Fatalf("missing ownership flags: %+v", status)
+	}
+	if strings.Contains(response.Body.String(), "environment-password") {
+		t.Fatal("credential leaked")
 	}
 }

@@ -168,3 +168,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+.task-history-entry { overflow-wrap: anywhere; padding-block: 0.5rem; border-bottom: 1px solid var(--border); }
+
+.task-history-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding-top: 0.5rem; }
+
+.system-task-reason { display: block; max-width: 30rem; white-space: normal; overflow-wrap: anywhere; font-size: 0.8rem; font-weight: normal; color: var(--muted); margin-top: 0.25rem; }
+
+.system-task-cell-label { display: none; }
+@media (max-width: 640px) {
+  .system-tasks-table { overflow: visible; }
+  .system-tasks-table .data-table, .system-tasks-table tbody { display: block; }
+  .system-tasks-table thead { display: none; }
+  .system-tasks-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding: 16px 12px; border-bottom: 1px solid var(--border); }
+  .system-tasks-table tr:last-child { border-bottom: 0; }
+  .system-tasks-table .data-table td { display: block; min-width: 0; padding: 0; border: 0; }
+  .system-tasks-table td:first-child, .system-tasks-table td:last-child { grid-column: 1 / -1; }
+  .system-tasks-table .system-task-cell-label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; }
+  .system-tasks-table .system-task-reason { max-width: none; }
+  .system-tasks-table .cell-actions { text-align: left; }
+}

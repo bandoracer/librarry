@@ -40,20 +40,26 @@ type IndexerClient interface {
 }
 
 type DownloadRequest struct {
-	Client     string   `json:"client,omitempty"`
-	ReleaseURL string   `json:"releaseUrl"`
-	InfoHash   string   `json:"infoHash,omitempty"`
-	Title      string   `json:"title,omitempty"`
-	Protocol   string   `json:"protocol,omitempty"`
-	Category   string   `json:"category,omitempty"`
-	SavePath   string   `json:"savePath,omitempty"`
-	Paused     bool     `json:"paused"`
-	Tags       []string `json:"tags,omitempty"`
-	UploadName string   `json:"uploadName,omitempty"`
-	UploadData []byte   `json:"-"`
+	// Selection is set by the wanted service, never decoded from raw grab JSON.
+	Selection  *AcquisitionSelection `json:"-"`
+	Client     string                `json:"client,omitempty"`
+	ReleaseURL string                `json:"releaseUrl"`
+	InfoHash   string                `json:"infoHash,omitempty"`
+	Title      string                `json:"title,omitempty"`
+	Protocol   string                `json:"protocol,omitempty"`
+	Category   string                `json:"category,omitempty"`
+	SavePath   string                `json:"savePath,omitempty"`
+	Paused     bool                  `json:"paused"`
+	Tags       []string              `json:"tags,omitempty"`
+	UploadName string                `json:"uploadName,omitempty"`
+	UploadData []byte                `json:"-"`
 }
 
 type DownloadStatus struct {
+	ReleaseID       string     `json:"releaseId,omitempty"`
+	AcquisitionID   string     `json:"acquisitionId,omitempty"`
+	Deduplicated    bool       `json:"deduplicated,omitempty"`
+	SeedGoalMet     bool       `json:"seedGoalMet"`
 	Client          string     `json:"client,omitempty"`
 	ID              string     `json:"id"`
 	Name            string     `json:"name"`
@@ -91,11 +97,13 @@ type DownloadStatus struct {
 }
 
 type DownloadDetails struct {
-	Status     DownloadStatus     `json:"status"`
-	Properties DownloadProperties `json:"properties,omitempty"`
-	Files      []DownloadFile     `json:"files,omitempty"`
-	Trackers   []DownloadTracker  `json:"trackers,omitempty"`
-	Peers      []DownloadPeer     `json:"peers,omitempty"`
+	InventorySource string             `json:"inventorySource,omitempty"`
+	PayloadRoot     string             `json:"payloadRoot,omitempty"`
+	Status          DownloadStatus     `json:"status"`
+	Properties      DownloadProperties `json:"properties,omitempty"`
+	Files           []DownloadFile     `json:"files,omitempty"`
+	Trackers        []DownloadTracker  `json:"trackers,omitempty"`
+	Peers           []DownloadPeer     `json:"peers,omitempty"`
 }
 
 type DownloadProperties struct {
@@ -125,6 +133,7 @@ type DownloadProperties struct {
 }
 
 type DownloadFile struct {
+	Selected     *bool   `json:"selected,omitempty"`
 	ID           int     `json:"id"`
 	ExternalID   string  `json:"externalId,omitempty"`
 	Name         string  `json:"name"`
@@ -244,10 +253,11 @@ type DownloadClient interface {
 }
 
 type DownloadListQuery struct {
-	IDs      []string
-	Client   string
-	Tag      string
-	Category string
+	IncludeRemoved bool `json:"-"`
+	IDs            []string
+	Client         string
+	Tag            string
+	Category       string
 }
 
 type DownloadActionRequest struct {

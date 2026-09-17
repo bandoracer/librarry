@@ -50,36 +50,6 @@ func (c *ProwlarrClient) Configured() bool {
 	return c.baseURL != "" && c.apiKey != ""
 }
 
-func (c *ProwlarrClient) Health(ctx context.Context) IntegrationHealth {
-	if !c.Configured() {
-		return IntegrationHealth{Name: c.Name(), Configured: false, Status: "missing_credentials", Message: "Set LIBRARRY_PROWLARR_URL and LIBRARRY_PROWLARR_API_KEY."}
-	}
-
-	req, err := c.request(ctx, http.MethodGet, "/api/v1/system/status", nil)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: err.Error()}
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return IntegrationHealth{Name: c.Name(), Configured: true, Status: "error", Message: resp.Status}
-	}
-
-	var decoded struct {
-		Version string `json:"version"`
-		AppName string `json:"appName"`
-	}
-	_ = json.NewDecoder(resp.Body).Decode(&decoded)
-	message := "Ready"
-	if decoded.Version != "" {
-		message = fmt.Sprintf("%s %s ready", decoded.AppName, decoded.Version)
-	}
-	return IntegrationHealth{Name: c.Name(), Configured: true, Status: "ready", Message: message}
-}
-
 func (c *ProwlarrClient) Search(ctx context.Context, query ReleaseSearchQuery) ([]Release, error) {
 	if !c.Configured() {
 		return nil, ErrIntegrationNotConfigured
@@ -122,7 +92,9 @@ func (c *ProwlarrClient) searchOnce(ctx context.Context, queryText string, forma
 	values := url.Values{}
 	values.Set("query", strings.TrimSpace(queryText))
 	values.Set("type", "search")
-	values.Set("categories", categoriesForFormat(format))
+	for _, category := range categoryListForFormat(format) {
+		values.Add("categories", category)
+	}
 
 	endpoint := "/api/v1/search?" + values.Encode()
 	req, err := c.request(ctx, http.MethodGet, endpoint, nil)
@@ -678,6 +650,20 @@ func categoriesForFormat(format string) string {
 	default:
 		return "7000"
 	}
+}
+
+// categoryListForFormat returns the same categories as categoriesForFormat, but
+// split for use with url.Values.Add. Prowlarr's /api/v1/search binds categories
+// as an array of int, which requires a repeated query parameter
+// (categories=7000&categories=3030). A single comma-joined value fails model
+// binding with 400 Bad Request. The Newznab feed endpoint still wants the
+// comma-joined "cat" form, so categoriesForFormat is kept for that caller.
+func categoryListForFormat(format string) []string {
+	categories := categoriesForFormat(format)
+	if categories == "" {
+		return nil
+	}
+	return strings.Split(categories, ",")
 }
 
 func releaseID(values ...string) string {

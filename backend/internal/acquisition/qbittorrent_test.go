@@ -989,7 +989,7 @@ func TestQBittorrentTrackerActions(t *testing.T) {
 
 func TestMergeStoredDownloadStateIncludesFailureMetadata(t *testing.T) {
 	failedAt := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
-	service := &Service{store: fakeDownloadStore{downloads: []DownloadStatus{{
+	service := &integrationState{store: fakeDownloadStore{downloads: []DownloadStatus{{
 		ID:            "abc123",
 		ImportStatus:  "error",
 		ImportError:   "no supported file",
@@ -1100,4 +1100,32 @@ func (s fakeDownloadStore) MarkDownloadImportError(context.Context, string, stri
 func testTorrentPayload(name string) []byte {
 	info := "d4:name" + strconv.Itoa(len(name)) + ":" + name + "12:piece lengthi16384e6:pieces20:abcdefghijklmnopqrste"
 	return []byte("d8:announce13:http://t.test4:info" + info + "e")
+}
+
+func TestQBittorrentSeedGoalRequiresExplicitEvidence(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/auth/login" {
+			_, _ = w.Write([]byte("Ok."))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+   {"hash":"unknown","state":"pausedUP","progress":1,"ratio":2},
+   {"hash":"ratio","state":"pausedUP","progress":1,"ratio":2,"max_ratio":1},
+   {"hash":"too-early","state":"pausedUP","progress":1,"seeding_time":60,"max_seeding_time":60},
+   {"hash":"time-met","state":"pausedUP","progress":1,"seeding_time":3600,"max_seeding_time":60},
+   {"hash":"unlimited","state":"pausedUP","progress":1,"ratio":10,"max_ratio":-1,"max_seeding_time":-1}
+  ]`))
+	}))
+	defer server.Close()
+	client := NewQBittorrentClient(server.URL, "", "", server.Client())
+	rows, err := client.List(context.Background(), DownloadListQuery{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []bool{false, true, false, true, false} {
+		if rows[i].SeedGoalMet != want {
+			t.Fatalf("%s seed goal = %v", rows[i].ID, rows[i].SeedGoalMet)
+		}
+	}
 }

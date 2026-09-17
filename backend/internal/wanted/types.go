@@ -21,10 +21,15 @@ type Acquisition interface {
 }
 
 type CreateRequest struct {
-	Result         metadata.SearchResult `json:"result"`
-	Format         string                `json:"format,omitempty"`
-	QualityProfile string                `json:"qualityProfile,omitempty"`
-	Tags           []string              `json:"tags,omitempty"`
+	// PreserveExisting rejects an add that would alter an existing tracking target.
+	PreserveExisting bool `json:"preserveExisting,omitempty"`
+	// InitialMonitored applies only on insertion; existing tracking is unchanged.
+	InitialMonitored *bool                 `json:"-"`
+	OnlyIfUntracked  bool                  `json:"-"`
+	Result           metadata.SearchResult `json:"result"`
+	Format           string                `json:"format,omitempty"`
+	QualityProfile   string                `json:"qualityProfile,omitempty"`
+	Tags             []string              `json:"tags,omitempty"`
 	// RootFolderID pins the import destination root at add time. When set it
 	// must reference an existing root folder whose media format matches the
 	// wanted format.
@@ -64,6 +69,7 @@ type ReleaseRestriction struct {
 }
 
 type AuthorSubscribeRequest struct {
+	RootFolderID      string                `json:"rootFolderId,omitempty"`
 	Result            metadata.SearchResult `json:"result,omitempty"`
 	AuthorName        string                `json:"authorName,omitempty"`
 	Provider          string                `json:"provider,omitempty"`
@@ -83,6 +89,7 @@ type AuthorSubscribeRequest struct {
 }
 
 type AuthorSubscription struct {
+	RootFolderID      string     `json:"rootFolderId,omitempty"`
 	ID                string     `json:"id,omitempty"`
 	Provider          string     `json:"provider"`
 	ProviderKey       string     `json:"providerKey"`
@@ -104,6 +111,8 @@ type AuthorSubscription struct {
 }
 
 type AuthorUpdateRequest struct {
+	// nil preserves the destination; an empty string restores the format default.
+	RootFolderID      *string  `json:"rootFolderId,omitempty"`
 	AuthorName        string   `json:"authorName,omitempty"`
 	QualityProfile    string   `json:"qualityProfile,omitempty"`
 	Status            string   `json:"status,omitempty"`
@@ -136,12 +145,15 @@ type AcquisitionQueueQuery struct {
 }
 
 type AcquisitionQueue struct {
-	Items       []AcquisitionQueueItem  `json:"items"`
-	Summary     AcquisitionQueueSummary `json:"summary"`
-	GeneratedAt time.Time               `json:"generatedAt"`
+	Downloads    string                  `json:"downloads"`
+	PreviewLimit int                     `json:"previewLimit"`
+	Items        []AcquisitionQueueItem  `json:"items"`
+	Summary      AcquisitionQueueSummary `json:"summary"`
+	GeneratedAt  time.Time               `json:"generatedAt"`
 }
 
 type AcquisitionQueueSummary struct {
+	Unknown     int `json:"unknown"`
 	Total       int `json:"total"`
 	NeedsSearch int `json:"needsSearch"`
 	ReadyToGrab int `json:"readyToGrab"`
@@ -228,7 +240,13 @@ type GrabRequest struct {
 	Force     bool   `json:"force,omitempty"`
 }
 
+// WasAlreadyTracked identifies an add-only result that reused existing tracking.
+// It is transient operation evidence, never persisted or exposed in API JSON.
+func (item WantedItem) WasAlreadyTracked() bool { return item.alreadyTracked }
+
 type WantedItem struct {
+	Authors          []AuthorIdentity `json:"authors,omitempty"`
+	alreadyTracked   bool
 	ID               string `json:"id"`
 	WorkID           string `json:"workId,omitempty"`
 	EditionID        string `json:"editionId,omitempty"`
@@ -255,11 +273,13 @@ type WantedItem struct {
 	LastSearchAt        *time.Time       `json:"lastSearchAt,omitempty"`
 	LastUpgradeSearchAt *time.Time       `json:"lastUpgradeSearchAt,omitempty"`
 	// DerivedState is the Readarr-style presence state (missing/downloading/
-	// downloaded/cutoffUnmet/unmonitored) computed at the API boundary; the
+	// downloaded/cutoffUnmet/unmonitored/incomplete/unknown) computed at the API boundary; the
 	// stored lifecycle Status no longer drives user-facing state.
-	DerivedState string    `json:"derivedState,omitempty"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	CompatibilityProfile *QualityProfile    `json:"-"`
+	DerivedState         string             `json:"derivedState,omitempty"`
+	StateEvidence        *BookStateEvidence `json:"stateEvidence,omitempty"`
+	CreatedAt            time.Time          `json:"createdAt"`
+	UpdatedAt            time.Time          `json:"updatedAt"`
 }
 
 type MetadataProvenance struct {
@@ -271,11 +291,16 @@ type MetadataProvenance struct {
 }
 
 type MetadataReviewQueue struct {
-	Items       []MetadataReviewItem `json:"items"`
-	GeneratedAt time.Time            `json:"generatedAt"`
+	Total         int                  `json:"total"`
+	Filtered      int                  `json:"filtered"`
+	ConflictCount int                  `json:"conflictCount"`
+	NextCursor    string               `json:"nextCursor,omitempty"`
+	Items         []MetadataReviewItem `json:"items"`
+	GeneratedAt   time.Time            `json:"generatedAt"`
 }
 
 type MetadataReviewItem struct {
+	Revision       string                  `json:"revision"`
 	WantedItem     WantedItem              `json:"wantedItem"`
 	Fields         []MetadataFieldEvidence `json:"fields"`
 	ConflictCount  int                     `json:"conflictCount"`
@@ -296,8 +321,9 @@ type MetadataCorrectionBatchRequest struct {
 }
 
 type MetadataReviewConfirmRequest struct {
-	WantedIDs []string `json:"wantedIds,omitempty"`
-	All       bool     `json:"all,omitempty"`
+	Revisions map[string]string `json:"revisions,omitempty"`
+	WantedIDs []string          `json:"wantedIds,omitempty"`
+	All       bool              `json:"all,omitempty"`
 }
 
 type MetadataReviewConfirmOutcome struct {
@@ -442,22 +468,24 @@ type MonitorRun struct {
 }
 
 type FeedSyncRun struct {
-	ID            string          `json:"id"`
-	Trigger       string          `json:"trigger"`
-	Status        string          `json:"status"`
-	ReleasesSeen  int             `json:"releasesSeen"`
-	MatchedCount  int             `json:"matchedCount"`
-	ApprovedCount int             `json:"approvedCount"`
-	RejectedCount int             `json:"rejectedCount"`
-	GrabbedCount  int             `json:"grabbedCount"`
-	ErrorCount    int             `json:"errorCount"`
-	Message       string          `json:"message,omitempty"`
-	Matches       []FeedSyncMatch `json:"matches,omitempty"`
-	StartedAt     time.Time       `json:"startedAt"`
-	FinishedAt    *time.Time      `json:"finishedAt,omitempty"`
+	MatchesTruncated bool            `json:"matchesTruncated,omitempty"`
+	ID               string          `json:"id"`
+	Trigger          string          `json:"trigger"`
+	Status           string          `json:"status"`
+	ReleasesSeen     int             `json:"releasesSeen"`
+	MatchedCount     int             `json:"matchedCount"`
+	ApprovedCount    int             `json:"approvedCount"`
+	RejectedCount    int             `json:"rejectedCount"`
+	GrabbedCount     int             `json:"grabbedCount"`
+	ErrorCount       int             `json:"errorCount"`
+	Message          string          `json:"message,omitempty"`
+	Matches          []FeedSyncMatch `json:"matches,omitempty"`
+	StartedAt        time.Time       `json:"startedAt"`
+	FinishedAt       *time.Time      `json:"finishedAt,omitempty"`
 }
 
 type FeedSyncMatch struct {
+	SkippedReason   string                      `json:"skippedReason,omitempty"`
 	WantedItem      WantedItem                  `json:"wantedItem"`
 	Release         ReleaseDecision             `json:"release"`
 	GrabbedDownload *acquisition.DownloadStatus `json:"grabbedDownload,omitempty"`
@@ -538,11 +566,16 @@ type AuthorSkippedItem struct {
 }
 
 type AuthorMetadataReviewQuery struct {
+	Search string `json:"q,omitempty"`
+	Format string `json:"format,omitempty"`
+	Cursor string `json:"cursor,omitempty"`
 	Status string `json:"status,omitempty"`
 	Limit  int    `json:"limit,omitempty"`
 }
 
 type AuthorMetadataReview struct {
+	Revision             string                `json:"revision"`
+	RootFolderID         string                `json:"rootFolderId,omitempty"`
 	ID                   string                `json:"id,omitempty"`
 	AuthorSubscriptionID string                `json:"authorSubscriptionId,omitempty"`
 	Provider             string                `json:"provider"`
@@ -564,15 +597,19 @@ type AuthorMetadataReview struct {
 }
 
 type AuthorMetadataReviewDecisionRequest struct {
-	Action string `json:"action"`
+	Revision string `json:"revision,omitempty"`
+	Action   string `json:"action"`
 }
 
 type AuthorMetadataReviewDecision struct {
-	Review     AuthorMetadataReview `json:"review"`
-	WantedItem *WantedItem          `json:"wantedItem,omitempty"`
+	Replayed       bool                 `json:"replayed,omitempty"`
+	AlreadyTracked bool                 `json:"alreadyTracked,omitempty"`
+	Review         AuthorMetadataReview `json:"review"`
+	WantedItem     *WantedItem          `json:"wantedItem,omitempty"`
 }
 
 type UpgradeItemResult struct {
+	SkippedReason   string                      `json:"skippedReason,omitempty"`
 	WantedItem      WantedItem                  `json:"wantedItem"`
 	CurrentScore    float64                     `json:"currentScore"`
 	CutoffScore     float64                     `json:"cutoffScore"`
@@ -583,6 +620,7 @@ type UpgradeItemResult struct {
 }
 
 type MonitorItemResult struct {
+	SkippedReason   string                      `json:"skippedReason,omitempty"`
 	WantedItem      WantedItem                  `json:"wantedItem"`
 	ReleasesFound   int                         `json:"releasesFound"`
 	ApprovedCount   int                         `json:"approvedCount"`

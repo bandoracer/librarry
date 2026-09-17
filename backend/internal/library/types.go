@@ -29,36 +29,45 @@ type Config struct {
 }
 
 type FileRecord struct {
-	ID           string         `json:"id,omitempty"`
-	EditionID    string         `json:"editionId,omitempty"`
-	MediaFormat  string         `json:"mediaFormat"`
-	Path         string         `json:"path"`
-	SourcePath   string         `json:"sourcePath,omitempty"`
-	Title        string         `json:"title,omitempty"`
-	AuthorName   string         `json:"authorName,omitempty"`
-	Extension    string         `json:"extension,omitempty"`
-	SizeBytes    int64          `json:"sizeBytes,omitempty"`
-	Checksum     string         `json:"checksum,omitempty"`
-	ImportStatus string         `json:"importStatus"`
-	Metadata     map[string]any `json:"metadata,omitempty"`
-	ModifiedAt   *time.Time     `json:"modifiedAt,omitempty"`
-	CreatedAt    time.Time      `json:"createdAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
+	PresenceState string         `json:"presenceState"`
+	ID            string         `json:"id,omitempty"`
+	EditionID     string         `json:"editionId,omitempty"`
+	MediaFormat   string         `json:"mediaFormat"`
+	Path          string         `json:"path"`
+	SourcePath    string         `json:"sourcePath,omitempty"`
+	Title         string         `json:"title,omitempty"`
+	AuthorName    string         `json:"authorName,omitempty"`
+	Extension     string         `json:"extension,omitempty"`
+	SizeBytes     int64          `json:"sizeBytes,omitempty"`
+	Checksum      string         `json:"checksum,omitempty"`
+	ImportStatus  string         `json:"importStatus"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	ModifiedAt    *time.Time     `json:"modifiedAt,omitempty"`
+	CreatedAt     time.Time      `json:"createdAt"`
+	UpdatedAt     time.Time      `json:"updatedAt"`
 }
 
 type FileListQuery struct {
-	Format string `json:"format,omitempty"`
-	Status string `json:"status,omitempty"`
-	Limit  int    `json:"limit,omitempty"`
+	WantedID string `json:"wantedId,omitempty"`
+	Format   string `json:"format,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
 }
 
 type ScanRequest struct {
-	Format string `json:"format,omitempty"`
-	Root   string `json:"root,omitempty"`
-	Limit  int    `json:"limit,omitempty"`
+	AcceptRootChange bool   `json:"acceptRootChange,omitempty"`
+	Format           string `json:"format,omitempty"`
+	Root             string `json:"root,omitempty"`
+	Limit            int    `json:"limit,omitempty"`
 }
 
 type ScanOutcome struct {
+	JobID    string       `json:"jobId"`
+	State    string       `json:"state"`
+	Phase    string       `json:"phase"`
+	HasMore  bool         `json:"hasMore"`
+	Missing  int          `json:"missing"`
+	Moved    int          `json:"moved"`
 	Roots    []string     `json:"roots"`
 	Scanned  int          `json:"scanned"`
 	Upserted int          `json:"upserted"`
@@ -68,6 +77,7 @@ type ScanOutcome struct {
 }
 
 type ImportRequest struct {
+	originalScope  string
 	SourcePath     string `json:"sourcePath"`
 	WantedID       string `json:"wantedId,omitempty"`
 	DownloadID     string `json:"downloadId,omitempty"`
@@ -79,17 +89,20 @@ type ImportRequest struct {
 }
 
 type ImportOutcome struct {
-	File            FileRecord `json:"file"`
-	DestinationPath string     `json:"destinationPath"`
-	Moved           bool       `json:"moved"`
-	Imported        bool       `json:"imported"`
-	Skipped         bool       `json:"skipped,omitempty"`
-	Replaced        bool       `json:"replaced,omitempty"`
-	Hardlinked      bool       `json:"hardlinked,omitempty"`
-	ImportMode      string     `json:"importMode,omitempty"`
-	ConflictAction  string     `json:"conflictAction,omitempty"`
-	ConflictPath    string     `json:"conflictPath,omitempty"`
-	Message         string     `json:"message,omitempty"`
+	CalibreHandoffID string       `json:"calibreHandoffId,omitempty"`
+	OperationID      string       `json:"operationId,omitempty"`
+	Files            []FileRecord `json:"files,omitempty"`
+	File             FileRecord   `json:"file"`
+	DestinationPath  string       `json:"destinationPath"`
+	Moved            bool         `json:"moved"`
+	Imported         bool         `json:"imported"`
+	Skipped          bool         `json:"skipped,omitempty"`
+	Replaced         bool         `json:"replaced,omitempty"`
+	Hardlinked       bool         `json:"hardlinked,omitempty"`
+	ImportMode       string       `json:"importMode,omitempty"`
+	ConflictAction   string       `json:"conflictAction,omitempty"`
+	ConflictPath     string       `json:"conflictPath,omitempty"`
+	Message          string       `json:"message,omitempty"`
 }
 
 type CompletedImportRequest struct {
@@ -134,9 +147,10 @@ type DeleteFileResult struct {
 }
 
 type RenameFilesRequest struct {
-	IDs       []string `json:"ids,omitempty"`
-	Paths     []string `json:"paths,omitempty"`
-	Overwrite bool     `json:"overwrite,omitempty"`
+	Revisions map[string]string `json:"revisions,omitempty"`
+	IDs       []string          `json:"ids,omitempty"`
+	Paths     []string          `json:"paths,omitempty"`
+	Overwrite bool              `json:"overwrite,omitempty"`
 }
 
 type RenameFilesOutcome struct {
@@ -149,6 +163,8 @@ type RenameFilesOutcome struct {
 }
 
 type RenameFilePreview struct {
+	Revision        string     `json:"revision,omitempty"`
+	OperationID     string     `json:"operationId,omitempty"`
 	File            FileRecord `json:"file"`
 	SourcePath      string     `json:"sourcePath"`
 	DestinationPath string     `json:"destinationPath"`
@@ -161,10 +177,11 @@ type RenameFilePreview struct {
 }
 
 type RenameFileResult struct {
-	Preview RenameFilePreview `json:"preview"`
-	File    *FileRecord       `json:"file,omitempty"`
-	Status  string            `json:"status"`
-	Message string            `json:"message,omitempty"`
+	OperationID string            `json:"operationId,omitempty"`
+	Preview     RenameFilePreview `json:"preview"`
+	File        *FileRecord       `json:"file,omitempty"`
+	Status      string            `json:"status"`
+	Message     string            `json:"message,omitempty"`
 }
 
 type CalibreConversionRefreshRequest struct {
@@ -185,10 +202,11 @@ type CalibreConversionRefreshOutcome struct {
 }
 
 type CalibreConversionRefreshResult struct {
-	File     FileRecord       `json:"file"`
-	Status   string           `json:"status"`
-	Message  string           `json:"message,omitempty"`
-	Statuses []map[string]any `json:"statuses,omitempty"`
+	CalibreHandoffID string           `json:"calibreHandoffId,omitempty"`
+	File             FileRecord       `json:"file"`
+	Status           string           `json:"status"`
+	Message          string           `json:"message,omitempty"`
+	Statuses         []map[string]any `json:"statuses,omitempty"`
 }
 
 type DownloadImportResult struct {
@@ -227,13 +245,16 @@ type ImportReview struct {
 }
 
 type ReviewDecisionRequest struct {
-	Action         string `json:"action"`
-	WantedID       string `json:"wantedId,omitempty"`
-	Format         string `json:"format,omitempty"`
-	Move           bool   `json:"move,omitempty"`
-	ImportMode     string `json:"importMode,omitempty"`
-	ConflictAction string `json:"conflictAction,omitempty"`
-	Overwrite      bool   `json:"overwrite,omitempty"`
+	PreviewToken    string           `json:"previewToken,omitempty"`
+	Mapping         []PayloadMapping `json:"mapping,omitempty"`
+	ConfirmIdentity bool             `json:"confirmIdentity,omitempty"`
+	Action          string           `json:"action"`
+	WantedID        string           `json:"wantedId,omitempty"`
+	Format          string           `json:"format,omitempty"`
+	Move            bool             `json:"move,omitempty"`
+	ImportMode      string           `json:"importMode,omitempty"`
+	ConflictAction  string           `json:"conflictAction,omitempty"`
+	Overwrite       bool             `json:"overwrite,omitempty"`
 }
 
 type ReviewDecisionOutcome struct {

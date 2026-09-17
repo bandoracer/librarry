@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Menu, Moon, Sun, X } from "lucide-react";
+import { PageErrorBoundary } from "./PageErrorBoundary";
 import { navItems } from "./nav";
 import { useAPIState } from "../lib/queries";
 
@@ -13,6 +14,9 @@ function currentTheme(): ThemeMode {
 export function AppLayout() {
   const [theme, setTheme] = useState<ThemeMode>(currentTheme);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const navToggle = useRef<HTMLButtonElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
+  const workspace = useRef<HTMLElement>(null);
   const location = useLocation();
   const apiState = useAPIState();
 
@@ -34,10 +38,31 @@ export function AppLayout() {
     setDrawerOpen(false);
   }, [location.pathname]);
   useEffect(() => {
-    if (!drawerOpen) return;
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setDrawerOpen(false);
+    const media = window.matchMedia("(max-width: 719px)");
+    const resize = () => { if (!media.matches) setDrawerOpen(false); };
+    media.addEventListener("change", resize);
+    return () => media.removeEventListener("change", resize);
+  }, []);
+  useEffect(() => {
+    if (!drawerOpen || !sidebar.current) return;
+    const menu = sidebar.current;
+    const content = workspace.current;
+    const nodes = () => Array.from(menu.querySelectorAll<HTMLElement>('button, a[href]')).filter(node => node.getClientRects().length > 0);
+    if (content) content.inert = true;
+    nodes()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setDrawerOpen(false); }
+      if (event.key !== "Tab") return;
+      const items = nodes();
+      if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items[items.length - 1]?.focus(); }
+      else if (!event.shiftKey && document.activeElement === items[items.length - 1]) { event.preventDefault(); items[0]?.focus(); }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (content) content.inert = false;
+      navToggle.current?.focus();
+    };
   }, [drawerOpen]);
 
   const active = navItems.find((item) => location.pathname.startsWith(item.path));
@@ -72,7 +97,7 @@ export function AppLayout() {
     <div className="app-shell">
       {/* Mobile top bar: brand + hamburger. Hidden on wider screens. */}
       <header className="mobile-bar">
-        <button type="button" className="icon-btn" aria-label="Open navigation" onClick={() => setDrawerOpen(true)}>
+        <button type="button" className="icon-btn" ref={navToggle} aria-label="Open navigation" aria-controls="primary-sidebar" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}>
           <Menu size={18} />
         </button>
         <span className="mobile-bar-title">{active?.label ?? "Librarry"}</span>
@@ -81,7 +106,7 @@ export function AppLayout() {
         </button>
       </header>
 
-      <aside className={`sidebar${drawerOpen ? " open" : ""}`}>
+      <aside ref={sidebar} id="primary-sidebar" className={`sidebar${drawerOpen ? " open" : ""}`}>
         <div className="sidebar-brand">
           <span className="brand-mark" aria-hidden>
             L
@@ -97,7 +122,7 @@ export function AppLayout() {
         {nav}
         <div className="sidebar-foot">
           {statusDot}
-          <button type="button" className="theme-toggle" onClick={toggleTheme}>
+          <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "Light mode" : "Dark mode"}>
             {theme === "dark" ? <Sun size={14} aria-hidden /> : <Moon size={14} aria-hidden />}
             <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
           </button>
@@ -105,8 +130,8 @@ export function AppLayout() {
       </aside>
       {drawerOpen ? <div className="sidebar-scrim" onClick={() => setDrawerOpen(false)} aria-hidden /> : null}
 
-      <main className="workspace">
-        <Outlet />
+      <main ref={workspace} className="workspace">
+        <PageErrorBoundary key={location.pathname}><Outlet /></PageErrorBoundary>
       </main>
     </div>
   );

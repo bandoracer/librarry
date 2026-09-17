@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/bandoracer/librarry/backend/internal/acquisition"
 	"github.com/bandoracer/librarry/backend/internal/auth"
 	"github.com/bandoracer/librarry/backend/internal/backups"
@@ -33,20 +35,22 @@ import (
 const maxGrabUploadBytes = 64 << 20
 
 type Dependencies struct {
-	Logger      *slog.Logger
-	Config      config.Config
-	Metadata    *metadata.Service
-	Acquire     acquisitionService
-	Wanted      wantedService
-	Library     libraryService
-	Compat      compatResourceService
-	Notify      *notify.Service
-	Scheduler   *scheduler.Registry
-	Health      *HealthEvaluator
-	Auth        *auth.Service
-	ImportLists *importlists.Service
-	Tags        *tags.Store
-	Backups     *backups.Service
+	Database        *sql.DB
+	SchemaMigration string
+	Logger          *slog.Logger
+	Config          config.Config
+	Metadata        *metadata.Service
+	Acquire         acquisitionService
+	Wanted          wantedService
+	Library         libraryService
+	Compat          compatResourceService
+	Notify          *notify.Service
+	Scheduler       *scheduler.Registry
+	Health          *HealthEvaluator
+	Auth            *auth.Service
+	ImportLists     *importlists.Service
+	Tags            *tags.Store
+	Backups         *backups.Service
 }
 
 type acquisitionService interface {
@@ -73,6 +77,10 @@ type configurableAcquisitionService interface {
 }
 
 type wantedService interface {
+	CompatibilityBooks(ctx context.Context) ([]wanted.WantedItem, error)
+	CompatibilityBookPage(context.Context, wanted.CompatibilityBookPageQuery) (wanted.CompatibilityBookPage, error)
+	ApplyCompatibilityBooks(context.Context, wanted.CompatibilityBookMutation) ([]wanted.WantedItem, error)
+	Get(ctx context.Context, id string) (wanted.WantedItem, error)
 	Create(ctx context.Context, request wanted.CreateRequest) (wanted.WantedItem, error)
 	List(ctx context.Context, status string) ([]wanted.WantedItem, error)
 	ListQualityProfiles(ctx context.Context) ([]wanted.QualityProfile, error)
@@ -175,10 +183,16 @@ type compatResourceService interface {
 func NewRouter(deps Dependencies) http.Handler {
 	mux := http.NewServeMux()
 	handler := &handler{deps: deps}
+	if deps.Notify != nil {
+		deps.Notify.WithCompatibilityAdapter(buildCompatOutboxRequest)
+	}
 
 	mux.HandleFunc("GET /ping", handler.compatPing)
 	mux.HandleFunc("HEAD /ping", handler.compatPing)
 	mux.HandleFunc("GET /healthz", handler.health)
+	mux.HandleFunc("GET /readyz", handler.operationalReadiness)
+	mux.HandleFunc("GET /api/v1/system/support", handler.supportDiagnostics)
+	mux.HandleFunc("GET /api/v1/system/attention", handler.attentionCounts)
 	mux.HandleFunc("GET /api/v1/health", handler.compatHealth)
 	mux.HandleFunc("GET /api/v1/system/status", handler.compatSystemStatus)
 	mux.HandleFunc("GET /api/v1/system/routes", handler.compatSystemRoutes)
@@ -378,16 +392,22 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("DELETE /api/v1/command/{id}", handler.compatDeleteCommand)
 	mux.HandleFunc("GET /api/v1/system/task", handler.compatSystemTasks)
 	mux.HandleFunc("GET /api/v1/system/task/{id}", handler.compatSystemTask)
+	mux.HandleFunc("GET /api/v1/system/tasks/{id}/runs", handler.systemTaskRuns)
+	mux.HandleFunc("POST /api/v1/system/tasks/{id}/runs/{runId}/review", handler.reviewSystemTaskRun)
 	mux.HandleFunc("GET /api/v1/system/tasks", handler.systemTasks)
 	mux.HandleFunc("POST /api/v1/system/tasks/{id}/run", handler.runSystemTask)
 	mux.HandleFunc("GET /api/v1/system/health", handler.systemHealth)
 	mux.HandleFunc("GET /api/v1/system/diskspace", handler.systemDiskspace)
+	mux.HandleFunc("GET /api/v1/notification-deliveries", handler.listNotificationDeliveries)
+	mux.HandleFunc("POST /api/v1/notification-deliveries/{id}/resolve", handler.resolveNotificationDelivery)
 	mux.HandleFunc("GET /api/v1/notifications", handler.listNotificationTargets)
 	mux.HandleFunc("POST /api/v1/notifications", handler.createNotificationTarget)
 	mux.HandleFunc("PUT /api/v1/notifications/{id}", handler.updateNotificationTarget)
 	mux.HandleFunc("DELETE /api/v1/notifications/{id}", handler.deleteNotificationTarget)
 	mux.HandleFunc("POST /api/v1/notifications/{id}/test", handler.testNotificationTarget)
 	mux.HandleFunc("GET /api/v1/providers/health", handler.providerHealth)
+	mux.HandleFunc("POST /api/v1/providers/{name}/check", handler.checkProvider)
+	mux.HandleFunc("POST /api/v1/integrations/{name}/check", handler.checkIntegration)
 	mux.HandleFunc("GET /api/v1/providers/diagnostics", handler.providerDiagnostics)
 	mux.HandleFunc("GET /api/v1/readiness", handler.readiness)
 	mux.HandleFunc("GET /api/v1/search", handler.search)
@@ -401,6 +421,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/integrations/bootstrap", handler.integrationBootstrap)
 	mux.HandleFunc("POST /api/v1/releases/search", handler.releaseSearch)
 	mux.HandleFunc("POST /api/v1/grabs", handler.grab)
+	mux.HandleFunc("GET /api/v1/acquisition-recovery", handler.acquisitionRecovery)
+	mux.HandleFunc("POST /api/v1/acquisition-recovery/{id}", handler.resolveAcquisition)
 	mux.HandleFunc("GET /api/v1/downloads", handler.downloads)
 	mux.HandleFunc("GET /api/v1/downloads/{id}", handler.downloadDetails)
 	mux.HandleFunc("GET /api/v1/downloads/resources", handler.downloadResources)
@@ -429,12 +451,20 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/authors", handler.authorSubscriptions)
 	mux.HandleFunc("POST /api/v1/authors", handler.subscribeAuthor)
 	mux.HandleFunc("PATCH /api/v1/authors/{id}", handler.updateAuthorSubscription)
+	mux.HandleFunc("GET /api/v1/library/authors/{key}", handler.libraryAuthorDetail)
+	mux.HandleFunc("GET /api/v1/library/books", handler.libraryBookCollection)
+	mux.HandleFunc("GET /api/v1/library/book-choices", handler.bookChoices)
+	mux.HandleFunc("POST /api/v1/library/book-matches", handler.bookMatches)
+	mux.HandleFunc("GET /api/v1/library/removed-books", handler.removedBooks)
+	mux.HandleFunc("POST /api/v1/wanted/{id}/restore", handler.restoreBook)
+	mux.HandleFunc("GET /api/v1/library/authors", handler.libraryAuthorCollection)
 	mux.HandleFunc("PUT /api/v1/authors/{id}", handler.updateAuthorSubscription)
 	mux.HandleFunc("DELETE /api/v1/authors/{id}", handler.deleteAuthorSubscription)
 	mux.HandleFunc("POST /api/v1/authors/monitor", handler.monitorAuthors)
 	mux.HandleFunc("GET /api/v1/authors/metadata/review", handler.authorMetadataReviews)
 	mux.HandleFunc("POST /api/v1/authors/metadata/review/{id}/resolve", handler.resolveAuthorMetadataReview)
 	mux.HandleFunc("GET /api/v1/wanted", handler.listWanted)
+	mux.HandleFunc("GET /api/v1/wanted/{id}", handler.getWanted)
 	mux.HandleFunc("POST /api/v1/wanted", handler.createWanted)
 	mux.HandleFunc("POST /api/v1/wanted/bulk", handler.bulkUpdateWanted)
 	mux.HandleFunc("PUT /api/v1/wanted/{id}", handler.updateWanted)
@@ -490,16 +520,29 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("PUT /api/v1/library/remote-path-mappings/{id}", handler.updateLibraryRemotePathMapping)
 	mux.HandleFunc("DELETE /api/v1/library/remote-path-mappings/{id}", handler.deleteLibraryRemotePathMapping)
 	mux.HandleFunc("GET /api/v1/library/files", handler.libraryFiles)
+	mux.HandleFunc("GET /api/v1/library/files/collection", handler.libraryFileCollection)
 	mux.HandleFunc("DELETE /api/v1/library/files/{id}", handler.deleteLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/files/delete", handler.deleteLibraryFiles)
+	mux.HandleFunc("POST /api/v1/library/books/{id}/rename/preview", handler.previewBookRename)
+	mux.HandleFunc("POST /api/v1/library/books/{id}/rename", handler.applyBookRename)
 	mux.HandleFunc("POST /api/v1/library/files/rename/preview", handler.previewRenameLibraryFiles)
 	mux.HandleFunc("POST /api/v1/library/files/rename", handler.renameLibraryFiles)
 	mux.HandleFunc("POST /api/v1/library/calibre/conversions/refresh", handler.refreshCalibreConversions)
+	mux.HandleFunc("GET /api/v1/library/import-recovery", handler.importRecovery)
+	mux.HandleFunc("GET /api/v1/library/repair-preview", handler.libraryRepairPreview)
+	mux.HandleFunc("POST /api/v1/library/import-operations/{id}/retry", handler.retryImportOperation)
+	mux.HandleFunc("POST /api/v1/library/calibre-handoffs/{id}/retry", handler.retryCalibreHandoff)
+	mux.HandleFunc("POST /api/v1/library/calibre-handoffs/{id}/resolve", handler.resolveCalibreHandoff)
 	mux.HandleFunc("GET /api/v1/library/import-reviews", handler.importReviews)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/resolve-bulk", handler.resolveImportReviewsBulk)
 	mux.HandleFunc("POST /api/v1/library/scan", handler.scanLibrary)
+	mux.HandleFunc("GET /api/v1/library/scans", handler.listLibraryScans)
+	mux.HandleFunc("POST /api/v1/library/scans", handler.startLibraryScan)
+	mux.HandleFunc("POST /api/v1/library/scans/{id}", handler.controlLibraryScan)
+	mux.HandleFunc("GET /api/v1/library/scans/{id}/moves", handler.libraryScanMoves)
 	mux.HandleFunc("POST /api/v1/library/import", handler.importLibraryFile)
 	mux.HandleFunc("POST /api/v1/library/import-completed", handler.importCompletedDownloads)
+	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/preview", handler.previewPayloadReview)
 	mux.HandleFunc("POST /api/v1/library/import-reviews/{id}/resolve", handler.resolveImportReview)
 
 	return withCORS(deps.Config.WebOrigin, withAuth(deps.Config.APIKey, deps.Auth, mux))
@@ -521,6 +564,19 @@ func (h *handler) providerHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"providers": h.deps.Metadata.Health(r.Context()),
 	})
+}
+
+func (h *handler) checkProvider(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Metadata == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "metadata service is unavailable"})
+		return
+	}
+	result, err := h.deps.Metadata.CheckProvider(r.Context(), r.PathValue("name"))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (h *handler) providerDiagnostics(w http.ResponseWriter, r *http.Request) {
@@ -638,7 +694,12 @@ func (h *handler) metadataReadinessStep(ctx context.Context) readinessStep {
 	health := h.deps.Metadata.Health(ctx)
 	ready := 0
 	configured := 0
+	total := 0
 	for _, provider := range health {
+		if provider.Name == "Local OPF" {
+			continue
+		}
+		total++
 		if provider.Configured {
 			configured++
 		}
@@ -648,10 +709,10 @@ func (h *handler) metadataReadinessStep(ctx context.Context) readinessStep {
 	}
 	if ready > 0 {
 		status := "ready"
-		message := strconv.Itoa(ready) + "/" + strconv.Itoa(len(health)) + " providers are ready for lookup and import evidence."
-		if configured < len(health) {
+		message := strconv.Itoa(ready) + "/" + strconv.Itoa(total) + " providers are ready for lookup and import evidence."
+		if ready < total {
 			status = "warning"
-			message += " Add Hardcover for richer series and edition metadata."
+			message += " Check the remaining providers in System."
 		}
 		return readinessStep{
 			ID:          "metadata",
@@ -663,6 +724,10 @@ func (h *handler) metadataReadinessStep(ctx context.Context) readinessStep {
 			TargetView:  "providers",
 		}
 	}
+	if configured > 0 {
+		return readinessStep{ID: "metadata", Title: "Metadata providers", Status: "warning", Required: true, Message: "Remote metadata is configured but no successful request is recorded. Check a provider connection in System.", ActionLabel: "Check providers", TargetView: "providers"}
+	}
+
 	return readinessStep{
 		ID:          "metadata",
 		Title:       "Metadata providers",
@@ -1331,7 +1396,6 @@ func (h *handler) grab(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyDownloadGrab(r.Context(), "native-grab", status, "")
 	writeJSON(w, http.StatusOK, status)
 }
 
@@ -1753,7 +1817,6 @@ func (h *handler) recoverFailedDownloads(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyFailedDownloads(r.Context(), "failed-download-recovery", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -1949,7 +2012,7 @@ func (h *handler) subscribeAuthor(w http.ResponseWriter, r *http.Request) {
 	subscription, err := h.deps.Wanted.SubscribeAuthor(r.Context(), request)
 	if err != nil {
 		status := http.StatusBadGateway
-		if strings.Contains(err.Error(), "metadata profile") {
+		if strings.Contains(err.Error(), "metadata profile") || strings.Contains(err.Error(), "root folder") {
 			status = http.StatusBadRequest
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
@@ -2009,7 +2072,7 @@ func (h *handler) updateAuthorSubscription(w http.ResponseWriter, r *http.Reques
 		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
 		}
-		if strings.Contains(err.Error(), "metadata profile") {
+		if strings.Contains(err.Error(), "metadata profile") || strings.Contains(err.Error(), "root folder") {
 			status = http.StatusBadRequest
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
@@ -2060,23 +2123,6 @@ func (h *handler) monitorAuthors(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, run)
 }
 
-func (h *handler) authorMetadataReviews(w http.ResponseWriter, r *http.Request) {
-	if h.deps.Wanted == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
-		return
-	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	reviews, err := h.deps.Wanted.ListAuthorMetadataReviews(r.Context(), wanted.AuthorMetadataReviewQuery{
-		Status: r.URL.Query().Get("status"),
-		Limit:  limit,
-	})
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"reviews": reviews})
-}
-
 func (h *handler) resolveAuthorMetadataReview(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
@@ -2089,13 +2135,25 @@ func (h *handler) resolveAuthorMetadataReview(w http.ResponseWriter, r *http.Req
 	}
 	defer r.Body.Close()
 	var request wanted.AuthorMetadataReviewDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid author metadata review decision payload"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, 400, map[string]any{"error": "expected one review decision"})
 		return
 	}
 	outcome, err := h.deps.Wanted.ResolveAuthorMetadataReview(r.Context(), id, request)
 	if err != nil {
 		status := http.StatusBadGateway
+		if errors.Is(err, wanted.ErrAuthorReviewChanged) {
+			status = http.StatusConflict
+		}
+		if errors.Is(err, wanted.ErrAuthorReviewDecision) {
+			status = http.StatusBadRequest
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
 		}
@@ -2108,6 +2166,11 @@ func (h *handler) resolveAuthorMetadataReview(w http.ResponseWriter, r *http.Req
 func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
 	if h.deps.Wanted == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	view := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("view")))
+	if view != "" && view != "library" && view != "cutoff-unmet" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "view must be library or cutoff-unmet"})
 		return
 	}
 	var items []wanted.WantedItem
@@ -2124,8 +2187,43 @@ func (h *handler) listWanted(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []wanted.WantedItem{}
 	}
+	if view == "library" {
+		visible := make([]wanted.WantedItem, 0, len(items))
+		for _, item := range items {
+			if item.Status != "removed" && item.Status != "ignored" {
+				visible = append(visible, item)
+			}
+		}
+		items = visible
+	}
 	items = h.deps.Wanted.AnnotateWantedStates(r.Context(), items)
 	writeJSON(w, http.StatusOK, map[string]any{"wanted": items})
+}
+
+func (h *handler) getWanted(w http.ResponseWriter, r *http.Request) {
+	if h.deps.Wanted == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted service is unavailable"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	var parsed pgtype.UUID
+	if err := parsed.Scan(id); err != nil || !parsed.Valid {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid book id"})
+		return
+	}
+	item, err := h.deps.Wanted.Get(r.Context(), id)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "book not found"})
+		return
+	}
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "book could not be loaded"})
+		return
+	}
+	if annotated := h.deps.Wanted.AnnotateWantedStates(r.Context(), []wanted.WantedItem{item}); len(annotated) == 1 {
+		item = annotated[0]
+	}
+	writeJSON(w, http.StatusOK, item)
 }
 
 func (h *handler) bulkUpdateWanted(w http.ResponseWriter, r *http.Request) {
@@ -2165,13 +2263,18 @@ func (h *handler) createWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted payload"})
 		return
 	}
-	item, err := h.deps.Wanted.Create(r.Context(), request)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	item, err := h.deps.Wanted.Create(ctx, request)
 	if err != nil {
 		// Root-folder validation (unknown id, format mismatch) is caller
 		// error, not an upstream failure.
 		status := http.StatusBadGateway
-		if strings.Contains(err.Error(), "root folder") {
+		if strings.Contains(err.Error(), "root folder") || errors.Is(err, wanted.ErrBookMatches) {
 			status = http.StatusBadRequest
+		}
+		if errors.Is(err, wanted.ErrBookAlreadyTracked) {
+			status = http.StatusConflict
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
@@ -2291,9 +2394,13 @@ func (h *handler) wantedMetadataReview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "wanted metadata review is unavailable"})
 		return
 	}
+	if paged, ok := h.deps.Wanted.(metadataReviewCollectionService); ok {
+		h.metadataReviewCollection(w, r, paged)
+		return
+	}
 	queue, err := provenanceService.MetadataReviewQueue(r.Context())
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "metadata review could not be loaded"})
 		return
 	}
 	writeJSON(w, http.StatusOK, queue)
@@ -2311,13 +2418,25 @@ func (h *handler) confirmWantedMetadataReviewCanonical(w http.ResponseWriter, r 
 	}
 	defer r.Body.Close()
 	var request wanted.MetadataReviewConfirmRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid wanted metadata review confirmation payload"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "expected one confirmation object"})
 		return
 	}
 	outcome, err := provenanceService.ConfirmMetadataReviewCanonical(r.Context(), request)
 	if err != nil {
 		status := http.StatusBadGateway
+		if errors.Is(err, wanted.ErrReviewSelection) {
+			status = http.StatusBadRequest
+		}
+		if errors.Is(err, wanted.ErrReviewChanged) {
+			status = http.StatusConflict
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusNotFound
 		}
@@ -2512,7 +2631,6 @@ func (h *handler) grabWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyDownloadGrab(r.Context(), "wanted-grab", status, r.PathValue("id"))
 	writeJSON(w, http.StatusOK, status)
 }
 
@@ -2534,7 +2652,6 @@ func (h *handler) monitorWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyMonitorGrabs(r.Context(), "wanted-monitor", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -2556,7 +2673,6 @@ func (h *handler) feedSyncWanted(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyFeedGrabs(r.Context(), "feed-sync", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -2566,19 +2682,41 @@ func (h *handler) upgradeWanted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	var request wanted.UpgradeRequest
+	request := wanted.UpgradeRequest{}
 	if r.Body != http.NoBody {
-		_ = json.NewDecoder(r.Body).Decode(&request)
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+		decoder.DisallowUnknownFields()
+		var parsed *wanted.UpgradeRequest
+		decodeErr := decoder.Decode(&parsed)
+		if decodeErr == io.EOF {
+			parsed = &request // Preserve the existing empty-body batch action.
+		} else if decodeErr != nil || parsed == nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "upgrade request must be a valid JSON object"})
+			return
+		}
+		if err := decoder.Decode(new(any)); err != io.EOF {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "upgrade request must contain one JSON object"})
+			return
+		}
+		request = *parsed
+	}
+	request, err := wanted.NormalizeUpgradeRequest(request)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
 	}
 	if request.Trigger == "" {
 		request.Trigger = "manual"
 	}
 	run, err := h.deps.Wanted.SearchUpgrades(r.Context(), request)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "run": run})
+		status := http.StatusBadGateway
+		if errors.Is(err, wanted.ErrInvalidUpgradeRequest) {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error(), "run": run})
 		return
 	}
-	h.notifyUpgradeGrabs(r.Context(), "upgrade-search", run)
 	writeJSON(w, http.StatusOK, run)
 }
 
@@ -2903,9 +3041,10 @@ func (h *handler) libraryFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	files, err := h.deps.Library.ListFiles(r.Context(), library.FileListQuery{
-		Format: r.URL.Query().Get("format"),
-		Status: r.URL.Query().Get("status"),
-		Limit:  limit,
+		Format:   r.URL.Query().Get("format"),
+		Status:   r.URL.Query().Get("status"),
+		WantedID: r.URL.Query().Get("wantedId"),
+		Limit:    limit,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
@@ -2964,8 +3103,7 @@ func (h *handler) previewRenameLibraryFiles(w http.ResponseWriter, r *http.Reque
 	}
 	defer r.Body.Close()
 	var request library.RenameFilesRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library rename preview payload"})
+	if !decodeRenameRequest(w, r, &request) {
 		return
 	}
 	outcome, err := h.deps.Library.PreviewRenameFiles(r.Context(), request)
@@ -2983,8 +3121,7 @@ func (h *handler) renameLibraryFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	var request library.RenameFilesRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid library rename payload"})
+	if !decodeRenameRequest(w, r, &request) {
 		return
 	}
 	outcome, err := h.deps.Library.RenameFiles(r.Context(), request)
@@ -3015,6 +3152,14 @@ func (h *handler) refreshCalibreConversions(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *handler) importReviews(w http.ResponseWriter, r *http.Request) {
+	if view := r.URL.Query().Get("view"); view != "" && view != "collection" {
+		writeJSON(w, 400, map[string]any{"error": "unknown import review view"})
+		return
+	}
+	if r.URL.Query().Get("view") == "collection" {
+		h.importReviewCollection(w, r)
+		return
+	}
 	if h.deps.Library == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "library service is unavailable"})
 		return
@@ -3039,7 +3184,10 @@ func (h *handler) scanLibrary(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var request library.ScanRequest
 	if r.Body != http.NoBody {
-		_ = json.NewDecoder(r.Body).Decode(&request)
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid scan request"})
+			return
+		}
 	}
 	outcome, err := h.deps.Library.Scan(r.Context(), request)
 	if err != nil {
@@ -3064,9 +3212,6 @@ func (h *handler) importLibraryFile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
-	}
-	if outcome.Imported {
-		h.notifyReleaseImport(r.Context(), "library-import", outcome)
 	}
 	writeJSON(w, http.StatusOK, outcome)
 }
@@ -3098,7 +3243,6 @@ func (h *handler) importCompletedDownloads(w http.ResponseWriter, r *http.Reques
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
-	h.notifyCompletedImports(r.Context(), "completed-download-import", outcome)
 	writeJSON(w, http.StatusOK, outcome)
 }
 
@@ -3114,17 +3258,18 @@ func (h *handler) resolveImportReview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	var request library.ReviewDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&request); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid review decision payload"})
 		return
 	}
 	outcome, err := h.deps.Library.ResolveImportReview(r.Context(), id, request)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+		status := http.StatusBadGateway
+		if errors.Is(err, library.ErrImportReviewConflict) {
+			status = http.StatusConflict
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
-	}
-	if outcome.Import != nil && outcome.Import.Imported {
-		h.notifyReviewImport(r.Context(), "import-review", outcome)
 	}
 	writeJSON(w, http.StatusOK, outcome)
 }
@@ -3179,9 +3324,6 @@ func (h *handler) resolveImportReviewsBulk(w http.ResponseWriter, r *http.Reques
 			outcome.Skipped++
 		case "rejected":
 			outcome.Rejected++
-		}
-		if reviewOutcome.Import != nil && reviewOutcome.Import.Imported {
-			h.notifyReviewImport(r.Context(), "import-review-bulk", reviewOutcome)
 		}
 		outcome.Results = append(outcome.Results, result)
 	}

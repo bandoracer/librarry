@@ -12,10 +12,8 @@ import {
 import type { AuthorMissingBookPolicy, AuthorSubscription, WantedItem } from "../../lib/api";
 import {
   keys,
-  useAuthorSubscriptions,
-  useLibraryFiles,
-  useLibrarySettings,
-  useWanted
+  useAuthorDetail,
+  useLibrarySettings
 } from "../../lib/queries";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { useToast } from "../../components/toast";
@@ -39,8 +37,7 @@ import {
   normalizedAuthorMissingPolicy
 } from "../wanted/lib";
 import {
-  buildLibraryAuthorRows,
-  libraryAuthorKey,
+  libraryAuthorPath,
   libraryBookPath,
   libraryErrorMessage,
   presenceLabel,
@@ -52,9 +49,8 @@ import "./library.css";
 
 /**
  * Author detail page (route: /library/author/:authorId). The param is the
- * normalized library author key (see libraryAuthorKey); subscription IDs are
- * also accepted so deep links from subscription records resolve. Authors that
- * exist only through wanted items render without subscription controls.
+ * canonical author/subscription identity or a legacy name key. The server resolves
+ * ambiguous legacy links into explicit choices and returns a bounded book page.
  */
 export default function AuthorPage() {
   const { authorId = "" } = useParams();
@@ -62,43 +58,16 @@ export default function AuthorPage() {
   const toast = useToast();
   const client = useQueryClient();
 
-  const wanted = useWanted();
-  const files = useLibraryFiles("any");
-  const subscriptions = useAuthorSubscriptions();
+  const [page, setPage] = useState({ key: authorId, cursors: [""], index: 0 });
+  const activePage = page.key === authorId ? page : { key: authorId, cursors: [""], index: 0 };
+  const detail = useAuthorDetail(authorId, activePage.cursors[activePage.index]);
   const librarySettings = useLibrarySettings();
-
-  const wantedItems = useMemo(() => wanted.data ?? [], [wanted.data]);
-  const libraryFiles = useMemo(() => files.data ?? [], [files.data]);
-  const allSubscriptions = useMemo(() => subscriptions.data ?? [], [subscriptions.data]);
-
-  // Resolve the author key: prefer a subscription-ID match, else treat the
-  // param as the normalized author key.
-  const authorKey = useMemo(() => {
-    const byID = allSubscriptions.find((subscription) => subscription.id === authorId);
-    return byID ? libraryAuthorKey(byID.authorName) : authorId;
-  }, [allSubscriptions, authorId]);
-
-  const authorSubscriptions = useMemo(
-    () => allSubscriptions.filter((subscription) => libraryAuthorKey(subscription.authorName) === authorKey),
-    [allSubscriptions, authorKey]
-  );
-  const books = useMemo(
-    () =>
-      wantedItems
-        .filter((item) => libraryAuthorKey(item.authorName) === authorKey)
-        .sort((a, b) => a.title.localeCompare(b.title)),
-    [wantedItems, authorKey]
-  );
-
-  const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
+  const books = useMemo(() => detail.data?.books ?? [], [detail.data]);
+  const authorSubscriptions = useMemo(() => detail.data?.subscriptions ?? [], [detail.data]);
+  const choices = detail.data?.choices ?? [];
+  const presence = useMemo(() => wantedPresenceMap(books, []), [books]);
   const stats = useMemo(() => summarizeWantedItems(books, presence), [books, presence]);
-  const authorRow = useMemo(
-    () => buildLibraryAuthorRows(allSubscriptions, wantedItems, presence).find((row) => row.key === authorKey),
-    [allSubscriptions, wantedItems, presence, authorKey]
-  );
-
-  const authorName =
-    authorSubscriptions[0]?.authorName || books[0]?.authorName?.trim() || authorRow?.authorName || "Unknown author";
+  const authorName = detail.data?.author.name || "Author";
   const monitoredCount = books.filter((item) => item.monitored).length;
   const searchLanguage = librarySettings.data?.settings.standardSearchLanguage || "English";
 
@@ -110,11 +79,11 @@ export default function AuthorPage() {
   const [togglingBookID, setTogglingBookID] = useState("");
   const [searchingBookID, setSearchingBookID] = useState("");
 
-  const isLoading = wanted.isLoading || subscriptions.isLoading;
-  const notFound = !isLoading && books.length === 0 && authorSubscriptions.length === 0;
+  const isLoading = detail.isLoading;
+  const notFound = !isLoading && !detail.isError && detail.data === null;
 
   function invalidate(...queryKeys: readonly (readonly unknown[])[]) {
-    return Promise.all(queryKeys.map((key) => client.invalidateQueries({ queryKey: key })));
+    return Promise.all([...queryKeys, [...keys.wanted, "author", authorId]].map((key) => client.invalidateQueries({ queryKey: key })));
   }
 
   async function searchAuthorBooks() {
@@ -228,34 +197,20 @@ export default function AuthorPage() {
     }
   }
 
-  const noticeMessages = useMemo(() => {
-    const seen = new Set<string>();
-    return [wanted.error, subscriptions.error, files.error]
-      .filter((error): error is Error => error instanceof Error)
-      .map((error) => libraryErrorMessage(error))
-      .filter((message) => {
-        if (seen.has(message)) return false;
-        seen.add(message);
-        return true;
-      });
-  }, [wanted.error, subscriptions.error, files.error]);
-
-  const profileLine = authorRow
-    ? `${authorRow.formats.join(", ") || "any"} · ${authorRow.qualityProfiles.join(", ") || "standard"}`
-    : "";
+  const profileLine = [...new Set([...authorSubscriptions.map(sub => sub.format), ...books.map(book => book.format)])].join(", ");
 
   return (
     <>
       <PageHeader
         title={authorName}
-        subtitle={profileLine || "Author detail"}
+        subtitle={[profileLine, detail.data?.author.providerKey].filter(Boolean).join(" · ") || "Author detail"}
         actions={
           <>
             <ToolbarButton icon={ArrowLeft} label="Library" title="Back to Library" onClick={() => navigate("/library")} />
             <ToolbarButton
               icon={FileSearch}
-              label="Search Author's Books"
-              title="Search indexers for every monitored book by this author"
+              label="Search Page"
+              title="Search indexers for monitored books on this page"
               busy={isSearchingAll}
               disabled={isSearchingAll || books.length === 0}
               onClick={() => void searchAuthorBooks()}
@@ -284,14 +239,17 @@ export default function AuthorPage() {
         }
       />
       <div className="library-page">
-        {noticeMessages.map((message) => (
-          <InlineNotice key={message} tone="danger">
-            {message}
-          </InlineNotice>
-        ))}
-
         {isLoading ? (
           <LoadingRow label="Loading author…" />
+        ) : detail.isError ? (
+          <Card><EmptyState icon={Users} title="Author unavailable" actions={<Button onClick={() => void detail.refetch()}>Try again</Button>}>
+            {libraryErrorMessage(detail.error)}
+          </EmptyState></Card>
+        ) : choices.length ? (
+          <Card title="Choose an author" subtitle="This name matches separate records. Choose one to view its books.">
+            {choices.map(choice => <p key={choice.id}><Link to={libraryAuthorPath(choice.name, choice.id)}>{choice.name} · {choice.nameOnly ? "Unidentified books" : choice.provider || "Library author"}{choice.providerKey ? ` · ${choice.providerKey}` : ""}</Link></p>)}
+            {detail.data?.choicesTruncated ? <InlineNotice tone="info">More matches exist. Open the author from its subscription or book.</InlineNotice> : null}
+          </Card>
         ) : notFound ? (
           <Card>
             <EmptyState
@@ -308,13 +266,16 @@ export default function AuthorPage() {
           </Card>
         ) : (
           <>
+            {detail.data?.author.nameOnly ? <InlineNotice tone="info">These books share a display name; they are not linked to a confirmed author identity.</InlineNotice> : null}
             <StatBar
               stats={[
-                { label: "Books", value: books.length },
-                { label: "Monitored", value: monitoredCount },
-                { label: "Missing", value: stats.missing, tone: stats.missing > 0 ? "danger" : "neutral" },
-                { label: "Downloading", value: stats.downloading, tone: stats.downloading > 0 ? "info" : "neutral" },
-                { label: "Downloaded", value: stats.downloaded, tone: stats.downloaded > 0 ? "success" : "neutral" }
+                { label: "Books", value: detail.data?.totalBooks ?? 0 },
+                { label: "Monitored on page", value: monitoredCount },
+                { label: "Missing on page", value: stats.missing, tone: stats.missing > 0 ? "danger" : "neutral" },
+                { label: "Downloading on page", value: stats.downloading, tone: stats.downloading > 0 ? "info" : "neutral" },
+                { label: "Downloaded on page", value: stats.downloaded, tone: stats.downloaded > 0 ? "success" : "neutral" },
+                { label: "Incomplete on page", value: stats.incomplete, tone: stats.incomplete > 0 ? "warn" : "neutral" },
+                { label: "Unknown on page", value: stats.unknown, tone: stats.unknown > 0 ? "warn" : "neutral" }
               ]}
             />
 
@@ -364,7 +325,13 @@ export default function AuthorPage() {
               </InlineNotice>
             )}
 
-            <Card title="Books" subtitle={`${books.length} tracked book${books.length === 1 ? "" : "s"}`} padded={false}>
+            <div className="form-actions">
+              <Button disabled={activePage.index === 0 || detail.isFetching} onClick={() => setPage({ ...activePage, index: activePage.index - 1 })}>Previous page</Button>
+              <Button disabled={!detail.data?.nextCursor || detail.isFetching} onClick={() => {
+                if (detail.data?.nextCursor) setPage({ key: authorId, cursors: [...activePage.cursors.slice(0, activePage.index + 1), detail.data.nextCursor], index: activePage.index + 1 });
+              }}>Next page</Button>
+            </div>
+            <Card title="Books" subtitle={`${books.length} of ${detail.data?.totalBooks ?? 0} tracked books · page ${activePage.index + 1}`} padded={false}>
               {books.length ? (
                 <DataTable className="library-book-table">
                   <thead>

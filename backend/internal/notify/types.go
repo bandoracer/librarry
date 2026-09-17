@@ -1,7 +1,7 @@
 // Package notify delivers Librarry events (grabs, imports, upgrades, download
 // failures, health issues) to operator-configured notification targets:
 // generic webhooks, ntfy, Discord, and Telegram. Workers and API handlers
-// dispatch events through Service; delivery errors are logged, never fatal.
+// commit events to the outbox; delivery failures remain available for review.
 package notify
 
 import (
@@ -23,10 +23,12 @@ const (
 
 // Event is a provider-agnostic notification.
 type Event struct {
-	Type    EventType
-	Title   string
-	Message string
-	Fields  map[string]string
+	ID         string            `json:"id,omitempty"`
+	OccurredAt time.Time         `json:"occurredAt,omitempty"`
+	Type       EventType         `json:"type"`
+	Title      string            `json:"title"`
+	Message    string            `json:"message"`
+	Fields     map[string]string `json:"fields"`
 }
 
 // Triggers selects which event types a target receives.

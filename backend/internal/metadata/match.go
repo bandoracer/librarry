@@ -151,7 +151,12 @@ func openLibraryAuthorKey(value string) string {
 	value = strings.TrimPrefix(value, "openlibrary:")
 	value = strings.TrimPrefix(value, "/authors/")
 	value = strings.TrimPrefix(value, "authors/")
-	if strings.HasPrefix(value, "OL") && strings.HasSuffix(value, "A") {
+	if strings.HasPrefix(value, "OL") && strings.HasSuffix(value, "A") && len(value) > 3 {
+		for _, r := range value[2 : len(value)-1] {
+			if r < '0' || r > '9' {
+				return ""
+			}
+		}
 		return value
 	}
 	return ""

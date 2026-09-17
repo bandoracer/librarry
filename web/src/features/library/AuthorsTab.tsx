@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, RadioTower, RefreshCw, SlidersHorizontal, Trash2, UserRoundSearch } from "lucide-react";
@@ -10,6 +10,8 @@ import {
   updateAuthorSubscription
 } from "../../lib/api";
 import type {
+  AuthorCollectionOptions,
+  AuthorReviewOptions,
   AuthorFilterFields,
   AuthorFilterUpdateRequest,
   AuthorMetadataReview,
@@ -21,12 +23,11 @@ import type {
 } from "../../lib/api";
 import {
   keys,
-  useAuthorMetadataReviews,
-  useAuthorSubscriptions,
-  useLibraryFiles,
+  useAuthorReviewCollection,
+  useAuthorCollection,
   useMetadataProfiles,
-  useWanted,
-  useWantedMetadataReview
+  useRootFolders,
+  useQualityProfiles
 } from "../../lib/queries";
 import { formatDateTime } from "../../lib/format";
 import { useToast } from "../../components/toast";
@@ -57,12 +58,9 @@ import {
   authorSubscriptionMonitorOptions,
   authorSubscriptionStatsBadges,
   authorSubscriptionStatsSummary,
-  buildAuthorSubscriptionStatsMap,
   emptyAuthorSubscriptionStats,
   errorMessage,
-  firstAuthorName,
-  metadataReviewMap,
-  wantedPresenceMap
+  firstAuthorName
 } from "../wanted/lib";
 import { libraryAuthorPath } from "./lib";
 import "../wanted/wanted.css";
@@ -78,6 +76,8 @@ type AuthorMonitorOptions = {
 
 /** Editable string form of the metadata filters (comma inputs, number text). */
 type AuthorFiltersForm = {
+  rootFolderId: string;
+  qualityProfile: string;
   metadataProfileId: string;
   allowedLanguages: string;
   mustNotContain: string;
@@ -104,6 +104,8 @@ function activeFilterCount(subscription: AuthorSubscription): number {
 function filtersToForm(subscription: AuthorSubscription): AuthorFiltersForm {
   const filters = subscriptionFilters(subscription);
   return {
+    rootFolderId: subscription.rootFolderId ?? "",
+    qualityProfile: subscription.qualityProfile,
     metadataProfileId: subscription.metadataProfileId ?? "",
     allowedLanguages: (filters.allowedLanguages ?? []).join(", "),
     mustNotContain: (filters.mustNotContain ?? []).join(", "),
@@ -122,6 +124,8 @@ function splitCommaTerms(value: string): string[] {
 /** Empty inputs clear the corresponding filter (empty lists / 0 / "" = disabled). */
 function filtersFormPayload(form: AuthorFiltersForm): AuthorFilterUpdateRequest {
   return {
+    rootFolderId: form.rootFolderId,
+    qualityProfile: form.qualityProfile,
     metadataProfileId: form.metadataProfileId,
     allowedLanguages: splitCommaTerms(form.allowedLanguages),
     mustNotContain: splitCommaTerms(form.mustNotContain),
@@ -142,25 +146,27 @@ export function AuthorsTab() {
   const toast = useToast();
   const client = useQueryClient();
 
-  const subscriptionsQuery = useAuthorSubscriptions();
-  const reviewsQuery = useAuthorMetadataReviews();
-  const wantedQuery = useWanted();
-  const wantedReviewQuery = useWantedMetadataReview();
-  const filesQuery = useLibraryFiles("any");
+  const [search, setSearch] = useState("");
+  const [querySearch, setQuerySearch] = useState("");
+  const [format, setFormat] = useState<AuthorCollectionOptions["format"]>("all");
+  const [status, setStatus] = useState<AuthorCollectionOptions["status"]>("monitored");
+  const [cursors, setCursors] = useState<string[]>([""]);
+  useEffect(() => { if (search === querySearch) return; const timer = setTimeout(() => { setQuerySearch(search); setCursors([""]); }, 250); return () => clearTimeout(timer); }, [search, querySearch]);
+  const subscriptionsQuery = useAuthorCollection({ q: querySearch, format, status, cursor: cursors[cursors.length - 1], limit: 100 });
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewQuery, setReviewQuery] = useState("");
+  const [reviewStatus, setReviewStatus] = useState<AuthorReviewOptions["status"]>("pending");
+  const [reviewFormat, setReviewFormat] = useState<AuthorReviewOptions["format"]>("all");
+  const [reviewCursors, setReviewCursors] = useState<string[]>([""]);
+  useEffect(() => { if (reviewSearch === reviewQuery) return; const timer = setTimeout(() => { setReviewQuery(reviewSearch); setReviewCursors([""]); }, 250); return () => clearTimeout(timer); }, [reviewSearch, reviewQuery]);
+  const reviewsQuery = useAuthorReviewCollection({ q: reviewQuery, status: reviewStatus, format: reviewFormat, cursor: reviewCursors[reviewCursors.length - 1], limit: 6 });
   const metadataProfilesQuery = useMetadataProfiles();
-
-  const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data]);
-  const reviews = useMemo(() => reviewsQuery.data ?? [], [reviewsQuery.data]);
-  const wantedItems = useMemo(() => wantedQuery.data ?? [], [wantedQuery.data]);
-  const libraryFiles = useMemo(() => filesQuery.data ?? [], [filesQuery.data]);
+  const rootsQuery = useRootFolders();
+  const profilesQuery = useQualityProfiles();
+  const collection = subscriptionsQuery.data;
+  const subscriptions = collection?.authors ?? [];
+  const reviews = useMemo(() => reviewsQuery.data?.reviews ?? [], [reviewsQuery.data]);
   const metadataProfiles = metadataProfilesQuery.data ?? [];
-
-  const presence = useMemo(() => wantedPresenceMap(wantedItems, libraryFiles), [wantedItems, libraryFiles]);
-  const reviewByID = useMemo(() => metadataReviewMap(wantedReviewQuery.data), [wantedReviewQuery.data]);
-  const statsByKey = useMemo(
-    () => buildAuthorSubscriptionStatsMap(subscriptions, wantedItems, presence, reviewByID),
-    [subscriptions, wantedItems, presence, reviewByID]
-  );
 
   const [isRunningMonitor, setIsRunningMonitor] = useState(false);
   const [monitorTargetKey, setMonitorTargetKey] = useState("");
@@ -238,12 +244,12 @@ export function AuthorsTab() {
     setSavingFiltersID(subscription.id);
     try {
       await updateAuthorSubscription(subscription.id, filtersFormPayload(filtersForm));
-      toast.success(`${subscription.authorName}: add filters updated`);
+      toast.success(`${subscription.authorName}: author settings updated`);
       setFiltersOpenKey("");
       setFiltersForm(null);
       await invalidate(keys.authorSubscriptions);
     } catch (error) {
-      toast.error(appErrorMessage(errorMessage(error, "Author filters update failed")));
+      toast.error(appErrorMessage(errorMessage(error, "Author settings update failed")));
     } finally {
       setSavingFiltersID("");
     }
@@ -270,10 +276,10 @@ export function AuthorsTab() {
     try {
       if (skipped.reviewId) {
         const outcome = await resolveAuthorMetadataReview(skipped.reviewId, "wanted");
-        toast.success(`Marked “${outcome.wantedItem?.title ?? skipped.result.work.title}” wanted`);
+        toast.success(outcome.replayed ? "This review decision was already saved" : outcome.alreadyTracked ? "Already tracked; existing book settings retained" : `Marked “${outcome.wantedItem?.title ?? skipped.result.work.title}” wanted`);
       } else {
         const wantedFormat = skipped.result.edition?.format === "audiobook" ? "audiobook" : subscription.format;
-        const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? []);
+        const item = await createWanted(skipped.result, wantedFormat, subscription.qualityProfile, subscription.tags ?? [], subscription.rootFolderId);
         toast.success(`Marked “${item.title}” wanted`);
       }
       await invalidate(keys.wanted, keys.authorMetadataReviews, keys.acquisitionQueue, keys.history());
@@ -288,8 +294,12 @@ export function AuthorsTab() {
     if (!review.id) return;
     setReviewActionID(`${review.id}:${action}`);
     try {
-      const outcome = await resolveAuthorMetadataReview(review.id, action);
-      if (action === "wanted") {
+      const outcome = await resolveAuthorMetadataReview(review.id, action, review.revision);
+      if (outcome.replayed) {
+        toast.success("This review decision was already saved");
+      } else if (outcome.alreadyTracked) {
+        toast.success("Already tracked; existing book settings retained");
+      } else if (action === "wanted") {
         toast.success(`Marked “${outcome.wantedItem?.title ?? review.title}” wanted`);
       } else {
         toast.success(`Ignored “${review.title || review.result.work.title}”`);
@@ -314,17 +324,17 @@ export function AuthorsTab() {
       <Toolbar align="start">
         <ToolbarButton
           icon={RadioTower}
-          label={isRunningMonitor ? "Running authors" : "Author Monitor"}
+          label={isRunningMonitor ? "Running authors" : "Check Author Batch"}
           busy={isRunningMonitor && !monitorTargetKey}
           disabled={isRunningMonitor}
-          title="Check due author subscriptions for new or missing books"
+          title="Check up to 50 due author subscriptions for new or missing books"
           onClick={() => void runMonitor({ force: false })}
         />
         <ToolbarButton
           icon={RefreshCw}
-          label="Force"
+          label="Force Author Batch"
           disabled={isRunningMonitor}
-          title="Force-refresh all author subscriptions"
+          title="Force-refresh up to 50 author subscriptions"
           onClick={() => void runMonitor({ force: true })}
         />
       </Toolbar>
@@ -335,24 +345,37 @@ export function AuthorsTab() {
         </InlineNotice>
       ))}
 
+      <div className="library-pagination">
+        <input aria-label="Filter author subscriptions" placeholder="Filter author subscriptions" value={search} onChange={event => setSearch(event.target.value)} />
+        <select aria-label="Author subscription format" value={format} onChange={event => { setFormat(event.target.value as AuthorCollectionOptions["format"]); setCursors([""]); }}>
+          <option value="all">All formats</option><option value="ebook">Ebooks</option><option value="audiobook">Audiobooks</option>
+        </select>
+        <select aria-label="Author subscription status" value={status} onChange={event => { setStatus(event.target.value as AuthorCollectionOptions["status"]); setCursors([""]); }}>
+          <option value="monitored">Monitored</option><option value="unmonitored">Unmonitored</option><option value="all">All subscriptions</option>
+        </select>
+        <Button disabled={cursors.length === 1 || subscriptionsQuery.isFetching} onClick={() => setCursors(value => value.slice(0, -1))}>Previous</Button>
+        <Button disabled={!collection?.nextCursor || subscriptionsQuery.isFetching} onClick={() => { if (collection?.nextCursor) setCursors(value => [...value, collection.nextCursor!]); }}>Next</Button>
+        <Button onClick={() => void subscriptionsQuery.refetch()} disabled={subscriptionsQuery.isFetching}>Refresh page</Button>
+      </div>
+      {(collection?.downloads === "partial" || collection?.downloads === "unavailable") && <InlineNotice tone="info">Download-client evidence is incomplete. Some book counts are unknown.</InlineNotice>}
       <div className="wanted-author-grid">
         <Card
           title="Author subscriptions"
-          subtitle={
-            subscriptions.length
-              ? `${subscriptions.length} monitored author${subscriptions.length === 1 ? "" : "s"} can create wanted items from metadata search.`
-              : "Monitor authors for new or missing books before release acquisition."
-          }
+          subtitle={collection ? `${subscriptions.length} shown · ${collection.filtered} matching · ${collection.total} total subscriptions` : "Monitor authors for new or missing books."}
           padded={false}
         >
           {subscriptionsQuery.isLoading ? (
             <LoadingRow label="Loading author subscriptions…" />
+          ) : subscriptionsQuery.isError ? (
+            <EmptyState icon={UserRoundSearch} title="Author subscriptions could not be loaded">
+              <Button onClick={() => void subscriptionsQuery.refetch()}>Retry</Button>
+            </EmptyState>
           ) : subscriptions.length ? (
             <div className="wanted-author-list">
               {subscriptions.map((subscription) => {
                 const monitorKey = authorSubscriptionKey(subscription);
                 const refreshingAuthor = monitorTargetKey === monitorKey;
-                const stats = statsByKey.get(monitorKey) ?? emptyAuthorSubscriptionStats();
+                const stats = { ...emptyAuthorSubscriptionStats(), ...subscription.counts, total: subscription.totalBooks };
                 const filterCount = activeFilterCount(subscription);
                 const filtersOpen = filtersOpenKey === monitorKey;
                 const activeProfile = metadataProfiles.find((profile) => profile.id === subscription.metadataProfileId);
@@ -360,24 +383,24 @@ export function AuthorsTab() {
                   <React.Fragment key={monitorKey}>
                     <article className="wanted-author-row">
                       <div className="wanted-author-main">
-                        <Link className="cell-primary" to={libraryAuthorPath(subscription.authorName)}>
+                        <Link className="cell-primary" to={libraryAuthorPath(subscription.authorName, subscription.id)}>
                           <strong>{subscription.authorName}</strong>
                         </Link>
                         <span>
                           {subscription.provider} · {subscription.format} · {subscription.qualityProfile}
                           {activeProfile ? ` · ${activeProfile.name}` : ""}
                         </span>
-                        <small className="wanted-author-stats">{authorSubscriptionStatsSummary(stats)}</small>
+                        <small className="wanted-author-stats">{subscription.identityLinked ? authorSubscriptionStatsSummary(stats) : "Provider identity is not linked. Book counts are unavailable."}</small>
                         <div className="wanted-author-counts" aria-label={`${subscription.authorName} wanted book status`}>
-                          <Badge tone={subscription.monitorNewItems ? "success" : "neutral"}>
-                            {subscription.monitorNewItems ? "Monitored" : "Not monitoring new"}
+                          <Badge tone={subscription.status === "monitored" && subscription.monitorNewItems ? "success" : "neutral"}>
+                            {subscription.status !== "monitored" ? "Unmonitored" : subscription.monitorNewItems ? "Monitored" : "Not monitoring new"}
                           </Badge>
                           {filterCount > 0 ? (
                             <Badge tone="info" title={`${filterCount} add filter${filterCount === 1 ? "" : "s"} active`}>
                               {filterCount} filter{filterCount === 1 ? "" : "s"}
                             </Badge>
                           ) : null}
-                          {authorSubscriptionStatsBadges(stats).map(([label, value]) => (
+                          {subscription.identityLinked && authorSubscriptionStatsBadges(stats).map(([label, value]) => (
                             <Badge key={label}>
                               {value} {label}
                             </Badge>
@@ -401,13 +424,13 @@ export function AuthorsTab() {
                           <IconButton
                             icon={SlidersHorizontal}
                             tone={filtersOpen ? "accent" : filterCount > 0 ? "info" : "neutral"}
-                            label={`${filtersOpen ? "Hide" : "Edit"} add filters for ${subscription.authorName}`}
+                            label={`${filtersOpen ? "Hide" : "Edit"} author settings for ${subscription.authorName}`}
                             onClick={() => toggleFilters(subscription, monitorKey)}
                           />
                           <IconButton
                             icon={ArrowUpRight}
                             label={`Open ${subscription.authorName} author page`}
-                            onClick={() => navigate(libraryAuthorPath(subscription.authorName))}
+                            onClick={() => navigate(libraryAuthorPath(subscription.authorName, subscription.id))}
                           />
                           <IconButton
                             icon={RefreshCw}
@@ -430,10 +453,25 @@ export function AuthorsTab() {
                     {filtersOpen && filtersForm ? (
                       <div style={{ padding: "2px 0 14px", borderBottom: "1px solid var(--border)" }}>
                         <FormGrid columns={2}>
+                          <Field label="Root folder" hint="Applies to future additions; existing books keep their destination.">
+                            <select value={filtersForm.rootFolderId} aria-label={`${subscription.authorName} root folder`}
+                              onChange={event => updateFiltersForm({ rootFolderId: event.target.value })}>
+                              <option value="">Format default</option>
+                              {filtersForm.rootFolderId && !(rootsQuery.data ?? []).some(root => root.id === filtersForm.rootFolderId && root.mediaFormat === subscription.format) ? <option value={filtersForm.rootFolderId}>Saved root unavailable or incompatible</option> : null}
+                              {(rootsQuery.data ?? []).filter(root => root.mediaFormat === subscription.format).map(root => <option key={root.id} value={root.id}>{root.name || root.path}</option>)}
+                            </select>
+                          </Field>
+                          <Field label="Quality profile" hint="Applies to newly added books.">
+                            <select value={filtersForm.qualityProfile} aria-label={`${subscription.authorName} quality profile`}
+                              onChange={event => updateFiltersForm({ qualityProfile: event.target.value })}>
+                              {!(profilesQuery.data ?? []).some(profile => profile.name === filtersForm.qualityProfile && (profile.mediaFormat === "any" || profile.mediaFormat === subscription.format)) ? <option value={filtersForm.qualityProfile}>{filtersForm.qualityProfile}</option> : null}
+                              {(profilesQuery.data ?? []).filter(profile => profile.mediaFormat === "any" || profile.mediaFormat === subscription.format).map(profile => <option key={profile.name} value={profile.name}>{profile.name}</option>)}
+                            </select>
+                          </Field>
                           <div className="settings-field-wide">
                             <Field
                               label="Metadata profile"
-                              hint="Primary filter set; the fields below override it per author."
+                              hint="When selected, this profile supplies the filters instead of the per-author fields below."
                             >
                               <select
                                 value={filtersForm.metadataProfileId}
@@ -498,7 +536,7 @@ export function AuthorsTab() {
                             disabled={!subscription.id || Boolean(savingFiltersID)}
                             onClick={() => void saveFilters(subscription)}
                           >
-                            Save filters
+                            Save author settings
                           </Button>
                           <Button
                             size="sm"
@@ -518,8 +556,9 @@ export function AuthorsTab() {
               })}
             </div>
           ) : (
-            <EmptyState icon={UserRoundSearch} title="No author subscriptions">
-              Subscribe to an author from metadata search to monitor for new or missing books.
+            <EmptyState icon={UserRoundSearch} title={collection?.total ? "No matching subscriptions on this page" : "No author subscriptions"}>
+              {collection?.total ? "Change the filters or return to the first page." : "Subscribe to an author from metadata search to monitor for new or missing books."}
+              {cursors.length > 1 && <Button onClick={() => setCursors([""])}>First page</Button>}
             </EmptyState>
           )}
         </Card>
@@ -595,11 +634,7 @@ export function AuthorsTab() {
 
           <Card
             title="Author review queue"
-            subtitle={
-              reviews.length
-                ? `${reviews.length} skipped metadata candidate${reviews.length === 1 ? "" : "s"} need review.`
-                : "No skipped author candidates are pending review."
-            }
+            subtitle={`${reviews.length} shown · ${reviewsQuery.data?.filtered ?? 0} matching · ${reviewsQuery.data?.counts.pending ?? 0} pending`}
             actions={
               <Button
                 size="sm"
@@ -612,10 +647,26 @@ export function AuthorsTab() {
               </Button>
             }
           >
-            {reviewsQuery.isLoading ? (
+            <FormGrid>
+              <Field label="Search author reviews"><input aria-label="Search author reviews" value={reviewSearch} onChange={event => setReviewSearch(event.target.value)} /></Field>
+              <Field label="Review status"><select aria-label="Author review status" value={reviewStatus} onChange={event => { setReviewStatus(event.target.value as AuthorReviewOptions["status"]); setReviewCursors([""]); }}>
+                <option value="pending">Pending</option><option value="wanted">Wanted</option><option value="ignored">Ignored</option><option value="all">All decisions</option>
+              </select></Field>
+              <Field label="Review format"><select aria-label="Author review format" value={reviewFormat} onChange={event => { setReviewFormat(event.target.value as AuthorReviewOptions["format"]); setReviewCursors([""]); }}>
+                <option value="all">All formats</option><option value="ebook">Ebook</option><option value="audiobook">Audiobook</option>
+              </select></Field>
+            </FormGrid>
+            <div className="library-pagination">
+              <Button disabled={reviewCursors.length === 1 || reviewsQuery.isFetching || Boolean(reviewActionID)} onClick={() => setReviewCursors(value => value.slice(0, -1))}>Previous reviews</Button>
+              <span>Page {reviewCursors.length}</span>
+              <Button disabled={!reviewsQuery.data?.nextCursor || reviewsQuery.isFetching || Boolean(reviewActionID)} onClick={() => { if (reviewsQuery.data?.nextCursor) setReviewCursors(value => [...value, reviewsQuery.data!.nextCursor!]); }}>Next reviews</Button>
+            </div>
+            {reviewsQuery.isError ? (
+              <EmptyState title="Author reviews could not be loaded"><Button onClick={() => void reviewsQuery.refetch()}>Retry reviews</Button></EmptyState>
+            ) : reviewsQuery.isLoading ? (
               <LoadingRow label="Loading author reviews…" />
             ) : reviews.length ? (
-              reviews.slice(0, 6).map((review) => {
+              reviews.map((review) => {
                 const wantedActionID = `${review.id}:wanted`;
                 const ignoreActionID = `${review.id}:ignore`;
                 return (
@@ -626,8 +677,14 @@ export function AuthorsTab() {
                         {review.authorName || firstAuthorName(review.result)} · {authorSkippedDateLabel(review.result)} ·{" "}
                         {review.reason}
                       </span>
+                      <span>
+                        {review.qualityProfile} · {review.rootFolderId
+                          ? (rootsQuery.data ?? []).find(root => root.id === review.rootFolderId)?.path ?? "Saved destination"
+                          : "Format default destination"}
+                      </span>
                     </div>
                     <div className="wanted-review-queue-actions">
+                      {review.status !== "pending" ? (review.wantedId ? <Link to={`/library/book/${review.wantedId}`}>Open tracked book</Link> : <Badge>{review.status}</Badge>) : <>
                       <Button
                         size="sm"
                         disabled={Boolean(reviewActionID) && reviewActionID !== wantedActionID}
@@ -645,13 +702,14 @@ export function AuthorsTab() {
                       >
                         {reviewActionID === ignoreActionID ? "Ignoring" : "Ignore"}
                       </Button>
+                      </>}
                     </div>
                   </article>
                 );
               })
             ) : (
-              <EmptyState title="Nothing pending review">
-                Skipped author candidates appear here when the monitor holds books back per policy.
+              <EmptyState title="No matching author reviews">
+                Try another filter or refresh the queue.
               </EmptyState>
             )}
           </Card>

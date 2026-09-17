@@ -42,12 +42,12 @@ import type {
  * `WantedItem.derivedState`; `wantedItemBookState` falls back to the legacy
  * status/file inference when it is absent (demo mode, older APIs).
  */
-export const bookStates = ["unmonitored", "missing", "downloading", "downloaded", "cutoffUnmet"] as const;
+export const bookStates = ["unmonitored", "missing", "downloading", "downloaded", "cutoffUnmet", "incomplete", "unknown"] as const;
 export type WantedPresence = (typeof bookStates)[number];
-export type WantedViewFilter = "missing" | "review" | "wanted" | "downloading" | "cutoff-unmet" | "all";
+export type WantedViewFilter = "missing" | "review" | "wanted" | "downloading" | "cutoff-unmet" | "incomplete" | "unknown" | "all";
 export type ReleaseDecisionFilter = "all" | "approved" | "rejected";
 
-export const wantedViewFilters: WantedViewFilter[] = ["missing", "review", "wanted", "downloading", "cutoff-unmet", "all"];
+export const wantedViewFilters: WantedViewFilter[] = ["missing", "incomplete", "unknown", "review", "wanted", "downloading", "cutoff-unmet", "all"];
 export const releaseDecisionFilters: ReleaseDecisionFilter[] = ["all", "approved", "rejected"];
 
 /** URL `?filter=` values → view filter; `grabbed` stays a supported alias for downloading. */
@@ -123,7 +123,7 @@ function stringMetadataValue(value: unknown) {
 
 function libraryFileCountsAsPresent(file: LibraryFile) {
   const status = (file.importStatus || "").toLowerCase();
-  return Boolean(file.path) && (status === "" || status === "available" || status === "imported");
+  return file.presenceState !== "missing" && Boolean(file.path) && (status === "" || status === "available" || status === "imported");
 }
 
 function libraryFileMatchesWanted(item: WantedItem, file: LibraryFile) {
@@ -171,7 +171,7 @@ export function summarizeWantedItems(items: WantedItem[], presence: Map<string, 
       summary[state] += 1;
       return summary;
     },
-    { missing: 0, downloading: 0, downloaded: 0, cutoffUnmet: 0, unmonitored: 0 }
+    { missing: 0, downloading: 0, downloaded: 0, cutoffUnmet: 0, unmonitored: 0, incomplete: 0, unknown: 0 }
   );
 }
 
@@ -199,8 +199,10 @@ export function wantedItemVisibleForFilter(
 ) {
   const state = presence ?? "missing";
   switch (filter) {
+    case "incomplete":
+    case "unknown":
     case "missing":
-      return state === "missing";
+      return state === filter;
     case "review":
       return hasMetadataReview;
     case "wanted":
@@ -226,6 +228,10 @@ export function wantedItemSubtitle(item: WantedItem, review?: MetadataReviewItem
 
 export function wantedStateLabel(presence: WantedPresence | undefined): string {
   switch (presence ?? "missing") {
+    case "unknown":
+      return "Unknown";
+    case "incomplete":
+      return "Incomplete";
     case "downloaded":
       return "Downloaded";
     case "downloading":
@@ -249,6 +255,8 @@ export function wantedPresenceTone(presence: WantedPresence | undefined): "succe
       return "success";
     case "downloading":
       return "info";
+    case "unknown":
+    case "incomplete":
     case "cutoffUnmet":
       return "warn";
     case "unmonitored":
@@ -596,13 +604,14 @@ export function profileKey(profile: QualityProfile) {
 
 export type AuthorSubscriptionStats = {
   total: number;
+  incomplete: number;
+  unknown: number;
   missing: number;
   downloading: number;
   downloaded: number;
   cutoffUnmet: number;
   unmonitored: number;
   review: number;
-  firstWantedItem?: WantedItem;
 };
 
 export function authorSubscriptionKey(subscription: AuthorSubscription) {
@@ -664,6 +673,8 @@ export function authorMissingPolicyLabel(policy: AuthorMissingBookPolicy) {
 export function emptyAuthorSubscriptionStats(): AuthorSubscriptionStats {
   return {
     total: 0,
+    incomplete: 0,
+    unknown: 0,
     missing: 0,
     downloading: 0,
     downloaded: 0,
@@ -673,52 +684,13 @@ export function emptyAuthorSubscriptionStats(): AuthorSubscriptionStats {
   };
 }
 
-export function buildAuthorSubscriptionStatsMap(
-  subscriptions: AuthorSubscription[],
-  items: WantedItem[],
-  presence: Map<string, WantedPresence>,
-  reviews: Map<string, MetadataReviewItem>
-) {
-  const statsByKey = new Map<string, AuthorSubscriptionStats>();
-
-  subscriptions.forEach((subscription) => {
-    const authorName = normalizedWantedText(subscription.authorName);
-    const stats = emptyAuthorSubscriptionStats();
-    items.forEach((item) => {
-      if (item.format !== subscription.format) return;
-      if (normalizedWantedText(item.authorName) !== authorName) return;
-      stats.total += 1;
-      stats.firstWantedItem ??= item;
-      if (reviews.has(item.id)) stats.review += 1;
-      switch (presence.get(item.id) ?? "missing") {
-        case "downloaded":
-          stats.downloaded += 1;
-          break;
-        case "downloading":
-          stats.downloading += 1;
-          break;
-        case "cutoffUnmet":
-          stats.cutoffUnmet += 1;
-          break;
-        case "unmonitored":
-          stats.unmonitored += 1;
-          break;
-        default:
-          stats.missing += 1;
-          break;
-      }
-    });
-    statsByKey.set(authorSubscriptionKey(subscription), stats);
-  });
-
-  return statsByKey;
-}
-
 export function authorSubscriptionStatsSummary(stats: AuthorSubscriptionStats) {
   if (stats.total === 0) {
     return "No wanted books yet. Refresh author metadata to create tracked books.";
   }
   const parts = [`${stats.total} tracked`, `${stats.missing} missing`];
+  if (stats.incomplete > 0) parts.push(`${stats.incomplete} incomplete`);
+  if (stats.unknown > 0) parts.push(`${stats.unknown} unknown`);
   if (stats.downloading > 0) parts.push(`${stats.downloading} downloading`);
   if (stats.downloaded > 0) parts.push(`${stats.downloaded} downloaded`);
   if (stats.cutoffUnmet > 0) parts.push(`${stats.cutoffUnmet} cutoff unmet`);
@@ -731,6 +703,8 @@ export function authorSubscriptionStatsBadges(stats: AuthorSubscriptionStats): A
   if (stats.total === 0) return [["tracked", 0]];
   const badges: Array<[string, number]> = [
     ["missing", stats.missing],
+    ["incomplete", stats.incomplete],
+    ["unknown", stats.unknown],
     ["downloading", stats.downloading],
     ["downloaded", stats.downloaded],
     ["cutoff unmet", stats.cutoffUnmet],
@@ -754,21 +728,27 @@ export function authorSkippedItemKey(subscription: AuthorSubscription, skipped: 
 }
 
 export function authorSkippedDateLabel(result: SearchResult) {
+  if (result.work.firstPublishDate) return result.work.firstPublishDate;
   return result.edition?.publishedDate || (result.work.firstPublishYear ? String(result.work.firstPublishYear) : "undated");
 }
 
 /* ------------------------------ Run summaries ------------------------------ */
 
+function skippedRunSummary(items?: Array<{ skippedReason?: string }>) {
+  const skipped = (items ?? []).filter(item => item.skippedReason);
+  return skipped.length ? `, ${skipped.length} skipped (${skipped[0].skippedReason})` : "";
+}
+
 export function monitorRunSummary(run: MonitorRun) {
-  return `Monitor run: ${run.wantedChecked} item${run.wantedChecked === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}`;
+  return `Monitor run: ${run.wantedChecked} item${run.wantedChecked === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}${skippedRunSummary(run.items)}`;
 }
 
 export function feedSyncRunSummary(run: FeedSyncRun) {
-  return `Feed sync: ${run.releasesSeen} release${run.releasesSeen === 1 ? "" : "s"} seen, ${run.matchedCount} matched, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}`;
+  return `Feed sync: ${run.releasesSeen} release${run.releasesSeen === 1 ? "" : "s"} seen, ${run.matchedCount} matched, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}${skippedRunSummary(run.matches)}${run.matchesTruncated ? "; showing the first 1,000 details" : ""}`;
 }
 
 export function upgradeRunSummary(run: UpgradeRun) {
-  return `Upgrade search: ${run.wantedChecked} checked, ${run.upgradeCount} upgrade${run.upgradeCount === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}`;
+  return `Upgrade search: ${run.wantedChecked} checked, ${run.upgradeCount} upgrade${run.upgradeCount === 1 ? "" : "s"}, ${run.grabbedCount} grabbed, ${run.errorCount} error${run.errorCount === 1 ? "" : "s"}${skippedRunSummary(run.items)}`;
 }
 
 export function authorMonitorRunSummary(run: AuthorMonitorRun) {

@@ -1,4 +1,6 @@
 import React from "react";
+import TaskRunHistory from "./TaskRunHistory";
+import SupportDiagnostics from "./SupportDiagnostics";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Archive, BookOpenCheck, HardDrive, HardDriveDownload, HeartPulse, ListChecks, Play, RefreshCw, Timer, Trash2 } from "lucide-react";
@@ -39,6 +41,8 @@ import {
 import { demoModeEnabled } from "../../lib/demo";
 import { formatBytes, formatRelativeTime } from "../../lib/format";
 import {
+  checkProviderConnection,
+  checkIntegrationConnection,
   createBackup,
   deleteBackup,
   runSystemTask,
@@ -75,7 +79,7 @@ function titleize(value: string): string {
 function healthTone(status: string): Tone {
   const normalized = status.toLowerCase();
   if (normalized === "ready" || normalized === "ok") return "success";
-  if (normalized.includes("error") || normalized.includes("fail")) return "danger";
+  if (normalized.includes("error") || normalized.includes("fail") || ["invalid_credentials", "forbidden", "unavailable"].includes(normalized)) return "danger";
   return "warn";
 }
 
@@ -306,6 +310,10 @@ export default function SystemPage() {
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
   const [showAllHealth, setShowAllHealth] = React.useState(false);
 
+  const checkProvider = useInvalidatingMutation(checkProviderConnection, [keys.providerHealth, keys.readiness]);
+
+  const checkIntegration = useInvalidatingMutation(checkIntegrationConnection, [keys.integrationHealth, keys.readiness, operabilityKeys.systemHealth]);
+
   const runTask = useInvalidatingMutation(runSystemTask, [operabilityKeys.systemTasks]);
 
   const refreshing =
@@ -356,7 +364,7 @@ export default function SystemPage() {
   const tasksCard = (
     <Card
       title="Scheduled Tasks"
-      subtitle="Background workers: cadence, last outcome, and manual run-now."
+      subtitle="Schedule and dependencies describe this API instance. Run history is shared across instances."
       padded={!tasks.data?.length}
     >
       {tasks.isPending ? (
@@ -365,16 +373,17 @@ export default function SystemPage() {
         queryFailureNotice(tasks.error, "Scheduled tasks need a live API and are not part of the demo data set.")
       ) : tasks.data.length === 0 ? (
         <EmptyState icon={Timer} title="No scheduled tasks">
-          The scheduler registry reported no tasks. Workers appear here once the API runs with scheduling enabled.
+          The API has not exposed a worker registry. Registered workers appear here even when disabled.
         </EmptyState>
       ) : (
-        <DataTable>
+        <DataTable className="system-tasks-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Interval</th>
               <th>Last Run</th>
-              <th>Next Run</th>
+              <th>Last Success</th>
+              <th>Next Run Here</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -383,26 +392,34 @@ export default function SystemPage() {
               <tr key={task.id}>
                 <td className="cell-primary">
                   <span className="system-task-name">
-                    {task.name}
-                    {task.running ? <Badge tone="info">Running</Badge> : null}
+                    <span>{task.name}</span>
+                    {task.running ? <Badge tone="info">Running</Badge> : task.runState === "interrupted" ? <Badge tone="warn">Interrupted</Badge> : task.runState === "degraded" ? <Badge tone="warn">Degraded</Badge> : null}
+                    {task.enabled === false ? <Badge tone="warn">Disabled here</Badge> : null}
+                    {task.available === false ? <Badge tone="warn">Unavailable here</Badge> : null}
+                    {task.unreviewedFailures ? <Badge tone="warn">{task.unreviewedFailures} unreviewed</Badge> : null}
                   </span>
+                  {task.disabledReason ? <span className="system-task-reason">{task.disabledReason}</span> : null}
+                  {task.unavailableReason ? <span className="system-task-reason">{task.unavailableReason}</span> : null}
                 </td>
-                <td className="cell-muted">{task.interval}</td>
+                <td className="cell-muted"><span className="system-task-cell-label">Interval</span>{task.interval}</td>
                 <td>
+                  <span className="system-task-cell-label">Last Run</span>
                   <span className="system-task-lastrun" title={taskLastRunTitle(task)}>
                     {formatRelativeTime(task.lastRunAt)}
                     {task.lastError ? <StatusDot tone="danger" /> : null}
                   </span>
                 </td>
-                <td>{formatRelativeTime(task.nextRunAt)}</td>
+                <td><span className="system-task-cell-label">Last Success</span>{task.lastSuccessAt ? formatRelativeTime(task.lastSuccessAt) : "Not recorded"}</td>
+                <td><span className="system-task-cell-label">Next Run Here</span>{formatRelativeTime(task.nextRunAt)}</td>
                 <td>
                   <div className="cell-actions">
+                    <TaskRunHistory id={task.id} name={task.name} />
                     <IconButton
                       icon={Play}
                       size="sm"
                       label={`Run ${task.name} now`}
                       busy={task.running || (runTask.isPending && runTask.variables === task.id)}
-                      disabled={runTask.isPending}
+                      disabled={runTask.isPending || task.enabled === false || task.available === false}
                       onClick={() => void triggerTask(task)}
                     />
                   </div>
@@ -487,6 +504,8 @@ export default function SystemPage() {
           </>
         )}
       </Card>
+
+      <SupportDiagnostics />
 
       <Card
         title="Health"
@@ -593,7 +612,7 @@ export default function SystemPage() {
         }
       >
         {providers.isPending ? (
-          <LoadingRow label="Checking provider health…" />
+          <LoadingRow label="Loading provider status…" />
         ) : providers.isError ? (
           <InlineNotice tone="danger">
             {providers.error instanceof Error ? providers.error.message : "Provider health check failed."}
@@ -613,7 +632,13 @@ export default function SystemPage() {
                   {!provider.configured ? <Badge tone="neutral">Not configured</Badge> : null}
                 </div>
                 <p className="system-muted">{provider.message}</p>
-                <span className="system-meta">Checked {formatRelativeTime(provider.checkedAt)}</span>
+                <div className="system-meta">
+                  {provider.name === "Local OPF" ? "Local import evidence" : provider.lastCheckedAt ? `Last request ${formatRelativeTime(provider.lastCheckedAt)}` : "Connection not checked"}
+                  {provider.lastSuccessAt ? <div>Last success {formatRelativeTime(provider.lastSuccessAt)}</div> : null}
+                  {provider.retryAfter ? <div>Retry after {new Date(provider.retryAfter).toLocaleString()}</div> : null}
+                </div>
+                {provider.name !== "Local OPF" ? <Button size="sm" disabled={!provider.configured || checkProvider.isPending || (!!provider.retryAfter && Date.parse(provider.retryAfter) > Date.now())} busy={checkProvider.isPending && checkProvider.variables === provider.name} onClick={() => checkProvider.mutate(provider.name)}>Check {provider.name}</Button> : null}
+                {checkProvider.isError && checkProvider.variables === provider.name ? <InlineNotice tone="danger">{checkProvider.error.message}</InlineNotice> : null}
               </article>
             ))}
           </div>
@@ -625,7 +650,7 @@ export default function SystemPage() {
         subtitle={
           integrations.data?.length
             ? `${integrationReadyCount}/${integrations.data.length} acquisition integrations ready.`
-            : "Prowlarr and download client health."
+            : "Recorded Prowlarr and download client checks."
         }
       >
         {integrations.isPending ? (
@@ -649,6 +674,15 @@ export default function SystemPage() {
                   {!integration.configured ? <Badge tone="neutral">Not configured</Badge> : null}
                 </div>
                 <p className="system-muted">{integration.message}</p>
+                <div className="system-meta">
+                  {integration.lastCheckedAt ? `Last check ${formatRelativeTime(integration.lastCheckedAt)}` : "Connection not checked"}
+                  {integration.lastSuccessAt ? <div>Last success {formatRelativeTime(integration.lastSuccessAt)}</div> : null}
+                  {integration.version ? <div>Last known version {integration.version}{integration.lastVersionAt ? ` · ${formatRelativeTime(integration.lastVersionAt)}` : ""}</div> : null}
+                  {integration.freshness === "stale" ? <div>Previous result: {titleize(integration.observedStatus ?? "unknown")}</div> : null}
+                  {integration.retryAfter ? <div>Retry after {new Date(integration.retryAfter).toLocaleString()}</div> : null}
+                </div>
+                <Button size="sm" disabled={!integration.configured || integration.checking || checkIntegration.isPending || (!!integration.retryAfter && Date.parse(integration.retryAfter) > Date.now())} busy={checkIntegration.isPending && checkIntegration.variables === integration.name} onClick={() => checkIntegration.mutate(integration.name)}>Check {integration.name}</Button>
+                {checkIntegration.isError && checkIntegration.variables === integration.name ? <InlineNotice tone="danger">{checkIntegration.error.message}</InlineNotice> : null}
               </article>
             ))}
           </div>

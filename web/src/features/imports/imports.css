@@ -94,3 +94,43 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.imports-recovery-list { display: grid; gap: var(--space-2, 8px); }
+.imports-recovery-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 0; }
+.imports-recovery-item summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: pointer; overflow-wrap: anywhere; }
+.imports-recovery-item ul { padding-left: 20px; }
+.imports-recovery-item li { margin: 10px 0; }
+.imports-recovery-path { overflow-wrap: anywhere; font-size: 0.85rem; }
+.imports-recovery-item summary::before { content: "▸"; }
+.imports-recovery-item[open] > summary::before { content: "▾"; }
+.imports-recovery-item summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.imports-payload-tools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 16px 0; }
+.imports-payload-tools .field { flex: 1 1 220px; min-width: 0; }
+.imports-payload-files { padding-left: 24px; }
+.imports-payload-files li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.imports-payload-files select { width: 100%; min-width: 0; margin-top: 6px; }
+.imports-payload-confirm { display: flex; align-items: start; gap: 8px; margin-top: 16px; }
+.imports-payload-confirm input { margin-top: 4px; flex-shrink: 0; }
+.imports-payload-preview { margin-top: 16px; }
+.imports-payload-preview ol { padding-left: 24px; }
+.imports-payload-preview li { margin: 8px 0; }
+
+.imports-root-confirm { display: flex; align-items: flex-start; gap: .5rem; font-size: .8rem; line-height: 1.5; }
+.imports-root-confirm input { flex: 0 0 auto; margin-top: .2rem; }
+
+.imports-repair-evidence { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .4rem 1rem; }
+.imports-repair-evidence dt { color: var(--text-muted); }
+.imports-repair-evidence dd { margin: 0; overflow-wrap: anywhere; }
+
+.imports-recovery-paging { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 1rem 0; }
+
+.imports-review-filters, .imports-review-paging { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin: 0.75rem 0; }
+.imports-review-filters label { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.imports-review-filters label:first-child { flex: 1 1 240px; }
+.imports-review-filters input { width: 100%; min-width: 0; }
+
+.imports-book-choice { min-width: 0; width: 100%; }
+.imports-book-choice select, .imports-book-choice input { width: 100%; min-width: 0; }
+.imports-book-choice summary { cursor: pointer; font-size: .8rem; margin-top: .4rem; }
+.imports-book-choice nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0; }
+.imports-book-choice input { margin-top: .5rem; }
