@@ -73,7 +73,11 @@ and the accepted test in its history.
 At **2026-09-17 08:29:54 UTC**, one small Librarry setup test was explicitly
 submitted through the live API. Resend acknowledged SMTP acceptance. No existing
 library book was sent. Physical Kindle arrival and Amazon processing are not
-confirmed by that acknowledgement; owner confirmation is still required.
+confirmed by that acknowledgement. The owner subsequently corrected the Kindle
+destination. Saved application settings, NAS deployment defaults and local
+environment files were corrected; no additional test was sent. The original
+attempt remains in history with its actual recipient. Delivery to the corrected
+address therefore remains unverified.
 
 ## Rollback and limits
 

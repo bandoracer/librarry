@@ -15,7 +15,9 @@ Manual native EPUB/PDF delivery is deployed on the maintainer NAS. Settings,
 a test document, and durable per-book history are available; see the
 [Kindle guide](guides/kindle.md). The exact published API image passed isolated
 Kindle checks on native AMD64 and ARM64. The configured Resend server accepted
-one setup test on September 17 at 08:29 UTC. Physical Kindle receipt remains
+one setup test on September 17 at 08:29 UTC. The owner subsequently corrected
+the destination; that earlier acceptance does not verify the corrected address.
+No test has been sent to the corrected destination, and Kindle receipt remains
 unconfirmed. Uncertain attempts are never automatically retried.
 [Implementation checks](reviews/2026-09-17-kindle-implementation.md) and
 [rollout evidence](reviews/2026-09-17-kindle-rollout.md) record the boundaries.
