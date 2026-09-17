@@ -103,3 +103,11 @@ Please do not add Goodreads, Amazon or Audible scraping to core.
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE).
+
+## Kindle email delivery
+
+Manual EPUB/PDF delivery, SMTP configuration, credential precedence, and recovery
+are described in the [Kindle guide](docs/guides/kindle.md). Configure it under
+Settings → Kindle. Delivery is disabled by default; it requires Postgres and an
+authenticated TLS SMTP sender. New source builds include migration 0059; older
+published images do not include this feature.

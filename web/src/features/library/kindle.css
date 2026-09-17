@@ -1,0 +1,5 @@
+.kindle-history { margin-top: 16px; overflow-wrap: anywhere; }
+.kindle-history-row { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+
+.kindle-file-choice { display: grid; gap: 6px; max-width: 480px; margin: 12px 0; }
+.kindle-file-choice select { width: 100%; min-width: 0; }

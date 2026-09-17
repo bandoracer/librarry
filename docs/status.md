@@ -9,6 +9,16 @@ Librarry is early alpha. The stabilization candidate is qualified for a
 qualified as an unattended replacement for
 an existing Readarr installation.
 
+## Kindle implementation (not deployed)
+
+The Kindle feature branch adds manual native EPUB/PDF sends, SMTP settings,
+a test document, and durable per-book delivery history. See the [Kindle guide](guides/kindle.md).
+SMTP acceptance is distinguished from Kindle arrival; uncertain attempts are
+never automatically retried. [Verification](reviews/2026-09-17-kindle-implementation.md)
+includes Postgres race tests and desktop/mobile browser checks against a local
+TLS mail receiver. No physical Kindle receipt was tested. This does not change
+the live image identities below.
+
 ## Source, images and deployment
 
 | State | Verified position |

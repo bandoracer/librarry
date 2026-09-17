@@ -118,3 +118,11 @@ The same portal exposes `/readyz` for current database connectivity (200 ready,
 certifies external clients, mounts or completed imports. System can download a
 redacted support report without contacting providers. See
 [probe and support semantics](../../docs/deployment.md#liveness-readiness-and-support).
+
+## Kindle email delivery
+
+Manual EPUB/PDF delivery, SMTP configuration, credential precedence, and recovery
+are described in the [Kindle guide](../../docs/guides/kindle.md). Configure it under
+Settings → Kindle. Delivery is disabled by default; it requires Postgres and an
+authenticated TLS SMTP sender. New source builds include migration 0059; older
+published images do not include this feature.

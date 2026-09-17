@@ -18,6 +18,7 @@ import {
 } from "./lib";
 import "./library.css";
 import RestoreBookDialog from "./RestoreBookDialog";
+import { KindleDeliveryPanel } from "./KindleDelivery";
 import { BookFiles } from "./FileBrowser";
 import { RenameBookFolder } from "./RenameBookFolder";
 
@@ -174,6 +175,7 @@ export default function BookPage() {
 
         <RenameBookFolder wantedId={item.id} open={renameOpen} onClose={() => setRenameOpen(false)} />
         <BookFiles key={item.id} wantedId={item.id} />
+        {!inactive && item.format === "ebook" ? <KindleDeliveryPanel wantedId={wantedId} /> : null}
         {!inactive ? <WantedEditForm item={item} onDeleted={() => navigate("/library/removed")} /> : null}
         <ProvenancePanel key={`provenance-${item.id}`} item={item} />
         {!inactive ? <ReleasesPanel key={`releases-${item.id}`} item={item} /> : null}

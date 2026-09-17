@@ -55,3 +55,11 @@ commands remain available. It is independent of feed sync. System → Tasks keep
 disabled/unavailable workers visible with reasons and retained shared history.
 Flags apply to each API instance; update every instance to stop scheduled work
 across a deployment.
+
+## Kindle email delivery
+
+Manual EPUB/PDF delivery, SMTP configuration, credential precedence, and recovery
+are described in the [Kindle guide](../docs/guides/kindle.md). Configure it under
+Settings → Kindle. Delivery is disabled by default; it requires Postgres and an
+authenticated TLS SMTP sender. New source builds include migration 0059; older
+published images do not include this feature.

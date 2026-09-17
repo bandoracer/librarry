@@ -23,6 +23,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/config"
 	"github.com/bandoracer/librarry/backend/internal/importlists"
 	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
+	"github.com/bandoracer/librarry/backend/internal/kindle"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/notify"
@@ -44,6 +45,7 @@ type Dependencies struct {
 	Wanted          wantedService
 	Library         libraryService
 	Compat          compatResourceService
+	Kindle          *kindle.Service
 	Notify          *notify.Service
 	Scheduler       *scheduler.Registry
 	Health          *HealthEvaluator
@@ -400,6 +402,11 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/v1/system/diskspace", handler.systemDiskspace)
 	mux.HandleFunc("GET /api/v1/notification-deliveries", handler.listNotificationDeliveries)
 	mux.HandleFunc("POST /api/v1/notification-deliveries/{id}/resolve", handler.resolveNotificationDelivery)
+	mux.HandleFunc("GET /api/v1/kindle/settings", handler.kindleSettings)
+	mux.HandleFunc("PUT /api/v1/kindle/settings", handler.saveKindleSettings)
+	mux.HandleFunc("POST /api/v1/kindle/test", handler.sendKindleTest)
+	mux.HandleFunc("GET /api/v1/kindle/deliveries", handler.kindleHistory)
+	mux.HandleFunc("POST /api/v1/kindle/send", handler.sendKindleBook)
 	mux.HandleFunc("GET /api/v1/notifications", handler.listNotificationTargets)
 	mux.HandleFunc("POST /api/v1/notifications", handler.createNotificationTarget)
 	mux.HandleFunc("PUT /api/v1/notifications/{id}", handler.updateNotificationTarget)

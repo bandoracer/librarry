@@ -134,3 +134,11 @@ methods and unreadable persisted auth settings are errors. Explicit environment
 credentials/methods are owned by the environment and cannot be overwritten in
 the UI. See [authentication](guides/operations.md#authentication) and
 [contribution guidelines](../CONTRIBUTING.md).
+
+## Kindle email delivery
+
+Manual EPUB/PDF delivery, SMTP configuration, credential precedence, and recovery
+are described in the [Kindle guide](guides/kindle.md). Configure it under
+Settings → Kindle. Delivery is disabled by default; it requires Postgres and an
+authenticated TLS SMTP sender. New source builds include migration 0059; older
+published images do not include this feature.

@@ -29,6 +29,17 @@ services:
     user: "568:568"
     restart: unless-stopped
     environment:
+      # Optional Kindle SMTP defaults; Settings → Kindle can persist overrides.
+      SMTP_HOST: ""
+      SMTP_PORT: "465"
+      SMTP_TLS_MODE: "implicit"
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      RESEND_API_KEY: ""
+      SMTP_FROM: ""
+      SMTP_FROM_NAME: "Librarry"
+      LIBRARRY_KINDLE_EMAIL: ""
+      LIBRARRY_KINDLE_ENABLED: "false"
       LIBRARRY_LISTEN_ADDR: :8080
       LIBRARRY_API_KEY:
       LIBRARRY_DATABASE_URL: postgres://librarry:change-me@postgres:5432/librarry?sslmode=disable
