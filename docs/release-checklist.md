@@ -2,7 +2,7 @@
 
 Prepared September 16, 2026. Feature expansion is frozen. This is the delivery
 checklist; S01–S25 remains the longer-term backlog, not a reason to add more
-features before shipping. No release version or stable image is approved yet.
+features before shipping. The candidate is deployed as a prerelease; no stable image is approved yet.
 
 ## Release boundary
 
@@ -29,8 +29,8 @@ belong in the release candidate. Every change invalidates affected evidence.
 | 3. Complete operator journey | Fresh database, setup, English search, add, controlled ebook and chapter acquisition/import, deliberate failure and restart recovery; inspect desktop, mobile and tablet | Passed for controlled alpha workflows: Forms authentication/restart, real English Open Library search/add, uncertain acquisition reconciliation, EPUB/chapter import, missing/foreign-file review, failure/restart recovery, rename/remove/restore and three viewport sizes. Roots were preconfigured; audio bytes were synthetic. See the [journey record](reviews/2026-09-16-release-qualification.md). |
 | 4. Safe upgrade and rollback | Restore a sanitized pre-upgrade database/media/config copy; compare books, overrides, links and hashes; rehearse rollback using the original images and pre-upgrade snapshot | Passed: production copy migrated 0029→0058; all existing fields across nine tables, three file/book links and three media hashes verified. Original image bytes and snapshot restored 0029 and reverted a copy-only mutation. |
 | 5. Exact artifact qualification | Publish candidates explicitly; record paired manifest/architecture digests; pull and test those digests on supported architectures; scan those images | Passed: paired candidate and platform digests recorded; exact pulls passed all three packaged suites on native ARM64 and native NAS AMD64. All four exact-image scans had zero fixable HIGH/CRITICAL findings under the configured policy. |
-| 6. Controlled target rollout | Named target, backup and rollback record, real integration readback, media permissions/mount checks, health and reverse-proxy checks | Open; no September live deployment claimed |
-| 7. Observation and stable promotion | Timed operator log, no unresolved integrity/recovery errors, reproducible release notes; promote qualified digests without rebuilding | Open; expanded stabilized release retains the planned 72-hour/20-controlled-case gate |
+| 6. Controlled target rollout | Named target, backup and rollback record, real integration readback, media permissions/mount checks, health and reverse-proxy checks | Passed September 16: exact candidate on TrueNAS, fresh rollback checkpoint, 0029→0058 preservation, three media hashes/links, mount checks, real integration checks and Cosmos sign-in redirect. [Rollout record](reviews/2026-09-16-live-rollout.md). |
+| 7. Observation and stable promotion | Timed operator log, no unresolved integrity/recovery errors, reproducible release notes; promote qualified digests without rebuilding | In progress from September 17 00:21 UTC; retains the planned 72-hour/20-controlled-case gate. No stable promotion yet. |
 
 ## One operator journey
 

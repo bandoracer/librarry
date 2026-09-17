@@ -29,9 +29,11 @@ Important current facts:
 - Live homelab deployments use the `media-stack` dataset, not the older `data`
   dataset.
 - TrueNAS media mount: `/mnt/HDD_pool/vault/media-stack:/data`.
-- Local images are `librarry-api:local` and `librarry-web:local`.
+- Live API/web images are pinned to the qualified GHCR candidate digests in
+  `docs/status.md`; the earlier `:local` images are retained for rollback.
 - The live portal, when available, is `http://192.168.1.221:30200/`.
-- The Cosmos hostname, when configured, is `https://librarry.borchetta.xyz/`.
+- The Cosmos hostname is `https://librarry.borchetta.xyz/` and requires Cosmos
+  sign-in; the LAN portal retains its existing application authentication mode.
 - The standard search language should stay `English` unless the user explicitly
   asks for multilingual or unfiltered results.
 - Prowlarr and qBittorrent have been verified through the live app, but

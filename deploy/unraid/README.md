@@ -95,7 +95,8 @@ servers and ARM64 Docker hosts.
 Installer defaults select historical `latest` images. Select both qualified
 candidate digests explicitly for a controlled rollout. [Current status](../../docs/status.md)
 distinguishes candidate publication, production-copy rollback qualification and
-actual deployment; the live rollout and observation gate remain open.
+actual deployment. The maintainer NAS now runs the candidate; the observation
+gate and stable promotion remain open.
 
 Scheduled auto-grab and removal defaults are enabled. Review the
 [automation and import controls](../../docs/deployment.md#stabilization-candidate-configuration)

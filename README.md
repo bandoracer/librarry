@@ -4,8 +4,9 @@ A self-hosted ebook and audiobook manager built around reliable metadata,
 explainable release decisions, and recoverable library operations.
 
 **Early alpha.** Librarry is intended to become a modern Readarr replacement.
-The stabilization candidate has passed controlled qualification; a live rollout
-and observation period are still required before stable promotion. Existing
+The stabilization candidate has passed controlled qualification and is deployed
+on the maintainer NAS. An observation period is still required before stable
+promotion. Existing
 `latest` images predate these fixes. See [current status](docs/status.md) before
 choosing an image or migrating a library.
 

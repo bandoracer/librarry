@@ -341,7 +341,9 @@ Compose now honor it. Use `hardlinkOrCopy`, `hardlink`, or `copy` for
 Removal is individually gated by verified imported content and actual seeding
 eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client.
 Back up both Postgres and library/download data before upgrading. The recorded candidate passed an isolated
-production-copy upgrade and rollback; that is separate from a live rollout.
+production-copy upgrade and rollback, followed by a controlled NAS rollout.
+The [rollout record](reviews/2026-09-16-live-rollout.md) preserves target-specific
+backup, migration and readback evidence.
 See [current status](status.md) and the [qualification report](reviews/2026-09-16-release-qualification.md)
 for the exact scope and remaining observation gate.
 

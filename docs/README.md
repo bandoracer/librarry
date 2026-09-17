@@ -43,6 +43,7 @@ complement the operator guides rather than acting as installation instructions.
 
 - [Release checklist](release-checklist.md)
 - [Qualified candidate and immutable image digests](reviews/2026-09-16-release-qualification.md)
+- [Live rollout and rollback checkpoint](reviews/2026-09-16-live-rollout.md)
 - [Changelog](../CHANGELOG.md)
 - [Longer-term stabilization plan](stabilization-plan.md)
 - [Historical status ledger](history/2026-09-16-status-ledger.md)

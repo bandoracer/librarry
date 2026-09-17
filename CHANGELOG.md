@@ -41,7 +41,8 @@ Candidate publication and platform digests are in the
 - Publication is explicit and candidate-only. Main/PR/tag builds cannot advance
   `latest` or release aliases.
 - Qualification covers native AMD64/ARM64 images and a production-copy
-  upgrade/rollback. Live rollout and observation remain open.
+  upgrade/rollback. The qualified pair is deployed on the maintainer NAS;
+  observation and stable promotion remain open.
 - Documentation now separates installation, operator guides, implementation
   reference, current readiness and historical milestones.
 
