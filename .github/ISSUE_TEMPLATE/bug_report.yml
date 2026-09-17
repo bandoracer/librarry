@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible problem with Librarry.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For sensitive security bugs, use the repository's Security policy instead.
+        Remove credentials, private paths and library details from logs or screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: Version or source
+      description: Include the commit or API/web image tags or digests; latest alone is not enough.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Installation
+      description: Docker Compose, TrueNAS, Unraid or local development; include OS and CPU architecture.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use controlled/legal fixtures where possible. Describe the settings and actions needed.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Relevant error text, a reviewed support-report excerpt or screenshots. Do not attach full databases or environment files.

@@ -8,7 +8,7 @@ features before shipping. No release version or stable image is approved yet.
 
 The original safety patch at PR #3 (`7771862`) has confirmed recovery gaps.
 The [boundary review](reviews/2026-09-16-release-boundary.md) identifies later
-fixes. The recommended qualification baseline is the existing stack at
+fixes. The initial qualification baseline was the existing stack at
 `30f7ddefe7ec3e30e2d0c2e0ded61f97d2e7f013`, with publication isolation applied.
 That initial stack is now qualified with follow-up fixes at `6e209ff`; see the
 [qualification report](reviews/2026-09-16-release-qualification.md). The 48 older
@@ -65,7 +65,8 @@ Open Library plus controlled provider fixtures can cover the initial local
 journey. Readarr migration claims require an appropriate source copy and a real
 consumer. Missing evidence narrows release claims; it is not a passed test.
 
-Before merging a stabilization PR, preserve the publication policy from gate 1.
-PR #3 and descendants currently carry older workflow changes; resolve their
-workflow merge conflicts explicitly and rerun publication tests and actionlint.
-Do not silently restore automatic `latest` publication while integrating the stack.
+Use consolidated PR #52 for the qualified candidate. The earlier stacked drafts
+are review history; integrating one independently can reintroduce older workflow
+changes. Preserve the publication policy from gate 1, resolve workflow differences
+explicitly, and rerun publication checks for any workflow change. Do not restore
+automatic `latest` publication.

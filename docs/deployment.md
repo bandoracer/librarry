@@ -60,18 +60,20 @@ cd librarry/deploy
 cp .env.example .env
 ```
 
-Edit `deploy/.env` before first start. At minimum:
+Edit `.env` in the current `deploy` directory before first start. At minimum:
 
-1. Replace `POSTGRES_PASSWORD=change-me`.
+1. Replace the `POSTGRES_PASSWORD` placeholder.
 2. Update `LIBRARRY_DATABASE_URL` with the same password.
 3. Set absolute host paths for `LIBRARRY_POSTGRES_DATA` and
    `LIBRARRY_MEDIA_STACK_PATH`.
 4. Set `LIBRARRY_WEB_ORIGIN` to the URL users will open.
-5. Set `LIBRARRY_API_KEY` before exposing the app outside trusted local access.
+5. Keep `LIBRARRY_AUTH_METHOD=forms` and replace the browser username/password.
+   Configure `LIBRARRY_API_KEY` separately for compatible API clients and feeds.
 
-Then start the stack:
+Then validate and start the stack:
 
 ```bash
+docker compose config -q
 docker compose pull
 docker compose up -d
 docker compose ps
@@ -79,10 +81,9 @@ docker compose ps
 
 Open `http://127.0.0.1:30200` or the host/port configured in `.env`.
 
-For source builds instead of published images:
+For source builds, stay in `deploy` and use the explicit build file:
 
 ```bash
-cd deploy
 docker compose -f docker-compose.build.yml up --build
 ```
 
@@ -118,10 +119,16 @@ renames, moves, hardlinks, and deletes.
 
 ## Security
 
-Set `LIBRARRY_API_KEY` before using a public hostname, Cloudflare Access, Cosmos,
-Tailscale Funnel, or any reverse proxy reachable by more than trusted local
-users. When configured, `/api/` accepts `X-Api-Key`, `apikey`, `apiKey`, or
-`Authorization: Bearer ...`; `/healthz` and `/ping` stay open for probes.
+Use `LIBRARRY_AUTH_METHOD=forms` with a unique browser username/password for
+remote or reverse-proxied access. Forms/Basic methods require usable persisted
+credentials. Configure `LIBRARRY_API_KEY` separately for compatible API clients
+and calendar feeds; an API key is not the interactive browser sign-in flow.
+
+API-key clients can send `X-Api-Key`, `apikey`, `apiKey`, or
+`Authorization: Bearer ...`. `/healthz`, `/readyz` and `/ping` remain probes;
+nginx serves static UI assets separately from authenticated API data/actions.
+Keep API and PostgreSQL ports private. See [authentication](guides/operations.md#authentication)
+and [security reporting](../SECURITY.md).
 
 The Postgres password in examples is a placeholder. Use URL-safe characters or
 percent-encode special characters in `LIBRARRY_DATABASE_URL`.
@@ -248,41 +255,72 @@ direct loads such as `/settings` and `/downloads` should return the SPA.
 
 ## Upgrade
 
-Generic Compose and Unraid:
+Check [current status](status.md) and the [release checklist](release-checklist.md)
+before selecting an image pair. Updating the checkout or pulling historical
+`latest` does not install the candidate. Pin both API and web to the paired
+immutable references from the same qualified run.
+
+Before changing a running installation:
+
+1. Record the old image references/digests, schema version, Compose/template and
+   effective configuration. Keep credential-bearing configuration private.
+2. Stop application workers and other writers to the library/download paths for
+   a consistent database/media checkpoint. Keep PostgreSQL available for the dump.
+3. Back up the database, app configuration, library and relevant download data.
+   Keep originals untouched while rehearsing the restore on isolated copies.
+4. Update both image references and validate paths, permissions and auth settings.
+5. Recreate the API/web services, inspect startup/migration logs, then verify
+   readiness, browser sign-in, file evidence and read-only integration checks.
+
+For Compose, from the configured stack directory after the backup:
 
 ```bash
-cd deploy
+docker compose config -q
 docker compose pull
 docker compose up -d
 docker compose ps
 ```
 
-TrueNAS:
+For TrueNAS, edit the Custom App image references and redeploy through its UI.
+For Unraid, use the configured Compose Manager stack directory. Verify both
+`/healthz` and `/readyz`; neither alone proves working media mounts or imports.
 
-1. Back up Postgres.
-2. Edit the Custom App if changing image tags or paths.
-3. Redeploy/recreate the app from the TrueNAS UI.
-4. Open `/healthz` and the web UI.
-
-Pin both API and web to the same version tag when moving past alpha testing.
+If rollback is required, stop the new application and restore the matching
+pre-upgrade database/media/config checkpoint before starting the recorded old
+image pair. Do not point older binaries at a newer schema or attempt an
+unreviewed in-place reverse migration. The documented production-copy rehearsal
+proved this approach for the recorded candidate; a later installation still
+needs its own current backup and target checks.
 
 ## Backup And Restore
 
-Back up Postgres before major upgrades, Readarr migration testing, or large
-library imports:
+From the configured Compose stack directory, create a PostgreSQL custom-format
+dump without a terminal:
 
 ```bash
-docker compose exec postgres pg_dump -U librarry librarry > librarry.sql
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > librarry.dump
 ```
 
-Restore into an empty database:
+Check the command's exit status and retain the database dump alongside a matching
+media/config checkpoint and the original image digests. Scheduled application
+backups also use custom format and require `pg_restore`, not `psql`.
+
+Rehearse restoration in a **separate isolated stack**, with copied media,
+separate database storage, external acquisition disabled and notification egress
+blocked. From that restore stack's directory, create an empty test database and
+load the dump:
 
 ```bash
-docker compose exec -T postgres psql -U librarry librarry < librarry.sql
+docker compose exec -T postgres sh -c 'createdb -U "$POSTGRES_USER" librarry_restore'
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" --no-owner --no-acl -d librarry_restore' < librarry.dump
 ```
 
-Also back up any host library paths that Librarry imports into, especially when
-using move, rename, hardlink, or delete actions.
+Configure only the isolated API to use `librarry_restore`. Verify books,
+overrides, file/book links, paths and media hashes, not just successful startup.
+A database dump does not contain library bytes or environment configuration.
+Do not run these restore steps against the live database. Review
+[restored notification state](#notification-state-and-restored-databases) before
+allowing the restored application to contact receivers.
 
 ## Release Checklist
 
@@ -302,9 +340,10 @@ Compose now honor it. Use `hardlinkOrCopy`, `hardlink`, or `copy` for
 
 Removal is individually gated by verified imported content and actual seeding
 eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client.
-Back up both Postgres and library/download data before upgrading. The local
-fixture restore check does not qualify restoration of the live homelab backup.
-No September candidate release or production rollback rehearsal is complete yet.
+Back up both Postgres and library/download data before upgrading. The recorded candidate passed an isolated
+production-copy upgrade and rollback; that is separate from a live rollout.
+See [current status](status.md) and the [qualification report](reviews/2026-09-16-release-qualification.md)
+for the exact scope and remaining observation gate.
 
 ### Candidate filesystem qualification
 
@@ -312,9 +351,9 @@ The stabilization candidate stages data in the destination directory, then uses
 an atomic, non-overwriting hard link to publish the staged file. This requires
 hard-link support within the destination filesystem even in copy mode; source
 and destination may still be on different filesystems. Unsupported filesystems
-return an import error and retain the original. SMB/NFS mounts and interrupted
-multi-file recovery are not yet qualified. Run the packaged fixture tests on
-the intended storage before promoting this candidate.
+return an import error and retain the original. Interrupted multi-file recovery
+has controlled fixture coverage; SMB/NFS mount behavior is not qualified. Run
+the packaged fixture tests on the intended storage before promoting this candidate.
 
 ### Database sessions for background workers
 

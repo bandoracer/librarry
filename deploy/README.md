@@ -34,20 +34,18 @@ LIBRARRY_AUDIOBOOK_LIBRARY_ROOT=/data/media/books/audiobooks
 See [../docs/deployment.md](../docs/deployment.md) for the full install guide,
 upgrade commands, backups, reverse proxy guidance, and NAS-specific notes.
 
-## Stabilization candidate configuration
+## Candidate selection and automation
 
-All deployment variants now pass completed import/removal controls, import mode,
-rename/recycle/extra-file settings, and import-list sync enable/interval settings to the API.
-Automatic grabbing and removal remain enabled by default. To retain all completed
-downloads, set `LIBRARRY_COMPLETED_REMOVE_ENABLED=false`; source Compose and image
-Compose now honor it. Use `hardlinkOrCopy`, `hardlink`, or `copy` for
-`LIBRARRY_COMPLETED_IMPORT_MODE`; completed-download move mode is rejected.
+Installer defaults select historical `latest` images. Select both qualified
+candidate digests explicitly for a controlled rollout. [Current status](../docs/status.md)
+distinguishes candidate publication, production-copy rollback qualification and
+actual deployment; the live rollout and observation gate remain open.
 
-Removal is individually gated by verified imported content and actual seeding
-eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client.
-Back up both Postgres and library/download data before upgrading. The local
-fixture restore check does not qualify restoration of the live homelab backup.
-No September candidate release or production rollback rehearsal is complete yet.
+Scheduled auto-grab and removal defaults are enabled. Review the
+[automation and import controls](../docs/deployment.md#stabilization-candidate-configuration)
+before connecting real clients. Back up database, configuration and media; follow
+[upgrade and rollback instructions](../docs/deployment.md#upgrade) for your target.
+
 
 
 `LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults to `true`. Set it to `false` and

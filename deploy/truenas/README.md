@@ -51,8 +51,10 @@ cannot find the completed file.
 
 The default web port is `30200`. Put the app behind TrueNAS local networking,
 Cosmos, Cloudflare Access, or another trusted access boundary before exposing it
-outside your LAN. Set `LIBRARRY_API_KEY` when the API is reachable by anything
-other than trusted local users.
+outside your LAN. Set `LIBRARRY_AUTH_METHOD=forms` and unique
+`LIBRARRY_AUTH_USERNAME` / `LIBRARRY_AUTH_PASSWORD` values in the API environment.
+The template leaves these blank, so configure them before first start. Use
+`LIBRARRY_API_KEY` separately for compatible clients and feeds.
 
 To pin a release, replace `:latest` with a published version tag in both Librarry
 image references.
@@ -78,24 +80,21 @@ container name with the Postgres container name shown by TrueNAS:
 docker exec <postgres-container> pg_dump -U librarry librarry > librarry.sql
 ```
 
-After the first GHCR publish, verify the `librarry-api` and `librarry-web`
-packages are public in GitHub's package settings before installing on a NAS that
-does not authenticate to GHCR.
+Verify that the chosen API/web pair can be pulled on your NAS. Candidate
+identity and runtime evidence are recorded in the [qualification report](../../docs/reviews/2026-09-16-release-qualification.md).
 
-## Stabilization candidate configuration
+## Candidate selection and automation
 
-All deployment variants now pass completed import/removal controls, import mode,
-rename/recycle/extra-file settings, and import-list sync enable/interval settings to the API.
-Automatic grabbing and removal remain enabled by default. To retain all completed
-downloads, set `LIBRARRY_COMPLETED_REMOVE_ENABLED=false`; source Compose and image
-Compose now honor it. Use `hardlinkOrCopy`, `hardlink`, or `copy` for
-`LIBRARRY_COMPLETED_IMPORT_MODE`; completed-download move mode is rejected.
+Installer defaults select historical `latest` images. Select both qualified
+candidate digests explicitly for a controlled rollout. [Current status](../../docs/status.md)
+distinguishes candidate publication, production-copy rollback qualification and
+actual deployment; the live rollout and observation gate remain open.
 
-Removal is individually gated by verified imported content and actual seeding
-eligibility. Legacy imports and incomplete/ambiguous payloads stay in the client.
-Back up both Postgres and library/download data before upgrading. The local
-fixture restore check does not qualify restoration of the live homelab backup.
-No September candidate release or production rollback rehearsal is complete yet.
+Scheduled auto-grab and removal defaults are enabled. Review the
+[automation and import controls](../../docs/deployment.md#stabilization-candidate-configuration)
+before connecting real clients. Back up database, configuration and media; follow
+[upgrade and rollback instructions](../../docs/deployment.md#upgrade) for your target.
+
 
 
 Hourly History Maintenance compacts notification detail only after all recipients
@@ -103,7 +102,7 @@ have been resolved for 90 days. Unresolved deliveries and compact event identiti
 remain in Postgres; include both in backups. Restore with notification egress
 isolated until later receiver acceptance is reconciled. Compaction cannot protect
 against acceptance that happened after the backup. See the
-[retention policy](../../docs/local-dev.md#notification-history-retention).
+[retention policy](../../docs/guides/operations.md#notification-history-retention).
 
 
 `LIBRARRY_IMPORT_LIST_SYNC_ENABLED` defaults to `true`. Set it to `false` and
