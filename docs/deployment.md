@@ -423,3 +423,11 @@ container runtime to obtain the actual deployed manifest digest. Provider times
 are process-local request evidence and are not refreshed by downloading. Root
 presence is not NAS/mount/write-permission certification. No production restore or
 unattended soak is implied by a successful export.
+
+## Kindle email delivery
+
+Manual EPUB/PDF delivery, SMTP configuration, credential precedence, and recovery
+are described in the [Kindle guide](guides/kindle.md). Configure it under
+Settings → Kindle. Delivery is disabled by default; it requires Postgres and an
+authenticated TLS SMTP sender. New source builds include migration 0059; older
+published images do not include this feature.

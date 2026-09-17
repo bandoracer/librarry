@@ -24,6 +24,7 @@ import (
 	"github.com/bandoracer/librarry/backend/internal/database"
 	"github.com/bandoracer/librarry/backend/internal/importlists"
 	"github.com/bandoracer/librarry/backend/internal/integrationsettings"
+	"github.com/bandoracer/librarry/backend/internal/kindle"
 	"github.com/bandoracer/librarry/backend/internal/library"
 	"github.com/bandoracer/librarry/backend/internal/metadata"
 	"github.com/bandoracer/librarry/backend/internal/notify"
@@ -263,6 +264,7 @@ func main() {
 		Wanted:          wantedService,
 		Library:         libraryService,
 		Notify:          notifier,
+		Kindle:          kindle.New(schedulerDB, kindle.FromEnv(), cfg.EbookLibraryRoot),
 		Scheduler:       registry,
 		Auth:            authService,
 		ImportLists:     importListService,

@@ -285,3 +285,9 @@
 .notification-delivery-entry { overflow-wrap: anywhere; padding-block: 0.5rem; border-bottom: 1px solid var(--border); }
 
 .notification-delivery-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding-top: 0.5rem; }
+
+.kindle-form { display: grid; gap: 16px; max-width: 700px; padding: 16px; }
+.kindle-form label { display: grid; gap: 6px; }
+.kindle-form label:has(input[type="checkbox"]) { display: flex; align-items: center; }
+.kindle-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 600px) { .kindle-form-grid { grid-template-columns: 1fr; } }

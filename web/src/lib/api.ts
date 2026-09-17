@@ -3517,3 +3517,26 @@ export async function fetchBookMatches(candidates: BookMatchCandidate[], signal?
   }
   return matches;
 }
+
+export type KindleSettings = {
+  enabled: boolean; host: string; port: number; tlsMode: "implicit" | "starttls";
+  username: string; password?: string; passwordConfigured: boolean;
+  from: string; fromName: string; recipient: string;
+};
+export type KindleDelivery = {
+  id: string; requestId: string; wantedId: string; fileId: string; recipient: string;
+  sender: string; title: string; state: "sending" | "accepted" | "failed" | "unknown";
+  message: string; createdAt: string;
+};
+async function kindleRequest<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+  const response = await fetch(`${apiBase}/api/v1/kindle/${path}`, {
+    method, headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(await apiError(response, "Kindle"));
+  return response.json() as Promise<T>;
+}
+export const getKindleSettings = () => kindleRequest<KindleSettings>("settings");
+export const saveKindleSettings = (settings: KindleSettings & { clearPassword?: boolean }) => kindleRequest<KindleSettings>("settings", "PUT", settings);
+export const getKindleHistory = (wantedId = "") => kindleRequest<KindleDelivery[]>(`deliveries?wantedId=${encodeURIComponent(wantedId)}`).then(items => items ?? []);
+export const sendKindle = (requestId: string, wantedId?: string, fileId?: string) => kindleRequest<KindleDelivery>(fileId ? "send" : "test", "POST", { requestId, wantedId, fileId });

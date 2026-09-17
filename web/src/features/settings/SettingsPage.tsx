@@ -13,6 +13,7 @@ import { ImportListsTab } from "./ImportListsTab";
 import { TagsTab } from "./TagsTab";
 import { ImportTab } from "./ImportTab";
 import "./settings.css";
+import { KindleTab } from "./KindleTab";
 
 const subtitle = navItems.find((item) => item.id === "settings")?.subtitle;
 
@@ -25,6 +26,7 @@ const tabs = [
   { label: "Indexers", to: "/settings/indexers" },
   { label: "Download Clients", to: "/settings/download-clients" },
   { label: "Import Lists", to: "/settings/import-lists" },
+  { label: "Kindle", to: "/settings/kindle" },
   { label: "Connect", to: "/settings/connect" },
   { label: "Tags", to: "/settings/tags" },
   { label: "Readarr Import", to: "/settings/import" }
@@ -53,6 +55,7 @@ export default function SettingsPage() {
           <Route path="download-clients" element={<DownloadClientsTab />} />
           {/* Legacy path: the Connections tab split into Indexers + Download Clients. */}
           <Route path="connections" element={<Navigate to="/settings/download-clients" replace />} />
+          <Route path="kindle" element={<KindleTab />} />
           <Route path="connect" element={<ConnectTab />} />
           <Route path="import-lists" element={<ImportListsTab />} />
           <Route path="tags" element={<TagsTab />} />

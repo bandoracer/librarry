@@ -84,3 +84,11 @@ See [worker/authentication/notification contracts](reference/operations.md).
 Compatibility is partial. An implemented route does not establish full Readarr
 semantics or migration readiness. New persistence changes must be append-only;
 new operations need explicit identity, stale-review and failure behavior.
+
+## Kindle email delivery
+
+Manual EPUB/PDF delivery, SMTP configuration, credential precedence, and recovery
+are described in the [Kindle guide](guides/kindle.md). Configure it under
+Settings → Kindle. Delivery is disabled by default; it requires Postgres and an
+authenticated TLS SMTP sender. New source builds include migration 0059; older
+published images do not include this feature.

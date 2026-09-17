@@ -23,6 +23,17 @@ services:
     user: "${PUID:-99}:${PGID:-100}"
     restart: unless-stopped
     environment:
+      # Optional Kindle SMTP defaults; Settings → Kindle can persist overrides.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-implicit}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Librarry}
+      LIBRARRY_KINDLE_EMAIL: ${LIBRARRY_KINDLE_EMAIL:-}
+      LIBRARRY_KINDLE_ENABLED: ${LIBRARRY_KINDLE_ENABLED:-false}
       LIBRARRY_LISTEN_ADDR: :8080
       LIBRARRY_API_KEY: ${LIBRARRY_API_KEY:-}
       LIBRARRY_DATABASE_URL: ${LIBRARRY_DATABASE_URL:?Set LIBRARRY_DATABASE_URL in .env}
