@@ -1,7 +1,8 @@
 # Send to Kindle
 
-This feature is implemented on the Kindle feature branch; it is not part of the
-previously deployed stabilization images until a new release is built and deployed.
+This feature is deployed on the maintainer NAS using the immutable image pair
+in the [rollout report](../reviews/2026-09-17-kindle-rollout.md). The previously
+promoted stabilization `latest` images do not include it yet.
 
 Open **Settings → Kindle**. Enter your Kindle's `@kindle.com` or
 `@free.kindle.com` address, your sender address, and SMTP credentials. Select

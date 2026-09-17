@@ -2,7 +2,9 @@
 
 Source branch: `codex/send-to-kindle`, based on main `36f19ae`.
 This is implementation qualification; no production deployment or delivery to a
-physical Kindle was performed.
+physical Kindle was performed during these implementation checks. Subsequent
+publication, deployment and SMTP acceptance are recorded in the
+[rollout report](2026-09-17-kindle-rollout.md).
 
 ## Behavior
 
@@ -44,7 +46,7 @@ shown separately from device arrival.
   Reload restored the saved values. Browser request IDs use `getRandomValues`,
   so they do not require a secure context on a plain-HTTP LAN address.
 
-## Remaining qualification
+## Remaining qualification at this checkpoint
 
 Build/publish/deploy this branch before using the feature on the live NAS. Add
 `books@mail.borchetta.xyz` to Amazon's approved senders, configure the owner's

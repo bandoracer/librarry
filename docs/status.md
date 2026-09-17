@@ -1,6 +1,6 @@
 # Current status
 
-Last verified: September 16, 2026. This is the authoritative readiness summary.
+Last verified: September 17, 2026. This is the authoritative readiness summary.
 Feature guides describe candidate behavior; historical records are evidence of
 past checkpoints, not current deployment claims.
 
@@ -9,31 +9,32 @@ Librarry is early alpha. The stabilization candidate is qualified for a
 qualified as an unattended replacement for
 an existing Readarr installation.
 
-## Kindle implementation (not deployed)
+## Kindle delivery
 
-The Kindle feature branch adds manual native EPUB/PDF sends, SMTP settings,
-a test document, and durable per-book delivery history. See the [Kindle guide](guides/kindle.md).
-SMTP acceptance is distinguished from Kindle arrival; uncertain attempts are
-never automatically retried. [Verification](reviews/2026-09-17-kindle-implementation.md)
-includes Postgres race tests and desktop/mobile browser checks against a local
-TLS mail receiver. No physical Kindle receipt was tested. This does not change
-the live image identities below.
+Manual native EPUB/PDF delivery is deployed on the maintainer NAS. Settings,
+a test document, and durable per-book history are available; see the
+[Kindle guide](guides/kindle.md). The exact published API image passed isolated
+Kindle checks on native AMD64 and ARM64. The configured Resend server accepted
+one setup test on September 17 at 08:29 UTC. Physical Kindle receipt remains
+unconfirmed. Uncertain attempts are never automatically retried.
+[Implementation checks](reviews/2026-09-17-kindle-implementation.md) and
+[rollout evidence](reviews/2026-09-17-kindle-rollout.md) record the boundaries.
 
 ## Source, images and deployment
 
 | State | Verified position |
 | --- | --- |
-| Application candidate | `6e209ffd8d3724879e52187e27790029e66af986`, merged through [PR #52](https://github.com/bandoracer/librarry/pull/52) at main commit `e742210d5c4b6a422ce60b5dc86f08e2fd93e99c`. Later documentation-only commits do not change its runtime qualification. |
-| Published candidate | Paired API/web images from [run 35157133068](https://github.com/bandoracer/librarry/actions/runs/35157133068), with immutable index and AMD64/ARM64 digests in the [qualification report](reviews/2026-09-16-release-qualification.md#published-artifact-identity). |
-| Latest aliases | Owner-authorized promotion points both `latest` tags at the exact qualified index digests above, without rebuilding. Automatic main/PR/tag builds still cannot publish; promotion is a separate manual workflow. |
-| Live homelab | Qualified candidate API/web index digests, running their native AMD64 manifests; application source `6e209ff`, database migration 0058. [Rollout evidence](reviews/2026-09-16-live-rollout.md). |
+| Application candidate | `3d89a6358da7ad5064718c2e3f0c65d48021922b`, merged through [PR #53](https://github.com/bandoracer/librarry/pull/53) at main commit `173b0de7b9bd3616d0c4ae935d5e43f921700a98`. Later documentation-only commits do not change the runtime. |
+| Published candidate | Paired API/web images from [run 35197792820](https://github.com/bandoracer/librarry/actions/runs/35197792820); immutable indexes and architecture manifests are recorded in the [Kindle rollout](reviews/2026-09-17-kindle-rollout.md). |
+| Latest aliases | Still the previously promoted stabilization pair at source `6e209ff`, recorded in the [qualification report](reviews/2026-09-16-release-qualification.md#published-artifact-identity). The Kindle rollout did not move `latest`; use its recorded image pair to install this feature. |
+| Live homelab | Kindle candidate API/web index digests, native AMD64 manifests; source `3d89a63`, database migration 0059. All three media files and existing file/book links were preserved. [Rollout evidence](reviews/2026-09-17-kindle-rollout.md). |
 | Endpoints at last check | LAN `/healthz` and `/readyz`: 200. Cosmos target corrected; hostname returns 302 to existing Cosmos sign-in. |
 
 Do not infer deployment from a merged commit or successful image build. Installer
 defaults now select the promoted `latest` pair. Use both recorded immutable image
 references when a deployment must remain pinned.
 
-## Completed qualification
+## Stabilization qualification (preceding Kindle rollout)
 
 - Broader risk review of metadata, acquisition, imports, identity, workers,
   notifications, authentication and operator controls. Three UI defects found
@@ -76,7 +77,8 @@ do not establish audio playback, unattended operation or a real Readarr migratio
    collection-wide operations. Implemented endpoints do not prove full parity.
 
 Use the [release checklist](release-checklist.md) for gate evidence and the next
-rollout steps. Feature expansion remains frozen during this release effort.
+rollout steps. The owner requested the Kindle addition after stabilization;
+other expansion remains subject to the documented release priorities.
 
 ## Current live deployment notes
 
@@ -84,7 +86,9 @@ These are maintainer homelab values, not install defaults:
 
 - TrueNAS app: `librarry`; portal: `http://192.168.1.221:30200/`.
 - Cosmos hostname: `https://librarry.borchetta.xyz/` (Cosmos sign-in required).
-- Live images: immutable GHCR candidate pair from the qualification report.
+- Live images: immutable GHCR pair from the Kindle rollout report.
+- A private pre-Kindle database/config/media checkpoint and the preceding
+  stabilization image pair are retained for immediate rollback.
 - Original `librarry-api:local` and `librarry-web:local` images and a fresh
   pre-upgrade database/config/media checkpoint are retained for rollback.
 - Postgres: `/mnt/HDD_pool/vault/app-config/librarry/postgres`.
@@ -102,6 +106,7 @@ credentials, database dumps or private library inventories in issues or commits.
 
 ## Historical evidence
 
+- [Kindle rollout and SMTP acceptance](reviews/2026-09-17-kindle-rollout.md)
 - [Live rollout and rollback checkpoint](reviews/2026-09-16-live-rollout.md)
 - [September qualification](reviews/2026-09-16-release-qualification.md)
 - [Initial audit](reviews/2026-09-15-audit.md) and [implementation ledger](reviews/2026-09-15-implementation.md)
