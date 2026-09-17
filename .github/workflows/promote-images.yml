@@ -1,0 +1,82 @@
+name: Promote tested images
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_digest:
+        description: Qualified API multiarchitecture index digest
+        required: true
+        type: string
+      web_digest:
+        description: Qualified web multiarchitecture index digest
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: latest-image-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate immutable references
+        env:
+          API_DIGEST: ${{ inputs.api_digest }}
+          WEB_DIGEST: ${{ inputs.web_digest }}
+        run: |
+          [[ "$API_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$WEB_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote the pair without rebuilding
+        env:
+          OWNER: ${{ github.repository_owner }}
+          API_DIGEST: ${{ inputs.api_digest }}
+          WEB_DIGEST: ${{ inputs.web_digest }}
+        run: |
+          set -euo pipefail
+          api="ghcr.io/${OWNER,,}/librarry-api"
+          web="ghcr.io/${OWNER,,}/librarry-web"
+          digest() { docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}'; }
+          old_api="$(digest "$api:latest")"
+          old_web="$(digest "$web:latest")"
+          test "$(digest "$api@$API_DIGEST")" = "$API_DIGEST"
+          test "$(digest "$web@$WEB_DIGEST")" = "$WEB_DIGEST"
+          for ref in "$api@$API_DIGEST" "$web@$WEB_DIGEST"; do
+            docker buildx imagetools inspect "$ref" --raw | jq -e '
+              [.manifests[].platform | select(.os == "linux") | .architecture] |
+              (index("amd64") != null) and (index("arm64") != null)'
+          done
+          {
+            echo '## Image promotion'
+            echo "Previous API: $old_api"
+            echo "Previous web: $old_web"
+            echo "Requested API: $API_DIGEST"
+            echo "Requested web: $WEB_DIGEST"
+          } >> "$GITHUB_STEP_SUMMARY"
+          rollback() {
+            trap - ERR
+            docker buildx imagetools create --tag "$api:latest" "$api@$old_api"
+            docker buildx imagetools create --tag "$web:latest" "$web@$old_web"
+            test "$(digest "$api:latest")" = "$old_api"
+            test "$(digest "$web:latest")" = "$old_web"
+            echo 'Promotion failed; previous pair restored.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
+          trap rollback ERR
+          docker buildx imagetools create --tag "$api:latest" "$api@$API_DIGEST"
+          docker buildx imagetools create --tag "$web:latest" "$web@$WEB_DIGEST"
+          test "$(digest "$api:latest")" = "$API_DIGEST"
+          test "$(digest "$web:latest")" = "$WEB_DIGEST"
+          trap - ERR
+          echo 'Both latest tags match the requested index digests.' >> "$GITHUB_STEP_SUMMARY"
