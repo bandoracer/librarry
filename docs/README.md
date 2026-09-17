@@ -1,8 +1,8 @@
 # Documentation
 
 Use [current status](status.md) to distinguish candidate source, published images
-and the live deployment. The feature guides describe the candidate; historical
-`latest` images can behave differently.
+and the live deployment. The feature guides describe the candidate; earlier
+alpha images can behave differently.
 
 ## Install
 

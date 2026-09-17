@@ -4,11 +4,9 @@ A self-hosted ebook and audiobook manager built around reliable metadata,
 explainable release decisions, and recoverable library operations.
 
 **Early alpha.** Librarry is intended to become a modern Readarr replacement.
-The stabilization candidate has passed controlled qualification and is deployed
-on the maintainer NAS. An observation period is still required before stable
-promotion. Existing
-`latest` images predate these fixes. See [current status](docs/status.md) before
-choosing an image or migrating a library.
+The latest images contain the qualified stabilization update deployed on the
+maintainer NAS. Longer-term observation and full Readarr migration qualification
+remain incomplete. See [current status](docs/status.md) before migrating a library.
 
 ![Librarry Library view showing book status and review controls](docs/assets/library.png)
 
@@ -51,9 +49,8 @@ cp .env.example .env
    to match your filesystem permissions. Library and download paths must refer
    to the same files seen by your download client.
 4. Set `LIBRARRY_WEB_ORIGIN` to the URL you will open.
-5. Choose both application images deliberately. Defaults use the historical
-   alpha `latest` channel. For controlled candidate testing, use the paired
-   immutable references in the [qualification report](docs/reviews/2026-09-16-release-qualification.md#published-artifact-identity).
+5. Defaults use the current `latest` image pair. To pin the qualified build,
+   use the paired immutable references in the [qualification report](docs/reviews/2026-09-16-release-qualification.md#published-artifact-identity).
 
 Then, from `librarry/deploy`:
 

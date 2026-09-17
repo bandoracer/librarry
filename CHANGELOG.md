@@ -3,7 +3,7 @@
 User-visible changes are recorded here. Read [current status](docs/status.md) for
 what is published, deployed and qualified. A candidate tag is not a stable release.
 
-## Unreleased — stabilization candidate
+## September 16, 2026 — stabilization release
 
 Qualified application source: `6e209ffd8d3724879e52187e27790029e66af986`.
 Candidate publication and platform digests are in the
@@ -38,11 +38,13 @@ Candidate publication and platform digests are in the
 ### Packaging and documentation
 
 - Append-only migrations 0030–0058; older migrations remain unchanged.
-- Publication is explicit and candidate-only. Main/PR/tag builds cannot advance
-  `latest` or release aliases.
+- Build publication remains explicit and candidate-only. A separate manual
+  workflow promotes qualified digest pairs to `latest` without rebuilding;
+  automatic main/PR/tag builds cannot advance release aliases.
 - Qualification covers native AMD64/ARM64 images and a production-copy
   upgrade/rollback. The qualified pair is deployed on the maintainer NAS;
-  observation and stable promotion remain open.
+  both `latest` tags now point to these exact images by owner request. The
+  longer observation period remains incomplete.
 - Documentation now separates installation, operator guides, implementation
   reference, current readiness and historical milestones.
 

@@ -36,11 +36,11 @@ upgrade commands, backups, reverse proxy guidance, and NAS-specific notes.
 
 ## Candidate selection and automation
 
-Installer defaults select historical `latest` images. Select both qualified
-candidate digests explicitly for a controlled rollout. [Current status](../docs/status.md)
+Installer defaults select the promoted `latest` image pair. Select both qualified
+index digests explicitly when a deployment must remain pinned. [Current status](../docs/status.md)
 distinguishes candidate publication, production-copy rollback qualification and
-actual deployment. The maintainer NAS now runs the candidate; the observation
-gate and stable promotion remain open.
+actual deployment. The maintainer NAS runs this same pair. The owner authorized
+promotion before the longer observation period completed.
 
 Scheduled auto-grab and removal defaults are enabled. Review the
 [automation and import controls](../docs/deployment.md#stabilization-candidate-configuration)

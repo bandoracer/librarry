@@ -18,8 +18,10 @@ source labels verified before the change; the tested images were not rebuilt.
 - Web: `ghcr.io/bandoracer/librarry-web@sha256:a8c9ea2acae6fa155c73715aa4be2e7b3ce8cb42dc7458795f16be9ce2cdf4db`
 
 The source and image manifest are distributed as the
-[September stabilization prerelease](https://github.com/bandoracer/librarry/releases/tag/stabilization-2026-09-16). Historical
-`latest` aliases remain unchanged pending observation and stable promotion.
+[September stabilization release](https://github.com/bandoracer/librarry/releases/tag/stabilization-2026-09-16).
+The owner subsequently authorized immediate promotion to replace the broken
+historical images. Both `latest` tags now point to the exact index digests above;
+no rebuild was performed. Automatic main/PR/tag publication remains disabled.
 
 ## Backup and upgrade
 
@@ -66,10 +68,11 @@ container too; its image and persistent mount remained unchanged.
   The repair used Cosmos's documented [configuration-file recovery procedure](https://cosmos-cloud.io/docs/issues-and-troubleshooting/).
   Its original configuration is retained privately on the proxy host.
 
-## Remaining gate
+## Observation and owner-authorized promotion
 
 The 72-hour/20-controlled-case observation window begins September 17 at
-00:21 UTC. No stable alias was promoted. Passing time is insufficient without
-the operator case log and no unresolved integrity/recovery errors. Rich-provider
+00:21 UTC. The owner explicitly waived completion as a publication prerequisite
+and requested immediate `latest` promotion. Observation remains incomplete;
+promotion does not imply sustained-operation qualification. Rich-provider
 credentials and real Readarr migration/consumer qualification remain open.
 See [current status](../status.md) and the [release checklist](../release-checklist.md).

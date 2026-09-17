@@ -15,13 +15,13 @@ an existing Readarr installation.
 | --- | --- |
 | Application candidate | `6e209ffd8d3724879e52187e27790029e66af986`, merged through [PR #52](https://github.com/bandoracer/librarry/pull/52) at main commit `e742210d5c4b6a422ce60b5dc86f08e2fd93e99c`. Later documentation-only commits do not change its runtime qualification. |
 | Published candidate | Paired API/web images from [run 35157133068](https://github.com/bandoracer/librarry/actions/runs/35157133068), with immutable index and AMD64/ARM64 digests in the [qualification report](reviews/2026-09-16-release-qualification.md#published-artifact-identity). |
-| Stable aliases | Both historical `latest` digests were unchanged by candidate publication. Main/PR/tag builds cannot publish; candidate publication requires explicit dispatch. |
+| Latest aliases | Owner-authorized promotion points both `latest` tags at the exact qualified index digests above, without rebuilding. Automatic main/PR/tag builds still cannot publish; promotion is a separate manual workflow. |
 | Live homelab | Qualified candidate API/web index digests, running their native AMD64 manifests; application source `6e209ff`, database migration 0058. [Rollout evidence](reviews/2026-09-16-live-rollout.md). |
 | Endpoints at last check | LAN `/healthz` and `/readyz`: 200. Cosmos target corrected; hostname returns 302 to existing Cosmos sign-in. |
 
 Do not infer deployment from a merged commit or successful image build. Installer
-defaults still select historical `latest`; candidate testing requires selecting
-both recorded candidate image references.
+defaults now select the promoted `latest` pair. Use both recorded immutable image
+references when a deployment must remain pinned.
 
 ## Completed qualification
 
@@ -51,10 +51,11 @@ do not establish audio playback, unattended operation or a real Readarr migratio
 
 ## Known gaps
 
-1. The planned 72-hour/20-controlled-case observation period before stable
-   promotion, started September 17 at 00:21 UTC (September 16 locally). Elapsed
-   time alone does not satisfy the controlled-case gate. Qualified digests must
-   be promoted without rebuilding.
+1. The planned 72-hour/20-controlled-case observation period remains incomplete.
+   It started September 17 at 00:21 UTC (September 16 locally). The owner
+   explicitly authorized immediate `latest` promotion to replace the broken old
+   build; observation is no longer a publication prerequisite. This decision
+   does not turn unfinished observation into passed evidence.
 2. Live Hardcover and Google Books credentials and rich-provider qualification.
    Their adapters have fixture coverage; Open Library has real-search evidence.
 3. A real Readarr migration and consumer qualification. Compatibility remains

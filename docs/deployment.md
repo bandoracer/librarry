@@ -32,13 +32,16 @@ each image digest in a `candidate-librarry-api` or `candidate-librarry-web` arti
 Rebuilding a commit gets a different tag. Candidate tags are not release approval;
 use the recorded digest for qualification and deployment.
 
-This workflow cannot update `latest`, branch aliases, or version aliases. Existing
-`latest` images remain whatever was published previously; merging a fix does not
-update installed images. Stable promotion is withheld until the
-[release checklist](release-checklist.md) is complete. A future promotion must
-use the qualified digests instead of rebuilding the source.
+This build workflow cannot update `latest`, branch aliases, or version aliases.
+The separate **Promote tested images** workflow is manual-only on `main`: supply
+the qualified API and web index digests. It checks both architectures, records
+the previous pair, copies the indexes to `latest`, verifies both tags, and
+attempts to restore the previous pair if promotion fails. It never rebuilds.
+Merging a fix alone does not update package tags or installed containers.
+See the [release checklist](release-checklist.md) for qualification evidence
+and the owner decision to promote this release before observation completed.
 
-The installer defaults still use the historical alpha `:latest` channel:
+The installer defaults use the current qualified `:latest` pair:
 
 ```dotenv
 LIBRARRY_API_IMAGE=ghcr.io/bandoracer/librarry-api:latest
@@ -345,7 +348,7 @@ production-copy upgrade and rollback, followed by a controlled NAS rollout.
 The [rollout record](reviews/2026-09-16-live-rollout.md) preserves target-specific
 backup, migration and readback evidence.
 See [current status](status.md) and the [qualification report](reviews/2026-09-16-release-qualification.md)
-for the exact scope and remaining observation gate.
+for the exact scope and remaining observation work.
 
 ### Candidate filesystem qualification
 
