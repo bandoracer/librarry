@@ -1,0 +1,920 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+fifth+season&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:17.717551+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 225,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 225,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the fifth season",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL6575473A"
+        ],
+        "author_name": [
+          "N. K. Jemisin"
+        ],
+        "cover_i": 8133598,
+        "first_publish_year": 2015,
+        "key": "/works/OL17363125W",
+        "language": [
+          "ita",
+          "tur",
+          "por",
+          "ger",
+          "fre",
+          "pol",
+          "spa",
+          "eng"
+        ],
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25941433M",
+              "title": "The Fifth Season",
+              "cover_i": 14428463,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Orbit"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9780316229296",
+                "0316229296"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6575473A"
+        ],
+        "author_name": [
+          "N. K. Jemisin"
+        ],
+        "cover_i": 8539028,
+        "first_publish_year": 2018,
+        "key": "/works/OL19627434W",
+        "title": "The Broken Earth Trilogy: The Fifth Season, The Obelisk Gate, The Stone Sky",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26848393M",
+              "title": "The Broken Earth Trilogy: The Fifth Season, The Obelisk Gate, The Stone Sky",
+              "cover_i": 8539028,
+              "publisher": [
+                "Orbit"
+              ],
+              "publish_date": [
+                "Oct 02, 2018"
+              ],
+              "isbn": [
+                "9780316527194",
+                "031652719X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL927078A"
+        ],
+        "author_name": [
+          "David Docherty"
+        ],
+        "cover_i": 2579861,
+        "first_publish_year": 2003,
+        "key": "/works/OL4572123W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18944966M",
+              "title": "The fifth season",
+              "cover_i": 12581062,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "W.F. Howes"
+              ],
+              "publish_date": [
+                "2003"
+              ],
+              "isbn": [
+                "1841976261",
+                "9781841976266"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1920402A"
+        ],
+        "author_name": [
+          "Sylvia Regan"
+        ],
+        "first_publish_year": 1952,
+        "key": "/works/OL18739300W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 11,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62392576M",
+              "title": "The fifth season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Palm Springs Playhouse"
+              ],
+              "publish_date": [
+                "1956"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3872235A"
+        ],
+        "author_name": [
+          "Season"
+        ],
+        "cover_i": 2941907,
+        "first_publish_year": 2005,
+        "key": "/works/OL9890071W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12317166M",
+              "title": "The Fifth Season",
+              "cover_i": 2941907,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Leathers Publishing"
+              ],
+              "publish_date": [
+                "March 1, 2005"
+              ],
+              "isbn": [
+                "9781585973156",
+                "1585973157"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3080864A"
+        ],
+        "author_name": [
+          "George Angel"
+        ],
+        "cover_i": 1923792,
+        "first_publish_year": 1996,
+        "key": "/works/OL8922156W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8739300M",
+              "title": "The Fifth Season",
+              "cover_i": 1923792,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Fiction Collective 2"
+              ],
+              "publish_date": [
+                "April 1, 1996"
+              ],
+              "isbn": [
+                "9781573660167",
+                "1573660167"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 7420215,
+        "first_publish_year": 1600,
+        "key": "/works/OL361466W",
+        "language": [
+          "ger",
+          "mar",
+          "ita",
+          "fre",
+          "und",
+          "eng",
+          "chi",
+          "hun",
+          "spa",
+          "slv"
+        ],
+        "title": "Henry V",
+        "editions": {
+          "numFound": 631,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL6964849M",
+              "title": "Shakespeare's King Henry the Fifth",
+              "cover_i": 8782426,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Longmans, Green, and co."
+              ],
+              "publish_date": [
+                "1905"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1390846A"
+        ],
+        "author_name": [
+          "Don Bredes"
+        ],
+        "cover_i": 390495,
+        "first_publish_year": 2005,
+        "key": "/works/OL5718789W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "a novel of suspense",
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46548551M",
+              "title": "Fifth Season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "The Crowood Press"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "9780709080336",
+                "0709080336"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL483743A"
+        ],
+        "author_name": [
+          "Joseph Tusiani"
+        ],
+        "first_publish_year": 1964,
+        "key": "/works/OL3090636W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40237695M",
+              "title": "The Fifth season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "I. Obolensky"
+              ],
+              "publish_date": [
+                "1964"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL84103A"
+        ],
+        "author_name": [
+          "Kerry B. Collison"
+        ],
+        "cover_i": 1689905,
+        "first_publish_year": 1998,
+        "key": "/works/OL945767W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL126436M",
+              "title": "The fifth season",
+              "cover_i": 1689905,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Published by Sid Harta Publishers for Kerry B. and Asian Pacific Management Co. (S.A.) Ltd."
+              ],
+              "publish_date": [
+                "1998"
+              ],
+              "isbn": [
+                "0958744823",
+                "9780958744829"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL239611A"
+        ],
+        "author_name": [
+          "Donald Honig"
+        ],
+        "cover_i": 7235088,
+        "first_publish_year": 2009,
+        "key": "/works/OL1990713W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22513609M",
+              "title": "The fifth season",
+              "cover_i": 7235088,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Ivan R. Dee"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9781566638104",
+                "1566638100"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1920402A"
+        ],
+        "author_name": [
+          "Sylvia Regan"
+        ],
+        "first_publish_year": 1953,
+        "key": "/works/OL6931099W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL19647049M",
+              "title": "The fifth season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "French"
+              ],
+              "publish_date": [
+                "1953"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1858887A"
+        ],
+        "author_name": [
+          "Sheridan, Michael"
+        ],
+        "cover_i": 4432387,
+        "first_publish_year": 1978,
+        "key": "/works/OL6798617W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4720487M",
+              "title": "The fifth season",
+              "cover_i": 4432387,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Ohio University Press"
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "0821404059",
+                "0821404075",
+                "9780821404058",
+                "9780821404072"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL31407288W",
+        "title": "The fifth season;",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43061498M",
+              "title": "The fifth season;"
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5753983A"
+        ],
+        "author_name": [
+          "Joseph Tusiani"
+        ],
+        "first_publish_year": 1964,
+        "key": "/works/OL31444657W",
+        "title": "The fifth season;",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43101876M",
+              "title": "The fifth season;",
+              "publisher": [
+                "I. Obolensky"
+              ],
+              "publish_date": [
+                "1964-01-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2003,
+        "key": "/works/OL12571917M",
+        "language": [
+          "eng"
+        ],
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12571917M",
+              "title": "The Fifth Season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Recorded Books, LLC"
+              ],
+              "publish_date": [
+                "2003"
+              ],
+              "isbn": [
+                "9781841978116",
+                "1841978116"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1586320A"
+        ],
+        "author_name": [
+          "A. E. Dodd"
+        ],
+        "first_publish_year": 1971,
+        "key": "/works/OL6173745W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5274107M",
+              "title": "The fifth season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mitre Press"
+              ],
+              "publish_date": [
+                "1971"
+              ],
+              "isbn": [
+                "0705100928",
+                "9780705100922"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1965085A"
+        ],
+        "author_name": [
+          "James Iorio"
+        ],
+        "first_publish_year": 1974,
+        "key": "/works/OL7018944W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5069147M",
+              "title": "The fifth season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Golden Quill Press"
+              ],
+              "publish_date": [
+                "1974"
+              ],
+              "isbn": [
+                "0823302059",
+                "9780823302055"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11422854A"
+        ],
+        "author_name": [
+          "Rose Mary Long"
+        ],
+        "first_publish_year": 2008,
+        "key": "/works/OL38807199W",
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL52837692M",
+              "title": "The Fifth Season",
+              "publisher": [
+                "AuthorHouse"
+              ],
+              "publish_date": [
+                "2008-11-"
+              ],
+              "isbn": [
+                "9781438911595",
+                "1438911599"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL12277971A"
+        ],
+        "author_name": [
+          "Robert H. Kyle"
+        ],
+        "first_publish_year": 2004,
+        "key": "/works/OL33924698W",
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL45912064M",
+              "title": "The Fifth Season",
+              "publisher": [
+                "Robert H. Kyle"
+              ],
+              "publish_date": [
+                "2004-01-01"
+              ],
+              "isbn": [
+                "9781932433067",
+                "1932433066"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL326832A"
+        ],
+        "author_name": [
+          "Philip Salom"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL45203845W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61633386M",
+              "title": "The fifth season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Transit Lounge"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9781925760644",
+                "1925760642"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30613A"
+        ],
+        "author_name": [
+          "Robert C. S. Downs"
+        ],
+        "cover_i": 1944203,
+        "first_publish_year": 2000,
+        "key": "/works/OL489406W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46650M",
+              "title": "The fifth season",
+              "cover_i": 1944203,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Counterpoint"
+              ],
+              "publish_date": [
+                "2000"
+              ],
+              "isbn": [
+                "1582430489",
+                "9781582430485"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1823409A"
+        ],
+        "author_name": [
+          "Phyllis Gant"
+        ],
+        "first_publish_year": 1976,
+        "key": "/works/OL6731871W",
+        "language": [
+          "eng"
+        ],
+        "title": "The fifth season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4609424M",
+              "title": "The fifth season",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Hodder and Stoughton"
+              ],
+              "publish_date": [
+                "1976"
+              ],
+              "isbn": [
+                "0340214546",
+                "9780340214541"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL717540A"
+        ],
+        "author_name": [
+          "Mark Nepo"
+        ],
+        "key": "/works/OL45984834W",
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62552498M",
+              "title": "The Fifth Season",
+              "publisher": [
+                "Macmillan Publishers New Zealand Ltd"
+              ],
+              "isbn": [
+                "9781250342423",
+                "1250342422"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1698583A"
+        ],
+        "author_name": [
+          "Jim Levy"
+        ],
+        "cover_i": 9135773,
+        "first_publish_year": 2016,
+        "key": "/works/OL20471113W",
+        "title": "The Fifth Season",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27699216M",
+              "title": "The Fifth Season",
+              "cover_i": 9135773,
+              "publisher": [
+                "Atalaya Press"
+              ],
+              "publish_date": [
+                "Jun 11, 2016"
+              ],
+              "isbn": [
+                "9780692700594",
+                "0692700595"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.553
+}

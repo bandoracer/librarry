@@ -1,0 +1,1078 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+book+of+why&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:49.263508+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 6164,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 6164,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the book of why",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL948859A",
+          "OL1546471A",
+          "OL9103007A",
+          "OL3505784A"
+        ],
+        "author_name": [
+          "Judea Pearl",
+          "Dana Mackenzie",
+          "Dana Mackenzie Judea Pearl",
+          "Mel Foster"
+        ],
+        "cover_i": 8179733,
+        "first_publish_year": 2018,
+        "key": "/works/OL17872278W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "The New Science of Cause and Effect",
+        "title": "The Book of Why",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38814158M",
+              "title": "Book of Why",
+              "cover_i": 14771213,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books, Limited"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9780241242643",
+                "0241242649"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL28885A"
+        ],
+        "author_name": [
+          "Maya Angelou"
+        ],
+        "cover_i": 9367075,
+        "first_publish_year": 1969,
+        "key": "/works/OL80021W",
+        "language": [
+          "por",
+          "spa",
+          "eng",
+          "hat"
+        ],
+        "title": "I Know Why the Caged Bird Sings",
+        "editions": {
+          "numFound": 76,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL16939111M",
+              "title": "I know why the caged bird sings",
+              "cover_i": 15204081,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Book-of-the-Month Club"
+              ],
+              "publish_date": [
+                "1993"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7147517A",
+          "OL7015462A"
+        ],
+        "author_name": [
+          "Matthew P. Walker",
+          "Matthew Walker"
+        ],
+        "cover_i": 8814155,
+        "first_publish_year": 2017,
+        "key": "/works/OL20168133W",
+        "language": [
+          "por",
+          "tur",
+          "eng",
+          "spa"
+        ],
+        "title": "Why We Sleep",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26935529M",
+              "title": "Why we sleep",
+              "cover_i": 15208018,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scribner, an imprint of Simon & Schuster, Inc."
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781501144318",
+                "1501144316"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2788977A"
+        ],
+        "author_name": [
+          "World Book"
+        ],
+        "cover_i": 13629926,
+        "first_publish_year": 1937,
+        "key": "/works/OL8372484W",
+        "language": [
+          "eng"
+        ],
+        "title": "Childcraft",
+        "editions": {
+          "numFound": 29,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5908841M",
+              "title": "Childcraft",
+              "cover_i": 8102375,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Field Enterprises Educational Corp."
+              ],
+              "publish_date": [
+                "1964"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6645079A"
+        ],
+        "author_name": [
+          "Simon Sinek"
+        ],
+        "cover_i": 6395237,
+        "first_publish_year": 2009,
+        "key": "/works/OL13806374W",
+        "language": [
+          "heb",
+          "por",
+          "eng"
+        ],
+        "title": "Start with why",
+        "editions": {
+          "numFound": 15,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26431670M",
+              "title": "Start with Why: How Great Leaders Inspire Everyone to Take Action",
+              "cover_i": 15213359,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Portfolio"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "1591846447",
+                "9781591846444"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10478572A"
+        ],
+        "author_name": [
+          "Joseph Nguyen"
+        ],
+        "cover_i": 15247742,
+        "first_publish_year": 2022,
+        "key": "/works/OL28098879W",
+        "language": [
+          "eng"
+        ],
+        "title": "Don't Believe Everything You Think",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40129314M",
+              "title": "Don't Believe Everything You Think",
+              "cover_i": 15158200,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Authors Equity"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9798427063852"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL224907A"
+        ],
+        "author_name": [
+          "Daniel Goleman"
+        ],
+        "cover_i": 1359485,
+        "first_publish_year": 1995,
+        "key": "/works/OL1878267W",
+        "language": [
+          "chi",
+          "eng",
+          "spa",
+          "und"
+        ],
+        "title": "Emotional Intelligence",
+        "editions": {
+          "numFound": 16,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28952116M",
+              "title": "Emotional Intelligence",
+              "cover_i": 15244841,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bloomsbury Publishing Plc"
+              ],
+              "publish_date": [
+                "1996"
+              ],
+              "isbn": [
+                "9780747526223",
+                "0747526222"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2688837A"
+        ],
+        "author_name": [
+          "Lundy Bancroft"
+        ],
+        "cover_i": 258928,
+        "first_publish_year": 2002,
+        "key": "/works/OL8076167W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Inside the Minds of Angry and Controlling Men",
+        "title": "Why does he do that?",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL19682798M",
+              "title": "Why does he do that?",
+              "cover_i": 15096227,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Berkley Books"
+              ],
+              "publish_date": [
+                "2003"
+              ],
+              "isbn": [
+                "9780425191651",
+                "0425191656"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1433142A"
+        ],
+        "author_name": [
+          "Martine Laffon"
+        ],
+        "first_publish_year": 2006,
+        "key": "/works/OL5842504W",
+        "language": [
+          "eng"
+        ],
+        "title": "The book of why",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28433469M",
+              "title": "Book of Why",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Abrams, Inc."
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "9780810959873",
+                "0810959879"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL19981A"
+        ],
+        "author_name": [
+          "Stephen King"
+        ],
+        "cover_i": 8565607,
+        "first_publish_year": 1985,
+        "key": "/works/OL81591W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Bachman Books (Long Walk / Rage / Roadwork / Running Man)",
+        "editions": {
+          "numFound": 19,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7573946M",
+              "title": "The Bachman Books",
+              "cover_i": 8565666,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Signet"
+              ],
+              "publish_date": [
+                "1996-11"
+              ],
+              "isbn": [
+                "9780451191939",
+                "0451191935"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL766555A"
+        ],
+        "author_name": [
+          "Georgette Heyer"
+        ],
+        "cover_i": 6921909,
+        "first_publish_year": 1933,
+        "key": "/works/OL4092687W",
+        "language": [
+          "ger",
+          "eng"
+        ],
+        "title": "Why shoot a butler?",
+        "editions": {
+          "numFound": 40,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24382263M",
+              "title": "Why shoot a butler?",
+              "cover_i": 6634053,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam Books"
+              ],
+              "publish_date": [
+                "1973"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1426373A",
+          "OL2445964A"
+        ],
+        "author_name": [
+          "Daron Acemoglu",
+          "James A. Robinson"
+        ],
+        "cover_i": 7253519,
+        "first_publish_year": 2012,
+        "key": "/works/OL16568759W",
+        "language": [
+          "eng",
+          "ger",
+          "ukr",
+          "spa"
+        ],
+        "subtitle": "The Origins of Power, Prosperity and Poverty",
+        "title": "Why Nations Fail",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25370229M",
+              "title": "Why Nations Fail",
+              "cover_i": 7150615,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Crown Business"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9780307719218",
+                "0307719219"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2675708A"
+        ],
+        "author_name": [
+          "Meg Jay"
+        ],
+        "cover_i": 12132013,
+        "first_publish_year": 2012,
+        "key": "/works/OL16263576W",
+        "language": [
+          "eng"
+        ],
+        "title": "The defining decade",
+        "editions": {
+          "numFound": 10,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25094810M",
+              "title": "The defining decade",
+              "cover_i": 12132013,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Twelve"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9780446561761",
+                "0446561762"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27695A"
+        ],
+        "author_name": [
+          "Agatha Christie"
+        ],
+        "cover_i": 9831097,
+        "first_publish_year": 1934,
+        "key": "/works/OL472388W",
+        "language": [
+          "ger",
+          "heb",
+          "tha",
+          "fre",
+          "rus",
+          "eng",
+          "chi",
+          "spa"
+        ],
+        "title": "Why Didn't they Ask Evans?",
+        "editions": {
+          "numFound": 68,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24370485M",
+              "title": "The Boomerang clue",
+              "cover_i": 6605017,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Dell Pub. Co."
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "9780440107040",
+                "0440107040"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7409051A"
+        ],
+        "author_name": [
+          "Angela Duckworth"
+        ],
+        "cover_i": 7438753,
+        "first_publish_year": 2016,
+        "key": "/works/OL17361140W",
+        "language": [
+          "eng",
+          "spa"
+        ],
+        "title": "Grit",
+        "editions": {
+          "numFound": 11,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25939086M",
+              "title": "Grit",
+              "cover_i": 15169731,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scribner"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781501111105",
+                "1501111108"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7521086A"
+        ],
+        "author_name": [
+          "Jonah Berger"
+        ],
+        "cover_i": 9039370,
+        "first_publish_year": 2013,
+        "key": "/works/OL19711031W",
+        "language": [
+          "eng"
+        ],
+        "title": "Contagious",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26924173M",
+              "title": "Contagious",
+              "cover_i": 12130640,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Simon & Schuster"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781451686579",
+                "9781451686586",
+                "1451686579",
+                "1451686587"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL445067A"
+        ],
+        "author_name": [
+          "Robert L. Shook"
+        ],
+        "cover_i": 7153899,
+        "first_publish_year": 1983,
+        "key": "/works/OL2921509W",
+        "language": [
+          "eng"
+        ],
+        "title": "The book of why",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3158500M",
+              "title": "The book of why",
+              "cover_i": 7153899,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Hammond"
+              ],
+              "publish_date": [
+                "1983"
+              ],
+              "isbn": [
+                "0843733357",
+                "9780843733358"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1426157A"
+        ],
+        "author_name": [
+          "Nicholas Montemarano"
+        ],
+        "cover_i": 9748046,
+        "first_publish_year": 2013,
+        "key": "/works/OL16342679W",
+        "language": [
+          "eng"
+        ],
+        "title": "The book of why",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25131982M",
+              "title": "The book of why",
+              "cover_i": 9748046,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Little, Brown and Co."
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9780316188470",
+                "0316188476"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2630875A"
+        ],
+        "author_name": [
+          "Sara Shepard"
+        ],
+        "cover_i": 39131,
+        "first_publish_year": 2006,
+        "key": "/works/OL276728W",
+        "language": [
+          "swe",
+          "eng"
+        ],
+        "title": "Pretty Little Liars",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9238279M",
+              "title": "This is sooo stupid",
+              "cover_i": 39133,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "HarperTeen"
+              ],
+              "publish_date": [
+                "October 3, 2006"
+              ],
+              "isbn": [
+                "9780060887315",
+                "0060887311"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL233499A",
+          "OL8189430A"
+        ],
+        "author_name": [
+          "Martin Luther King Jr.",
+          "J.D. Jackson"
+        ],
+        "cover_i": 295934,
+        "first_publish_year": 1963,
+        "key": "/works/OL1945932W",
+        "language": [
+          "eng"
+        ],
+        "title": "Why We Can't Wait",
+        "editions": {
+          "numFound": 29,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24372817M",
+              "title": "Why we can't wait",
+              "cover_i": 6612192,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "New American Library"
+              ],
+              "publish_date": [
+                "1964"
+              ],
+              "isbn": [
+                "9780451626752",
+                "0451626753"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL236174A"
+        ],
+        "author_name": [
+          "Richard Dawkins"
+        ],
+        "cover_i": 95763,
+        "first_publish_year": 1986,
+        "key": "/works/OL1966501W",
+        "language": [
+          "fre",
+          "rus",
+          "eng",
+          "hun",
+          "dut",
+          "ger",
+          "spa"
+        ],
+        "title": "The Blind Watchmaker",
+        "editions": {
+          "numFound": 19,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26934040M",
+              "title": "The blind watchmaker",
+              "cover_i": 12660139,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "W. W. Norton & Company"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9780393351491",
+                "0393351491"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6965041A"
+        ],
+        "author_name": [
+          "Charles Duhigg"
+        ],
+        "cover_i": 9078085,
+        "first_publish_year": 2012,
+        "key": "/works/OL16015154W",
+        "language": [
+          "eng",
+          "may",
+          "chi",
+          "por",
+          "spa",
+          "fre",
+          "pol"
+        ],
+        "title": "The Power of Habit",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24918690M",
+              "title": "The Power of Habit",
+              "cover_i": 14842390,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Random House"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9781400069286",
+                "9780679603856",
+                "9780812981605",
+                "1400069289",
+                "0679603859",
+                "081298160X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL26320A",
+          "OL2623360A"
+        ],
+        "author_name": [
+          "J.R.R. Tolkien",
+          "Christopher Tolkien"
+        ],
+        "cover_i": 9293488,
+        "first_publish_year": 1983,
+        "key": "/works/OL27435W",
+        "language": [
+          "ita",
+          "ger",
+          "fre",
+          "spa",
+          "eng"
+        ],
+        "title": "The Book of Lost Tales [1/2]",
+        "editions": {
+          "numFound": 32,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24604563M",
+              "title": "The Book of Lost Tales: Part I (The History of Middle-Earth: Volume I)",
+              "cover_i": 6684883,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "George Allen & Unwin",
+                "Allen & Unwin"
+              ],
+              "publish_date": [
+                "1984"
+              ],
+              "isbn": [
+                "0048232386",
+                "9780048232380"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3477047A"
+        ],
+        "author_name": [
+          "Michael Morpurgo"
+        ],
+        "cover_i": 492021,
+        "first_publish_year": 1760,
+        "key": "/works/OL42749W",
+        "language": [
+          "tur",
+          "fre",
+          "eng",
+          "ger"
+        ],
+        "title": "Why the whales came",
+        "editions": {
+          "numFound": 24,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18584247M",
+              "title": "Why the whales came",
+              "cover_i": 10822899,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mammoth"
+              ],
+              "publish_date": [
+                "1994"
+              ],
+              "isbn": [
+                "074970537X",
+                "9780749705374"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL456638A",
+          "OL2667760A",
+          "OL8031858A"
+        ],
+        "author_name": [
+          "Bruce Bueno de Mesquita",
+          "Alastair Smith",
+          "Bruce Bueno de Mesquita"
+        ],
+        "cover_i": 8114194,
+        "first_publish_year": 2011,
+        "key": "/works/OL15980652W",
+        "language": [
+          "chi",
+          "jpn",
+          "eng"
+        ],
+        "title": "The dictator's handbook",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24885734M",
+              "title": "The dictator's handbook",
+              "cover_i": 12577818,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "PublicAffairs",
+                "Brand: PublicAffairs"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781610390446",
+                "9781610390453",
+                "161039044X",
+                "1610390458"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 1.015
+}

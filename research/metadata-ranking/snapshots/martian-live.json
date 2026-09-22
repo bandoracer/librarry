@@ -1,0 +1,337 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=the+martian&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:56:49.146092+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "the martian",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL1940391W",
+          "title": "The Martian",
+          "authors": [
+            {
+              "id": "openlibrary:OL232820A",
+              "name": "George du Maurier",
+              "providerIds": [
+                "openlibrary:OL232820A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1897,
+          "coverUrl": "https://covers.openlibrary.org/b/id/2762179-L.jpg",
+          "providerIds": [
+            "openlibrary:OL1940391W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL24142644M",
+          "workId": "openlibrary:OL1940391W",
+          "title": "The Martian",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798588455527",
+            "9780403009190",
+            "9781513215532",
+            "9781520589039",
+            "9780781204583",
+            "1411444558",
+            "0665270410",
+            "9780665270413",
+            "9783847225584",
+            "9781410100535",
+            "3847225588",
+            "1513215531",
+            "1409962687",
+            "9781409962687",
+            "9781411444553",
+            "1520589034",
+            "1410100537",
+            "9781513133744",
+            "0781204585",
+            "0403009197",
+            "9783968659206",
+            "3968659201",
+            "1513133748"
+          ],
+          "providerIds": [
+            "openlibrary:OL24142644M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL1940391W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL60897W",
+          "title": "The Day the Martians Came",
+          "authors": [
+            {
+              "id": "openlibrary:OL23364A",
+              "name": "Frederik Pohl",
+              "providerIds": [
+                "openlibrary:OL23364A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1988,
+          "coverUrl": "https://covers.openlibrary.org/b/id/9320582-L.jpg",
+          "providerIds": [
+            "openlibrary:OL60897W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL31985151M",
+          "workId": "openlibrary:OL60897W",
+          "title": "The Day the Martians Came",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "0586207430",
+            "9780727841063",
+            "9780586207437",
+            "0312021836",
+            "0312917813",
+            "9780312917814",
+            "0727841068",
+            "9780312021832"
+          ],
+          "providerIds": [
+            "openlibrary:OL31985151M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL60897W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL78398W",
+          "title": "The Martian Child",
+          "authors": [
+            {
+              "id": "openlibrary:OL39603A",
+              "name": "David Gerrold",
+              "providerIds": [
+                "openlibrary:OL39603A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2002,
+          "coverUrl": "https://covers.openlibrary.org/b/id/523969-L.jpg",
+          "providerIds": [
+            "openlibrary:OL78398W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL3956065M",
+          "workId": "openlibrary:OL78398W",
+          "title": "The Martian Child",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780786177646",
+            "9780765359766",
+            "9780786174270",
+            "0765306026",
+            "9780765306029",
+            "0765320037",
+            "0765303116",
+            "0786174277",
+            "9780786144099",
+            "0765359766",
+            "0786177640",
+            "0786144092",
+            "9780765303110",
+            "9780765320032"
+          ],
+          "providerIds": [
+            "openlibrary:OL3956065M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL78398W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL24764956W",
+          "title": "Mikkee the Martian",
+          "authors": [
+            {
+              "id": "openlibrary:OL7530043A",
+              "name": "Peter Locke",
+              "providerIds": [
+                "openlibrary:OL7530043A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2019,
+          "coverUrl": "https://covers.openlibrary.org/b/id/11515715-L.jpg",
+          "providerIds": [
+            "openlibrary:OL24764956W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL39256435M",
+          "workId": "openlibrary:OL24764956W",
+          "title": "Mikkee the Martian",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781728387062",
+            "1649990197",
+            "195150514X",
+            "1728387086",
+            "9781951505424",
+            "9781728382821",
+            "1728382831",
+            "9781649990198",
+            "9781728386874",
+            "195150500X",
+            "9781728387109",
+            "9781637954607",
+            "9781728387079",
+            "9781728387055",
+            "9781728387086",
+            "1728383692",
+            "1951505433",
+            "9781951505141",
+            "9781728382814",
+            "1728383889",
+            "1728382823",
+            "1728382785",
+            "9781951505325",
+            "9781728387093",
+            "1728387078",
+            "1728383870",
+            "1637954549",
+            "1728384338",
+            "1728382793",
+            "9781951505028",
+            "1728387108",
+            "1951505255",
+            "9781649990204",
+            "1951505034",
+            "9781728382807",
+            "1728383862",
+            "1951505425",
+            "1728387094",
+            "9781951505004",
+            "1951505328",
+            "172838706X",
+            "9781728384337",
+            "9781951505431",
+            "1649990200",
+            "1728382815",
+            "9781728382784",
+            "9781728382838",
+            "9781637954546",
+            "1728383714",
+            "172838687X",
+            "9781728383866",
+            "9781728383705",
+            "9781951505257",
+            "1728387051",
+            "9781728383699",
+            "9781728383880",
+            "1728382807",
+            "9781728383873",
+            "9781728383712",
+            "1637954603",
+            "1951505026",
+            "1728383706",
+            "9781728382791",
+            "9781951505035"
+          ],
+          "providerIds": [
+            "openlibrary:OL39256435M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL24764956W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL3055285W",
+          "title": "The Martian Inca",
+          "authors": [
+            {
+              "id": "openlibrary:OL473882A",
+              "name": "Ian Watson",
+              "providerIds": [
+                "openlibrary:OL473882A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1977,
+          "coverUrl": "https://covers.openlibrary.org/b/id/6578079-L.jpg",
+          "providerIds": [
+            "openlibrary:OL3055285W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL17394818M",
+          "workId": "openlibrary:OL3055285W",
+          "title": "The Martian Inca",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "0575055588",
+            "0684151723",
+            "9780586047736",
+            "9780684151724",
+            "0586047735",
+            "9780575055582",
+            "9780441520442",
+            "0575022183",
+            "9780575022188",
+            "0441520448"
+          ],
+          "providerIds": [
+            "openlibrary:OL17394818M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL3055285W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.465
+}

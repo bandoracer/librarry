@@ -57,3 +57,22 @@ edition does not by itself create a conflict for an audiobook target. Its format
 remains visible as provider evidence. Keep current confirms a displayed evidence
 revision and protects newer owner corrections or cleared overrides. Fields with
 no current value still require an explicit choice in the book's metadata editor.
+
+## Search ranking research
+
+The [September 21 ranking design](metadata-ranking-design.md) separates candidate
+retrieval, coherent edition selection, relevance, and metadata quality. Its frozen
+16-query benchmark found that retrieval/language normalization fixes account for
+the measured gains; extra ranking weights did not outperform provider relevance.
+The initial retrieval/normalization baseline is now implemented in source, with
+identity tiers and evidence labels. Provider relevance determines discovery order;
+legacy scores remain compatibility/review evidence and are not probabilities.
+Search records merge only with shared edition ISBN or identical work/edition
+identity, preserving source IDs. Text-only enrichment of persisted records follows
+its existing separate review contract. The custom weighted ranker remains future qualification work. Explicit Series
+mode uses stable Hardcover series IDs and numbered memberships, without deriving
+order from publication years. It remains pending credentialed live qualification.
+A bounded explicit-author rescue and chooser for returned editions are implemented;
+see the [expanded iteration](reviews/2026-09-21-metadata-discovery-iteration.md). See the
+[implementation checks](reviews/2026-09-21-metadata-discovery.md). This has not been
+deployed to the maintainer NAS.

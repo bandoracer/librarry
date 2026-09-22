@@ -1,0 +1,349 @@
+{
+  "url": "https://openlibrary.org/search.json?q=g%C3%B6del+escher+bach&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:50.365812+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 10,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 10,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "gödel escher bach",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL57437A"
+        ],
+        "author_name": [
+          "Douglas R. Hofstadter"
+        ],
+        "cover_i": 14368453,
+        "first_publish_year": 1979,
+        "key": "/works/OL716850W",
+        "language": [
+          "und",
+          "spa",
+          "dut",
+          "tur",
+          "eng",
+          "fre",
+          "ita",
+          "ger"
+        ],
+        "subtitle": "an Eternal Golden Braid",
+        "title": "Gödel, Escher, Bach",
+        "editions": {
+          "numFound": 30,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21456142M",
+              "title": "Gödel, Escher, Bach",
+              "cover_i": 4435593,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Basic Books"
+              ],
+              "publish_date": [
+                "1979"
+              ],
+              "isbn": [
+                "0465026850",
+                "9780465026852"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL31686682W",
+        "title": "Gödel, Escher, Bach",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43371131M",
+              "title": "Gödel, Escher, Bach"
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL12648693A",
+          "OL12648694A",
+          "OL12648695A"
+        ],
+        "author_name": [
+          "Douglas R. Hofstadter",
+          "Mario Arnaldo Usabiaga Bandizzi",
+          "Alejandro López Rousseau"
+        ],
+        "cover_i": 13955475,
+        "first_publish_year": 2015,
+        "key": "/works/OL34998078W",
+        "title": "Gödel, Escher, Bach",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47362510M",
+              "title": "Gödel, Escher, Bach",
+              "cover_i": 13955475,
+              "publisher": [
+                "Booket"
+              ],
+              "publish_date": [
+                "Apr 14, 2015"
+              ],
+              "isbn": [
+                "9788490660690",
+                "8490660697"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL12648696A",
+          "OL12648697A",
+          "OL12648695A"
+        ],
+        "author_name": [
+          "Douglas R. Hofstadter",
+          "Mario Arnaldo Usabiaga Bandizzi",
+          "Alejandro López Rousseau"
+        ],
+        "cover_i": 13955476,
+        "first_publish_year": 2015,
+        "key": "/works/OL34998079W",
+        "title": "Gödel, Escher, Bach",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47362509M",
+              "title": "Gödel, Escher, Bach",
+              "cover_i": 13955476,
+              "publisher": [
+                "Booket"
+              ],
+              "publish_date": [
+                "Apr 14, 2015"
+              ],
+              "isbn": [
+                "9788490660690",
+                "8490660697"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL12634513A"
+        ],
+        "author_name": [
+          "Douglas R Hofstadter"
+        ],
+        "cover_i": 13884634,
+        "key": "/works/OL34962895W",
+        "title": "Gödel, Escher, Bach - ein Endloses Geflochtenes Band",
+        "editions": {
+          "numFound": 0,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": []
+        }
+      },
+      {
+        "author_key": [
+          "OL15414339A"
+        ],
+        "author_name": [
+          "Douglas R Hosfstadter"
+        ],
+        "first_publish_year": 1979,
+        "key": "/works/OL43261462W",
+        "language": [
+          "eng"
+        ],
+        "title": "Godel Escher Bach",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58922298M",
+              "title": "Godel Escher Bach",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books"
+              ],
+              "publish_date": [
+                "1979"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2001,
+        "key": "/works/OL9156828M",
+        "language": [
+          "por"
+        ],
+        "title": "Gödel, Escher, Bach",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9156828M",
+              "title": "Gödel, Escher, Bach",
+              "language": [
+                "por"
+              ],
+              "publisher": [
+                "Imprensa Oficial SP"
+              ],
+              "publish_date": [
+                "2001"
+              ],
+              "isbn": [
+                "9788523005788",
+                "8523005781"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2717942A"
+        ],
+        "author_name": [
+          "Adam Cole"
+        ],
+        "first_publish_year": 2007,
+        "key": "/works/OL8150936W",
+        "language": [
+          "eng"
+        ],
+        "title": "Hofstadter's Grandchildren",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL11870436M",
+              "title": "Hofstadter's Grandchildren",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Xlibris Corporation"
+              ],
+              "publish_date": [
+                "May 16, 2007"
+              ],
+              "isbn": [
+                "9781425756390",
+                "1425756395"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL57437A"
+        ],
+        "author_name": [
+          "Douglas R. Hofstadter"
+        ],
+        "first_publish_year": 1984,
+        "key": "/works/OL39383575W",
+        "language": [
+          "chi"
+        ],
+        "title": "GEB",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53593407M",
+              "title": "GEB",
+              "language": [
+                "chi"
+              ],
+              "publisher": [
+                "Sichuan ren min chu ban she"
+              ],
+              "publish_date": [
+                "1984"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL57437A"
+        ],
+        "author_name": [
+          "Douglas R. Hofstadter"
+        ],
+        "first_publish_year": 2011,
+        "key": "/works/OL39367792W",
+        "language": [
+          "heb"
+        ],
+        "title": "גדל, אשר, באך",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53574563M",
+              "title": "גדל, אשר, באך",
+              "language": [
+                "heb"
+              ],
+              "publisher": [
+                "דביר"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9789655521054",
+                "9655521052"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.316
+}

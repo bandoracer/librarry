@@ -1,0 +1,56 @@
+{
+  "url": "https://openlibrary.org/books/OL8339123M.json",
+  "retrievedAt": "2026-09-21T07:57:57.855031+00:00",
+  "status": 200,
+  "data": {
+    "identifiers": {
+      "goodreads": [
+        "5967798"
+      ],
+      "librarything": [
+        "2463599"
+      ]
+    },
+    "title": "Dragonriders of Pern",
+    "subtitle": "The Book Game",
+    "authors": [
+      {
+        "key": "/authors/OL19880A"
+      }
+    ],
+    "publish_date": "1984",
+    "publishers": [
+      "Nova Game Designs, Inc."
+    ],
+    "physical_format": "Paperback",
+    "isbn_13": [
+      "9780917037054"
+    ],
+    "isbn_10": [
+      "0917037057"
+    ],
+    "type": {
+      "key": "/type/edition"
+    },
+    "source_records": [
+      "amazon:0917037057"
+    ],
+    "key": "/books/OL8339123M",
+    "works": [
+      {
+        "key": "/works/OL8684296W"
+      }
+    ],
+    "latest_revision": 12,
+    "revision": 12,
+    "created": {
+      "type": "/type/datetime",
+      "value": "2008-04-29T15:03:11.581851"
+    },
+    "last_modified": {
+      "type": "/type/datetime",
+      "value": "2025-12-23T09:02:23.963061"
+    }
+  },
+  "elapsedSeconds": 0.365
+}

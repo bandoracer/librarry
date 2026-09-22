@@ -71,6 +71,9 @@ func resultMergeKey(result SearchResult) string {
 }
 
 func resultsCanMerge(query Query, left SearchResult, right SearchResult) bool {
+	if query.Type == SearchTypeSeries && left.Work.SeriesID != right.Work.SeriesID {
+		return false
+	}
 	if left.Kind != right.Kind {
 		return false
 	}
@@ -106,6 +109,11 @@ func resultsCanMerge(query Query, left SearchResult, right SearchResult) bool {
 	}
 	if firstNormalizedISBN(left.Edition.ISBNs) != "" && firstNormalizedISBN(right.Edition.ISBNs) != "" {
 		return false
+	}
+	// Discovery may only combine verified identities. Matching title/author text
+	// can also describe adaptations, companions, or unrelated catalog records.
+	if left.discoveryRank > 0 || right.discoveryRank > 0 {
+		return left.Work.ID != "" && left.Work.ID == right.Work.ID && left.Edition.ID == right.Edition.ID
 	}
 	leftYear := resultYear(left)
 	rightYear := resultYear(right)
@@ -209,6 +217,9 @@ func resultRichness(result SearchResult) int {
 }
 
 func mergeSearchResult(base SearchResult, candidate SearchResult) SearchResult {
+	if candidate.discoveryRank > 0 && (base.discoveryRank == 0 || candidate.discoveryRank < base.discoveryRank) {
+		base.discoveryRank = candidate.discoveryRank
+	}
 	base.Work = mergeWork(base.Work, candidate.Work)
 	base.Edition = mergeEdition(base.Edition, candidate.Edition)
 	base.MatchedOn = appendUniqueStrings(base.MatchedOn, candidate.MatchedOn...)
@@ -223,6 +234,10 @@ func mergeSearchResult(base SearchResult, candidate SearchResult) SearchResult {
 }
 
 func mergeWork(base Work, candidate Work) Work {
+	base.Languages = appendUniqueStrings(base.Languages, candidate.Languages...)
+	if base.Subtitle == "" {
+		base.Subtitle = candidate.Subtitle
+	}
 	if base.FirstPublishDate == "" {
 		base.FirstPublishDate = candidate.FirstPublishDate
 	}
@@ -242,9 +257,8 @@ func mergeWork(base Work, candidate Work) Work {
 		base.FirstPublishYear = candidate.FirstPublishYear
 	}
 	if base.Series == "" {
-		base.Series = candidate.Series
-	}
-	if base.SeriesPosition == "" {
+		base.SeriesID, base.Series, base.SeriesPosition = candidate.SeriesID, candidate.Series, candidate.SeriesPosition
+	} else if base.SeriesPosition == "" && base.SeriesID != "" && base.SeriesID == candidate.SeriesID {
 		base.SeriesPosition = candidate.SeriesPosition
 	}
 	base.ProviderIDs = appendUniqueStrings(base.ProviderIDs, candidate.ProviderIDs...)

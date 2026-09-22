@@ -1,0 +1,98 @@
+[
+  {
+    "id": "percy",
+    "query": "percy jackson",
+    "type": "book",
+    "split": "development"
+  },
+  {
+    "id": "lightning",
+    "query": "the lightning thief",
+    "type": "book",
+    "split": "development"
+  },
+  {
+    "id": "hail-mary",
+    "query": "project hail mary",
+    "type": "book",
+    "split": "development"
+  },
+  {
+    "id": "dune",
+    "query": "dune",
+    "type": "book",
+    "split": "development"
+  },
+  {
+    "id": "earthsea",
+    "query": "earthsea",
+    "type": "book",
+    "split": "development"
+  },
+  {
+    "id": "riordan",
+    "query": "rick riordan",
+    "type": "author",
+    "split": "development"
+  },
+  {
+    "id": "guide",
+    "query": "percy jackson the ultimate guide",
+    "type": "book",
+    "split": "development"
+  },
+  {
+    "id": "hobbit",
+    "query": "the hobbit",
+    "type": "book",
+    "split": "validation"
+  },
+  {
+    "id": "pride",
+    "query": "pride and prejudice",
+    "type": "book",
+    "split": "validation"
+  },
+  {
+    "id": "murderbot",
+    "query": "murderbot",
+    "type": "book",
+    "split": "validation"
+  },
+  {
+    "id": "left-hand",
+    "query": "the left hand of darkness",
+    "type": "book",
+    "split": "validation"
+  },
+  {
+    "id": "isbn",
+    "query": "9781423103349",
+    "type": "book",
+    "split": "validation"
+  },
+  {
+    "id": "martian",
+    "query": "the martian",
+    "type": "book",
+    "split": "blind"
+  },
+  {
+    "id": "watership",
+    "query": "watership down",
+    "type": "book",
+    "split": "blind"
+  },
+  {
+    "id": "pern",
+    "query": "dragonriders of pern",
+    "type": "book",
+    "split": "blind"
+  },
+  {
+    "id": "wizard-author",
+    "query": "a wizard of earthsea by ursula k le guin",
+    "type": "book",
+    "split": "blind"
+  }
+]

@@ -10,14 +10,14 @@ import type {
  * Pure functions over SearchResult/WantedItem — no React, no fetch.
  */
 
-export type SearchMode = Extract<MetadataSearchType, "book" | "author">;
+export type SearchMode = MetadataSearchType;
 export type SearchConfidenceFilter = "all" | SearchResult["confidence"];
 export type SearchEvidenceFilter = "all" | "identifiers" | "published" | "series";
 export type SearchEvidenceTone = "high" | "medium" | "review" | "neutral";
 export type SearchEvidenceChip = { label: string; tone?: SearchEvidenceTone };
 export type SearchEvidenceItem = { label: string; value: string; detail: string };
 
-export const searchModeOptions: SearchMode[] = ["book", "author"];
+export const searchModeOptions: SearchMode[] = ["book", "author", "series"];
 export const searchConfidenceOptions: SearchResult["confidence"][] = ["high", "medium", "review"];
 export const authorMissingPolicyOptions: AuthorMissingBookPolicy[] = [
   "all",
@@ -39,7 +39,7 @@ export function searchResultCanBeWanted(result: SearchResult) {
 }
 
 export function searchResultKey(result: SearchResult) {
-  return `${result.provider}:${result.kind}:${result.work.id}:${result.edition?.id || result.rawSourceKey || ""}`;
+  return `${result.provider}:${result.kind}:${result.work.id}:${result.edition?.id || result.rawSourceKey || ""}${result.work.seriesId ? `:${result.work.seriesId}` : ""}`;
 }
 
 export function searchResultWantedSourceKey(result: SearchResult) {
@@ -76,18 +76,27 @@ export function searchResultExistingWanted(result: SearchResult, items: WantedIt
 
 }
 
-export function searchResultScoreLabel(result: SearchResult) {
-  if (!Number.isFinite(result.score) || result.score <= 0) return "unscored";
-  return result.score <= 1 ? `${Math.round(result.score * 100)}%` : result.score.toFixed(1);
+export function searchResultMatchLabel(result: SearchResult) {
+  if (result.evidence?.length) return result.evidence[0];
+  if (result.matchedOn.includes("isbn")) return "Exact ISBN";
+  if (result.matchedOn.includes("title") && result.matchedOn.includes("author")) return "Title and author match";
+  if (result.kind === "author" && result.matchedOn.includes("author")) return "Author name match";
+  return "Provider relevance";
+}
+
+export function searchResultCover(result: SearchResult) {
+  return result.edition?.coverUrl || result.work.coverUrl || "";
 }
 
 export function searchResultMatchChips(result: SearchResult) {
   const chips: SearchEvidenceChip[] = [
-    { label: `score ${searchResultScoreLabel(result)}`, tone: result.confidence }
+    { label: searchResultMatchLabel(result), tone: "neutral" }
   ];
   const sourceCount = searchResultSourceNames(result).length;
   if (sourceCount > 1) chips.push({ label: `${sourceCount} sources`, tone: "high" });
-  result.matchedOn.forEach((field) => chips.push({ label: searchMatchFieldLabel(field), tone: "neutral" }));
+  if (result.evidence?.length) result.evidence.slice(1).forEach((label) => chips.push({ label, tone: "neutral" }));
+  else result.matchedOn.forEach((field) => chips.push({ label: searchMatchFieldLabel(field), tone: "neutral" }));
+  if (result.conflicts?.length) chips.unshift({ label: "Edition needs review", tone: "review" });
   if (result.kind !== "author" && searchResultIdentifierSummary(result, 1)) chips.push({ label: "identifier", tone: "high" });
   if (result.kind !== "author" && searchResultPublishedLabel(result)) chips.push({ label: "published", tone: "neutral" });
   if (result.kind !== "author" && searchResultSeriesLabel(result)) chips.push({ label: "series", tone: "neutral" });
@@ -102,7 +111,7 @@ export function searchResultEvidenceSummary(result: SearchResult, currentFormat:
     return [
       {
         label: "Match",
-        value: `${result.confidence} · ${searchResultScoreLabel(result)}`,
+        value: searchResultMatchLabel(result),
         detail: searchResultConfidenceDescription(result)
       },
       {
@@ -118,14 +127,14 @@ export function searchResultEvidenceSummary(result: SearchResult, currentFormat:
       {
         label: "Matched fields",
         value: matchedFields || "Provider rank",
-        detail: "Fields that contributed to the normalized match score."
+        detail: "Evidence supplied by the metadata provider."
       }
     ];
   }
   return [
     {
       label: "Match",
-      value: `${result.confidence} · ${searchResultScoreLabel(result)}`,
+      value: searchResultMatchLabel(result),
       detail: searchResultConfidenceDescription(result)
     },
     {
@@ -136,7 +145,7 @@ export function searchResultEvidenceSummary(result: SearchResult, currentFormat:
     {
       label: "Matched fields",
       value: matchedFields || "Provider rank",
-      detail: "Fields that contributed to the normalized match score."
+      detail: "Evidence supplied by the metadata provider."
     },
     {
       label: "Source identity",
@@ -147,14 +156,8 @@ export function searchResultEvidenceSummary(result: SearchResult, currentFormat:
 }
 
 export function searchResultConfidenceDescription(result: SearchResult) {
-  switch (result.confidence) {
-    case "high":
-      return "Strong enough to create a wanted item without review in normal cases.";
-    case "medium":
-      return "Likely match; check edition evidence before marking wanted.";
-    case "review":
-      return "Low-confidence match that should be reviewed before acquisition.";
-  }
+  if (result.conflicts?.length) return result.conflicts.join(". ");
+  return "Search relevance is not acquisition confidence. Check the selected edition, language and format.";
 }
 
 export function searchResultMatchedFieldsLabel(result: SearchResult) {
@@ -192,7 +195,10 @@ export function uniqueEvidenceChips(chips: SearchEvidenceChip[]) {
 
 export function searchResultWantedReviewReasons(result: SearchResult) {
   if (!searchResultCanBeWanted(result)) return [];
-  const reasons: string[] = [];
+  const reasons: string[] = [...(result.conflicts ?? [])];
+  if (!result.edition?.format || result.edition.format === "any") {
+    reasons.push("The edition's media format is unknown; confirm your acquisition format.");
+  }
   const matched = new Set(result.matchedOn.map((field) => field.toLowerCase()));
   const hasIdentifier = Boolean(result.edition?.asin || result.edition?.isbns?.length);
   const matchedIdentifier = matched.has("isbn") || matched.has("asin") || matched.has("identifier");
@@ -304,7 +310,7 @@ export function searchResultEditionSummary(result: SearchResult, currentFormat: 
     return wantedFormat(currentFormat);
   }
   return compactStringList([
-    result.edition?.format || "any",
+    result.edition?.format && result.edition.format !== "any" ? result.edition.format : "Format unknown",
     languageLabel(result.edition?.language)
   ]).join(" · ");
 }
@@ -419,4 +425,32 @@ export function chipTone(tone: SearchEvidenceTone | undefined): "success" | "war
     default:
       return "neutral";
   }
+}
+
+/** Group only the same provider-backed work; names and covers are not identity.
+ * Each option retains its complete SearchResult for library checks and add. */
+export function groupSearchEditions(results: SearchResult[]): SearchResult[][] {
+  const groups: SearchResult[][] = [];
+  const indexes = new Map<string, number>();
+  for (const result of results) {
+    // Require a typed work ID. An edition-only or unknown identity gets its own row.
+    const id = result.work.id;
+    const workKey = result.kind === "book" && (/^openlibrary:OL\d+W$/.test(id) || /^hardcover:\d+$/.test(id)) ? `${id}:${result.work.seriesId ?? ""}` : "";
+    const index = workKey ? indexes.get(workKey) : undefined;
+    if (index !== undefined) groups[index].push(result);
+    else {
+      if (workKey) indexes.set(workKey, groups.length);
+      groups.push([result]);
+    }
+  }
+  return groups;
+}
+
+export function searchEditionOptionLabel(result: SearchResult) {
+  return compactStringList([
+    searchResultEditionSummary(result, "any"),
+    result.edition?.publisher,
+    result.edition?.publishedDate,
+    result.edition?.id || "Work metadata only"
+  ]).join(" · ");
 }

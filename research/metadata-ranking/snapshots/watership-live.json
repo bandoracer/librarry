@@ -1,0 +1,427 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=watership+down&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:56:52.453762+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "watership down",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL15015120W",
+          "title": "Watership Down",
+          "authors": [
+            {
+              "id": "openlibrary:OL800926A",
+              "name": "Richard Adams",
+              "providerIds": [
+                "openlibrary:OL800926A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1999,
+          "coverUrl": "https://covers.openlibrary.org/b/id/72855-L.jpg",
+          "providerIds": [
+            "openlibrary:OL15015120W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL7317308M",
+          "workId": "openlibrary:OL15015120W",
+          "title": "Watership Down",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780099403852",
+            "0099403757",
+            "009940365X",
+            "9780099403654",
+            "0099403854",
+            "9780099403753",
+            "0099403552",
+            "9780099403555"
+          ],
+          "providerIds": [
+            "openlibrary:OL7317308M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL15015120W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL8525106W",
+          "title": "Watership Down",
+          "authors": [
+            {
+              "id": "openlibrary:OL2852590A",
+              "name": "Martin Rosen",
+              "providerIds": [
+                "openlibrary:OL2852590A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2003,
+          "providerIds": [
+            "openlibrary:OL8525106W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL8062977M",
+          "workId": "openlibrary:OL8525106W",
+          "title": "Watership Down",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "0766213269",
+            "9780766213265",
+            "9780766213272",
+            "0766213277"
+          ],
+          "providerIds": [
+            "openlibrary:OL8062977M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL8525106W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL27087806W",
+          "title": "Watership Down",
+          "authors": [
+            {
+              "id": "openlibrary:OL9741481A",
+              "name": "Catherine Lester",
+              "providerIds": [
+                "openlibrary:OL9741481A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2022,
+          "providerIds": [
+            "openlibrary:OL27087806W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL42789601M",
+          "workId": "openlibrary:OL27087806W",
+          "title": "Watership Down",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781501376962",
+            "1501376969",
+            "9781501376993",
+            "1501376993"
+          ],
+          "providerIds": [
+            "openlibrary:OL42789601M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL27087806W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL36410222W",
+          "title": "WATERSHIP DOWN",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "providerIds": [
+            "openlibrary:OL36410222W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL49197387M",
+          "workId": "openlibrary:OL36410222W",
+          "title": "WATERSHIP DOWN",
+          "format": "any",
+          "providerIds": [
+            "openlibrary:OL49197387M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL36410222W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL39178674W",
+          "title": "Watership Down",
+          "authors": [
+            {
+              "id": "openlibrary:OL1516184A",
+              "name": "Frank Cottrell Boyce",
+              "providerIds": [
+                "openlibrary:OL1516184A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2019,
+          "providerIds": [
+            "openlibrary:OL39178674W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL53335603M",
+          "workId": "openlibrary:OL39178674W",
+          "title": "Watership Down",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798855027426"
+          ],
+          "providerIds": [
+            "openlibrary:OL53335603M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL39178674W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL39818951W",
+          "title": "Watership Down",
+          "authors": [
+            {
+              "id": "openlibrary:OL13524430A",
+              "name": "BookCaps Study Guides Staff",
+              "providerIds": [
+                "openlibrary:OL13524430A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2012,
+          "providerIds": [
+            "openlibrary:OL39818951W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL54236942M",
+          "workId": "openlibrary:OL39818951W",
+          "title": "Watership Down",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1475270089",
+            "9781475270082"
+          ],
+          "providerIds": [
+            "openlibrary:OL54236942M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL39818951W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL34615893W",
+          "title": "Watership Down",
+          "authors": [
+            {
+              "id": "openlibrary:OL9770777A",
+              "name": "Golgotha Press",
+              "providerIds": [
+                "openlibrary:OL9770777A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2011,
+          "providerIds": [
+            "openlibrary:OL34615893W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL46936480M",
+          "workId": "openlibrary:OL34615893W",
+          "title": "Watership Down",
+          "format": "any",
+          "providerIds": [
+            "openlibrary:OL46936480M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL34615893W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL2096527W",
+          "title": "Tales from Watership Down",
+          "authors": [
+            {
+              "id": "openlibrary:OL800926A",
+              "name": "Richard Adams",
+              "providerIds": [
+                "openlibrary:OL800926A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1977,
+          "coverUrl": "https://covers.openlibrary.org/b/id/418890-L.jpg",
+          "providerIds": [
+            "openlibrary:OL2096527W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL51784806M",
+          "workId": "openlibrary:OL2096527W",
+          "title": "Tales from Watership Down",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "014025899X",
+            "9783550082429",
+            "0517289369",
+            "9780745187617",
+            "9780140258998",
+            "0140382453",
+            "1780747896",
+            "1568954492",
+            "9781786073099",
+            "9780140382457",
+            "1786073099",
+            "0613376714",
+            "9780091801663",
+            "0745187617",
+            "9781486280827",
+            "0380729342",
+            "178074790X",
+            "0679451250",
+            "148628082X",
+            "9783548245492",
+            "9781568954493",
+            "9780307950192",
+            "1435246551",
+            "3548245498",
+            "9781435246553",
+            "0241655684",
+            "0307950190",
+            "9780380729340",
+            "9781780747903",
+            "0745154646",
+            "9781780747897",
+            "9780613376716",
+            "0091801664",
+            "9780517289365",
+            "9780679451259",
+            "9780241655689",
+            "9780745154640",
+            "3550082428"
+          ],
+          "providerIds": [
+            "openlibrary:OL51784806M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL2096527W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL2096530W",
+          "title": "The Watership down film picture book",
+          "authors": [
+            {
+              "id": "openlibrary:OL800926A",
+              "name": "Richard Adams",
+              "providerIds": [
+                "openlibrary:OL800926A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1978,
+          "providerIds": [
+            "openlibrary:OL2096530W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL23254872M",
+          "workId": "openlibrary:OL2096530W",
+          "title": "The Watership down film picture book",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "0140050639",
+            "0020160607",
+            "9780140050639",
+            "0025002600",
+            "9780025002609",
+            "9780020160601"
+          ],
+          "providerIds": [
+            "openlibrary:OL23254872M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL2096530W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.41
+}

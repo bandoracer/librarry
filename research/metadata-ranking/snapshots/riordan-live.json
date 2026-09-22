@@ -1,0 +1,88 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=rick+riordan&type=author&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:11.115320+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "rick riordan",
+      "type": "author",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "author",
+        "work": {
+          "id": "openlibrary:OL30765A",
+          "title": "Rick Riordan",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "/authors/OL30765A",
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "description": "The Lightning Thief",
+          "coverUrl": "https://covers.openlibrary.org/a/olid/OL30765A-M.jpg",
+          "providerIds": [
+            "openlibrary:OL30765A",
+            "/authors/OL30765A"
+          ]
+        },
+        "edition": {
+          "id": "",
+          "title": "",
+          "format": ""
+        },
+        "score": 0.96,
+        "confidence": "high",
+        "matchedOn": [
+          "author"
+        ],
+        "rawSourceKey": "/authors/OL30765A"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "author",
+        "work": {
+          "id": "openlibrary:OL16594385A",
+          "title": "Rick Riordan",
+          "authors": [
+            {
+              "id": "openlibrary:OL16594385A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "/authors/OL16594385A",
+                "openlibrary:OL16594385A"
+              ]
+            }
+          ],
+          "description": "0 Open Library works",
+          "coverUrl": "https://covers.openlibrary.org/a/olid/OL16594385A-M.jpg",
+          "providerIds": [
+            "openlibrary:OL16594385A",
+            "/authors/OL16594385A"
+          ]
+        },
+        "edition": {
+          "id": "",
+          "title": "",
+          "format": ""
+        },
+        "score": 0.96,
+        "confidence": "high",
+        "matchedOn": [
+          "author"
+        ],
+        "rawSourceKey": "/authors/OL16594385A"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.493
+}

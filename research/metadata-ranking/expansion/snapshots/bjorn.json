@@ -1,0 +1,961 @@
+{
+  "url": "https://openlibrary.org/search.json?q=bj%C3%B6rnstad&lang=sv&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:14.399981+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 180,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 180,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "björnstad",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL7166036A"
+        ],
+        "author_name": [
+          "Fredrik Backman"
+        ],
+        "cover_i": 8497430,
+        "first_publish_year": 2017,
+        "key": "/works/OL19398420W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Scandal: Published in the U.S. as Beartown",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27238948M",
+              "title": "Beartown",
+              "cover_i": 14443756,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Thorndike Press, a part of Gale, Cengage Learning"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781410498120",
+                "1410498123"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7166036A"
+        ],
+        "author_name": [
+          "Fredrik Backman"
+        ],
+        "cover_i": 13000285,
+        "first_publish_year": 2016,
+        "key": "/works/OL29316319W",
+        "language": [
+          "swe"
+        ],
+        "title": "Björnstad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40295647M",
+              "title": "Björnstad",
+              "cover_i": 13000285,
+              "language": [
+                "swe"
+              ],
+              "publisher": [
+                "Piratförlaget"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9789164204967",
+                "9164204960"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7166036A"
+        ],
+        "author_name": [
+          "Fredrik Backman"
+        ],
+        "cover_i": 13164371,
+        "first_publish_year": 2017,
+        "key": "/works/OL27672952W",
+        "title": "Björnstad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37731776M",
+              "title": "Björnstad",
+              "cover_i": 13164371,
+              "publisher": [
+                "Månpocket"
+              ],
+              "publish_date": [
+                "Mar 04, 2017"
+              ],
+              "isbn": [
+                "9789175037240",
+                "9175037246"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1240831A"
+        ],
+        "author_name": [
+          "James Bjornstad"
+        ],
+        "cover_i": 15084040,
+        "first_publish_year": 1969,
+        "key": "/works/OL22480470W",
+        "language": [
+          "eng"
+        ],
+        "title": "Twentieth century prophecy",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49207466M",
+              "title": "Twentieth century prophecy",
+              "cover_i": 15084040,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pyramid Books"
+              ],
+              "publish_date": [
+                "1970-01-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1240831A"
+        ],
+        "author_name": [
+          "James Bjornstad"
+        ],
+        "cover_i": 10988108,
+        "first_publish_year": 1969,
+        "key": "/works/OL123858W",
+        "language": [
+          "eng"
+        ],
+        "title": "Twentieth century prophecy",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28404505M",
+              "title": "Twentieth century prophecy",
+              "cover_i": 10988108,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Dimension Books"
+              ],
+              "publish_date": [
+                "1977"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7944592A"
+        ],
+        "author_name": [
+          "Frederik Backman"
+        ],
+        "cover_i": 15237759,
+        "first_publish_year": 2022,
+        "key": "/works/OL45760266W",
+        "title": "Björnstad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62289208M",
+              "title": "Björnstad",
+              "cover_i": 15237759,
+              "publisher": [
+                "Volt"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9789021469621",
+                "9021469626"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9679978A"
+        ],
+        "author_name": [
+          "Ejnar Björnstad"
+        ],
+        "cover_i": 13862285,
+        "first_publish_year": 1909,
+        "key": "/works/OL25620575W",
+        "language": [
+          "ger"
+        ],
+        "title": "Die Berechnung Von Steifrahmen Nebst Anderen Statisch Unbestimmten Systemen",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34380295M",
+              "title": "Die Berechnung Von Steifrahmen Nebst Anderen Statisch Unbestimmten Systemen",
+              "cover_i": 13862285,
+              "language": [
+                "ger"
+              ],
+              "publisher": [
+                "Springer"
+              ],
+              "publish_date": [
+                "1909"
+              ],
+              "isbn": [
+                "9783642895470",
+                "3642895476"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL254757A"
+        ],
+        "author_name": [
+          "Ketil Bjørnstad"
+        ],
+        "first_publish_year": 2004,
+        "key": "/works/OL23946118W",
+        "language": [
+          "nob",
+          "nor"
+        ],
+        "title": "Til musikken",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31648215M",
+              "title": "Til musikken",
+              "language": [
+                "nor"
+              ],
+              "publisher": [
+                "Aschehoug"
+              ],
+              "publish_date": [
+                "2004"
+              ],
+              "isbn": [
+                "8203188729",
+                "9788203188725"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL254757A"
+        ],
+        "author_name": [
+          "Ketil Bjørnstad"
+        ],
+        "cover_i": 14425384,
+        "first_publish_year": 1983,
+        "key": "/works/OL2077785W",
+        "language": [
+          "ger",
+          "nor"
+        ],
+        "title": "Oda!",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49632106M",
+              "title": "Oda",
+              "cover_i": 14425384,
+              "language": [
+                "ger"
+              ],
+              "publisher": [
+                "Insel Verlag"
+              ],
+              "publish_date": [
+                "2008"
+              ],
+              "isbn": [
+                "9783458173854",
+                "3458173854"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3060312A"
+        ],
+        "author_name": [
+          "Bruce Bjornstad"
+        ],
+        "cover_i": 2077973,
+        "first_publish_year": 2006,
+        "key": "/works/OL8889933W",
+        "title": "On the Trail of the Ice Age Floods",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8677473M",
+              "title": "On the Trail of the Ice Age Floods",
+              "cover_i": 2077973,
+              "publisher": [
+                "Keokee Books"
+              ],
+              "publish_date": [
+                "May 1, 2006"
+              ],
+              "isbn": [
+                "9781879628274",
+                "1879628279"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3838817A"
+        ],
+        "author_name": [
+          "Harvey Bjornstad"
+        ],
+        "cover_i": 3030091,
+        "first_publish_year": 1997,
+        "key": "/works/OL9855136W",
+        "language": [
+          "eng"
+        ],
+        "title": "Mandatory Motorcycle Helmets?",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12185064M",
+              "title": "Mandatory Motorcycle Helmets?",
+              "cover_i": 3030091,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bridgeport Books"
+              ],
+              "publish_date": [
+                "March 1997"
+              ],
+              "isbn": [
+                "9781888824032",
+                "1888824034"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL254757A"
+        ],
+        "author_name": [
+          "Ketil Bjørnstad"
+        ],
+        "cover_i": 11038084,
+        "first_publish_year": 2009,
+        "key": "/works/OL23458081W",
+        "language": [
+          "eng"
+        ],
+        "title": "To music",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31318512M",
+              "title": "To music",
+              "cover_i": 11038084,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Maia"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9781904559351",
+                "1904559352"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1240831A"
+        ],
+        "author_name": [
+          "James Bjornstad"
+        ],
+        "cover_i": 9678264,
+        "first_publish_year": 1976,
+        "key": "/works/OL19140911W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Moon is not the Son",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4901517M",
+              "title": "The Moon is not the Son",
+              "cover_i": 9678264,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Dimension Books"
+              ],
+              "publish_date": [
+                "1976"
+              ],
+              "isbn": [
+                "0871233800",
+                "9780871233806"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1240831A"
+        ],
+        "author_name": [
+          "James Bjornstad"
+        ],
+        "cover_i": 4198632,
+        "first_publish_year": 1984,
+        "key": "/works/OL19404027W",
+        "language": [
+          "eng"
+        ],
+        "title": "Sun Myung Moon & the Unification Church",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2874107M",
+              "title": "Sun Myung Moon & the Unification Church",
+              "cover_i": 4198632,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bethany House Publishers"
+              ],
+              "publish_date": [
+                "1984"
+              ],
+              "isbn": [
+                "0871233010",
+                "9780871233011"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7166036A",
+          "OL15495838A"
+        ],
+        "author_name": [
+          "Fredrik Backman",
+          "Yaʻel Tsuberi"
+        ],
+        "first_publish_year": 2018,
+        "key": "/works/OL43462557W",
+        "language": [
+          "heb"
+        ],
+        "title": "עיר הדובים",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL59232501M",
+              "title": "עיר הדובים",
+              "language": [
+                "heb"
+              ],
+              "publisher": [
+                "Yediʻot aḥaronot",
+                "Sifre Ḥemed"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9789655647358",
+                "9655647358"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9986807A"
+        ],
+        "author_name": [
+          "Bruce Norman Bjornstad"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL26503191W",
+        "language": [
+          "eng"
+        ],
+        "title": "Ice Age Floodscapes of the Pacific Northwest",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35836788M",
+              "title": "Ice Age Floodscapes of the Pacific Northwest",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer International Publishing AG"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9783030530426",
+                "3030530426"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11339264A"
+        ],
+        "author_name": [
+          "Douglass Mcwilson"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL31032496W",
+        "language": [
+          "eng"
+        ],
+        "title": "Coloring Book - You Will Get Better - Bjornstad Syndrome",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42620084M",
+              "title": "Coloring Book - You Will Get Better - Bjornstad Syndrome",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798518122376"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL342832A"
+        ],
+        "author_name": [
+          "Eric Bjørnstad"
+        ],
+        "cover_i": 713232,
+        "first_publish_year": 1988,
+        "key": "/works/OL2464294W",
+        "language": [
+          "eng"
+        ],
+        "title": "Desert rock",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL577224M",
+              "title": "Desert rock",
+              "cover_i": 713232,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Chockstone Press"
+              ],
+              "publish_date": [
+                "1996"
+              ],
+              "isbn": [
+                "0934641927",
+                "9780934641920"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL254757A"
+        ],
+        "author_name": [
+          "Ketil Bjørnstad"
+        ],
+        "first_publish_year": 1993,
+        "key": "/works/OL2077797W",
+        "language": [
+          "nor",
+          "ger"
+        ],
+        "title": "Historien om Edvard Munch",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18825751M",
+              "title": "Edvard Munch",
+              "language": [
+                "ger"
+              ],
+              "publisher": [
+                "Insel Verlag"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "3458167358",
+                "9783458167358"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL254757A"
+        ],
+        "author_name": [
+          "Ketil Bjørnstad"
+        ],
+        "first_publish_year": 2001,
+        "key": "/works/OL2077798W",
+        "language": [
+          "nor"
+        ],
+        "title": "Jæger",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9094349M",
+              "title": "Jæger",
+              "language": [
+                "nor"
+              ],
+              "publisher": [
+                "Aschehoug"
+              ],
+              "publish_date": [
+                "2001"
+              ],
+              "isbn": [
+                "9788203185014",
+                "8203185010"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL254757A"
+        ],
+        "author_name": [
+          "Ketil Bjørnstad"
+        ],
+        "first_publish_year": 2007,
+        "key": "/works/OL2077773W",
+        "language": [
+          "nob",
+          "nor"
+        ],
+        "title": "Elven",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL45309098M",
+              "title": "Elven",
+              "language": [
+                "nob"
+              ],
+              "publisher": [
+                "Aschehoug"
+              ],
+              "publish_date": [
+                "2008"
+              ],
+              "isbn": [
+                "9788203193460",
+                "8203193463"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2557072A"
+        ],
+        "author_name": [
+          "A. W. Bjornstad"
+        ],
+        "cover_i": 6052338,
+        "first_publish_year": 1916,
+        "key": "/works/OL245690W",
+        "language": [
+          "eng"
+        ],
+        "title": "Small problems for infantry",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22890643M",
+              "title": "Small problems for infantry",
+              "cover_i": 6052338,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Press of the Army Service Schools"
+              ],
+              "publish_date": [
+                "1916"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7775381A"
+        ],
+        "author_name": [
+          "Ottar N. Bjørnstad"
+        ],
+        "cover_i": 9175334,
+        "first_publish_year": 2018,
+        "key": "/works/OL20524500W",
+        "language": [
+          "eng"
+        ],
+        "title": "Epidemics",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27764468M",
+              "title": "Epidemics",
+              "cover_i": 9175334,
+              "publisher": [
+                "Springer"
+              ],
+              "publish_date": [
+                "Oct 31, 2018"
+              ],
+              "isbn": [
+                "9783319974866",
+                "3319974866"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4774429A"
+        ],
+        "author_name": [
+          "United States. Congress. Senate. Committee on Military Affairs"
+        ],
+        "first_publish_year": 1973,
+        "key": "/works/OL11368648W",
+        "language": [
+          "eng"
+        ],
+        "title": "Col. Alfred W. Bjornstad",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL15288638M",
+              "title": "Col. Alfred W. Bjornstad.",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "U.S. G.P.O."
+              ],
+              "publish_date": [
+                "1973"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL988685A"
+        ],
+        "author_name": [
+          "Holger Hede"
+        ],
+        "first_publish_year": 1934,
+        "key": "/works/OL44370039W",
+        "language": [
+          "eng"
+        ],
+        "title": "Fortegnelse over Inspektør O. Chr. Bjørnstads samling af norske sølvmønter, 1628-1808 ...",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60623598M",
+              "title": "Fortegnelse over Inspektør O. Chr. Bjørnstads samling af norske sølvmønter, 1628-1808 ...",
+              "language": [
+                "eng"
+              ],
+              "publish_date": [
+                "1934"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.303
+}

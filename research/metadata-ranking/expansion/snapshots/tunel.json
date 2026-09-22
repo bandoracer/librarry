@@ -1,0 +1,931 @@
+{
+  "url": "https://openlibrary.org/search.json?q=el+t%C3%BAnel&lang=es&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:13.294733+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 250,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 250,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "el túnel",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL2748652A"
+        ],
+        "author_name": [
+          "Ernesto Sabato"
+        ],
+        "cover_i": 5517733,
+        "first_publish_year": 1948,
+        "key": "/works/OL617847W",
+        "language": [
+          "ger",
+          "eng",
+          "srp",
+          "hrv",
+          "pol",
+          "lav",
+          "por",
+          "geo",
+          "swe",
+          "nor",
+          "spa",
+          "ara",
+          "rum",
+          "per",
+          "arm",
+          "gre",
+          "fre",
+          "baq",
+          "tur",
+          "mac",
+          "fin",
+          "est",
+          "ita",
+          "alb",
+          "dut"
+        ],
+        "title": "El túnel",
+        "editions": {
+          "numFound": 87,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40216772M",
+              "title": "El túnel",
+              "cover_i": 15240000,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Seix Barral"
+              ],
+              "publish_date": [
+                "1986"
+              ],
+              "isbn": [
+                "9789686941210",
+                "9686941215"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 9442375,
+        "first_publish_year": 1965,
+        "key": "/works/OL17777122W",
+        "title": "El Tunel",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9220986M",
+              "title": "El Tunel",
+              "cover_i": 9442375,
+              "publisher": [
+                "Prentice Hall"
+              ],
+              "publish_date": [
+                "June 1965"
+              ],
+              "isbn": [
+                "9780024049506",
+                "0024049506"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL769087A"
+        ],
+        "author_name": [
+          "Carmen Quiroga de Cebollero"
+        ],
+        "cover_i": 4418232,
+        "first_publish_year": 1971,
+        "key": "/works/OL4103289W",
+        "language": [
+          "spa"
+        ],
+        "title": "Entrando a \"El túnel\" de Ernesto Sábato",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21353371M",
+              "title": "Entrando a 'El túnel' de Ernesto Sábato",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Editorial Universitaria, Universidad de Puerto Rico"
+              ],
+              "publish_date": [
+                "1974"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1507903A"
+        ],
+        "author_name": [
+          "Libardo Torres"
+        ],
+        "first_publish_year": 2001,
+        "key": "/works/OL6013278W",
+        "language": [
+          "spa"
+        ],
+        "title": "El túnel, Ernesto Sábato",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22468054M",
+              "title": "El túnel, Ernesto Sábato",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Panamericana Editorial"
+              ],
+              "publish_date": [
+                "2001"
+              ],
+              "isbn": [
+                "9583007889",
+                "9789583007880"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1601582A"
+        ],
+        "author_name": [
+          "Thomas, Mark"
+        ],
+        "cover_i": 10643177,
+        "first_publish_year": 2003,
+        "key": "/works/OL24202579W",
+        "language": [
+          "spa"
+        ],
+        "title": "El túnel ferroviario Seikan",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31964258M",
+              "title": "El túnel ferroviario Seikan",
+              "cover_i": 10643177,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Rigby"
+              ],
+              "publish_date": [
+                "2003"
+              ],
+              "isbn": [
+                "9780757847417",
+                "0757847412"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1359682A"
+        ],
+        "author_name": [
+          "Alberto Sicilia Falcón"
+        ],
+        "first_publish_year": 1979,
+        "key": "/works/OL5628408W",
+        "language": [
+          "spa"
+        ],
+        "title": "El túnel de Lecumberri",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3211163M",
+              "title": "El túnel de Lecumberri",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Compañía General de Ediciones"
+              ],
+              "publish_date": [
+                "1979"
+              ],
+              "isbn": [
+                "9684030673",
+                "9789684030671"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3219337A"
+        ],
+        "author_name": [
+          "Carmen Esteva"
+        ],
+        "cover_i": 3353529,
+        "first_publish_year": 1993,
+        "key": "/works/OL9135843W",
+        "language": [
+          "spa"
+        ],
+        "title": "El Tunel",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL13115396M",
+              "title": "El Tunel",
+              "cover_i": 3353529,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Fondo de Cultura Economica USA"
+              ],
+              "publish_date": [
+                "January 1, 1993"
+              ],
+              "isbn": [
+                "9789681639716",
+                "9681639715"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2748652A"
+        ],
+        "author_name": [
+          "Ernesto Sabato"
+        ],
+        "cover_i": 7913225,
+        "first_publish_year": 2009,
+        "key": "/works/OL17640650W",
+        "title": "El túnel. - 1. ed.",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26246367M",
+              "title": "El túnel. - 1. ed.",
+              "cover_i": 7913225,
+              "publisher": [
+                "Cátedra",
+                "Ediciones Cátedra"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9788437625386",
+                "8437625386"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL83668A"
+        ],
+        "author_name": [
+          "Graciela Maturo"
+        ],
+        "first_publish_year": 1983,
+        "key": "/works/OL943736W",
+        "language": [
+          "spa"
+        ],
+        "title": "\"El Túnel\" de Ernesto Sábato",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL19067066M",
+              "title": "\"El Túnel\" de Ernesto Sábato",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Centro de Estudios Latinoamericanos"
+              ],
+              "publish_date": [
+                "1983"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2748652A"
+        ],
+        "author_name": [
+          "Ernesto Sabato"
+        ],
+        "cover_i": 13028842,
+        "first_publish_year": 1985,
+        "key": "/works/OL31698831W",
+        "language": [
+          "spa"
+        ],
+        "title": "El túnel / Sobre héroes y tumbas",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43384183M",
+              "title": "El túnel / Sobre héroes y tumbas",
+              "cover_i": 13028842,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Seix Barral"
+              ],
+              "publish_date": [
+                "1985"
+              ],
+              "isbn": [
+                "8432224197",
+                "9788432224195"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3213551A"
+        ],
+        "author_name": [
+          "Cesar Perez"
+        ],
+        "cover_i": 2292983,
+        "first_publish_year": 2003,
+        "key": "/works/OL9127861W",
+        "language": [
+          "spa"
+        ],
+        "title": "Analisis De El Tunel (Centro Literario)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9150488M",
+              "title": "Analisis De El Tunel (Centro Literario)",
+              "cover_i": 2292983,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Panamericana Editorial"
+              ],
+              "publish_date": [
+                "November 30, 2003"
+              ],
+              "isbn": [
+                "9789583011917",
+                "9583011916"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7231706A",
+          "OL8072106A"
+        ],
+        "author_name": [
+          "Begoña Oro Pradera",
+          "Dani (Daniel Montero Coira)"
+        ],
+        "cover_i": 12922436,
+        "first_publish_year": 2022,
+        "key": "/works/OL28950250W",
+        "title": "Rasi y el túnel del tiempo",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39806767M",
+              "title": "Rasi y el túnel del tiempo",
+              "cover_i": 12922436,
+              "publisher": [
+                "Ediciones SM"
+              ],
+              "publish_date": [
+                "May 05, 2022"
+              ],
+              "isbn": [
+                "9788413924212",
+                "8413924219"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5712468A",
+          "OL9145301A"
+        ],
+        "author_name": [
+          "Thomas Metzinger",
+          "Emilio Pérez-Manzuco"
+        ],
+        "cover_i": 10833818,
+        "first_publish_year": 2018,
+        "key": "/works/OL24316072W",
+        "title": "El túnel del Yo",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32175492M",
+              "title": "El túnel del Yo",
+              "cover_i": 10833818,
+              "publisher": [
+                "Enclave de Libros Ediciones"
+              ],
+              "publish_date": [
+                "Sep 10, 2018"
+              ],
+              "isbn": [
+                "9788494686887",
+                "8494686887"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL12710473A"
+        ],
+        "author_name": [
+          "Ester Martín Santos"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL35139336W",
+        "title": "El túnel del tiempo",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47521201M",
+              "title": "El túnel del tiempo",
+              "publisher": [
+                "Libros.com"
+              ],
+              "publish_date": [
+                "Sep 29, 2021"
+              ],
+              "isbn": [
+                "9788418769962",
+                "8418769963"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11092856A"
+        ],
+        "author_name": [
+          "Matías Peñas Correa"
+        ],
+        "first_publish_year": 2019,
+        "key": "/works/OL30166858W",
+        "language": [
+          "spa"
+        ],
+        "title": "Raúl y el Túnel Del ángel",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL41464186M",
+              "title": "Raúl y el Túnel Del ángel",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781708072728",
+                "1708072721"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6132801A"
+        ],
+        "author_name": [
+          "Andrés Soliz Rada"
+        ],
+        "first_publish_year": 2013,
+        "key": "/works/OL31509624W",
+        "language": [
+          "spa"
+        ],
+        "title": "La luz en el tunel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43173392M",
+              "title": "La luz en el tunel",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Publicaciones del Sur"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9789872639242",
+                "9789872639259",
+                "9872639248",
+                "9872639256"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9445272A"
+        ],
+        "author_name": [
+          "Helena Merriman"
+        ],
+        "cover_i": 12749914,
+        "first_publish_year": 2022,
+        "key": "/works/OL27774674W",
+        "subtitle": "crónica de una extraordinaria fuga bajo el",
+        "title": "El túnel 29",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37925818M",
+              "title": "El túnel 29 : crónica de una extraordinaria fuga bajo el",
+              "cover_i": 12749914,
+              "publisher": [
+                "Salamandra"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9788418363320",
+                "8418363320"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 3367327,
+        "key": "/works/OL12997814M",
+        "language": [
+          "spa"
+        ],
+        "title": "El Tunel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12997814M",
+              "title": "El Tunel",
+              "cover_i": 3367327,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Planeta"
+              ],
+              "isbn": [
+                "9789507427626",
+                "9507427627"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30956A"
+        ],
+        "author_name": [
+          "Anthony Browne"
+        ],
+        "first_publish_year": 2003,
+        "key": "/works/OL13115669M",
+        "language": [
+          "spa"
+        ],
+        "title": "El Tunel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL13115669M",
+              "title": "El Tunel",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Fondo de Cultura Economica USA"
+              ],
+              "publish_date": [
+                "July 2003"
+              ],
+              "isbn": [
+                "9789681650155",
+                "9681650158"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL170744A"
+        ],
+        "author_name": [
+          "אברהם ב. יהושע"
+        ],
+        "cover_i": 11656342,
+        "first_publish_year": 2021,
+        "key": "/works/OL24834684W",
+        "title": "El tunel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL33005588M",
+              "title": "El tunel",
+              "cover_i": 11656342,
+              "publisher": [
+                "Duomo Ediciones"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9788417761202",
+                "8417761209"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9313706A"
+        ],
+        "author_name": [
+          "Abraham Boolie Yehoshua"
+        ],
+        "cover_i": 11420316,
+        "first_publish_year": 2021,
+        "key": "/works/OL24702341W",
+        "title": "El túnel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32787795M",
+              "title": "El túnel",
+              "cover_i": 11420316,
+              "publisher": [
+                "Duomo ediciones"
+              ],
+              "publish_date": [
+                "Jun 14, 2021"
+              ],
+              "isbn": [
+                "9788417761202",
+                "8417761209"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL759602A"
+        ],
+        "author_name": [
+          "José Antonio Juncà Ubierna"
+        ],
+        "first_publish_year": 1991,
+        "key": "/works/OL4067021W",
+        "language": [
+          "spa"
+        ],
+        "title": "El túnel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1521500M",
+              "title": "El túnel",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Colegio de Ingenieros de Caminos, Canales y Puertos, Centro de Estudios y Experimentación de Obras Públicas-CEDEX"
+              ],
+              "publish_date": [
+                "1991"
+              ],
+              "isbn": [
+                "8438000436",
+                "9788438000434"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL31683749W",
+        "title": "El Tunel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43367763M",
+              "title": "El Tunel"
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6878609A"
+        ],
+        "author_name": [
+          "Luis Manuel Chacón Jiménez"
+        ],
+        "first_publish_year": 2015,
+        "key": "/works/OL32726149W",
+        "language": [
+          "spa"
+        ],
+        "title": "El túnel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL44544821M",
+              "title": "El túnel",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "[Consorcio Litográfico Herediano]"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9789968970686",
+                "9968970689"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8716577A"
+        ],
+        "author_name": [
+          "David Barreiro"
+        ],
+        "first_publish_year": 2015,
+        "key": "/works/OL22929007W",
+        "language": [
+          "spa"
+        ],
+        "title": "El túnel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL30835883M",
+              "title": "El túnel",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Editorial Pez de Plata"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9788494307010",
+                "8494307010"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.559
+}

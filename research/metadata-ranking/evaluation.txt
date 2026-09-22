@@ -1,0 +1,150 @@
+{
+  "all": {
+    "queries": 16,
+    "live": {
+      "top1": 0.125,
+      "hit10": 0.1875,
+      "rr10": 0.1458
+    },
+    "same_pool_rerank": {
+      "top1": 0.1875,
+      "hit10": 0.1875,
+      "rr10": 0.1875
+    },
+    "title_language_fix": {
+      "top1": 0.6875,
+      "hit10": 0.75,
+      "rr10": 0.7083
+    },
+    "retrieval_only": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "candidate_v1": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "without_cover": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    }
+  },
+  "development": {
+    "queries": 7,
+    "live": {
+      "top1": 0.1429,
+      "hit10": 0.1429,
+      "rr10": 0.1429
+    },
+    "same_pool_rerank": {
+      "top1": 0.1429,
+      "hit10": 0.1429,
+      "rr10": 0.1429
+    },
+    "title_language_fix": {
+      "top1": 0.7143,
+      "hit10": 0.7143,
+      "rr10": 0.7143
+    },
+    "retrieval_only": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "candidate_v1": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "without_cover": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    }
+  },
+  "validation": {
+    "queries": 5,
+    "live": {
+      "top1": 0.2,
+      "hit10": 0.2,
+      "rr10": 0.2
+    },
+    "same_pool_rerank": {
+      "top1": 0.2,
+      "hit10": 0.2,
+      "rr10": 0.2
+    },
+    "title_language_fix": {
+      "top1": 0.8,
+      "hit10": 0.8,
+      "rr10": 0.8
+    },
+    "retrieval_only": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "candidate_v1": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "without_cover": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    }
+  },
+  "blind": {
+    "queries": 4,
+    "live": {
+      "top1": 0.0,
+      "hit10": 0.25,
+      "rr10": 0.0833
+    },
+    "same_pool_rerank": {
+      "top1": 0.25,
+      "hit10": 0.25,
+      "rr10": 0.25
+    },
+    "title_language_fix": {
+      "top1": 0.5,
+      "hit10": 0.75,
+      "rr10": 0.5833
+    },
+    "retrieval_only": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "candidate_v1": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    },
+    "without_cover": {
+      "top1": 1.0,
+      "hit10": 1.0,
+      "rr10": 1.0
+    }
+  }
+}
+percy [('live', 'Percy jackson', None), ('retrieval_only', 'The Lightning Thief', 1), ('candidate_v1', 'The Lightning Thief', 1)] starter 1
+lightning [('live', 'The Lightning Thief / The Lost Hero / The Hidden Oracle', None), ('retrieval_only', 'The Lightning Thief', 1), ('candidate_v1', 'The Lightning Thief', 1)] starter None
+hail-mary [('live', 'The Martian / Artemis / Project Hail Mary', None), ('retrieval_only', 'Project Hail Mary', 1), ('candidate_v1', 'Project Hail Mary', 1)] starter None
+dune [('live', 'Dune', None), ('retrieval_only', 'Dune', 1), ('candidate_v1', 'Dune', 1)] starter None
+earthsea [('live', "Ursula K. Le Guin's A wizard of Earthsea", None), ('retrieval_only', 'A Wizard of Earthsea', 1), ('candidate_v1', 'A Wizard of Earthsea', 1)] starter 1
+riordan [('live', 'Rick Riordan', 1), ('retrieval_only', 'Rick Riordan', 1), ('candidate_v1', 'Rick Riordan', 1)] starter None
+guide [('live', '(none)', None), ('retrieval_only', 'Percy Jackson & the Olympians', 1), ('candidate_v1', 'Percy Jackson & the Olympians', 1)] starter None
+hobbit [('live', 'The Hobbit', None), ('retrieval_only', 'The Hobbit', 1), ('candidate_v1', 'The Hobbit', 1)] starter None
+pride [('live', 'Pride and Prejudice', 1), ('retrieval_only', 'Pride and Prejudice', 1), ('candidate_v1', 'Pride and Prejudice', 1)] starter None
+murderbot [('live', 'Murderbot Diaries', None), ('retrieval_only', 'Network Effect', 1), ('candidate_v1', 'Network Effect', 1)] starter 5
+left-hand [('live', "Ursula K. Le Guin's the left hand of darkness", None), ('retrieval_only', 'The Left Hand of Darkness', 1), ('candidate_v1', 'The Left Hand of Darkness', 1)] starter None
+isbn [('live', '(none)', None), ('retrieval_only', 'The Sea of Monsters', 1), ('candidate_v1', 'The Sea of Monsters', 1)] starter None
+martian [('live', 'The Martian', None), ('retrieval_only', 'The Martian', 1), ('candidate_v1', 'The Martian', 1)] starter None
+watership [('live', 'Watership Down', None), ('retrieval_only', 'Watership Down', 1), ('candidate_v1', 'Watership Down', 1)] starter None
+pern [('live', 'Dragonriders of Pern', 3), ('retrieval_only', 'Dragonflight', 1), ('candidate_v1', 'Dragonflight', 1)] starter 1
+wizard-author [('live', '(none)', None), ('retrieval_only', 'A Wizard of Earthsea', 1), ('candidate_v1', 'A Wizard of Earthsea', 1)] starter None

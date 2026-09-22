@@ -1,0 +1,931 @@
+{
+  "url": "https://openlibrary.org/search.json?q=murderbot&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:53:26.936463+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 16,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 16,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "murderbot",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 9426689,
+        "edition_count": 5,
+        "edition_key": [
+          "OL28044727M",
+          "OL32050491M",
+          "OL29831122M",
+          "OL28230272M",
+          "OL61034480M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "1980021716",
+          "1664475915",
+          "9781980021711",
+          "1250229847",
+          "9781250229854",
+          "1250229863",
+          "9781250229861",
+          "9781664475915",
+          "1250229855",
+          "9781250229847"
+        ],
+        "key": "/works/OL20735675W",
+        "language": [
+          "eng"
+        ],
+        "title": "Network Effect",
+        "ratings_count": 59,
+        "readinglog_count": 211,
+        "want_to_read_count": 110,
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29831122M",
+              "title": "Network Effect",
+              "cover_i": 14320191,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tor.com"
+              ],
+              "publish_date": [
+                "May 5, 2020"
+              ],
+              "isbn": [
+                "9781250229847",
+                "1250229847"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 10104879,
+        "edition_count": 3,
+        "edition_key": [
+          "OL30014174M",
+          "OL61034497M",
+          "OL28166035M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "1980080631",
+          "9781250765376",
+          "9781980080633",
+          "1250765374",
+          "9781250765383",
+          "1250765382"
+        ],
+        "key": "/works/OL20805971W",
+        "language": [
+          "eng"
+        ],
+        "title": "Fugitive Telemetry",
+        "ratings_count": 46,
+        "readinglog_count": 135,
+        "want_to_read_count": 53,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61034497M",
+              "title": "Fugitive Telemetry",
+              "cover_i": 15156457,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Recorded Books"
+              ],
+              "publish_date": [
+                "2021-04-27"
+              ],
+              "isbn": [
+                "9781980080633",
+                "1980080631"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 12013488,
+        "edition_count": 8,
+        "edition_key": [
+          "OL28215519M",
+          "OL26966631M",
+          "OL28215684M",
+          "OL32542093M",
+          "OL61034321M",
+          "OL60476772M",
+          "OL60616544M",
+          "OL37463540M"
+        ],
+        "first_publish_year": 2018,
+        "isbn": [
+          "9781250191786",
+          "6191934696",
+          "9781664466869",
+          "1250191785",
+          "1250185432",
+          "8576577658",
+          "9781250196378",
+          "125019637X",
+          "166446686X",
+          "9781501999796",
+          "9781250185433",
+          "9788576577652",
+          "1501999796",
+          "9786191934690"
+        ],
+        "key": "/works/OL19753589W",
+        "language": [
+          "por",
+          "eng",
+          "bul"
+        ],
+        "title": "Rogue Protocol",
+        "ratings_count": 91,
+        "readinglog_count": 201,
+        "want_to_read_count": 61,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61034321M",
+              "title": "Rogue Protocol",
+              "cover_i": 15156454,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Recorded Books"
+              ],
+              "publish_date": [
+                "2018-08-07"
+              ],
+              "isbn": [
+                "9781501999796",
+                "1501999796"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 10537139,
+        "edition_count": 7,
+        "edition_key": [
+          "OL60616540M",
+          "OL60426243M",
+          "OL50566633M",
+          "OL49916875M",
+          "OL49916870M",
+          "OL37474569M",
+          "OL26960367M"
+        ],
+        "first_publish_year": 2018,
+        "isbn": [
+          "1250186935",
+          "8576577267",
+          "9781501977831",
+          "9786191934096",
+          "9788576577263",
+          "9781250186935",
+          "9781250186928",
+          "6191934092",
+          "9782367935188",
+          "1501977830",
+          "1250186927",
+          "2367935181"
+        ],
+        "key": "/works/OL19747311W",
+        "language": [
+          "por",
+          "bul",
+          "fre",
+          "eng"
+        ],
+        "title": "Artificial Condition",
+        "ratings_count": 71,
+        "readinglog_count": 188,
+        "want_to_read_count": 76,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL50566633M",
+              "title": "Artificial Condition",
+              "cover_i": 15156453,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Recorded Books"
+              ],
+              "publish_date": [
+                "2018-05-08"
+              ],
+              "isbn": [
+                "9781501977831",
+                "1501977830"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 13127133,
+        "edition_count": 3,
+        "edition_key": [
+          "OL61034498M",
+          "OL46312101M",
+          "OL45311812M"
+        ],
+        "first_publish_year": 2023,
+        "isbn": [
+          "1250826977",
+          "9781250826985",
+          "1250826985",
+          "9781250826978",
+          "9781705041024",
+          "1705041027"
+        ],
+        "key": "/works/OL33402895W",
+        "language": [
+          "eng"
+        ],
+        "title": "System Collapse",
+        "ratings_count": 12,
+        "readinglog_count": 76,
+        "want_to_read_count": 42,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61034498M",
+              "title": "System Collapse",
+              "cover_i": 15156250,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Recorded Books"
+              ],
+              "publish_date": [
+                "2023-11-14"
+              ],
+              "isbn": [
+                "9781705041024",
+                "1705041027"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 9157148,
+        "edition_count": 9,
+        "edition_key": [
+          "OL61027656M",
+          "OL60616533M",
+          "OL58938873M",
+          "OL51671896M",
+          "OL26818660M",
+          "OL28191560M",
+          "OL31992799M",
+          "OL26500848M",
+          "OL26489451M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "6191933363",
+          "8576576325",
+          "9780765397539",
+          "0765397536",
+          "9524060094",
+          "9781250214713",
+          "1664466843",
+          "0765397528",
+          "9786191933365",
+          "9789524060097",
+          "9788576576327",
+          "1250214718",
+          "9781501977824",
+          "9781664466845",
+          "9780765397522",
+          "1501977822"
+        ],
+        "key": "/works/OL17914663W",
+        "language": [
+          "por",
+          "bul",
+          "fin",
+          "eng"
+        ],
+        "title": "All Systems Red",
+        "ratings_count": 45,
+        "readinglog_count": 350,
+        "want_to_read_count": 239,
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26500848M",
+              "title": "All Systems Red: The Murderbot Diaries",
+              "cover_i": 9157148,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tor"
+              ],
+              "publish_date": [
+                "5/2/2017"
+              ],
+              "isbn": [
+                "9780765397539",
+                "0765397536"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 10692785,
+        "edition_count": 6,
+        "edition_key": [
+          "OL60616570M",
+          "OL36324065M",
+          "OL61034439M",
+          "OL61923667M",
+          "OL32025937M",
+          "OL26976340M"
+        ],
+        "first_publish_year": 2018,
+        "isbn": [
+          "1250191858",
+          "6191935056",
+          "9781250191854",
+          "9788576578192",
+          "9781664631380",
+          "8576578190",
+          "9786191935055",
+          "9781501999994",
+          "1664631380",
+          "9781250185464",
+          "1501999990",
+          "1250185467"
+        ],
+        "key": "/works/OL19763338W",
+        "language": [
+          "bul",
+          "eng",
+          "por"
+        ],
+        "title": "Exit Strategy",
+        "ratings_count": 14,
+        "readinglog_count": 74,
+        "want_to_read_count": 35,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61034439M",
+              "title": "Exit Strategy",
+              "cover_i": 15156455,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Recorded Books"
+              ],
+              "publish_date": [
+                "2018-10-02"
+              ],
+              "isbn": [
+                "9781501999994",
+                "1501999990"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 10282464,
+        "edition_count": 2,
+        "edition_key": [
+          "OL37013384M",
+          "OL28333592M"
+        ],
+        "first_publish_year": 2019,
+        "isbn": [
+          "1250784271",
+          "9783453320345",
+          "9781250784278",
+          "3453320344"
+        ],
+        "key": "/works/OL20914988W",
+        "language": [
+          "ger",
+          "eng"
+        ],
+        "title": "All Systems Red / Artificial Condition / Rogue Protocol / Exit Strategy",
+        "readinglog_count": 54,
+        "want_to_read_count": 50,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28333592M",
+              "title": "The Murderbot Diaries",
+              "cover_i": 11824207,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tor.com"
+              ],
+              "publish_date": [
+                "Sep 22, 2020"
+              ],
+              "isbn": [
+                "9781250784278",
+                "1250784271"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 14714448,
+        "edition_count": 1,
+        "edition_key": [
+          "OL49617899M"
+        ],
+        "first_publish_year": 2023,
+        "isbn": [
+          "9781250350862",
+          "1250350867"
+        ],
+        "key": "/works/OL36737601W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries",
+        "readinglog_count": 15,
+        "want_to_read_count": 14,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49617899M",
+              "title": "Murderbot Diaries",
+              "cover_i": 14714448,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Doherty Associates, LLC, Tom"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781250350862",
+                "1250350867"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15126666,
+        "edition_count": 1,
+        "edition_key": [
+          "OL53369315M"
+        ],
+        "first_publish_year": 2024,
+        "isbn": [
+          "1250389828",
+          "9781250389824"
+        ],
+        "key": "/works/OL39199442W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Vol. 1",
+        "readinglog_count": 7,
+        "want_to_read_count": 5,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53369315M",
+              "title": "Murderbot Diaries Vol. 1",
+              "cover_i": 15126666,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Doherty Associates, LLC, Tom"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9781250389824",
+                "1250389828"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15154430,
+        "edition_count": 3,
+        "edition_key": [
+          "OL61034292M",
+          "OL61795967M",
+          "OL60999688M"
+        ],
+        "first_publish_year": 2026,
+        "isbn": [
+          "9781250827012",
+          "9781250827005",
+          "1250827000",
+          "1705041035",
+          "9781705041031",
+          "1250827019"
+        ],
+        "key": "/works/OL44660267W",
+        "language": [
+          "eng"
+        ],
+        "title": "Platform Decay",
+        "ratings_count": 1,
+        "readinglog_count": 6,
+        "want_to_read_count": 4,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61034292M",
+              "title": "Platform Decay",
+              "cover_i": 15218445,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Recorded Books"
+              ],
+              "publish_date": [
+                "2026-05-05"
+              ],
+              "isbn": [
+                "9781705041031",
+                "1705041035"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15141331,
+        "edition_count": 2,
+        "edition_key": [
+          "OL53582471M",
+          "OL32857037M"
+        ],
+        "first_publish_year": 2018,
+        "isbn": [
+          "1645241726",
+          "9781645241720"
+        ],
+        "key": "/works/OL24747433W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Compulsory",
+        "title": "The Future of Work",
+        "ratings_count": 1,
+        "readinglog_count": 6,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53582471M",
+              "title": "Compulsory",
+              "cover_i": 15141331,
+              "publisher": [
+                "Subterranean Press"
+              ],
+              "publish_date": [
+                "July 20, 2023"
+              ],
+              "isbn": [
+                "9781645241720",
+                "1645241726"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13207078A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15233129,
+        "edition_count": 1,
+        "edition_key": [
+          "OL53376229M"
+        ],
+        "first_publish_year": 2024,
+        "isbn": [
+          "9781250389831",
+          "1250389836"
+        ],
+        "key": "/works/OL39204828W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Vol. 2",
+        "readinglog_count": 3,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53376229M",
+              "title": "Murderbot Diaries Vol. 2",
+              "cover_i": 15233129,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Doherty Associates, LLC, Tom"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9781250389831",
+                "1250389836"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13207078A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15233130,
+        "edition_count": 1,
+        "edition_key": [
+          "OL57523660M"
+        ],
+        "first_publish_year": 2025,
+        "isbn": [
+          "1250389844",
+          "9781250389848"
+        ],
+        "key": "/works/OL42398755W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Vol. 3",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL57523660M",
+              "title": "Murderbot Diaries Vol. 3",
+              "cover_i": 15233130,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Melia Publishing Services Limited"
+              ],
+              "publish_date": [
+                "2025"
+              ],
+              "isbn": [
+                "9781250389848",
+                "1250389844"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14327143A"
+        ],
+        "author_name": [
+          "Willem Van Dam"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL56299269M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "1548573140",
+          "9781548573140"
+        ],
+        "key": "/works/OL41454666W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbots",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL56299269M",
+              "title": "Murderbots",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781548573140",
+                "1548573140"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13207078A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL57767963M"
+        ],
+        "first_publish_year": 2023,
+        "isbn": [
+          "9798897225712"
+        ],
+        "key": "/works/OL42556524W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL57767963M",
+              "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Generic"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9798897225712"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.509
+}

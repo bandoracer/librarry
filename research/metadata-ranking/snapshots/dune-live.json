@@ -1,0 +1,140 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=dune&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:04.489084+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "dune",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL19618275W",
+          "title": "Dune",
+          "authors": [
+            {
+              "id": "openlibrary:OL1194290A",
+              "name": "Brian Herbert",
+              "providerIds": [
+                "openlibrary:OL1194290A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2001,
+          "coverUrl": "https://covers.openlibrary.org/b/id/372916-L.jpg",
+          "providerIds": [
+            "openlibrary:OL19618275W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL35445095M",
+          "workId": "openlibrary:OL19618275W",
+          "title": "Dune",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781250824875",
+            "9759970775",
+            "9786257737364",
+            "0553580302",
+            "1250765064",
+            "9759970112",
+            "1250824877",
+            "9789759970116",
+            "1684156890",
+            "1684158184",
+            "9781684157389",
+            "9789759970772",
+            "9781684158188",
+            "9781684156894",
+            "1250765056",
+            "1684157382",
+            "9781250765055",
+            "6257737362",
+            "9781250765062",
+            "9780553580303"
+          ],
+          "providerIds": [
+            "openlibrary:OL35445095M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL19618275W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL893444W",
+          "title": "Dune, Dune Messiah, Children of Dune",
+          "authors": [
+            {
+              "id": "openlibrary:OL79034A",
+              "name": "Frank Herbert",
+              "providerIds": [
+                "openlibrary:OL79034A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1969,
+          "coverUrl": "https://covers.openlibrary.org/b/id/379932-L.jpg",
+          "providerIds": [
+            "openlibrary:OL893444W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL58640606M",
+          "workId": "openlibrary:OL893444W",
+          "title": "Dune, Dune Messiah, Children of Dune",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "8466356983",
+            "0575025867",
+            "9788466359481",
+            "0425045161",
+            "9780425035702",
+            "1473224462",
+            "9780425045169",
+            "0575070706",
+            "9780575025868",
+            "9781473224469",
+            "9780575070707",
+            "9780905712802",
+            "0425035700",
+            "0425039323",
+            "0905712803",
+            "9788466367943",
+            "9788466356985",
+            "8466367942",
+            "9780593201893",
+            "9780425039328",
+            "8466359486",
+            "0593201892"
+          ],
+          "providerIds": [
+            "openlibrary:OL58640606M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL893444W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.444
+}

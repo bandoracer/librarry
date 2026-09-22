@@ -1,0 +1,206 @@
+[
+  {
+    "id": "braiding",
+    "query": "Braiding Sweetgrass",
+    "intendedAuthor": "Robin Wall Kimmerer",
+    "language": "English"
+  },
+  {
+    "id": "dawn",
+    "query": "The Dawn of Everything",
+    "intendedAuthor": "David Graeber; David Wengrow",
+    "language": "English"
+  },
+  {
+    "id": "entangled",
+    "query": "Entangled Life",
+    "intendedAuthor": "Merlin Sheldrake",
+    "language": "English"
+  },
+  {
+    "id": "why",
+    "query": "The Book of Why",
+    "intendedAuthor": "Judea Pearl; Dana Mackenzie",
+    "language": "English"
+  },
+  {
+    "id": "godel",
+    "query": "Gödel Escher Bach",
+    "intendedAuthor": "Douglas Hofstadter",
+    "language": "English"
+  },
+  {
+    "id": "c-language",
+    "query": "The C Programming Language",
+    "intendedAuthor": "Brian Kernighan; Dennis Ritchie",
+    "language": "English"
+  },
+  {
+    "id": "data",
+    "query": "Designing Data-Intensive Applications",
+    "intendedAuthor": "Martin Kleppmann",
+    "language": "English"
+  },
+  {
+    "id": "salt",
+    "query": "Salt Fat Acid Heat",
+    "intendedAuthor": "Samin Nosrat",
+    "language": "English"
+  },
+  {
+    "id": "food",
+    "query": "The Food Lab",
+    "intendedAuthor": "J. Kenji López-Alt",
+    "language": "English"
+  },
+  {
+    "id": "body",
+    "query": "The Body Keeps the Score",
+    "intendedAuthor": "Bessel van der Kolk",
+    "language": "English"
+  },
+  {
+    "id": "war",
+    "query": "The Art of War",
+    "intendedAuthor": "Sun Tzu",
+    "language": "English"
+  },
+  {
+    "id": "meditations",
+    "query": "Meditations",
+    "intendedAuthor": "Marcus Aurelius",
+    "language": "English"
+  },
+  {
+    "id": "room",
+    "query": "A Room of One's Own",
+    "intendedAuthor": "Virginia Woolf",
+    "language": "English"
+  },
+  {
+    "id": "frankenstein",
+    "query": "Frankenstein",
+    "intendedAuthor": "Mary Shelley",
+    "language": "English"
+  },
+  {
+    "id": "beloved",
+    "query": "Beloved",
+    "intendedAuthor": "Toni Morrison",
+    "language": "English"
+  },
+  {
+    "id": "kindred",
+    "query": "Kindred",
+    "intendedAuthor": "Octavia Butler",
+    "language": "English"
+  },
+  {
+    "id": "piranesi",
+    "query": "Piranesi",
+    "intendedAuthor": "Susanna Clarke",
+    "language": "English"
+  },
+  {
+    "id": "memory",
+    "query": "The Memory Police",
+    "intendedAuthor": "Yoko Ogawa",
+    "language": "English"
+  },
+  {
+    "id": "convenience",
+    "query": "Convenience Store Woman",
+    "intendedAuthor": "Sayaka Murata",
+    "language": "English"
+  },
+  {
+    "id": "employees",
+    "query": "The Employees",
+    "intendedAuthor": "Olga Ravn",
+    "language": "English"
+  },
+  {
+    "id": "plow",
+    "query": "Drive Your Plow Over the Bones of the Dead",
+    "intendedAuthor": "Olga Tokarczuk",
+    "language": "English"
+  },
+  {
+    "id": "solitude",
+    "query": "One Hundred Years of Solitude",
+    "intendedAuthor": "Gabriel García Márquez",
+    "language": "English"
+  },
+  {
+    "id": "soledad",
+    "query": "Cien años de soledad",
+    "intendedAuthor": "Gabriel García Márquez",
+    "language": "Spanish"
+  },
+  {
+    "id": "etranger",
+    "query": "L'étranger",
+    "intendedAuthor": "Albert Camus",
+    "language": "French"
+  },
+  {
+    "id": "tunel",
+    "query": "El túnel",
+    "intendedAuthor": "Ernesto Sábato",
+    "language": "Spanish"
+  },
+  {
+    "id": "bjorn",
+    "query": "Björnstad",
+    "intendedAuthor": "Fredrik Backman",
+    "language": "Swedish"
+  },
+  {
+    "id": "summer",
+    "query": "The Summer Book",
+    "intendedAuthor": "Tove Jansson",
+    "language": "English"
+  },
+  {
+    "id": "psalm",
+    "query": "A Psalm for the Wild-Built",
+    "intendedAuthor": "Becky Chambers",
+    "language": "English"
+  },
+  {
+    "id": "fifth",
+    "query": "The Fifth Season",
+    "intendedAuthor": "N. K. Jemisin",
+    "language": "English"
+  },
+  {
+    "id": "seven",
+    "query": "A Brief History of Seven Killings",
+    "intendedAuthor": "Marlon James",
+    "language": "English"
+  },
+  {
+    "id": "catalonia",
+    "query": "Homage to Catalonia",
+    "intendedAuthor": "George Orwell",
+    "language": "English"
+  },
+  {
+    "id": "genji",
+    "query": "The Tale of Genji",
+    "intendedAuthor": "Murasaki Shikibu",
+    "language": "English"
+  },
+  {
+    "id": "parable",
+    "query": "Parable of the Sower by Octavia E Butler",
+    "intendedAuthor": "Octavia E. Butler",
+    "language": "English"
+  },
+  {
+    "id": "devotions",
+    "query": "Devotions Mary Oliver",
+    "intendedAuthor": "Mary Oliver",
+    "language": "English"
+  }
+]

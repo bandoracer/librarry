@@ -9,18 +9,18 @@ import (
 	"strings"
 )
 
-var nonWord = regexp.MustCompile(`[^a-z0-9]+`)
+var legacyIDNonWord = regexp.MustCompile(`[^a-z0-9]+`)
 var yearPattern = regexp.MustCompile(`\b(\d{4})\b`)
 
 func scoreResult(query Query, title string, author string, isbns []string) float64 {
 	needle := normalize(query.Query)
 	titleNorm := normalize(title)
 	authorNorm := normalize(author)
-	isbnNeedle := normalizeISBN(query.Query)
+	isbnNeedle := canonicalISBN(query.Query)
 
 	if isbnNeedle != "" {
 		for _, isbn := range isbns {
-			if normalizeISBN(isbn) == isbnNeedle {
+			if canonicalISBN(isbn) == isbnNeedle {
 				return 0.99
 			}
 		}
@@ -37,9 +37,6 @@ func scoreResult(query Query, title string, author string, isbns []string) float
 
 	if authorNorm != "" && strings.Contains(needle, authorNorm) {
 		score += 0.18
-	}
-	if query.Format == FormatEbook || query.Format == FormatAudiobook {
-		score += 0.03
 	}
 	if score > 0.98 {
 		score = 0.98
@@ -60,10 +57,10 @@ func confidence(score float64) string {
 
 func matchedOn(query Query, title string, author string, isbns []string) []string {
 	var matches []string
-	isbnNeedle := normalizeISBN(query.Query)
+	isbnNeedle := canonicalISBN(query.Query)
 	if isbnNeedle != "" {
 		for _, isbn := range isbns {
-			if normalizeISBN(isbn) == isbnNeedle {
+			if canonicalISBN(isbn) == isbnNeedle {
 				matches = append(matches, "isbn")
 				break
 			}
@@ -82,7 +79,7 @@ func matchedOn(query Query, title string, author string, isbns []string) []strin
 }
 
 func normalize(value string) string {
-	return strings.TrimSpace(nonWord.ReplaceAllString(strings.ToLower(value), " "))
+	return exactTitle(value)
 }
 
 func normalizeISBN(value string) string {
@@ -125,9 +122,7 @@ func jaccard(a string, b string) float64 {
 }
 
 func inferFormat(requested MediaFormat, isbns []string) MediaFormat {
-	if requested == FormatEbook || requested == FormatAudiobook {
-		return requested
-	}
+	// A request is not evidence of the edition's actual media format.
 	return FormatAny
 }
 
@@ -249,7 +244,8 @@ func clampLimit(limit int) int {
 }
 
 func stableID(prefix string, value string) string {
-	sum := sha1.Sum([]byte(normalize(value)))
+	// Preserve previously issued synthetic IDs while search matching gains Unicode.
+	sum := sha1.Sum([]byte(strings.TrimSpace(legacyIDNonWord.ReplaceAllString(strings.ToLower(value), " "))))
 	return fmt.Sprintf("%s:%x", prefix, sum[:8])
 }
 

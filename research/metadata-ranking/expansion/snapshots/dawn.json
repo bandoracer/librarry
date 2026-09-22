@@ -1,0 +1,1011 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+dawn+of+everything&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:47.044562+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 97,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 97,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the dawn of everything",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL1395062A",
+          "OL2766925A"
+        ],
+        "author_name": [
+          "David Graeber",
+          "David Wengrow"
+        ],
+        "cover_i": 11359192,
+        "first_publish_year": 2021,
+        "key": "/works/OL24663287W",
+        "language": [
+          "spa",
+          "rum",
+          "fre",
+          "ita",
+          "por",
+          "ger",
+          "tur",
+          "eng"
+        ],
+        "title": "The Dawn of Everything",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32732512M",
+              "title": "The Dawn of Everything",
+              "cover_i": 11359192,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Farrar, Straus and Giroux"
+              ],
+              "publish_date": [
+                "2021-11-09"
+              ],
+              "isbn": [
+                "9780374157357",
+                "0374157359"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1391085A"
+        ],
+        "author_name": [
+          "Stephenie Meyer"
+        ],
+        "cover_i": 12643419,
+        "first_publish_year": 2000,
+        "key": "/works/OL5720022W",
+        "language": [
+          "spa",
+          "dut",
+          "tur",
+          "vie",
+          "fre",
+          "por",
+          "rus",
+          "kor",
+          "pol",
+          "chi",
+          "eng",
+          "ger",
+          "tha"
+        ],
+        "title": "Breaking Dawn",
+        "editions": {
+          "numFound": 64,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24709839M",
+              "title": "Breaking dawn",
+              "cover_i": 12643419,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Little, Brown"
+              ],
+              "publish_date": [
+                "2008"
+              ],
+              "isbn": [
+                "9780316067928",
+                "031606792X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10394876A"
+        ],
+        "author_name": [
+          "Irb Media"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28075328W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of David Graeber's the Dawn of Everything",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38424608M",
+              "title": "Summary of David Graeber's the Dawn of Everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "IRB MEDIA"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798822507784"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10535083A"
+        ],
+        "author_name": [
+          "AESTH"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL28454636W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide for the Dawn of Everything by David Graeber",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38975187M",
+              "title": "Study Guide for the Dawn of Everything by David Graeber",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798782305093"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10394876A"
+        ],
+        "author_name": [
+          "Irb Media"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL27854785W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of David Graeber & David Wengrow's the Dawn of Everything",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38071090M",
+              "title": "Summary of David Graeber & David Wengrow's the Dawn of Everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "IRB MEDIA"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9781669382270",
+                "1669382273"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3761768A"
+        ],
+        "author_name": [
+          "Jaron Lanier"
+        ],
+        "cover_i": 10138020,
+        "first_publish_year": 2017,
+        "key": "/works/OL19722032W",
+        "language": [
+          "eng"
+        ],
+        "title": "Dawn of the new everything",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26935155M",
+              "title": "Dawn of the new everything",
+              "cover_i": 14456597,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Henry Holt and Company"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781627794091",
+                "1627794093"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10099738A"
+        ],
+        "author_name": [
+          "James ANTHONY"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL26887433W",
+        "language": [
+          "eng"
+        ],
+        "title": "SUMMARY of the DAWN of EVERYTHING by DAVID GRAEBER and DAVID WENGROW",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36455528M",
+              "title": "SUMMARY of the DAWN of EVERYTHING by DAVID GRAEBER and DAVID WENGROW",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798755147200"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL21718A"
+        ],
+        "author_name": [
+          "Bill Bryson"
+        ],
+        "cover_i": 8276506,
+        "first_publish_year": 2008,
+        "key": "/works/OL14991884W",
+        "language": [
+          "dut",
+          "eng",
+          "rum"
+        ],
+        "title": "A Really Short History of Nearly Everything",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24903684M",
+              "title": "A really short history of nearly everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Delacorte Press"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9780385738101",
+                "0385738102"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3761768A"
+        ],
+        "author_name": [
+          "Jaron Lanier"
+        ],
+        "cover_i": 8351599,
+        "first_publish_year": 2017,
+        "key": "/works/OL18195702W",
+        "language": [
+          "eng"
+        ],
+        "title": "Dawn of the New Everything",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26668689M",
+              "title": "Dawn of the New Everything",
+              "cover_i": 8351599,
+              "publisher": [
+                "Bodley Head"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781847923530",
+                "1847923534"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8387572A"
+        ],
+        "author_name": [
+          "Lisa BROWN"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL28123456W",
+        "language": [
+          "eng"
+        ],
+        "title": "SUMMARY of the Dawn of Everything",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38493690M",
+              "title": "SUMMARY of the Dawn of Everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798760202499"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10124085A"
+        ],
+        "author_name": [
+          "Raymond Shen"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL26992781W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of the Dawn of Everything",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36590858M",
+              "title": "Summary of the Dawn of Everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798762510370"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10642357A"
+        ],
+        "author_name": [
+          "Brett Hunter"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL28745316W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of the Dawn of Everything",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39450681M",
+              "title": "Summary of the Dawn of Everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798750212927"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10298989A"
+        ],
+        "author_name": [
+          "Cinda Daniels"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL27924862W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of the Dawn of Everything",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38165911M",
+              "title": "Summary of the Dawn of Everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798786549356"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1071177A"
+        ],
+        "author_name": [
+          "Charles Werner"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL26969971W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of the Dawn of Everything",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36560701M",
+              "title": "Summary of the Dawn of Everything",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798761091979"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10584303A"
+        ],
+        "author_name": [
+          "Snappy Reads"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28548200W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of the Dawn of Everything by David Graeber and David Wengrow",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39145346M",
+              "title": "Summary of the Dawn of Everything by David Graeber and David Wengrow",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798439772124"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10038952A"
+        ],
+        "author_name": [
+          "WILLIAM. J WALLACE"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL26898395W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of the Dawn of Everything by David Graeber and David Wengrow",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36469146M",
+              "title": "Summary of the Dawn of Everything by David Graeber and David Wengrow",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798751974978"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2879847A"
+        ],
+        "author_name": [
+          "Dawn Rosenberg McKay"
+        ],
+        "cover_i": 2004104,
+        "first_publish_year": 2007,
+        "key": "/works/OL8578681W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Everything Get-a-Job Book",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17556175M",
+              "title": "The everything get-a-job book",
+              "cover_i": 9655978,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Adams Media"
+              ],
+              "publish_date": [
+                "2007"
+              ],
+              "isbn": [
+                "9781598691597",
+                "1598691597"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3094244A",
+          "OL3094245A"
+        ],
+        "author_name": [
+          "Dawn Altomari-Rathjen",
+          "Jennifer Bendelius"
+        ],
+        "cover_i": 840819,
+        "first_publish_year": 2003,
+        "key": "/works/OL20640846W",
+        "language": [
+          "eng"
+        ],
+        "title": "The everything Mediterranean cookbook",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8780850M",
+              "title": "The Everything Mediterranean Cookbook: An Enticing Collection of 300 Healthy, Delicious Recipes from the Land of Sun and Sea (Everything: Cooking)",
+              "cover_i": 840819,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Adams Media Corporation",
+                "Everything"
+              ],
+              "publish_date": [
+                "April 2003"
+              ],
+              "isbn": [
+                "9781580628693",
+                "1580628699"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL237462A"
+        ],
+        "author_name": [
+          "Dawn Bradley Berry"
+        ],
+        "cover_i": 3813609,
+        "first_publish_year": 1995,
+        "key": "/works/OL1975773W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Divorce Sourcebook",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL798088M",
+              "title": "The divorce sourcebook",
+              "cover_i": 3813609,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Lowell House",
+                "Contemporary Books"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "1565653351",
+                "9781565653351"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3761768A"
+        ],
+        "author_name": [
+          "Jaron Lanier"
+        ],
+        "cover_i": 8351600,
+        "first_publish_year": 2017,
+        "key": "/works/OL18195707W",
+        "language": [
+          "eng"
+        ],
+        "title": "Dawn of the New Everything: A Journey Through Virtual Reality",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26668694M",
+              "title": "Dawn of the New Everything: A Journey Through Virtual Reality",
+              "cover_i": 8351600,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Vintage Publishing"
+              ],
+              "publish_date": [
+                "Nov 15, 2017"
+              ],
+              "isbn": [
+                "9781847923523",
+                "1847923526"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL399285A"
+        ],
+        "author_name": [
+          "Alex Kershaw"
+        ],
+        "cover_i": 1165070,
+        "first_publish_year": 2006,
+        "key": "/works/OL2726854W",
+        "language": [
+          "eng"
+        ],
+        "title": "The few",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL20947002M",
+              "title": "The few",
+              "cover_i": 9802977,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Da Capo Press"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "9780306813030",
+                "0306813033"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL35763A"
+        ],
+        "author_name": [
+          "Adi Da Samraj"
+        ],
+        "cover_i": 819124,
+        "first_publish_year": 1983,
+        "key": "/works/OL514322W",
+        "language": [
+          "eng"
+        ],
+        "title": "Easy death",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3192596M",
+              "title": "Easy death",
+              "cover_i": 6494249,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Dawn Horse Press"
+              ],
+              "publish_date": [
+                "1983"
+              ],
+              "isbn": [
+                "0913922579",
+                "9780913922576"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL136735A",
+          "OL1176648A"
+        ],
+        "author_name": [
+          "Louis Pauwels",
+          "Jacques Bergier"
+        ],
+        "cover_i": 9541137,
+        "first_publish_year": 1960,
+        "key": "/works/OL1342112W",
+        "language": [
+          "spa",
+          "rus",
+          "fre",
+          "eng"
+        ],
+        "title": "Le Matin des magiciens",
+        "editions": {
+          "numFound": 23,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61562595M",
+              "title": "The Dawn Of Magic",
+              "cover_i": 15211611,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Panther"
+              ],
+              "publish_date": [
+                "1967"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL237462A"
+        ],
+        "author_name": [
+          "Dawn Bradley Berry"
+        ],
+        "cover_i": 804554,
+        "first_publish_year": 1995,
+        "key": "/works/OL1975772W",
+        "language": [
+          "eng"
+        ],
+        "title": "The domestic violence sourcebook",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1275948M",
+              "title": "The domestic violence sourcebook",
+              "cover_i": 8551346,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Lowell House",
+                "Contemporary Books"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "1565652126",
+                "9781565652125"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL28281A"
+        ],
+        "author_name": [
+          "Dawn L. Watkins"
+        ],
+        "cover_i": 687607,
+        "first_publish_year": 1985,
+        "key": "/works/OL47047W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "a fantasy for young readers",
+        "title": "Medallion",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2424594M",
+              "title": "Medallion",
+              "cover_i": 687607,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bob Jones University Press"
+              ],
+              "publish_date": [
+                "1985"
+              ],
+              "isbn": [
+                "0890842825",
+                "9780890842829"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.806
+}

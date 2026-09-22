@@ -1,0 +1,1005 @@
+{
+  "url": "https://openlibrary.org/search.json?q=piranesi&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:04.392359+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 696,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 696,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "piranesi",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL1387961A"
+        ],
+        "author_name": [
+          "Susanna Clarke"
+        ],
+        "cover_i": 10226290,
+        "first_publish_year": 2020,
+        "key": "/works/OL20893680W",
+        "language": [
+          "ita",
+          "spa",
+          "eng"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 22,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61022665M",
+              "title": "Piranesi",
+              "cover_i": 15155469,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bloomsbury Publishing"
+              ],
+              "publish_date": [
+                "2020-09-15"
+              ],
+              "isbn": [
+                "9781526622419",
+                "1526622416"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL20371A"
+        ],
+        "author_name": [
+          "Marguerite Yourcenar"
+        ],
+        "cover_i": 9525786,
+        "first_publish_year": 1984,
+        "key": "/works/OL15088155W",
+        "language": [
+          "eng",
+          "fre"
+        ],
+        "title": "The dark brain of Piranesi and other essays",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2851483M",
+              "title": "The dark brain of Piranesi and other essays",
+              "cover_i": 9525786,
+              "language": [
+                "eng",
+                "fre"
+              ],
+              "publisher": [
+                "Farrar, Straus, Giroux"
+              ],
+              "publish_date": [
+                "1984"
+              ],
+              "isbn": [
+                "0374177090",
+                "9780374177096"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5551259A"
+        ],
+        "author_name": [
+          "Arthur Samuel"
+        ],
+        "first_publish_year": 1910,
+        "key": "/works/OL12523946W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18759568M",
+              "title": "Piranesi.",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Batsford"
+              ],
+              "publish_date": [
+                "1910"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL119137A"
+        ],
+        "author_name": [
+          "Henri Focillon"
+        ],
+        "cover_i": 5186825,
+        "first_publish_year": 1918,
+        "key": "/works/OL1178865W",
+        "language": [
+          "fre",
+          "ita",
+          "eng"
+        ],
+        "subtitle": "Essai de catalogue raisonné de son œuvre",
+        "title": "Giovanni-Battista Piranesi",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24145133M",
+              "title": "Giovanni-Battista Piranesi",
+              "cover_i": 6505862,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Renouard"
+              ],
+              "publish_date": [
+                "1918"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL727243A",
+          "OL19154A",
+          "OL3258184A",
+          "OL2664738A"
+        ],
+        "author_name": [
+          "John Wilton-Ely",
+          "Peter Eisenman",
+          "Alvar Gonzalez-Palacios",
+          "Michael Graves"
+        ],
+        "cover_i": 2684687,
+        "first_publish_year": 2007,
+        "key": "/works/OL18438555W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi as designer",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL11381152M",
+              "title": "Piranesi As Designer",
+              "cover_i": 2684687,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Editions Assouline"
+              ],
+              "publish_date": [
+                "January 30, 2008"
+              ],
+              "isbn": [
+                "9780910503952",
+                "0910503958"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL119137A",
+          "OL4641172A",
+          "OL5815191A"
+        ],
+        "author_name": [
+          "Henri Focillon",
+          "Henri Focillon",
+          "Henri Facillon"
+        ],
+        "cover_i": 6840642,
+        "first_publish_year": 1918,
+        "key": "/works/OL1178830W",
+        "language": [
+          "fre"
+        ],
+        "title": "Giovanni-Battista Piranesi, 1720-1778",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24643630M",
+              "title": "Giovanni-Battista Piranesi, 1720-1778",
+              "cover_i": 6744465,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "H. Laurens"
+              ],
+              "publish_date": [
+                "1918"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL422030A"
+        ],
+        "author_name": [
+          "Giovanni Battista Piranesi"
+        ],
+        "cover_i": 4764946,
+        "first_publish_year": 1961,
+        "key": "/works/OL2827133W",
+        "language": [
+          "fre",
+          "und",
+          "rum",
+          "eng",
+          "ita",
+          "cat"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 20,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8596539M",
+              "title": "Piranesi",
+              "cover_i": 4821764,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Alan Wofsy Fine Arts"
+              ],
+              "publish_date": [
+                "June 1992"
+              ],
+              "isbn": [
+                "9781556601507",
+                "1556601506"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL113527A"
+        ],
+        "author_name": [
+          "Arthur Magyer Hind"
+        ],
+        "cover_i": 5558494,
+        "first_publish_year": 1922,
+        "key": "/works/OL1097684W",
+        "language": [
+          "eng"
+        ],
+        "title": "Giovanni Battista Piranesi",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL14009767M",
+              "title": "Giovanni Battista Piranesi",
+              "cover_i": 5782639,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "E. Weyhe"
+              ],
+              "publish_date": [
+                "1922"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL224222A"
+        ],
+        "author_name": [
+          "Gerhard Köpf"
+        ],
+        "cover_i": 6551255,
+        "first_publish_year": 2000,
+        "key": "/works/OL1872841W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi's dream",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL16987559M",
+              "title": "Piranesi's dream",
+              "cover_i": 6551255,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "G. Braziller"
+              ],
+              "publish_date": [
+                "2000"
+              ],
+              "isbn": [
+                "0807614734",
+                "9780807614730"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL20371A"
+        ],
+        "author_name": [
+          "Marguerite Yourcenar"
+        ],
+        "first_publish_year": 1985,
+        "key": "/works/OL15088154W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "And Other Essays",
+        "title": "The Dark Brain of Piranesi",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7424148M",
+              "title": "The Dark Brain of Piranesi",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Farrar, Straus and Giroux"
+              ],
+              "publish_date": [
+                "December 1, 1985"
+              ],
+              "isbn": [
+                "9780374519193",
+                "0374519196"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL46833A"
+        ],
+        "author_name": [
+          "Milo Manara"
+        ],
+        "cover_i": 7083358,
+        "first_publish_year": 2006,
+        "key": "/works/OL16538228W",
+        "title": "Salomè",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25228785M",
+              "title": "Salomè",
+              "cover_i": 7083358,
+              "publisher": [
+                "Mondadori bestsellers"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "8804561920",
+                "9788804561927"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1153975A"
+        ],
+        "author_name": [
+          "A. Hyatt Mayor"
+        ],
+        "cover_i": 10758665,
+        "first_publish_year": 1952,
+        "key": "/works/OL5180721W",
+        "language": [
+          "eng"
+        ],
+        "title": "Giovanni Battista Piranesi",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL6115265M",
+              "title": "Giovanni Battista Piranesi",
+              "cover_i": 10758665,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "H. Bittner"
+              ],
+              "publish_date": [
+                "1952"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL406164A"
+        ],
+        "author_name": [
+          "Nicholas Penny"
+        ],
+        "cover_i": 4764945,
+        "first_publish_year": 1978,
+        "key": "/works/OL2763290W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4716635M",
+              "title": "Piranesi",
+              "cover_i": 4764945,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oresko Books",
+                "distributed by Hippocrene Books"
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "084670515X",
+                "0846705141",
+                "9780846705154",
+                "9780846705147"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1489358A"
+        ],
+        "author_name": [
+          "Silvia Gavuzzo-Stewart"
+        ],
+        "first_publish_year": 1999,
+        "key": "/works/OL5982612W",
+        "language": [
+          "ita",
+          "eng"
+        ],
+        "title": "Nelle Carceri di G.B. Piranesi",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL44079282M",
+              "title": "Nelle Carceri di G.B. Piranesi",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Taylor and Francis"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781351196994",
+                "1351196995"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1965968A"
+        ],
+        "author_name": [
+          "Ian Jonathan Scott"
+        ],
+        "cover_i": 8522806,
+        "first_publish_year": 1975,
+        "key": "/works/OL7021197W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5072071M",
+              "title": "Piranesi",
+              "cover_i": 8522806,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Academy Editions",
+                "St. Martin's Press"
+              ],
+              "publish_date": [
+                "1975"
+              ],
+              "isbn": [
+                "0856700509",
+                "9780856700507"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL422030A"
+        ],
+        "author_name": [
+          "Giovanni Battista Piranesi"
+        ],
+        "cover_i": 4439693,
+        "first_publish_year": 1978,
+        "key": "/works/OL2827132W",
+        "language": [
+          "ita",
+          "eng"
+        ],
+        "title": "Giovanni Battista Piranesi",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4742362M",
+              "title": "Giovanni Battista Piranesi",
+              "cover_i": 4439693,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Dover Publications"
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "0486237141",
+                "9780486237145"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL727243A"
+        ],
+        "author_name": [
+          "John Wilton-Ely"
+        ],
+        "cover_i": 13437415,
+        "first_publish_year": 1978,
+        "key": "/works/OL3973748W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7868630M",
+              "title": "Piranesi",
+              "cover_i": 13437415,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Arts Council of Great Britain"
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "9780728701762",
+                "0728701766"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL727243A"
+        ],
+        "author_name": [
+          "John Wilton-Ely"
+        ],
+        "cover_i": 159794,
+        "first_publish_year": 1993,
+        "key": "/works/OL3973745W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi as architect and designer",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1446316M",
+              "title": "Piranesi as architect and designer",
+              "cover_i": 159794,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pierpont Morgan Library",
+                "Yale University Press"
+              ],
+              "publish_date": [
+                "1993"
+              ],
+              "isbn": [
+                "0875980996",
+                "0300053827",
+                "9780875980997",
+                "9780300053821"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9502746A",
+          "OL2058771A"
+        ],
+        "author_name": [
+          "Kerrianne Stone",
+          "Gerard Vaughan"
+        ],
+        "first_publish_year": 2015,
+        "key": "/works/OL25175736W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi Effect",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48220738M",
+              "title": "Piranesi Effect",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "NewSouth Publishing"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9781742247366",
+                "1742247369"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1585268A"
+        ],
+        "author_name": [
+          "Luigi Ficacci"
+        ],
+        "cover_i": 9143369,
+        "first_publish_year": 2016,
+        "key": "/works/OL20478683W",
+        "language": [
+          "ita",
+          "eng"
+        ],
+        "title": "Piranesi. The Complete Etchings",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35206518M",
+              "title": "Piranesi. the Complete Etchings",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "TASCHEN"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9783836587617",
+                "3836587610"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL611858A"
+        ],
+        "author_name": [
+          "Ulya Vogt-Göknil"
+        ],
+        "first_publish_year": 1958,
+        "key": "/works/OL3606500W",
+        "language": [
+          "ger"
+        ],
+        "subtitle": "Carceri",
+        "title": "Giovanni Battista Piranesi",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5781523M",
+              "title": "Giovanni Battista Piranesi: Carceri.",
+              "language": [
+                "ger"
+              ],
+              "publisher": [
+                "Origo Verlag"
+              ],
+              "publish_date": [
+                "1958"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1757536A"
+        ],
+        "author_name": [
+          "Miranda Harvey"
+        ],
+        "first_publish_year": 1979,
+        "key": "/works/OL6559296W",
+        "language": [
+          "eng"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4407974M",
+              "title": "Piranesi",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Harmony Books"
+              ],
+              "publish_date": [
+                "1979"
+              ],
+              "isbn": [
+                "0517538261",
+                "051753827X",
+                "9780517538265",
+                "9780517538272"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6243970A"
+        ],
+        "author_name": [
+          "Museo del Corso (Rome, Italy)"
+        ],
+        "cover_i": 5726224,
+        "first_publish_year": 2006,
+        "key": "/works/OL19055569W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Rome of Piranesi",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21298159M",
+              "title": "The Rome of Piranesi",
+              "cover_i": 3370534,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Artemide"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "9788875750558",
+                "8875750556"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL422030A"
+        ],
+        "author_name": [
+          "Giovanni Battista Piranesi"
+        ],
+        "first_publish_year": 1951,
+        "key": "/works/OL2827129W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Edited by Hector O. Corfiato.",
+        "title": "Piranesi compositions",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL13744097M",
+              "title": "Piranesi compositions",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tiranti"
+              ],
+              "publish_date": [
+                "1951"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL422030A"
+        ],
+        "author_name": [
+          "Giovanni Battista Piranesi"
+        ],
+        "first_publish_year": 1978,
+        "key": "/works/OL31573122W",
+        "language": [
+          "ita"
+        ],
+        "title": "Piranesi",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43800656M",
+              "title": "Piranesi",
+              "language": [
+                "ita"
+              ],
+              "publisher": [
+                "Arbor Sapientiae editore"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9788831341271",
+                "8831341278"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.434
+}

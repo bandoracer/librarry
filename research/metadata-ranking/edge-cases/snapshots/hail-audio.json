@@ -1,0 +1,1257 @@
+{
+  "url": "https://openlibrary.org/search.json?q=project+hail+mary&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-22T00:23:44.709545+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 30,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 30,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "project hail mary",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL7234434A"
+        ],
+        "author_name": [
+          "Andy Weir"
+        ],
+        "cover_i": 11200092,
+        "first_publish_year": 2021,
+        "key": "/works/OL21745884W",
+        "language": [
+          "fin",
+          "dut",
+          "spa",
+          "tur",
+          "eng",
+          "fre",
+          "ger",
+          "kor",
+          "por"
+        ],
+        "title": "Project Hail Mary",
+        "editions": {
+          "numFound": 23,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29597011M",
+              "title": "Project Hail Mary",
+              "cover_i": 15208263,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Random House Large Print"
+              ],
+              "publish_date": [
+                "May 04, 2021"
+              ],
+              "isbn": [
+                "9780593395561",
+                "0593395565"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7234434A"
+        ],
+        "author_name": [
+          "Andy Weir"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL36735881W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Martian / Artemis / Project Hail Mary",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49615465M",
+              "title": "Andy Weir's 3-Book Collection Set (Project Hail Mary, Artemis, the Martian)",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Ballantine Books"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9781637990520",
+                "1637990529"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9813195A"
+        ],
+        "author_name": [
+          "Unique Summary"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL25960717W",
+        "language": [
+          "eng"
+        ],
+        "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35039072M",
+              "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798538766871"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10394876A"
+        ],
+        "author_name": [
+          "Irb Media"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL26086346W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of Andy Weir's Project Hail Mary",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35207035M",
+              "title": "Summary of Andy Weir's Project Hail Mary",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "IRB Media"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9781638156147",
+                "163815614X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10293755A"
+        ],
+        "author_name": [
+          "Antoine McCallan"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL27881734W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of Project Hail Mary by Andy Weir",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38106832M",
+              "title": "Summary of Project Hail Mary by Andy Weir",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798761898912"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2021,
+        "key": "/works/OL45858094W",
+        "title": "Project Hail Mary: A Novel",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62403511M",
+              "title": "Project Hail Mary: A Novel",
+              "publisher": [
+                "Random House Publishing Group"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "B099ZZWH4K"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9658335A"
+        ],
+        "author_name": [
+          "Good Reads Publishing"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL27267403W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary and Analysis of Project Hail Mary by Andy Weir",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37005797M",
+              "title": "Summary and Analysis of Project Hail Mary by Andy Weir",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798749854572"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9852572A"
+        ],
+        "author_name": [
+          "Anis Idire"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL36171529W",
+        "language": [
+          "eng"
+        ],
+        "title": "WorkBook For",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48891160M",
+              "title": "WorkBook For",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798512183618"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8354734A"
+        ],
+        "author_name": [
+          "SuperSummary"
+        ],
+        "cover_i": 12366237,
+        "first_publish_year": 2018,
+        "key": "/works/OL21868175W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide -- The Other Wes Moore by Wes Moore",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38414412M",
+              "title": "Study Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798537013495"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8354734A"
+        ],
+        "author_name": [
+          "SuperSummary"
+        ],
+        "cover_i": 15199344,
+        "first_publish_year": 2018,
+        "key": "/works/OL44112704W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60937506M",
+              "title": "Study Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "SuperSummary"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798900343747"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 5717574,
+        "first_publish_year": 1988,
+        "key": "/works/OL7166017M",
+        "title": "Blake Estate oral history project",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7166017M",
+              "title": "Blake Estate oral history project",
+              "cover_i": 5717574,
+              "publisher": [
+                "University of California"
+              ],
+              "publish_date": [
+                "1988"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL164363A"
+        ],
+        "author_name": [
+          "Alexandre Dumas fils"
+        ],
+        "cover_i": 14565226,
+        "first_publish_year": 1848,
+        "key": "/works/OL259509W",
+        "language": [
+          "tur",
+          "por",
+          "tib",
+          "gre",
+          "pol",
+          "spa",
+          "tgl",
+          "jpn",
+          "ita",
+          "lad",
+          "ota",
+          "eng",
+          "chi",
+          "yid",
+          "arm",
+          "fin",
+          "ger",
+          "fre",
+          "cze",
+          "mul",
+          "vie"
+        ],
+        "title": "La dame aux camélias [novel]",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL50533954M",
+              "title": "Kamelianainen",
+              "cover_i": 14564319,
+              "language": [
+                "fin"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2017"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 7165018,
+        "first_publish_year": 1622,
+        "key": "/works/OL258850W",
+        "language": [
+          "afr",
+          "spa",
+          "arm",
+          "rum",
+          "yid",
+          "srp",
+          "swe",
+          "dut",
+          "rus",
+          "heb",
+          "ice",
+          "gre",
+          "tel",
+          "ita",
+          "por",
+          "ger",
+          "pan",
+          "eng",
+          "mul",
+          "ota",
+          "tir",
+          "fre",
+          "tam",
+          "cat",
+          "pol",
+          "chi",
+          "ara",
+          "per",
+          "nep",
+          "hrv",
+          "mac",
+          "tur",
+          "und",
+          "jpn",
+          "fin",
+          "alb"
+        ],
+        "title": "Othello",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32234910M",
+              "title": "Othello",
+              "cover_i": 10869636,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2000-07-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 8257991,
+        "first_publish_year": 1597,
+        "key": "/works/OL362427W",
+        "language": [
+          "mar",
+          "afr",
+          "spa",
+          "arm",
+          "hun",
+          "hin",
+          "vie",
+          "dan",
+          "dut",
+          "rus",
+          "srp",
+          "wel",
+          "heb",
+          "ice",
+          "guj",
+          "gre",
+          "ita",
+          "por",
+          "ukr",
+          "sin",
+          "ger",
+          "eng",
+          "mul",
+          "nor",
+          "fre",
+          "tuk",
+          "cat",
+          "pol",
+          "chi",
+          "ara",
+          "urd",
+          "hrv",
+          "tur",
+          "ben",
+          "jpn",
+          "kor",
+          "fin",
+          "tib"
+        ],
+        "title": "Romeo and Juliet",
+        "editions": {
+          "numFound": 15,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26501332M",
+              "title": "Shakespeare's Tragedy of Romeo and Juliet",
+              "cover_i": 8257948,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2015 January 13"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 8290853,
+        "first_publish_year": 1600,
+        "key": "/works/OL362691W",
+        "language": [
+          "cze",
+          "cpf",
+          "kor",
+          "por",
+          "dan",
+          "hin",
+          "eng",
+          "ger",
+          "tlh",
+          "fre",
+          "spa",
+          "fin",
+          "ukr",
+          "ita",
+          "heb",
+          "chi",
+          "jpn"
+        ],
+        "title": "Much Ado About Nothing",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26604638M",
+              "title": "Much Ado About Nothing",
+              "cover_i": 10183560,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2000 July"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 7338874,
+        "first_publish_year": 1734,
+        "key": "/works/OL362698W",
+        "language": [
+          "ger",
+          "srp",
+          "heb",
+          "tha",
+          "und",
+          "dan",
+          "jpn",
+          "epo",
+          "mul",
+          "chi",
+          "swe",
+          "pan",
+          "fin",
+          "eng",
+          "spa",
+          "san",
+          "tur",
+          "fre",
+          "dut"
+        ],
+        "title": "As You Like It",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32238406M",
+              "title": "As You Like It",
+              "cover_i": 10871778,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "1999-06-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 9119932,
+        "first_publish_year": 1734,
+        "key": "/works/OL362694W",
+        "language": [
+          "und",
+          "est",
+          "pol",
+          "cat",
+          "epo",
+          "rus",
+          "eng",
+          "dut",
+          "ger",
+          "fre",
+          "slo",
+          "spa",
+          "fin",
+          "ita",
+          "tgl",
+          "cze",
+          "chi",
+          "jpn"
+        ],
+        "title": "Twelfth Night, or What You Will",
+        "editions": {
+          "numFound": 10,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32234933M",
+              "title": "Twelfth Night; Or, What You Will",
+              "cover_i": 10869661,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "1998-11-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 7901303,
+        "first_publish_year": 1656,
+        "key": "/works/OL362702W",
+        "language": [
+          "urd",
+          "ger",
+          "srp",
+          "heb",
+          "ita",
+          "ukr",
+          "und",
+          "afa",
+          "tgl",
+          "dan",
+          "jpn",
+          "yor",
+          "gla",
+          "amh",
+          "kan",
+          "epo",
+          "chi",
+          "mul",
+          "aka",
+          "yid",
+          "lat",
+          "rus",
+          "nor",
+          "mlt",
+          "fin",
+          "afr",
+          "eng",
+          "cpe",
+          "spa",
+          "por",
+          "tur",
+          "mar",
+          "ind",
+          "alb",
+          "fre",
+          "fao",
+          "pol",
+          "fry",
+          "swa",
+          "tsn",
+          "gre",
+          "hun"
+        ],
+        "title": "Julius Caesar",
+        "editions": {
+          "numFound": 11,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32238571M",
+              "title": "Julius Caesar",
+              "cover_i": 10871868,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "1999-06-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 7182819,
+        "first_publish_year": 1600,
+        "key": "/works/OL258758W",
+        "language": [
+          "mar",
+          "afr",
+          "spa",
+          "arm",
+          "swa",
+          "dan",
+          "yid",
+          "dut",
+          "wel",
+          "heb",
+          "swe",
+          "rus",
+          "guj",
+          "gre",
+          "ita",
+          "por",
+          "tsn",
+          "ger",
+          "eng",
+          "mul",
+          "tha",
+          "ota",
+          "slo",
+          "nor",
+          "fre",
+          "cat",
+          "pol",
+          "chi",
+          "ara",
+          "hrv",
+          "mon",
+          "tur",
+          "und",
+          "jpn",
+          "fin"
+        ],
+        "title": "The Merchant of Venice",
+        "editions": {
+          "numFound": 12,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32239123M",
+              "title": "The Merchant of Venice",
+              "cover_i": 10872131,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2000-07-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 872432,
+        "first_publish_year": 1508,
+        "key": "/works/OL258902W",
+        "language": [
+          "afr",
+          "spa",
+          "hat",
+          "lao",
+          "arm",
+          "tgl",
+          "baq",
+          "rum",
+          "hin",
+          "swa",
+          "dan",
+          "cze",
+          "enm",
+          "wel",
+          "srp",
+          "swe",
+          "dut",
+          "geo",
+          "rus",
+          "ice",
+          "gre",
+          "tel",
+          "ita",
+          "por",
+          "epo",
+          "ukr",
+          "ger",
+          "bel",
+          "eng",
+          "amh",
+          "tha",
+          "mul",
+          "slo",
+          "kan",
+          "jav",
+          "nic",
+          "slv",
+          "khm",
+          "fre",
+          "mlt",
+          "cat",
+          "lav",
+          "pol",
+          "chi",
+          "ara",
+          "per",
+          "urd",
+          "nep",
+          "mac",
+          "gle",
+          "tur",
+          "glg",
+          "fin",
+          "und",
+          "jpn",
+          "sco",
+          "kor",
+          "heb",
+          "alb",
+          "lit"
+        ],
+        "title": "Macbeth",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32238408M",
+              "title": "Macbeth",
+              "cover_i": 10871780,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "1999-06-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL533062A",
+          "OL35892A",
+          "OL237890A",
+          "OL2749811A"
+        ],
+        "author_name": [
+          "Hal Foster",
+          "Rosalind E. Krauss",
+          "Yve Alain Bois",
+          "Benjamin Buchloh"
+        ],
+        "cover_i": 316233,
+        "first_publish_year": 2004,
+        "key": "/works/OL17943503W",
+        "language": [
+          "eng",
+          "und"
+        ],
+        "title": "Art since 1900",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27911068M",
+              "title": "Art since 1900",
+              "cover_i": 9267653,
+              "language": [
+                "eng"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9780500289525",
+                "9780500289532",
+                "9780500289518",
+                "0500289522",
+                "0500289530",
+                "0500289514"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 8222096,
+        "first_publish_year": 1734,
+        "key": "/works/OL362695W",
+        "language": [
+          "urd",
+          "ger",
+          "heb",
+          "ita",
+          "ukr",
+          "und",
+          "dan",
+          "jpn",
+          "cat",
+          "epo",
+          "chi",
+          "mul",
+          "rum",
+          "rus",
+          "fin",
+          "hrv",
+          "afr",
+          "eng",
+          "por",
+          "spa",
+          "may",
+          "tur",
+          "bel",
+          "pol",
+          "fre",
+          "gre"
+        ],
+        "title": "Antony and Cleopatra",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32232702M",
+              "title": "Antony and Cleopatra",
+              "cover_i": 10868542,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2000-07-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7279153A"
+        ],
+        "author_name": [
+          "Apostleship of Prayer (Organization)"
+        ],
+        "cover_i": 2501011,
+        "first_publish_year": 1888,
+        "key": "/works/OL8222187W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Pilgrim Of Our Lady Of Martyrs",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25897204M",
+              "title": "The Pilgrim Of Our Lady Of Martyrs",
+              "cover_i": 9923184,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Shrine of Our Lady of Martyrs, etc."
+              ],
+              "publish_date": [
+                "1902"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1661767A"
+        ],
+        "author_name": [
+          "American Film Institute"
+        ],
+        "cover_i": 7884139,
+        "first_publish_year": 1975,
+        "key": "/works/OL17597290W",
+        "language": [
+          "eng"
+        ],
+        "title": "American Film",
+        "editions": {
+          "numFound": 21,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26200965M",
+              "title": "American Film, Volume 1, Number 9",
+              "cover_i": 7884129,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "American Film Institute"
+              ],
+              "publish_date": [
+                "July 1976"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9388A"
+        ],
+        "author_name": [
+          "William Shakespeare"
+        ],
+        "cover_i": 7205924,
+        "first_publish_year": 1600,
+        "key": "/works/OL259010W",
+        "language": [
+          "urd",
+          "ger",
+          "heb",
+          "ita",
+          "ukr",
+          "kor",
+          "und",
+          "enm",
+          "dan",
+          "jpn",
+          "roh",
+          "cat",
+          "epo",
+          "mul",
+          "chi",
+          "rus",
+          "fin",
+          "hrv",
+          "afr",
+          "eng",
+          "spa",
+          "por",
+          "ara",
+          "per",
+          "fre",
+          "cze",
+          "dut"
+        ],
+        "title": "A Midsummer Night's Dream",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32238662M",
+              "title": "A Midsummer Night's Dream",
+              "cover_i": 10871891,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "1999-06-01"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

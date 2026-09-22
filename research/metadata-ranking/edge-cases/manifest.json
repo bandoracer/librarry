@@ -1,0 +1,25 @@
+{
+  "createdAt": "2026-09-22T00:29:25.849095+00:00",
+  "sha256": {
+    "cases.json": "18916ed8d373687e2fdfe2ed8e04f6aea8746e2407acfeb84b19fbbfa6714f71",
+    "results.json": "a3790ffeae59c26750bdf7a95e50b21c467a0d34ff179d178f2518e46a552d34",
+    "snapshots/employees-audio-author-rescue.json": "c23bb31b40ff4ef57787be9f88051f065a98a603a310e3c3636666ec04548955",
+    "snapshots/employees-audio-rescue.json": "b6666bee93dc8213a2dcd4460545098f85e7e7a8b45f07fd9b726e6616e36719",
+    "snapshots/employees-audio.json": "123322d1d512537f6a117074187a33b77c218156f1ed44ee4c96ab8e4bec2371",
+    "snapshots/employees-author-author-rescue.json": "b96ed099c6cf2f47574443c925b71298fa1640980d5366f0a807117c3aae0072",
+    "snapshots/employees-author-rescue.json": "48c5c24eab4ef837797e74c5cd8d455bb02642797a6984eee3208623c952df4b",
+    "snapshots/employees-author.json": "e099f84e74cc60b9334c8506f99f01b0a1669b9554906977259662f29cd80504",
+    "snapshots/employees-suffix.json": "bc3a32817f7c251cfe3676626b1808a47875b1b86c7c44fd336206d58e78759d",
+    "snapshots/hail-audio.json": "7427a2cebf19a3488a426d102ddbfa818d58d0e4dd92e68aed285bba15778b96",
+    "snapshots/hail-typo.json": "f93ebdf5a3e03f40c697ac5c46eac997ae0a553af1ef124589f12128b337ea91",
+    "snapshots/hobbit-typo.json": "8d78d0a025a12932ff62a5e4a2a4dd518d22fc903644dfd318da28d99e0fcc8a",
+    "snapshots/nonexistent-author-author-rescue.json": "b7db4f71d21075b7b39792393666cfb51e00ac57ddd7b4136a6e8df47c396fd7",
+    "snapshots/nonexistent-author-rescue.json": "5a84c19cd527244cf88e129f28e1e5a74cc43da4c946cf887e6e63a78de51931",
+    "snapshots/nonexistent-author.json": "90135d6388e29a702a19857d4671ee9b465d6f2cf0e857abf495406d26a291fe",
+    "snapshots/nonexistent.json": "d311518dc9f52caaedc31f2c74dd38461d7e9ecb81c045190dcc9e5f74fdae47",
+    "snapshots/parable-author-rescue.json": "7757a301bb3cdab8fe9a11149030e2b85d4227f86324ff05ce7c5d338a94f14c",
+    "snapshots/percy-typo.json": "8e6dc22dd4a04ab163bfe3a20b291fbf73cf043b225b323cabf29bbefe40acc4",
+    "snapshots/punctuation.json": "10b41fc9e98158a6f3ac3168419f6afa2c88bc4b611e3dc15eb92674e0a7fc09",
+    "source-contract.json": "3b888b9678540b2ca38bc47714ee251d96cbf47ebe9b399768a0c37aacc7ac65"
+  }
+}

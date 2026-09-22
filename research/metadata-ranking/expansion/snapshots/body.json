@@ -1,0 +1,916 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+body+keeps+the+score&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:55.898247+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 91,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 91,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the body keeps the score",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL2873756A"
+        ],
+        "author_name": [
+          "Bessel van der Kolk"
+        ],
+        "cover_i": 8315367,
+        "first_publish_year": 2014,
+        "key": "/works/OL18147687W",
+        "language": [
+          "eng",
+          "vie",
+          "por",
+          "heb",
+          "spa",
+          "fre"
+        ],
+        "subtitle": "Brain, Mind, and Body in the Healing of Trauma",
+        "title": "The Body Keeps the Score",
+        "editions": {
+          "numFound": 14,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34085491M",
+              "title": "Body Keeps the Score",
+              "cover_i": 14849961,
+              "language": [
+                "eng",
+                "heb"
+              ],
+              "publisher": [
+                "Pardes Publishing"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9781618385796",
+                "1618385798"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2016,
+        "key": "/works/OL20480810W",
+        "title": "The body keeps the score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27710811M",
+              "title": "The body keeps the score",
+              "publisher": [
+                "Penguin"
+              ],
+              "publish_date": [
+                "2016"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10465906A"
+        ],
+        "author_name": [
+          "Robin Reads"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL34229528W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook : the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46399860M",
+              "title": "Workbook : the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798362096045"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9158343A"
+        ],
+        "author_name": [
+          "The Mindset Warrior"
+        ],
+        "first_publish_year": 2019,
+        "key": "/works/OL27699698W",
+        "title": "SUMMARY : The Body Keeps The Score : Brain, Mind, and Body in the Healing of Trauma",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37781236M",
+              "title": "SUMMARY : The Body Keeps The Score : Brain, Mind, and Body in the Healing of Trauma",
+              "publisher": [
+                "Independently published"
+              ],
+              "publish_date": [
+                "Jan 24, 2019"
+              ],
+              "isbn": [
+                "9781795001960",
+                "1795001968"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2873756A"
+        ],
+        "author_name": [
+          "Bessel van der Kolk"
+        ],
+        "cover_i": 15156000,
+        "first_publish_year": 2020,
+        "key": "/works/OL43238232W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook for The Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58888991M",
+              "title": "Workbook for The Body Keeps the Score",
+              "cover_i": 15156000,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Timeline Publishers"
+              ],
+              "publish_date": [
+                "2020"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7341678A"
+        ],
+        "author_name": [
+          "Sean Pratt"
+        ],
+        "cover_i": 9245388,
+        "key": "/works/OL20612891W",
+        "subtitle": "brain, mind, and body in the healing of trauma",
+        "title": "The body keeps the score [sound recording]",
+        "editions": {
+          "numFound": 0,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": []
+        }
+      },
+      {
+        "author_key": [
+          "OL9401802A"
+        ],
+        "author_name": [
+          "Jessica Rhodes"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL27205692W",
+        "language": [
+          "eng"
+        ],
+        "title": "WORKBOOK for the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36926298M",
+              "title": "WORKBOOK for the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Green Print Publishers"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9781638090199",
+                "163809019X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9105151A"
+        ],
+        "author_name": [
+          "Roger Press"
+        ],
+        "cover_i": 10641539,
+        "first_publish_year": 2020,
+        "key": "/works/OL24201782W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook For The Body Keeps the Score",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36009394M",
+              "title": "Workbook for the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Made in Colors Publishers LLC"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9781952663789",
+                "1952663784"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7675666A"
+        ],
+        "author_name": [
+          "Instaread Summaries"
+        ],
+        "cover_i": 8906017,
+        "first_publish_year": 2016,
+        "key": "/works/OL20250063W",
+        "title": "Summary of The Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27446705M",
+              "title": "Summary of The Body Keeps the Score",
+              "cover_i": 8906017,
+              "publisher": [
+                "Instaread"
+              ],
+              "publish_date": [
+                "Apr 08, 2016"
+              ],
+              "isbn": [
+                "9781945251955",
+                "1945251956"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9816109A"
+        ],
+        "author_name": [
+          "Kelvin CALEB"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL36139702W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summaryof the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48834396M",
+              "title": "Summaryof the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798540801317"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9843578A"
+        ],
+        "author_name": [
+          "Aakil BUPLISHER"
+        ],
+        "cover_i": 15221141,
+        "first_publish_year": 2021,
+        "key": "/works/OL26058536W",
+        "language": [
+          "eng"
+        ],
+        "title": "Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35170593M",
+              "title": "Body Keeps the Score",
+              "cover_i": 15221141,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798453809752"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9627089A"
+        ],
+        "author_name": [
+          "MyGrowth Bookz"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL26677415W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook for the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36119925M",
+              "title": "Workbook for the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798692628435"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6970955A"
+        ],
+        "author_name": [
+          "Pocket Books"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL20769197W",
+        "language": [
+          "eng"
+        ],
+        "title": "WORKBOOK for the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28106796M",
+              "title": "WORKBOOK for the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Green Print Publishers"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9781950284962",
+                "1950284964"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10696240A"
+        ],
+        "author_name": [
+          "Prime Reads"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28897558W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of the Body Keeps the Score by Bessel Van der Kolk",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39725324M",
+              "title": "Summary of the Body Keeps the Score by Bessel Van der Kolk",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798414436812"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8365280A"
+        ],
+        "author_name": [
+          "Cosmic Publications"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL30985635W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook : the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42561635M",
+              "title": "Workbook : the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798546123024"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9647675A"
+        ],
+        "author_name": [
+          "Dain BESSEL"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL25531460W",
+        "language": [
+          "eng"
+        ],
+        "title": "SUMMARY of the BODY KEEPS the SCORE by BESSEL VAN der KOLK M. d",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34245538M",
+              "title": "SUMMARY of the BODY KEEPS the SCORE by BESSEL VAN der KOLK M. d",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798534745658"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9276600A"
+        ],
+        "author_name": [
+          "Smart Reads"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL31081738W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook for the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42684605M",
+              "title": "Workbook for the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798799941826"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7776661A"
+        ],
+        "author_name": [
+          "Readtrepreneur Publishing"
+        ],
+        "first_publish_year": 2018,
+        "key": "/works/OL41217781W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary : the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL55992218M",
+              "title": "Summary : the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9781986651813",
+                "1986651819"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11383229A"
+        ],
+        "author_name": [
+          "Ansel Korbin"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL31154592W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook for the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42790666M",
+              "title": "Workbook for the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798755447355"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8386643A"
+        ],
+        "author_name": [
+          "Genius Reads"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL36351026W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook for the Body Keeps the Score : ",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49116319M",
+              "title": "Workbook for the Body Keeps the Score : ",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798485445782"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8496967A"
+        ],
+        "author_name": [
+          "Buddy Reads"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL22210205W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary and Analysis of the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL30263262M",
+              "title": "Summary and Analysis of the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798638110307"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11375565A"
+        ],
+        "author_name": [
+          "Wise PRISCILLA"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL31171284W",
+        "language": [
+          "eng"
+        ],
+        "title": "How to the Body Keeps the Score",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42817460M",
+              "title": "How to the Body Keeps the Score",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798575463863"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10588433A"
+        ],
+        "author_name": [
+          "Ross Michelle"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28560695W",
+        "language": [
+          "eng"
+        ],
+        "title": "SUMMARY of the BODY KEEPS the SCORE",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39163773M",
+              "title": "SUMMARY of the BODY KEEPS the SCORE",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798432611758"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9626831A"
+        ],
+        "author_name": [
+          "Darrell Adkins"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL25475089W",
+        "language": [
+          "eng"
+        ],
+        "title": "Keep Score the Body",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34165168M",
+              "title": "Keep Score the Body",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798706902100"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8386643A"
+        ],
+        "author_name": [
+          "Genius Reads"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL27932918W",
+        "language": [
+          "eng"
+        ],
+        "title": "Workbook for the Body Keeps the Score by Bessel Van der Kolk M. D.",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38176801M",
+              "title": "Workbook for the Body Keeps the Score by Bessel Van der Kolk M. D.",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798412136196"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.639
+}

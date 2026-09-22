@@ -1,0 +1,17 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=percy+jackson+the+ultimate+guide&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:13.325391+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "percy jackson the ultimate guide",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": []
+  },
+  "elapsedSeconds": 0.316
+}

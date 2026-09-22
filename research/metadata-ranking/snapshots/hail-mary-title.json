@@ -1,0 +1,428 @@
+{
+  "url": "https://openlibrary.org/search.json?title=project+hail+mary&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:53:01.794143+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 7,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 7,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL7234434A"
+        ],
+        "author_name": [
+          "Andy Weir"
+        ],
+        "cover_i": 11200092,
+        "edition_count": 32,
+        "edition_key": [
+          "OL62426553M",
+          "OL62218708M",
+          "OL62032361M",
+          "OL47110121M",
+          "OL61717680M",
+          "OL61717677M",
+          "OL39218015M",
+          "OL60855498M",
+          "OL38225779M",
+          "OL61253282M",
+          "OL57487091M",
+          "OL57487090M",
+          "OL42892716M",
+          "OL51671889M",
+          "OL51695566M",
+          "OL51645790M",
+          "OL50528652M",
+          "OL39473609M",
+          "OL37753153M",
+          "OL38627505M",
+          "OL37809108M",
+          "OL35415112M",
+          "OL32849663M",
+          "OL32569151M",
+          "OL32553390M",
+          "OL33833935M",
+          "OL33924201M",
+          "OL34156823M",
+          "OL35577396M",
+          "OL32436340M",
+          "OL30036715M",
+          "OL29597011M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "147358258X",
+          "9523930001",
+          "9786064310996",
+          "0593135229",
+          "9789523930001",
+          "9781713630296",
+          "9401614075",
+          "9780593355275",
+          "9781473582583",
+          "1529100615",
+          "8413148464",
+          "9788556511218",
+          "8328716801",
+          "0593135210",
+          "9783453321342",
+          "9786257442398",
+          "9789401614078",
+          "9788418037016",
+          "9789189298323",
+          "9791028119676",
+          "0593135202",
+          "9780593395561",
+          "9781529100617",
+          "9781529100631",
+          "9780593135211",
+          "3453321340",
+          "6073802536",
+          "9781529100624",
+          "9780593135204",
+          "8418037016",
+          "9189298322",
+          "9788925588735",
+          "9783453322837",
+          "6257442397",
+          "6064310995",
+          "1529157463",
+          "7544787354",
+          "855651121X",
+          "1804953695",
+          "1529100631",
+          "9781529157468",
+          "059335527X",
+          "9787544787352",
+          "9788328716803",
+          "171363029X",
+          "9786073802536",
+          "3453322835",
+          "0593395565",
+          "8925588730",
+          "9780593135228",
+          "1529100623",
+          "9789401614085",
+          "9788413148465",
+          "9781804953693",
+          "9401614083"
+        ],
+        "key": "/works/OL21745884W",
+        "language": [
+          "fin",
+          "dut",
+          "spa",
+          "tur",
+          "eng",
+          "fre",
+          "ger",
+          "kor",
+          "por"
+        ],
+        "title": "Project Hail Mary",
+        "ratings_count": 178,
+        "readinglog_count": 1324,
+        "want_to_read_count": 1001,
+        "editions": {
+          "numFound": 23,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29597011M",
+              "title": "Project Hail Mary",
+              "cover_i": 15208263,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Random House Large Print"
+              ],
+              "publish_date": [
+                "May 04, 2021"
+              ],
+              "isbn": [
+                "9780593395561",
+                "0593395565"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7234434A"
+        ],
+        "author_name": [
+          "Andy Weir"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL49615465M"
+        ],
+        "first_publish_year": 2022,
+        "isbn": [
+          "9781637990520",
+          "1637990529"
+        ],
+        "key": "/works/OL36735881W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Martian / Artemis / Project Hail Mary",
+        "ratings_count": 1,
+        "readinglog_count": 13,
+        "want_to_read_count": 13,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49615465M",
+              "title": "Andy Weir's 3-Book Collection Set (Project Hail Mary, Artemis, the Martian)",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Ballantine Books"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9781637990520",
+                "1637990529"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9813195A"
+        ],
+        "author_name": [
+          "Unique Summary"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL35039072M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798538766871"
+        ],
+        "key": "/works/OL25960717W",
+        "language": [
+          "eng"
+        ],
+        "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+        "readinglog_count": 2,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35039072M",
+              "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798538766871"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10394876A"
+        ],
+        "author_name": [
+          "Irb Media"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL35207035M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9781638156147",
+          "163815614X"
+        ],
+        "key": "/works/OL26086346W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of Andy Weir's Project Hail Mary",
+        "ratings_count": 0,
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35207035M",
+              "title": "Summary of Andy Weir's Project Hail Mary",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "IRB Media"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9781638156147",
+                "163815614X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10293755A"
+        ],
+        "author_name": [
+          "Antoine McCallan"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL38106832M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798761898912"
+        ],
+        "key": "/works/OL27881734W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of Project Hail Mary by Andy Weir",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38106832M",
+              "title": "Summary of Project Hail Mary by Andy Weir",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798761898912"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL62403511M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "B099ZZWH4K"
+        ],
+        "key": "/works/OL45858094W",
+        "title": "Project Hail Mary: A Novel",
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62403511M",
+              "title": "Project Hail Mary: A Novel",
+              "publisher": [
+                "Random House Publishing Group"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "B099ZZWH4K"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9658335A"
+        ],
+        "author_name": [
+          "Good Reads Publishing"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL37005797M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798749854572"
+        ],
+        "key": "/works/OL27267403W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary and Analysis of Project Hail Mary by Andy Weir",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37005797M",
+              "title": "Summary and Analysis of Project Hail Mary by Andy Weir",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798749854572"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.483
+}

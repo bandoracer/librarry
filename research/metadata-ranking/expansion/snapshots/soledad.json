@@ -1,0 +1,931 @@
+{
+  "url": "https://openlibrary.org/search.json?q=cien+a%C3%B1os+de+soledad&lang=es&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:11.091110+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 191,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 191,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "cien años de soledad",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "cover_i": 12627383,
+        "first_publish_year": 1967,
+        "key": "/works/OL274505W",
+        "language": [
+          "ger",
+          "jpn",
+          "ara",
+          "tur",
+          "ita",
+          "por",
+          "kor",
+          "pol",
+          "rus",
+          "fre",
+          "guj",
+          "und",
+          "eng",
+          "chi",
+          "gre",
+          "spa"
+        ],
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 208,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17228124M",
+              "title": "Cien años de soledad",
+              "cover_i": 15219095,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Alfaguara",
+                "Real Academia Española",
+                "Asociación de Academias de la Lengua Española"
+              ],
+              "publish_date": [
+                "2007"
+              ],
+              "isbn": [
+                "9788420471837",
+                "8420471836",
+                "9788420471839"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL66624A"
+        ],
+        "author_name": [
+          "Josefina Ludmer"
+        ],
+        "cover_i": 9886522,
+        "first_publish_year": 1985,
+        "key": "/works/OL17994053W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26575304M",
+              "title": "Cien años de soledad",
+              "cover_i": 9886522,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Centro Editor de América Latina"
+              ],
+              "publish_date": [
+                "1985"
+              ],
+              "isbn": [
+                "950251307X",
+                "9789502513072"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14454691A"
+        ],
+        "author_name": [
+          "Gabriel Marquez"
+        ],
+        "first_publish_year": 2015,
+        "key": "/works/OL40848841W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de Soledad",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL56834967M",
+              "title": "Cien años de Soledad",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9781727878011",
+                "1727878019"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL340795A"
+        ],
+        "author_name": [
+          "Juan Manuel García Ramos"
+        ],
+        "cover_i": 4104330,
+        "first_publish_year": 1989,
+        "key": "/works/OL2454505W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de soledad [de] Gabriel García Márquez",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2267473M",
+              "title": "Cien años de soledad [de] Gabriel García Márquez",
+              "cover_i": 4104330,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Alhambra"
+              ],
+              "publish_date": [
+                "1989"
+              ],
+              "isbn": [
+                "8420518050",
+                "9788420518053"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL15193084A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "first_publish_year": 1972,
+        "key": "/works/OL43144891W",
+        "language": [
+          "eng"
+        ],
+        "title": "Cien Años De Soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58761792M",
+              "title": "Cien Años De Soledad",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Editorial Sudamericana"
+              ],
+              "publish_date": [
+                "1972-01-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL66624A"
+        ],
+        "author_name": [
+          "Josefina Ludmer"
+        ],
+        "first_publish_year": 1972,
+        "key": "/works/OL795855W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17183856M",
+              "title": "Cien años de soledad",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Tiempo Contemporáneo"
+              ],
+              "publish_date": [
+                "1972"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6452492A"
+        ],
+        "author_name": [
+          "Gustavo Reyes"
+        ],
+        "first_publish_year": 2001,
+        "key": "/works/OL13592321W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de soledad, Gabriel García Márquez",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22468051M",
+              "title": "Cien años de soledad, Gabriel García Márquez",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Panamericana Editorial"
+              ],
+              "publish_date": [
+                "2001"
+              ],
+              "isbn": [
+                "9583007846",
+                "9789583007842"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "cover_i": 12161302,
+        "first_publish_year": 2006,
+        "key": "/works/OL26187580W",
+        "language": [
+          "hrv"
+        ],
+        "title": "Sto godina samoće",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35337691M",
+              "title": "Sto godina samoće",
+              "cover_i": 12161302,
+              "language": [
+                "hrv"
+              ],
+              "publisher": [
+                "VBZ"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "9789532016895",
+                "9532016899"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "cover_i": 13215914,
+        "first_publish_year": 2021,
+        "key": "/works/OL25917022W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de Soledad. Edición Conmemorativa de la RAE / One Hundred Years of Sol Itude. Conmemorative Edition",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34980171M",
+              "title": "Cien años de Soledad. Edición Conmemorativa de la RAE / One Hundred Years of Sol Itude. Conmemorative Edition",
+              "cover_i": 13215914,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Penguin Random House Grupo Editorial"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9781644734728",
+                "1644734729"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14413557A"
+        ],
+        "author_name": [
+          "Gabriel Márquez"
+        ],
+        "first_publish_year": 2015,
+        "key": "/works/OL40332828W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de Soledad",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL54861597M",
+              "title": "Cien años de Soledad",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9781508912330",
+                "1508912335"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL692287A"
+        ],
+        "author_name": [
+          "Diana Morán Garay"
+        ],
+        "cover_i": 4103529,
+        "first_publish_year": 1988,
+        "key": "/works/OL3857714W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2262656M",
+              "title": "Cien años de soledad",
+              "cover_i": 4103529,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Universidad Autónoma Metropolitana, Unidad Iztapalapa, División de Ciencias Sociales y Humanidades, Departamento de Filosofía, Area de Lit. Hispanoamericana"
+              ],
+              "publish_date": [
+                "1988"
+              ],
+              "isbn": [
+                "9688403334",
+                "9789688403334"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL66624A"
+        ],
+        "author_name": [
+          "Josefina Ludmer"
+        ],
+        "first_publish_year": 1974,
+        "key": "/works/OL795849W",
+        "language": [
+          "spa"
+        ],
+        "subtitle": "una interpretación",
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL16225149M",
+              "title": "Cien años de soledad: una interpretación.",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Editorial Tiempo Contemporáneo"
+              ],
+              "publish_date": [
+                "1974"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9147116A"
+        ],
+        "author_name": [
+          ". ResumenExpress.com"
+        ],
+        "cover_i": 10838338,
+        "key": "/works/OL24319903W",
+        "title": "Cien años de soledad de Gabriel García Márquez",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32183199M",
+              "title": "Cien años de soledad de Gabriel García Márquez",
+              "cover_i": 10838338,
+              "publisher": [
+                "ResumenExpress.com"
+              ],
+              "isbn": [
+                "9782806272294",
+                "2806272297"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL15389184A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "first_publish_year": 1974,
+        "key": "/works/OL43951156W",
+        "language": [
+          "eng"
+        ],
+        "title": "Cien anõs de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL59939050M",
+              "title": "Cien anõs de soledad",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Editorial Sudamericana"
+              ],
+              "publish_date": [
+                "1974"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "cover_i": 4918600,
+        "first_publish_year": 2004,
+        "key": "/works/OL28027117W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien Años de Soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9153311M",
+              "title": "Cien anos de soledad",
+              "cover_i": 4918600,
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Ediciones Norte",
+                "Art Enterprise",
+                "distributed by] Ediciones Norte, Inc."
+              ],
+              "publish_date": [
+                "April 1, 2004"
+              ],
+              "isbn": [
+                "9788495761378",
+                "8495761378"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL35660679W",
+        "title": "Cien Anos De Soledad one hundred years of solitude مئة عام من العزلة",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48101458M",
+              "title": "Cien Anos De Soledad one hundred years of solitude مئة عام من العزلة",
+              "isbn": [
+                "9789953582139",
+                "9953582130"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1666192A"
+        ],
+        "author_name": [
+          "Lucila Inés Mena"
+        ],
+        "first_publish_year": 1979,
+        "key": "/works/OL6358228W",
+        "language": [
+          "spa"
+        ],
+        "title": "La función de la historia en \"Cien anos de soledad\"",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21913436M",
+              "title": "La función de la historia en \"Cien anos de soledad\".",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Plaza & Janes"
+              ],
+              "publish_date": [
+                "1979"
+              ],
+              "isbn": [
+                "8401331641",
+                "9788401331640"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7013706A"
+        ],
+        "author_name": [
+          "Eulalia Pérez Sedeño"
+        ],
+        "first_publish_year": 2007,
+        "key": "/works/OL24115907W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de soledad-- y olvido",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31809288M",
+              "title": "Cien años de soledad-- y olvido",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Servicio de publicaciones de la Universidad de Cantabria"
+              ],
+              "publish_date": [
+                "2007"
+              ],
+              "isbn": [
+                "9788481024692",
+                "8481024694"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "cover_i": 10666982,
+        "first_publish_year": 2015,
+        "key": "/works/OL24213362W",
+        "title": "Cien años de soledad / One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31995573M",
+              "title": "Cien años de soledad / One Hundred Years of Solitude",
+              "cover_i": 10666982,
+              "publisher": [
+                "Blackstone Audio, Inc.",
+                "Blackstone Audiobooks"
+              ],
+              "publish_date": [
+                "Jan 06, 2015"
+              ],
+              "isbn": [
+                "9781481518468",
+                "1481518461"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9157957A"
+        ],
+        "author_name": [
+          "Lydia Gordo Ribas"
+        ],
+        "cover_i": 10864222,
+        "first_publish_year": 2007,
+        "key": "/works/OL24341011W",
+        "title": "Cien Anos De Soledad/ One hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32222326M",
+              "title": "Cien Anos De Soledad/ One hundred Years of Solitude",
+              "cover_i": 10864222,
+              "publisher": [
+                "ToisäN Edit"
+              ],
+              "publish_date": [
+                "Jul 30, 2007"
+              ],
+              "isbn": [
+                "9788495761385",
+                "8495761386"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL290148A"
+        ],
+        "author_name": [
+          "Satoko Tamura"
+        ],
+        "cover_i": 12930107,
+        "first_publish_year": 2015,
+        "key": "/works/OL20057509W",
+        "language": [
+          "spa"
+        ],
+        "title": "Por los caminos de Cien años de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27237518M",
+              "title": "Por los caminos de Cien años de soledad",
+              "cover_i": 12930107,
+              "language": [
+                "spa"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9786071136985",
+                "6071136989"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1869988A"
+        ],
+        "author_name": [
+          "Samuel García"
+        ],
+        "first_publish_year": 1977,
+        "key": "/works/OL6826068W",
+        "language": [
+          "spa"
+        ],
+        "title": "Tres mil años de literatura en Cien años de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4761085M",
+              "title": "Tres mil años de literatura en Cien años de soledad",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Ediciones Paragrama"
+              ],
+              "publish_date": [
+                "1977"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL43953A"
+        ],
+        "author_name": [
+          "Guillermo Alberto Arévalo"
+        ],
+        "first_publish_year": 1993,
+        "key": "/works/OL598199W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL65815M",
+              "title": "Cien años de soledad",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Biblioteca Nacional de Colombia"
+              ],
+              "publish_date": [
+                "1993"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2002,
+        "key": "/works/OL13213302M",
+        "language": [
+          "spa"
+        ],
+        "title": "Cien Anos De Soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL13213302M",
+              "title": "Cien Anos De Soledad",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Peisa Lima Peru"
+              ],
+              "publish_date": [
+                "2002"
+              ],
+              "isbn": [
+                "9789972402203",
+                "9972402207"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL66624A"
+        ],
+        "author_name": [
+          "Josefina Ludmer"
+        ],
+        "first_publish_year": 1974,
+        "key": "/works/OL24216005W",
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32003180M",
+              "title": "Cien años de soledad",
+              "publisher": [
+                "Editorial Tiempo Contemporáneo"
+              ],
+              "publish_date": [
+                "1974"
+              ],
+              "isbn": [
+                "9788415551218",
+                "8415551215"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.666
+}

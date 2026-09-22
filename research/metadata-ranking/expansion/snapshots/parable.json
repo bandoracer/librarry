@@ -1,0 +1,94 @@
+{
+  "url": "https://openlibrary.org/search.json?q=parable+of+the+sower+by+octavia+e+butler&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:22.150770+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 2,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 2,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "parable of the sower by octavia e butler",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL8354734A"
+        ],
+        "author_name": [
+          "SuperSummary"
+        ],
+        "cover_i": 12366237,
+        "first_publish_year": 2018,
+        "key": "/works/OL21868175W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide -- The Other Wes Moore by Wes Moore",
+        "editions": {
+          "numFound": 455,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38133664M",
+              "title": "Study Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781074058302",
+                "1074058305"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8354734A"
+        ],
+        "author_name": [
+          "SuperSummary"
+        ],
+        "cover_i": 15199344,
+        "first_publish_year": 2018,
+        "key": "/works/OL44112704W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray",
+        "editions": {
+          "numFound": 283,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60940614M",
+              "title": "Study Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "SuperSummary"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9798900343839"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.259
+}

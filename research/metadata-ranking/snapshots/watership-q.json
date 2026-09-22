@@ -1,0 +1,2033 @@
+{
+  "url": "https://openlibrary.org/search.json?q=watership+down&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:56:54.663411+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 44,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 44,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "watership down",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL800926A",
+          "OL14967123A"
+        ],
+        "author_name": [
+          "Richard Adams",
+          "Richard Adams"
+        ],
+        "cover_i": 6450196,
+        "edition_count": 108,
+        "edition_key": [
+          "OL58633726M",
+          "OL58736009M",
+          "OL38567739M",
+          "OL36621781M",
+          "OL35304186M",
+          "OL27135981M",
+          "OL26416760M",
+          "OL9063970M",
+          "OL9041379M",
+          "OL9332310M",
+          "OL62259408M",
+          "OL57354828M",
+          "OL51701902M",
+          "OL51494949M",
+          "OL48005796M",
+          "OL53865655M",
+          "OL47761414M",
+          "OL49266371M",
+          "OL49290561M",
+          "OL47718742M",
+          "OL47353612M",
+          "OL47031813M",
+          "OL45605205M",
+          "OL42997143M",
+          "OL42962731M",
+          "OL39220416M",
+          "OL39477442M",
+          "OL40350099M",
+          "OL43007658M",
+          "OL46575498M",
+          "OL47022651M",
+          "OL47061404M",
+          "OL7353970M",
+          "OL30934490M",
+          "OL30109306M",
+          "OL28937245M",
+          "OL32268662M",
+          "OL34939166M",
+          "OL27305768M",
+          "OL22794815M",
+          "OL24678434M",
+          "OL10940905M",
+          "OL37641500M",
+          "OL37642265M",
+          "OL24223404M",
+          "OL11346351M",
+          "OL11763491M",
+          "OL12577741M",
+          "OL7948567M",
+          "OL10601289M",
+          "OL7721619M",
+          "OL22151541M",
+          "OL7431101M",
+          "OL12189606M",
+          "OL12580959M",
+          "OL22151544M",
+          "OL7352954M",
+          "OL7346339M",
+          "OL12159361M",
+          "OL9300991M",
+          "OL25940375M",
+          "OL34950935M",
+          "OL33977002M",
+          "OL33000841M",
+          "OL9064004M",
+          "OL28204138M",
+          "OL27095197M",
+          "OL27351664M",
+          "OL28368112M",
+          "OL28470645M",
+          "OL28533502M",
+          "OL28693566M",
+          "OL28694982M",
+          "OL29800567M",
+          "OL30579916M",
+          "OL31960244M",
+          "OL32212754M",
+          "OL32212753M",
+          "OL25247571M",
+          "OL24969167M",
+          "OL12158614M",
+          "OL9307334M",
+          "OL9800997M",
+          "OL32290891M",
+          "OL22410585M",
+          "OL5414435M",
+          "OL17721910M",
+          "OL13816524M",
+          "OL6796486M",
+          "OL18433479M",
+          "OL21143986M",
+          "OL20651897M",
+          "OL22134771M",
+          "OL23076278M",
+          "OL20649212M",
+          "OL23054838M",
+          "OL5456736M",
+          "OL24333082M",
+          "OL21843594M",
+          "OL4288819M",
+          "OL17837786M",
+          "OL22643241M",
+          "OL18144170M",
+          "OL1012144M",
+          "OL22393878M",
+          "OL20368497M",
+          "OL13874836M",
+          "OL15595488M"
+        ],
+        "first_publish_year": 1972,
+        "isbn": [
+          "0141354968",
+          "9788741838540",
+          "5389110420",
+          "0901720313",
+          "9786051735498",
+          "9780380395866",
+          "9867806360",
+          "0380002930",
+          "0743277708",
+          "9780767503198",
+          "9789510140819",
+          "1786070278",
+          "9780745154596",
+          "9785389110427",
+          "9780141350028",
+          "9027408114",
+          "9780743277709",
+          "1442444053",
+          "1441737472",
+          "1565115864",
+          "354822461X",
+          "5699535004",
+          "9783453199880",
+          "9780684836058",
+          "3548035086",
+          "9780140306019",
+          "9788432207525",
+          "9781984857200",
+          "9780783880815",
+          "0140039589",
+          "1439176124",
+          "9780901720313",
+          "9780708980125",
+          "9791160944235",
+          "9867806379",
+          "9783548252223",
+          "0812416910",
+          "0141378948",
+          "9789027408112",
+          "9781786070272",
+          "0140306013",
+          "9786045384695",
+          "9781565440173",
+          "8817113301",
+          "9780241655702",
+          "1780746628",
+          "1982117591",
+          "3548252222",
+          "9786068811741",
+          "9780241683118",
+          "9788306005622",
+          "9780060935450",
+          "0060935456",
+          "0736617000",
+          "0767503198",
+          "345319988X",
+          "0141341939",
+          "9781534457065",
+          "9780141186665",
+          "9780140039580",
+          "0708980120",
+          "9780140160024",
+          "9780713912128",
+          "9781984857194",
+          "9780140364538",
+          "9781534457072",
+          "9785557101455",
+          "0027000303",
+          "071391212X",
+          "0881425591",
+          "3895842265",
+          "9780380002931",
+          "9510140813",
+          "9781441737496",
+          "1534457089",
+          "156544017X",
+          "9781534457089",
+          "9781442444058",
+          "1534457062",
+          "9785553664664",
+          "9780141341934",
+          "9780027000306",
+          "0241655706",
+          "9780670851652",
+          "9783548224619",
+          "178074966X",
+          "0141350024",
+          "5942781737",
+          "0783880812",
+          "9781509881642",
+          "5557101454",
+          "9781441737472",
+          "1534457070",
+          "9780141378947",
+          "8306005627",
+          "5553664667",
+          "0380004283",
+          "9781780746623",
+          "072265197X",
+          "6051735496",
+          "9783548035086",
+          "1559352310",
+          "9780736617000",
+          "0140160027",
+          "3550062443",
+          "9780722651971",
+          "074515459X",
+          "9788308062203",
+          "9781417754205",
+          "9780380004287",
+          "9789867806369",
+          "9781780749662",
+          "8741838548",
+          "038039586X",
+          "8432207527",
+          "1984857207",
+          "9783895842269",
+          "9781509881635",
+          "9781780747316",
+          "1509881646",
+          "9781565115866",
+          "9789027482617",
+          "9788817113304",
+          "0141382228",
+          "9789867806376",
+          "1568492502",
+          "9027482616",
+          "1509899774",
+          "9781559352314",
+          "1441737499",
+          "9783550062445",
+          "9780713915136",
+          "9780141382227",
+          "9785699535002",
+          "068483605X",
+          "1509881638",
+          "9780241953235",
+          "0241953235",
+          "9780881425598",
+          "0241683114",
+          "6045384695",
+          "9781439176122",
+          "0713915137",
+          "9781568492506",
+          "0140364536",
+          "9781509899777",
+          "9780141354965",
+          "9785942781736",
+          "0141186666",
+          "1984857193",
+          "0670851655",
+          "8308062202",
+          "9780812416916",
+          "6068811743",
+          "1780747314",
+          "1417754206",
+          "9781982117597"
+        ],
+        "key": "/works/OL2096536W",
+        "language": [
+          "fin",
+          "dut",
+          "ita",
+          "chi",
+          "dan",
+          "ger",
+          "rus",
+          "kor",
+          "pol",
+          "vie",
+          "heb",
+          "eng"
+        ],
+        "title": "Watership Down",
+        "ratings_count": 107,
+        "readinglog_count": 721,
+        "want_to_read_count": 552,
+        "editions": {
+          "numFound": 104,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58633726M",
+              "title": "Watership Down ",
+              "cover_i": 14896014,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Puffin Books"
+              ],
+              "publish_date": [
+                "1972"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL800926A"
+        ],
+        "author_name": [
+          "Richard Adams"
+        ],
+        "cover_i": 418890,
+        "edition_count": 19,
+        "edition_key": [
+          "OL51784806M",
+          "OL40294202M",
+          "OL40329785M",
+          "OL51580853M",
+          "OL31450253M",
+          "OL27381385M",
+          "OL26832379M",
+          "OL26789852M",
+          "OL28271375M",
+          "OL28946090M",
+          "OL30537820M",
+          "OL30538052M",
+          "OL30696741M",
+          "OL34950076M",
+          "OL37789499M",
+          "OL9726173M",
+          "OL418875M",
+          "OL670287M",
+          "OL979616M"
+        ],
+        "first_publish_year": 1977,
+        "isbn": [
+          "014025899X",
+          "9783550082429",
+          "0517289369",
+          "9780745187617",
+          "9780140258998",
+          "0140382453",
+          "1780747896",
+          "1568954492",
+          "9781786073099",
+          "9780140382457",
+          "1786073099",
+          "0613376714",
+          "9780091801663",
+          "0745187617",
+          "9781486280827",
+          "0380729342",
+          "178074790X",
+          "0679451250",
+          "148628082X",
+          "9783548245492",
+          "9781568954493",
+          "9780307950192",
+          "1435246551",
+          "3548245498",
+          "9781435246553",
+          "0241655684",
+          "0307950190",
+          "9780380729340",
+          "9781780747903",
+          "0745154646",
+          "9781780747897",
+          "9780613376716",
+          "0091801664",
+          "9780517289365",
+          "9780679451259",
+          "9780241655689",
+          "9780745154640",
+          "3550082428"
+        ],
+        "key": "/works/OL2096527W",
+        "language": [
+          "eng"
+        ],
+        "title": "Tales from Watership Down",
+        "ratings_count": 7,
+        "readinglog_count": 35,
+        "want_to_read_count": 23,
+        "editions": {
+          "numFound": 19,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37789499M",
+              "title": "Tales from Watership Down",
+              "cover_i": 12693118,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Chivers"
+              ],
+              "publish_date": [
+                "1997"
+              ],
+              "isbn": [
+                "9780745154640",
+                "9780745187617",
+                "0745154646",
+                "0745187617"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL800926A",
+          "OL341438A"
+        ],
+        "author_name": [
+          "Richard Adams",
+          "Judy Allen"
+        ],
+        "cover_i": 72855,
+        "edition_count": 8,
+        "edition_key": [
+          "OL7317308M",
+          "OL7317310M",
+          "OL9271965M",
+          "OL9271968M",
+          "OL7317313M",
+          "OL9271967M",
+          "OL7317312M",
+          "OL9271963M"
+        ],
+        "first_publish_year": 1999,
+        "isbn": [
+          "9780099403852",
+          "0099403757",
+          "009940365X",
+          "9780099403654",
+          "0099403854",
+          "9780099403753",
+          "0099403552",
+          "9780099403555"
+        ],
+        "key": "/works/OL15015120W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Escape to the Hills",
+        "title": "Watership Down",
+        "readinglog_count": 15,
+        "want_to_read_count": 12,
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7317308M",
+              "title": "Watership Down (Watership Down)",
+              "cover_i": 72855,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Red Fox"
+              ],
+              "publish_date": [
+                "September 23, 1999"
+              ],
+              "isbn": [
+                "9780099403555",
+                "0099403552"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL800926A"
+        ],
+        "author_name": [
+          "Richard Adams"
+        ],
+        "edition_count": 3,
+        "edition_key": [
+          "OL23254872M",
+          "OL14945789M",
+          "OL4735147M"
+        ],
+        "first_publish_year": 1978,
+        "isbn": [
+          "0140050639",
+          "0020160607",
+          "9780140050639",
+          "0025002600",
+          "9780025002609",
+          "9780020160601"
+        ],
+        "key": "/works/OL2096530W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "with linking text",
+        "title": "The Watership down film picture book",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4735147M",
+              "title": "The Watership down film picture book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Macmillan",
+                "MacMillan Publishing Company."
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "0025002600",
+                "0020160607",
+                "9780025002609",
+                "9780020160601"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2852590A"
+        ],
+        "author_name": [
+          "Martin Rosen"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL8062977M",
+          "OL9653095M"
+        ],
+        "first_publish_year": 2003,
+        "isbn": [
+          "0766213269",
+          "9780766213265",
+          "9780766213272",
+          "0766213277"
+        ],
+        "key": "/works/OL8525106W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8062977M",
+              "title": "Watership Down",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Goodtimes Entertainment"
+              ],
+              "publish_date": [
+                "January 2003"
+              ],
+              "isbn": [
+                "9780766213272",
+                "0766213277"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9741481A",
+          "OL6994685A"
+        ],
+        "author_name": [
+          "Catherine Lester",
+          "Chris Pallant"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL42789601M",
+          "OL36764165M"
+        ],
+        "first_publish_year": 2022,
+        "isbn": [
+          "9781501376962",
+          "1501376969",
+          "9781501376993",
+          "1501376993"
+        ],
+        "key": "/works/OL27087806W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42789601M",
+              "title": "Watership Down",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bloomsbury Publishing Plc"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781501376962",
+                "1501376969"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2964716A",
+          "OL10035899A"
+        ],
+        "author_name": [
+          "SparkNotes",
+          "Richard Adams - undifferentiated"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL40511047M",
+          "OL44276049M"
+        ],
+        "first_publish_year": 2007,
+        "isbn": [
+          "9781411494770",
+          "9781411478268",
+          "1411494776",
+          "1411478266"
+        ],
+        "key": "/works/OL29423260W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down (SparkNotes Literature Guide)",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40511047M",
+              "title": "Watership Down (SparkNotes Literature Guide)",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Sterling Publishing Co., Inc."
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9781411478268",
+                "1411478266"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL800926A"
+        ],
+        "author_name": [
+          "Richard Adams"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL11222971M",
+          "OL12574350M"
+        ],
+        "first_publish_year": 1986,
+        "isbn": [
+          "9780881425581",
+          "5551629112",
+          "0881425583",
+          "9785551629115"
+        ],
+        "key": "/works/OL4204485W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down Gift Pack",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL11222971M",
+              "title": "Watership Down Gift Pack",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Soundelux Audio Publishing"
+              ],
+              "publish_date": [
+                "April 1988"
+              ],
+              "isbn": [
+                "9780881425581",
+                "0881425583"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL49197387M"
+        ],
+        "key": "/works/OL36410222W",
+        "title": "WATERSHIP DOWN",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49197387M",
+              "title": "WATERSHIP DOWN"
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1516184A"
+        ],
+        "author_name": [
+          "Frank Cottrell Boyce"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL53335603M"
+        ],
+        "first_publish_year": 2019,
+        "isbn": [
+          "9798855027426"
+        ],
+        "key": "/works/OL39178674W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53335603M",
+              "title": "Watership Down",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bound to Stay Bound Books"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9798855027426"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9770777A"
+        ],
+        "author_name": [
+          "Golgotha Press"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL46936480M"
+        ],
+        "first_publish_year": 2011,
+        "key": "/works/OL34615893W",
+        "title": "Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46936480M",
+              "title": "Watership Down",
+              "publisher": [
+                "Golgotha Press"
+              ],
+              "publish_date": [
+                "2011"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL8788625M"
+        ],
+        "first_publish_year": 2004,
+        "isbn": [
+          "1582880956",
+          "9781582880952"
+        ],
+        "key": "/works/OL8788625M",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8788625M",
+              "title": "Watership Down",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Spellbinders"
+              ],
+              "publish_date": [
+                "2004"
+              ],
+              "isbn": [
+                "9781582880952",
+                "1582880956"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13524430A"
+        ],
+        "author_name": [
+          "BookCaps Study Guides Staff"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL54236942M"
+        ],
+        "first_publish_year": 2012,
+        "isbn": [
+          "1475270089",
+          "9781475270082"
+        ],
+        "key": "/works/OL39818951W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL54236942M",
+              "title": "Watership Down",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9781475270082",
+                "1475270089"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL7916577M"
+        ],
+        "first_publish_year": 2004,
+        "isbn": [
+          "0739445774",
+          "9780739445778"
+        ],
+        "key": "/works/OL7916577M",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down ",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7916577M",
+              "title": "Watership Down ",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Doubleday"
+              ],
+              "publish_date": [
+                "2004"
+              ],
+              "isbn": [
+                "9780739445778",
+                "0739445774"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4384884A"
+        ],
+        "author_name": [
+          "J. Allen"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL40348615M"
+        ],
+        "first_publish_year": 1999,
+        "isbn": [
+          "0099411970",
+          "9780099411970"
+        ],
+        "key": "/works/OL29350085W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership down Fiction Pack",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40348615M",
+              "title": "Watership down Fiction Pack",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Random House"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "9780099411970",
+                "0099411970"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7272426A"
+        ],
+        "author_name": [
+          "D. Redmond"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL40356141M"
+        ],
+        "first_publish_year": 1999,
+        "isbn": [
+          "0099411989",
+          "9780099411987"
+        ],
+        "key": "/works/OL29355944W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership down Picture Pack",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40356141M",
+              "title": "Watership down Picture Pack",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Random House"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "9780099411987",
+                "0099411989"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1816023A"
+        ],
+        "author_name": [
+          "John Irons"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL4588084M"
+        ],
+        "first_publish_year": 1975,
+        "key": "/works/OL6710657W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down in context",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4588084M",
+              "title": "Watership Down in context",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Sine nomine"
+              ],
+              "publish_date": [
+                "1975"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL800926A"
+        ],
+        "author_name": [
+          "Richard Adams"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL27201466M"
+        ],
+        "first_publish_year": 2014,
+        "key": "/works/OL20021406W",
+        "language": [
+          "vie"
+        ],
+        "title": "\u0110\u1ed3i th\u1ecf",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27201466M",
+              "title": "\u0110\u1ed3i th\u1ecf",
+              "language": [
+                "vie"
+              ],
+              "publisher": [
+                "Nh\u00e0 xu\u1ea5t b\u1ea3n V\u0103n H\u1ecdc"
+              ],
+              "publish_date": [
+                "2014"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL62258563M"
+        ],
+        "isbn": [
+          "9780380729342"
+        ],
+        "key": "/works/OL45733660W",
+        "title": "Tales from Watership Down",
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62258563M",
+              "title": "Tales from Watership Down",
+              "publisher": [
+                ""
+              ],
+              "isbn": [
+                "9780380729342"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3053940A",
+          "OL2870133A",
+          "OL3053941A"
+        ],
+        "author_name": [
+          "David Bounds",
+          "David Ramm",
+          "East Berkshire Group Ramblers' Association"
+        ],
+        "cover_i": 13854423,
+        "edition_count": 1,
+        "edition_key": [
+          "OL8655028M"
+        ],
+        "first_publish_year": 1999,
+        "isbn": [
+          "9781874258131",
+          "1874258139"
+        ],
+        "key": "/works/OL34959262W",
+        "title": "Kennet Valley and Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8655028M",
+              "title": "Kennet Valley and Watership Down (Rambling for Pleasure)",
+              "cover_i": 13854423,
+              "publisher": [
+                "Ramblers' Association East Berkshire Group",
+                "East Berkshire Ramblers' Association"
+              ],
+              "publish_date": [
+                "November 24, 1999"
+              ],
+              "isbn": [
+                "9781874258131",
+                "1874258139"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL586101A"
+        ],
+        "author_name": [
+          "Robert Miltner"
+        ],
+        "cover_i": 12815277,
+        "edition_count": 1,
+        "edition_key": [
+          "OL12120641M"
+        ],
+        "first_publish_year": 2004,
+        "isbn": [
+          "1560773529",
+          "9781560773528"
+        ],
+        "key": "/works/OL3506179W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down (TAP instructional materials)",
+        "ratings_count": 0,
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12120641M",
+              "title": "Watership Down (TAP instructional materials)",
+              "cover_i": 12815277,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Center for Learning"
+              ],
+              "publish_date": [
+                "May 30, 2004"
+              ],
+              "isbn": [
+                "9781560773528",
+                "1560773529"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11199036A"
+        ],
+        "author_name": [
+          "ronald cole"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL42147610M",
+          "OL42070677M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798675003433",
+          "9798675003341"
+        ],
+        "key": "/works/OL30602090W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership down Coloring Book",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42147610M",
+              "title": "Watership down Coloring Book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798675003341"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1642395A"
+        ],
+        "author_name": [
+          "James J. Harris"
+        ],
+        "cover_i": 13279354,
+        "edition_count": 1,
+        "edition_key": [
+          "OL15354796M"
+        ],
+        "first_publish_year": 1991,
+        "isbn": [
+          "9780951861103",
+          "0951861107"
+        ],
+        "key": "/works/OL6300447W",
+        "language": [
+          "eng"
+        ],
+        "title": "The ghostly poacher of Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL15354796M",
+              "title": "The ghostly poacher of Watership Down",
+              "cover_i": 13279354,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "(S.l.), Village Square",
+                "Village Square Publishing"
+              ],
+              "publish_date": [
+                "1991"
+              ],
+              "isbn": [
+                "0951861107",
+                "9780951861103"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4990147A"
+        ],
+        "author_name": [
+          "Jean Wardlaw"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL16335359M"
+        ],
+        "first_publish_year": 1986,
+        "key": "/works/OL11742251W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership down by Richard Adams. Questions",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL16335359M",
+              "title": "Watership down by Richard Adams. Questions",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Althouse Press"
+              ],
+              "publish_date": [
+                "1986"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL15336965A"
+        ],
+        "author_name": [
+          "richard adams "
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL58736806M"
+        ],
+        "first_publish_year": 1972,
+        "key": "/works/OL43125435W",
+        "language": [
+          "eng"
+        ],
+        "title": "[By Richard Adams ] Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58736806M",
+              "title": "[By Richard Adams ] Watership Down",
+              "language": [
+                "eng"
+              ],
+              "publish_date": [
+                "1972"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4384884A"
+        ],
+        "author_name": [
+          "J. Allen"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL40348613M"
+        ],
+        "first_publish_year": 1999,
+        "isbn": [
+          "9780099411178",
+          "0099411172"
+        ],
+        "key": "/works/OL29350083W",
+        "language": [
+          "eng"
+        ],
+        "title": "Toys r Us Watership down Fic Pack",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40348613M",
+              "title": "Toys r Us Watership down Fic Pack",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Random House"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "9780099411178",
+                "0099411172"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7272426A"
+        ],
+        "author_name": [
+          "D. Redmond"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL40342677M"
+        ],
+        "first_publish_year": 1999,
+        "isbn": [
+          "9780099411185",
+          "0099411180"
+        ],
+        "key": "/works/OL29345129W",
+        "language": [
+          "eng"
+        ],
+        "title": "Toys r Us Watership down Pic Pack",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40342677M",
+              "title": "Toys r Us Watership down Pic Pack",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Random House"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "9780099411185",
+                "0099411180"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL14197725M"
+        ],
+        "first_publish_year": 1982,
+        "key": "/works/OL14197725M",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down by Richard Adams",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL14197725M",
+              "title": "Watership Down by Richard Adams",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Henry Sotheran Ltd."
+              ],
+              "publish_date": [
+                "1982"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6811095A"
+        ],
+        "author_name": [
+          "Gale Cengage Learning"
+        ],
+        "cover_i": 11312012,
+        "edition_count": 1,
+        "edition_key": [
+          "OL32687257M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "1375399136",
+          "9781375399135"
+        ],
+        "key": "/works/OL24633505W",
+        "title": "A Study Guide for Richard Adams's Watership Down",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32687257M",
+              "title": "A Study Guide for Richard Adams's Watership Down",
+              "cover_i": 11312012,
+              "publisher": [
+                "Gale, Study Guides"
+              ],
+              "publish_date": [
+                "Jul 25, 2017"
+              ],
+              "isbn": [
+                "9781375399135",
+                "1375399136"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14967123A"
+        ],
+        "author_name": [
+          "Richard Adams"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL60392017M"
+        ],
+        "first_publish_year": 1972,
+        "key": "/works/OL44167607W",
+        "title": "By Richard Adams Watership Down (2nd) [Hardcover]",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60392017M",
+              "title": "By Richard Adams Watership Down (2nd) [Hardcover]",
+              "publisher": [
+                "Rex Collings"
+              ],
+              "publish_date": [
+                "1972-11-16"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1478633A"
+        ],
+        "author_name": [
+          "Henry Sotheran (firm)"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL43725923M"
+        ],
+        "first_publish_year": 1982,
+        "key": "/works/OL32010109W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Down by Richard Adams",
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43725923M",
+              "title": "Watership Down by Richard Adams",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "H. Sotheran"
+              ],
+              "publish_date": [
+                "1982"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3053941A"
+        ],
+        "author_name": [
+          "East Berkshire Group Ramblers' Association"
+        ],
+        "cover_i": 2073960,
+        "edition_count": 1,
+        "edition_key": [
+          "OL9540859M"
+        ],
+        "first_publish_year": 1994,
+        "isbn": [
+          "187425804X",
+          "9781874258049"
+        ],
+        "key": "/works/OL8880061W",
+        "title": "Kennet Valley and Watership Down (Rambling for Pleasure S.)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9540859M",
+              "title": "Kennet Valley and Watership Down (Rambling for Pleasure S.)",
+              "cover_i": 2073960,
+              "publisher": [
+                "Ramblers' Association East Berkshire Group"
+              ],
+              "publish_date": [
+                "September 1994"
+              ],
+              "isbn": [
+                "9781874258049",
+                "187425804X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL800926A",
+          "OL15590044A"
+        ],
+        "author_name": [
+          "Richard Adams",
+          "\u795e\u5bae\u8f1d\u592b"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL60983204M"
+        ],
+        "first_publish_year": 1975,
+        "key": "/works/OL44646029W",
+        "language": [
+          "jpn"
+        ],
+        "title": "\u30a6\u30a9\u30fc\u30bf\u30fc\u30b7\u30c3\u30d7\u30fb\u30c0\u30a6\u30f3\u306e\u3046\u3055\u304e\u305f\u3061",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60983204M",
+              "title": "\u30a6\u30a9\u30fc\u30bf\u30fc\u30b7\u30c3\u30d7\u30fb\u30c0\u30a6\u30f3\u306e\u3046\u3055\u304e\u305f\u3061",
+              "language": [
+                "jpn"
+              ],
+              "publisher": [
+                "Hy\u014dronsha"
+              ],
+              "publish_date": [
+                "1975"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4857539A"
+        ],
+        "author_name": [
+          "J. James Harris"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL15354799M"
+        ],
+        "first_publish_year": 1992,
+        "isbn": [
+          "9780951861110",
+          "0951861115"
+        ],
+        "key": "/works/OL11541160W",
+        "language": [
+          "eng"
+        ],
+        "title": "Chronicles of a poacher",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL15354799M",
+              "title": "Chronicles of a poacher",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Village Square"
+              ],
+              "publish_date": [
+                "1992"
+              ],
+              "isbn": [
+                "0951861115",
+                "9780951861110"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4724406A"
+        ],
+        "author_name": [
+          "C. Hildick-Smith"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL14861576M"
+        ],
+        "key": "/works/OL11268941W",
+        "language": [
+          "eng"
+        ],
+        "title": "The social concerns and historical reflections in the children's novels 'Wind in the Willows' and 'Watership Down'.",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL14861576M",
+              "title": "The social concerns and historical reflections in the children's novels 'Wind in the Willows' and 'Watership Down'..",
+              "language": [
+                "eng"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL51156525M"
+        ],
+        "key": "/works/OL37895864W",
+        "title": "Rare Girl in a Swing by Richard Adams (Watership Down) 1980 1st US ed HC DJ, nice [Hardcover] unknown",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51156525M",
+              "title": "Rare Girl in a Swing by Richard Adams (Watership Down) 1980 1st US ed HC DJ, nice [Hardcover] unknown"
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10419619A"
+        ],
+        "author_name": [
+          "Ohashi Sanjuro"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL39391025M"
+        ],
+        "first_publish_year": 2022,
+        "isbn": [
+          "9798833221372"
+        ],
+        "key": "/works/OL28701003W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Coloring Book",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39391025M",
+              "title": "Watership Coloring Book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798833221372"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL18458984M"
+        ],
+        "first_publish_year": 1986,
+        "key": "/works/OL18458984M",
+        "language": [
+          "eng"
+        ],
+        "title": "New approaches to the novel, series I",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18458984M",
+              "title": "New approaches to the novel, series I",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Althouse Press"
+              ],
+              "publish_date": [
+                "1986"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10412362A"
+        ],
+        "author_name": [
+          "Manaka Sadanobu"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL38975579M"
+        ],
+        "first_publish_year": 2022,
+        "isbn": [
+          "9798833759264"
+        ],
+        "key": "/works/OL28454961W",
+        "language": [
+          "eng"
+        ],
+        "title": "Watership Dots Lines Waves Swirls Diagonals Coloring Book",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38975579M",
+              "title": "Watership Dots Lines Waves Swirls Diagonals Coloring Book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798833759264"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7218362A"
+        ],
+        "author_name": [
+          "Scripps Howard Broadcasting Company"
+        ],
+        "cover_i": 9787816,
+        "edition_count": 1,
+        "edition_key": [
+          "OL25584754M"
+        ],
+        "first_publish_year": 2000,
+        "key": "/works/OL17012309W",
+        "language": [
+          "eng"
+        ],
+        "title": "Scripps Howard national spelling bee",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25584754M",
+              "title": "Scripps Howard national spelling bee",
+              "cover_i": 9787816,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scripps Howard National Spelling Bee"
+              ],
+              "publish_date": [
+                "2000"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.664
+}

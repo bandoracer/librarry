@@ -1,0 +1,2591 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+lightning+thief&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:52:59.591354+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 40,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 40,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the lightning thief",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 7239831,
+        "edition_count": 108,
+        "edition_key": [
+          "OL62448650M",
+          "OL62448649M",
+          "OL25262435M",
+          "OL45304319M",
+          "OL31848674M",
+          "OL61044580M",
+          "OL60843987M",
+          "OL60324183M",
+          "OL43650904M",
+          "OL59284724M",
+          "OL41353840M",
+          "OL53339216M",
+          "OL48054082M",
+          "OL47328517M",
+          "OL35360348M",
+          "OL35301129M",
+          "OL31848672M",
+          "OL30906915M",
+          "OL27252028M",
+          "OL27048888M",
+          "OL26897097M",
+          "OL26463170M",
+          "OL26430909M",
+          "OL26407060M",
+          "OL25670486M",
+          "OL56857317M",
+          "OL49510455M",
+          "OL52635342M",
+          "OL52550966M",
+          "OL51259784M",
+          "OL50808370M",
+          "OL50713516M",
+          "OL48784796M",
+          "OL52252551M",
+          "OL50536108M",
+          "OL47767374M",
+          "OL25419844M",
+          "OL24592788M",
+          "OL41418059M",
+          "OL27325756M",
+          "OL26445922M",
+          "OL24633855M",
+          "OL24633854M",
+          "OL40345669M",
+          "OL39623486M",
+          "OL35344480M",
+          "OL34226043M",
+          "OL32050219M",
+          "OL42496510M",
+          "OL27941850M",
+          "OL27284483M",
+          "OL27080181M",
+          "OL25440625M",
+          "OL24087221M",
+          "OL42145965M",
+          "OL42476783M",
+          "OL42360304M",
+          "OL42344729M",
+          "OL42329718M",
+          "OL23278027M",
+          "OL32174093M",
+          "OL32341857M",
+          "OL32174082M",
+          "OL32341860M",
+          "OL32341862M",
+          "OL32174077M",
+          "OL32174063M",
+          "OL32174073M",
+          "OL31508084M",
+          "OL27123281M",
+          "OL26948979M",
+          "OL26915488M",
+          "OL28449088M",
+          "OL27314717M",
+          "OL26993664M",
+          "OL26709312M",
+          "OL25425789M",
+          "OL25628775M",
+          "OL30535013M",
+          "OL28322034M",
+          "OL26977202M",
+          "OL25422174M",
+          "OL30535014M",
+          "OL28368465M",
+          "OL9379568M",
+          "OL26141587M",
+          "OL28322036M",
+          "OL24086210M",
+          "OL27509982M",
+          "OL25950405M",
+          "OL28200108M",
+          "OL26811309M",
+          "OL25910609M",
+          "OL25628774M",
+          "OL25650457M",
+          "OL8137098M",
+          "OL25747418M",
+          "OL25747413M",
+          "OL25747422M",
+          "OL26910696M",
+          "OL9356564M",
+          "OL9844701M",
+          "OL8142515M",
+          "OL8459619M",
+          "OL25909874M",
+          "OL3410379M",
+          "OL24290735M",
+          "OL3439844M"
+        ],
+        "first_publish_year": 2005,
+        "isbn": [
+          "9781514348284",
+          "064172344X",
+          "9780141381473",
+          "9789573264354",
+          "9780786282258",
+          "9787544812467",
+          "9781484427361",
+          "9781484787786",
+          "9788598078397",
+          "8598078395",
+          "9780141333229",
+          "9781484733400",
+          "1484733401",
+          "8804664568",
+          "9788392883791",
+          "136810102X",
+          "6050946523",
+          "9780307245298",
+          "9788498386301",
+          "9780545799003",
+          "9781467658195",
+          "6045999096",
+          "0141346809",
+          "0141376880",
+          "9783551359605",
+          "9781423135890",
+          "0307245284",
+          "9788392883708",
+          "8580575397",
+          "9780606236102",
+          "8392883799",
+          "9780307245281",
+          "0545799007",
+          "142313494X",
+          "0439865999",
+          "1536486736",
+          "0606236104",
+          "0141333227",
+          "0241672031",
+          "9783551554376",
+          "1467658197",
+          "9798890980830",
+          "9780141329901",
+          "7544812464",
+          "8364297791",
+          "0545241804",
+          "0756966035",
+          "8498386306",
+          "9780141376882",
+          "9788419275738",
+          "142313589X",
+          "0141335912",
+          "9781435256897",
+          "9786050946529",
+          "9780439861304",
+          "9781368101028",
+          "0307245306",
+          "1368051472",
+          "6068044424",
+          "140566438X",
+          "9573264358",
+          "0786282258",
+          "9780141924403",
+          "9780641723445",
+          "9788804664567",
+          "3551359601",
+          "1484787781",
+          "9780241723395",
+          "9781423131892",
+          "9788498380392",
+          "9780756966034",
+          "8498386268",
+          "9780786838653",
+          "9724619370",
+          "9780241672037",
+          "3551310580",
+          "9782013228176",
+          "9783551321978",
+          "9780141381480",
+          "8392883705",
+          "9783646920000",
+          "9788598078694",
+          "9781484458754",
+          "1423131894",
+          "0307245292",
+          "0786838655",
+          "9781368098168",
+          "9788498382365",
+          "0141330007",
+          "0141319135",
+          "9780141346809",
+          "0141381477",
+          "849838236X",
+          "1514348284",
+          "9781536486735",
+          "8419275735",
+          "9780307245304",
+          "0307245314",
+          "1417732474",
+          "148442736X",
+          "9788364297793",
+          "9780439865999",
+          "9781423121701",
+          "0786856297",
+          "0241723396",
+          "9788416310036",
+          "4593533864",
+          "3551321973",
+          "1423121708",
+          "9782019109950",
+          "9784593533862",
+          "9783551356932",
+          "3551319472",
+          "0141381485",
+          "3646920009",
+          "9780141335919",
+          "9789724619378",
+          "1484458753",
+          "9780786856299",
+          "9783551319470",
+          "9780141806723",
+          "0141924403",
+          "9780545241809",
+          "9798855113020",
+          "9781423141877",
+          "9786068044422",
+          "6051110453",
+          "9783551310583",
+          "9781417732470",
+          "0241777488",
+          "9781423134947",
+          "9780141319131",
+          "1423141873",
+          "0439861306",
+          "9788580575392",
+          "9786051110455",
+          "0141806729",
+          "9780307245311",
+          "2013228171",
+          "8598078697",
+          "8498380391",
+          "9781405664387",
+          "1368098169",
+          "9780241777480",
+          "2019109956",
+          "9022561984",
+          "1435256891",
+          "0141329904",
+          "3551356939",
+          "9788498386264",
+          "9780141329994",
+          "9780141330006",
+          "9781368051477",
+          "9786045999097",
+          "3551319470",
+          "0141329998",
+          "8416310033",
+          "9789022561980",
+          "3551554374"
+        ],
+        "key": "/works/OL492658W",
+        "language": [
+          "ger",
+          "heb",
+          "rum",
+          "ita",
+          "por",
+          "pol",
+          "fre",
+          "vie",
+          "eng",
+          "chi",
+          "spa",
+          "dut"
+        ],
+        "title": "The Lightning Thief",
+        "ratings_count": 408,
+        "readinglog_count": 7057,
+        "want_to_read_count": 5647,
+        "editions": {
+          "numFound": 77,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27284483M",
+              "title": "Percy Jackson and the Lightning Thief",
+              "cover_i": 15246544,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Galaxy Plus"
+              ],
+              "publish_date": [
+                "2005"
+              ],
+              "isbn": [
+                "9781405664387",
+                "140566438X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3073561A",
+          "OL30765A"
+        ],
+        "author_name": [
+          "Robert Venditti",
+          "Rick Riordan"
+        ],
+        "cover_i": 13027680,
+        "edition_count": 17,
+        "edition_key": [
+          "OL47772708M",
+          "OL49766450M",
+          "OL32499551M",
+          "OL26709332M",
+          "OL25441486M",
+          "OL26410858M",
+          "OL30777354M",
+          "OL45811796M",
+          "OL39492121M",
+          "OL39492120M",
+          "OL39492119M",
+          "OL39492118M",
+          "OL24645323M",
+          "OL38800743M",
+          "OL24494744M",
+          "OL24375253M",
+          "OL24412862M"
+        ],
+        "first_publish_year": 2005,
+        "isbn": [
+          "8498384044",
+          "9788498386103",
+          "9781448729876",
+          "8498386101",
+          "8804652535",
+          "9780141353104",
+          "6050908486",
+          "1448729874",
+          "9781423116967",
+          "0141335394",
+          "9781368100823",
+          "0141353104",
+          "9781423117100",
+          "9788498384048",
+          "1423117107",
+          "9780141335391",
+          "9788364297212",
+          "836429721X",
+          "9786050908480",
+          "9788804652533",
+          "1368100821",
+          "1423116968"
+        ],
+        "key": "/works/OL15445307W",
+        "language": [
+          "pol",
+          "eng",
+          "tur",
+          "spa",
+          "ita"
+        ],
+        "subtitle": "The Graphic Novel",
+        "title": "The lightning thief",
+        "ratings_count": 9,
+        "readinglog_count": 151,
+        "want_to_read_count": 127,
+        "editions": {
+          "numFound": 12,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47772708M",
+              "title": "The Lightning Thief",
+              "cover_i": 15164019,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Paw Prints"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781448729876",
+                "1448729874"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 8788886,
+        "edition_count": 1,
+        "edition_key": [
+          "OL27320503M"
+        ],
+        "first_publish_year": 2019,
+        "isbn": [
+          "9781368057486",
+          "1368057489"
+        ],
+        "key": "/works/OL20140658W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle",
+        "ratings_count": 1,
+        "readinglog_count": 84,
+        "want_to_read_count": 74,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27320503M",
+              "title": "Percy Jackson Demigod Collection",
+              "cover_i": 8788886,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Disney-Hyperion"
+              ],
+              "publish_date": [
+                "2019-09-24"
+              ],
+              "isbn": [
+                "9781368057486",
+                "1368057489"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 6304834,
+        "edition_count": 15,
+        "edition_key": [
+          "OL62403241M",
+          "OL60841748M",
+          "OL47672774M",
+          "OL47362357M",
+          "OL47104557M",
+          "OL39874048M",
+          "OL39714362M",
+          "OL39197836M",
+          "OL38790511M",
+          "OL38239787M",
+          "OL32174075M",
+          "OL30622723M",
+          "OL28322035M",
+          "OL26851284M",
+          "OL24087456M"
+        ],
+        "first_publish_year": 2009,
+        "isbn": [
+          "9781423119500",
+          "9782013971034",
+          "2013229801",
+          "8364297783",
+          "2013228198",
+          "2013971052",
+          "9780141352015",
+          "9781423141891",
+          "2013228171",
+          "2013229887",
+          "9780739352687",
+          "9780141352022",
+          "1423136802",
+          "9782013229326",
+          "9788364297786",
+          "9781368055048",
+          "0241754135",
+          "9781423136804",
+          "9782013228176",
+          "9781484707234",
+          "2013971036",
+          "0141352027",
+          "1368055044",
+          "9788418173721",
+          "0739352687",
+          "2013229321",
+          "9782226488398",
+          "9781368098045",
+          "1423119509",
+          "9782013229807",
+          "9782013971058",
+          "9780241754139",
+          "142314189X",
+          "1368098045",
+          "8418173726",
+          "0545565189",
+          "0141352019",
+          "1484707230",
+          "9782013229883",
+          "9780545565189",
+          "9782013228190",
+          "2226488391"
+        ],
+        "key": "/works/OL14955042W",
+        "language": [
+          "eng",
+          "fre"
+        ],
+        "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian",
+        "ratings_count": 4,
+        "readinglog_count": 147,
+        "want_to_read_count": 131,
+        "editions": {
+          "numFound": 10,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60841748M",
+              "title": "Percy Jackson and the Olympians Boxset",
+              "cover_i": 15252154,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books"
+              ],
+              "publish_date": [
+                "2025"
+              ],
+              "isbn": [
+                "9780241754139",
+                "0241754135"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 10451900,
+        "edition_count": 1,
+        "edition_key": [
+          "OL30373601M"
+        ],
+        "first_publish_year": 2009,
+        "isbn": [
+          "054517449X",
+          "9780545174497"
+        ],
+        "key": "/works/OL22298317W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth",
+        "ratings_count": 1,
+        "readinglog_count": 16,
+        "want_to_read_count": 12,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL30373601M",
+              "title": "Percy Jackson & the Olympians",
+              "cover_i": 10451900,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scholastic"
+              ],
+              "publish_date": [
+                "2009-09-19"
+              ],
+              "isbn": [
+                "9780545174497",
+                "054517449X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 10848711,
+        "edition_count": 1,
+        "edition_key": [
+          "OL32199398M"
+        ],
+        "isbn": [
+          "1780810075",
+          "9781780810072"
+        ],
+        "key": "/works/OL24328092W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files",
+        "ratings_count": 4,
+        "readinglog_count": 26,
+        "want_to_read_count": 22,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32199398M",
+              "title": "Percy Jackson Collection. Percy Jackson and the Lightning Thief, the Last Olympian, the Titans Curse, the Sea of Monsters, the Battle of the Labyrinth and the Demigod File",
+              "cover_i": 10848711,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Books Events - Special Repackaged Edition"
+              ],
+              "isbn": [
+                "9781780810072",
+                "1780810075"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9924471A",
+          "OL7629835A",
+          "OL7354349A"
+        ],
+        "author_name": [
+          "Sarah Ellen Burt",
+          "Debbie Ridgard",
+          "Sally Burt"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL46559340M"
+        ],
+        "first_publish_year": 2016,
+        "isbn": [
+          "1407160648",
+          "9781407160641"
+        ],
+        "key": "/works/OL34333042W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson and the Lightning Thief",
+        "readinglog_count": 8,
+        "want_to_read_count": 8,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46559340M",
+              "title": "Percy Jackson and the Lightning Thief",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scholastic"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781407160641",
+                "1407160648"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 13317995,
+        "edition_count": 3,
+        "edition_key": [
+          "OL46545388M",
+          "OL33679501M",
+          "OL32253712M"
+        ],
+        "first_publish_year": 2008,
+        "isbn": [
+          "9781484727218",
+          "1484721470",
+          "1484727215",
+          "9781484721476",
+          "1423113497",
+          "9781423113492"
+        ],
+        "key": "/works/OL24357177W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse",
+        "ratings_count": 1,
+        "readinglog_count": 14,
+        "want_to_read_count": 9,
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46545388M",
+              "title": "Percy Jackson and the Olympians",
+              "cover_i": 13317995,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Disney Hyperion"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781484727218",
+                "1484727215"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 14861135,
+        "edition_count": 2,
+        "edition_key": [
+          "OL51347373M",
+          "OL51338178M"
+        ],
+        "first_publish_year": 2023,
+        "isbn": [
+          "163799155X",
+          "1637991878",
+          "9781637991558",
+          "9781637991879"
+        ],
+        "key": "/works/OL37936592W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth / The Last Olympian / The The Chalice of the Gods",
+        "ratings_count": 0,
+        "readinglog_count": 10,
+        "want_to_read_count": 9,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51347373M",
+              "title": "Percy Jackson and the Olympians",
+              "cover_i": 14861135,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Generic"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781637991879",
+                "1637991878"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 13176547,
+        "edition_count": 1,
+        "edition_key": [
+          "OL28915562M"
+        ],
+        "first_publish_year": 2019,
+        "isbn": [
+          "9781368058117",
+          "1368058116"
+        ],
+        "key": "/works/OL21348376W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lightning Thief / The Lost Hero / The Red Pyramid / The Sword of Summer / The Hidden Oracle",
+        "ratings_count": 1,
+        "readinglog_count": 6,
+        "want_to_read_count": 5,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28915562M",
+              "title": "Read Riordan",
+              "cover_i": 13176547,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Hyperion Books for Children"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781368058117",
+                "1368058116"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9312843A"
+        ],
+        "author_name": [
+          "Mattie Hamby"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL41393761M"
+        ],
+        "first_publish_year": 2019,
+        "isbn": [
+          "9781075493218",
+          "1075493218"
+        ],
+        "key": "/works/OL30114817W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide for Percy Jackson the Lightning Thief",
+        "readinglog_count": 2,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL41393761M",
+              "title": "Study Guide for Percy Jackson the Lightning Thief",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781075493218",
+                "1075493218"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11175510A"
+        ],
+        "author_name": [
+          "The Lightning The Lightning Thief"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL41980595M",
+          "OL42064972M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798637339662",
+          "9798637339679"
+        ],
+        "key": "/works/OL30534232W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Dots Lines Spirals Coloring Book",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL41980595M",
+              "title": "Percy Jackson Dots Lines Spirals Coloring Book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798637339662"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL12634418A"
+        ],
+        "author_name": [
+          "Niko Silvester"
+        ],
+        "cover_i": 13879388,
+        "edition_count": 1,
+        "edition_key": [
+          "OL47324245M"
+        ],
+        "first_publish_year": 2012,
+        "isbn": [
+          "1614641803",
+          "9781614641803"
+        ],
+        "key": "/works/OL34962483W",
+        "title": "Quicklet - Rick Riordan's The Lightning Thief",
+        "readinglog_count": 1,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47324245M",
+              "title": "Quicklet - Rick Riordan's The Lightning Thief",
+              "cover_i": 13879388,
+              "publisher": [
+                "Hyperink"
+              ],
+              "publish_date": [
+                "Apr 22, 2012"
+              ],
+              "isbn": [
+                "9781614641803",
+                "1614641803"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3448121A"
+        ],
+        "author_name": [
+          "John Pennington"
+        ],
+        "cover_i": 10323489,
+        "edition_count": 1,
+        "edition_key": [
+          "OL28426007M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "1548677779",
+          "9781548677770"
+        ],
+        "key": "/works/OL20991168W",
+        "title": "Student Workbook for The Lightning Thief",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28426007M",
+              "title": "Student Workbook for The Lightning Thief",
+              "cover_i": 10323489,
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "Jul 06, 2017"
+              ],
+              "isbn": [
+                "9781548677770",
+                "1548677779"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2716999A"
+        ],
+        "author_name": [
+          "Cynthia Perkins"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL46724056M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798564661393"
+        ],
+        "key": "/works/OL34446025W",
+        "language": [
+          "eng"
+        ],
+        "title": "Unit Plan for the Lightning Thief",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46724056M",
+              "title": "Unit Plan for the Lightning Thief",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798564661393"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 15252085,
+        "edition_count": 3,
+        "edition_key": [
+          "OL62124509M",
+          "OL60902926M",
+          "OL60889917M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9781637995860",
+          "9781637996164",
+          "1637996160",
+          "9798996067336",
+          "1637995865"
+        ],
+        "key": "/works/OL44580102W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth / The Last Olympian / The Chalice of the Gods / Wrath of the Triple Goddess",
+        "ratings_count": 0,
+        "readinglog_count": 3,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60902926M",
+              "title": "Percy Jackson and the Olympians Series, Set of 7 Books. Lightning Thief, Sea of Monsters, Titan's Curse, Battle of the Labyrinth, Last Olympian, the Chalice of the Gods, Wrath of the Triple Goddess",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "mukawa"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9781637996164",
+                "1637996160"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL60312482M"
+        ],
+        "isbn": [
+          "9781484789773",
+          "1484789776"
+        ],
+        "key": "/works/OL44095102W",
+        "title": "Percy Jackson and The Olympians - The Lightning Thief",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60312482M",
+              "title": "Percy Jackson and The Olympians - The Lightning Thief",
+              "isbn": [
+                "9781484789773",
+                "1484789776"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL62529154M"
+        ],
+        "first_publish_year": 2005,
+        "key": "/works/OL45964687W",
+        "title": "Percy Jackson and the olympians the lightning thief",
+        "ratings_count": 0,
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62529154M",
+              "title": "Percy Jackson and the olympians the lightning thief",
+              "publisher": [
+                "Disney hiperion"
+              ],
+              "publish_date": [
+                "June 28 2005"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9604704A"
+        ],
+        "author_name": [
+          "Steve Lookner"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL60406074M"
+        ],
+        "first_publish_year": 2015,
+        "isbn": [
+          "9780692412480",
+          "0692412484"
+        ],
+        "key": "/works/OL44180255W",
+        "title": "The Lightning Fart",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60406074M",
+              "title": "The Lightning Fart",
+              "publisher": [
+                "Sfuzzi Publishing"
+              ],
+              "publish_date": [
+                "2015-03-21"
+              ],
+              "isbn": [
+                "9780692412480",
+                "0692412484"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3448121A"
+        ],
+        "author_name": [
+          "John Pennington"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL37051420M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "1548612626",
+          "9781548612627"
+        ],
+        "key": "/works/OL27295903W",
+        "title": "Teacher Guide and Novel Unit for The Lightning Thief",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37051420M",
+              "title": "Teacher Guide and Novel Unit for The Lightning Thief",
+              "publisher": [
+                "Createspace Independent Publishing Platform",
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "Jul 04, 2017"
+              ],
+              "isbn": [
+                "9781548612627",
+                "1548612626"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL62550715M"
+        ],
+        "first_publish_year": 2013,
+        "isbn": [
+          "9781423147343",
+          "1423147340"
+        ],
+        "key": "/works/OL45983232W",
+        "title": "Percy Jackson and The Lightning Thief: The Graphic Novel",
+        "ratings_count": 0,
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62550715M",
+              "title": "Percy Jackson and The Lightning Thief: The Graphic Novel",
+              "publisher": [
+                "Disney Electronic Content"
+              ],
+              "publish_date": [
+                "2013-07-02"
+              ],
+              "isbn": [
+                "9781423147343",
+                "1423147340"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9102949A",
+          "OL2639542A"
+        ],
+        "author_name": [
+          "Novel Units",
+          "Inc."
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL37677431M"
+        ],
+        "first_publish_year": 2009,
+        "isbn": [
+          "156137718X",
+          "9781561377183"
+        ],
+        "key": "/works/OL27632422W",
+        "title": "The Lightning Thief- Teacher Guide by Novel Units, Inc",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37677431M",
+              "title": "The Lightning Thief- Teacher Guide by Novel Units, Inc",
+              "publisher": [
+                "Novel Units, Inc."
+              ],
+              "publish_date": [
+                "Jan 01, 2009"
+              ],
+              "isbn": [
+                "9781561377183",
+                "156137718X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13712235A"
+        ],
+        "author_name": [
+          "Whizbooks"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL51973496M"
+        ],
+        "first_publish_year": 2018,
+        "isbn": [
+          "046493334X",
+          "9780464933342"
+        ],
+        "key": "/works/OL38242102W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of Percy Jackson and the Olympians : The Lightning Thief Illustrated Edition",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51973496M",
+              "title": "Summary of Percy Jackson and the Olympians : The Lightning Thief Illustrated Edition",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Blurb"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9780464933342",
+                "046493334X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13702314A"
+        ],
+        "author_name": [
+          "Stephen Eastment"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL51853247M",
+          "OL51853237M"
+        ],
+        "first_publish_year": 2014,
+        "isbn": [
+          "1456615882",
+          "9781456615871",
+          "9781456615888",
+          "1456615874"
+        ],
+        "key": "/works/OL38158492W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson",
+        "ratings_count": 0,
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51853237M",
+              "title": "Percy Jackson",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "eBookit.com"
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9781456615871",
+                "1456615874"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10005635A"
+        ],
+        "author_name": [
+          "Rob Rokicki"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL35964107M",
+          "OL35979695M"
+        ],
+        "first_publish_year": 2018,
+        "isbn": [
+          "1540040828",
+          "9781540040817",
+          "154004081X",
+          "9781540040824"
+        ],
+        "key": "/works/OL26569550W",
+        "language": [
+          "eng"
+        ],
+        "title": "Lightning Thief Songbook",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35964107M",
+              "title": "Lightning Thief Songbook",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Leonard Corporation, Hal"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9781540040817",
+                "154004081X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10005635A"
+        ],
+        "author_name": [
+          "Rob Rokicki"
+        ],
+        "cover_i": 13224733,
+        "edition_count": 1,
+        "edition_key": [
+          "OL35979631M"
+        ],
+        "first_publish_year": 2018,
+        "isbn": [
+          "1540015963",
+          "9781540015969"
+        ],
+        "key": "/works/OL26578864W",
+        "language": [
+          "eng"
+        ],
+        "title": "Lightning Thief",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35979631M",
+              "title": "Lightning Thief",
+              "cover_i": 13224733,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Leonard Corporation, Hal"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9781540015969",
+                "1540015963"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1426707A"
+        ],
+        "author_name": [
+          "Pierdomenico Baccalario"
+        ],
+        "cover_i": 10381467,
+        "edition_count": 1,
+        "edition_key": [
+          "OL29218399M"
+        ],
+        "first_publish_year": 2015,
+        "isbn": [
+          "1496505166",
+          "9781623702595",
+          "9781496505163",
+          "1496505174",
+          "9781496505170",
+          "1623702593",
+          "9781496523143",
+          "1496523148"
+        ],
+        "key": "/works/OL21540878W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Thief of Mirrors (Enchanted Emporium #4)",
+        "ratings_count": 0,
+        "readinglog_count": 3,
+        "want_to_read_count": 3,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29218399M",
+              "title": "The Thief of Mirrors",
+              "cover_i": 10381467,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Stone Arch Books, a Capstone imprint"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9781496505163",
+                "9781496505170",
+                "9781623702595",
+                "9781496523143",
+                "1496505166",
+                "1496505174",
+                "1623702593",
+                "1496523148"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2821261A"
+        ],
+        "author_name": [
+          "Linda Buckley-Archer"
+        ],
+        "cover_i": 7941764,
+        "edition_count": 2,
+        "edition_key": [
+          "OL37375270M",
+          "OL26272739M"
+        ],
+        "first_publish_year": 2008,
+        "isbn": [
+          "9781416915287",
+          "9781439103531",
+          "1416915281",
+          "1439103534"
+        ],
+        "key": "/works/OL17668602W",
+        "language": [
+          "eng"
+        ],
+        "title": "The time thief",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26272739M",
+              "title": "The time thief",
+              "cover_i": 7941764,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Simon & Schuster Books for Young Readers"
+              ],
+              "publish_date": [
+                "2008"
+              ],
+              "isbn": [
+                "9781416915287",
+                "1416915281"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14179754A"
+        ],
+        "author_name": [
+          "Francis & Co"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL53726966M"
+        ],
+        "first_publish_year": 1871,
+        "key": "/works/OL39485880W",
+        "language": [
+          "eng"
+        ],
+        "title": "Francis & Co",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53726966M",
+              "title": "Francis & Co",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Francis & Co."
+              ],
+              "publish_date": [
+                "1871"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL21093A"
+        ],
+        "author_name": [
+          "Ambrose Bierce"
+        ],
+        "cover_i": 14388916,
+        "edition_count": 151,
+        "edition_key": [
+          "OL57633399M",
+          "OL56718853M",
+          "OL56668441M",
+          "OL56714031M",
+          "OL56797077M",
+          "OL56843642M",
+          "OL56528519M",
+          "OL56589979M",
+          "OL56617422M",
+          "OL56645923M",
+          "OL56245119M",
+          "OL56246012M",
+          "OL56383486M",
+          "OL56092367M",
+          "OL56129124M",
+          "OL56188367M",
+          "OL55904329M",
+          "OL55950158M",
+          "OL56032520M",
+          "OL55629097M",
+          "OL55638823M",
+          "OL55767194M",
+          "OL55784907M",
+          "OL55099790M",
+          "OL55131006M",
+          "OL55139703M",
+          "OL55186901M",
+          "OL55202732M",
+          "OL55268015M",
+          "OL54930941M",
+          "OL54975565M",
+          "OL54799847M",
+          "OL54880785M",
+          "OL54610971M",
+          "OL54695362M",
+          "OL54700737M",
+          "OL54238111M",
+          "OL54093645M",
+          "OL54175990M",
+          "OL54179675M",
+          "OL53878792M",
+          "OL50684728M",
+          "OL46772425M",
+          "OL47267840M",
+          "OL48405259M",
+          "OL48383883M",
+          "OL48263444M",
+          "OL48376481M",
+          "OL48429868M",
+          "OL48728482M",
+          "OL7247562M",
+          "OL43633329M",
+          "OL44246076M",
+          "OL44318960M",
+          "OL41924507M",
+          "OL41947949M",
+          "OL41954686M",
+          "OL41974100M",
+          "OL42024699M",
+          "OL42028507M",
+          "OL42062525M",
+          "OL42269405M",
+          "OL42321941M",
+          "OL42333579M",
+          "OL42435668M",
+          "OL42474172M",
+          "OL41215532M",
+          "OL41239653M",
+          "OL41239655M",
+          "OL41264517M",
+          "OL41297571M",
+          "OL41447003M",
+          "OL41474657M",
+          "OL41535752M",
+          "OL41574566M",
+          "OL41578047M",
+          "OL41614029M",
+          "OL41623645M",
+          "OL41717294M",
+          "OL41751327M",
+          "OL41828395M",
+          "OL41850580M",
+          "OL41897680M",
+          "OL41900582M",
+          "OL41903794M",
+          "OL40616667M",
+          "OL40665475M",
+          "OL40881439M",
+          "OL40982690M",
+          "OL41038982M",
+          "OL41132929M",
+          "OL41133958M",
+          "OL41148530M",
+          "OL41169545M",
+          "OL39801917M",
+          "OL40148041M",
+          "OL40187238M",
+          "OL40187752M",
+          "OL40189656M",
+          "OL39680085M",
+          "OL39433102M",
+          "OL38171998M",
+          "OL38283370M",
+          "OL38360361M",
+          "OL38944343M",
+          "OL36569806M",
+          "OL39404489M",
+          "OL39410939M",
+          "OL42057679M",
+          "OL42135112M",
+          "OL42378466M",
+          "OL42474143M",
+          "OL46732465M",
+          "OL47080126M",
+          "OL40235548M",
+          "OL12637806M",
+          "OL8963215M",
+          "OL9578170M",
+          "OL8062023M",
+          "OL9314252M",
+          "OL11647352M",
+          "OL8962940M",
+          "OL11647351M",
+          "OL11685222M",
+          "OL11644268M",
+          "OL11677897M",
+          "OL12311842M",
+          "OL11644269M",
+          "OL11880364M",
+          "OL24296554M",
+          "OL11340791M",
+          "OL9650545M",
+          "OL9578915M",
+          "OL8822868M",
+          "OL13739276M",
+          "OL37768401M",
+          "OL17524520M",
+          "OL5442034M",
+          "OL343495M",
+          "OL26870128M",
+          "OL27046157M",
+          "OL30234391M",
+          "OL30228853M",
+          "OL30077120M",
+          "OL36606646M",
+          "OL36134026M",
+          "OL37652490M",
+          "OL37616491M",
+          "OL16770780M",
+          "OL9035870M",
+          "OL12997397M"
+        ],
+        "first_publish_year": 1899,
+        "isbn": [
+          "9781469928616",
+          "171883473X",
+          "9798644574216",
+          "9781717017932",
+          "9781404303577",
+          "9781797733722",
+          "1670768805",
+          "1406553093",
+          "1481212885",
+          "1976243718",
+          "1545427933",
+          "9798642532607",
+          "179394587X",
+          "9781798653289",
+          "9781722359119",
+          "9798671535747",
+          "9798574396179",
+          "1554491665",
+          "9798572473889",
+          "1674636962",
+          "396272012X",
+          "1426477813",
+          "9781426477812",
+          "1469928612",
+          "9781793945877",
+          "9798621849184",
+          "140430357X",
+          "9781686350245",
+          "2869309856",
+          "9798468016923",
+          "9781726228527",
+          "1981841938",
+          "9781981841936",
+          "9798666144008",
+          "9798634439754",
+          "1798905604",
+          "9783962720124",
+          "9781083023919",
+          "9781728821375",
+          "9798706528874",
+          "9754053197",
+          "1726228525",
+          "9781533409539",
+          "9798713777487",
+          "9781442991439",
+          "9781974300501",
+          "9788477022671",
+          "9781083019431",
+          "9781096976325",
+          "9781977918161",
+          "1530898188",
+          "9798715987884",
+          "9781977932914",
+          "1717291643",
+          "1587156814",
+          "9798728087496",
+          "9781477497012",
+          "0891901841",
+          "9781080497454",
+          "9781406942019",
+          "1977932916",
+          "9798626592528",
+          "1502870142",
+          "1096029251",
+          "9781718834736",
+          "184637734X",
+          "1404365389",
+          "9783442722525",
+          "9781554491667",
+          "1519610386",
+          "1442991437",
+          "9798526003858",
+          "1096976323",
+          "1701629429",
+          "0883070189",
+          "1587156806",
+          "9798577138103",
+          "9789754053197",
+          "9781798905609",
+          "9781545427934",
+          "9789507398810",
+          "9781096029250",
+          "9781554491650",
+          "9798625096539",
+          "9781412158534",
+          "058507092X",
+          "9781409703044",
+          "9781706929369",
+          "0899684793",
+          "9780766185852",
+          "1306363330",
+          "9781404303560",
+          "1083023918",
+          "9798634439723",
+          "9781458702005",
+          "9798728087502",
+          "9781497362284",
+          "9781670325730",
+          "1533176175",
+          "172481124X",
+          "9781706929123",
+          "9781691366569",
+          "9798463569622",
+          "1724924923",
+          "1083019430",
+          "1533409536",
+          "9781976243714",
+          "9788420654881",
+          "9798621450977",
+          "3842437404",
+          "9798666143988",
+          "1691364614",
+          "1720876738",
+          "9781406553093",
+          "9781721712465",
+          "109622979X",
+          "9781530898183",
+          "1087055660",
+          "9781722910518",
+          "9780486222257",
+          "9781724924926",
+          "9781846372568",
+          "9781404365377",
+          "9798642532638",
+          "1798653281",
+          "9798634753065",
+          "9781718747906",
+          "1977918166",
+          "9781096229797",
+          "9781306363334",
+          "9781979681858",
+          "1458702006",
+          "9798567625446",
+          "9798634752976",
+          "1706929366",
+          "9781545482704",
+          "9781502870148",
+          "1721712461",
+          "1977605249",
+          "9798760705204",
+          "1717017932",
+          "1706929129",
+          "9781519610386",
+          "9781846377341",
+          "9781502321893",
+          "0486153886",
+          "9781533176172",
+          "9781985329089",
+          "9781481212885",
+          "1409703045",
+          "1426477236",
+          "9781691364619",
+          "9782869309852",
+          "9798714407727",
+          "9798736231126",
+          "9798500752727",
+          "9780883070185",
+          "1985329085",
+          "1717331971",
+          "1979681856",
+          "8477022674",
+          "9798593641380",
+          "9781426477232",
+          "1720363900",
+          "9781720363903",
+          "1404365370",
+          "9780899684796",
+          "9781977605245",
+          "9781724430403",
+          "9798621849504",
+          "1583965467",
+          "9781717331977",
+          "9781985363021",
+          "9781587156809",
+          "9781442991422",
+          "9781543261165",
+          "1515090248",
+          "9781583965467",
+          "1722768843",
+          "9781670768803",
+          "198536302X",
+          "9798594569089",
+          "048622225X",
+          "1698073607",
+          "9798626592504",
+          "1077815204",
+          "1497362288",
+          "9781701629424",
+          "1670325733",
+          "9798712054459",
+          "9780486153889",
+          "9781686350252",
+          "9781480014794",
+          "9507398813",
+          "1545482705",
+          "9781077815209",
+          "1404303561",
+          "1797733729",
+          "1554491657",
+          "1724430408",
+          "9781087055664",
+          "1686350252",
+          "9781717291646",
+          "9780891901846",
+          "1406942014",
+          "9798797807230",
+          "1846372569",
+          "8420654884",
+          "9781080494200",
+          "9781587156816",
+          "1722910518",
+          "9798818997933",
+          "9798648567474",
+          "1412158532",
+          "9783842437401",
+          "9781730897320",
+          "171874790X",
+          "1480014796",
+          "1691366560",
+          "1543261167",
+          "9798620881208",
+          "1442991429",
+          "9781722768843",
+          "0766185850",
+          "9798708673916",
+          "1080497455",
+          "1686350244",
+          "9798625096638",
+          "9781404365384",
+          "9798579128980",
+          "1477497013",
+          "1728821371",
+          "9781698073606",
+          "9781724811240",
+          "1722359110",
+          "9781720876731",
+          "1730897320",
+          "1502321890",
+          "9798698177838",
+          "9781674636962",
+          "3442722527",
+          "1974300501",
+          "9780585070926",
+          "1080494200",
+          "9781515090243",
+          "9798362636975"
+        ],
+        "key": "/works/OL7973284W",
+        "language": [
+          "tur",
+          "ger",
+          "spa",
+          "eng"
+        ],
+        "title": "Fantastic Fables",
+        "ratings_count": 2,
+        "readinglog_count": 25,
+        "want_to_read_count": 24,
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37768401M",
+              "title": "Fantastic Fables",
+              "cover_i": 12678355,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "1995-12-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3452799A",
+          "OL7247506A"
+        ],
+        "author_name": [
+          "Abbe Constant Fouard",
+          "Griffith, George F. X. (George Francis Xavier)"
+        ],
+        "cover_i": 9826723,
+        "edition_count": 3,
+        "edition_key": [
+          "OL18322789M",
+          "OL25797317M",
+          "OL25797319M"
+        ],
+        "first_publish_year": 1891,
+        "key": "/works/OL9419542W",
+        "language": [
+          "und",
+          "eng"
+        ],
+        "title": "Christ the Son of God",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25797319M",
+              "title": "Christ the Son of God",
+              "cover_i": 9473512,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Longmans, Green, & Co."
+              ],
+              "publish_date": [
+                "1891"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL229798A"
+        ],
+        "author_name": [
+          "Jerry Siegel"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL24825829M"
+        ],
+        "first_publish_year": 2010,
+        "isbn": [
+          "1401226477",
+          "9781401226473"
+        ],
+        "key": "/works/OL15919430W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Superman chronicles",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24825829M",
+              "title": "The Superman chronicles",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "DC Comics"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781401226473",
+                "1401226477"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL27913898M"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL20645545W",
+        "language": [
+          "eng"
+        ],
+        "title": "dokument paythologie opfrinte",
+        "ratings_count": 0,
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27913898M",
+              "title": "dokument paythologie opfrinte",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "STephen ARchibald"
+              ],
+              "publish_date": [
+                "02/15/2020"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3649149A"
+        ],
+        "author_name": [
+          "Adam Machado"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL27127047M"
+        ],
+        "first_publish_year": 2010,
+        "isbn": [
+          "0615384234",
+          "9780615384238"
+        ],
+        "key": "/works/OL19946649W",
+        "language": [
+          "eng"
+        ],
+        "title": "Hear me howling!",
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27127047M",
+              "title": "Hear me howling!",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Arhoolie"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9780615384238",
+                "0615384234"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2321564A"
+        ],
+        "author_name": [
+          "Charles Wright Gray"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL6704802M"
+        ],
+        "first_publish_year": 1927,
+        "key": "/works/OL22124671W",
+        "language": [
+          "eng"
+        ],
+        "title": "\"Hosses\"",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL6704802M",
+              "title": "\"Hosses\"",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Henry Holt and Company"
+              ],
+              "publish_date": [
+                "1927"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7367273A"
+        ],
+        "author_name": [
+          "Sean stubenrauch"
+        ],
+        "cover_i": 7903720,
+        "edition_count": 1,
+        "edition_key": [
+          "OL26232836M"
+        ],
+        "first_publish_year": 2017,
+        "key": "/works/OL17627633W",
+        "title": "Goku",
+        "ratings_count": 3,
+        "readinglog_count": 17,
+        "want_to_read_count": 14,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26232836M",
+              "title": "Goku",
+              "cover_i": 7903720,
+              "publisher": [
+                "Sean stubenrauch"
+              ],
+              "publish_date": [
+                "2017"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11979600A"
+        ],
+        "author_name": [
+          "Bonnie Czegledi"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL44883591M"
+        ],
+        "first_publish_year": 2010,
+        "isbn": [
+          "0779823168",
+          "9780779823161"
+        ],
+        "key": "/works/OL33023144W",
+        "language": [
+          "eng"
+        ],
+        "title": "Crimes against art",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL44883591M",
+              "title": "Crimes against art",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Carswell"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9780779823161",
+                "0779823168"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 12387745,
+        "edition_count": 1,
+        "edition_key": [
+          "OL35686244M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798465004787"
+        ],
+        "key": "/works/OL26423716W",
+        "title": "Gravity Of Frustration",
+        "readinglog_count": 1,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35686244M",
+              "title": "Gravity Of Frustration",
+              "cover_i": 12387745,
+              "publisher": [
+                "Manal Khalil"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798465004787"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7275509A"
+        ],
+        "author_name": [
+          "Opeyemi matthew adejobi"
+        ],
+        "cover_i": 7386004,
+        "edition_count": 1,
+        "edition_key": [
+          "OL25879830M"
+        ],
+        "first_publish_year": 2015,
+        "key": "/works/OL17306544W",
+        "language": [
+          "eng"
+        ],
+        "title": "Mysteries in Bamboo Village",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25879830M",
+              "title": "Mysteries in Bamboo Village",
+              "cover_i": 7386004,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "smashwords"
+              ],
+              "publish_date": [
+                "2015"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL24980691M"
+        ],
+        "first_publish_year": 2011,
+        "key": "/works/OL16084250W",
+        "title": "Tadhkirtal Awliyah (MUSLIM SAINTS AND MYSTICS )",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24980691M",
+              "title": "Tadhkirtal Awliyah (MUSLIM SAINTS AND MYSTICS )",
+              "publisher": [
+                "CALAMEO"
+              ],
+              "publish_date": [
+                "2011"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 1.006
+}

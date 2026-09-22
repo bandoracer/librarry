@@ -1,0 +1,135 @@
+{
+  "url": "https://openlibrary.org/search.json?q=drive+your+plow+over+the+bones+of+the+dead&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:08.872641+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 3,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 3,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "drive your plow over the bones of the dead",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL258989A"
+        ],
+        "author_name": [
+          "Olga Tokarczuk"
+        ],
+        "cover_i": 9768059,
+        "first_publish_year": 2009,
+        "key": "/works/OL17351965W",
+        "language": [
+          "spa",
+          "eng",
+          "ger",
+          "por",
+          "fre"
+        ],
+        "title": "Prowadź swój pług przez kości umarłych",
+        "editions": {
+          "numFound": 12,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL57188709M",
+              "title": "Drive Your Plow Over The Bones Of The Dead",
+              "cover_i": 14828979,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Riverhead Book"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9780525541349",
+                "0525541349"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8354734A"
+        ],
+        "author_name": [
+          "SuperSummary"
+        ],
+        "cover_i": 12366237,
+        "first_publish_year": 2018,
+        "key": "/works/OL21868175W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide -- The Other Wes Moore by Wes Moore",
+        "editions": {
+          "numFound": 217,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38531463M",
+              "title": "Study Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798427050708"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2693799A"
+        ],
+        "author_name": [
+          "John Coleman"
+        ],
+        "cover_i": 6426475,
+        "first_publish_year": 2000,
+        "key": "/works/OL15169002W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Story of The Committee of 300",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24300734M",
+              "title": "CONSPIRATORS' HIERARCHY",
+              "cover_i": 6426475,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Internet"
+              ],
+              "publish_date": [
+                "2000"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.36
+}

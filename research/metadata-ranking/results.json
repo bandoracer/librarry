@@ -1,0 +1,5511 @@
+{
+  "weightsVersion": "v1-2026-09-21",
+  "rankerSHA256": "d285daa9d955737e9657f5c1b1e9f5ccf55c5631820e070bafc7cc7b67895be4",
+  "summary": {
+    "all": {
+      "queries": 16,
+      "live": {
+        "top1": 0.125,
+        "hit10": 0.1875,
+        "rr10": 0.1458
+      },
+      "same_pool_rerank": {
+        "top1": 0.1875,
+        "hit10": 0.1875,
+        "rr10": 0.1875
+      },
+      "title_language_fix": {
+        "top1": 0.6875,
+        "hit10": 0.75,
+        "rr10": 0.7083
+      },
+      "retrieval_only": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "candidate_v1": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "without_cover": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      }
+    },
+    "development": {
+      "queries": 7,
+      "live": {
+        "top1": 0.1429,
+        "hit10": 0.1429,
+        "rr10": 0.1429
+      },
+      "same_pool_rerank": {
+        "top1": 0.1429,
+        "hit10": 0.1429,
+        "rr10": 0.1429
+      },
+      "title_language_fix": {
+        "top1": 0.7143,
+        "hit10": 0.7143,
+        "rr10": 0.7143
+      },
+      "retrieval_only": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "candidate_v1": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "without_cover": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      }
+    },
+    "validation": {
+      "queries": 5,
+      "live": {
+        "top1": 0.2,
+        "hit10": 0.2,
+        "rr10": 0.2
+      },
+      "same_pool_rerank": {
+        "top1": 0.2,
+        "hit10": 0.2,
+        "rr10": 0.2
+      },
+      "title_language_fix": {
+        "top1": 0.8,
+        "hit10": 0.8,
+        "rr10": 0.8
+      },
+      "retrieval_only": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "candidate_v1": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "without_cover": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      }
+    },
+    "blind": {
+      "queries": 4,
+      "live": {
+        "top1": 0.0,
+        "hit10": 0.25,
+        "rr10": 0.0833
+      },
+      "same_pool_rerank": {
+        "top1": 0.25,
+        "hit10": 0.25,
+        "rr10": 0.25
+      },
+      "title_language_fix": {
+        "top1": 0.5,
+        "hit10": 0.75,
+        "rr10": 0.5833
+      },
+      "retrieval_only": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "candidate_v1": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      },
+      "without_cover": {
+        "top1": 1.0,
+        "hit10": 1.0,
+        "rr10": 1.0
+      }
+    }
+  },
+  "queries": [
+    {
+      "id": "percy",
+      "query": "percy jackson",
+      "split": "development",
+      "candidateCount": 60,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL20658324W",
+            "title": "Percy jackson"
+          },
+          {
+            "id": "OL17723709W",
+            "title": "Percy jackson"
+          },
+          {
+            "id": "OL37916844W",
+            "title": "Percy Jackson"
+          },
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL19794412W",
+            "title": "Percy Jackson and the Singer of Apollo"
+          },
+          {
+            "id": "OL26033878W",
+            "title": "Percy Jackson Quizzes : Percy Jackson Trivia"
+          },
+          {
+            "id": "OL19354995W",
+            "title": "Horrible Histories - Groovy Greeks / Percy Jackson and the Sword of Hades"
+          },
+          {
+            "id": "OL28095420W",
+            "title": "Percy Jackson Quizzes"
+          },
+          {
+            "id": "OL20214130W",
+            "title": "Percy Jackson Mad Libs"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL19794412W",
+            "title": "Percy Jackson and the Singer of Apollo"
+          },
+          {
+            "id": "OL19354995W",
+            "title": "Horrible Histories - Groovy Greeks / Percy Jackson and the Sword of Hades"
+          },
+          {
+            "id": "OL20214130W",
+            "title": "Percy Jackson Mad Libs"
+          },
+          {
+            "id": "OL26033878W",
+            "title": "Percy Jackson Quizzes : Percy Jackson Trivia"
+          },
+          {
+            "id": "OL20658324W",
+            "title": "Percy jackson"
+          },
+          {
+            "id": "OL28095420W",
+            "title": "Percy Jackson Quizzes"
+          },
+          {
+            "id": "OL37916844W",
+            "title": "Percy Jackson"
+          },
+          {
+            "id": "OL17723709W",
+            "title": "Percy jackson"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL20658324W",
+            "title": "Percy jackson"
+          },
+          {
+            "id": "OL17723709W",
+            "title": "Percy jackson"
+          },
+          {
+            "id": "OL37916844W",
+            "title": "Percy Jackson"
+          },
+          {
+            "id": "OL17054790W",
+            "title": "Percy Jackson's Greek Gods"
+          },
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL19794412W",
+            "title": "Percy Jackson and the Singer of Apollo"
+          },
+          {
+            "id": "OL26033878W",
+            "title": "Percy Jackson Quizzes : Percy Jackson Trivia"
+          },
+          {
+            "id": "OL19354995W",
+            "title": "Horrible Histories - Groovy Greeks / Percy Jackson and the Sword of Hades"
+          },
+          {
+            "id": "OL28095420W",
+            "title": "Percy Jackson Quizzes"
+          },
+          {
+            "id": "OL20214130W",
+            "title": "Percy Jackson Mad Libs"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL492658W",
+            "title": "The Lightning Thief"
+          },
+          {
+            "id": "OL17054790W",
+            "title": "Percy Jackson's Greek Gods"
+          },
+          {
+            "id": "OL492646W",
+            "title": "The Sea of Monsters"
+          },
+          {
+            "id": "OL492647W",
+            "title": "The Titan's Curse"
+          },
+          {
+            "id": "OL492640W",
+            "title": "The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL14955039W",
+            "title": "The Demigod Files"
+          },
+          {
+            "id": "OL34025404W",
+            "title": "The Chalice of the Gods"
+          },
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL14955042W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian"
+          },
+          {
+            "id": "OL19794412W",
+            "title": "Percy Jackson and the Singer of Apollo"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL492658W",
+            "title": "The Lightning Thief"
+          },
+          {
+            "id": "OL17054790W",
+            "title": "Percy Jackson's Greek Gods"
+          },
+          {
+            "id": "OL492646W",
+            "title": "The Sea of Monsters"
+          },
+          {
+            "id": "OL492647W",
+            "title": "The Titan's Curse"
+          },
+          {
+            "id": "OL492640W",
+            "title": "The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL14955039W",
+            "title": "The Demigod Files"
+          },
+          {
+            "id": "OL34025404W",
+            "title": "The Chalice of the Gods"
+          },
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL19794412W",
+            "title": "Percy Jackson and the Singer of Apollo"
+          },
+          {
+            "id": "OL20218895W",
+            "title": "Camp Half-Blood Confidential"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL492658W",
+            "title": "The Lightning Thief"
+          },
+          {
+            "id": "OL17054790W",
+            "title": "Percy Jackson's Greek Gods"
+          },
+          {
+            "id": "OL492646W",
+            "title": "The Sea of Monsters"
+          },
+          {
+            "id": "OL492647W",
+            "title": "The Titan's Curse"
+          },
+          {
+            "id": "OL492640W",
+            "title": "The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL14955039W",
+            "title": "The Demigod Files"
+          },
+          {
+            "id": "OL34025404W",
+            "title": "The Chalice of the Gods"
+          },
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL19794412W",
+            "title": "Percy Jackson and the Singer of Apollo"
+          },
+          {
+            "id": "OL20218895W",
+            "title": "Camp Half-Blood Confidential"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL492658W",
+          "title": "The Lightning Thief",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL17054790W",
+          "title": "Percy Jackson's Greek Gods",
+          "score": 74.3629,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.8074,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL492646W",
+          "title": "The Sea of Monsters",
+          "score": 71.7241,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL492647W",
+          "title": "The Titan's Curse",
+          "score": 68.3871,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL492640W",
+          "title": "The Battle of the Labyrinth",
+          "score": 65.4545,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL14955039W",
+          "title": "The Demigod Files",
+          "score": 60.5576,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.7004,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL34025404W",
+          "title": "The Chalice of the Gods",
+          "score": 55.7105,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.1699,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL17685821W",
+          "title": "Percy Jackson & the Olympians",
+          "score": 54.0465,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL19794412W",
+          "title": "Percy Jackson and the Singer of Apollo",
+          "score": 49.6553,
+          "parts": {
+            "provider_relevance": 33.3333,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL20218895W",
+          "title": "Camp Half-Blood Confidential",
+          "score": 46.5498,
+          "parts": {
+            "provider_relevance": 28.3019,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.2479,
+            "cover_present": 1
+          }
+        }
+      ],
+      "preferredStartRank": 1
+    },
+    {
+      "id": "lightning",
+      "query": "the lightning thief",
+      "split": "development",
+      "candidateCount": 40,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL20140658W",
+            "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle"
+          },
+          {
+            "id": "OL14955042W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian"
+          },
+          {
+            "id": "OL22298317W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL24328092W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files"
+          },
+          {
+            "id": "OL34333042W",
+            "title": "Percy Jackson and the Lightning Thief"
+          },
+          {
+            "id": "OL24357177W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse"
+          },
+          {
+            "id": "OL21348376W",
+            "title": "The Lightning Thief / The Lost Hero / The Red Pyramid / The Sword of Summer / The Hidden Oracle"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL20140658W",
+            "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle"
+          },
+          {
+            "id": "OL14955042W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian"
+          },
+          {
+            "id": "OL34333042W",
+            "title": "Percy Jackson and the Lightning Thief"
+          },
+          {
+            "id": "OL22298317W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL24328092W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files"
+          },
+          {
+            "id": "OL24357177W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse"
+          },
+          {
+            "id": "OL21348376W",
+            "title": "The Lightning Thief / The Lost Hero / The Red Pyramid / The Sword of Summer / The Hidden Oracle"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL492658W",
+            "title": "The Lightning Thief"
+          },
+          {
+            "id": "OL15445307W",
+            "title": "The lightning thief"
+          },
+          {
+            "id": "OL14955042W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian"
+          },
+          {
+            "id": "OL22298317W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL24328092W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files"
+          },
+          {
+            "id": "OL34333042W",
+            "title": "Percy Jackson and the Lightning Thief"
+          },
+          {
+            "id": "OL24357177W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse"
+          },
+          {
+            "id": "OL37936592W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth / The Last Olympian / The The Chalice of the Gods"
+          },
+          {
+            "id": "OL30114817W",
+            "title": "Study Guide for Percy Jackson the Lightning Thief"
+          },
+          {
+            "id": "OL34962483W",
+            "title": "Quicklet - Rick Riordan's The Lightning Thief"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL492658W",
+            "title": "The Lightning Thief"
+          },
+          {
+            "id": "OL15445307W",
+            "title": "The lightning thief"
+          },
+          {
+            "id": "OL20140658W",
+            "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle"
+          },
+          {
+            "id": "OL14955042W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian"
+          },
+          {
+            "id": "OL22298317W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL24328092W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files"
+          },
+          {
+            "id": "OL34333042W",
+            "title": "Percy Jackson and the Lightning Thief"
+          },
+          {
+            "id": "OL24357177W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse"
+          },
+          {
+            "id": "OL37936592W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth / The Last Olympian / The The Chalice of the Gods"
+          },
+          {
+            "id": "OL21348376W",
+            "title": "The Lightning Thief / The Lost Hero / The Red Pyramid / The Sword of Summer / The Hidden Oracle"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL492658W",
+            "title": "The Lightning Thief"
+          },
+          {
+            "id": "OL20140658W",
+            "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle"
+          },
+          {
+            "id": "OL14955042W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian"
+          },
+          {
+            "id": "OL15445307W",
+            "title": "The lightning thief"
+          },
+          {
+            "id": "OL34333042W",
+            "title": "Percy Jackson and the Lightning Thief"
+          },
+          {
+            "id": "OL22298317W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL24328092W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files"
+          },
+          {
+            "id": "OL24357177W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse"
+          },
+          {
+            "id": "OL34962483W",
+            "title": "Quicklet - Rick Riordan's The Lightning Thief"
+          },
+          {
+            "id": "OL34446025W",
+            "title": "Unit Plan for the Lightning Thief"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL492658W",
+            "title": "The Lightning Thief"
+          },
+          {
+            "id": "OL20140658W",
+            "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle"
+          },
+          {
+            "id": "OL14955042W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian"
+          },
+          {
+            "id": "OL15445307W",
+            "title": "The lightning thief"
+          },
+          {
+            "id": "OL34333042W",
+            "title": "Percy Jackson and the Lightning Thief"
+          },
+          {
+            "id": "OL22298317W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth"
+          },
+          {
+            "id": "OL24328092W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files"
+          },
+          {
+            "id": "OL24357177W",
+            "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse"
+          },
+          {
+            "id": "OL34446025W",
+            "title": "Unit Plan for the Lightning Thief"
+          },
+          {
+            "id": "OL34962483W",
+            "title": "Quicklet - Rick Riordan's The Lightning Thief"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL492658W",
+          "title": "The Lightning Thief",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL20140658W",
+          "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle",
+          "score": 56.7241,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL14955042W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian",
+          "score": 56.3871,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.0,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL15445307W",
+          "title": "The lightning thief",
+          "score": 55.7255,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.1699,
+            "cover_present": 1,
+            "unrequested_derivative": -18
+          }
+        },
+        {
+          "id": "OL34333042W",
+          "title": "Percy Jackson and the Lightning Thief",
+          "score": 54.5405,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL22298317W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth",
+          "score": 50.4545,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL24328092W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files",
+          "score": 47.8571,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL24357177W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse",
+          "score": 44.4615,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.0,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL34962483W",
+          "title": "Quicklet - Rick Riordan's The Lightning Thief",
+          "score": 42.6122,
+          "parts": {
+            "provider_relevance": 30.6122,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 0,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL34446025W",
+          "title": "Unit Plan for the Lightning Thief",
+          "score": 42.3019,
+          "parts": {
+            "provider_relevance": 28.3019,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "hail-mary",
+      "query": "project hail mary",
+      "split": "development",
+      "candidateCount": 30,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL36735881W",
+            "title": "The Martian / Artemis / Project Hail Mary"
+          },
+          {
+            "id": "OL25960717W",
+            "title": "SUMMARY and REVIEW : PROJECT HAIL MARY"
+          },
+          {
+            "id": "OL26086346W",
+            "title": "Summary of Andy Weir's Project Hail Mary"
+          },
+          {
+            "id": "OL27881734W",
+            "title": "Summary of Project Hail Mary by Andy Weir"
+          },
+          {
+            "id": "OL45858094W",
+            "title": "Project Hail Mary: A Novel"
+          },
+          {
+            "id": "OL27267403W",
+            "title": "Summary and Analysis of Project Hail Mary by Andy Weir"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL36735881W",
+            "title": "The Martian / Artemis / Project Hail Mary"
+          },
+          {
+            "id": "OL25960717W",
+            "title": "SUMMARY and REVIEW : PROJECT HAIL MARY"
+          },
+          {
+            "id": "OL26086346W",
+            "title": "Summary of Andy Weir's Project Hail Mary"
+          },
+          {
+            "id": "OL27881734W",
+            "title": "Summary of Project Hail Mary by Andy Weir"
+          },
+          {
+            "id": "OL45858094W",
+            "title": "Project Hail Mary: A Novel"
+          },
+          {
+            "id": "OL27267403W",
+            "title": "Summary and Analysis of Project Hail Mary by Andy Weir"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL21745884W",
+            "title": "Project Hail Mary"
+          },
+          {
+            "id": "OL36735881W",
+            "title": "The Martian / Artemis / Project Hail Mary"
+          },
+          {
+            "id": "OL25960717W",
+            "title": "SUMMARY and REVIEW : PROJECT HAIL MARY"
+          },
+          {
+            "id": "OL26086346W",
+            "title": "Summary of Andy Weir's Project Hail Mary"
+          },
+          {
+            "id": "OL27881734W",
+            "title": "Summary of Project Hail Mary by Andy Weir"
+          },
+          {
+            "id": "OL45858094W",
+            "title": "Project Hail Mary: A Novel"
+          },
+          {
+            "id": "OL27267403W",
+            "title": "Summary and Analysis of Project Hail Mary by Andy Weir"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL21745884W",
+            "title": "Project Hail Mary"
+          },
+          {
+            "id": "OL36735881W",
+            "title": "The Martian / Artemis / Project Hail Mary"
+          },
+          {
+            "id": "OL25960717W",
+            "title": "SUMMARY and REVIEW : PROJECT HAIL MARY"
+          },
+          {
+            "id": "OL26086346W",
+            "title": "Summary of Andy Weir's Project Hail Mary"
+          },
+          {
+            "id": "OL27881734W",
+            "title": "Summary of Project Hail Mary by Andy Weir"
+          },
+          {
+            "id": "OL45858094W",
+            "title": "Project Hail Mary: A Novel"
+          },
+          {
+            "id": "OL27267403W",
+            "title": "Summary and Analysis of Project Hail Mary by Andy Weir"
+          },
+          {
+            "id": "OL36171529W",
+            "title": "WorkBook For"
+          },
+          {
+            "id": "OL21868175W",
+            "title": "Study Guide -- The Other Wes Moore by Wes Moore"
+          },
+          {
+            "id": "OL44112704W",
+            "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL21745884W",
+            "title": "Project Hail Mary"
+          },
+          {
+            "id": "OL36735881W",
+            "title": "The Martian / Artemis / Project Hail Mary"
+          },
+          {
+            "id": "OL25960717W",
+            "title": "SUMMARY and REVIEW : PROJECT HAIL MARY"
+          },
+          {
+            "id": "OL258850W",
+            "title": "Othello"
+          },
+          {
+            "id": "OL362427W",
+            "title": "Romeo and Juliet"
+          },
+          {
+            "id": "OL362691W",
+            "title": "Much Ado About Nothing"
+          },
+          {
+            "id": "OL26086346W",
+            "title": "Summary of Andy Weir's Project Hail Mary"
+          },
+          {
+            "id": "OL362698W",
+            "title": "As You Like It"
+          },
+          {
+            "id": "OL362694W",
+            "title": "Twelfth Night, or What You Will"
+          },
+          {
+            "id": "OL362702W",
+            "title": "Julius Caesar"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL21745884W",
+            "title": "Project Hail Mary"
+          },
+          {
+            "id": "OL36735881W",
+            "title": "The Martian / Artemis / Project Hail Mary"
+          },
+          {
+            "id": "OL25960717W",
+            "title": "SUMMARY and REVIEW : PROJECT HAIL MARY"
+          },
+          {
+            "id": "OL258850W",
+            "title": "Othello"
+          },
+          {
+            "id": "OL362427W",
+            "title": "Romeo and Juliet"
+          },
+          {
+            "id": "OL26086346W",
+            "title": "Summary of Andy Weir's Project Hail Mary"
+          },
+          {
+            "id": "OL362691W",
+            "title": "Much Ado About Nothing"
+          },
+          {
+            "id": "OL362698W",
+            "title": "As You Like It"
+          },
+          {
+            "id": "OL362694W",
+            "title": "Twelfth Night, or What You Will"
+          },
+          {
+            "id": "OL27881734W",
+            "title": "Summary of Project Hail Mary by Andy Weir"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL21745884W",
+          "title": "Project Hail Mary",
+          "score": 79.0444,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.0444,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL36735881W",
+          "title": "The Martian / Artemis / Project Hail Mary",
+          "score": 59.5556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL25960717W",
+          "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+          "score": 47.7241,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0,
+            "unrequested_derivative": -18
+          }
+        },
+        {
+          "id": "OL258850W",
+          "title": "Othello",
+          "score": 47.6122,
+          "parts": {
+            "provider_relevance": 30.6122,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL362427W",
+          "title": "Romeo and Juliet",
+          "score": 46.4118,
+          "parts": {
+            "provider_relevance": 29.4118,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL362691W",
+          "title": "Much Ado About Nothing",
+          "score": 45.3019,
+          "parts": {
+            "provider_relevance": 28.3019,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL26086346W",
+          "title": "Summary of Andy Weir's Project Hail Mary",
+          "score": 44.3871,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0,
+            "unrequested_derivative": -18
+          }
+        },
+        {
+          "id": "OL362698W",
+          "title": "As You Like It",
+          "score": 44.2727,
+          "parts": {
+            "provider_relevance": 27.2727,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL362694W",
+          "title": "Twelfth Night, or What You Will",
+          "score": 43.3158,
+          "parts": {
+            "provider_relevance": 26.3158,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL362702W",
+          "title": "Julius Caesar",
+          "score": 42.4237,
+          "parts": {
+            "provider_relevance": 25.4237,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "dune",
+      "query": "dune",
+      "split": "development",
+      "candidateCount": 53,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL19618275W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL893444W",
+            "title": "Dune, Dune Messiah, Children of Dune"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL893444W",
+            "title": "Dune, Dune Messiah, Children of Dune"
+          },
+          {
+            "id": "OL19618275W",
+            "title": "Dune"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL893414W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL19618275W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL893461W",
+            "title": "Dune Messiah"
+          },
+          {
+            "id": "OL893516W",
+            "title": "Children of Dune"
+          },
+          {
+            "id": "OL893508W",
+            "title": "Chapterhouse Dune"
+          },
+          {
+            "id": "OL893502W",
+            "title": "Heretics of Dune"
+          },
+          {
+            "id": "OL893515W",
+            "title": "God Emperor of Dune"
+          },
+          {
+            "id": "OL893444W",
+            "title": "Dune, Dune Messiah, Children of Dune"
+          },
+          {
+            "id": "OL14961045W",
+            "title": "Sandworms of Dune"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL893414W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL893461W",
+            "title": "Dune Messiah"
+          },
+          {
+            "id": "OL893516W",
+            "title": "Children of Dune"
+          },
+          {
+            "id": "OL893515W",
+            "title": "God Emperor of Dune"
+          },
+          {
+            "id": "OL893502W",
+            "title": "Heretics of Dune"
+          },
+          {
+            "id": "OL893508W",
+            "title": "Chapterhouse Dune"
+          },
+          {
+            "id": "OL893444W",
+            "title": "Dune, Dune Messiah, Children of Dune"
+          },
+          {
+            "id": "OL14961045W",
+            "title": "Sandworms of Dune"
+          },
+          {
+            "id": "OL19618275W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL18149681W",
+            "title": "Navigators of Dune"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL893414W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL893461W",
+            "title": "Dune Messiah"
+          },
+          {
+            "id": "OL893516W",
+            "title": "Children of Dune"
+          },
+          {
+            "id": "OL893515W",
+            "title": "God Emperor of Dune"
+          },
+          {
+            "id": "OL893502W",
+            "title": "Heretics of Dune"
+          },
+          {
+            "id": "OL893508W",
+            "title": "Chapterhouse Dune"
+          },
+          {
+            "id": "OL893444W",
+            "title": "Dune, Dune Messiah, Children of Dune"
+          },
+          {
+            "id": "OL14961045W",
+            "title": "Sandworms of Dune"
+          },
+          {
+            "id": "OL19618275W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL18149681W",
+            "title": "Navigators of Dune"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL893414W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL893461W",
+            "title": "Dune Messiah"
+          },
+          {
+            "id": "OL893516W",
+            "title": "Children of Dune"
+          },
+          {
+            "id": "OL893515W",
+            "title": "God Emperor of Dune"
+          },
+          {
+            "id": "OL893502W",
+            "title": "Heretics of Dune"
+          },
+          {
+            "id": "OL893508W",
+            "title": "Chapterhouse Dune"
+          },
+          {
+            "id": "OL893444W",
+            "title": "Dune, Dune Messiah, Children of Dune"
+          },
+          {
+            "id": "OL14961045W",
+            "title": "Sandworms of Dune"
+          },
+          {
+            "id": "OL19618275W",
+            "title": "Dune"
+          },
+          {
+            "id": "OL18149681W",
+            "title": "Navigators of Dune"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL893414W",
+          "title": "Dune",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL893461W",
+          "title": "Dune Messiah",
+          "score": 75.5556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL893516W",
+          "title": "Children of Dune",
+          "score": 71.7241,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL893515W",
+          "title": "God Emperor of Dune",
+          "score": 67.9721,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.585,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL893502W",
+          "title": "Heretics of Dune",
+          "score": 65.0693,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.6147,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL893508W",
+          "title": "Chapterhouse Dune",
+          "score": 62.3166,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.4594,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL893444W",
+          "title": "Dune, Dune Messiah, Children of Dune",
+          "score": 58.5405,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL14961045W",
+          "title": "Sandworms of Dune",
+          "score": 56.162,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.7004,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL19618275W",
+          "title": "Dune",
+          "score": 52.3432,
+          "parts": {
+            "provider_relevance": 34.8837,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.4594,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL18149681W",
+          "title": "Navigators of Dune",
+          "score": 50.5033,
+          "parts": {
+            "provider_relevance": 33.3333,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.1699,
+            "cover_present": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "earthsea",
+      "query": "earthsea",
+      "split": "development",
+      "candidateCount": 40,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL16835663W",
+            "title": "Ursula K. Le Guin's A wizard of Earthsea"
+          },
+          {
+            "id": "OL42425651W",
+            "title": "Wizard of Earthsea"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL16835663W",
+            "title": "Ursula K. Le Guin's A wizard of Earthsea"
+          },
+          {
+            "id": "OL42425651W",
+            "title": "Wizard of Earthsea"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL59798W",
+            "title": "A Wizard of Earthsea"
+          },
+          {
+            "id": "OL59812W",
+            "title": "Tales from Earthsea"
+          },
+          {
+            "id": "OL15056578W",
+            "title": "Tehanu (The Earthsea Cycle, Book 4)"
+          },
+          {
+            "id": "OL59794W",
+            "title": "The Earthsea quartet"
+          },
+          {
+            "id": "OL59796W",
+            "title": "The Earthsea Trilogy"
+          },
+          {
+            "id": "OL20132736W",
+            "title": "The Books of Earthsea"
+          },
+          {
+            "id": "OL16835663W",
+            "title": "Ursula K. Le Guin's A wizard of Earthsea"
+          },
+          {
+            "id": "OL26365733W",
+            "title": "The Books of Earthsea"
+          },
+          {
+            "id": "OL42425651W",
+            "title": "Wizard of Earthsea"
+          },
+          {
+            "id": "OL15056545W",
+            "title": "Earthsea revisioned"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL59798W",
+            "title": "A Wizard of Earthsea"
+          },
+          {
+            "id": "OL59812W",
+            "title": "Tales from Earthsea"
+          },
+          {
+            "id": "OL15056578W",
+            "title": "Tehanu (The Earthsea Cycle, Book 4)"
+          },
+          {
+            "id": "OL59794W",
+            "title": "The Earthsea quartet"
+          },
+          {
+            "id": "OL59801W",
+            "title": "The Tombs of Atuan"
+          },
+          {
+            "id": "OL59855W",
+            "title": "The Farthest Shore"
+          },
+          {
+            "id": "OL59796W",
+            "title": "The Earthsea Trilogy"
+          },
+          {
+            "id": "OL59806W",
+            "title": "The Other Wind"
+          },
+          {
+            "id": "OL20132736W",
+            "title": "The Books of Earthsea"
+          },
+          {
+            "id": "OL16835663W",
+            "title": "Ursula K. Le Guin's A wizard of Earthsea"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL59798W",
+            "title": "A Wizard of Earthsea"
+          },
+          {
+            "id": "OL59812W",
+            "title": "Tales from Earthsea"
+          },
+          {
+            "id": "OL15056578W",
+            "title": "Tehanu (The Earthsea Cycle, Book 4)"
+          },
+          {
+            "id": "OL59794W",
+            "title": "The Earthsea quartet"
+          },
+          {
+            "id": "OL59801W",
+            "title": "The Tombs of Atuan"
+          },
+          {
+            "id": "OL59855W",
+            "title": "The Farthest Shore"
+          },
+          {
+            "id": "OL59796W",
+            "title": "The Earthsea Trilogy"
+          },
+          {
+            "id": "OL59806W",
+            "title": "The Other Wind"
+          },
+          {
+            "id": "OL20132736W",
+            "title": "The Books of Earthsea"
+          },
+          {
+            "id": "OL16835663W",
+            "title": "Ursula K. Le Guin's A wizard of Earthsea"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL59798W",
+            "title": "A Wizard of Earthsea"
+          },
+          {
+            "id": "OL59812W",
+            "title": "Tales from Earthsea"
+          },
+          {
+            "id": "OL15056578W",
+            "title": "Tehanu (The Earthsea Cycle, Book 4)"
+          },
+          {
+            "id": "OL59794W",
+            "title": "The Earthsea quartet"
+          },
+          {
+            "id": "OL59801W",
+            "title": "The Tombs of Atuan"
+          },
+          {
+            "id": "OL59855W",
+            "title": "The Farthest Shore"
+          },
+          {
+            "id": "OL59796W",
+            "title": "The Earthsea Trilogy"
+          },
+          {
+            "id": "OL59806W",
+            "title": "The Other Wind"
+          },
+          {
+            "id": "OL20132736W",
+            "title": "The Books of Earthsea"
+          },
+          {
+            "id": "OL42425651W",
+            "title": "Wizard of Earthsea"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL59798W",
+          "title": "A Wizard of Earthsea",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL59812W",
+          "title": "Tales from Earthsea",
+          "score": 74.3629,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.8074,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL15056578W",
+          "title": "Tehanu (The Earthsea Cycle, Book 4)",
+          "score": 70.6783,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.9542,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL59794W",
+          "title": "The Earthsea quartet",
+          "score": 66.4746,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.0875,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL59801W",
+          "title": "The Tombs of Atuan",
+          "score": 65.4545,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL59855W",
+          "title": "The Farthest Shore",
+          "score": 62.8571,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL59796W",
+          "title": "The Earthsea Trilogy",
+          "score": 58.0,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.4594,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL59806W",
+          "title": "The Other Wind",
+          "score": 54.4157,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.9542,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL20132736W",
+          "title": "The Books of Earthsea",
+          "score": 49.9073,
+          "parts": {
+            "provider_relevance": 36.5854,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 0,
+            "catalog_breadth": 2.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL16835663W",
+          "title": "Ursula K. Le Guin's A wizard of Earthsea",
+          "score": 46.8837,
+          "parts": {
+            "provider_relevance": 34.8837,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 0,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        }
+      ],
+      "preferredStartRank": 1
+    },
+    {
+      "id": "riordan",
+      "query": "rick riordan",
+      "split": "development",
+      "candidateCount": 2,
+      "metrics": {
+        "live": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "same_pool_rerank": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL30765A",
+            "title": "Rick Riordan"
+          },
+          {
+            "id": "OL16594385A",
+            "title": "Rick Riordan"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL30765A",
+            "title": "Rick Riordan"
+          },
+          {
+            "id": "OL16594385A",
+            "title": "Rick Riordan"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL30765A",
+            "title": "Rick Riordan"
+          },
+          {
+            "id": "OL16594385A",
+            "title": "Rick Riordan"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL30765A",
+            "title": "Rick Riordan"
+          },
+          {
+            "id": "OL16594385A",
+            "title": "Rick Riordan"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL30765A",
+            "title": "Rick Riordan"
+          },
+          {
+            "id": "OL16594385A",
+            "title": "Rick Riordan"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL30765A",
+            "title": "Rick Riordan"
+          },
+          {
+            "id": "OL16594385A",
+            "title": "Rick Riordan"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL30765A",
+          "title": "Rick Riordan",
+          "score": 72.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "bibliography_evidence": 6,
+            "exact_name": 3
+          }
+        },
+        {
+          "id": "OL16594385A",
+          "title": "Rick Riordan",
+          "score": 61.5556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "bibliography_evidence": 0.0,
+            "exact_name": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "guide",
+      "query": "percy jackson the ultimate guide",
+      "split": "development",
+      "candidateCount": 2,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [],
+        "same_pool_rerank": [],
+        "title_language_fix": [],
+        "retrieval_only": [
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL15169002W",
+            "title": "The Story of The Committee of 300"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL15169002W",
+            "title": "The Story of The Committee of 300"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL17685821W",
+            "title": "Percy Jackson & the Olympians"
+          },
+          {
+            "id": "OL15169002W",
+            "title": "The Story of The Committee of 300"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL17685821W",
+          "title": "Percy Jackson & the Olympians",
+          "score": 75.585,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL15169002W",
+          "title": "The Story of The Committee of 300",
+          "score": 65.1556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 0.6,
+            "author_present": 4,
+            "identifier_present": 0,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "hobbit",
+      "query": "the hobbit",
+      "split": "validation",
+      "candidateCount": 49,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL20683713W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL19659526W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL24180247W",
+            "title": "The hobbit"
+          },
+          {
+            "id": "OL16059606W",
+            "title": "J.R.R. Tolkien's The hobbit"
+          },
+          {
+            "id": "OL18169548W",
+            "title": "The Hobbit companion"
+          },
+          {
+            "id": "OL20365605W",
+            "title": "The Hobbit : The Desolation of Smaug"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL16059606W",
+            "title": "J.R.R. Tolkien's The hobbit"
+          },
+          {
+            "id": "OL18169548W",
+            "title": "The Hobbit companion"
+          },
+          {
+            "id": "OL20683713W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL20365605W",
+            "title": "The Hobbit : The Desolation of Smaug"
+          },
+          {
+            "id": "OL24180247W",
+            "title": "The hobbit"
+          },
+          {
+            "id": "OL19659526W",
+            "title": "The Hobbit"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL27482W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL219602W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL20683713W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL19659526W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL24180247W",
+            "title": "The hobbit"
+          },
+          {
+            "id": "OL14926019W",
+            "title": "The Hobbit & The Lord of the Rings [collection/set]"
+          },
+          {
+            "id": "OL16059606W",
+            "title": "J.R.R. Tolkien's The hobbit"
+          },
+          {
+            "id": "OL18169548W",
+            "title": "The Hobbit companion"
+          },
+          {
+            "id": "OL19961152W",
+            "title": "The Hobbit, an unexpected journey"
+          },
+          {
+            "id": "OL20365605W",
+            "title": "The Hobbit : The Desolation of Smaug"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL27482W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL219602W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL14926019W",
+            "title": "The Hobbit & The Lord of the Rings [collection/set]"
+          },
+          {
+            "id": "OL16059606W",
+            "title": "J.R.R. Tolkien's The hobbit"
+          },
+          {
+            "id": "OL18169548W",
+            "title": "The Hobbit companion"
+          },
+          {
+            "id": "OL20683713W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL16769389W",
+            "title": "The spiritual world of The hobbit"
+          },
+          {
+            "id": "OL20365605W",
+            "title": "The Hobbit : The Desolation of Smaug"
+          },
+          {
+            "id": "OL8571576W",
+            "title": "The History of the Hobbit"
+          },
+          {
+            "id": "OL19659526W",
+            "title": "The Hobbit"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL27482W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL219602W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL16059606W",
+            "title": "J.R.R. Tolkien's The hobbit"
+          },
+          {
+            "id": "OL18169548W",
+            "title": "The Hobbit companion"
+          },
+          {
+            "id": "OL14926019W",
+            "title": "The Hobbit & The Lord of the Rings [collection/set]"
+          },
+          {
+            "id": "OL20683713W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL16769389W",
+            "title": "The spiritual world of The hobbit"
+          },
+          {
+            "id": "OL20365605W",
+            "title": "The Hobbit : The Desolation of Smaug"
+          },
+          {
+            "id": "OL8571576W",
+            "title": "The History of the Hobbit"
+          },
+          {
+            "id": "OL17838892W",
+            "title": "The Hobbit. An Unexpected Journey. Activity Book"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL27482W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL219602W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL16059606W",
+            "title": "J.R.R. Tolkien's The hobbit"
+          },
+          {
+            "id": "OL18169548W",
+            "title": "The Hobbit companion"
+          },
+          {
+            "id": "OL14926019W",
+            "title": "The Hobbit & The Lord of the Rings [collection/set]"
+          },
+          {
+            "id": "OL20683713W",
+            "title": "The Hobbit"
+          },
+          {
+            "id": "OL16769389W",
+            "title": "The spiritual world of The hobbit"
+          },
+          {
+            "id": "OL20365605W",
+            "title": "The Hobbit : The Desolation of Smaug"
+          },
+          {
+            "id": "OL8571576W",
+            "title": "The History of the Hobbit"
+          },
+          {
+            "id": "OL17838892W",
+            "title": "The Hobbit. An Unexpected Journey. Activity Book"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL27482W",
+          "title": "The Hobbit",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL219602W",
+          "title": "The Hobbit",
+          "score": 73.015,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.4594,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL16059606W",
+          "title": "J.R.R. Tolkien's The hobbit",
+          "score": 64.3871,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL18169548W",
+          "title": "The Hobbit companion",
+          "score": 61.0395,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL14926019W",
+          "title": "The Hobbit & The Lord of the Rings [collection/set]",
+          "score": 60.5315,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.8074,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL20683713W",
+          "title": "The Hobbit",
+          "score": 59.8571,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL16769389W",
+          "title": "The spiritual world of The hobbit",
+          "score": 56.8625,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL20365605W",
+          "title": "The Hobbit : The Desolation of Smaug",
+          "score": 54.0465,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL8571576W",
+          "title": "The History of the Hobbit",
+          "score": 53.9073,
+          "parts": {
+            "provider_relevance": 36.5854,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL17838892W",
+          "title": "The Hobbit. An Unexpected Journey. Activity Book",
+          "score": 48.3333,
+          "parts": {
+            "provider_relevance": 33.3333,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "pride",
+      "query": "pride and prejudice",
+      "split": "validation",
+      "candidateCount": 55,
+      "metrics": {
+        "live": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "same_pool_rerank": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL15165350W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL8786477W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15093171W",
+            "title": "Pride and Prejudice and Zombies"
+          },
+          {
+            "id": "OL17737918W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL21259954W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL35749735W",
+            "title": "Pride and Prejudice and Pittsburgh"
+          },
+          {
+            "id": "OL41675083W",
+            "title": "PRIDE and PREJUDICE by Jane Austen"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL15165350W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15093171W",
+            "title": "Pride and Prejudice and Zombies"
+          },
+          {
+            "id": "OL35749735W",
+            "title": "Pride and Prejudice and Pittsburgh"
+          },
+          {
+            "id": "OL41675083W",
+            "title": "PRIDE and PREJUDICE by Jane Austen"
+          },
+          {
+            "id": "OL17737918W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL21259954W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL8786477W",
+            "title": "Pride and Prejudice"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL66554W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15165350W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL8786477W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15093171W",
+            "title": "Pride and Prejudice and Zombies"
+          },
+          {
+            "id": "OL5738118W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL66597W",
+            "title": "Novels (Pride and Prejudice / Sense and Sensibility)"
+          },
+          {
+            "id": "OL17737918W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL21259954W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL35749735W",
+            "title": "Pride and Prejudice and Pittsburgh"
+          },
+          {
+            "id": "OL41675083W",
+            "title": "PRIDE and PREJUDICE by Jane Austen"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL66554W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15165350W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15093171W",
+            "title": "Pride and Prejudice and Zombies"
+          },
+          {
+            "id": "OL5738118W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL66597W",
+            "title": "Novels (Pride and Prejudice / Sense and Sensibility)"
+          },
+          {
+            "id": "OL17737918W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL21259954W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL17356046W",
+            "title": "Eligible"
+          },
+          {
+            "id": "OL19662884W",
+            "title": "Pride"
+          },
+          {
+            "id": "OL8786477W",
+            "title": "Pride and Prejudice"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL66554W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15165350W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15093171W",
+            "title": "Pride and Prejudice and Zombies"
+          },
+          {
+            "id": "OL66597W",
+            "title": "Novels (Pride and Prejudice / Sense and Sensibility)"
+          },
+          {
+            "id": "OL17356046W",
+            "title": "Eligible"
+          },
+          {
+            "id": "OL35749735W",
+            "title": "Pride and Prejudice and Pittsburgh"
+          },
+          {
+            "id": "OL19662884W",
+            "title": "Pride"
+          },
+          {
+            "id": "OL5738118W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL235881W",
+            "title": "Pride and Prejudice, A Play"
+          },
+          {
+            "id": "OL41675083W",
+            "title": "PRIDE and PREJUDICE by Jane Austen"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL66554W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15165350W",
+            "title": "Pride and Prejudice"
+          },
+          {
+            "id": "OL15093171W",
+            "title": "Pride and Prejudice and Zombies"
+          },
+          {
+            "id": "OL66597W",
+            "title": "Novels (Pride and Prejudice / Sense and Sensibility)"
+          },
+          {
+            "id": "OL17356046W",
+            "title": "Eligible"
+          },
+          {
+            "id": "OL35749735W",
+            "title": "Pride and Prejudice and Pittsburgh"
+          },
+          {
+            "id": "OL19662884W",
+            "title": "Pride"
+          },
+          {
+            "id": "OL5738118W",
+            "title": "Pride and Prejudice [adaptation]"
+          },
+          {
+            "id": "OL41675083W",
+            "title": "PRIDE and PREJUDICE by Jane Austen"
+          },
+          {
+            "id": "OL235881W",
+            "title": "Pride and Prejudice, A Play"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL66554W",
+          "title": "Pride and Prejudice",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL15165350W",
+          "title": "Pride and Prejudice",
+          "score": 75.5556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL15093171W",
+          "title": "Pride and Prejudice and Zombies",
+          "score": 67.0461,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 0,
+            "catalog_breadth": 4.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL66597W",
+          "title": "Novels (Pride and Prejudice / Sense and Sensibility)",
+          "score": 54.3125,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.858,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL17356046W",
+          "title": "Eligible",
+          "score": 52.7835,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL35749735W",
+          "title": "Pride and Prejudice and Pittsburgh",
+          "score": 49.3333,
+          "parts": {
+            "provider_relevance": 33.3333,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL19662884W",
+          "title": "Pride",
+          "score": 48.5854,
+          "parts": {
+            "provider_relevance": 36.5854,
+            "query_token_coverage": 1.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 0,
+            "catalog_breadth": 3.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL5738118W",
+          "title": "Pride and Prejudice [adaptation]",
+          "score": 46.709,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.3219,
+            "cover_present": 1,
+            "unrequested_derivative": -18
+          }
+        },
+        {
+          "id": "OL235881W",
+          "title": "Pride and Prejudice, A Play",
+          "score": 45.2727,
+          "parts": {
+            "provider_relevance": 27.2727,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL41675083W",
+          "title": "PRIDE and PREJUDICE by Jane Austen",
+          "score": 44.6122,
+          "parts": {
+            "provider_relevance": 30.6122,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "murderbot",
+      "query": "murderbot",
+      "split": "validation",
+      "candidateCount": 16,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL36737601W",
+            "title": "Murderbot Diaries"
+          },
+          {
+            "id": "OL39199442W",
+            "title": "Murderbot Diaries Vol. 1"
+          },
+          {
+            "id": "OL39204828W",
+            "title": "Murderbot Diaries Vol. 2"
+          },
+          {
+            "id": "OL41454666W",
+            "title": "Murderbots"
+          },
+          {
+            "id": "OL42398755W",
+            "title": "Murderbot Diaries Vol. 3"
+          },
+          {
+            "id": "OL42556524W",
+            "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL36737601W",
+            "title": "Murderbot Diaries"
+          },
+          {
+            "id": "OL39199442W",
+            "title": "Murderbot Diaries Vol. 1"
+          },
+          {
+            "id": "OL39204828W",
+            "title": "Murderbot Diaries Vol. 2"
+          },
+          {
+            "id": "OL42398755W",
+            "title": "Murderbot Diaries Vol. 3"
+          },
+          {
+            "id": "OL42556524W",
+            "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)"
+          },
+          {
+            "id": "OL41454666W",
+            "title": "Murderbots"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL36737601W",
+            "title": "Murderbot Diaries"
+          },
+          {
+            "id": "OL39199442W",
+            "title": "Murderbot Diaries Vol. 1"
+          },
+          {
+            "id": "OL39204828W",
+            "title": "Murderbot Diaries Vol. 2"
+          },
+          {
+            "id": "OL41454666W",
+            "title": "Murderbots"
+          },
+          {
+            "id": "OL42398755W",
+            "title": "Murderbot Diaries Vol. 3"
+          },
+          {
+            "id": "OL42556524W",
+            "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL20735675W",
+            "title": "Network Effect"
+          },
+          {
+            "id": "OL20805971W",
+            "title": "Fugitive Telemetry"
+          },
+          {
+            "id": "OL19753589W",
+            "title": "Rogue Protocol"
+          },
+          {
+            "id": "OL19747311W",
+            "title": "Artificial Condition"
+          },
+          {
+            "id": "OL33402895W",
+            "title": "System Collapse"
+          },
+          {
+            "id": "OL17914663W",
+            "title": "All Systems Red"
+          },
+          {
+            "id": "OL19763338W",
+            "title": "Exit Strategy"
+          },
+          {
+            "id": "OL20914988W",
+            "title": "All Systems Red / Artificial Condition / Rogue Protocol / Exit Strategy"
+          },
+          {
+            "id": "OL36737601W",
+            "title": "Murderbot Diaries"
+          },
+          {
+            "id": "OL39199442W",
+            "title": "Murderbot Diaries Vol. 1"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL20735675W",
+            "title": "Network Effect"
+          },
+          {
+            "id": "OL20805971W",
+            "title": "Fugitive Telemetry"
+          },
+          {
+            "id": "OL19753589W",
+            "title": "Rogue Protocol"
+          },
+          {
+            "id": "OL19747311W",
+            "title": "Artificial Condition"
+          },
+          {
+            "id": "OL17914663W",
+            "title": "All Systems Red"
+          },
+          {
+            "id": "OL33402895W",
+            "title": "System Collapse"
+          },
+          {
+            "id": "OL19763338W",
+            "title": "Exit Strategy"
+          },
+          {
+            "id": "OL36737601W",
+            "title": "Murderbot Diaries"
+          },
+          {
+            "id": "OL39199442W",
+            "title": "Murderbot Diaries Vol. 1"
+          },
+          {
+            "id": "OL44660267W",
+            "title": "Platform Decay"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL20735675W",
+            "title": "Network Effect"
+          },
+          {
+            "id": "OL20805971W",
+            "title": "Fugitive Telemetry"
+          },
+          {
+            "id": "OL19753589W",
+            "title": "Rogue Protocol"
+          },
+          {
+            "id": "OL19747311W",
+            "title": "Artificial Condition"
+          },
+          {
+            "id": "OL17914663W",
+            "title": "All Systems Red"
+          },
+          {
+            "id": "OL33402895W",
+            "title": "System Collapse"
+          },
+          {
+            "id": "OL19763338W",
+            "title": "Exit Strategy"
+          },
+          {
+            "id": "OL36737601W",
+            "title": "Murderbot Diaries"
+          },
+          {
+            "id": "OL39199442W",
+            "title": "Murderbot Diaries Vol. 1"
+          },
+          {
+            "id": "OL44660267W",
+            "title": "Platform Decay"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL20735675W",
+          "title": "Network Effect",
+          "score": 73.585,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.585,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL20805971W",
+          "title": "Fugitive Telemetry",
+          "score": 68.5556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL19753589W",
+          "title": "Rogue Protocol",
+          "score": 65.8941,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.1699,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL19747311W",
+          "title": "Artificial Condition",
+          "score": 62.3871,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL17914663W",
+          "title": "All Systems Red",
+          "score": 60.1791,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL33402895W",
+          "title": "System Collapse",
+          "score": 58.4545,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL19763338W",
+          "title": "Exit Strategy",
+          "score": 54.3479,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.8074,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL36737601W",
+          "title": "Murderbot Diaries",
+          "score": 51.5854,
+          "parts": {
+            "provider_relevance": 36.5854,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL39199442W",
+          "title": "Murderbot Diaries Vol. 1",
+          "score": 49.8837,
+          "parts": {
+            "provider_relevance": 34.8837,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL44660267W",
+          "title": "Platform Decay",
+          "score": 46.3333,
+          "parts": {
+            "provider_relevance": 33.3333,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.0,
+            "cover_present": 1
+          }
+        }
+      ],
+      "preferredStartRank": 5
+    },
+    {
+      "id": "left-hand",
+      "query": "the left hand of darkness",
+      "split": "validation",
+      "candidateCount": 40,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL18955388W",
+            "title": "Ursula K. Le Guin's the left hand of darkness"
+          },
+          {
+            "id": "OL24715772W",
+            "title": "Earthsea & The Left Hand of Darkness"
+          },
+          {
+            "id": "OL5922289W",
+            "title": "Ursula Le Guin's the Left Hand of Darkness"
+          },
+          {
+            "id": "OL19306603W",
+            "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)"
+          },
+          {
+            "id": "OL24724220W",
+            "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin"
+          },
+          {
+            "id": "OL36583944W",
+            "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?"
+          },
+          {
+            "id": "OL36281353W",
+            "title": "Gender under the Viking Age : Left Hand of Darkness"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL18955388W",
+            "title": "Ursula K. Le Guin's the left hand of darkness"
+          },
+          {
+            "id": "OL24715772W",
+            "title": "Earthsea & The Left Hand of Darkness"
+          },
+          {
+            "id": "OL5922289W",
+            "title": "Ursula Le Guin's the Left Hand of Darkness"
+          },
+          {
+            "id": "OL36583944W",
+            "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?"
+          },
+          {
+            "id": "OL19306603W",
+            "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)"
+          },
+          {
+            "id": "OL36281353W",
+            "title": "Gender under the Viking Age : Left Hand of Darkness"
+          },
+          {
+            "id": "OL24724220W",
+            "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL59800W",
+            "title": "The Left Hand of Darkness"
+          },
+          {
+            "id": "OL18955388W",
+            "title": "Ursula K. Le Guin's the left hand of darkness"
+          },
+          {
+            "id": "OL24715772W",
+            "title": "Earthsea & The Left Hand of Darkness"
+          },
+          {
+            "id": "OL5922289W",
+            "title": "Ursula Le Guin's the Left Hand of Darkness"
+          },
+          {
+            "id": "OL19306603W",
+            "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)"
+          },
+          {
+            "id": "OL24724220W",
+            "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin"
+          },
+          {
+            "id": "OL36583944W",
+            "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?"
+          },
+          {
+            "id": "OL36281353W",
+            "title": "Gender under the Viking Age : Left Hand of Darkness"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL59800W",
+            "title": "The Left Hand of Darkness"
+          },
+          {
+            "id": "OL18955388W",
+            "title": "Ursula K. Le Guin's the left hand of darkness"
+          },
+          {
+            "id": "OL24715772W",
+            "title": "Earthsea & The Left Hand of Darkness"
+          },
+          {
+            "id": "OL36309883W",
+            "title": "Left Hand of Darkness"
+          },
+          {
+            "id": "OL36250930W",
+            "title": "Left Hand of Darkness"
+          },
+          {
+            "id": "OL5922289W",
+            "title": "Ursula Le Guin's the Left Hand of Darkness"
+          },
+          {
+            "id": "OL19306603W",
+            "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)"
+          },
+          {
+            "id": "OL24724220W",
+            "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin"
+          },
+          {
+            "id": "OL36583944W",
+            "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?"
+          },
+          {
+            "id": "OL19793295W",
+            "title": "Ursula K. Le Guin"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL59800W",
+            "title": "The Left Hand of Darkness"
+          },
+          {
+            "id": "OL18955388W",
+            "title": "Ursula K. Le Guin's the left hand of darkness"
+          },
+          {
+            "id": "OL24715772W",
+            "title": "Earthsea & The Left Hand of Darkness"
+          },
+          {
+            "id": "OL36309883W",
+            "title": "Left Hand of Darkness"
+          },
+          {
+            "id": "OL36250930W",
+            "title": "Left Hand of Darkness"
+          },
+          {
+            "id": "OL5922289W",
+            "title": "Ursula Le Guin's the Left Hand of Darkness"
+          },
+          {
+            "id": "OL36583944W",
+            "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?"
+          },
+          {
+            "id": "OL107195W",
+            "title": "The Pilgrim's Progress"
+          },
+          {
+            "id": "OL19306603W",
+            "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)"
+          },
+          {
+            "id": "OL45436281W",
+            "title": "The Philosophy of the Dark Name"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL59800W",
+            "title": "The Left Hand of Darkness"
+          },
+          {
+            "id": "OL18955388W",
+            "title": "Ursula K. Le Guin's the left hand of darkness"
+          },
+          {
+            "id": "OL24715772W",
+            "title": "Earthsea & The Left Hand of Darkness"
+          },
+          {
+            "id": "OL36309883W",
+            "title": "Left Hand of Darkness"
+          },
+          {
+            "id": "OL36250930W",
+            "title": "Left Hand of Darkness"
+          },
+          {
+            "id": "OL5922289W",
+            "title": "Ursula Le Guin's the Left Hand of Darkness"
+          },
+          {
+            "id": "OL36583944W",
+            "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?"
+          },
+          {
+            "id": "OL107195W",
+            "title": "The Pilgrim's Progress"
+          },
+          {
+            "id": "OL19306603W",
+            "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)"
+          },
+          {
+            "id": "OL45436281W",
+            "title": "The Philosophy of the Dark Name"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL59800W",
+          "title": "The Left Hand of Darkness",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL18955388W",
+          "title": "Ursula K. Le Guin's the left hand of darkness",
+          "score": 71.1405,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL24715772W",
+          "title": "Earthsea & The Left Hand of Darkness",
+          "score": 66.7241,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL36309883W",
+          "title": "Left Hand of Darkness",
+          "score": 62.3721,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 2.4,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL36250930W",
+          "title": "Left Hand of Darkness",
+          "score": 58.8545,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 2.4,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL5922289W",
+          "title": "Ursula Le Guin's the Left Hand of Darkness",
+          "score": 56.8571,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL36583944W",
+          "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?",
+          "score": 50.5854,
+          "parts": {
+            "provider_relevance": 36.5854,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL107195W",
+          "title": "The Pilgrim's Progress",
+          "score": 49.5149,
+          "parts": {
+            "provider_relevance": 31.9149,
+            "query_token_coverage": 0.6,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL19306603W",
+          "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)",
+          "score": 45.5405,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1,
+            "unrequested_bundle": -10
+          }
+        },
+        {
+          "id": "OL45436281W",
+          "title": "The Philosophy of the Dark Name",
+          "score": 45.0122,
+          "parts": {
+            "provider_relevance": 30.6122,
+            "query_token_coverage": 2.4,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "isbn",
+      "query": "9781423103349",
+      "split": "validation",
+      "candidateCount": 1,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [],
+        "same_pool_rerank": [],
+        "title_language_fix": [
+          {
+            "id": "OL492646W",
+            "title": "The Sea of Monsters"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL492646W",
+            "title": "The Sea of Monsters"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL492646W",
+            "title": "The Sea of Monsters"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL492646W",
+            "title": "The Sea of Monsters"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL492646W",
+          "title": "The Sea of Monsters",
+          "score": 77.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        }
+      ],
+      "candidateEditionExact": true
+    },
+    {
+      "id": "martian",
+      "query": "the martian",
+      "split": "blind",
+      "candidateCount": 45,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL1940391W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL60897W",
+            "title": "The Day the Martians Came"
+          },
+          {
+            "id": "OL78398W",
+            "title": "The Martian Child"
+          },
+          {
+            "id": "OL24764956W",
+            "title": "Mikkee the Martian"
+          },
+          {
+            "id": "OL3055285W",
+            "title": "The Martian Inca"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL60897W",
+            "title": "The Day the Martians Came"
+          },
+          {
+            "id": "OL1940391W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL3055285W",
+            "title": "The Martian Inca"
+          },
+          {
+            "id": "OL78398W",
+            "title": "The Martian Child"
+          },
+          {
+            "id": "OL24764956W",
+            "title": "Mikkee the Martian"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL17091839W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL1940391W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL103134W",
+            "title": "The Martian Chronicles"
+          },
+          {
+            "id": "OL46157W",
+            "title": "The Martian Way and Other Stories"
+          },
+          {
+            "id": "OL81669W",
+            "title": "The Martians"
+          },
+          {
+            "id": "OL60897W",
+            "title": "The Day the Martians Came"
+          },
+          {
+            "id": "OL108280W",
+            "title": "The Martian race"
+          },
+          {
+            "id": "OL78398W",
+            "title": "The Martian Child"
+          },
+          {
+            "id": "OL24764956W",
+            "title": "Mikkee the Martian"
+          },
+          {
+            "id": "OL3055285W",
+            "title": "The Martian Inca"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL17091839W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL103134W",
+            "title": "The Martian Chronicles"
+          },
+          {
+            "id": "OL46157W",
+            "title": "The Martian Way and Other Stories"
+          },
+          {
+            "id": "OL60897W",
+            "title": "The Day the Martians Came"
+          },
+          {
+            "id": "OL81669W",
+            "title": "The Martians"
+          },
+          {
+            "id": "OL1940391W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL108280W",
+            "title": "The Martian race"
+          },
+          {
+            "id": "OL3055285W",
+            "title": "The Martian Inca"
+          },
+          {
+            "id": "OL78398W",
+            "title": "The Martian Child"
+          },
+          {
+            "id": "OL36735881W",
+            "title": "The Martian / Artemis / Project Hail Mary"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL17091839W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL103134W",
+            "title": "The Martian Chronicles"
+          },
+          {
+            "id": "OL46157W",
+            "title": "The Martian Way and Other Stories"
+          },
+          {
+            "id": "OL60897W",
+            "title": "The Day the Martians Came"
+          },
+          {
+            "id": "OL81669W",
+            "title": "The Martians"
+          },
+          {
+            "id": "OL1940391W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL108280W",
+            "title": "The Martian race"
+          },
+          {
+            "id": "OL3055285W",
+            "title": "The Martian Inca"
+          },
+          {
+            "id": "OL78398W",
+            "title": "The Martian Child"
+          },
+          {
+            "id": "OL24764956W",
+            "title": "Mikkee the Martian"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL17091839W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL103134W",
+            "title": "The Martian Chronicles"
+          },
+          {
+            "id": "OL46157W",
+            "title": "The Martian Way and Other Stories"
+          },
+          {
+            "id": "OL60897W",
+            "title": "The Day the Martians Came"
+          },
+          {
+            "id": "OL81669W",
+            "title": "The Martians"
+          },
+          {
+            "id": "OL1940391W",
+            "title": "The Martian"
+          },
+          {
+            "id": "OL108280W",
+            "title": "The Martian race"
+          },
+          {
+            "id": "OL3055285W",
+            "title": "The Martian Inca"
+          },
+          {
+            "id": "OL78398W",
+            "title": "The Martian Child"
+          },
+          {
+            "id": "OL24764956W",
+            "title": "Mikkee the Martian"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL17091839W",
+          "title": "The Martian",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL103134W",
+          "title": "The Martian Chronicles",
+          "score": 75.5556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL46157W",
+          "title": "The Martian Way and Other Stories",
+          "score": 70.5821,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.858,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL60897W",
+          "title": "The Day the Martians Came",
+          "score": 63.8871,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 1.5,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL81669W",
+          "title": "The Martians",
+          "score": 62.1245,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 1.5,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.1699,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL1940391W",
+          "title": "The Martian",
+          "score": 61.5576,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.7004,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL108280W",
+          "title": "The Martian race",
+          "score": 57.8625,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL3055285W",
+          "title": "The Martian Inca",
+          "score": 55.2689,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.8074,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL78398W",
+          "title": "The Martian Child",
+          "score": 53.5854,
+          "parts": {
+            "provider_relevance": 36.5854,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL24764956W",
+          "title": "Mikkee the Martian",
+          "score": 52.3777,
+          "parts": {
+            "provider_relevance": 33.3333,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.0444,
+            "cover_present": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "watership",
+      "query": "watership down",
+      "split": "blind",
+      "candidateCount": 40,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL15015120W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL8525106W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL27087806W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL36410222W",
+            "title": "WATERSHIP DOWN"
+          },
+          {
+            "id": "OL39178674W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL39818951W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL34615893W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096527W",
+            "title": "Tales from Watership Down"
+          },
+          {
+            "id": "OL2096530W",
+            "title": "The Watership down film picture book"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL2096527W",
+            "title": "Tales from Watership Down"
+          },
+          {
+            "id": "OL15015120W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096530W",
+            "title": "The Watership down film picture book"
+          },
+          {
+            "id": "OL8525106W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL27087806W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL39178674W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL39818951W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL34615893W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL36410222W",
+            "title": "WATERSHIP DOWN"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL2096536W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL15015120W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL8525106W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL27087806W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL36410222W",
+            "title": "WATERSHIP DOWN"
+          },
+          {
+            "id": "OL39178674W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL39818951W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL34615893W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096527W",
+            "title": "Tales from Watership Down"
+          },
+          {
+            "id": "OL2096530W",
+            "title": "The Watership down film picture book"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL2096536W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096527W",
+            "title": "Tales from Watership Down"
+          },
+          {
+            "id": "OL15015120W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096530W",
+            "title": "The Watership down film picture book"
+          },
+          {
+            "id": "OL8525106W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL27087806W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL29423260W",
+            "title": "Watership Down (SparkNotes Literature Guide)"
+          },
+          {
+            "id": "OL4204485W",
+            "title": "Watership Down Gift Pack"
+          },
+          {
+            "id": "OL36410222W",
+            "title": "WATERSHIP DOWN"
+          },
+          {
+            "id": "OL39178674W",
+            "title": "Watership Down"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL2096536W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096527W",
+            "title": "Tales from Watership Down"
+          },
+          {
+            "id": "OL15015120W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096530W",
+            "title": "The Watership down film picture book"
+          },
+          {
+            "id": "OL8525106W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL27087806W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL29423260W",
+            "title": "Watership Down (SparkNotes Literature Guide)"
+          },
+          {
+            "id": "OL4204485W",
+            "title": "Watership Down Gift Pack"
+          },
+          {
+            "id": "OL39178674W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL39818951W",
+            "title": "Watership Down"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL2096536W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096527W",
+            "title": "Tales from Watership Down"
+          },
+          {
+            "id": "OL15015120W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL2096530W",
+            "title": "The Watership down film picture book"
+          },
+          {
+            "id": "OL8525106W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL27087806W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL29423260W",
+            "title": "Watership Down (SparkNotes Literature Guide)"
+          },
+          {
+            "id": "OL4204485W",
+            "title": "Watership Down Gift Pack"
+          },
+          {
+            "id": "OL39178674W",
+            "title": "Watership Down"
+          },
+          {
+            "id": "OL39818951W",
+            "title": "Watership Down"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL2096536W",
+          "title": "Watership Down",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL2096527W",
+          "title": "Tales from Watership Down",
+          "score": 73.8775,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.3219,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL15015120W",
+          "title": "Watership Down",
+          "score": 68.8941,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.1699,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL2096530W",
+          "title": "The Watership down film picture book",
+          "score": 63.3871,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 2.0,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL8525106W",
+          "title": "Watership Down",
+          "score": 60.0395,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL27087806W",
+          "title": "Watership Down",
+          "score": 57.4421,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL29423260W",
+          "title": "Watership Down (SparkNotes Literature Guide)",
+          "score": 55.1255,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL4204485W",
+          "title": "Watership Down Gift Pack",
+          "score": 53.0465,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.585,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL39178674W",
+          "title": "Watership Down",
+          "score": 48.8837,
+          "parts": {
+            "provider_relevance": 34.8837,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        },
+        {
+          "id": "OL39818951W",
+          "title": "Watership Down",
+          "score": 44.6122,
+          "parts": {
+            "provider_relevance": 30.6122,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 1.0,
+            "cover_present": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "pern",
+      "query": "dragonriders of pern",
+      "split": "blind",
+      "candidateCount": 36,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 1,
+          "rr10": 0.3333333333333333,
+          "targetRank": 3
+        },
+        "same_pool_rerank": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "title_language_fix": {
+          "top1": 0,
+          "hit10": 1,
+          "rr10": 0.3333333333333333,
+          "targetRank": 3
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [
+          {
+            "id": "OL8684296W",
+            "title": "Dragonriders of Pern"
+          },
+          {
+            "id": "OL10214791M",
+            "title": "Dragonriders of Pern"
+          },
+          {
+            "id": "OL73344W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL31623960W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL479932W",
+            "title": "Boxed-Dragonriders of Pern-4v"
+          },
+          {
+            "id": "OL31394423W",
+            "title": "The Dragonriders of Pern (The Dragonriders of Pern, Vol. 1)"
+          },
+          {
+            "id": "OL45019936W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL11557855M",
+            "title": "Dragonriders of Pern Prebind Set (Favorite Series, Grades 7-9)"
+          }
+        ],
+        "same_pool_rerank": [
+          {
+            "id": "OL73344W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL8684296W",
+            "title": "Dragonriders of Pern"
+          },
+          {
+            "id": "OL31623960W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL479932W",
+            "title": "Boxed-Dragonriders of Pern-4v"
+          },
+          {
+            "id": "OL10214791M",
+            "title": "Dragonriders of Pern"
+          },
+          {
+            "id": "OL45019936W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL11557855M",
+            "title": "Dragonriders of Pern Prebind Set (Favorite Series, Grades 7-9)"
+          },
+          {
+            "id": "OL31394423W",
+            "title": "The Dragonriders of Pern (The Dragonriders of Pern, Vol. 1)"
+          }
+        ],
+        "title_language_fix": [
+          {
+            "id": "OL8684296W",
+            "title": "Dragonriders of Pern"
+          },
+          {
+            "id": "OL10214791M",
+            "title": "Dragonriders of Pern"
+          },
+          {
+            "id": "OL73344W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL31623960W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL479932W",
+            "title": "Boxed-Dragonriders of Pern-4v"
+          },
+          {
+            "id": "OL31394423W",
+            "title": "The Dragonriders of Pern (The Dragonriders of Pern, Vol. 1)"
+          },
+          {
+            "id": "OL45019936W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL11557855M",
+            "title": "Dragonriders of Pern Prebind Set (Favorite Series, Grades 7-9)"
+          }
+        ],
+        "retrieval_only": [
+          {
+            "id": "OL73387W",
+            "title": "Dragonflight"
+          },
+          {
+            "id": "OL73344W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL10673093W",
+            "title": "The Masterharper of Pern"
+          },
+          {
+            "id": "OL73382W",
+            "title": "Dragonquest"
+          },
+          {
+            "id": "OL73347W",
+            "title": "The Renegades of Pern"
+          },
+          {
+            "id": "OL73384W",
+            "title": "The White Dragon"
+          },
+          {
+            "id": "OL21003868W",
+            "title": "Dragon's Fire"
+          },
+          {
+            "id": "OL73356W",
+            "title": "Dragonsinger"
+          },
+          {
+            "id": "OL14912607W",
+            "title": "Dragon Harper"
+          },
+          {
+            "id": "OL27636W",
+            "title": "Dragonsblood"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL73387W",
+            "title": "Dragonflight"
+          },
+          {
+            "id": "OL73344W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL10673093W",
+            "title": "The Masterharper of Pern"
+          },
+          {
+            "id": "OL73382W",
+            "title": "Dragonquest"
+          },
+          {
+            "id": "OL73347W",
+            "title": "The Renegades of Pern"
+          },
+          {
+            "id": "OL73384W",
+            "title": "The White Dragon"
+          },
+          {
+            "id": "OL21003868W",
+            "title": "Dragon's Fire"
+          },
+          {
+            "id": "OL73356W",
+            "title": "Dragonsinger"
+          },
+          {
+            "id": "OL27636W",
+            "title": "Dragonsblood"
+          },
+          {
+            "id": "OL73330W",
+            "title": "Dragon's Kin"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL73387W",
+            "title": "Dragonflight"
+          },
+          {
+            "id": "OL73344W",
+            "title": "The Dragonriders of Pern"
+          },
+          {
+            "id": "OL10673093W",
+            "title": "The Masterharper of Pern"
+          },
+          {
+            "id": "OL73382W",
+            "title": "Dragonquest"
+          },
+          {
+            "id": "OL73347W",
+            "title": "The Renegades of Pern"
+          },
+          {
+            "id": "OL73384W",
+            "title": "The White Dragon"
+          },
+          {
+            "id": "OL21003868W",
+            "title": "Dragon's Fire"
+          },
+          {
+            "id": "OL73356W",
+            "title": "Dragonsinger"
+          },
+          {
+            "id": "OL27636W",
+            "title": "Dragonsblood"
+          },
+          {
+            "id": "OL73330W",
+            "title": "Dragon's Kin"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL73387W",
+          "title": "Dragonflight",
+          "score": 80.0,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL73344W",
+          "title": "The Dragonriders of Pern",
+          "score": 72.5556,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 3.0,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL10673093W",
+          "title": "The Masterharper of Pern",
+          "score": 69.8941,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.1699,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL73382W",
+          "title": "Dragonquest",
+          "score": 68.22,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.8329,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL73347W",
+          "title": "The Renegades of Pern",
+          "score": 64.542,
+          "parts": {
+            "provider_relevance": 45.4545,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.0875,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL73384W",
+          "title": "The White Dragon",
+          "score": 62.2147,
+          "parts": {
+            "provider_relevance": 42.8571,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 5.3576,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL21003868W",
+          "title": "Dragon's Fire",
+          "score": 58.628,
+          "parts": {
+            "provider_relevance": 40.5405,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.0875,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL73356W",
+          "title": "Dragonsinger",
+          "score": 54.4157,
+          "parts": {
+            "provider_relevance": 38.4615,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.9542,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL27636W",
+          "title": "Dragonsblood",
+          "score": 52.9712,
+          "parts": {
+            "provider_relevance": 34.8837,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.0875,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL73330W",
+          "title": "Dragon's Kin",
+          "score": 51.9772,
+          "parts": {
+            "provider_relevance": 33.3333,
+            "query_token_coverage": 3.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.6439,
+            "cover_present": 1
+          }
+        }
+      ],
+      "preferredStartRank": 1
+    },
+    {
+      "id": "wizard-author",
+      "query": "a wizard of earthsea by ursula k le guin",
+      "split": "blind",
+      "candidateCount": 4,
+      "metrics": {
+        "live": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "same_pool_rerank": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "title_language_fix": {
+          "top1": 0,
+          "hit10": 0,
+          "rr10": 0,
+          "targetRank": null
+        },
+        "retrieval_only": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "candidate_v1": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        },
+        "without_cover": {
+          "top1": 1,
+          "hit10": 1,
+          "rr10": 1.0,
+          "targetRank": 1
+        }
+      },
+      "top": {
+        "live": [],
+        "same_pool_rerank": [],
+        "title_language_fix": [],
+        "retrieval_only": [
+          {
+            "id": "OL59798W",
+            "title": "A Wizard of Earthsea"
+          },
+          {
+            "id": "OL59812W",
+            "title": "Tales from Earthsea"
+          },
+          {
+            "id": "OL44112704W",
+            "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray"
+          },
+          {
+            "id": "OL257973W",
+            "title": "Legends"
+          }
+        ],
+        "candidate_v1": [
+          {
+            "id": "OL59798W",
+            "title": "A Wizard of Earthsea"
+          },
+          {
+            "id": "OL59812W",
+            "title": "Tales from Earthsea"
+          },
+          {
+            "id": "OL257973W",
+            "title": "Legends"
+          },
+          {
+            "id": "OL44112704W",
+            "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray"
+          }
+        ],
+        "without_cover": [
+          {
+            "id": "OL59798W",
+            "title": "A Wizard of Earthsea"
+          },
+          {
+            "id": "OL59812W",
+            "title": "Tales from Earthsea"
+          },
+          {
+            "id": "OL257973W",
+            "title": "Legends"
+          },
+          {
+            "id": "OL44112704W",
+            "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray"
+          }
+        ]
+      },
+      "explanations": [
+        {
+          "id": "OL59798W",
+          "title": "A Wizard of Earthsea",
+          "score": 78.3333,
+          "parts": {
+            "provider_relevance": 60.0,
+            "query_token_coverage": 1.3333,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL59812W",
+          "title": "Tales from Earthsea",
+          "score": 71.6962,
+          "parts": {
+            "provider_relevance": 55.5556,
+            "query_token_coverage": 0.3333,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.8074,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL257973W",
+          "title": "Legends",
+          "score": 64.0875,
+          "parts": {
+            "provider_relevance": 48.3871,
+            "query_token_coverage": 0.0,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 4.7004,
+            "cover_present": 1
+          }
+        },
+        {
+          "id": "OL44112704W",
+          "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray",
+          "score": 51.0575,
+          "parts": {
+            "provider_relevance": 51.7241,
+            "query_token_coverage": 0.3333,
+            "author_present": 4,
+            "identifier_present": 3,
+            "edition_language": 3,
+            "catalog_breadth": 6,
+            "cover_present": 1,
+            "unrequested_derivative": -18
+          }
+        }
+      ]
+    }
+  ]
+}

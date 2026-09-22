@@ -1,0 +1,1034 @@
+{
+  "url": "https://openlibrary.org/search.json?q=devotions+mary+oliver&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:23.258253+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 45,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 45,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "devotions mary oliver",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL24638A"
+        ],
+        "author_name": [
+          "Charles Dickens"
+        ],
+        "cover_i": 13300802,
+        "first_publish_year": 1822,
+        "key": "/works/OL8193478W",
+        "language": [
+          "spa",
+          "vie",
+          "dan",
+          "mal",
+          "yid",
+          "dut",
+          "heb",
+          "ita",
+          "por",
+          "ukr",
+          "ger",
+          "eng",
+          "syc",
+          "khm",
+          "fre",
+          "chi",
+          "hrv",
+          "tur",
+          "und",
+          "jpn",
+          "rus"
+        ],
+        "title": "Oliver Twist",
+        "editions": {
+          "numFound": 2211,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24152186M",
+              "title": "The adventures of Oliver Twist",
+              "cover_i": 9280400,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Grosset & Dunlap"
+              ],
+              "publish_date": [
+                "19xx?"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL22176A"
+        ],
+        "author_name": [
+          "Mary Oliver"
+        ],
+        "cover_i": 10326261,
+        "first_publish_year": 2017,
+        "key": "/works/OL19720501W",
+        "language": [
+          "eng"
+        ],
+        "title": "Devotions",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46573991M",
+              "title": "Devotions",
+              "cover_i": 14801295,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Little, Brown Book Group Limited"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781472158475",
+                "1472158474"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13517280A"
+        ],
+        "author_name": [
+          "Mary Oliver"
+        ],
+        "first_publish_year": 2024,
+        "key": "/works/OL38013418W",
+        "language": [
+          "eng"
+        ],
+        "title": "Instructions for Living",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51584392M",
+              "title": "Instructions for Living",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Crown Publishing Group, The"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9780593580271",
+                "0593580273"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL16226615A"
+        ],
+        "author_name": [
+          "Mary OLiver "
+        ],
+        "cover_i": 15186546,
+        "first_publish_year": 2017,
+        "key": "/works/OL45021727W",
+        "language": [
+          "eng"
+        ],
+        "title": "Devotions ",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61419196M",
+              "title": "Devotions ",
+              "cover_i": 15186546,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Press New York"
+              ],
+              "publish_date": [
+                "2017"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2620954A"
+        ],
+        "author_name": [
+          "Oliver Rodie Vassall-Phillips"
+        ],
+        "cover_i": 5567623,
+        "first_publish_year": 1922,
+        "key": "/works/OL7908473W",
+        "language": [
+          "eng"
+        ],
+        "title": "The mother of Christ, or, The Blessed Virgin Mary in Catholic tradition, theology, and devotion",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7252018M",
+              "title": "The mother of Christ, or, The Blessed Virgin Mary in Catholic tradition, theology, and devotion",
+              "cover_i": 5567623,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Burns, Oates & Washbourne, Ltd."
+              ],
+              "publish_date": [
+                "1922"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2745568A"
+        ],
+        "author_name": [
+          "Bible"
+        ],
+        "cover_i": 12707846,
+        "first_publish_year": 1200,
+        "key": "/works/OL17732W",
+        "language": [
+          "que",
+          "ger",
+          "bul",
+          "urd",
+          "ton",
+          "shn",
+          "heb",
+          "ita",
+          "ukr",
+          "grc",
+          "lah",
+          "und",
+          "arc",
+          "tel",
+          "jpn",
+          "mao",
+          "raj",
+          "ori",
+          "syr",
+          "asm",
+          "nav",
+          "mul",
+          "chi",
+          "hun",
+          "bur",
+          "rum",
+          "lat",
+          "yid",
+          "tam",
+          "rus",
+          "fin",
+          "zul",
+          "afr",
+          "eng",
+          "dak",
+          "aym",
+          "spa",
+          "por",
+          "arm",
+          "ara",
+          "mar",
+          "ben",
+          "per",
+          "fre",
+          "nic",
+          "nep",
+          "hin"
+        ],
+        "title": "Bible",
+        "editions": {
+          "numFound": 254,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3319319M",
+              "title": "iWorship daily devotional Bible",
+              "cover_i": 12917450,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Integrity Publishers"
+              ],
+              "publish_date": [
+                "2003"
+              ],
+              "isbn": [
+                "1591451027",
+                "9781591451020"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5400762A"
+        ],
+        "author_name": [
+          "Ludwig Bonvin"
+        ],
+        "cover_i": 9603352,
+        "first_publish_year": 1914,
+        "key": "/works/OL12320677W",
+        "language": [
+          "lat",
+          "eng"
+        ],
+        "title": "Hosanna",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26353023M",
+              "title": "\"Hosanna\"",
+              "cover_i": 9603352,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "B. Herder"
+              ],
+              "publish_date": [
+                "1914"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2684766A"
+        ],
+        "author_name": [
+          "Oliver Todd"
+        ],
+        "cover_i": 1876301,
+        "first_publish_year": 1997,
+        "key": "/works/OL8061296W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lourdes Pilgrim",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29709702M",
+              "title": "The Lourdes pilgrim",
+              "cover_i": 10407621,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Matthew James Publishing"
+              ],
+              "publish_date": [
+                "1997"
+              ],
+              "isbn": [
+                "9781898366195",
+                "9781898366218",
+                "1898366195",
+                "1898366217"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 9690610,
+        "first_publish_year": 1875,
+        "key": "/works/OL17313714W",
+        "language": [
+          "eng"
+        ],
+        "title": "Month Of Mary For All The Faithful",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25887649M",
+              "title": "Month Of Mary For All The Faithful",
+              "cover_i": 10064219,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "McGlashan & Gill"
+              ],
+              "publish_date": [
+                "1875"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL35099A"
+        ],
+        "author_name": [
+          "Bridget Mary Meehan"
+        ],
+        "cover_i": 611175,
+        "first_publish_year": 1995,
+        "key": "/works/OL16992810W",
+        "language": [
+          "eng"
+        ],
+        "title": "Heart talks with Mother God",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1274858M",
+              "title": "Heart talks with Mother God",
+              "cover_i": 611175,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Liturgical Press"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "0814620698",
+                "9780814620694"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL34453A"
+        ],
+        "author_name": [
+          "Mary Hollingsworth"
+        ],
+        "cover_i": 8156541,
+        "first_publish_year": 1992,
+        "key": "/works/OL15130766W",
+        "language": [
+          "eng"
+        ],
+        "title": "A boy's book of prayers",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1702178M",
+              "title": "A boy's book of prayers",
+              "cover_i": 8156541,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oliver Nelson"
+              ],
+              "publish_date": [
+                "1992"
+              ],
+              "isbn": [
+                "0840791704",
+                "9780840791702"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL34453A"
+        ],
+        "author_name": [
+          "Mary Hollingsworth"
+        ],
+        "cover_i": 12670172,
+        "first_publish_year": 1992,
+        "key": "/works/OL15130786W",
+        "language": [
+          "eng"
+        ],
+        "title": "A girl's diary of prayers",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1702179M",
+              "title": "A girl's diary of prayers",
+              "cover_i": 12670172,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oliver Nelson"
+              ],
+              "publish_date": [
+                "1992"
+              ],
+              "isbn": [
+                "0840791690",
+                "9780840791696"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7277650A"
+        ],
+        "author_name": [
+          "Anthony Werner"
+        ],
+        "cover_i": 9473565,
+        "first_publish_year": 1857,
+        "key": "/works/OL17315845W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Memorare",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25890092M",
+              "title": "The Memorare",
+              "cover_i": 9473565,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oliver Ditson Co."
+              ],
+              "publish_date": [
+                "1857"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7272074A",
+          "OL6024792A"
+        ],
+        "author_name": [
+          "David, John Baptist Mary, 1761-1841",
+          "Martin John Spalding"
+        ],
+        "cover_i": 9738369,
+        "first_publish_year": 1864,
+        "key": "/works/OL10307655W",
+        "language": [
+          "eng"
+        ],
+        "title": "A spiritual retreat of eight days",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25840814M",
+              "title": "A spiritual retreat of eight days",
+              "cover_i": 9738369,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Webb and Levering"
+              ],
+              "publish_date": [
+                "1864"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2537554A"
+        ],
+        "author_name": [
+          "George Tickell"
+        ],
+        "cover_i": 9666696,
+        "first_publish_year": 1858,
+        "key": "/works/OL17354105W",
+        "language": [
+          "eng"
+        ],
+        "title": "Month Of The Sacred Heart Of Jesus",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25931883M",
+              "title": "Month Of The Sacred Heart Of Jesus",
+              "cover_i": 9666696,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Thomas Richardson and Son"
+              ],
+              "publish_date": [
+                "1858"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL884919A"
+        ],
+        "author_name": [
+          "Mrs. Anna Jameson"
+        ],
+        "cover_i": 5601494,
+        "first_publish_year": 1800,
+        "key": "/works/OL4445715W",
+        "language": [
+          "lat",
+          "eng",
+          "ita"
+        ],
+        "subtitle": "Forming the third series of Sacred and legendary art.",
+        "title": "Legends of the Madonna as represented in the fine arts",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25887572M",
+              "title": "Legends of the Madonna as represented in the fine arts",
+              "cover_i": 9840041,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Longmans, Green, and Co."
+              ],
+              "publish_date": [
+                "1909"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7279137A"
+        ],
+        "author_name": [
+          "Blot, Father (François René), 1825-"
+        ],
+        "cover_i": 9568067,
+        "first_publish_year": 1869,
+        "key": "/works/OL17321523W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Salvation of the dying, consolation of the afflicted",
+        "title": "The Agonising Heart",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25897134M",
+              "title": "The Agonising Heart",
+              "cover_i": 9568067,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Burns, Oates, & Co."
+              ],
+              "publish_date": [
+                "1896"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL31853A"
+        ],
+        "author_name": [
+          "Ellen Datlow"
+        ],
+        "cover_i": 7986654,
+        "first_publish_year": 2010,
+        "key": "/works/OL17711625W",
+        "language": [
+          "eng"
+        ],
+        "title": "Tails of wonder and imagination",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26312971M",
+              "title": "Tails of wonder and imagination",
+              "cover_i": 14652014,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Night Shade Books"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781597801706",
+                "1597801704"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3230772A"
+        ],
+        "author_name": [
+          "Lorraine Kilmartin"
+        ],
+        "first_publish_year": 2012,
+        "key": "/works/OL22426050W",
+        "language": [
+          "eng"
+        ],
+        "title": "The paschal mystery",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL30516548M",
+              "title": "The paschal mystery",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Saint Mary's Press"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9781599821382",
+                "1599821389"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3335605A",
+          "OL15644856A",
+          "OL15644857A"
+        ],
+        "author_name": [
+          "Margot H. King",
+          "Elspeth Drurie",
+          "Dewey Kramer"
+        ],
+        "first_publish_year": 1994,
+        "key": "/works/OL43691379W",
+        "language": [
+          "eng"
+        ],
+        "title": "On Pilgrimage",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL59557576M",
+              "title": "On Pilgrimage",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Vox Benedictina"
+              ],
+              "publish_date": [
+                "1994"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2906128A"
+        ],
+        "author_name": [
+          "Passionist Father Ignatius of the Side of Jesus"
+        ],
+        "cover_i": 694462,
+        "first_publish_year": 1866,
+        "key": "/works/OL8632671W",
+        "language": [
+          "eng"
+        ],
+        "title": "The School of Jesus Crucified",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25890486M",
+              "title": "The School of Jesus Crucified",
+              "cover_i": 10029720,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "London, Burns, Lambert, and Oates",
+                "Dublin, James Duffy"
+              ],
+              "publish_date": [
+                "1866"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7247029A"
+        ],
+        "author_name": [
+          "Lyonnard, Jean, 1819-1887"
+        ],
+        "cover_i": 10040922,
+        "first_publish_year": 1871,
+        "key": "/works/OL17218718W",
+        "language": [
+          "eng"
+        ],
+        "title": "Perpetual intercession to the agonizing heart of Jesus",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25791146M",
+              "title": "Perpetual intercession to the agonizing heart of Jesus",
+              "cover_i": 10040922,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Thomas Richardson and Son"
+              ],
+              "publish_date": [
+                "1871"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL38725A"
+        ],
+        "author_name": [
+          "A. W. Tozer"
+        ],
+        "cover_i": 14929014,
+        "first_publish_year": 1963,
+        "key": "/works/OL20946806W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Christian book of mystical verse",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28379452M",
+              "title": "The Christian book of mystical verse",
+              "cover_i": 14929014,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Christian Publications, Inc."
+              ],
+              "publish_date": [
+                "1963"
+              ],
+              "isbn": [
+                "9780875093819",
+                "0875093817"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6538648A",
+          "OL7096002A"
+        ],
+        "author_name": [
+          "Dáire Keogh",
+          "Albert McDonnell"
+        ],
+        "first_publish_year": 2011,
+        "key": "/works/OL16555785W",
+        "language": [
+          "eng"
+        ],
+        "title": "Cardinal Paul Cullen and his world",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25244766M",
+              "title": "Cardinal Paul Cullen and his world",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Four Courts Press"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781846822353",
+                "1846822351"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL277672A"
+        ],
+        "author_name": [
+          "A. Norman Jeffares"
+        ],
+        "cover_i": 14818775,
+        "first_publish_year": 1995,
+        "key": "/works/OL15365086W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Writings Past and Present",
+        "title": "Ireland's Women",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18111852M",
+              "title": "Ireland's women",
+              "cover_i": 14818775,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "W. W. Norton & Company"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "0393313603",
+                "9780393313604"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.566
+}

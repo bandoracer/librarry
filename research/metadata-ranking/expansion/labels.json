@@ -1,0 +1,247 @@
+{
+  "braiding": {
+    "targets": [
+      "OL16819897W"
+    ],
+    "intendedAuthor": "Robin Wall Kimmerer",
+    "source": "https://openlibrary.org/works/OL16819897W",
+    "corroboratingSource": "https://robinwallkimmerer.com/book/braiding-sweetgrass/"
+  },
+  "dawn": {
+    "targets": [
+      "OL24663287W"
+    ],
+    "intendedAuthor": "David Graeber; David Wengrow",
+    "source": "https://openlibrary.org/works/OL24663287W"
+  },
+  "entangled": {
+    "targets": [
+      "OL20758206W"
+    ],
+    "intendedAuthor": "Merlin Sheldrake",
+    "source": "https://openlibrary.org/works/OL20758206W",
+    "corroboratingSource": "https://www.merlinsheldrake.com/entangled-life"
+  },
+  "why": {
+    "targets": [
+      "OL17872278W"
+    ],
+    "intendedAuthor": "Judea Pearl; Dana Mackenzie",
+    "source": "https://openlibrary.org/works/OL17872278W"
+  },
+  "godel": {
+    "targets": [
+      "OL716850W"
+    ],
+    "intendedAuthor": "Douglas Hofstadter",
+    "source": "https://openlibrary.org/works/OL716850W"
+  },
+  "c-language": {
+    "targets": [
+      "OL4617640W"
+    ],
+    "intendedAuthor": "Brian Kernighan; Dennis Ritchie",
+    "source": "https://openlibrary.org/works/OL4617640W"
+  },
+  "data": {
+    "targets": [
+      "OL19293745W"
+    ],
+    "intendedAuthor": "Martin Kleppmann",
+    "source": "https://openlibrary.org/works/OL19293745W"
+  },
+  "salt": {
+    "targets": [
+      "OL18147901W"
+    ],
+    "intendedAuthor": "Samin Nosrat",
+    "source": "https://openlibrary.org/works/OL18147901W"
+  },
+  "food": {
+    "targets": [
+      "OL18146664W"
+    ],
+    "intendedAuthor": "J. Kenji López-Alt",
+    "source": "https://openlibrary.org/works/OL18146664W"
+  },
+  "body": {
+    "targets": [
+      "OL18147687W"
+    ],
+    "intendedAuthor": "Bessel van der Kolk",
+    "source": "https://openlibrary.org/works/OL18147687W"
+  },
+  "war": {
+    "targets": [
+      "OL244537W"
+    ],
+    "intendedAuthor": "Sun Tzu",
+    "source": "https://openlibrary.org/works/OL244537W"
+  },
+  "meditations": {
+    "targets": [
+      "OL28521353W"
+    ],
+    "intendedAuthor": "Marcus Aurelius",
+    "source": "https://openlibrary.org/works/OL28521353W"
+  },
+  "room": {
+    "targets": [
+      "OL39379W"
+    ],
+    "intendedAuthor": "Virginia Woolf",
+    "source": "https://openlibrary.org/works/OL39379W"
+  },
+  "frankenstein": {
+    "targets": [
+      "OL450063W"
+    ],
+    "intendedAuthor": "Mary Shelley",
+    "source": "https://openlibrary.org/works/OL450063W"
+  },
+  "beloved": {
+    "targets": [
+      "OL50548W"
+    ],
+    "intendedAuthor": "Toni Morrison",
+    "source": "https://openlibrary.org/works/OL50548W"
+  },
+  "kindred": {
+    "targets": [
+      "OL35616W"
+    ],
+    "intendedAuthor": "Octavia Butler",
+    "source": "https://openlibrary.org/works/OL35616W"
+  },
+  "piranesi": {
+    "targets": [
+      "OL20893680W"
+    ],
+    "intendedAuthor": "Susanna Clarke",
+    "source": "https://openlibrary.org/works/OL20893680W"
+  },
+  "memory": {
+    "targets": [
+      "OL11690127W"
+    ],
+    "intendedAuthor": "Yoko Ogawa",
+    "source": "https://openlibrary.org/works/OL11690127W",
+    "corroboratingSource": "https://www.penguinrandomhouse.com/books/252774/the-memory-police-by-yoko-ogawa/"
+  },
+  "convenience": {
+    "targets": [
+      "OL19744024W"
+    ],
+    "intendedAuthor": "Sayaka Murata",
+    "source": "https://openlibrary.org/works/OL19744024W"
+  },
+  "employees": {
+    "targets": [
+      "OL25803688W"
+    ],
+    "intendedAuthor": "Olga Ravn",
+    "source": "https://openlibrary.org/works/OL25803688W",
+    "knownTop1Gap": "Native relevance ranks the correct novel sixth; broad exact-title promotion regressed the original cohort.",
+    "corroboratingSource": "https://www.ndbooks.com/book/the-employees/"
+  },
+  "plow": {
+    "targets": [
+      "OL17351965W"
+    ],
+    "intendedAuthor": "Olga Tokarczuk",
+    "source": "https://openlibrary.org/works/OL17351965W"
+  },
+  "solitude": {
+    "targets": [
+      "OL274505W"
+    ],
+    "intendedAuthor": "Gabriel García Márquez",
+    "source": "https://openlibrary.org/works/OL274505W"
+  },
+  "soledad": {
+    "targets": [
+      "OL274505W"
+    ],
+    "intendedAuthor": "Gabriel García Márquez",
+    "source": "https://openlibrary.org/works/OL274505W"
+  },
+  "etranger": {
+    "targets": [
+      "OL1230613W"
+    ],
+    "intendedAuthor": "Albert Camus",
+    "source": "https://openlibrary.org/works/OL1230613W"
+  },
+  "tunel": {
+    "targets": [
+      "OL617847W"
+    ],
+    "intendedAuthor": "Ernesto Sábato",
+    "source": "https://openlibrary.org/works/OL617847W"
+  },
+  "bjorn": {
+    "targets": [
+      "OL29316319W"
+    ],
+    "intendedAuthor": "Fredrik Backman",
+    "source": "https://openlibrary.org/works/OL29316319W"
+  },
+  "summer": {
+    "targets": [
+      "OL2196010W"
+    ],
+    "intendedAuthor": "Tove Jansson",
+    "source": "https://openlibrary.org/works/OL2196010W"
+  },
+  "psalm": {
+    "targets": [
+      "OL22561871W"
+    ],
+    "intendedAuthor": "Becky Chambers",
+    "source": "https://openlibrary.org/works/OL22561871W"
+  },
+  "fifth": {
+    "targets": [
+      "OL17363125W"
+    ],
+    "intendedAuthor": "N. K. Jemisin",
+    "source": "https://openlibrary.org/works/OL17363125W"
+  },
+  "seven": {
+    "targets": [
+      "OL17187702W"
+    ],
+    "intendedAuthor": "Marlon James",
+    "source": "https://openlibrary.org/works/OL17187702W"
+  },
+  "catalonia": {
+    "targets": [
+      "OL1168169W"
+    ],
+    "intendedAuthor": "George Orwell",
+    "source": "https://openlibrary.org/works/OL1168169W"
+  },
+  "genji": {
+    "targets": [
+      "OL2564006W"
+    ],
+    "intendedAuthor": "Murasaki Shikibu",
+    "source": "https://openlibrary.org/works/OL2564006W"
+  },
+  "parable": {
+    "targets": [
+      "OL35623W"
+    ],
+    "intendedAuthor": "Octavia E. Butler",
+    "source": "https://openlibrary.org/works/OL35623W",
+    "corroboratingSource": "https://www.octaviabutler.com/parableseries/"
+  },
+  "devotions": {
+    "targets": [
+      "OL19720501W"
+    ],
+    "intendedAuthor": "Mary Oliver",
+    "source": "https://openlibrary.org/works/OL19720501W",
+    "corroboratingSource": "https://penguinrandomhousesecondaryeducation.com/book/?isbn=9780399563249"
+  }
+}

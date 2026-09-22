@@ -1,0 +1,259 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=project+hail+mary&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:00.692975+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "project hail mary",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL36735881W",
+          "title": "The Martian / Artemis / Project Hail Mary",
+          "authors": [
+            {
+              "id": "openlibrary:OL7234434A",
+              "name": "Andy Weir",
+              "providerIds": [
+                "openlibrary:OL7234434A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2022,
+          "providerIds": [
+            "openlibrary:OL36735881W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL49615465M",
+          "workId": "openlibrary:OL36735881W",
+          "title": "The Martian / Artemis / Project Hail Mary",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781637990520",
+            "1637990529"
+          ],
+          "providerIds": [
+            "openlibrary:OL49615465M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL36735881W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL25960717W",
+          "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+          "authors": [
+            {
+              "id": "openlibrary:OL9813195A",
+              "name": "Unique Summary",
+              "providerIds": [
+                "openlibrary:OL9813195A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL25960717W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL35039072M",
+          "workId": "openlibrary:OL25960717W",
+          "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798538766871"
+          ],
+          "providerIds": [
+            "openlibrary:OL35039072M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL25960717W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL26086346W",
+          "title": "Summary of Andy Weir's Project Hail Mary",
+          "authors": [
+            {
+              "id": "openlibrary:OL10394876A",
+              "name": "Irb Media",
+              "providerIds": [
+                "openlibrary:OL10394876A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL26086346W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL35207035M",
+          "workId": "openlibrary:OL26086346W",
+          "title": "Summary of Andy Weir's Project Hail Mary",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781638156147",
+            "163815614X"
+          ],
+          "providerIds": [
+            "openlibrary:OL35207035M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL26086346W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL27881734W",
+          "title": "Summary of Project Hail Mary by Andy Weir",
+          "authors": [
+            {
+              "id": "openlibrary:OL10293755A",
+              "name": "Antoine McCallan",
+              "providerIds": [
+                "openlibrary:OL10293755A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL27881734W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL38106832M",
+          "workId": "openlibrary:OL27881734W",
+          "title": "Summary of Project Hail Mary by Andy Weir",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798761898912"
+          ],
+          "providerIds": [
+            "openlibrary:OL38106832M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL27881734W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL45858094W",
+          "title": "Project Hail Mary: A Novel",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL45858094W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL62403511M",
+          "workId": "openlibrary:OL45858094W",
+          "title": "Project Hail Mary: A Novel",
+          "format": "any",
+          "isbns": [
+            "B099ZZWH4K"
+          ],
+          "providerIds": [
+            "openlibrary:OL62403511M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL45858094W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL27267403W",
+          "title": "Summary and Analysis of Project Hail Mary by Andy Weir",
+          "authors": [
+            {
+              "id": "openlibrary:OL9658335A",
+              "name": "Good Reads Publishing",
+              "providerIds": [
+                "openlibrary:OL9658335A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL27267403W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL37005797M",
+          "workId": "openlibrary:OL27267403W",
+          "title": "Summary and Analysis of Project Hail Mary by Andy Weir",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798749854572"
+          ],
+          "providerIds": [
+            "openlibrary:OL37005797M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL27267403W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.888
+}

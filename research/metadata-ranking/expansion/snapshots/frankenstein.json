@@ -1,0 +1,1029 @@
+{
+  "url": "https://openlibrary.org/search.json?q=frankenstein&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:01.076520+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 3166,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 3166,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "frankenstein",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "cover_i": 12356249,
+        "first_publish_year": 1818,
+        "key": "/works/OL450063W",
+        "language": [
+          "ger",
+          "ita",
+          "por",
+          "fre",
+          "rus",
+          "eng",
+          "chi",
+          "spa",
+          "dut"
+        ],
+        "title": "Frankenstein; or, The Modern Prometheus",
+        "editions": {
+          "numFound": 2180,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36620178M",
+              "title": "Frankenstein",
+              "cover_i": 12513880,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Standard eBooks"
+              ],
+              "publish_date": [
+                "2015-05-12"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "cover_i": 7267770,
+        "first_publish_year": 1818,
+        "key": "/works/OL25595002W",
+        "language": [
+          "fre",
+          "rus",
+          "eng"
+        ],
+        "title": "Mary Shelley's Frankenstein; or, the Modern Prometheus (1818 text)",
+        "editions": {
+          "numFound": 90,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25422618M",
+              "title": "Frankenstein",
+              "cover_i": 15113302,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2012-11-23"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33088A",
+          "OL36575A"
+        ],
+        "author_name": [
+          "Dean Koontz",
+          "Kevin J. Anderson"
+        ],
+        "cover_i": 6956759,
+        "first_publish_year": 2005,
+        "key": "/works/OL497167W",
+        "language": [
+          "pol",
+          "eng"
+        ],
+        "subtitle": "Prodigal Son",
+        "title": "Dean Koontz's Frankenstein",
+        "editions": {
+          "numFound": 12,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL23273427M",
+              "title": "Dean Koontz's Frankenstein: Book One",
+              "cover_i": 12893839,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam Books"
+              ],
+              "publish_date": [
+                "2005"
+              ],
+              "isbn": [
+                "0553587889",
+                "9780553587883"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9587687A"
+        ],
+        "author_name": [
+          "Coco Mellors"
+        ],
+        "cover_i": 13308109,
+        "first_publish_year": 2022,
+        "key": "/works/OL25345096W",
+        "language": [
+          "eng",
+          "por"
+        ],
+        "title": "Cleopatra and Frankenstein",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62084538M",
+              "title": "Cleopatra and Frankenstein",
+              "cover_i": 15227637,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "HarperCollins"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9780008421793",
+                "000842179X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33088A",
+          "OL26237A"
+        ],
+        "author_name": [
+          "Dean Koontz",
+          "Edward Gorman"
+        ],
+        "cover_i": 6484615,
+        "first_publish_year": 2005,
+        "key": "/works/OL265317W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Book Two: City of Night",
+        "title": "Dean Koontz's Frankenstein",
+        "editions": {
+          "numFound": 10,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22173091M",
+              "title": "Dean Koontz's Frankenstein: Book Two",
+              "cover_i": 12884783,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam Books"
+              ],
+              "publish_date": [
+                "2005"
+              ],
+              "isbn": [
+                "0553587897",
+                "9780553587890"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "cover_i": 15118068,
+        "first_publish_year": 2017,
+        "key": "/works/OL26860869W",
+        "language": [
+          "eng",
+          "por"
+        ],
+        "subtitle": "ou O Prometeu Moderno",
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 84,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36943465M",
+              "title": "Frankenstein by Mary Shelley",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798532570788"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33088A"
+        ],
+        "author_name": [
+          "Dean Koontz"
+        ],
+        "cover_i": 12879748,
+        "first_publish_year": 2009,
+        "key": "/works/OL15189442W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Book Three: Dead and Alive",
+        "title": "Dean Koontz's Frankenstein",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25968798M",
+              "title": "Dean Koontz's Frankenstein",
+              "cover_i": 12884695,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "HarperCollins Publishers",
+                "Harper"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9780007203116",
+                "000720311X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A",
+          "OL26545A"
+        ],
+        "author_name": [
+          "Mary Shelley",
+          "Philip Pullman"
+        ],
+        "cover_i": 2331229,
+        "first_publish_year": 1990,
+        "key": "/works/OL450093W",
+        "language": [
+          "eng"
+        ],
+        "title": "Frankenstein (Oxford Playscripts)",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22637974M",
+              "title": "Frankenstein",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oxford University Press"
+              ],
+              "publish_date": [
+                "1990"
+              ],
+              "isbn": [
+                "0198312679",
+                "9780198312673"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL35524A"
+        ],
+        "author_name": [
+          "Robert Lawrence Stine"
+        ],
+        "cover_i": 8595784,
+        "first_publish_year": 2013,
+        "key": "/works/OL19791182W",
+        "language": [
+          "eng"
+        ],
+        "title": "Goosebumps Most Wanted - Frankenstein's Dog",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27002682M",
+              "title": "Frankenstein's Dog",
+              "cover_i": 8595784,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scholastic Paperbacks"
+              ],
+              "publish_date": [
+                "Jul 30, 2013"
+              ],
+              "isbn": [
+                "9780545418010",
+                "0545418011"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33088A"
+        ],
+        "author_name": [
+          "Dean Koontz"
+        ],
+        "cover_i": 12641348,
+        "first_publish_year": 2010,
+        "key": "/works/OL15443537W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Lost Souls",
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24050188M",
+              "title": "Frankenstein",
+              "cover_i": 12879894,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam Books"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9780553808018",
+                "055380801X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL78952A"
+        ],
+        "author_name": [
+          "Brian W. Aldiss"
+        ],
+        "cover_i": 4510842,
+        "first_publish_year": 1973,
+        "key": "/works/OL892505W",
+        "language": [
+          "eng"
+        ],
+        "title": "Frankenstein unbound",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5426074M",
+              "title": "Frankenstein unbound",
+              "cover_i": 4510842,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Random House"
+              ],
+              "publish_date": [
+                "1974"
+              ],
+              "isbn": [
+                "0394490797",
+                "9780394490793"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "cover_i": 13667351,
+        "first_publish_year": 1963,
+        "key": "/works/OL34872997W",
+        "language": [
+          "fre",
+          "spa",
+          "ita",
+          "ger",
+          "eng",
+          "por"
+        ],
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 36,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9162898M",
+              "title": "Frankenstein",
+              "cover_i": 13667351,
+              "language": [
+                "por"
+              ],
+              "publisher": [
+                "Cia das Letras",
+                "Seguinte"
+              ],
+              "publish_date": [
+                "2000"
+              ],
+              "isbn": [
+                "9788571643987",
+                "8571643989"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33088A"
+        ],
+        "author_name": [
+          "Dean Koontz"
+        ],
+        "cover_i": 12881297,
+        "first_publish_year": 2011,
+        "key": "/works/OL16755640W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Dead Town",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26139152M",
+              "title": "Frankenstein The Dead Town",
+              "cover_i": 7799622,
+              "publisher": [
+                "Brilliance Audio"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781441818416",
+                "1441818413"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL26600526W",
+        "language": [
+          "eng"
+        ],
+        "title": "Frankenstein Annotated",
+        "editions": {
+          "numFound": 62,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36477702M",
+              "title": "Frankenstein Annotated",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798460715404"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3065204A"
+        ],
+        "author_name": [
+          "Junji Itō"
+        ],
+        "cover_i": 9103351,
+        "first_publish_year": 2013,
+        "key": "/works/OL19765030W",
+        "language": [
+          "jpn",
+          "eng",
+          "por"
+        ],
+        "subtitle": "Frankenstein",
+        "title": "Itou Junji Kyoufu Manga Collection 16",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26978029M",
+              "title": "Frankenstein",
+              "cover_i": 9103355,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "VIZ Media"
+              ],
+              "publish_date": [
+                "Oct 16, 2018"
+              ],
+              "isbn": [
+                "9781974703760",
+                "1974703762"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7080743A",
+          "OL25342A"
+        ],
+        "author_name": [
+          "Jason Cobley",
+          "Mary Shelley"
+        ],
+        "cover_i": 9319226,
+        "first_publish_year": 2008,
+        "key": "/works/OL17504079W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "the graphic novel",
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28748015M",
+              "title": "Frankenstein",
+              "cover_i": 13520125,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Classical Comics"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781907127397",
+                "1907127399"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "cover_i": 13450222,
+        "first_publish_year": 2007,
+        "key": "/works/OL34412196W",
+        "language": [
+          "eng",
+          "spa"
+        ],
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 29,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46815460M",
+              "title": "Frankenstein",
+              "cover_i": 13670032,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published",
+                "Independently published"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781709644221",
+                "1709644222"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "first_publish_year": 2007,
+        "key": "/works/OL36141872W",
+        "language": [
+          "eng",
+          "spa",
+          "ger",
+          "ita",
+          "fre",
+          "por"
+        ],
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 43,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49117634M",
+              "title": "Frankenstein",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798749108699"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6789194A"
+        ],
+        "author_name": [
+          "Kiersten White"
+        ],
+        "cover_i": 8824578,
+        "first_publish_year": 2018,
+        "key": "/works/OL19753038W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Dark Descent of Elizabeth Frankenstein",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26966081M",
+              "title": "The Dark Descent of Elizabeth Frankenstein",
+              "cover_i": 12641484,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Delacorte Press"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9780525577942",
+                "0525577947"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7953330A"
+        ],
+        "author_name": [
+          "Elia Barceló Esteve"
+        ],
+        "cover_i": 10130119,
+        "first_publish_year": 2019,
+        "key": "/works/OL20826169W",
+        "title": "EL EFECTO FRANKENSTEIN",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28194149M",
+              "title": "EL EFECTO FRANKENSTEIN",
+              "cover_i": 10130119,
+              "publisher": [
+                "edebé"
+              ],
+              "publish_date": [
+                "Mar 25, 2019"
+              ],
+              "isbn": [
+                "9788468342740",
+                "8468342742"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6703934A"
+        ],
+        "author_name": [
+          "Aḥmad Saʻdāwī"
+        ],
+        "first_publish_year": 2018,
+        "key": "/works/OL19728977W",
+        "language": [
+          "eng"
+        ],
+        "title": "Frankenstein in Baghdad",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26942080M",
+              "title": "Frankenstein in Baghdad",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9780143128793",
+                "0143128795"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13677969A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "first_publish_year": 1816,
+        "key": "/works/OL41706747W",
+        "language": [
+          "eng",
+          "alb"
+        ],
+        "subtitle": "(Albanian Edition)",
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58840668M",
+              "title": "frankenstein",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Signet Classics"
+              ],
+              "publish_date": [
+                "1816"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL48516A"
+        ],
+        "author_name": [
+          "Chuck Dixon"
+        ],
+        "cover_i": 12899200,
+        "first_publish_year": 2008,
+        "key": "/works/OL15301401W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "prodigal son.",
+        "title": "Dean Koontz's Frankenstein",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL23713605M",
+              "title": "Dean Koontz's Frankenstein",
+              "cover_i": 12899200,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Del Rey/Ballantine Books"
+              ],
+              "publish_date": [
+                "2008"
+              ],
+              "isbn": [
+                "9780345506405",
+                "0345506405"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL24396A"
+        ],
+        "author_name": [
+          "Kenneth Oppel"
+        ],
+        "cover_i": 8072708,
+        "first_publish_year": 2011,
+        "key": "/works/OL15941999W",
+        "language": [
+          "fre",
+          "eng"
+        ],
+        "title": "This dark endeavor",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48210371M",
+              "title": "This Dark Endeavor",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Findaway World, LLC"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781455823161",
+                "1455823163"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25342A"
+        ],
+        "author_name": [
+          "Mary Shelley"
+        ],
+        "cover_i": 13271949,
+        "first_publish_year": 1718,
+        "key": "/works/OL32513353W",
+        "language": [
+          "por",
+          "eng"
+        ],
+        "title": "Frankenstein",
+        "editions": {
+          "numFound": 19,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46634225M",
+              "title": "Frankenstein",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798841144922"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.398
+}

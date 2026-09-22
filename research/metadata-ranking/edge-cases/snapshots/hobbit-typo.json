@@ -1,0 +1,86 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+hobbitt&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-22T00:23:25.822777+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 1,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 1,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the hobbitt",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL26320A"
+        ],
+        "author_name": [
+          "J.R.R. Tolkien"
+        ],
+        "cover_i": 14627509,
+        "first_publish_year": 1937,
+        "key": "/works/OL27482W",
+        "language": [
+          "ger",
+          "bul",
+          "heb",
+          "ang",
+          "ita",
+          "ukr",
+          "cor",
+          "dan",
+          "jpn",
+          "cat",
+          "epo",
+          "chi",
+          "swe",
+          "yid",
+          "lat",
+          "rum",
+          "bre",
+          "nob",
+          "rus",
+          "fin",
+          "eng",
+          "spa",
+          "vie",
+          "por",
+          "gle",
+          "tur",
+          "pol",
+          "fre",
+          "lez",
+          "cze",
+          "dut"
+        ],
+        "title": "The Hobbit",
+        "editions": {
+          "numFound": 268,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9893405M",
+              "title": "The Hobbitt",
+              "cover_i": 14626628,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Ballantine Books"
+              ],
+              "publish_date": [
+                "1973-09"
+              ],
+              "isbn": [
+                "9780345235121",
+                "0345235126"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -33,12 +33,15 @@ type Author struct {
 }
 
 type Work struct {
+	Languages        []string `json:"languages,omitempty"`
+	Subtitle         string   `json:"subtitle,omitempty"`
 	FirstPublishDate string   `json:"firstPublishDate,omitempty"`
 	ID               string   `json:"id"`
 	Title            string   `json:"title"`
 	Authors          []Author `json:"authors"`
 	FirstPublishYear int      `json:"firstPublishYear,omitempty"`
 	Description      string   `json:"description,omitempty"`
+	SeriesID         string   `json:"seriesId,omitempty"`
 	Series           string   `json:"series,omitempty"`
 	SeriesPosition   string   `json:"seriesPosition,omitempty"`
 	CoverURL         string   `json:"coverUrl,omitempty"`
@@ -63,14 +66,18 @@ type Edition struct {
 }
 
 type SearchResult struct {
-	Provider     string     `json:"provider"`
-	Kind         SearchType `json:"kind"`
-	Work         Work       `json:"work"`
-	Edition      Edition    `json:"edition,omitempty"`
-	Score        float64    `json:"score"`
-	Confidence   string     `json:"confidence"`
-	MatchedOn    []string   `json:"matchedOn"`
-	RawSourceKey string     `json:"rawSourceKey,omitempty"`
+	// discoveryRank is assigned after the provider cache; it is not confidence.
+	discoveryRank int
+	Evidence      []string   `json:"evidence,omitempty"`
+	Conflicts     []string   `json:"conflicts,omitempty"`
+	Provider      string     `json:"provider"`
+	Kind          SearchType `json:"kind"`
+	Work          Work       `json:"work"`
+	Edition       Edition    `json:"edition,omitempty"`
+	Score         float64    `json:"score"`
+	Confidence    string     `json:"confidence"`
+	MatchedOn     []string   `json:"matchedOn"`
+	RawSourceKey  string     `json:"rawSourceKey,omitempty"`
 }
 
 type ProviderHealth struct {
