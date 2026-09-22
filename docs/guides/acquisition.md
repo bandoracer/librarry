@@ -47,6 +47,25 @@ connection details through `PUT /api/v1/integrations/config`; those records are
 stored in `compat_resources`, applied to the running acquisition service
 immediately, and reloaded on restart.
 
+## Download from search
+
+In **Add New**, select the book, then **Download ebook** or **Download audiobook**.
+Librarry saves that edition, searches releases using the standard search language,
+and starts the highest-ranked approved result. This uses your quality profile and
+format-specific root folder; change them under **Options**. **Add Book** saves
+without an immediate search or download; normal monitoring still applies.
+
+Source scores such as “medium” are no longer displayed as a verdict on a book.
+A selected title does not require another confirmation just because its ISBN is
+missing or the query omitted the author. Explicit edition conflicts and missing
+authors still prompt for review. Unknown source formats use a visible **Download
+format** selector and remain unknown in stored provider evidence.
+
+If nothing qualifies, the book stays saved for monitoring. Search or client errors
+open the saved book for recovery; an uncertain download request is never retried
+automatically. **Options → Search Releases** retains manual release selection.
+Provider identifiers and evidence remain under **Book details and sources**.
+
 ## Upgrades
 
 Upgrade search can run on an interval:

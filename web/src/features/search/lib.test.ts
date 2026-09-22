@@ -39,10 +39,10 @@ describe("discovery evidence", () => {
     expect(searchResultCover(result)).toBe("edition.jpg");
     expect(searchResultCover({ ...result, edition: { ...result.edition!, coverUrl: "" } })).toBe("work.jpg");
   });
-  it("requires review for unknown format or explicit conflicts even with exact ISBN", () => {
+  it("requires review for explicit conflicts even with exact ISBN", () => {
     const reasons = searchResultWantedReviewReasons({ ...result, conflicts: ["Edition language differs from your preference"] });
     expect(reasons).toContain("Edition language differs from your preference");
-    expect(reasons.some(reason => reason.includes("format is unknown"))).toBe(true);
+    expect(reasons.some(reason => reason.includes("format is unknown"))).toBe(false);
   });
 });
 
@@ -58,4 +58,19 @@ it("groups exact works without merging edition or adaptation evidence", () => {
   expect(groups[0][0]).toBe(base);
   expect(groups[0][1]).toBe(audio);
   expect(base.edition?.format).toBe("ebook");
+});
+
+
+describe("routine book selection", () => {
+  const book: SearchResult = { provider: "Hardcover", kind: "book", work: { id: "hardcover:465017", title: "A Brief History of Time", authors: [{ id: "hardcover-author:214466", name: "Stephen Hawking" }] }, edition: { id: "hardcover-edition:32171966", title: "A Brief History of Time", format: "ebook", language: "English" }, score: 0.75, confidence: "medium", matchedOn: ["hardcover work and edition records"] };
+  it("does not require a second confirmation for medium relevance, missing ISBN, or title-only evidence", () => {
+    expect(searchResultWantedReviewReasons(book)).toEqual([]);
+    expect(searchResultMatchChips(book).map(chip => chip.label)).toEqual(["ebook", "English"]);
+  });
+  it("does not confuse unknown source format with the user's explicit download format", () => {
+    expect(searchResultWantedReviewReasons({ ...book, edition: undefined, confidence: "review" })).toEqual([]);
+  });
+  it("still asks about missing authors and concrete edition conflicts", () => {
+    expect(searchResultWantedReviewReasons({ ...book, work: { ...book.work, authors: [] }, conflicts: ["Wrong language"] })).toEqual(["Wrong language", "This record has no author. Check that it is the book you want."]);
+  });
 });

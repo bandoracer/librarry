@@ -89,19 +89,17 @@ export function searchResultCover(result: SearchResult) {
 }
 
 export function searchResultMatchChips(result: SearchResult) {
-  const chips: SearchEvidenceChip[] = [
-    { label: searchResultMatchLabel(result), tone: "neutral" }
-  ];
-  const sourceCount = searchResultSourceNames(result).length;
-  if (sourceCount > 1) chips.push({ label: `${sourceCount} sources`, tone: "high" });
-  if (result.evidence?.length) result.evidence.slice(1).forEach((label) => chips.push({ label, tone: "neutral" }));
-  else result.matchedOn.forEach((field) => chips.push({ label: searchMatchFieldLabel(field), tone: "neutral" }));
-  if (result.conflicts?.length) chips.unshift({ label: "Edition needs review", tone: "review" });
-  if (result.kind !== "author" && searchResultIdentifierSummary(result, 1)) chips.push({ label: "identifier", tone: "high" });
-  if (result.kind !== "author" && searchResultPublishedLabel(result)) chips.push({ label: "published", tone: "neutral" });
-  if (result.kind !== "author" && searchResultSeriesLabel(result)) chips.push({ label: "series", tone: "neutral" });
-  if (result.kind === "author" && searchResultProviderKey(result)) chips.push({ label: "author id", tone: "neutral" });
-  return uniqueEvidenceChips(chips).slice(0, 5);
+  const chips: SearchEvidenceChip[] = [];
+  if (result.conflicts?.length) chips.push({ label: "Edition conflict", tone: "review" });
+  if (result.matchedOn.includes("isbn") || result.evidence?.includes("Exact ISBN")) {
+    chips.push({ label: "Exact ISBN", tone: "neutral" });
+  }
+  if (result.edition?.format && result.edition.format !== "any") {
+    chips.push({ label: result.edition.format, tone: "neutral" });
+  }
+  const language = languageLabel(result.edition?.language);
+  if (language) chips.push({ label: language, tone: "neutral" });
+  return chips;
 }
 
 export function searchResultEvidenceSummary(result: SearchResult, currentFormat: string): SearchEvidenceItem[] {
@@ -157,7 +155,7 @@ export function searchResultEvidenceSummary(result: SearchResult, currentFormat:
 
 export function searchResultConfidenceDescription(result: SearchResult) {
   if (result.conflicts?.length) return result.conflicts.join(". ");
-  return "Search relevance is not acquisition confidence. Check the selected edition, language and format.";
+  return result.evidence?.join(" · ") || "Returned by the metadata provider.";
 }
 
 export function searchResultMatchedFieldsLabel(result: SearchResult) {
@@ -196,24 +194,8 @@ export function uniqueEvidenceChips(chips: SearchEvidenceChip[]) {
 export function searchResultWantedReviewReasons(result: SearchResult) {
   if (!searchResultCanBeWanted(result)) return [];
   const reasons: string[] = [...(result.conflicts ?? [])];
-  if (!result.edition?.format || result.edition.format === "any") {
-    reasons.push("The edition's media format is unknown; confirm your acquisition format.");
-  }
-  const matched = new Set(result.matchedOn.map((field) => field.toLowerCase()));
-  const hasIdentifier = Boolean(result.edition?.asin || result.edition?.isbns?.length);
-  const matchedIdentifier = matched.has("isbn") || matched.has("asin") || matched.has("identifier");
-  const matchedTitleAndAuthor = matched.has("title") && matched.has("author");
-
-  if (result.confidence === "review") {
-    reasons.push("Provider match is low confidence.");
-  } else if (result.confidence === "medium") {
-    reasons.push("Provider match is medium confidence.");
-  }
-  if (!hasIdentifier && !matchedIdentifier) {
-    reasons.push("No ISBN or ASIN evidence is attached to this edition.");
-  }
-  if (!matchedIdentifier && !matchedTitleAndAuthor) {
-    reasons.push("The match did not include both title and author evidence.");
+  if (!result.work.authors?.some(author => author.name?.trim() && author.name.trim().toLowerCase() !== "unknown author")) {
+    reasons.push("This record has no author. Check that it is the book you want.");
   }
   return Array.from(new Set(reasons));
 }

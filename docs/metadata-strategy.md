@@ -66,7 +66,12 @@ retrieval, coherent edition selection, relevance, and metadata quality. Its froz
 the measured gains; extra ranking weights did not outperform provider relevance.
 The initial retrieval/normalization baseline is now implemented in source, with
 identity tiers and evidence labels. Provider relevance determines discovery order;
-legacy scores remain compatibility/review evidence and are not probabilities.
+legacy scores remain in the API for compatibility and are not probabilities.
+The Add New UI omits confidence badges and does not use those scores to gate an
+explicit user selection. Only concrete edition conflicts or a missing author
+require add confirmation. Unknown source formats remain unknown; the visible
+acquisition format controls the wanted item. Provider evidence and identifiers
+remain available in an expandable details section.
 Search records merge only with shared edition ISBN or identical work/edition
 identity, preserving source IDs. Text-only enrichment of persisted records follows
 its existing separate review contract. The custom weighted ranker remains future qualification work. Explicit Series

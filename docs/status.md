@@ -28,6 +28,19 @@ and broad credentialed catalog qualification remain outstanding. Live title, aut
 ebook-ISBN and Percy Jackson series probes passed, as did combined-provider search.
 See the [release and preservation record](reviews/2026-09-21-metadata-rollout.md).
 
+## Search-to-download simplification (source only)
+
+The next UI change removes legacy confidence badges and routine add confirmations.
+A selected book has a **Download ebook/audiobook** action that saves, searches,
+and starts the best approved release; **Add Book** saves without an immediate
+search. Options and provider evidence are expandable. Explicit edition conflicts,
+missing authors, saved-identity checks and release approval remain enforced.
+Verified locally with the full Go suite against disposable PostgreSQL, 32 frontend
+tests, the production web build, deployment configuration checks and 38 targeted
+desktop/mobile browser checks. Browser tests use intercepted acquisition responses;
+no live downloads were submitted. This change is not yet deployed; the live
+metadata rollout above remains current.
+
 ## Kindle delivery
 
 Manual native EPUB/PDF delivery is deployed on the maintainer NAS. Settings,

@@ -5,6 +5,12 @@ what is published, deployed and qualified. A candidate tag is not a stable relea
 
 ## Unreleased
 
+- Add New puts **Download ebook/audiobook** first: save the selected book, search
+  releases, and start the best approved result with existing quality settings.
+  Add Book saves without an immediate search. Advanced options and provider
+  evidence are collapsed; routine title selections no longer require a second
+  confirmation because of legacy confidence scores or missing ISBNs.
+
 - Use Hardcover's supported series-search endpoint and explicit IDs instead of
   forbidden substring filters; prioritize usable editions over sparse work records.
 
@@ -25,7 +31,7 @@ what is published, deployed and qualified. A candidate tag is not a stable relea
   stay unknown. Text similarity alone no longer merges search identities.
 - Add New shows match evidence instead of percentage scores, prefers edition
   covers, handles failed images, and shows provider errors alongside usable results.
-  Unknown edition formats require the existing add-review step.
+  Unknown source formats remain explicit; the selected download format determines the target.
 
 ## September 16, 2026 — stabilization release
 
