@@ -189,3 +189,20 @@ for (const secondFails of [false, true]) {
     } finally { finishSaveFirst(); finishFirst(); finishSecond(); }
   });
 }
+
+test("search rows show persisted progress after reload and open the saved book", async ({ page }) => {
+ const states = [
+ { label: "Needs import review", importReviewId: "review", downloadState: "import_ready" },
+ { label: "Stalled", downloadState: "stalled" },
+ { label: "Waiting for metadata", downloadState: "waiting_metadata" },
+ { label: "In library", derivedState: "downloaded" }
+ ];
+ await page.route("**/api/v1/search?**", route => route.fulfill({ json: { results: states.map((state,i) => ({ ...result, work: { ...result.work, id: `fixture:${i}`, title: `Book ${i}` }, edition: { ...result.edition, id: `edition:${i}` } })) } }));
+ await page.route("**/api/v1/library/book-matches", route => route.fulfill({ json: { matches: route.request().postDataJSON().candidates.map((candidate: {key:string}, i:number) => ({ key:candidate.key, total:1, books:[{...saved, id:`book-${i}`, status:"grabbed", derivedState:"downloading", ...states[i]}] })) } }));
+ await page.goto("/search?query=fixture");
+ await page.reload();
+ for (let i=0;i<states.length;i++) await expect(page.locator(".search-result-row").filter({hasText:`Book ${i}`})).toContainText(states[i].label);
+ await page.locator(".search-result-row").filter({hasText:"Book 0"}).click();
+ await expect(page.getByRole("button",{name:"Open book",exact:true})).toBeVisible();
+ await expect(page.getByRole("button",{name:"Download ebook",exact:true})).toHaveCount(0);
+});

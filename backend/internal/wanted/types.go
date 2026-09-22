@@ -276,6 +276,9 @@ type WantedItem struct {
 	// downloaded/cutoffUnmet/unmonitored/incomplete/unknown) computed at the API boundary; the
 	// stored lifecycle Status no longer drives user-facing state.
 	CompatibilityProfile *QualityProfile    `json:"-"`
+	DownloadState        string             `json:"downloadState,omitempty"`
+	ImportReviewID       string             `json:"importReviewId,omitempty"`
+	ImportReviewReason   string             `json:"importReviewReason,omitempty"`
 	DerivedState         string             `json:"derivedState,omitempty"`
 	StateEvidence        *BookStateEvidence `json:"stateEvidence,omitempty"`
 	CreatedAt            time.Time          `json:"createdAt"`

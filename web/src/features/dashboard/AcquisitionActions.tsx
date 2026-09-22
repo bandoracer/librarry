@@ -76,8 +76,12 @@ export function AcquisitionNextActions(props: { items: AcquisitionQueueItem[] })
           await invalidate(keys.wanted, keys.acquisitionQueue, keys.downloads(), keys.importReviews(), keys.history());
           break;
         }
+        case "import_review":
+          navigate("/imports");
+          break;
+        case "stalled":
         case "blocked": {
-          const failedDownloads = queueDownloadsForRecovery(item);
+          const failedDownloads = item.state === "stalled" ? (item.downloads ?? []).filter(download => download.progress < 1) : queueDownloadsForRecovery(item);
           if (failedDownloads.length) {
             const run = await recoverFailedDownloads({
               downloadIds: failedDownloads.map((download) => download.id).filter(Boolean),
@@ -91,6 +95,8 @@ export function AcquisitionNextActions(props: { items: AcquisitionQueueItem[] })
           }
           break;
         }
+        case "waiting_metadata":
+        case "paused":
         case "queued":
         case "downloading":
           navigate("/downloads");

@@ -354,10 +354,10 @@ func (s *Service) payloadMatchReasons(ctx context.Context, payload DownloadPaylo
 		if f.Format == "audiobook" && (len(media) > 1 || f.Album != "") {
 			title = f.Album
 		}
-		if title != "" && normalizeImportReviewMatchText(title) != normalizeImportReviewMatchText(item.Title) {
+		if title != "" && !importTitleMatches(title, item) {
 			reasons = append(reasons, f.RelativePath+": embedded book title differs from wanted book")
 		}
-		if f.Author != "" && item.AuthorName != "" && normalizeImportReviewMatchText(f.Author) != normalizeImportReviewMatchText(item.AuthorName) {
+		if f.Author != "" && item.AuthorName != "" && !importAuthorMatches(f.Author, item.AuthorName) {
 			reasons = append(reasons, f.RelativePath+": embedded author differs from wanted author")
 		}
 		if len(media) > 1 {

@@ -17,7 +17,7 @@ import (
 func TestBookMatchesCompleteIdentityLookup(t *testing.T) {
 	db := testdb.Open(t)
 	store := NewStore(db)
-	s := NewService(store, noChoiceNetwork{})
+	s := NewService(store, &workerFixture{})
 	ctx := context.Background()
 	result := bibliographyCandidate(1, "1990-01-01", "Original author")
 	result.Work.ProviderIDs = []string{"openlibrary:OL1W"}

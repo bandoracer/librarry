@@ -35,6 +35,10 @@ func (s *Service) queuePayloadReview(ctx context.Context, download acquisition.D
 	if err != nil {
 		return review, err
 	}
+	// A waiting tick must not erase the conflict that originally requested review.
+	if reason == "download awaits an explicit import review decision" && review.Reason != "" {
+		reason = review.Reason
+	}
 	raw, err := json.Marshal(metadata)
 	if err != nil {
 		return review, err

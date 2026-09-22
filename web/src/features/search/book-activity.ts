@@ -1,3 +1,4 @@
+import { bookProgressLabel } from "../../lib/book-progress";
 import type { BookMatch, SearchResult, WantedItem } from "../../lib/api";
 import { searchResultKey } from "./lib";
 
@@ -32,7 +33,10 @@ export function savedBookLabel(match: BookMatch) {
   const book = match.books[0];
   if (book?.status === "removed") return "Removed";
   if (book?.status === "ignored") return "Ignored";
-  if (book?.derivedState === "downloaded") return "In library";
+  if (["downloaded", "cutoffUnmet"].includes(book?.derivedState ?? "")) return "In library";
+  const progress = bookProgressLabel(book);
+  if (progress) return progress;
+  if (book?.derivedState === "unknown" || book?.stateEvidence?.downloads === "unavailable") return "Status unavailable";
   if (book?.derivedState === "downloading") return "Downloading";
   if (book?.status === "grabbed") return "Queued";
   return "Tracked";
@@ -48,8 +52,8 @@ export function bookActivityLabel(activity?: BookActivity, match?: BookMatch) {
 }
 
 export function bookActivityTone(label: string) {
-  if (["Adding", "Finding download", "Starting download", "Downloading"].includes(label)) return "info";
-  if (["Needs attention", "No download found"].includes(label)) return "warn";
+  if (["Adding", "Finding download", "Starting download", "Downloading", "Waiting for import", "Waiting for metadata"].includes(label)) return "info";
+  if (["Needs attention", "No download found", "Stalled", "Paused", "Needs import review", "Status unavailable"].includes(label)) return "warn";
   if (["Queued", "Saved", "In library"].includes(label)) return "success";
   return "neutral";
 }

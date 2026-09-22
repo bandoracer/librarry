@@ -20,3 +20,13 @@ describe("book download state", () => {
     expect(bookActivityLabel(undefined, { ...match, books: [{ status: "removed" } as WantedItem] })).toBe("Removed");
   });
 });
+
+it("shows durable import review, idle transfers, and outage state instead of queued", () => {
+  for (const [downloadState, label] of [["stalled", "Stalled"], ["waiting_metadata", "Waiting for metadata"], ["import_ready", "Waiting for import"], ["paused", "Paused"]]) {
+    const book = { status: "grabbed", derivedState: "downloading", downloadState } as WantedItem;
+    expect(bookActivityLabel({ ...action, phase: "queued" }, { key: "book", total: 1, books: [book] })).toBe(label);
+    expect(bookActivityLabel(undefined, { key: "book", total: 1, books: [{ ...book, importReviewId: "review" }] })).toBe("Needs import review");
+    expect(bookActivityLabel(undefined, { key: "book", total: 1, books: [{ ...book, derivedState: "downloaded" }] })).toBe("In library");
+  }
+  expect(bookActivityLabel(undefined, { key: "book", total: 1, books: [{ status: "grabbed", derivedState: "unknown" } as WantedItem] })).toBe("Status unavailable");
+});

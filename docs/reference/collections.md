@@ -375,10 +375,14 @@ against all wanted rows in the requested format, including removed/ignored rows.
 Legacy work/format source placeholders remain recognized. Titles and author-name
 similarity are not identity evidence. Each candidate returns its exact `total`
 and up to ten saved books, ordered active before inactive, then creation time/UUID.
-Owner overrides are hydrated in a batch. No provider, client or filesystem probe
-runs. Schema 0056 indexes wanted work/format and edition/format joins. The UI shows
+Owner overrides and pending import-review reasons are hydrated in a batch.
+After identity matching, a single bounded live client read and recorded file
+evidence annotate the matched books, as on library/detail views. No metadata
+provider or filesystem probe runs. Failed client reads leave identity matches
+intact and expose unavailable progress. Schema 0056 indexes wanted work/format and edition/format joins. The UI shows
 ambiguity explicitly and validates the complete response before permitting Add.
-These are tracking badges, not current file-presence claims.
+Badges distinguish tracking, observed acquisition progress, pending import review
+and recorded library presence. Coarse presence filters remain compatible.
 
 Search sends `preserveExisting: true` on native wanted creation. Ordered identity
 locks and existing local work locks coordinate concurrent preserved adds, including

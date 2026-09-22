@@ -426,7 +426,7 @@ export default function LibraryPage() {
                   <Badge>{item.format}</Badge>
                 </td>
                 <td>
-                  <Badge tone={presenceTone(state)}>{presenceLabel(state)}</Badge>
+                  <Badge tone={presenceTone(state, item)}>{presenceLabel(state, item)}</Badge>
                 </td>
                 <td>{bookActions(item)}</td>
               </tr>
@@ -463,7 +463,7 @@ export default function LibraryPage() {
                   </span>
                 )}
                 <span className="library-poster-badge">
-                  <Badge tone={presenceTone(state)}>{presenceLabel(state)}</Badge>
+                  <Badge tone={presenceTone(state, item)}>{presenceLabel(state, item)}</Badge>
                 </span>
               </Link>
               {editMode ? <span className="library-poster-check">{bookCheckbox(item, "library-monitor-toggle")}</span> : null}
@@ -514,7 +514,7 @@ export default function LibraryPage() {
                   <Link to={libraryBookPath(item.id)}>
                     <strong>{item.title}</strong>
                   </Link>
-                  <Badge tone={presenceTone(state)}>{presenceLabel(state)}</Badge>
+                  <Badge tone={presenceTone(state, item)}>{presenceLabel(state, item)}</Badge>
                   <Badge>{item.format}</Badge>
                 </div>
                 <Link className="library-overview-author" to={libraryWantedAuthorPath(item)}>
@@ -623,7 +623,7 @@ export default function LibraryPage() {
           stats={[
             { label: "Books", value: summary.books },
             { label: "Missing", value: summary.missing, tone: summary.missing > 0 ? "danger" : "neutral" },
-            { label: "Downloading", value: summary.downloading, tone: summary.downloading > 0 ? "info" : "neutral" },
+            { label: "Acquiring", value: summary.downloading, tone: summary.downloading > 0 ? "info" : "neutral" },
             { label: "Downloaded", value: summary.downloaded, tone: summary.downloaded > 0 ? "success" : "neutral" },
             { label: "Cutoff unmet", value: summary.cutoffUnmet, tone: summary.cutoffUnmet > 0 ? "warn" : "neutral" },
             { label: "Incomplete", value: summary.incomplete, tone: summary.incomplete > 0 ? "warn" : "neutral" },

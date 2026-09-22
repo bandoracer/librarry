@@ -97,7 +97,7 @@ func (s *Service) CompatibilityBooks(ctx context.Context) ([]WantedItem, error) 
 		return nil, err
 	}
 	defer tx.Rollback()
-	items, err := readCompatibilityBooks(ctx, tx, bookCollectionSQL+`select `+wantedDetailColumns+`,b.derived_state,b.file_state,b.file_reason,b.present_files,b.required_files
+	items, err := readCompatibilityBooks(ctx, tx, bookCollectionSQL+`select `+wantedDetailColumns+`,b.derived_state,b.download_state,b.file_state,b.file_reason,b.present_files,b.required_files
 	 from stateful b join wanted_items wi on wi.id=b.id left join works w on w.id=wi.work_id
 	 order by lower(b.title) collate "C",wi.id`, args)
 	if err != nil {
@@ -114,14 +114,15 @@ func readCompatibilityBooks(ctx context.Context, tx *sql.Tx, query string, args 
 	}
 	items := []WantedItem{}
 	for rows.Next() {
-		var state string
+		var state, phase string
 		var evidence FileEvidence
-		item, e := scanWanted(wantedWithExtra{row: rows, extra: []any{&state, &evidence.State, &evidence.Reason, &evidence.PresentFiles, &evidence.RequiredFiles}})
+		item, e := scanWanted(wantedWithExtra{row: rows, extra: []any{&state, &phase, &evidence.State, &evidence.Reason, &evidence.PresentFiles, &evidence.RequiredFiles}})
 		if e != nil {
 			rows.Close()
 			return nil, e
 		}
 		item.DerivedState = state
+		item.DownloadState = phase
 		item.StateEvidence = &BookStateEvidence{Files: evidence, Downloads: args[2].(string), Quality: "available"}
 		if evidence.State != "present" && evidence.State != "missing" {
 			item.StateEvidence.Message = evidence.Reason

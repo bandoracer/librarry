@@ -231,6 +231,8 @@ export type Release = {
 };
 
 export type DownloadStatus = {
+  importReviewId?: string;
+  importReviewReason?: string;
   client?: string;
   id: string;
   name: string;
@@ -459,6 +461,9 @@ export type WantedItem = {
   format: "ebook" | "audiobook";
   qualityProfile: string;
   status: string;
+  downloadState?: string;
+  importReviewId?: string;
+  importReviewReason?: string;
   derivedState?: "unmonitored" | "missing" | "downloading" | "downloaded" | "cutoffUnmet" | "incomplete" | "unknown";
   stateEvidence?: {
     files: { state: "present" | "missing" | "incomplete" | "unknown" | "unavailable"; reason: string; presentFiles: number; requiredFiles?: number };

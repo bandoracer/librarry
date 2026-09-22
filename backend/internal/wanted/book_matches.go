@@ -105,7 +105,28 @@ func (s *Service) MatchBooks(ctx context.Context, candidates []BookMatchCandidat
 	if err != nil {
 		return BookMatches{}, err
 	}
-	return result, tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return BookMatches{}, err
+	}
+	unique := map[string]WantedItem{}
+	for _, m := range result.Matches {
+		for _, book := range m.Books {
+			unique[book.ID] = book
+		}
+	}
+	books := make([]WantedItem, 0, len(unique))
+	for _, book := range unique {
+		books = append(books, book)
+	}
+	for _, book := range s.AnnotateWantedStates(ctx, books) {
+		unique[book.ID] = book
+	}
+	for i := range result.Matches {
+		for j, book := range result.Matches[i].Books {
+			result.Matches[i].Books[j] = unique[book.ID]
+		}
+	}
+	return result, nil
 }
 
 // Different saved aliases can already point to the same local work even when

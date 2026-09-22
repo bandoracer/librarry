@@ -126,6 +126,7 @@ export default function BookPage() {
       <div className="library-page">
         {inactive ? <InlineNotice tone="info">This book is {item.status} and is excluded from the active Library and automatic acquisition. File records and history remain saved. <Button size="sm" onClick={() => setRestoreOpen(true)}>Restore…</Button> <Link to="/library/removed">Removed books</Link></InlineNotice> : null}
         {restoreOpen ? <RestoreBookDialog book={item} onClose={() => setRestoreOpen(false)} onRestored={() => { setRestoreOpen(false); toast.success("Book restored to Library."); }} /> : null}
+        {item.importReviewId ? <InlineNotice tone="warn">{item.importReviewReason || "This completed download needs review."} <Link to="/imports">Review import</Link></InlineNotice> : null}
         <Card padded>
           <div className="library-book-header">
             {item.coverUrl ? (
@@ -137,7 +138,7 @@ export default function BookPage() {
             )}
             <div className="library-book-header-main">
               <div className="library-book-header-badges">
-                <Badge tone={presenceTone(state)}>{presenceLabel(state)}</Badge>
+                <Badge tone={presenceTone(state, item)}>{presenceLabel(state, item)}</Badge>
                 <Badge>{item.format}</Badge>
                 <Badge tone={item.monitored ? "accent" : "neutral"}>
                   {item.monitored ? "Monitored" : "Unmonitored"}
