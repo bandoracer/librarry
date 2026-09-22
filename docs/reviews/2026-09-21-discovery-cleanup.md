@@ -1,7 +1,7 @@
 # Discovery cleanup after the live review
 
-Source candidate only; neither this change nor the simplified download UI has
-been deployed. The NAS remains on the preceding metadata rollout.
+Deployed with the simplified download UI and adaptation pass. See the
+[release record](2026-09-21-discovery-rollout.md) for source, images and live proof.
 
 ## Verified problems
 

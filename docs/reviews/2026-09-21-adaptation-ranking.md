@@ -1,6 +1,7 @@
 # Adaptation evidence and search release
 
-Source verification record; deployment is recorded separately below after rollout.
+Deployed and promoted to `latest` with the preceding UI/discovery changes. See
+the [release record](2026-09-21-discovery-rollout.md) for rollout evidence.
 
 ## Evidence and behavior
 

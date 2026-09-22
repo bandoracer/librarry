@@ -28,9 +28,9 @@ and broad credentialed catalog qualification remain outstanding. Live title, aut
 ebook-ISBN and Percy Jackson series probes passed, as did combined-provider search.
 See the [release and preservation record](reviews/2026-09-21-metadata-rollout.md).
 
-## Search-to-download simplification (source only)
+## Search-to-download simplification (deployed)
 
-The next UI change removes legacy confidence badges and routine add confirmations.
+The deployed UI removes legacy confidence badges and routine add confirmations.
 A selected book has a **Download ebook/audiobook** action that saves, searches,
 and starts the best approved release; **Add Book** saves without an immediate
 search. Options and provider evidence are expandable. Explicit edition conflicts,
@@ -38,25 +38,25 @@ missing authors, saved-identity checks and release approval remain enforced.
 Verified locally with the full Go suite against disposable PostgreSQL, 32 frontend
 tests, the production web build, deployment configuration checks and 38 targeted
 desktop/mobile browser checks. Browser tests use intercepted acquisition responses;
-no live downloads were submitted. This change is not yet deployed; the live
-metadata rollout above remains current.
+no live downloads were submitted. This change is deployed with the [discovery release](reviews/2026-09-21-discovery-rollout.md).
 
-## Discovery cleanup (source only)
+## Discovery cleanup (deployed)
 
-The next ranking pass addresses the live DDIA empty-record and typo/noise cases,
+The deployed ranking pass addresses the live DDIA empty-record and typo/noise cases,
 adds expandable related/incomplete sections, and preserves healthy Hardcover
 records during partial edition validation failures. It also groups verified work
 aliases while retaining selected edition identity. The 24-query credentialed live probe, 50-query captured benchmark, metadata race
-tests, full Go suite and 42 desktop/mobile checks passed. Source-only evidence and
+tests, full Go suite and 42 desktop/mobile checks passed. Implementation evidence and
 the remaining gaps are in the [cleanup review](reviews/2026-09-21-discovery-cleanup.md).
 
-## Adaptation evidence (source only)
+## Adaptation evidence (deployed)
 
 Provider categories, subjects/genres and edition abridgment evidence now support
 concise graphic/abridgment labels and secondary placement when a coherent original
 exists. Explicit comic searches, exact ISBNs and standalone graphic works retain
 primary placement. See the [adaptation review](reviews/2026-09-21-adaptation-ranking.md).
-This pass is awaiting packaging and deployment with the two changes above.
+All three passes are deployed and promoted to `latest`; see the
+[release and preservation record](reviews/2026-09-21-discovery-rollout.md).
 
 ## Kindle delivery
 
@@ -75,11 +75,11 @@ unconfirmed. Uncertain attempts are never automatically retried.
 
 | State | Verified position |
 | --- | --- |
-| Application candidate | `ca6c8432689b69545448d3cb30879d9bc7b08e0a`, merged through [PR #54](https://github.com/bandoracer/librarry/pull/54) at main commit `f23c674e99d4923a14705e882631f28c161fb2fa`. Later documentation-only commits do not change the runtime. |
-| Published candidate | Paired AMD64/ARM64 API/web indexes from [run 35675737504](https://github.com/bandoracer/librarry/actions/runs/35675737504); immutable references are recorded in the [rollout](reviews/2026-09-21-metadata-rollout.md). |
-| Latest aliases | Both point to this qualified pair, verified by [promotion 35677049125](https://github.com/bandoracer/librarry/actions/runs/35677049125). |
-| Live homelab | Metadata candidate API/web digests, native AMD64, source `ca6c843`, database migration 0059. All three media hashes, file records, file/book links, manual overrides and migration records are unchanged. |
-| Endpoints at last check | LAN `/healthz` and `/readyz`: 200. Hardcover and Google Books: ready and authenticated. Live browser: covers, edition switching, and numbered series results verified. |
+| Application candidate | `8591bd98cb121fec90e71b6772ab805605fb6272`, merged through [PR #55](https://github.com/bandoracer/librarry/pull/55) at `c863182f1a7e231cdfc9a95655f4ed0d48acc2b8`. Later documentation-only commits do not change the runtime. |
+| Published candidate | Paired AMD64/ARM64 API/web indexes from [run 35687364315](https://github.com/bandoracer/librarry/actions/runs/35687364315); immutable references are in the [rollout record](reviews/2026-09-21-discovery-rollout.md). |
+| Latest aliases | Both point to the deployed pair, verified by [promotion 35688429097](https://github.com/bandoracer/librarry/actions/runs/35688429097). |
+| Live homelab | Discovery/download candidate, native AMD64, source `8591bd9`, migration 0059. All three media hashes, file records, file/wanted links, overrides and migration records are unchanged. |
+| Endpoints at last check | LAN health/readiness: 200. Nine live API searches passed; browser confirms seven primary series novels and simplified download controls. |
 
 Do not infer deployment from a merged commit or successful image build. Installer
 defaults now select the promoted `latest` pair. Use both recorded immutable image
@@ -118,10 +118,9 @@ do not establish audio playback, unattended operation or a real Readarr migratio
    explicitly authorized immediate `latest` promotion to replace the broken old
    build; observation is no longer a publication prerequisite. This decision
    does not turn unfinished observation into passed evidence.
-2. Live Hardcover credentials and broader rich-provider qualification. Google
-   Books credentials are configured and passed a live health lookup on September
-   21; broader fallback/ranking qualification remains separate. Provider adapters
-   have fixture coverage; Open Library has real-search evidence.
+2. Broader rich-provider catalog qualification. Hardcover and Google Books
+   credentials are configured and verified. The credentialed diagnostic searches
+   and captured regression cohorts do not establish catalog-wide accuracy.
 3. A real Readarr migration and consumer qualification. Compatibility remains
    partial, including persistent collision-free numeric identity mapping and
    non-book resource contracts.
@@ -139,7 +138,7 @@ These are maintainer homelab values, not install defaults:
 
 - TrueNAS app: `librarry`; portal: `http://192.168.1.221:30200/`.
 - Cosmos hostname: `https://librarry.borchetta.xyz/` (Cosmos sign-in required).
-- Live images: immutable GHCR pair from the Kindle rollout report.
+- Live images: immutable GHCR pair from the discovery/download rollout report.
 - A private pre-Kindle database/config/media checkpoint and the preceding
   stabilization image pair are retained for immediate rollback.
 - Original `librarry-api:local` and `librarry-web:local` images and a fresh
