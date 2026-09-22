@@ -62,7 +62,7 @@ test("search fails closed during incomplete or failed library checks and recover
   expect(adds).toBe(0);
 });
 
-test("search add sends the preservation guard and reconciles a concurrent add without another mutation", async ({ page }) => {
+test("search add sends the preservation guard and reconciles a concurrent add without another mutation", async ({ page }, testInfo) => {
   let exists = false;
   const adds: unknown[] = [];
   await page.route("**/api/v1/search?**", route => route.fulfill({ json: { results: [result("6")] } }));
@@ -74,6 +74,7 @@ test("search add sends the preservation guard and reconciles a concurrent add wi
   await page.goto("/search?query=fixture");
   await openResult(page, "Fixture title");
   await page.getByRole("button", { name: "Add Book", exact: true }).click();
+  if (testInfo.project.name === "mobile") await openResult(page, "Fixture title");
   await expect(page.getByRole("button", { name: "Open book", exact: true })).toBeVisible();
   expect(adds).toHaveLength(1);
   expect(adds[0]).toMatchObject({ format: "ebook", preserveExisting: true });

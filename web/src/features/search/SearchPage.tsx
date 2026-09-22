@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   BookOpen,
+  Loader2,
   Download,
   FileSearch,
   FilterX,
@@ -92,6 +93,7 @@ import {
   type SearchEvidenceFilter,
   type SearchMode
 } from "./lib";
+import { activityBusy, activityLabel, activityMatches, bookActivityLabel, bookActivityTone, savedBookLabel, type BookActivity } from "./book-activity";
 import "./search.css";
 
 const searchNav = navItems.find((item) => item.id === "search");
@@ -151,8 +153,18 @@ export default function SearchPage() {
   const [rootFolderID, setRootFolderID] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [pendingDownload, setPendingDownload] = useState(false);
-  const [downloadPhase, setDownloadPhase] = useState("");
-  const addingRef = useRef(false);
+  const [activities, setActivities] = useState<Record<string, BookActivity>>({});
+  const activitiesRef = useRef<Record<string, BookActivity>>({});
+  function updateActivity(key: string, activity: BookActivity) {
+    const others = { ...activitiesRef.current };
+    delete others[key];
+    activitiesRef.current = { ...others, [key]: activity };
+    setActivities(activitiesRef.current);
+  }
+  function resultActivity(result: SearchResult) {
+    const targetFormat = searchResultWantedFormat(result, format);
+    return Object.values(activities).reverse().find(activity => activityMatches(activity, result, targetFormat));
+  }
 
   const [releases, setReleases] = useState<Release[]>([]);
   const [releasesSearched, setReleasesSearched] = useState(false);
@@ -214,11 +226,7 @@ export default function SearchPage() {
   const wantedBySearchKey = useMemo(() => new Map<string, BookMatch>(
     matchesReady ? bookMatches.data.map(match => [match.key, match]) : []
   ), [matchesReady, bookMatches.data]);
-  function trackingLabel(match: BookMatch) {
-    if (match.total > 1) return `${match.total} saved matches`;
-    const status = match.books[0]?.status;
-    return status === "removed" ? "Removed" : status === "ignored" ? "Ignored" : "Tracked";
-  }
+  const trackingLabel = savedBookLabel;
 
   const selected = useMemo(
     () =>
@@ -372,12 +380,6 @@ export default function SearchPage() {
   }
 
   // --- Mutations --------------------------------------------------------------
-  const addWanted = useInvalidatingMutation(
-    (args: { result: SearchResult; format: string; profile: string; tags: string[]; rootFolderId?: string }) =>
-      createWanted(args.result, args.format, args.profile, args.tags, args.rootFolderId, true),
-    [keys.wanted, keys.acquisitionQueue]
-  );
-
   const monitorAuthor = useInvalidatingMutation(
     async (args: { result: SearchResult; format: string; policy: AuthorMissingBookPolicy; metadataProfileId?: string; profile: string; rootFolderId?: string; tags: string[]; existing?: AuthorSubscription }) => {
       const subscription = args.existing ?? await subscribeAuthor(args.result, args.format, args.profile, args.policy, args.metadataProfileId, args.rootFolderId, args.tags);
@@ -401,13 +403,17 @@ export default function SearchPage() {
   );
 
   async function requestAddBook(result: SearchResult, options: { force?: boolean; download?: boolean } = {}) {
-    if (!searchResultCanBeWanted(result) || addingRef.current) return;
+    if (!searchResultCanBeWanted(result)) return;
+    const targetFormat = searchResultWantedFormat(result, format);
+    const previous = Object.values(activitiesRef.current).reverse().find(activity => activityMatches(activity, result, targetFormat));
+    if (activityBusy(previous)) return;
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
     if (!matchesReady || !existing) return;
-    if (existing.total) {
+    if (existing.total || previous?.item) {
       setPendingReview(null);
       if (existing.total === 1) openWanted(existing.books[0]);
+      else if (!existing.total && previous?.item) openWanted(previous.item);
       return;
     }
     if (!options.force && searchResultNeedsWantedReview(result)) {
@@ -416,48 +422,43 @@ export default function SearchPage() {
       setPendingReview(result);
       return;
     }
-    addingRef.current = true;
-    setSelectedKey(key);
-    setDownloadPhase("Adding");
+    const activityKey = `${key}:${targetFormat}`;
+    const action: BookActivity = { result, format: targetFormat, phase: "adding" };
+    // Claim the identity synchronously before the first await (including rapid
+    // clicks on another edition). Each request keeps its own settings snapshot.
+    updateActivity(activityKey, action);
+    setPendingReview(null);
+    if (!isDesktop) setDetailOpen(false);
     let item: WantedItem | undefined;
     try {
-      item = await addWanted.mutateAsync({
-        result,
-        format: searchResultWantedFormat(result, format),
-        profile: effectiveProfile,
-        tags: tagLabels,
-        rootFolderId: effectiveRootFolderID || undefined
-      });
-      setPendingReview(null);
+      item = await createWanted(result, targetFormat, effectiveProfile, tagLabels, effectiveRootFolderID || undefined, true);
       if (options.download) {
-        setDownloadPhase("Finding download");
+        updateActivity(activityKey, { ...action, item, phase: "searching" });
         const outcome = await searchWantedReleases(item.id, language);
-        // Search returns ranked, persisted decisions. Grab only a fresh approved
-        // decision; the server still requires approval on grab.
         const best = outcome.releases.find(release => release.approved && release.id);
         if (best) {
-          setDownloadPhase("Starting download");
+          updateActivity(activityKey, { ...action, item, phase: "starting" });
           await grabWanted(item.id, best.id, { paused: false, force: false });
+          updateActivity(activityKey, { ...action, item, phase: "queued" });
           toast.success(`Download queued: ${item.title}`);
         } else {
+          updateActivity(activityKey, { ...action, item, phase: "unavailable" });
           toast.notify(`Saved "${item.title}". No suitable download found yet.`, "info");
         }
       } else {
+        updateActivity(activityKey, { ...action, item, phase: "saved" });
         toast.success(`Added "${item.title}" to your library.`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Please try again.";
+      updateActivity(activityKey, { ...action, item, phase: "error", message });
       toast.error(item ? `Saved "${item.title}", but couldn't start the download: ${message}` : message);
     } finally {
-      void bookMatches.refetch();
       for (const queryKey of [keys.wanted, keys.acquisitionQueue, keys.downloads(), keys.history()]) {
         void queryClient.invalidateQueries({ queryKey });
       }
-      addingRef.current = false;
-      setDownloadPhase("");
-      // A saved book is the recovery destination too: retry there without
-      // creating another record or replaying an uncertain download request.
-      if (item) openWanted(item);
+      // Stay in search. Saved/uncertain operations recover through Open book,
+      // without replaying a create or grab when the identity lookup lags.
     }
   }
 
@@ -563,10 +564,16 @@ export default function SearchPage() {
     );
   }
 
-  function renderResultRow(result: SearchResult, editionCount = 1) {
+  function renderResultRow(result: SearchResult, editions: SearchResult[] = [result]) {
     const key = searchResultKey(result);
-    const existing = wantedBySearchKey.get(key);
     const sources = searchResultSourceNames(result);
+    const editionCount = editions.length;
+    const indicators = new Map<string, { label: string; busy: boolean }>();
+    for (const edition of editions) {
+      const activity = resultActivity(edition);
+      const label = bookActivityLabel(activity, wantedBySearchKey.get(searchResultKey(edition)));
+      if (label) indicators.set(searchResultWantedFormat(edition, format), { label, busy: activityBusy(activity) });
+    }
     return (
       <button
         key={key}
@@ -594,13 +601,20 @@ export default function SearchPage() {
               </Badge>
             ))}
           </span>
+          {Array.from(indicators, ([mediaFormat, indicator]) => (
+            <span key={mediaFormat} className="search-book-activity" role="status" aria-label={`${mediaFormat}: ${indicator.label}`}>
+              <Badge tone={bookActivityTone(indicator.label)}>
+                {indicator.busy ? <Loader2 size={12} className="spin" aria-hidden /> : null}
+                {indicator.label}{editionCount > 1 ? ` · ${mediaFormat}` : ""}
+              </Badge>
+            </span>
+          ))}
         </span>
         <span className="search-result-side">
           <Badge tone="neutral" title={sources.join(", ")}>
             {searchResultSourceLabel(result)}
           </Badge>
           {editionCount > 1 ? <Badge tone="neutral">{editionCount} editions</Badge> : null}
-          {existing?.total ? <Badge tone="neutral">{trackingLabel(existing)}</Badge> : null}
         </span>
       </button>
     );
@@ -609,7 +623,10 @@ export default function SearchPage() {
   function renderDetail(result: SearchResult) {
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
-    const canBeWanted = searchResultCanBeWanted(result) && !existing?.total;
+    const activity = resultActivity(result);
+    const busy = activityBusy(activity);
+    const savedItem = existing?.total === 1 ? existing.books[0] : !existing?.total ? activity?.item : undefined;
+    const canBeWanted = searchResultCanBeWanted(result) && !existing?.total && !activity?.item;
     const sources = searchResultSourceNames(result);
     const editions = editionGroups.find(group => group.some(candidate => searchResultKey(candidate) === key)) ?? [result];
     const renderOptions = () => (
@@ -728,16 +745,20 @@ export default function SearchPage() {
             <small>Finds and starts the best download that meets your quality settings.</small>
           </div>
         ) : null}
+        {activity ? <div className="search-book-activity" role="status">
+          <Badge tone={bookActivityTone(bookActivityLabel(activity, existing))}>{bookActivityLabel(activity, existing)}</Badge>
+          {activity.message ? <span>{activity.message}</span> : null}
+        </div> : null}
         <div className="search-detail-actions">
-          {existing?.total === 1 ? (
-            <Button icon={HardDriveDownload} onClick={() => openWanted(existing.books[0])}>Open book</Button>
+          {busy ? <Button icon={Download} busy>{activityLabel(activity!)}</Button> : savedItem ? (
+            <Button icon={HardDriveDownload} onClick={() => openWanted(savedItem)}>Open book</Button>
           ) : canBeWanted ? (
             <>
-              <Button variant="primary" icon={Download} busy={Boolean(downloadPhase)} disabled={!matchesReady}
+              <Button variant="primary" icon={Download} disabled={!matchesReady}
                 onClick={() => void requestAddBook(result, { download: true })}>
-                {downloadPhase || `Download ${selectedWantedFormat}`}
+                {`Download ${selectedWantedFormat}`}
               </Button>
-              <Button disabled={!matchesReady || Boolean(downloadPhase)} onClick={() => void requestAddBook(result)}>
+              <Button disabled={!matchesReady} onClick={() => void requestAddBook(result)}>
                 Add Book
               </Button>
             </>
@@ -961,17 +982,17 @@ export default function SearchPage() {
             <LoadingRow label="Searching metadata providers…" />
           ) : visibleResults.length ? (
             <div className="search-result-list" role="list">
-              {primaryGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+              {primaryGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group))}
               {relatedGroups.length ? (
                 <details className="search-disclosure search-secondary-results" key={`related:${query}`} open={!primaryGroups.length || undefined}>
                   <summary>Related books and companion material ({relatedGroups.length})</summary>
-                  {relatedGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+                  {relatedGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group))}
                 </details>
               ) : null}
               {incompleteGroups.length ? (
                 <details className="search-disclosure search-secondary-results" key={`incomplete:${query}`} open={!primaryGroups.length && !relatedGroups.length || undefined}>
                   <summary>Incomplete catalog records ({incompleteGroups.length})</summary>
-                  {incompleteGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+                  {incompleteGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group))}
                 </details>
               ) : null}
             </div>
@@ -1084,17 +1105,16 @@ export default function SearchPage() {
         onClose={() => setPendingReview(null)}
         footer={
           <>
-            <Button variant="ghost" disabled={Boolean(downloadPhase)} onClick={() => setPendingReview(null)}>
+            <Button variant="ghost" onClick={() => setPendingReview(null)}>
               Cancel
             </Button>
             <Button
               variant="primary"
               icon={HardDriveDownload}
-              busy={Boolean(downloadPhase)}
               disabled={!matchesReady}
               onClick={() => pendingReview && void requestAddBook(pendingReview, { force: true, download: pendingDownload })}
             >
-              {downloadPhase || (pendingDownload ? "Download anyway" : "Add anyway")}
+              {pendingDownload ? "Download anyway" : "Add anyway"}
             </Button>
           </>
         }

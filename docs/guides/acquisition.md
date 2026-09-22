@@ -61,9 +61,15 @@ missing or the query omitted the author. Explicit edition conflicts and missing
 authors still prompt for review. Unknown source formats use a visible **Download
 format** selector and remain unknown in stored provider evidence.
 
-If nothing qualifies, the book stays saved for monitoring. Search or client errors
-open the saved book for recovery; an uncertain download request is never retried
-automatically. **Options → Search Releases** retains manual release selection.
+Each book runs independently, so you can start another while the first searches.
+Search stays open, and result rows show **Finding download**, **Queued**, or
+**Needs attention**. On mobile, submitting closes the details so the next row is
+ready to select. Alternate editions of the same work and format share duplicate
+protection. Saved library state also appears on the rows.
+
+If nothing qualifies, the book stays saved for monitoring with **No download found**.
+Use **Open book** for recovery after search or client errors; an uncertain download
+request is never retried automatically. **Options → Search Releases** retains manual release selection.
 Provider identifiers and evidence remain under **Book details and sources**.
 
 ## Upgrades
