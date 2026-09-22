@@ -1,5 +1,8 @@
 # Series ordering and discovery edge cases
 
+Historical implementation checkpoint. Subsequent deployment and live provider
+qualification are recorded in the [rollout](2026-09-21-metadata-rollout.md).
+
 Implemented locally on `codex/metadata-ranking-design`; **not packaged, published
 or deployed**. Continues the [previous iteration](2026-09-21-metadata-discovery-iteration.md).
 

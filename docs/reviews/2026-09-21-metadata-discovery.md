@@ -1,5 +1,8 @@
 # Metadata discovery implementation checks — September 21, 2026
 
+Historical implementation checkpoint. Subsequent deployment and live provider
+qualification are recorded in the [rollout](2026-09-21-metadata-rollout.md).
+
 **Historical first iteration:** see the [expanded iteration](2026-09-21-metadata-discovery-iteration.md) for subsequent changes and current checks.
 
 Status: implemented and tested in `codex/metadata-ranking-design`, based on

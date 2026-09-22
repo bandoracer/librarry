@@ -1,6 +1,6 @@
 # Current status
 
-Last verified: September 17, 2026. This is the authoritative readiness summary.
+Last verified: September 21, 2026. This is the authoritative readiness summary.
 Feature guides describe candidate behavior; historical records are evidence of
 past checkpoints, not current deployment claims.
 
@@ -9,15 +9,14 @@ Librarry is early alpha. The stabilization candidate is qualified for a
 qualified as an unattended replacement for
 an existing Readarr installation.
 
-## Unreleased metadata search changes
+## Metadata discovery rollout
 
-The September 21 retrieval/edition fixes and evidence UI are implemented locally,
-not deployed. The application search pipeline places an intended result first for 49/50 diagnostic
+The September 21 retrieval/edition fixes, evidence UI, edition chooser and bounded
+series search are deployed on the maintainer NAS and promoted to `latest`. The application search pipeline places an intended result first for 49/50 diagnostic
 queries and within ten for all 50. Bounded author rescue, returned-edition selection,
 live read-only checks and desktop/mobile checks are recorded in the
 [expanded iteration](reviews/2026-09-21-metadata-discovery-iteration.md).
-An explicit Hardcover Series mode and translated-title author rescue are now
-locally tested; see [series and edge cases](reviews/2026-09-21-series-and-edge-cases.md).
+An explicit Hardcover Series mode and translated-title author rescue are included; see [series and edge cases](reviews/2026-09-21-series-and-edge-cases.md).
 The initial series query used a forbidden substring operator. The corrected
 Series search followed by ID-based membership lookup passes a live Percy Jackson
 probe, including ordered ebook/audio editions. Hardcover and Google Books now both
@@ -25,8 +24,9 @@ pass live authentication checks. Production Hardcover title search returns books
 with covers; see [Hardcover setup](reviews/2026-09-21-hardcover-credentials.md) and
 [Google credential setup](reviews/2026-09-21-google-books-credentials.md). Unconstrained
 ambiguous titles, typo rescue, complete enumeration, independently judged coverage
-and credentialed multi-provider qualification remain outstanding. The deployment
-table below is unchanged.
+and broad credentialed catalog qualification remain outstanding. Live title, author,
+ebook-ISBN and Percy Jackson series probes passed, as did combined-provider search.
+See the [release and preservation record](reviews/2026-09-21-metadata-rollout.md).
 
 ## Kindle delivery
 
@@ -45,11 +45,11 @@ unconfirmed. Uncertain attempts are never automatically retried.
 
 | State | Verified position |
 | --- | --- |
-| Application candidate | `3d89a6358da7ad5064718c2e3f0c65d48021922b`, merged through [PR #53](https://github.com/bandoracer/librarry/pull/53) at main commit `173b0de7b9bd3616d0c4ae935d5e43f921700a98`. Later documentation-only commits do not change the runtime. |
-| Published candidate | Paired API/web images from [run 35197792820](https://github.com/bandoracer/librarry/actions/runs/35197792820); immutable indexes and architecture manifests are recorded in the [Kindle rollout](reviews/2026-09-17-kindle-rollout.md). |
-| Latest aliases | Still the previously promoted stabilization pair at source `6e209ff`, recorded in the [qualification report](reviews/2026-09-16-release-qualification.md#published-artifact-identity). The Kindle rollout did not move `latest`; use its recorded image pair to install this feature. |
-| Live homelab | Kindle candidate API/web index digests, native AMD64 manifests; source `3d89a63`, database migration 0059. All three media files and existing file/book links were preserved. [Rollout evidence](reviews/2026-09-17-kindle-rollout.md). |
-| Endpoints at last check | LAN `/healthz` and `/readyz`: 200. Cosmos target corrected; hostname returns 302 to existing Cosmos sign-in. |
+| Application candidate | `ca6c8432689b69545448d3cb30879d9bc7b08e0a`, merged through [PR #54](https://github.com/bandoracer/librarry/pull/54) at main commit `f23c674e99d4923a14705e882631f28c161fb2fa`. Later documentation-only commits do not change the runtime. |
+| Published candidate | Paired AMD64/ARM64 API/web indexes from [run 35675737504](https://github.com/bandoracer/librarry/actions/runs/35675737504); immutable references are recorded in the [rollout](reviews/2026-09-21-metadata-rollout.md). |
+| Latest aliases | Both point to this qualified pair, verified by [promotion 35677049125](https://github.com/bandoracer/librarry/actions/runs/35677049125). |
+| Live homelab | Metadata candidate API/web digests, native AMD64, source `ca6c843`, database migration 0059. All three media hashes, file records, file/book links, manual overrides and migration records are unchanged. |
+| Endpoints at last check | LAN `/healthz` and `/readyz`: 200. Hardcover and Google Books: ready and authenticated. Live browser: covers, edition switching, and numbered series results verified. |
 
 Do not infer deployment from a merged commit or successful image build. Installer
 defaults now select the promoted `latest` pair. Use both recorded immutable image

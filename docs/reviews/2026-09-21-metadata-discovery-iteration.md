@@ -1,5 +1,8 @@
 # Discovery iteration — expanded benchmark and edition selection
 
+Historical implementation checkpoint. Subsequent deployment and live provider
+qualification are recorded in the [rollout](2026-09-21-metadata-rollout.md).
+
 Implemented locally on `codex/metadata-ranking-design`. **Not published or
 deployed.** Builds on the [initial implementation](2026-09-21-metadata-discovery.md).
 
