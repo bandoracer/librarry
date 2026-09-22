@@ -1,0 +1,333 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=dragonriders+of+pern&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:56:55.765530+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "dragonriders of pern",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL8684296W",
+          "title": "Dragonriders of Pern",
+          "authors": [
+            {
+              "id": "openlibrary:OL19880A",
+              "name": "Anne McCaffrey",
+              "providerIds": [
+                "openlibrary:OL19880A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1984,
+          "providerIds": [
+            "openlibrary:OL8684296W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL8339123M",
+          "workId": "openlibrary:OL8684296W",
+          "title": "Dragonriders of Pern",
+          "format": "any",
+          "isbns": [
+            "0917037057",
+            "9780917037054"
+          ],
+          "providerIds": [
+            "openlibrary:OL8339123M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL8684296W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL10214791M",
+          "title": "Dragonriders of Pern",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "firstPublishYear": 1983,
+          "providerIds": [
+            "openlibrary:OL10214791M"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL10214791M",
+          "workId": "openlibrary:OL10214791M",
+          "title": "Dragonriders of Pern",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "042506624X",
+            "9780425066249"
+          ],
+          "providerIds": [
+            "openlibrary:OL10214791M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL10214791M"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL73344W",
+          "title": "The Dragonriders of Pern",
+          "authors": [
+            {
+              "id": "openlibrary:OL19880A",
+              "name": "Anne McCaffrey",
+              "providerIds": [
+                "openlibrary:OL19880A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1978,
+          "coverUrl": "https://covers.openlibrary.org/b/id/207358-L.jpg",
+          "providerIds": [
+            "openlibrary:OL73344W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL8101895M",
+          "workId": "openlibrary:OL73344W",
+          "title": "The Dragonriders of Pern",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780345457394",
+            "0345340248",
+            "0785729194",
+            "9780785729198",
+            "0345457390",
+            "9780345340245"
+          ],
+          "providerIds": [
+            "openlibrary:OL8101895M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL73344W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL31623960W",
+          "title": "The Dragonriders of Pern",
+          "authors": [
+            {
+              "id": "openlibrary:OL19880A",
+              "name": "Anne McCaffrey",
+              "providerIds": [
+                "openlibrary:OL19880A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1978,
+          "providerIds": [
+            "openlibrary:OL31623960W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL58815233M",
+          "workId": "openlibrary:OL31623960W",
+          "title": "The Dragonriders of Pern",
+          "format": "any",
+          "language": "eng",
+          "providerIds": [
+            "openlibrary:OL58815233M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL31623960W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL479932W",
+          "title": "Boxed-Dragonriders of Pern-4v",
+          "authors": [
+            {
+              "id": "openlibrary:OL30049A",
+              "name": "Gene Walden - undifferentiated",
+              "providerIds": [
+                "openlibrary:OL30049A"
+              ]
+            }
+          ],
+          "providerIds": [
+            "openlibrary:OL479932W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL12552821M",
+          "workId": "openlibrary:OL479932W",
+          "title": "Boxed-Dragonriders of Pern-4v",
+          "format": "any",
+          "isbns": [
+            "555107000X",
+            "9785551070009"
+          ],
+          "providerIds": [
+            "openlibrary:OL12552821M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL479932W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL31394423W",
+          "title": "The Dragonriders of Pern (The Dragonriders of Pern, Vol. 1)",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "providerIds": [
+            "openlibrary:OL31394423W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL43047491M",
+          "workId": "openlibrary:OL31394423W",
+          "title": "The Dragonriders of Pern (The Dragonriders of Pern, Vol. 1)",
+          "format": "any",
+          "providerIds": [
+            "openlibrary:OL43047491M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL31394423W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL45019936W",
+          "title": "The Dragonriders of Pern",
+          "authors": [
+            {
+              "id": "openlibrary:OL16225752A",
+              "name": "Anne McCaffrey",
+              "providerIds": [
+                "openlibrary:OL16225752A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1968,
+          "coverUrl": "https://covers.openlibrary.org/b/id/15184989-L.jpg",
+          "providerIds": [
+            "openlibrary:OL45019936W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL61417051M",
+          "workId": "openlibrary:OL45019936W",
+          "title": "The Dragonriders of Pern",
+          "format": "any",
+          "providerIds": [
+            "openlibrary:OL61417051M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL45019936W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL11557855M",
+          "title": "Dragonriders of Pern Prebind Set (Favorite Series, Grades 7-9)",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "firstPublishYear": 1989,
+          "providerIds": [
+            "openlibrary:OL11557855M"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL11557855M",
+          "workId": "openlibrary:OL11557855M",
+          "title": "Dragonriders of Pern Prebind Set (Favorite Series, Grades 7-9)",
+          "format": "any",
+          "isbns": [
+            "9780848002565",
+            "0848002563"
+          ],
+          "providerIds": [
+            "openlibrary:OL11557855M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL11557855M"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.371
+}

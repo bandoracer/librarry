@@ -1,0 +1,1035 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+art+of+war&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:57.006579+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 8841,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 8841,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the art of war",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL30553A",
+          "OL2815944A",
+          "OL2690004A",
+          "OL14458033A"
+        ],
+        "author_name": [
+          "孙武 (Sun Tzu)",
+          "Stephen F. Kaufman",
+          "Lionel Giles",
+          "Onésimo Colavidas"
+        ],
+        "cover_i": 4849549,
+        "first_publish_year": 1900,
+        "key": "/works/OL244537W",
+        "language": [
+          "mar",
+          "spa",
+          "hin",
+          "vie",
+          "mal",
+          "tel",
+          "ita",
+          "por",
+          "ger",
+          "eng",
+          "mul",
+          "fre",
+          "tam",
+          "cmn",
+          "pol",
+          "chi",
+          "und",
+          "ben",
+          "jpn",
+          "kor",
+          "rus"
+        ],
+        "title": "The Art of War",
+        "editions": {
+          "numFound": 1503,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL54172M",
+              "title": "The art of war",
+              "cover_i": 14847775,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Clearbridge Pub."
+              ],
+              "publish_date": [
+                "1998"
+              ],
+              "isbn": [
+                "1929194013",
+                "9781929194018"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL23135A"
+        ],
+        "author_name": [
+          "Niccolò Machiavelli"
+        ],
+        "cover_i": 5229470,
+        "first_publish_year": 1540,
+        "key": "/works/OL15968W",
+        "language": [
+          "fre",
+          "eng",
+          "spa",
+          "heb",
+          "ita",
+          "por"
+        ],
+        "title": "Dell'Arte della Guerra",
+        "editions": {
+          "numFound": 138,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5933714M",
+              "title": "The Art of War",
+              "cover_i": 6603507,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bobbs-Merrill"
+              ],
+              "publish_date": [
+                "1965"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL23135A"
+        ],
+        "author_name": [
+          "Niccolò Machiavelli"
+        ],
+        "first_publish_year": 2016,
+        "key": "/works/OL28915698W",
+        "language": [
+          "eng"
+        ],
+        "title": "Art of War",
+        "editions": {
+          "numFound": 52,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL44299584M",
+              "title": "Art of War",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798363934865"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL838510A"
+        ],
+        "author_name": [
+          "Robert Coram"
+        ],
+        "cover_i": 190366,
+        "first_publish_year": 2002,
+        "key": "/works/OL4311885W",
+        "language": [
+          "eng"
+        ],
+        "title": "Boyd",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9399186M",
+              "title": "Boyd",
+              "cover_i": 190366,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Back Bay Books"
+              ],
+              "publish_date": [
+                "May 10, 2004"
+              ],
+              "isbn": [
+                "9780316796880",
+                "0316796883"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL232637A"
+        ],
+        "author_name": [
+          "Donald G. Krause"
+        ],
+        "cover_i": 260461,
+        "first_publish_year": 1995,
+        "key": "/works/OL1938938W",
+        "language": [
+          "eng"
+        ],
+        "title": "The art of war for executives",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1104521M",
+              "title": "The art of war for executives",
+              "cover_i": 260461,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Berkley Pub. Group",
+                "Perigee Trade"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "0399519025",
+                "9780399519024"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33112A"
+        ],
+        "author_name": [
+          "Steven Pressfield"
+        ],
+        "cover_i": 288439,
+        "first_publish_year": 2002,
+        "key": "/works/OL497483W",
+        "language": [
+          "spa",
+          "eng"
+        ],
+        "subtitle": "Break Through the Blocks and Win Your Inner Creative Battles",
+        "title": "The War of Art",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8849312M",
+              "title": "The War of Art",
+              "cover_i": 861615,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Rugged Land"
+              ],
+              "publish_date": [
+                "June 4, 2002"
+              ],
+              "isbn": [
+                "9781590710036",
+                "1590710037"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL24646A"
+        ],
+        "author_name": [
+          "Rabih Alameddine"
+        ],
+        "cover_i": 1185598,
+        "first_publish_year": 1998,
+        "key": "/works/OL21471W",
+        "language": [
+          "eng"
+        ],
+        "title": "Koolaids",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL345842M",
+              "title": "Koolaids",
+              "cover_i": 175019,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Picador USA"
+              ],
+              "publish_date": [
+                "1998"
+              ],
+              "isbn": [
+                "0312186932",
+                "9780312186937"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL28991A"
+        ],
+        "author_name": [
+          "Charles William Chadwick Oman"
+        ],
+        "cover_i": 902937,
+        "first_publish_year": 1885,
+        "key": "/works/OL8607773W",
+        "language": [
+          "eng"
+        ],
+        "title": "A History of the Art of War in the Middle Ages",
+        "editions": {
+          "numFound": 25,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24425175M",
+              "title": "A history of the art of war in the Middle Ages",
+              "cover_i": 7016453,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Methuen"
+              ],
+              "publish_date": [
+                "1924"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL23135A"
+        ],
+        "author_name": [
+          "Niccolò Machiavelli"
+        ],
+        "cover_i": 741720,
+        "first_publish_year": 1905,
+        "key": "/works/OL1089254W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Art of War & The Prince by Machiavelli",
+        "editions": {
+          "numFound": 10,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24189121M",
+              "title": "The Art of War / The Prince",
+              "cover_i": 6367492,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "D. Nutt"
+              ],
+              "publish_date": [
+                "1905"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 607698,
+        "first_publish_year": 1994,
+        "key": "/works/OL16551239W",
+        "language": [
+          "eng"
+        ],
+        "title": "The art of war =",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8023450M",
+              "title": "Sun-Tzu",
+              "cover_i": 607698,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Westview Press"
+              ],
+              "publish_date": [
+                "January 1994"
+              ],
+              "isbn": [
+                "9780813319513",
+                "081331951X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL457536A"
+        ],
+        "author_name": [
+          "Archer Jones"
+        ],
+        "cover_i": 6450090,
+        "first_publish_year": 1987,
+        "key": "/works/OL2987522W",
+        "language": [
+          "eng"
+        ],
+        "title": "The art of war in the Western world",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2730941M",
+              "title": "The  art of war in the Western world",
+              "cover_i": 6450090,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "University of Illinois Press"
+              ],
+              "publish_date": [
+                "1987"
+              ],
+              "isbn": [
+                "0252013808",
+                "9780252013805"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL20025A"
+        ],
+        "author_name": [
+          "Napoléon Bonaparte"
+        ],
+        "cover_i": 427535,
+        "first_publish_year": 1999,
+        "key": "/works/OL15236200W",
+        "language": [
+          "eng"
+        ],
+        "title": "Napoleon on the art of war",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32061M",
+              "title": "Napoleon on the art of war",
+              "cover_i": 427535,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Free Press"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "9780684851853",
+                "0684851857"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30553A"
+        ],
+        "author_name": [
+          "孙武 (Sun Tzu)"
+        ],
+        "cover_i": 15216744,
+        "first_publish_year": 2025,
+        "key": "/works/OL45282413W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Art of War",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61728472M",
+              "title": "The Art of War",
+              "cover_i": 15216744,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "General Press"
+              ],
+              "publish_date": [
+                "April 26, 2025"
+              ],
+              "isbn": [
+                "9789380914893",
+                "938091489X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8101384A"
+        ],
+        "author_name": [
+          "Radhakrishnan Pillai"
+        ],
+        "first_publish_year": 2019,
+        "key": "/works/OL28015461W",
+        "language": [
+          "eng"
+        ],
+        "title": "Chanakya and the Art of War",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38320609M",
+              "title": "Chanakya and the Art of War",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books India PVT, Limited"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9780143442899",
+                "0143442899"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1050292A"
+        ],
+        "author_name": [
+          "Friedrich II, King of Prussia"
+        ],
+        "cover_i": 164956,
+        "first_publish_year": 1966,
+        "key": "/works/OL928720W",
+        "language": [
+          "eng",
+          "und"
+        ],
+        "title": "Frederick the Great on the art of war",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL356918M",
+              "title": "Frederick the Great on the art of war",
+              "cover_i": 164956,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Da Capo Press"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "0306809087",
+                "9780306809088"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3690509A"
+        ],
+        "author_name": [
+          "SunTzu"
+        ],
+        "cover_i": 13464891,
+        "first_publish_year": 2006,
+        "key": "/works/OL9697509W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Art of War",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL44160604M",
+              "title": "The Art of War",
+              "cover_i": 15157782,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Arcturus Publishing"
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9781784042028",
+                "1784042021"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4280275A",
+          "OL1331420A",
+          "OL401115A"
+        ],
+        "author_name": [
+          "Liang Zhuge",
+          "Liu, Ji",
+          "Thomas F. Cleary"
+        ],
+        "cover_i": 671279,
+        "first_publish_year": 1989,
+        "key": "/works/OL17851651W",
+        "language": [
+          "eng"
+        ],
+        "title": "Mastering the art of war",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2191542M",
+              "title": "Mastering the art of war",
+              "cover_i": 671279,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Shambhala"
+              ],
+              "publish_date": [
+                "1989"
+              ],
+              "isbn": [
+                "0877735131",
+                "9780877735137"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL538181A"
+        ],
+        "author_name": [
+          "Antoine-Henri baron de Jomini"
+        ],
+        "cover_i": 2049957,
+        "first_publish_year": 1996,
+        "key": "/works/OL9039701W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Art Of War",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8980642M",
+              "title": "The Art of War",
+              "cover_i": 2049957,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Greenhill Books"
+              ],
+              "publish_date": [
+                "March 15, 2006"
+              ],
+              "isbn": [
+                "9781853677199",
+                "1853677191"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1193483A"
+        ],
+        "author_name": [
+          "Connell Cowan"
+        ],
+        "cover_i": 403099,
+        "first_publish_year": 1998,
+        "key": "/works/OL5273039W",
+        "language": [
+          "eng"
+        ],
+        "title": "The ART OF WAR FOR LOVERS",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7643960M",
+              "title": "The ART OF WAR FOR LOVERS",
+              "cover_i": 403099,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pocket"
+              ],
+              "publish_date": [
+                "February 1, 1998"
+              ],
+              "isbn": [
+                "9780671000639",
+                "0671000632"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4864115A"
+        ],
+        "author_name": [
+          "Theodore Ayrault Dodge"
+        ],
+        "cover_i": 6236399,
+        "first_publish_year": 1891,
+        "key": "/works/OL1827990W",
+        "language": [
+          "eng"
+        ],
+        "title": "Hannibal: A History of the Art of War Among the Carthaginians and Romans Down to the Battle of ..",
+        "editions": {
+          "numFound": 17,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL23542572M",
+              "title": "Hannibal: A History of the Art of War Among the Carthaginians and Romans Down to the Battle of ...",
+              "cover_i": 6236399,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Houghton Mifflin and Company"
+              ],
+              "publish_date": [
+                "1891"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4990688A",
+          "OL11104070A"
+        ],
+        "author_name": [
+          "Rolf Dobelli",
+          "Rolf Dobelli"
+        ],
+        "cover_i": 8270423,
+        "first_publish_year": 2013,
+        "key": "/works/OL17940461W",
+        "language": [
+          "eng"
+        ],
+        "title": "The art of thinking clearly",
+        "editions": {
+          "numFound": 10,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26531571M",
+              "title": "The art of thinking clearly",
+              "cover_i": 15215439,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Harper Paperbacks"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9780062219688",
+                "0062219685"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL250856A"
+        ],
+        "author_name": [
+          "Art Spiegelman"
+        ],
+        "cover_i": 10210168,
+        "first_publish_year": 1986,
+        "key": "/works/OL2056818W",
+        "language": [
+          "cat",
+          "ita",
+          "tur",
+          "por",
+          "ger",
+          "fre",
+          "pol",
+          "heb",
+          "spa",
+          "eng"
+        ],
+        "subtitle": "A Survivor's Tale",
+        "title": "Maus I",
+        "editions": {
+          "numFound": 66,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL994249M",
+              "title": "The Complete Maus",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pantheon Books"
+              ],
+              "publish_date": [
+                "1997"
+              ],
+              "isbn": [
+                "9780679406419",
+                "0679406417"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL28991A",
+          "OL12252563A",
+          "OL3463772A",
+          "OL15290233A"
+        ],
+        "author_name": [
+          "Charles William Chadwick Oman",
+          "C.W.C.; C.W.C. Oman; John H. Beeler (Revised and Edited by); Edward W. Fox (Foreword by) Oman",
+          "C. Oman",
+          "C. W. C. and John H. Beeler Oman"
+        ],
+        "cover_i": 565409,
+        "first_publish_year": 1885,
+        "key": "/works/OL80357W",
+        "language": [
+          "eng"
+        ],
+        "title": "The art of war in the Middle Ages",
+        "editions": {
+          "numFound": 37,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58626859M",
+              "title": "The Art of War in the Middle Ages A.D. 378-1515",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Great Seal Books"
+              ],
+              "publish_date": [
+                "1963"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30553A"
+        ],
+        "author_name": [
+          "孙武 (Sun Tzu)"
+        ],
+        "first_publish_year": 2007,
+        "key": "/works/OL42990560W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Art of War",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58568595M",
+              "title": "The Art of War",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Shambhala Boston & London"
+              ],
+              "publish_date": [
+                "2007"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1505764A"
+        ],
+        "author_name": [
+          "Rupert Smith"
+        ],
+        "cover_i": 167261,
+        "first_publish_year": 2007,
+        "key": "/works/OL6009366W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Utility of Force",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9729230M",
+              "title": "The Utility of Force",
+              "cover_i": 167261,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Knopf"
+              ],
+              "publish_date": [
+                "January 16, 2007"
+              ],
+              "isbn": [
+                "9780307265623",
+                "0307265625"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 1.812
+}

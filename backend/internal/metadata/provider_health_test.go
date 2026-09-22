@@ -149,13 +149,9 @@ func TestProviderCancellationAndUnsupportedSearchDoNotInventObservations(t *test
 		<-req.Context().Done()
 		return nil, req.Context().Err()
 	})}, "fixture")
-	_, err := p.Search(context.Background(), Query{Query: "Series", Type: SearchTypeSeries})
-	if err != nil {
-		t.Fatal(err)
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = p.Search(ctx, Query{Query: "Book"})
+	_, err := p.Search(ctx, Query{Query: "Book"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}

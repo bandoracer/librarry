@@ -1,0 +1,991 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+employees&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:07.708380+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 49968,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 49968,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the employees",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL1436227A"
+        ],
+        "author_name": [
+          "Marjorie Mader-Clark"
+        ],
+        "cover_i": 13070265,
+        "first_publish_year": 2016,
+        "key": "/works/OL20017568W",
+        "language": [
+          "eng"
+        ],
+        "title": "The employee performance handbook",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27197636M",
+              "title": "The employee performance handbook",
+              "cover_i": 13070265,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Nolo, Law for All",
+                "NOLO"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781413322453",
+                "141332245X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL26446A"
+        ],
+        "author_name": [
+          "Henry Cloud"
+        ],
+        "cover_i": 6679759,
+        "first_publish_year": 2011,
+        "key": "/works/OL15655778W",
+        "subtitle": "The Employees, Businesses, and Relationships that all of us have to give up in order to move forward",
+        "title": "Necessary Endings",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24592619M",
+              "title": "Necessary Endings: The Employees, Businesses, and Relationships that all of us have to give up in order to move forward",
+              "cover_i": 6679759,
+              "publisher": [
+                "HarperBusiness"
+              ],
+              "publish_date": [
+                "January 2011"
+              ],
+              "isbn": [
+                "9780061777127",
+                "0061777129"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL272006A"
+        ],
+        "author_name": [
+          "Price Pritchett"
+        ],
+        "cover_i": 1684039,
+        "first_publish_year": 1996,
+        "key": "/works/OL2158899W",
+        "language": [
+          "eng"
+        ],
+        "title": "Mindshift",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22952402M",
+              "title": "Mindshift",
+              "cover_i": 6796124,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pritchett & Associates, Inc."
+              ],
+              "publish_date": [
+                "1996"
+              ],
+              "isbn": [
+                "9780944002186",
+                "0944002188"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL272006A"
+        ],
+        "author_name": [
+          "Price Pritchett"
+        ],
+        "cover_i": 1684031,
+        "first_publish_year": 1987,
+        "key": "/works/OL2158904W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Employee Guide to Mergers and Acquisitions",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9533555M",
+              "title": "The Employee Guide to Mergers and Acquisitions",
+              "cover_i": 1684031,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pritchett Publishing Company"
+              ],
+              "publish_date": [
+                "September 1987"
+              ],
+              "isbn": [
+                "9780944002063",
+                "0944002064"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7524898A"
+        ],
+        "author_name": [
+          "Tracy Maylett"
+        ],
+        "first_publish_year": 2017,
+        "key": "/works/OL19718641W",
+        "language": [
+          "eng"
+        ],
+        "title": "The employee experience",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26931772M",
+              "title": "The employee experience",
+              "language": [
+                "eng"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781119294184",
+                "1119294185"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9760936A"
+        ],
+        "author_name": [
+          "Olga Ravn"
+        ],
+        "cover_i": 12294759,
+        "first_publish_year": 2018,
+        "key": "/works/OL25803688W",
+        "language": [
+          "nor",
+          "pol",
+          "ita",
+          "ger",
+          "dan",
+          "hrv",
+          "dut",
+          "swe",
+          "por",
+          "fin",
+          "fre",
+          "tur",
+          "eng",
+          "alb",
+          "hun"
+        ],
+        "title": "De ansatte",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35547833M",
+              "title": "The Employees",
+              "cover_i": 12294759,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Lolli Editions"
+              ],
+              "publish_date": [
+                "Sep 21, 2020"
+              ],
+              "isbn": [
+                "9781999992880",
+                "1999992881"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL223798A"
+        ],
+        "author_name": [
+          "Diane Arthur"
+        ],
+        "cover_i": 610594,
+        "first_publish_year": 2001,
+        "key": "/works/OL1869177W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Employee Recruitment and Retention Handbook",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8042916M",
+              "title": "The Employee Recruitment and Retention Handbook",
+              "cover_i": 610594,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "AMACOM/American Management Association"
+              ],
+              "publish_date": [
+                "April 15, 2001"
+              ],
+              "isbn": [
+                "9780814405529",
+                "0814405525"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7045128A"
+        ],
+        "author_name": [
+          "Lynn M. Shore"
+        ],
+        "cover_i": 10581539,
+        "first_publish_year": 2012,
+        "key": "/works/OL16318822W",
+        "language": [
+          "eng"
+        ],
+        "title": "The employee-organization relationship",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25122073M",
+              "title": "The employee-organization relationship",
+              "cover_i": 10581539,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Routledge"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9780415880770",
+                "0415880777"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6774800A"
+        ],
+        "author_name": [
+          "Joyce A. Thompsen"
+        ],
+        "cover_i": 13143104,
+        "first_publish_year": 2009,
+        "key": "/works/OL18619475W",
+        "language": [
+          "eng"
+        ],
+        "title": "Achieving a triple win",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24000745M",
+              "title": "Achieving a triple win",
+              "cover_i": 13143104,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Routledge"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9780415548342",
+                "9780415548359",
+                "9780203875209",
+                "0415548349",
+                "0415548357",
+                "0203875206"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7069980A"
+        ],
+        "author_name": [
+          "Jacob Morgan"
+        ],
+        "cover_i": 14462697,
+        "first_publish_year": 2017,
+        "key": "/works/OL19723580W",
+        "language": [
+          "eng"
+        ],
+        "title": "The employee experience advantage",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26936700M",
+              "title": "The employee experience advantage",
+              "cover_i": 14462697,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Wiley"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781119321620",
+                "111932162X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL272006A"
+        ],
+        "author_name": [
+          "Price Pritchett"
+        ],
+        "cover_i": 720491,
+        "first_publish_year": 1990,
+        "key": "/works/OL2158905W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Employee Handbook for Organizational Change",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18018521M",
+              "title": "The employee handbook for organizational change",
+              "cover_i": 12713863,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pritchett & Associates"
+              ],
+              "publish_date": [
+                "1996"
+              ],
+              "isbn": [
+                "0944002072",
+                "9780944002070"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7292851A"
+        ],
+        "author_name": [
+          "S. Vaidyanathan"
+        ],
+        "first_publish_year": 2015,
+        "key": "/works/OL17365448W",
+        "title": "The Employees' Provident Fund And Miscellaneous Provision Act, 1952",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25944155M",
+              "title": "The Employees' Provident Fund And Miscellaneous Provision Act, 1952",
+              "publisher": [
+                "Madras Book Agency"
+              ],
+              "publish_date": [
+                "2015"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1662386A"
+        ],
+        "author_name": [
+          "Alexander Hamilton Institute (U.S.)"
+        ],
+        "first_publish_year": 1991,
+        "key": "/works/OL19049289W",
+        "language": [
+          "eng"
+        ],
+        "title": "The employee problem solver",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22843112M",
+              "title": "The employee problem solver",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "The Institute"
+              ],
+              "publish_date": [
+                "1991"
+              ],
+              "isbn": [
+                "0866042695",
+                "9780866042697"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1709610A"
+        ],
+        "author_name": [
+          "Richard T. Mowday"
+        ],
+        "cover_i": 8246679,
+        "first_publish_year": 1981,
+        "key": "/works/OL6446644W",
+        "language": [
+          "eng"
+        ],
+        "title": "Employee-organization linkages",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4271401M",
+              "title": "Employee-organization linkages",
+              "cover_i": 8246679,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Academic Press"
+              ],
+              "publish_date": [
+                "1982"
+              ],
+              "isbn": [
+                "0125093705",
+                "9780125093705"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL500813A"
+        ],
+        "author_name": [
+          "Stephen Taylor"
+        ],
+        "cover_i": 2666191,
+        "first_publish_year": 2002,
+        "key": "/works/OL28599817W",
+        "title": "The employee retention handbook",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL11604748M",
+              "title": "Employee Retention Handbook (Developing Practice)",
+              "cover_i": 2666191,
+              "publisher": [
+                "Chartered Institute of Personnel & Development"
+              ],
+              "publish_date": [
+                "March 1, 2002"
+              ],
+              "isbn": [
+                "9780852929636",
+                "0852929633"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL20012A"
+        ],
+        "author_name": [
+          "Diana Brodman Summers"
+        ],
+        "cover_i": 9638789,
+        "first_publish_year": 2009,
+        "key": "/works/OL15068948W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "practical answers to the top 250 questions every employee has",
+        "title": "The employee answer book",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL23016885M",
+              "title": "The employee answer book",
+              "cover_i": 9638789,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Sphinx"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9781572486942",
+                "1572486945"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL720996A"
+        ],
+        "author_name": [
+          "John D. Rapoport"
+        ],
+        "cover_i": 7970506,
+        "first_publish_year": 1989,
+        "key": "/works/OL3951749W",
+        "language": [
+          "eng"
+        ],
+        "title": "The employee strikes back!",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1429154M",
+              "title": "The employee strikes back!",
+              "cover_i": 8011676,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Collier Books",
+                "Maxwell Macmillan Canada",
+                "Maxwell Macmillan International"
+              ],
+              "publish_date": [
+                "1994"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27188A"
+        ],
+        "author_name": [
+          "Steven Mitchell Sack"
+        ],
+        "cover_i": 1235383,
+        "first_publish_year": 1990,
+        "key": "/works/OL465557W",
+        "language": [
+          "eng"
+        ],
+        "title": "The employee rights handbook",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL41684M",
+              "title": "The employee rights handbook",
+              "cover_i": 1235383,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Warner Books"
+              ],
+              "publish_date": [
+                "2000"
+              ],
+              "isbn": [
+                "0446673269",
+                "9780446673266"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL171636A"
+        ],
+        "author_name": [
+          "Weber, Gustavus Adolphus"
+        ],
+        "cover_i": 5765195,
+        "first_publish_year": 1922,
+        "key": "/works/OL1587084W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Employees' Compensation Commission",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7118527M",
+              "title": "The Employees' Compensation Commission",
+              "cover_i": 5765195,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "D. Appleton"
+              ],
+              "publish_date": [
+                "1922"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7672713A"
+        ],
+        "author_name": [
+          "Ingramcontent"
+        ],
+        "first_publish_year": 2016,
+        "key": "/works/OL34654436W",
+        "title": "The Employee Performance Handbook",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46983631M",
+              "title": "The Employee Performance Handbook",
+              "publisher": [
+                "NOLO"
+              ],
+              "publish_date": [
+                "2016-01-29"
+              ],
+              "isbn": [
+                "9781413323252",
+                "1413323251"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL223798A"
+        ],
+        "author_name": [
+          "Diane Arthur"
+        ],
+        "cover_i": 6802911,
+        "first_publish_year": 1986,
+        "key": "/works/OL15839407W",
+        "language": [
+          "eng"
+        ],
+        "title": "Recruiting, interviewing, selecting & orienting new employees",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3401248M",
+              "title": "Recruiting, interviewing, selecting & orienting new employees",
+              "cover_i": 1543045,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "AMACOM"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "0814408613",
+                "9780814408612"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5544345A"
+        ],
+        "author_name": [
+          "John Howland Fleming"
+        ],
+        "cover_i": 2965395,
+        "first_publish_year": 2007,
+        "key": "/works/OL12514555W",
+        "language": [
+          "eng"
+        ],
+        "title": "Human sigma",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12439483M",
+              "title": "Human Sigma",
+              "cover_i": 2965395,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Gallup Press"
+              ],
+              "publish_date": [
+                "October 28, 2007"
+              ],
+              "isbn": [
+                "9781595620163",
+                "1595620168"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL410376A",
+          "OL2710924A"
+        ],
+        "author_name": [
+          "William C. Byham",
+          "Jeff Cox"
+        ],
+        "cover_i": 6979941,
+        "first_publish_year": 1989,
+        "key": "/works/OL2780574W",
+        "language": [
+          "eng"
+        ],
+        "title": "Zapp!",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2063985M",
+              "title": "Zapp!",
+              "cover_i": 6979941,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Development Dimensions International Press"
+              ],
+              "publish_date": [
+                "1989"
+              ],
+              "isbn": [
+                "0962348309",
+                "0962348317",
+                "9780962348303",
+                "9780962348310"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3273931A",
+          "OL3273932A"
+        ],
+        "author_name": [
+          "Management Resources",
+          "Resources Mgmt"
+        ],
+        "first_publish_year": 1990,
+        "key": "/works/OL18893872W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Employee handbook",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9504465M",
+              "title": "The Employee Handbook",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "HarperCollins Publishers"
+              ],
+              "publish_date": [
+                "October 1990"
+              ],
+              "isbn": [
+                "9780887304248",
+                "0887304249"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7482273A"
+        ],
+        "author_name": [
+          "Cala Spinner"
+        ],
+        "cover_i": 8792367,
+        "first_publish_year": 2019,
+        "key": "/works/OL20147214W",
+        "title": "Joey Drew Studios Employee Handbook",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27326901M",
+              "title": "Joey Drew Studios Employee Handbook",
+              "cover_i": 8792367,
+              "publisher": [
+                "Scholastic Inc."
+              ],
+              "publish_date": [
+                "Jul 30, 2019"
+              ],
+              "isbn": [
+                "9781338343922",
+                "1338343920"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 1.163
+}

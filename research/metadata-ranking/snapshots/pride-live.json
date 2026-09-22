@@ -1,0 +1,526 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=pride+and+prejudice&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:19.943474+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "pride and prejudice",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL15165350W",
+          "title": "Pride and Prejudice",
+          "authors": [
+            {
+              "id": "openlibrary:OL21594A",
+              "name": "Jane Austen",
+              "providerIds": [
+                "openlibrary:OL21594A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1813,
+          "coverUrl": "https://covers.openlibrary.org/b/id/13148521-L.jpg",
+          "providerIds": [
+            "openlibrary:OL15165350W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL60971431M",
+          "workId": "openlibrary:OL15165350W",
+          "title": "Pride and Prejudice",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798583924769",
+            "9781774819593",
+            "0785846239",
+            "1398839140",
+            "1515005747",
+            "9781543289046",
+            "1520819633",
+            "1549883097",
+            "9781958321638",
+            "0585013365",
+            "9798743693023",
+            "1986688097",
+            "9781546644835",
+            "9781535489454",
+            "9781727695489",
+            "9781539686682",
+            "1977901506",
+            "9783868206388",
+            "9781534824683",
+            "1512079170",
+            "9798633523294",
+            "1535489456",
+            "1943657963",
+            "9781515321606",
+            "1546420894",
+            "1984236458",
+            "9781549883095",
+            "0573711194",
+            "9781979338752",
+            "9781978237254",
+            "197825329X",
+            "9798458550093",
+            "9781943657964",
+            "9798778295438",
+            "9781537194028",
+            "9781514264645",
+            "9780785846239",
+            "9781979311410",
+            "9781974303335",
+            "9781529501322",
+            "9781549500756",
+            "1667209639",
+            "9781979684606",
+            "9781835095355",
+            "9798686618589",
+            "9781717064981",
+            "1529954266",
+            "153968668X",
+            "9798752962578",
+            "9780393962949",
+            "9781719357982",
+            "1978237251",
+            "1835095356",
+            "9781986688093",
+            "9798458982894",
+            "1546802592",
+            "1546644830",
+            "1957334258",
+            "1534824685",
+            "9781539309796",
+            "9781522073550",
+            "1783225947",
+            "1540801217",
+            "9781508863441",
+            "1514888556",
+            "1529501326",
+            "9781515005742",
+            "1977794556",
+            "9781958321645",
+            "9781722500283",
+            "9781774819586",
+            "1774819597",
+            "1979338752",
+            "9780241734889",
+            "9780573711190",
+            "3868206388",
+            "0241734886",
+            "1727695488",
+            "9781530887835",
+            "9798491743575",
+            "9780393976045",
+            "1535504048",
+            "9781546802594",
+            "1522073558",
+            "9781540801210",
+            "1979311412",
+            "9781512079173",
+            "195832163X",
+            "9780585013367",
+            "1717064981",
+            "9781977901507",
+            "9781517015824",
+            "1979395667",
+            "1717108962",
+            "153719402X",
+            "0393264882",
+            "150886344X",
+            "9780393264883",
+            "9781783225941",
+            "9781546989424",
+            "9798760200099",
+            "9781543235159",
+            "9781529954265",
+            "9798450402321",
+            "8563560158",
+            "9781520819631",
+            "1981613781",
+            "9798501914834",
+            "1974303330",
+            "9781974504220",
+            "9781546420897",
+            "172250028X",
+            "9781539315315",
+            "1774819589",
+            "1974504220",
+            "9781667209630",
+            "1984987771",
+            "197937337X",
+            "9781957334257",
+            "9781984987778",
+            "039304274X",
+            "1958321648",
+            "9781979373371",
+            "9781514888551",
+            "9798650220985",
+            "1530887836",
+            "9781717108968",
+            "0393962946",
+            "1719357986",
+            "1515321606",
+            "197968460X",
+            "1539315312",
+            "9781977794550",
+            "9781535504041",
+            "1517015820",
+            "1539309797",
+            "1543289045",
+            "1546989420",
+            "1549500759",
+            "9781984236456",
+            "9781981613786",
+            "1986089169",
+            "9781979395663",
+            "9780393042740",
+            "9781398839144",
+            "1543235158",
+            "0393976041",
+            "9788563560155",
+            "1514264641",
+            "9798516146985",
+            "9781978253292",
+            "9781986089166",
+            "9798649838764"
+          ],
+          "providerIds": [
+            "openlibrary:OL60971431M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL15165350W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL8786477W",
+          "title": "Pride and Prejudice",
+          "authors": [
+            {
+              "id": "openlibrary:OL2993482A",
+              "name": "Dario Marianelli",
+              "providerIds": [
+                "openlibrary:OL2993482A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2006,
+          "coverUrl": "https://covers.openlibrary.org/b/id/766715-L.jpg",
+          "providerIds": [
+            "openlibrary:OL8786477W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL8495254M",
+          "workId": "openlibrary:OL8786477W",
+          "title": "Pride and Prejudice",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781480340107",
+            "145845505X",
+            "9781458455055",
+            "9781476889467",
+            "147681919X",
+            "1458438848",
+            "9781480340121",
+            "9781458439765",
+            "1458454150",
+            "145842829X",
+            "1480340103",
+            "1476889465",
+            "9781458409621",
+            "148034012X",
+            "1458427242",
+            "1476819203",
+            "9781476819198",
+            "1458438082",
+            "1480340111",
+            "1458409627",
+            "1617802395",
+            "1423411137",
+            "1458455963",
+            "142341635X",
+            "1458439763",
+            "1458433102",
+            "9781458438843",
+            "9781458428295",
+            "9781458427243",
+            "9781423411130",
+            "9781423416357",
+            "9781458438089",
+            "9781480340114",
+            "9781458455963",
+            "9781458433107",
+            "9781458454157",
+            "9781617802393",
+            "9781476819204"
+          ],
+          "providerIds": [
+            "openlibrary:OL8495254M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL8786477W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL15093171W",
+          "title": "Pride and Prejudice and Zombies",
+          "authors": [
+            {
+              "id": "openlibrary:OL3125727A",
+              "name": "Seth Grahame-Smith",
+              "providerIds": [
+                "openlibrary:OL3125727A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2009,
+          "coverUrl": "https://covers.openlibrary.org/b/id/6260257-L.jpg",
+          "providerIds": [
+            "openlibrary:OL15093171W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL47830280M",
+          "workId": "openlibrary:OL15093171W",
+          "title": "Pride and Prejudice and Zombies",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780545206785",
+            "1594743347",
+            "060617110X",
+            "1594748896",
+            "9780606171106",
+            "9781511336185",
+            "0545206782",
+            "9782266234139",
+            "1594743355",
+            "9789025434557",
+            "9788489367715",
+            "1594744513",
+            "9781594748899",
+            "1511336188",
+            "9781594744518",
+            "9781594743351",
+            "9781594743344",
+            "9782081229495",
+            "902543455X",
+            "2266234137",
+            "2081229498",
+            "848936771X"
+          ],
+          "providerIds": [
+            "openlibrary:OL47830280M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL15093171W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL17737918W",
+          "title": "Pride and Prejudice [adaptation]",
+          "authors": [
+            {
+              "id": "openlibrary:OL21594A",
+              "name": "Jane Austen",
+              "providerIds": [
+                "openlibrary:OL21594A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1984,
+          "coverUrl": "https://covers.openlibrary.org/b/id/8094315-L.jpg",
+          "providerIds": [
+            "openlibrary:OL17737918W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL26337259M",
+          "workId": "openlibrary:OL17737918W",
+          "title": "Pride and Prejudice [adaptation]",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780883017586",
+            "088301758X"
+          ],
+          "providerIds": [
+            "openlibrary:OL26337259M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL17737918W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL21259954W",
+          "title": "Pride and Prejudice [adaptation]",
+          "authors": [
+            {
+              "id": "openlibrary:OL7527561A",
+              "name": "Stacy King",
+              "providerIds": [
+                "openlibrary:OL7527561A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2014,
+          "coverUrl": "https://covers.openlibrary.org/b/id/11061327-L.jpg",
+          "providerIds": [
+            "openlibrary:OL21259954W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL27163774M",
+          "workId": "openlibrary:OL21259954W",
+          "title": "Pride and Prejudice [adaptation]",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781927925171",
+            "9781927925188",
+            "1947808982",
+            "1927925185",
+            "1927925177",
+            "9781947808980"
+          ],
+          "providerIds": [
+            "openlibrary:OL27163774M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL21259954W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL35749735W",
+          "title": "Pride and Prejudice and Pittsburgh",
+          "authors": [
+            {
+              "id": "openlibrary:OL7553056A",
+              "name": "Rachael Lippincott",
+              "providerIds": [
+                "openlibrary:OL7553056A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2023,
+          "coverUrl": "https://covers.openlibrary.org/b/id/14414408-L.jpg",
+          "providerIds": [
+            "openlibrary:OL35749735W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL48821236M",
+          "workId": "openlibrary:OL35749735W",
+          "title": "Pride and Prejudice and Pittsburgh",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1665937548",
+            "166593753X",
+            "9781665937535",
+            "9781665937542",
+            "1665937556",
+            "9781665937559"
+          ],
+          "providerIds": [
+            "openlibrary:OL48821236M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL35749735W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL41675083W",
+          "title": "PRIDE and PREJUDICE by Jane Austen",
+          "authors": [
+            {
+              "id": "openlibrary:OL13072925A",
+              "name": "Jane Jane",
+              "providerIds": [
+                "openlibrary:OL13072925A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2017,
+          "providerIds": [
+            "openlibrary:OL41675083W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL56589278M",
+          "workId": "openlibrary:OL41675083W",
+          "title": "PRIDE and PREJUDICE by Jane Austen",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781974688456",
+            "1974688453"
+          ],
+          "providerIds": [
+            "openlibrary:OL56589278M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL41675083W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.436
+}

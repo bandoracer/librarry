@@ -1,0 +1,202 @@
+{
+  "url": "https://openlibrary.org/search.json?q=a+psalm+for+the+wild+built&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:16.615484+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 5,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 5,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "a psalm for the wild built",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL7387940A"
+        ],
+        "author_name": [
+          "Becky Chambers"
+        ],
+        "cover_i": 10476616,
+        "first_publish_year": 2021,
+        "key": "/works/OL22561871W",
+        "language": [
+          "fre",
+          "ita",
+          "por",
+          "cat",
+          "eng"
+        ],
+        "title": "A Psalm for the Wild-Built",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32177625M",
+              "title": "A Psalm for the Wild-Built",
+              "cover_i": 10834978,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tor.com"
+              ],
+              "publish_date": [
+                "2021-07-03"
+              ],
+              "isbn": [
+                "9781250236227",
+                "1250236223"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7387940A"
+        ],
+        "author_name": [
+          "Becky Chambers"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL44575419W",
+        "language": [
+          "eng"
+        ],
+        "title": "Psalm for the Wild-Built & a Prayer for the Crown-Shy Set Of 2",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60882137M",
+              "title": "Psalm for the Wild-Built & a Prayer for the Crown-Shy Set Of 2",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "mukawa"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9781637990971",
+                "1637990979"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1222848A"
+        ],
+        "author_name": [
+          "Paolo Segneri"
+        ],
+        "cover_i": 9769434,
+        "first_publish_year": 1702,
+        "key": "/works/OL5332252W",
+        "language": [
+          "eng",
+          "spa"
+        ],
+        "title": "The Manna Of The Soul",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25796838M",
+              "title": "The Manna Of The Soul",
+              "cover_i": 9929992,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Benziger Bros"
+              ],
+              "publish_date": [
+                "1892"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 10515062,
+        "first_publish_year": 2018,
+        "key": "/works/OL23576428W",
+        "language": [
+          "eng"
+        ],
+        "title": "DIMENSIONS OF PRAYER",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31401903M",
+              "title": "DIMENSIONS OF PRAYER",
+              "cover_i": 10515062,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Kineto"
+              ],
+              "publish_date": [
+                "2018"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2619294A"
+        ],
+        "author_name": [
+          "Ernest Edward Holmes"
+        ],
+        "cover_i": 5562558,
+        "first_publish_year": 1911,
+        "key": "/works/OL7907590W",
+        "language": [
+          "eng"
+        ],
+        "title": "Prayer and action",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7245950M",
+              "title": "Prayer and action",
+              "cover_i": 5562558,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Longmans, Green"
+              ],
+              "publish_date": [
+                "1911"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.287
+}

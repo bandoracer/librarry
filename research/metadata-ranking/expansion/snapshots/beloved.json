@@ -1,0 +1,1032 @@
+{
+  "url": "https://openlibrary.org/search.json?q=beloved&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:02.186191+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 7368,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 7368,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "beloved",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL31120A"
+        ],
+        "author_name": [
+          "Toni Morrison"
+        ],
+        "cover_i": 8261367,
+        "first_publish_year": 1987,
+        "key": "/works/OL50548W",
+        "language": [
+          "ger",
+          "jpn",
+          "tur",
+          "heb",
+          "ita",
+          "kor",
+          "pol",
+          "fre",
+          "rus",
+          "eng",
+          "chi",
+          "spa",
+          "swe"
+        ],
+        "title": "Beloved",
+        "editions": {
+          "numFound": 97,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58886319M",
+              "title": "Beloved",
+              "cover_i": 15169563,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Vintage Books"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9780099560845",
+                "0099560844"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL325487A"
+        ],
+        "author_name": [
+          "Alan Paton"
+        ],
+        "cover_i": 8235289,
+        "first_publish_year": 1940,
+        "key": "/works/OL2384132W",
+        "language": [
+          "eng",
+          "spa",
+          "ita"
+        ],
+        "title": "Cry, the Beloved Country",
+        "editions": {
+          "numFound": 59,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21553973M",
+              "title": "Cry, the beloved country",
+              "cover_i": 11613065,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Longman"
+              ],
+              "publish_date": [
+                "1973"
+              ],
+              "isbn": [
+                "0582530628",
+                "9780582530621"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL889928A"
+        ],
+        "author_name": [
+          "Anne Hampson"
+        ],
+        "cover_i": 7283889,
+        "first_publish_year": 1981,
+        "key": "/works/OL4463698W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Vagabond",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10738122M",
+              "title": "Beloved Vagabond",
+              "cover_i": 9327110,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "harlequin",
+                "Harlequin"
+              ],
+              "publish_date": [
+                "January 1981"
+              ],
+              "isbn": [
+                "9780373104703",
+                "0373104707"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL18277A"
+        ],
+        "author_name": [
+          "Thomas Hardy"
+        ],
+        "cover_i": 8242184,
+        "first_publish_year": 1897,
+        "key": "/works/OL44989W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "a sketch of a temperament",
+        "title": "The well-beloved",
+        "editions": {
+          "numFound": 71,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2719292M",
+              "title": "The well-beloved",
+              "cover_i": 8242184,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oxford University Press"
+              ],
+              "publish_date": [
+                "1986"
+              ],
+              "isbn": [
+                "0192817213",
+                "9780192817211"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL897344A"
+        ],
+        "author_name": [
+          "Barbara Rowan"
+        ],
+        "cover_i": 7267812,
+        "first_publish_year": 1967,
+        "key": "/works/OL5267308W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved enemies",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL14979858M",
+              "title": "Beloved enemies",
+              "cover_i": 7267812,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mills and Boon"
+              ],
+              "publish_date": [
+                "1975"
+              ],
+              "isbn": [
+                "0263719170",
+                "9780263719178"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL785666A"
+        ],
+        "author_name": [
+          "Elizabeth Oldfield"
+        ],
+        "cover_i": 5073352,
+        "first_publish_year": 1983,
+        "key": "/works/OL4161445W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Stranger",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL14980719M",
+              "title": "Beloved stranger",
+              "cover_i": 12144969,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mills & Boon"
+              ],
+              "publish_date": [
+                "1983"
+              ],
+              "isbn": [
+                "0263743764",
+                "9780263743760"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2763201A"
+        ],
+        "author_name": [
+          "Patricia Wilson"
+        ],
+        "cover_i": 14882252,
+        "first_publish_year": 1988,
+        "key": "/works/OL8315266W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Intruder",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18207044M",
+              "title": "Beloved intruder.",
+              "cover_i": 14882252,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mills & Boon"
+              ],
+              "publish_date": [
+                "1988"
+              ],
+              "isbn": [
+                "0263760324",
+                "9780263760323"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL22973A"
+        ],
+        "author_name": [
+          "Thomas Mann"
+        ],
+        "cover_i": 490517,
+        "first_publish_year": 1939,
+        "key": "/works/OL14867077W",
+        "language": [
+          "dut",
+          "ger",
+          "rus",
+          "und",
+          "eng"
+        ],
+        "title": "Lotte in Weimar",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3163943M",
+              "title": "The beloved returns",
+              "cover_i": 6381924,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Vintage Books",
+                "Vintage"
+              ],
+              "publish_date": [
+                "1983"
+              ],
+              "isbn": [
+                "0394717457",
+                "9780394717456"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL889723A"
+        ],
+        "author_name": [
+          "Henrietta Reid"
+        ],
+        "cover_i": 13856486,
+        "first_publish_year": 1968,
+        "key": "/works/OL4462809W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Sparrow",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43487824M",
+              "title": "Beloved Sparrow",
+              "cover_i": 15247891,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mills & Boon"
+              ],
+              "publish_date": [
+                "1968-01-01"
+              ],
+              "isbn": [
+                "9780263709605",
+                "0263709604"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL32252A"
+        ],
+        "author_name": [
+          "Joan Wolf"
+        ],
+        "cover_i": 8573408,
+        "first_publish_year": 1994,
+        "key": "/works/OL18020069W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Stranger / Summer Storm",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7573591M",
+              "title": "Beloved Stranger / Summer Storm",
+              "cover_i": 15105169,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Signet"
+              ],
+              "publish_date": [
+                "October 1, 1994"
+              ],
+              "isbn": [
+                "9780451182517",
+                "0451182510"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL889928A"
+        ],
+        "author_name": [
+          "Anne Hampson"
+        ],
+        "cover_i": 12976632,
+        "first_publish_year": 1972,
+        "key": "/works/OL4463781W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Rake",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL14980419M",
+              "title": "Beloved rake",
+              "cover_i": 12976632,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mills & Boon"
+              ],
+              "publish_date": [
+                "1982"
+              ],
+              "isbn": [
+                "0263738868",
+                "9780263738865"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL231095A"
+        ],
+        "author_name": [
+          "Lynda Trent"
+        ],
+        "cover_i": 13595943,
+        "first_publish_year": 1992,
+        "key": "/works/OL11019464W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved wife",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17881458M",
+              "title": "Beloved wife",
+              "cover_i": 13595943,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mills & Boon"
+              ],
+              "publish_date": [
+                "1996"
+              ],
+              "isbn": [
+                "0263794644",
+                "9780263794649"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL23795A"
+        ],
+        "author_name": [
+          "Eugenia Price"
+        ],
+        "cover_i": 832766,
+        "first_publish_year": 1965,
+        "key": "/works/OL81938W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Beloved Invader",
+        "editions": {
+          "numFound": 12,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7823650M",
+              "title": "The Beloved Invader",
+              "cover_i": 4672869,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam"
+              ],
+              "publish_date": [
+                "May 1, 1977"
+              ],
+              "isbn": [
+                "9780553269093",
+                "0553269097"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL34596A"
+        ],
+        "author_name": [
+          "Gabrielle Charbonnet"
+        ],
+        "cover_i": 6462406,
+        "first_publish_year": 2010,
+        "key": "/works/OL15349386W",
+        "language": [
+          "eng"
+        ],
+        "title": "Immortal Beloved",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32107592M",
+              "title": "Immortal Beloved",
+              "cover_i": 10765467,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Hodder & Stoughton"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781444707014",
+                "9781444706994",
+                "1444707019",
+                "1444706993"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6976866A"
+        ],
+        "author_name": [
+          "Flora Kidd"
+        ],
+        "cover_i": 12867849,
+        "first_publish_year": 1987,
+        "key": "/works/OL4084603W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Deceiver",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10738544M",
+              "title": "Beloved Deceiver",
+              "cover_i": 15089546,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "harlequin"
+              ],
+              "publish_date": [
+                "February 1, 1988"
+              ],
+              "isbn": [
+                "9780373110582",
+                "0373110588"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL18714A",
+          "OL38899A"
+        ],
+        "author_name": [
+          "Janette Oke",
+          "T. Davis Bunn"
+        ],
+        "cover_i": 1468979,
+        "first_publish_year": 2002,
+        "key": "/works/OL15091508W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Beloved Land (Song of Acadia #5)",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3554862M",
+              "title": "The beloved land",
+              "cover_i": 1438766,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bethany House"
+              ],
+              "publish_date": [
+                "2002"
+              ],
+              "isbn": [
+                "076422722X",
+                "0764227238",
+                "0764227246",
+                "0764227254",
+                "9780764227226",
+                "9780764227233",
+                "9780764227240",
+                "9780764227257"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL793119A"
+        ],
+        "author_name": [
+          "Rachel Ford"
+        ],
+        "cover_i": 11594806,
+        "first_publish_year": 1989,
+        "key": "/works/OL4182812W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved witch",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10807062M",
+              "title": "Beloved Witch",
+              "cover_i": 11594806,
+              "publisher": [
+                "Magna Large Print Books"
+              ],
+              "publish_date": [
+                "1998"
+              ],
+              "isbn": [
+                "9780750503846",
+                "075050384X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL19283A"
+        ],
+        "author_name": [
+          "Grace Livingston Hill"
+        ],
+        "cover_i": 7502117,
+        "first_publish_year": 2012,
+        "key": "/works/OL17399632W",
+        "title": "The Beloved Stranger",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25980530M",
+              "title": "The Beloved Stranger",
+              "cover_i": 7502099,
+              "publisher": [
+                "Barbour Publishing"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9781616266486",
+                "1616266481"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL403708A"
+        ],
+        "author_name": [
+          "Parke Godwin"
+        ],
+        "cover_i": 877110,
+        "first_publish_year": 1984,
+        "key": "/works/OL2751270W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Exile",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8892111M",
+              "title": "Beloved Exile",
+              "cover_i": 877110,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "IBooks, Inc."
+              ],
+              "publish_date": [
+                "January 25, 2006"
+              ],
+              "isbn": [
+                "9781596873049",
+                "1596873043"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL32252A"
+        ],
+        "author_name": [
+          "Joan Wolf"
+        ],
+        "cover_i": 8350436,
+        "first_publish_year": 1984,
+        "key": "/works/OL18014341W",
+        "title": "Beloved Stranger",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7571448M",
+              "title": "Beloved Stranger",
+              "cover_i": 8350437,
+              "publisher": [
+                "Signet"
+              ],
+              "publish_date": [
+                "March 1, 1984"
+              ],
+              "isbn": [
+                "9780451128102",
+                "0451128109"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL849503A"
+        ],
+        "author_name": [
+          "Roberta Leigh"
+        ],
+        "first_publish_year": 1974,
+        "key": "/works/OL4342654W",
+        "language": [
+          "eng",
+          "und"
+        ],
+        "title": "Beloved Ballerina",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38386644M",
+              "title": "Beloved Ballerina",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Harlequin Enterprises ULC"
+              ],
+              "publish_date": [
+                "1979"
+              ],
+              "isbn": [
+                "9780373100644",
+                "0373100647"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL808883A"
+        ],
+        "author_name": [
+          "Yvonne Whittal"
+        ],
+        "cover_i": 13190719,
+        "first_publish_year": 1978,
+        "key": "/works/OL4225359W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved benefactor",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL14976596M",
+              "title": "Beloved benefactor",
+              "cover_i": 13190719,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mills and Boon"
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "0263093727",
+                "9780263093728"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3497181A"
+        ],
+        "author_name": [
+          "Jocelyn Griffin"
+        ],
+        "cover_i": 5075069,
+        "first_publish_year": 1981,
+        "key": "/works/OL9480971W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved Intruder",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24943061M",
+              "title": "Beloved intruder",
+              "cover_i": 6947496,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Worldwide"
+              ],
+              "publish_date": [
+                "1981"
+              ],
+              "isbn": [
+                "9780373700080",
+                "0373700083"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL229188A"
+        ],
+        "author_name": [
+          "Henri J. M. Nouwen"
+        ],
+        "cover_i": 8028646,
+        "first_publish_year": 1993,
+        "key": "/works/OL11323014W",
+        "language": [
+          "eng"
+        ],
+        "title": "Life of the beloved",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22643815M",
+              "title": "Life of the beloved",
+              "cover_i": 8028646,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Hodder & Stoughton"
+              ],
+              "publish_date": [
+                "1993"
+              ],
+              "isbn": [
+                "0340583614",
+                "9780340583616"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3371724A"
+        ],
+        "author_name": [
+          "Lauren Wilde"
+        ],
+        "cover_i": 6908198,
+        "first_publish_year": 1997,
+        "key": "/works/OL16044584W",
+        "language": [
+          "eng"
+        ],
+        "title": "Beloved captive",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24945473M",
+              "title": "Beloved captive",
+              "cover_i": 6908198,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Kensington Pub. Corp."
+              ],
+              "publish_date": [
+                "1997"
+              ],
+              "isbn": [
+                "9780821757635",
+                "0821757636"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.889
+}

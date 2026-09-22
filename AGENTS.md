@@ -36,9 +36,9 @@ Important current facts:
   sign-in; the LAN portal retains its existing application authentication mode.
 - The standard search language should stay `English` unless the user explicitly
   asks for multilingual or unfiltered results.
-- Prowlarr and qBittorrent have been verified through the live app, but
-  Hardcover and Google Books credentials still need to be supplied for rich
-  metadata coverage.
+- Prowlarr and qBittorrent have been verified through the live app. Hardcover
+  and Google Books credentials passed live checks on September 21, 2026; see
+  `docs/status.md` for the separately qualified metadata paths.
 
 Never print or commit live API keys, provider tokens, database passwords, or
 download-client credentials.

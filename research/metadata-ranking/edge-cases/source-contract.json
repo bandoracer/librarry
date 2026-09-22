@@ -1,0 +1,7 @@
+{
+  "provider": "Hardcover",
+  "schemaURL": "https://raw.githubusercontent.com/hardcoverapp/hardcover-docs/2eee2f8e6916a9157f384b3b7aba9648fdc85ae6/schema.graphql",
+  "schemaSHA256": "b1f4ea98576f5f8a91b6545533cda8f5be2cd33114c8df1e133e1d898fa5cd25",
+  "validation": "Complete SearchSeries query passed graphql-core validation against the official schema",
+  "liveCredentialQualification": false
+}

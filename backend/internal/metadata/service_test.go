@@ -80,7 +80,7 @@ func TestMergeMergesDuplicateISBNResults(t *testing.T) {
 	}
 }
 
-func TestSearchDetailedMergesHardcoverWorkWithOpenLibraryEdition(t *testing.T) {
+func TestSearchDetailedKeepsUnverifiedCrossProviderIdentitiesSeparate(t *testing.T) {
 	service := NewService([]Provider{
 		staticMetadataProvider{name: "Hardcover", results: []SearchResult{{
 			Provider: "Hardcover",
@@ -121,18 +121,13 @@ func TestSearchDetailedMergesHardcoverWorkWithOpenLibraryEdition(t *testing.T) {
 	})
 
 	outcome := service.SearchDetailed(context.Background(), Query{Query: "Dungeon Crawler Carl Matt Dinniman", Type: SearchTypeBook, Format: FormatAudiobook, Limit: 10})
-	if len(outcome.Results) != 1 {
-		t.Fatalf("expected corroborated work result, got %d results", len(outcome.Results))
+	if len(outcome.Results) != 2 {
+		t.Fatalf("text similarity must not merge unverified work/edition identities: %+v", outcome.Results)
 	}
-	result := outcome.Results[0]
-	if result.Provider != "Hardcover" {
-		t.Fatalf("expected Hardcover to remain primary for close work matches, got %q", result.Provider)
-	}
-	if result.Work.FirstPublishYear != 2020 || result.Work.CoverURL == "" {
-		t.Fatalf("expected rich work fields to merge, got %+v", result.Work)
-	}
-	if result.Edition.ID != "openlibrary:OL999M" || !hasString(result.Edition.ISBNs, "9781705040873") {
-		t.Fatalf("expected edition evidence to merge into primary result, got %+v", result.Edition)
+	for _, result := range outcome.Results {
+		if result.Provider == "Hardcover" && result.Edition.ID != "" || result.Provider == "Open Library" && result.Edition.ID != "openlibrary:OL999M" {
+			t.Fatalf("independent edition evidence changed: %+v", outcome.Results)
+		}
 	}
 }
 

@@ -941,6 +941,13 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) {
 		Limit:             10,
 		ProviderKey:       r.URL.Query().Get("providerKey"),
 	}
+	if query.Type == metadata.SearchTypeSeries {
+		query.Limit = 50
+	}
+	if err := metadata.ValidateSearchQuery(query); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
 	outcome := h.deps.Metadata.SearchDetailed(r.Context(), query)
 	if len(outcome.ProviderErrors) > 0 {
 		h.deps.Logger.Warn("search completed with provider errors", "errors", outcome.ProviderErrors)

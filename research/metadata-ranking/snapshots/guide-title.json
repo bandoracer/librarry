@@ -1,0 +1,16 @@
+{
+  "url": "https://openlibrary.org/search.json?title=percy+jackson+the+ultimate+guide&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:53:14.430413+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 0,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 0,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "",
+    "offset": null,
+    "docs": []
+  },
+  "elapsedSeconds": 0.225
+}

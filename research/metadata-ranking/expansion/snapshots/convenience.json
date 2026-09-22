@@ -1,0 +1,750 @@
+{
+  "url": "https://openlibrary.org/search.json?q=convenience+store+woman&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:06.601133+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 18,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 18,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "convenience store woman",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL6573124A",
+          "OL2830015A",
+          "OL9110936A",
+          "OL9083073A",
+          "OL7969667A"
+        ],
+        "author_name": [
+          "村田沙耶香",
+          "Nancy Wu",
+          "Mathilde Tamae-Bouhon",
+          "Albert Nolla Cabellos",
+          "Marina Bornas Montaña"
+        ],
+        "cover_i": 9315164,
+        "first_publish_year": 2018,
+        "key": "/works/OL19744024W",
+        "language": [
+          "cat",
+          "ita",
+          "tur",
+          "fre",
+          "arm",
+          "eng"
+        ],
+        "title": "Convenience store woman",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28719876M",
+              "title": "Convenience Store Woman",
+              "cover_i": 15228140,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Granta Books"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781846276842",
+                "1846276845"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6592256A",
+          "OL9117626A",
+          "OL8005610A"
+        ],
+        "author_name": [
+          "新海誠",
+          "Naruki Nagakawa",
+          "Ginny Tapley Takemori"
+        ],
+        "first_publish_year": 2023,
+        "key": "/works/OL36045829W",
+        "language": [
+          "eng"
+        ],
+        "title": "She and Her Cat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48684946M",
+              "title": "She and Her Cat",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books, Limited"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781804993118",
+                "1804993115"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2025,
+        "key": "/works/OL45346332W",
+        "title": "Convenience Store Woman",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61803640M",
+              "title": "Convenience Store Woman",
+              "publisher": [
+                "Penguin Random House NZ"
+              ],
+              "publish_date": [
+                "2025-04"
+              ],
+              "isbn": [
+                "9781803510217",
+                "1803510218"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9377632A"
+        ],
+        "author_name": [
+          "Constantina Delimitrou"
+        ],
+        "cover_i": 11763272,
+        "first_publish_year": 2007,
+        "key": "/works/OL24872928W",
+        "title": "Psilikatzoy",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL33061816M",
+              "title": "Psilikatzoy",
+              "cover_i": 11763272,
+              "publisher": [
+                "Createspace Independent Publishing Platform",
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "May 23, 2007"
+              ],
+              "isbn": [
+                "9781546808503",
+                "1546808507"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL18319A"
+        ],
+        "author_name": [
+          "Mark Twain"
+        ],
+        "cover_i": 8157718,
+        "first_publish_year": 1876,
+        "key": "/works/OL53908W",
+        "language": [
+          "ger",
+          "ang",
+          "ita",
+          "kor",
+          "tel",
+          "jpn",
+          "chi",
+          "rum",
+          "hin",
+          "rus",
+          "fin",
+          "eng",
+          "por",
+          "arm",
+          "spa",
+          "vie",
+          "ara",
+          "ind",
+          "per",
+          "pol",
+          "fre",
+          "alb",
+          "dut"
+        ],
+        "title": "Adventures of Huckleberry Finn",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24992736M",
+              "title": "The Adventures of Huckleberry Finn",
+              "cover_i": 15164908,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Harper & Brothers"
+              ],
+              "publish_date": [
+                "1902"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL19981A"
+        ],
+        "author_name": [
+          "Stephen King"
+        ],
+        "cover_i": 14651337,
+        "first_publish_year": 1960,
+        "key": "/works/OL81608W",
+        "language": [
+          "spa",
+          "fre",
+          "ita",
+          "ger",
+          "rus",
+          "chi",
+          "eng"
+        ],
+        "title": "Night Shift",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7572724M",
+              "title": "Night Shift",
+              "cover_i": 14651680,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "New American Library"
+              ],
+              "publish_date": [
+                "1986?"
+              ],
+              "isbn": [
+                "9780451160454",
+                "0451160452"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL31853A",
+          "OL2621804A",
+          "OL1654607A",
+          "OL534271A",
+          "OL234664A",
+          "OL32650A",
+          "OL235668A",
+          "OL20965A",
+          "OL19593A",
+          "OL225780A",
+          "OL19981A",
+          "OL19610A",
+          "OL397484A",
+          "OL218450A",
+          "OL1362053A",
+          "OL2623549A",
+          "OL70928A",
+          "OL32981A",
+          "OL53305A",
+          "OL1425196A",
+          "OL24856A",
+          "OL2835215A",
+          "OL220396A",
+          "OL321292A",
+          "OL1398486A",
+          "OL2631898A"
+        ],
+        "author_name": [
+          "Ellen Datlow",
+          "Clive Barker",
+          "Edward Bryant",
+          "Thomas Ligotti",
+          "George R. R. Martin",
+          "Peter Straub",
+          "Dan Simmons",
+          "Pat Cadigan",
+          "Joe R. Lansdale",
+          "Kathe Koja",
+          "Stephen King",
+          "Lucius Shepard",
+          "Poppy Z. Brite",
+          "Elizabeth Hand",
+          "Dennis Etchison",
+          "Michael Marshall",
+          "David J. Schow",
+          "Joyce Carol Oates",
+          "Neil Gaiman",
+          "Kelly Link",
+          "Gene Wolfe",
+          "Steve Rasnic Tem",
+          "Ramsey Campbell",
+          "Terry Dowling",
+          "Glen Hirshberg",
+          "Joe Hill"
+        ],
+        "cover_i": 12490281,
+        "first_publish_year": 2010,
+        "key": "/works/OL15188323W",
+        "language": [
+          "eng"
+        ],
+        "title": "Darkness",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27119747M",
+              "title": "Darkness",
+              "cover_i": 12490281,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tachyon"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781892391957",
+                "1892391953"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13654949A"
+        ],
+        "author_name": [
+          "Deemas Fashion"
+        ],
+        "cover_i": 14599273,
+        "first_publish_year": 2024,
+        "key": "/works/OL37988650W",
+        "subtitle": "A Guide to Choosing the Perfect Dress",
+        "title": "Nikah Elegance",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51473068M",
+              "title": "Nikah Elegance: A Guide to Choosing the Perfect Dress",
+              "cover_i": 14599273,
+              "publisher": [
+                "Deemas Fashion Limited"
+              ],
+              "publish_date": [
+                "3/20/2024"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2123021A"
+        ],
+        "author_name": [
+          "Silas Farmer"
+        ],
+        "cover_i": 5854701,
+        "first_publish_year": 1884,
+        "key": "/works/OL161752W",
+        "language": [
+          "eng"
+        ],
+        "title": "The history of Detroit and Michigan",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25796183M",
+              "title": "The History Of Detroit And Michigan",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Silas Farmer & Co."
+              ],
+              "publish_date": [
+                "1889"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1390260A"
+        ],
+        "author_name": [
+          "Doyle, Brian"
+        ],
+        "cover_i": 12663083,
+        "first_publish_year": 2016,
+        "key": "/works/OL20037765W",
+        "language": [
+          "eng"
+        ],
+        "title": "A sense of wonder",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27217805M",
+              "title": "A sense of wonder",
+              "cover_i": 12663083,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Orbis Books"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781626982086",
+                "1626982082"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL15178084A"
+        ],
+        "author_name": [
+          "The Late Night Devil"
+        ],
+        "cover_i": 14856361,
+        "first_publish_year": 2025,
+        "key": "/works/OL42822898W",
+        "subtitle": "Eclipse of Fate.",
+        "title": "The Arcane Path",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58324258M",
+              "title": "The Arcane Path: Eclipse of Fate.",
+              "cover_i": 14856361,
+              "publisher": [
+                "The Late Night Devil"
+              ],
+              "publish_date": [
+                "2/4/2025"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6774453A"
+        ],
+        "author_name": [
+          "JoAnne Moore"
+        ],
+        "cover_i": 7265381,
+        "first_publish_year": 2013,
+        "key": "/works/OL16808799W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Panties Thief",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25433348M",
+              "title": "The Panties Thief v.1",
+              "cover_i": 7265381,
+              "publisher": [
+                "Joanne Moore"
+              ],
+              "publish_date": [
+                "11/10/2013"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2821271A"
+        ],
+        "author_name": [
+          "Cassandra Clare"
+        ],
+        "cover_i": 8022702,
+        "first_publish_year": 2008,
+        "key": "/works/OL8455254W",
+        "language": [
+          "eng"
+        ],
+        "title": "City of Ashes (The Mortal Instruments)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10724286M",
+              "title": "City of Ashes (The Mortal Instruments)",
+              "cover_i": 8022702,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Simon & Schuster Audio"
+              ],
+              "publish_date": [
+                "March 25, 2008"
+              ],
+              "isbn": [
+                "9780743572750",
+                "0743572750"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 12387745,
+        "first_publish_year": 2021,
+        "key": "/works/OL26423716W",
+        "title": "Gravity Of Frustration",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35686244M",
+              "title": "Gravity Of Frustration",
+              "cover_i": 12387745,
+              "publisher": [
+                "Manal Khalil"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798465004787"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2693799A"
+        ],
+        "author_name": [
+          "John Coleman"
+        ],
+        "cover_i": 6426475,
+        "first_publish_year": 2000,
+        "key": "/works/OL15169002W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Story of The Committee of 300",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24300734M",
+              "title": "CONSPIRATORS' HIERARCHY",
+              "cover_i": 6426475,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Internet"
+              ],
+              "publish_date": [
+                "2000"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7361059A"
+        ],
+        "author_name": [
+          "Eric EH Buddhadharma"
+        ],
+        "cover_i": 7885552,
+        "first_publish_year": 2016,
+        "key": "/works/OL17599138W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Lost Sermons of Jesus,Revealed(Intro)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26202670M",
+              "title": "The Lost Sermons of Jesus,Revealed(Intro)",
+              "cover_i": 7885552,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "compassion paperbacks"
+              ],
+              "publish_date": [
+                "15.11.2016"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2619294A"
+        ],
+        "author_name": [
+          "Ernest Edward Holmes"
+        ],
+        "cover_i": 5562558,
+        "first_publish_year": 1911,
+        "key": "/works/OL7907590W",
+        "language": [
+          "eng"
+        ],
+        "title": "Prayer and action",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7245950M",
+              "title": "Prayer and action",
+              "cover_i": 5562558,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Longmans, Green"
+              ],
+              "publish_date": [
+                "1911"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL15178353A",
+          "OL15178354A"
+        ],
+        "author_name": [
+          "Malik Mansab Khan",
+          "Muhammad Rafique Abdul Aziz"
+        ],
+        "cover_i": 14856377,
+        "first_publish_year": 2025,
+        "key": "/works/OL42823332W",
+        "language": [
+          "eng"
+        ],
+        "title": "A TOUR OF THE WORLD",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58325263M",
+              "title": "A TOUR OF THE WORLD",
+              "cover_i": 14856377,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Self-Published"
+              ],
+              "publish_date": [
+                "2025"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.418
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "firstID": "openlibrary:OL25803688W",
+    "id": "employees-author",
+    "knownRetrievalMiss": false,
+    "query": "The Employees by Olga Ravn",
+    "requests": 2,
+    "results": 1,
+    "targetRank": 1
+  },
+  {
+    "firstID": "openlibrary:OL25803688W",
+    "id": "employees-suffix",
+    "knownRetrievalMiss": false,
+    "query": "The Employees Olga Ravn",
+    "requests": 1,
+    "results": 1,
+    "targetRank": 1
+  },
+  {
+    "firstID": "",
+    "id": "percy-typo",
+    "knownRetrievalMiss": true,
+    "query": "percy jakson",
+    "requests": 1,
+    "results": 0,
+    "targetRank": 0
+  },
+  {
+    "firstID": "",
+    "id": "hail-typo",
+    "knownRetrievalMiss": true,
+    "query": "project hail maryy",
+    "requests": 1,
+    "results": 0,
+    "targetRank": 0
+  },
+  {
+    "firstID": "openlibrary:OL27482W",
+    "id": "hobbit-typo",
+    "knownRetrievalMiss": false,
+    "query": "the hobbitt",
+    "requests": 1,
+    "results": 1,
+    "targetRank": 1
+  },
+  {
+    "firstID": "openlibrary:OL21745884W",
+    "id": "punctuation",
+    "knownRetrievalMiss": false,
+    "query": "Project: Hail Mary!",
+    "requests": 1,
+    "results": 10,
+    "targetRank": 1
+  },
+  {
+    "firstID": "",
+    "id": "nonexistent",
+    "knownRetrievalMiss": false,
+    "query": "zxqvplm nonexistent book 782643",
+    "requests": 1,
+    "results": 0,
+    "targetRank": 0
+  },
+  {
+    "firstID": "",
+    "id": "nonexistent-author",
+    "knownRetrievalMiss": false,
+    "query": "zxqvplm nonexistent book by Qzx Vplm",
+    "requests": 2,
+    "results": 0,
+    "targetRank": 0
+  },
+  {
+    "firstID": "openlibrary:OL25803688W",
+    "id": "employees-audio",
+    "knownRetrievalMiss": false,
+    "query": "The Employees by Olga Ravn",
+    "requests": 2,
+    "results": 1,
+    "targetRank": 1
+  },
+  {
+    "firstID": "openlibrary:OL21745884W",
+    "id": "hail-audio",
+    "knownRetrievalMiss": false,
+    "query": "Project Hail Mary",
+    "requests": 1,
+    "results": 10,
+    "targetRank": 1
+  }
+]

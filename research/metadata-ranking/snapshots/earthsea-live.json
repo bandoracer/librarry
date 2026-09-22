@@ -1,0 +1,99 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=earthsea&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:07.801055+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "earthsea",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL16835663W",
+          "title": "Ursula K. Le Guin's A wizard of Earthsea",
+          "authors": [
+            {
+              "id": "openlibrary:OL1393878A",
+              "name": "Michael Dirda",
+              "providerIds": [
+                "openlibrary:OL1393878A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2008,
+          "coverUrl": "https://covers.openlibrary.org/b/id/9720853-L.jpg",
+          "providerIds": [
+            "openlibrary:OL16835663W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL25461564M",
+          "workId": "openlibrary:OL16835663W",
+          "title": "Ursula K. Le Guin's A wizard of Earthsea",
+          "format": "any",
+          "language": "eng",
+          "providerIds": [
+            "openlibrary:OL25461564M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL16835663W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL42425651W",
+          "title": "Wizard of Earthsea",
+          "authors": [
+            {
+              "id": "openlibrary:OL31353A",
+              "name": "Ursula K. Le Guin",
+              "providerIds": [
+                "openlibrary:OL31353A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2025,
+          "providerIds": [
+            "openlibrary:OL42425651W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL62475868M",
+          "workId": "openlibrary:OL42425651W",
+          "title": "Wizard of Earthsea",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781529526264",
+            "0063285762",
+            "9780063285767",
+            "1529526264"
+          ],
+          "providerIds": [
+            "openlibrary:OL62475868M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL42425651W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.49
+}

@@ -3,6 +3,30 @@
 User-visible changes are recorded here. Read [current status](docs/status.md) for
 what is published, deployed and qualified. A candidate tag is not a stable release.
 
+## Unreleased
+
+- Use Hardcover's supported series-search endpoint and explicit IDs instead of
+  forbidden substring filters; prioritize usable editions over sparse work records.
+
+- Add New has an explicit Hardcover Series mode with source-reported positions,
+  bounded results and clear missing-credential errors.
+- Explicit author rescue now includes translated edition titles; searches such as
+  `The Employees by Olga Ravn` recover the original work and English edition.
+
+- Title/author discovery recognizes returned author identities and uses one bounded
+  structured rescue for explicit author queries when needed. Add New groups
+  returned editions of a verified work and preserves the selected edition on add.
+
+- Book discovery now preserves provider relevance, searches Open Library across
+  title/author/subtitle context, and selects a coherent matching edition. English
+  editions are no longer excluded by the order of a work's language list.
+- Exact ISBN matches use checksum-validated edition identifiers. Search keeps
+  conflicting exact editions visible with review reasons; unknown media formats
+  stay unknown. Text similarity alone no longer merges search identities.
+- Add New shows match evidence instead of percentage scores, prefers edition
+  covers, handles failed images, and shows provider errors alongside usable results.
+  Unknown edition formats require the existing add-review step.
+
 ## September 16, 2026 — stabilization release
 
 Qualified application source: `6e209ffd8d3724879e52187e27790029e66af986`.

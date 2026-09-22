@@ -43,6 +43,28 @@ manifests. An unavailable root or client cannot establish that a book is missing
 See [metadata contracts](reference/metadata.md) and
 [collection/evidence contracts](reference/collections.md).
 
+## Metadata discovery ordering
+
+Provider search responses pass through bounded caches, coherent edition mapping,
+identity-based merging, preference checks, and discovery ordering. Exact ISBNs
+lead; explicit title/author agreement and exact Google fallback follow; general
+results retain provider order. Across providers equal ordinal positions use the
+existing Hardcover/Open Library preference. This is a conservative baseline, not
+a calibrated multi-provider relevance model. Search relevance is separate from
+release evaluation and auto-grab policy.
+
+`SearchResult.evidence` and `conflicts` expose match facts and review reasons.
+`Work.languages` and `subtitle` retain work-level evidence; edition fields belong
+to one selected edition. Discovery order is recomputed after cache reads, so warm
+and cold requests agree. See [the design](metadata-ranking-design.md) and
+[implementation checks](reviews/2026-09-21-metadata-discovery.md).
+
+Series discovery is a distinct `type=series` search routed only to Hardcover.
+A bounded membership query supplies `Work.seriesId`, `series`, and
+`seriesPosition`; provider order is preserved through merge/cache/filtering.
+Overlapping memberships remain separate. The UI displays the bounded source order
+and a credential error when unavailable. Book searches retain their own ranking.
+
 ## Workflow boundaries
 
 1. Search providers and select a metadata identity and format.

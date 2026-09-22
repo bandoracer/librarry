@@ -1,0 +1,33 @@
+{
+  "url": "https://openlibrary.org/works/OL8684296W.json",
+  "retrievedAt": "2026-09-21T07:57:34.724757+00:00",
+  "status": 200,
+  "data": {
+    "title": "Dragonriders of Pern",
+    "key": "/works/OL8684296W",
+    "authors": [
+      {
+        "type": {
+          "key": "/type/author_role"
+        },
+        "author": {
+          "key": "/authors/OL19880A"
+        }
+      }
+    ],
+    "type": {
+      "key": "/type/work"
+    },
+    "latest_revision": 6,
+    "revision": 6,
+    "created": {
+      "type": "/type/datetime",
+      "value": "2009-12-10T23:07:57.514730"
+    },
+    "last_modified": {
+      "type": "/type/datetime",
+      "value": "2024-01-31T20:58:47.726642"
+    }
+  },
+  "elapsedSeconds": 0.28
+}

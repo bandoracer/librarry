@@ -113,7 +113,8 @@ test("unknown edition format uses the same chosen format for identity checks and
   await page.getByLabel("Format", { exact: true }).selectOption("audiobook");
   await expect.poll(() => format).toBe("audiobook");
   await openResult(page, "Unknown edition");
-  await page.getByRole("button", { name: "Add Book", exact: true }).click();
+  await page.getByRole("button", { name: "Review & Add Book", exact: true }).click();
+  await page.getByRole("dialog", { name: "Review before adding" }).getByRole("button", { name: "Add anyway", exact: true }).click();
   await expect.poll(() => created?.format).toBe("audiobook");
   expect(created?.preserveExisting).toBe(true);
 });

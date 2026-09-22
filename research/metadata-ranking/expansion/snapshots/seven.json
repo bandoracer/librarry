@@ -1,0 +1,981 @@
+{
+  "url": "https://openlibrary.org/search.json?q=a+brief+history+of+seven+killings&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:18.827690+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 26,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 26,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "a brief history of seven killings",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL6504870A",
+          "OL1447185A",
+          "OL9158906A",
+          "OL9139182A",
+          "OL7990399A",
+          "OL7786165A",
+          "OL9158907A",
+          "OL9093440A"
+        ],
+        "author_name": [
+          "Marlon James",
+          "Ryan Anderson",
+          "Dwight Bacquie",
+          "Cherise Boothe",
+          "Robertson Dean",
+          "Johnathan McClain",
+          "Robert Younis",
+          "Various Narrators"
+        ],
+        "cover_i": 7359856,
+        "first_publish_year": 2014,
+        "key": "/works/OL17187702W",
+        "language": [
+          "eng",
+          "ger",
+          "pol",
+          "rus",
+          "cat"
+        ],
+        "title": "A Brief History of Seven Killings",
+        "editions": {
+          "numFound": 15,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25759419M",
+              "title": "A Brief History of Seven Killings",
+              "cover_i": 7359856,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Riverhead Books",
+                "Riverhead Books, a member of Penguin Group (USA)"
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9781594486005",
+                "159448600X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6504870A"
+        ],
+        "author_name": [
+          "Marlon James"
+        ],
+        "cover_i": 10129729,
+        "first_publish_year": 2009,
+        "key": "/works/OL13648915W",
+        "language": [
+          "eng"
+        ],
+        "title": "The book of night women",
+        "editions": {
+          "numFound": 12,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34432027M",
+              "title": "Book of Night Women",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oneworld Publications"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9781851687213",
+                "1851687211"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6504870A"
+        ],
+        "author_name": [
+          "Marlon James"
+        ],
+        "cover_i": 936349,
+        "first_publish_year": 2005,
+        "key": "/works/OL8906721W",
+        "language": [
+          "eng"
+        ],
+        "title": "John Crow's Devil",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35994606M",
+              "title": "John Crow's Devil",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oneworld Publications"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9781780748504",
+                "1780748507"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL18319A"
+        ],
+        "author_name": [
+          "Mark Twain"
+        ],
+        "cover_i": 8157718,
+        "first_publish_year": 1876,
+        "key": "/works/OL53908W",
+        "language": [
+          "ger",
+          "ang",
+          "ita",
+          "kor",
+          "tel",
+          "jpn",
+          "chi",
+          "rum",
+          "hin",
+          "rus",
+          "fin",
+          "eng",
+          "por",
+          "arm",
+          "spa",
+          "vie",
+          "ara",
+          "ind",
+          "per",
+          "pol",
+          "fre",
+          "alb",
+          "dut"
+        ],
+        "title": "Adventures of Huckleberry Finn",
+        "editions": {
+          "numFound": 2623,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26479314M",
+              "title": "Adventures of Huckleberry Finn",
+              "cover_i": 8217871,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Project Gutenberg"
+              ],
+              "publish_date": [
+                "2006 August 20"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL216875A",
+          "OL3069311A"
+        ],
+        "author_name": [
+          "Llaila O. Afrika",
+          "Llaila Olela Afrika"
+        ],
+        "cover_i": 927697,
+        "first_publish_year": 1989,
+        "key": "/works/OL1808042W",
+        "language": [
+          "eng"
+        ],
+        "title": "African holistic health",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL344920M",
+              "title": "African holistic health",
+              "cover_i": 9302361,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "A&B Publishers Group",
+                "Brand: A B Book Dist Inc",
+                "A & B Book Dist Inc"
+              ],
+              "publish_date": [
+                "1998"
+              ],
+              "isbn": [
+                "1881316718",
+                "9781881316718"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8354734A"
+        ],
+        "author_name": [
+          "SuperSummary"
+        ],
+        "cover_i": 12366237,
+        "first_publish_year": 2018,
+        "key": "/works/OL21868175W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide -- The Other Wes Moore by Wes Moore",
+        "editions": {
+          "numFound": 113,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38190220M",
+              "title": "Study Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798698952183"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL24638A"
+        ],
+        "author_name": [
+          "Charles Dickens"
+        ],
+        "cover_i": 13130696,
+        "first_publish_year": 1800,
+        "key": "/works/OL8763776W",
+        "language": [
+          "ukr",
+          "dut",
+          "ita",
+          "chi",
+          "ice",
+          "dan",
+          "swe",
+          "por",
+          "ger",
+          "fre",
+          "rus",
+          "mul",
+          "pol",
+          "spa",
+          "eng"
+        ],
+        "title": "The Pickwick Papers",
+        "editions": {
+          "numFound": 539,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7108708M",
+              "title": "The posthumous papers of the Pickwick Club.",
+              "cover_i": 12916714,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Macmillan"
+              ],
+              "publish_date": [
+                "1892"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8354734A"
+        ],
+        "author_name": [
+          "SuperSummary"
+        ],
+        "cover_i": 15199344,
+        "first_publish_year": 2018,
+        "key": "/works/OL44112704W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide The Personal Librarian by Marie Benedict and Victoria Christopher Murray",
+        "editions": {
+          "numFound": 63,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60933508M",
+              "title": "Study Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "SuperSummary"
+              ],
+              "publish_date": [
+                "2025"
+              ],
+              "isbn": [
+                "9798900342160"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4770097A"
+        ],
+        "author_name": [
+          "Richard Capel"
+        ],
+        "first_publish_year": 1633,
+        "key": "/works/OL11354979W",
+        "language": [
+          "eng"
+        ],
+        "title": "Tentations",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL16755881M",
+              "title": "Tentations",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Printed by E.B. for John Bartlet"
+              ],
+              "publish_date": [
+                "1655"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL64744A"
+        ],
+        "author_name": [
+          "Oscar D. Watkins"
+        ],
+        "cover_i": 6835644,
+        "first_publish_year": 1920,
+        "key": "/works/OL15873066W",
+        "language": [
+          "lat",
+          "grc",
+          "eng"
+        ],
+        "title": "A History Of Penance, Being A Study Of Authorities",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25880977M",
+              "title": "A History Of Penance, Being A Study Of Authorities",
+              "cover_i": 9884045,
+              "language": [
+                "eng",
+                "grc"
+              ],
+              "publisher": [
+                "Longmans, Green, and Co."
+              ],
+              "publish_date": [
+                "1920"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2693799A"
+        ],
+        "author_name": [
+          "John Coleman"
+        ],
+        "cover_i": 6426475,
+        "first_publish_year": 2000,
+        "key": "/works/OL15169002W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Story of The Committee of 300",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24300734M",
+              "title": "CONSPIRATORS' HIERARCHY",
+              "cover_i": 6426475,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Internet"
+              ],
+              "publish_date": [
+                "2000"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL15178353A",
+          "OL15178354A"
+        ],
+        "author_name": [
+          "Malik Mansab Khan",
+          "Muhammad Rafique Abdul Aziz"
+        ],
+        "cover_i": 14856377,
+        "first_publish_year": 2025,
+        "key": "/works/OL42823332W",
+        "language": [
+          "eng"
+        ],
+        "title": "A TOUR OF THE WORLD",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58325263M",
+              "title": "A TOUR OF THE WORLD",
+              "cover_i": 14856377,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Self-Published"
+              ],
+              "publish_date": [
+                "2025"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2821271A"
+        ],
+        "author_name": [
+          "Cassandra Clare"
+        ],
+        "cover_i": 8022702,
+        "first_publish_year": 2008,
+        "key": "/works/OL8455254W",
+        "language": [
+          "eng"
+        ],
+        "title": "City of Ashes (The Mortal Instruments)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10724286M",
+              "title": "City of Ashes (The Mortal Instruments)",
+              "cover_i": 8022702,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Simon & Schuster Audio"
+              ],
+              "publish_date": [
+                "March 25, 2008"
+              ],
+              "isbn": [
+                "9780743572750",
+                "0743572750"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 6880943,
+        "first_publish_year": 2010,
+        "key": "/works/OL16053515W",
+        "title": "A Heritage of Open Air Square Temple Discovered In Russia",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24953440M",
+              "title": "A Heritage of Open Air Square Temple Discovered In Russia",
+              "cover_i": 6880943,
+              "publisher": [
+                "Oxford University Press, UK"
+              ],
+              "publish_date": [
+                "2010"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1758895A"
+        ],
+        "author_name": [
+          "Clive Howard"
+        ],
+        "cover_i": 9459188,
+        "first_publish_year": 1946,
+        "key": "/works/OL6562949W",
+        "language": [
+          "eng"
+        ],
+        "title": "One damned island after another",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL6522058M",
+              "title": "One damned island after another",
+              "cover_i": 9459188,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "University of North Carolina Press"
+              ],
+              "publish_date": [
+                "1946"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1387305A"
+        ],
+        "author_name": [
+          "Kris Rampersad"
+        ],
+        "cover_i": 7253085,
+        "first_publish_year": 2012,
+        "key": "/works/OL16801744W",
+        "language": [
+          "eng"
+        ],
+        "title": "LiTTscapes - Landscapes of Fiction from Trinidad and Tobago",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25426059M",
+              "title": "LiTTscapes",
+              "cover_i": 7255810,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Kris Rampersad"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9789768228017",
+                "9768228016"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 10515062,
+        "first_publish_year": 2018,
+        "key": "/works/OL23576428W",
+        "language": [
+          "eng"
+        ],
+        "title": "DIMENSIONS OF PRAYER",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31401903M",
+              "title": "DIMENSIONS OF PRAYER",
+              "cover_i": 10515062,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Kineto"
+              ],
+              "publish_date": [
+                "2018"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2014,
+        "key": "/works/OL17091137W",
+        "language": [
+          "eng"
+        ],
+        "title": "The effect of foreign intervention on Somali conflict in Mogadishu, Somalia",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25661212M",
+              "title": "The effect of foreign intervention on Somali conflict in Mogadishu, Somalia",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "University of Somalia"
+              ],
+              "publish_date": [
+                "Mogadishu, Somalia (2014)"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1661767A"
+        ],
+        "author_name": [
+          "American Film Institute"
+        ],
+        "cover_i": 7884139,
+        "first_publish_year": 1975,
+        "key": "/works/OL17597290W",
+        "language": [
+          "eng"
+        ],
+        "title": "American Film",
+        "editions": {
+          "numFound": 82,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26200965M",
+              "title": "American Film, Volume 1, Number 9",
+              "cover_i": 7884129,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "American Film Institute"
+              ],
+              "publish_date": [
+                "July 1976"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7367273A"
+        ],
+        "author_name": [
+          "Sean stubenrauch"
+        ],
+        "cover_i": 7903720,
+        "first_publish_year": 2017,
+        "key": "/works/OL17627633W",
+        "title": "Goku",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26232836M",
+              "title": "Goku",
+              "cover_i": 7903720,
+              "publisher": [
+                "Sean stubenrauch"
+              ],
+              "publish_date": [
+                "2017"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3560360A"
+        ],
+        "author_name": [
+          "William Swygard"
+        ],
+        "cover_i": 6891257,
+        "first_publish_year": 1971,
+        "key": "/works/OL16077158W",
+        "title": "Awareness Techniques by  William Swygard",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24973590M",
+              "title": "Awareness Techniques by  William Swygard",
+              "cover_i": 6891257,
+              "publisher": [
+                "William A. Reilly, Awareness Techniques sub.Theater University, Inc."
+              ],
+              "publish_date": [
+                "1971, 1975"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3000712A"
+        ],
+        "author_name": [
+          "Kurt E. Marquart"
+        ],
+        "cover_i": 10785067,
+        "first_publish_year": 2014,
+        "key": "/works/OL24284749W",
+        "language": [
+          "eng"
+        ],
+        "title": "Marquart's works",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32123925M",
+              "title": "Marquart's works",
+              "cover_i": 10785067,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Lutheran News, Inc."
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9780964479951",
+                "9780964479968",
+                "9780964479975",
+                "9780964479982",
+                "9780983240914",
+                "9780983240921",
+                "9780983240938",
+                "9780983240945",
+                "9780983240952",
+                "9780983240969",
+                "0964479958",
+                "0964479966",
+                "0964479974",
+                "0964479982",
+                "0983240914",
+                "0983240922",
+                "0983240930",
+                "0983240949",
+                "0983240957",
+                "0983240965"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3560360A"
+        ],
+        "author_name": [
+          "William Swygard"
+        ],
+        "cover_i": 6891236,
+        "first_publish_year": 1974,
+        "key": "/works/OL16077160W",
+        "language": [
+          "eng"
+        ],
+        "title": "Waldara Answers",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24973592M",
+              "title": "Waldara Answers",
+              "cover_i": 6891236,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "William A. Reilly, Awareness Techniques sub. Theater University, Inc."
+              ],
+              "publish_date": [
+                "1974"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6828157A"
+        ],
+        "author_name": [
+          "Mr.Avinash Patra"
+        ],
+        "cover_i": 6681685,
+        "first_publish_year": 2011,
+        "key": "/works/OL15667613W",
+        "language": [
+          "eng"
+        ],
+        "title": "Quest for the Historical Jesus Christ and Christianity",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24598356M",
+              "title": "Quest for the Historical Jesus Christ and Christianity",
+              "cover_i": 6681685,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oxford University Press,U.K."
+              ],
+              "publish_date": [
+                "2011"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 7367213,
+        "first_publish_year": 2009,
+        "key": "/works/OL17198654W",
+        "title": "The Human Planet",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25770378M",
+              "title": "The Human Planet",
+              "cover_i": 7367213,
+              "publisher": [
+                "Editorial Booklane"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9788493424565",
+                "8493424560"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.993
+}

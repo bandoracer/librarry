@@ -1,0 +1,66 @@
+{
+  "url": "https://openlibrary.org/works/OL15015120W.json",
+  "retrievedAt": "2026-09-21T07:57:35.829738+00:00",
+  "status": 200,
+  "data": {
+    "subtitle": "Escape to the Hills",
+    "description": {
+      "type": "/type/text",
+      "value": "Hazel, Bigwig, Pipkin, Fiver and Blackberry flee their warren afer Fiver's premonition of impending destruction. They eventually reach their promised land at Watership Down after a tiring, exciting and, at times, life-threatening adventure. Then, Holly, from their old waren arrives, wounded. Television tie-in novel."
+    },
+    "last_modified": {
+      "type": "/type/datetime",
+      "value": "2020-07-27T05:26:11.448147"
+    },
+    "title": "Watership Down",
+    "created": {
+      "type": "/type/datetime",
+      "value": "2010-03-18T14:26:33.646214"
+    },
+    "covers": [
+      72855,
+      -1
+    ],
+    "subject_places": [
+      "Watership Down",
+      "English country locations"
+    ],
+    "subjects": [
+      "quest mythos",
+      "rabbits",
+      "pilgrimage",
+      "visions",
+      "prophecy",
+      "Juvenile fiction",
+      "Rabbits"
+    ],
+    "latest_revision": 7,
+    "key": "/works/OL15015120W",
+    "authors": [
+      {
+        "type": {
+          "key": "/type/author_role"
+        },
+        "author": {
+          "key": "/authors/OL800926A"
+        }
+      },
+      {
+        "type": {
+          "key": "/type/author_role"
+        },
+        "author": {
+          "key": "/authors/OL341438A"
+        }
+      }
+    ],
+    "subject_times": [
+      "time period modern but indeterminate"
+    ],
+    "type": {
+      "key": "/type/work"
+    },
+    "revision": 7
+  },
+  "elapsedSeconds": 0.259
+}

@@ -1,0 +1,992 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+c+programming+language&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:51.474307+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 1912,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 1912,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the c programming language",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL946967A",
+          "OL3171923A"
+        ],
+        "author_name": [
+          "Brian W. Kernighan",
+          "Dennis MacAlistair Ritchie"
+        ],
+        "cover_i": 6684943,
+        "first_publish_year": 1978,
+        "key": "/works/OL4617640W",
+        "language": [
+          "chi",
+          "por",
+          "dan",
+          "swe",
+          "ger",
+          "nor",
+          "fre",
+          "rus",
+          "und",
+          "pol",
+          "spa",
+          "eng"
+        ],
+        "title": "The C Programming Language",
+        "editions": {
+          "numFound": 49,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4558528M",
+              "title": "The C Programming Language",
+              "cover_i": 86178,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Prentice-Hall"
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "0131101633",
+                "9780131101630"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL34366A"
+        ],
+        "author_name": [
+          "Bjarne Stroustrup"
+        ],
+        "cover_i": 136583,
+        "first_publish_year": 1986,
+        "key": "/works/OL53184W",
+        "language": [
+          "pol",
+          "ger",
+          "eng",
+          "spa"
+        ],
+        "title": "The C++ programming language",
+        "editions": {
+          "numFound": 18,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1547882M",
+              "title": "The  C++ programming language",
+              "cover_i": 15244169,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Addison-Wesley"
+              ],
+              "publish_date": [
+                "1991"
+              ],
+              "isbn": [
+                "0201539926",
+                "9780201539929"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL239920A",
+          "OL2652096A"
+        ],
+        "author_name": [
+          "Clovis L. Tondo",
+          "Scott E. Gimpel"
+        ],
+        "cover_i": 86161,
+        "first_publish_year": 1985,
+        "key": "/works/OL1993369W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C answer book",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21589767M",
+              "title": "The C answer book",
+              "cover_i": 6885751,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Prentice-Hall"
+              ],
+              "publish_date": [
+                "1985"
+              ],
+              "isbn": [
+                "0131098772",
+                "9780131098770"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL34366A"
+        ],
+        "author_name": [
+          "Bjarne Stroustrup"
+        ],
+        "cover_i": 8633699,
+        "first_publish_year": 1999,
+        "key": "/works/OL19838415W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C++ programming language",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27027825M",
+              "title": "The C++ programming language",
+              "cover_i": 8633699,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Addison-Wesley"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "9780201327557",
+                "0201327554"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1517522A"
+        ],
+        "author_name": [
+          "Anders Hejlsberg"
+        ],
+        "cover_i": 11611665,
+        "first_publish_year": 2009,
+        "key": "/works/OL18759859W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C♯ programming language",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22690951M",
+              "title": "The C♯ programming language",
+              "cover_i": 11611665,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Addison-Wesley"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9780321562999",
+                "0321562992"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13411709A"
+        ],
+        "author_name": [
+          "Anders Hejlsberg"
+        ],
+        "first_publish_year": 2009,
+        "key": "/works/OL37213465W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C♯ programming language",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL50173845M",
+              "title": "The C♯ programming language",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Addison-Wesley"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9780321592279",
+                "0321592271"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL538598A"
+        ],
+        "author_name": [
+          "D. S. Malik"
+        ],
+        "cover_i": 762861,
+        "first_publish_year": 2004,
+        "key": "/works/OL8221396W",
+        "language": [
+          "eng"
+        ],
+        "title": "C++ Programming",
+        "editions": {
+          "numFound": 14,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32983510M",
+              "title": "C++ programming",
+              "cover_i": 11611663,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Cengage Learning"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9781133526346",
+                "1133526349"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3777232A"
+        ],
+        "author_name": [
+          "A. K. Goyal"
+        ],
+        "first_publish_year": 2007,
+        "key": "/works/OL9790537W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C Programming Language",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL11900766M",
+              "title": "The C Programming Language",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Alpha Science Int'l Ltd"
+              ],
+              "publish_date": [
+                "October 24, 2007"
+              ],
+              "isbn": [
+                "9781842653951",
+                "1842653954"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL31302253W",
+        "title": "The C Programming Language",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9082225M",
+              "title": "The C Programming Language",
+              "isbn": [
+                "9788178087368",
+                "8178087367"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL946967A",
+          "OL3171923A"
+        ],
+        "author_name": [
+          "Brian W. Kernighan",
+          "Dennis MacAlistair Ritchie"
+        ],
+        "first_publish_year": 1978,
+        "key": "/works/OL43090196W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C Programming language",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58693455M",
+              "title": "The C Programming language",
+              "language": [
+                "eng"
+              ],
+              "publish_date": [
+                "1978"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2648839A",
+          "OL203473A"
+        ],
+        "author_name": [
+          "Paul J. Deitel",
+          "Harvey M. Deitel"
+        ],
+        "cover_i": 11603839,
+        "first_publish_year": 2007,
+        "key": "/works/OL7943173W",
+        "language": [
+          "hin",
+          "eng"
+        ],
+        "title": "C How to Program",
+        "editions": {
+          "numFound": 25,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17924252M",
+              "title": "C how to program",
+              "cover_i": 11603839,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pearson Prentice Hall"
+              ],
+              "publish_date": [
+                "2007"
+              ],
+              "isbn": [
+                "9780132404167",
+                "0132404168"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL954181A"
+        ],
+        "author_name": [
+          "Douglas A. Troy"
+        ],
+        "cover_i": 4065702,
+        "first_publish_year": 1989,
+        "key": "/works/OL4645048W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C programming language",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2055386M",
+              "title": "The C programming language",
+              "cover_i": 4065702,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scott, Foresman"
+              ],
+              "publish_date": [
+                "1989"
+              ],
+              "isbn": [
+                "067339803X",
+                "9780673398031"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL225900A"
+        ],
+        "author_name": [
+          "David Vandevoorde"
+        ],
+        "cover_i": 134308,
+        "first_publish_year": 1998,
+        "key": "/works/OL1886829W",
+        "language": [
+          "eng"
+        ],
+        "title": "C++ solutions",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL360464M",
+              "title": "C++ solutions",
+              "cover_i": 134308,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Addison Wesley"
+              ],
+              "publish_date": [
+                "1998"
+              ],
+              "isbn": [
+                "0201309653",
+                "9780201309652"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL246288A"
+        ],
+        "author_name": [
+          "Robert Lafore"
+        ],
+        "cover_i": 410094,
+        "first_publish_year": 1988,
+        "key": "/works/OL2036125W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Waite Group's Turbo C programming for the PC",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2065848M",
+              "title": "Turbo C Programming for the PC",
+              "cover_i": 13364887,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Howard W. Sams & Co.",
+                "Financial Times Prentice Hall"
+              ],
+              "publish_date": [
+                "1988"
+              ],
+              "isbn": [
+                "067222660X",
+                "9780672226601"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL236999A",
+          "OL9923530A"
+        ],
+        "author_name": [
+          "Charles Petzold",
+          "Charles Petzold"
+        ],
+        "cover_i": 460968,
+        "first_publish_year": 1999,
+        "key": "/works/OL1972516W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Hidden Language of Computer Hardware and Software",
+        "title": "Code",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17703091M",
+              "title": "Code",
+              "cover_i": 11346602,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Microsoft Press"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "073560505X",
+                "9780735605053"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL191085A"
+        ],
+        "author_name": [
+          "Ronald P. Cody"
+        ],
+        "cover_i": 87463,
+        "first_publish_year": 1985,
+        "key": "/works/OL1687774W",
+        "language": [
+          "eng"
+        ],
+        "title": "Applied statistics and the SAS programming language",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22233873M",
+              "title": "Applied statistics and the SAS programming language",
+              "cover_i": 3964130,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Prentice Hall"
+              ],
+              "publish_date": [
+                "1991"
+              ],
+              "isbn": [
+                "013500554X",
+                "0444016198",
+                "9780135005545",
+                "9780444016195"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1865351A"
+        ],
+        "author_name": [
+          "C. T. Zahn"
+        ],
+        "cover_i": 4790193,
+        "first_publish_year": 1979,
+        "key": "/works/OL6814844W",
+        "language": [
+          "eng"
+        ],
+        "title": "C notes, a guide to the C programming language",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4746442M",
+              "title": "C notes, a guide to the C programming language",
+              "cover_i": 4790193,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Yourdon Press"
+              ],
+              "publish_date": [
+                "1979"
+              ],
+              "isbn": [
+                "0917072138",
+                "9780917072130"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL763492A"
+        ],
+        "author_name": [
+          "Benjamin C. Pierce"
+        ],
+        "cover_i": 150506,
+        "first_publish_year": 2002,
+        "key": "/works/OL4078119W",
+        "language": [
+          "eng"
+        ],
+        "title": "Types and Programming Languages",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9468435M",
+              "title": "Types and Programming Languages",
+              "cover_i": 150506,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "The MIT Press"
+              ],
+              "publish_date": [
+                "February 1, 2002"
+              ],
+              "isbn": [
+                "9780262162098",
+                "0262162091"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1517522A",
+          "OL3329583A",
+          "OL3329584A"
+        ],
+        "author_name": [
+          "Anders Hejlsberg",
+          "Scott Wiltamuth",
+          "Peter Golde"
+        ],
+        "cover_i": 192602,
+        "first_publish_year": 2004,
+        "key": "/works/OL6035588W",
+        "language": [
+          "eng"
+        ],
+        "title": "The C# programming language",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21057319M",
+              "title": "The C# programming language",
+              "cover_i": 11611664,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Addison-Wesley"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "9780321334435",
+                "0321334434"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6866038A"
+        ],
+        "author_name": [
+          "Reema Thareja"
+        ],
+        "cover_i": 13841415,
+        "first_publish_year": 2013,
+        "key": "/works/OL21090538W",
+        "language": [
+          "eng"
+        ],
+        "title": "Introduction to C Programming",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28548464M",
+              "title": "Introduction to C Programming",
+              "cover_i": 13841415,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oxford University Press India",
+                "Oxford University Press"
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9780199452057",
+                "0199452059"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL452728A"
+        ],
+        "author_name": [
+          "Marjorie Canfield Willis"
+        ],
+        "cover_i": 1461836,
+        "first_publish_year": 1996,
+        "key": "/works/OL2963201W",
+        "language": [
+          "eng"
+        ],
+        "title": "Medical Terminology",
+        "editions": {
+          "numFound": 20,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9509976M",
+              "title": "Medical Terminology",
+              "cover_i": 1461565,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Lippincott Williams & Wilkins"
+              ],
+              "publish_date": [
+                "July 15, 2002"
+              ],
+              "isbn": [
+                "9780781733946",
+                "0781733944"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL391079A"
+        ],
+        "author_name": [
+          "Lev Grossman"
+        ],
+        "cover_i": 6294573,
+        "first_publish_year": 2009,
+        "key": "/works/OL2679341W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "A Novel",
+        "title": "The Magicians",
+        "editions": {
+          "numFound": 15,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26961969M",
+              "title": "The magicians",
+              "language": [
+                "eng"
+              ],
+              "publish_date": [
+                "2018"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2000,
+        "key": "/works/OL31555696W",
+        "title": "The C++ Programming Language",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9082216M",
+              "title": "The C ++ Programming Language, Special Edition",
+              "publisher": [
+                "Pearson Education Asia"
+              ],
+              "publish_date": [
+                "2000"
+              ],
+              "isbn": [
+                "9788178081267",
+                "8178081261"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL57775A"
+        ],
+        "author_name": [
+          "Herbert Schildt"
+        ],
+        "cover_i": 61535,
+        "first_publish_year": 1987,
+        "key": "/works/OL720124W",
+        "language": [
+          "eng"
+        ],
+        "title": "C++",
+        "editions": {
+          "numFound": 23,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL20958218M",
+              "title": "C",
+              "cover_i": 15236002,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Osborne McGraw-Hill"
+              ],
+              "publish_date": [
+                "1992"
+              ],
+              "isbn": [
+                "0078817838",
+                "9780078817830"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8753413A",
+          "OL8753414A"
+        ],
+        "author_name": [
+          "Shari Eskenas",
+          "Ana Quintero Villafraz"
+        ],
+        "cover_i": 10509545,
+        "first_publish_year": 2020,
+        "key": "/works/OL23083580W",
+        "title": "A Day in Code",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL30934340M",
+              "title": "A Day in Code",
+              "cover_i": 10509546,
+              "publisher": [
+                "Sundae Electronics LLC"
+              ],
+              "publish_date": [
+                "Nov 24, 2020"
+              ],
+              "isbn": [
+                "9781735907918",
+                "173590791X"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.87
+}

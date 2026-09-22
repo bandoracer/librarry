@@ -73,6 +73,9 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 		query.Limit = 10
 	}
 
+	if err := ValidateSearchQuery(query); err != nil {
+		return SearchOutcome{Query: query, Results: []SearchResult{}, ProviderErrors: []ProviderError{{Provider: "Search", Message: err.Error()}}}
+	}
 	merged := []SearchResult{}
 	var providerErrors []ProviderError
 	fallback := []int{}
@@ -86,10 +89,14 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 		results, err := s.searchCaches[index].search(ctx, requestQuery, provider)
 		if err != nil {
 			providerErrors = append(providerErrors, ProviderError{Provider: provider.Name(), Message: err.Error()})
-			return
+			var partial *partialSearchError
+			if len(results) == 0 || !errors.As(err, &partial) {
+				return
+			}
 		}
-		for _, result := range results {
-			if !resultFitsQuery(query, result) || (exactOnly && !lookup.matches(result)) {
+		for rank, result := range results {
+			result.discoveryRank = rank + 1
+			if !discoveryEligible(query, result) || (exactOnly && !lookup.matches(result)) {
 				continue
 			}
 			merged = append(merged, result)
@@ -97,6 +104,9 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 	}
 	// Fallback ordering is policy, independent of constructor/provider order.
 	for index, provider := range s.providers {
+		if query.Type == SearchTypeSeries && provider.Name() != "Hardcover" {
+			continue
+		}
 		if query.Type == SearchTypeAuthorWorks {
 			key := CanonicalAuthorKey(query.ProviderKey)
 			if strings.HasPrefix(key, "openlibrary:") && provider.Name() != "Open Library" || strings.HasPrefix(key, "hardcover-author:") && provider.Name() != "Hardcover" {
@@ -116,19 +126,36 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 	}
 
 	merged = mergeEquivalentResults(query, merged)
-	merged = filterResultsByPreferredLanguage(merged, query.PreferredLanguage)
+	eligible := merged[:0]
+	for _, result := range merged {
+		if discoveryEligible(query, result) {
+			eligible = append(eligible, explainDiscovery(query, result))
+		}
+	}
+	merged = eligible
 
 	sort.SliceStable(merged, func(i, j int) bool {
-		if lookupEligible {
-			left, right := lookup.matches(merged[i]), lookup.matches(merged[j])
-			if left != right {
-				return left
-			}
+		if query.Type == SearchTypeSeries {
+			return merged[i].discoveryRank < merged[j].discoveryRank
 		}
-		if merged[i].Score == merged[j].Score {
+		if query.Type == SearchTypeBook {
+			left, right := discoveryTier(query, merged[i]), discoveryTier(query, merged[j])
+			if left != right {
+				return left > right
+			}
+			if merged[i].discoveryRank != merged[j].discoveryRank {
+				return merged[i].discoveryRank < merged[j].discoveryRank
+			}
+		} else if merged[i].Score != merged[j].Score {
+			return merged[i].Score > merged[j].Score
+		}
+		if providerRank(merged[i].Provider) != providerRank(merged[j].Provider) {
 			return providerRank(merged[i].Provider) < providerRank(merged[j].Provider)
 		}
-		return merged[i].Score > merged[j].Score
+		if merged[i].discoveryRank != merged[j].discoveryRank {
+			return merged[i].discoveryRank < merged[j].discoveryRank
+		}
+		return merged[i].Work.ID+merged[i].Edition.ID < merged[j].Work.ID+merged[j].Edition.ID
 	})
 
 	if len(merged) > query.Limit {

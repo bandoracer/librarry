@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-09-21T07:59:41.671123+00:00",
+  "providers": [
+    {
+      "name": "Hardcover",
+      "configured": false,
+      "status": "missing_credentials"
+    },
+    {
+      "name": "Open Library",
+      "configured": true,
+      "status": "ready"
+    },
+    {
+      "name": "Google Books",
+      "configured": false,
+      "status": "missing_credentials"
+    },
+    {
+      "name": "Local OPF",
+      "configured": true,
+      "status": "ready"
+    }
+  ]
+}

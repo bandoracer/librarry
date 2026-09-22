@@ -9,6 +9,25 @@ Librarry is early alpha. The stabilization candidate is qualified for a
 qualified as an unattended replacement for
 an existing Readarr installation.
 
+## Unreleased metadata search changes
+
+The September 21 retrieval/edition fixes and evidence UI are implemented locally,
+not deployed. The application search pipeline places an intended result first for 49/50 diagnostic
+queries and within ten for all 50. Bounded author rescue, returned-edition selection,
+live read-only checks and desktop/mobile checks are recorded in the
+[expanded iteration](reviews/2026-09-21-metadata-discovery-iteration.md).
+An explicit Hardcover Series mode and translated-title author rescue are now
+locally tested; see [series and edge cases](reviews/2026-09-21-series-and-edge-cases.md).
+The initial series query used a forbidden substring operator. The corrected
+Series search followed by ID-based membership lookup passes a live Percy Jackson
+probe, including ordered ebook/audio editions. Hardcover and Google Books now both
+pass live authentication checks. Production Hardcover title search returns books
+with covers; see [Hardcover setup](reviews/2026-09-21-hardcover-credentials.md) and
+[Google credential setup](reviews/2026-09-21-google-books-credentials.md). Unconstrained
+ambiguous titles, typo rescue, complete enumeration, independently judged coverage
+and credentialed multi-provider qualification remain outstanding. The deployment
+table below is unchanged.
+
 ## Kindle delivery
 
 Manual native EPUB/PDF delivery is deployed on the maintainer NAS. Settings,
@@ -69,8 +88,10 @@ do not establish audio playback, unattended operation or a real Readarr migratio
    explicitly authorized immediate `latest` promotion to replace the broken old
    build; observation is no longer a publication prerequisite. This decision
    does not turn unfinished observation into passed evidence.
-2. Live Hardcover and Google Books credentials and rich-provider qualification.
-   Their adapters have fixture coverage; Open Library has real-search evidence.
+2. Live Hardcover credentials and broader rich-provider qualification. Google
+   Books credentials are configured and passed a live health lookup on September
+   21; broader fallback/ranking qualification remains separate. Provider adapters
+   have fixture coverage; Open Library has real-search evidence.
 3. A real Readarr migration and consumer qualification. Compatibility remains
    partial, including persistent collision-free numeric identity mapping and
    non-book resource contracts.

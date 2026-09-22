@@ -67,6 +67,7 @@ func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
 		Configured: p.token != "",
 		Capabilities: []string{
 			"book search",
+			"bounded series membership search",
 			"author identity search",
 			"paginated author bibliography",
 			"work publication metadata",
@@ -77,6 +78,9 @@ func (p *HardcoverProvider) Diagnostics(ctx Context) Diagnostic {
 
 func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchResult, err error) {
 	if p.token == "" {
+		if query.Type == SearchTypeSeries {
+			return nil, errors.New("Series search requires a configured Hardcover token")
+		}
 		return nil, nil
 	}
 	if query.Type == SearchTypeAuthor {
@@ -89,7 +93,7 @@ func (p *HardcoverProvider) Search(ctx Context, query Query) (results []SearchRe
 		return p.Bibliography(ctx, query)
 	}
 	if query.Type == SearchTypeSeries {
-		return nil, nil
+		return p.searchSeries(ctx, query)
 	}
 	if lookup, ok := exactBookLookup(query); ok && lookup.isbn != "" {
 		return p.searchISBN(ctx, query, lookup.isbn)
@@ -164,6 +168,9 @@ func (p *OpenLibraryProvider) Diagnostics(ctx Context) Diagnostic {
 }
 
 func (p *OpenLibraryProvider) Search(ctx Context, query Query) (results []SearchResult, err error) {
+	if query.Type == SearchTypeSeries {
+		return nil, nil
+	}
 	if strings.TrimSpace(query.Query) == "" {
 		return nil, errors.New("query is required")
 	}
@@ -171,7 +178,14 @@ func (p *OpenLibraryProvider) Search(ctx Context, query Query) (results []Search
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = finish(err) }()
+	defer func() {
+		var partial *partialSearchError
+		if errors.As(err, &partial) {
+			err = &partialSearchError{finish(partial.err)}
+		} else {
+			err = finish(err)
+		}
+	}()
 	switch query.Type {
 	case SearchTypeAuthor:
 		return p.searchAuthors(ctx, query)
@@ -304,110 +318,16 @@ func (p *OpenLibraryProvider) searchAuthorWorks(ctx Context, query Query, author
 				ProviderIDs: []string{workID},
 			},
 			Edition: Edition{
-				ID:            workID + ":edition",
-				WorkID:        workID,
-				Title:         title,
-				Format:        inferFormat(query.Format, nil),
-				PublishedDate: entry.FirstPublishDate,
+				ID:     "",
+				WorkID: workID,
+				Title:  title,
+				Format: inferFormat(query.Format, nil),
 			},
 			Score:        score,
 			Confidence:   confidence(score),
 			MatchedOn:    []string{"open_library_author_works"},
 			RawSourceKey: entry.Key,
 		})
-	}
-	return results, nil
-}
-
-func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchResult, error) {
-	endpoint := "https://openlibrary.org/search.json"
-	values := url.Values{}
-	if isbn := normalizeISBN(query.Query); isbn != "" {
-		values.Set("isbn", isbn)
-	} else if query.Type == SearchTypeAuthorWorks {
-		values.Set("author", query.Query)
-	} else {
-		values.Set("title", query.Query)
-	}
-	values.Set("limit", strconv.Itoa(clampLimit(query.Limit)))
-	values.Set("fields", "key,title,author_name,author_key,first_publish_year,isbn,edition_key,language,cover_i")
-	req, err := http.NewRequestWithContext(asContext(ctx), http.MethodGet, endpoint+"?"+values.Encode(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", "librarry/0.1")
-
-	resp, err := providerRequest(p.client, req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var decoded struct {
-		Docs []struct {
-			Key              string   `json:"key"`
-			Title            string   `json:"title"`
-			AuthorName       []string `json:"author_name"`
-			AuthorKey        []string `json:"author_key"`
-			FirstPublishYear int      `json:"first_publish_year"`
-			ISBN             []string `json:"isbn"`
-			EditionKey       []string `json:"edition_key"`
-			Language         []string `json:"language"`
-			CoverID          int      `json:"cover_i"`
-		} `json:"docs"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return nil, err
-	}
-
-	if decoded.Docs == nil {
-		return nil, errors.New("missing provider result list")
-	}
-
-	results := make([]SearchResult, 0, len(decoded.Docs))
-	for _, doc := range decoded.Docs {
-		author := first(doc.AuthorName)
-		authorID := first(doc.AuthorKey)
-		isbns := compactStrings(doc.ISBN)
-		workID := "openlibrary:" + strings.TrimPrefix(doc.Key, "/works/")
-		editionID := ""
-		if len(doc.EditionKey) > 0 {
-			editionID = "openlibrary:" + doc.EditionKey[0]
-		}
-		format := inferFormat(query.Format, isbns)
-		score := scoreResult(query, doc.Title, author, isbns)
-		if query.Type == SearchTypeAuthorWorks && normalize(author) == normalize(query.Query) {
-			score = authorWorkScore(query)
-		}
-		result := SearchResult{
-			Provider: p.Name(),
-			Kind:     SearchTypeBook,
-			Work: Work{
-				ID:               workID,
-				Title:            doc.Title,
-				FirstPublishYear: doc.FirstPublishYear,
-				Authors: []Author{{
-					ID:   "openlibrary:" + authorID,
-					Name: author,
-				}},
-				CoverURL:    openLibraryCoverURL(doc.CoverID),
-				ProviderIDs: []string{workID},
-			},
-			Edition: Edition{
-				ID:          editionID,
-				WorkID:      workID,
-				Title:       doc.Title,
-				Format:      format,
-				Language:    first(doc.Language),
-				ISBNs:       isbns,
-				ProviderIDs: compactStrings([]string{editionID}),
-			},
-			Score:        score,
-			Confidence:   confidence(score),
-			MatchedOn:    matchedOn(query, doc.Title, author, isbns),
-			RawSourceKey: doc.Key,
-		}
-		results = append(results, result)
 	}
 	return results, nil
 }
@@ -558,7 +478,7 @@ func (p *GoogleBooksProvider) searchBooks(ctx Context, query Query) ([]SearchRes
 				ProviderIDs: []string{workID},
 			},
 			Edition: Edition{
-				ID:            workID + ":edition",
+				ID:            "",
 				WorkID:        workID,
 				Title:         title,
 				Format:        format,

@@ -1,0 +1,6 @@
+{
+  "url": "https://www.googleapis.com/books/v1/volumes?q=isbn:9781423103349&maxResults=5",
+  "retrievedAt": "2026-09-21T07:53:34.207793+00:00",
+  "error": "HTTP Error 429: Too Many Requests",
+  "elapsedSeconds": 0.216
+}

@@ -1,0 +1,330 @@
+{
+  "url": "https://openlibrary.org/search.json?title=dragonriders+of+pern&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:56:56.869185+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 8,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 8,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL19880A"
+        ],
+        "author_name": [
+          "Anne McCaffrey"
+        ],
+        "cover_i": 207358,
+        "edition_count": 7,
+        "edition_key": [
+          "OL8101895M",
+          "OL23259585M",
+          "OL13589190M",
+          "OL24281615M",
+          "OL2417607M",
+          "OL24404690M",
+          "OL24943396M"
+        ],
+        "first_publish_year": 1978,
+        "isbn": [
+          "9780345457394",
+          "0345340248",
+          "0785729194",
+          "9780785729198",
+          "0345457390",
+          "9780345340245"
+        ],
+        "key": "/works/OL73344W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Dragonflight, Dragonquest, the White Dragon (Pern)",
+        "title": "The Dragonriders of Pern",
+        "ratings_count": 11,
+        "readinglog_count": 84,
+        "want_to_read_count": 65,
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2417607M",
+              "title": "The Dragonriders of Pern",
+              "cover_i": 207358,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Ballantine Books"
+              ],
+              "publish_date": [
+                "1988"
+              ],
+              "isbn": [
+                "0345340248",
+                "9780345340245"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL19880A"
+        ],
+        "author_name": [
+          "Anne McCaffrey"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL8339123M"
+        ],
+        "first_publish_year": 1984,
+        "isbn": [
+          "0917037057",
+          "9780917037054"
+        ],
+        "key": "/works/OL8684296W",
+        "title": "Dragonriders of Pern",
+        "readinglog_count": 9,
+        "want_to_read_count": 9,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8339123M",
+              "title": "Dragonriders of Pern",
+              "publisher": [
+                "Nova Game Designs, Inc."
+              ],
+              "publish_date": [
+                "1984"
+              ],
+              "isbn": [
+                "9780917037054",
+                "0917037057"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL19880A"
+        ],
+        "author_name": [
+          "Anne McCaffrey"
+        ],
+        "edition_count": 3,
+        "edition_key": [
+          "OL58815233M",
+          "OL47685955M",
+          "OL43301394M"
+        ],
+        "first_publish_year": 1978,
+        "key": "/works/OL31623960W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Dragonriders of Pern",
+        "readinglog_count": 2,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58815233M",
+              "title": "The Dragonriders of Pern",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Nelson Doubleday (1978)"
+              ],
+              "publish_date": [
+                "1978-01-01"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30049A"
+        ],
+        "author_name": [
+          "Gene Walden - undifferentiated"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL12552821M"
+        ],
+        "isbn": [
+          "555107000X",
+          "9785551070009"
+        ],
+        "key": "/works/OL479932W",
+        "title": "Boxed-Dragonriders of Pern-4v",
+        "readinglog_count": 2,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12552821M",
+              "title": "Boxed-Dragonriders of Pern-4v",
+              "publisher": [
+                "Ballantine Books"
+              ],
+              "isbn": [
+                "9785551070009",
+                "555107000X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL43047491M"
+        ],
+        "key": "/works/OL31394423W",
+        "title": "The Dragonriders of Pern (The Dragonriders of Pern, Vol. 1)",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL43047491M",
+              "title": "The Dragonriders of Pern (The Dragonriders of Pern, Vol. 1)"
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL10214791M"
+        ],
+        "first_publish_year": 1983,
+        "isbn": [
+          "042506624X",
+          "9780425066249"
+        ],
+        "key": "/works/OL10214791M",
+        "language": [
+          "eng"
+        ],
+        "title": "Dragonriders of Pern",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10214791M",
+              "title": "Dragonriders of Pern",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Berkley Pub Group"
+              ],
+              "publish_date": [
+                "August 1983"
+              ],
+              "isbn": [
+                "9780425066249",
+                "042506624X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL16225752A"
+        ],
+        "author_name": [
+          "Anne McCaffrey"
+        ],
+        "cover_i": 15184989,
+        "edition_count": 1,
+        "edition_key": [
+          "OL61417051M"
+        ],
+        "first_publish_year": 1968,
+        "key": "/works/OL45019936W",
+        "title": "The Dragonriders of Pern",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61417051M",
+              "title": "The Dragonriders of Pern",
+              "cover_i": 15184989,
+              "publisher": [
+                "Nelson Doubleday, Inc"
+              ],
+              "publish_date": [
+                "1968"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL11557855M"
+        ],
+        "first_publish_year": 1989,
+        "isbn": [
+          "9780848002565",
+          "0848002563"
+        ],
+        "key": "/works/OL11557855M",
+        "title": "Dragonriders of Pern Prebind Set (Favorite Series, Grades 7-9)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL11557855M",
+              "title": "Dragonriders of Pern Prebind Set (Favorite Series, Grades 7-9)",
+              "publisher": [
+                "Baker & Taylor"
+              ],
+              "publish_date": [
+                "August 1989"
+              ],
+              "isbn": [
+                "9780848002565",
+                "0848002563"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.279
+}

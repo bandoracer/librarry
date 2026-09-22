@@ -1,0 +1,631 @@
+{
+  "url": "https://openlibrary.org/search.json?title=the+left+hand+of+darkness&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:53:29.146563+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 8,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 8,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL31353A"
+        ],
+        "author_name": [
+          "Ursula K. Le Guin"
+        ],
+        "cover_i": 10618463,
+        "edition_count": 91,
+        "edition_key": [
+          "OL12509193M",
+          "OL33036131M",
+          "OL58916236M",
+          "OL58688990M",
+          "OL57929894M",
+          "OL57361363M",
+          "OL50179038M",
+          "OL32576277M",
+          "OL27289471M",
+          "OL51009297M",
+          "OL35658818M",
+          "OL35614636M",
+          "OL26837444M",
+          "OL49650549M",
+          "OL47221192M",
+          "OL47221217M",
+          "OL28617045M",
+          "OL46523988M",
+          "OL47362576M",
+          "OL47507098M",
+          "OL47362575M",
+          "OL32003578M",
+          "OL27314810M",
+          "OL26800524M",
+          "OL9041080M",
+          "OL7456283M",
+          "OL7459800M",
+          "OL8350044M",
+          "OL9207602M",
+          "OL42997476M",
+          "OL43373375M",
+          "OL47706784M",
+          "OL27321373M",
+          "OL26466164M",
+          "OL35887886M",
+          "OL8014319M",
+          "OL14974738M",
+          "OL7916646M",
+          "OL35256337M",
+          "OL32844423M",
+          "OL32880751M",
+          "OL33445301M",
+          "OL33517960M",
+          "OL33220502M",
+          "OL32330389M",
+          "OL31390107M",
+          "OL7525845M",
+          "OL7525844M",
+          "OL7525848M",
+          "OL32776835M",
+          "OL31935740M",
+          "OL27736460M",
+          "OL25800968M",
+          "OL7525849M",
+          "OL13666354M",
+          "OL11760711M",
+          "OL7882694M",
+          "OL5303977M",
+          "OL23242517M",
+          "OL22321531M",
+          "OL7525847M",
+          "OL18275126M",
+          "OL18600932M",
+          "OL9427436M",
+          "OL22940992M",
+          "OL19812744M",
+          "OL23314204M",
+          "OL7525846M",
+          "OL7524131M",
+          "OL4401559M",
+          "OL20525469M",
+          "OL18198066M",
+          "OL7893085M",
+          "OL8626405M",
+          "OL20806863M",
+          "OL7973629M",
+          "OL1102213M",
+          "OL19319528M",
+          "OL26775854M",
+          "OL26789163M",
+          "OL26794603M",
+          "OL27000706M",
+          "OL27020724M",
+          "OL28344820M",
+          "OL29391641M",
+          "OL31971364M",
+          "OL7878607M",
+          "OL12459857M",
+          "OL28342639M",
+          "OL9131843M",
+          "OL9131896M"
+        ],
+        "first_publish_year": 1969,
+        "isbn": [
+          "9780441478026",
+          "9788445009314",
+          "9780708880814",
+          "1860491898",
+          "9780356029474",
+          "0441478069",
+          "8445077546",
+          "9780606192989",
+          "0760759146",
+          "2221028821",
+          "9787550291225",
+          "0808521667",
+          "8325000295",
+          "9781417648436",
+          "1473221633",
+          "0441478077",
+          "0871881128",
+          "2266014633",
+          "9781473221635",
+          "9788445005323",
+          "0356507467",
+          "9789722329880",
+          "0708880819",
+          "9780394299921",
+          "9780802713025",
+          "222109400X",
+          "9788325000295",
+          "841792504X",
+          "1439560862",
+          "9780441478071",
+          "0586036415",
+          "9755390448",
+          "9788419206947",
+          "9780441478118",
+          "9781860491894",
+          "1473225949",
+          "9785050040107",
+          "9780736611299",
+          "8445070231",
+          "9782221028827",
+          "1405525274",
+          "8952771826",
+          "9788417925291",
+          "9788576570578",
+          "9780586036419",
+          "0441478034",
+          "9781101665398",
+          "9780441478064",
+          "0060125748",
+          "9788952771827",
+          "9782253021490",
+          "844507220X",
+          "9789755390444",
+          "9994886371",
+          "8576570572",
+          "0441007317",
+          "9780441478088",
+          "0441478093",
+          "9780143111597",
+          "3453315944",
+          "7550291225",
+          "0356029476",
+          "0441478107",
+          "9780871881120",
+          "9788576571841",
+          "9780441478095",
+          "9780060125745",
+          "0736611290",
+          "0441478026",
+          "8419206679",
+          "0394299922",
+          "8445005324",
+          "1101665394",
+          "9780441007318",
+          "9788445072202",
+          "0441478050",
+          "1417648430",
+          "0441478085",
+          "9780441478033",
+          "0739448811",
+          "9788445070246",
+          "9781439560860",
+          "9783453050266",
+          "9780441478040",
+          "9788804732051",
+          "0802713025",
+          "9780808521662",
+          "1473221625",
+          "9782266014632",
+          "844500994X",
+          "1857230744",
+          "0575072199",
+          "9780441478101",
+          "0606192980",
+          "9780441478125",
+          "9781405525275",
+          "9781841496061",
+          "9788445070239",
+          "9789994886371",
+          "9780356507460",
+          "9781664450769",
+          "8576571846",
+          "972232988X",
+          "5050040108",
+          "9781473221628",
+          "844507024X",
+          "0143111590",
+          "9788419206671",
+          "9780739448816",
+          "9788445009949",
+          "9783453315945",
+          "3641139252",
+          "8445009311",
+          "2253113166",
+          "9780760759141",
+          "9781473225947",
+          "2253021490",
+          "9782221094006",
+          "0441478042",
+          "1841496065",
+          "0441478123",
+          "9788417925048",
+          "3453164156",
+          "9780441478057",
+          "9783641139254",
+          "9783453164154",
+          "8417925295",
+          "9781857230741",
+          "1664450769",
+          "9788445076781",
+          "8445076787",
+          "0441478115",
+          "8804732059",
+          "8419206946",
+          "3453050266",
+          "9788445077542",
+          "9780575072190",
+          "9782253113164"
+        ],
+        "key": "/works/OL59800W",
+        "language": [
+          "spa",
+          "fre",
+          "eng",
+          "heb",
+          "kor",
+          "ita",
+          "ger",
+          "por",
+          "tur",
+          "rus",
+          "cat"
+        ],
+        "title": "The Left Hand of Darkness",
+        "ratings_count": 56,
+        "readinglog_count": 692,
+        "want_to_read_count": 559,
+        "editions": {
+          "numFound": 62,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58688990M",
+              "title": "The Left Hand of Darkness",
+              "cover_i": 14920821,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Walker and Company New York"
+              ],
+              "publish_date": [
+                "1969"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL29809A"
+        ],
+        "author_name": [
+          "Harold Bloom"
+        ],
+        "cover_i": 11038837,
+        "edition_count": 2,
+        "edition_key": [
+          "OL21931391M",
+          "OL2735589M"
+        ],
+        "first_publish_year": 1987,
+        "isbn": [
+          "9781555460648",
+          "155546064X"
+        ],
+        "key": "/works/OL18955388W",
+        "language": [
+          "eng"
+        ],
+        "title": "Ursula K. Le Guin's the left hand of darkness",
+        "readinglog_count": 13,
+        "want_to_read_count": 12,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2735589M",
+              "title": "Ursula K. Le Guin's the left hand of darkness",
+              "cover_i": 11038837,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Chelsea House Publishers"
+              ],
+              "publish_date": [
+                "1987"
+              ],
+              "isbn": [
+                "155546064X",
+                "9781555460648"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL31353A"
+        ],
+        "author_name": [
+          "Ursula K. Le Guin"
+        ],
+        "cover_i": 11441350,
+        "edition_count": 1,
+        "edition_key": [
+          "OL32809088M"
+        ],
+        "first_publish_year": 2016,
+        "isbn": [
+          "9781785293412",
+          "1785293419"
+        ],
+        "key": "/works/OL24715772W",
+        "language": [
+          "eng"
+        ],
+        "title": "Earthsea & The Left Hand of Darkness",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32809088M",
+              "title": "Earthsea & The Left Hand of Darkness",
+              "cover_i": 11441350,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "BBC Audio"
+              ],
+              "publish_date": [
+                "2016-07-07"
+              ],
+              "isbn": [
+                "9781785293412",
+                "1785293419"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1463338A"
+        ],
+        "author_name": [
+          "Rebecca Rass"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL11074787M"
+        ],
+        "first_publish_year": 1990,
+        "isbn": [
+          "067168759X",
+          "9780671687595"
+        ],
+        "key": "/works/OL5922289W",
+        "language": [
+          "eng"
+        ],
+        "title": "Ursula Le Guin's the Left Hand of Darkness",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL11074787M",
+              "title": "Ursula Le Guin's the Left Hand of Darkness",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Monarch Press"
+              ],
+              "publish_date": [
+                "April 1990"
+              ],
+              "isbn": [
+                "9780671687595",
+                "067168759X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13058040A"
+        ],
+        "author_name": [
+          "Rusty Brient"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL49024658M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798745605864"
+        ],
+        "key": "/works/OL36281353W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gender under the Viking Age : Left Hand of Darkness",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49024658M",
+              "title": "Gender under the Viking Age : Left Hand of Darkness",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798745605864"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL31353A"
+        ],
+        "author_name": [
+          "Ursula K. Le Guin"
+        ],
+        "cover_i": 8435024,
+        "edition_count": 1,
+        "edition_key": [
+          "OL26781621M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "9781598535389",
+          "1598535382"
+        ],
+        "key": "/works/OL19306603W",
+        "language": [
+          "eng"
+        ],
+        "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)",
+        "ratings_count": 0,
+        "readinglog_count": 4,
+        "want_to_read_count": 4,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26781621M",
+              "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)",
+              "cover_i": 8435024,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Library of America"
+              ],
+              "publish_date": [
+                "Sep 05, 2017"
+              ],
+              "isbn": [
+                "9781598535389",
+                "1598535382"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9116368A"
+        ],
+        "author_name": [
+          "Intelligent Education"
+        ],
+        "cover_i": 11454163,
+        "edition_count": 1,
+        "edition_key": [
+          "OL32821863M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "1645425207",
+          "9781645425205"
+        ],
+        "key": "/works/OL24724220W",
+        "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32821863M",
+              "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin",
+              "cover_i": 11454163,
+              "publisher": [
+                "Influence Publishers",
+                "Dexterity"
+              ],
+              "publish_date": [
+                "Feb 10, 2020"
+              ],
+              "isbn": [
+                "9781645425205",
+                "1645425207"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11746610A"
+        ],
+        "author_name": [
+          "Melanie Walser"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL49432610M"
+        ],
+        "first_publish_year": 2009,
+        "isbn": [
+          "3640261488",
+          "9783640261482"
+        ],
+        "key": "/works/OL36583944W",
+        "language": [
+          "eng"
+        ],
+        "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49432610M",
+              "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "GRIN Verlag GmbH"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9783640261482",
+                "3640261488"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.357
+}

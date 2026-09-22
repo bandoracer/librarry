@@ -29,10 +29,10 @@ func TestDuplicateAuthorStableID(t *testing.T) {
 	}
 }
 
-func TestRequestedAudiobookFormatSurvivesInference(t *testing.T) {
+func TestRequestedFormatIsNotEditionEvidence(t *testing.T) {
 	format := inferFormat(FormatAudiobook, []string{"9798217287161"})
-	if format != FormatAudiobook {
-		t.Fatalf("expected audiobook, got %s", format)
+	if format != FormatAny {
+		t.Fatalf("expected unknown format, got %s", format)
 	}
 }
 

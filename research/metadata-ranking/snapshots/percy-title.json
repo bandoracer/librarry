@@ -1,0 +1,2003 @@
+{
+  "url": "https://openlibrary.org/search.json?title=percy+jackson&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:52:54.950353+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 115,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 115,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 7396660,
+        "edition_count": 27,
+        "edition_key": [
+          "OL43193075M",
+          "OL43178162M",
+          "OL53351859M",
+          "OL47552556M",
+          "OL47552557M",
+          "OL35359368M",
+          "OL27984306M",
+          "OL26422493M",
+          "OL39630355M",
+          "OL42339578M",
+          "OL32820010M",
+          "OL32782884M",
+          "OL28375051M",
+          "OL28561358M",
+          "OL26428917M",
+          "OL28012284M",
+          "OL32188134M",
+          "OL31902796M",
+          "OL27302766M",
+          "OL32229958M",
+          "OL26885467M",
+          "OL25650420M",
+          "OL27941917M",
+          "OL27647000M",
+          "OL25950403M",
+          "OL25892486M",
+          "OL25623964M"
+        ],
+        "first_publish_year": 2006,
+        "isbn": [
+          "9781484789803",
+          "1423183649",
+          "080416844X",
+          "9780804168441",
+          "1484789806",
+          "9786050924534",
+          "8580576334",
+          "0141355417",
+          "9781484712375",
+          "9780141355412",
+          "9788364297366",
+          "0606374000",
+          "9798855112986",
+          "9788416310135",
+          "0141358688",
+          "9781536420036",
+          "0141355204",
+          "9781539025894",
+          "1338036327",
+          "8498387132",
+          "9781338036329",
+          "9780141358680",
+          "9780141355207",
+          "1536420034",
+          "6050924538",
+          "9780606374002",
+          "1484712374",
+          "1539025896",
+          "8416310130",
+          "9788498387131",
+          "9788580576337",
+          "8364297368",
+          "9573275740",
+          "9781423183648",
+          "9789573275749"
+        ],
+        "key": "/works/OL17054790W",
+        "language": [
+          "pol",
+          "cat",
+          "por",
+          "eng",
+          "tur",
+          "spa"
+        ],
+        "title": "Percy Jackson's Greek Gods",
+        "ratings_count": 76,
+        "readinglog_count": 1361,
+        "want_to_read_count": 1150,
+        "editions": {
+          "numFound": 26,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32782884M",
+              "title": "Percy Jackson and the Greek Gods",
+              "cover_i": 15104653,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Puffin"
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9780141355207",
+                "0141355204"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7828467A"
+        ],
+        "author_name": [
+          "Mary-Jane Knight"
+        ],
+        "cover_i": 6307924,
+        "edition_count": 2,
+        "edition_key": [
+          "OL24112854M",
+          "OL26709317M"
+        ],
+        "first_publish_year": 2010,
+        "isbn": [
+          "1423121716",
+          "9780141331577",
+          "9781423121718",
+          "0141331577"
+        ],
+        "key": "/works/OL17685821W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "The Ultimate Guide",
+        "title": "Percy Jackson & the Olympians",
+        "ratings_count": 6,
+        "readinglog_count": 173,
+        "want_to_read_count": 154,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24112854M",
+              "title": "Percy Jackson and the Olympians",
+              "cover_i": 13027683,
+              "language": [
+                "eng"
+              ],
+              "isbn": [
+                "9781423121718",
+                "1423121716"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 8597962,
+        "edition_count": 4,
+        "edition_key": [
+          "OL38796775M",
+          "OL37399264M",
+          "OL27874912M",
+          "OL27005927M"
+        ],
+        "first_publish_year": 2013,
+        "isbn": [
+          "0062289632",
+          "9780241376218",
+          "9780062289636",
+          "0241376211",
+          "9780241380734",
+          "0241380731"
+        ],
+        "key": "/works/OL19794412W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "World Book Day 2019",
+        "title": "Percy Jackson and the Singer of Apollo",
+        "ratings_count": 1,
+        "readinglog_count": 99,
+        "want_to_read_count": 89,
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37399264M",
+              "title": "Percy Jackson and the Singer of Apollo",
+              "cover_i": 15088718,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "HarperCollins Publishers"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9780062289636",
+                "0062289632"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9832280A"
+        ],
+        "author_name": [
+          "Sims ANN"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL35135312M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798506909064"
+        ],
+        "key": "/works/OL26033878W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Quizzes : Percy Jackson Trivia",
+        "ratings_count": 1,
+        "readinglog_count": 32,
+        "want_to_read_count": 30,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35135312M",
+              "title": "Percy Jackson Quizzes : Percy Jackson Trivia",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798506909064"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7827667A"
+        ],
+        "author_name": [
+          "Rick riordhan"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL27932975M"
+        ],
+        "first_publish_year": 2013,
+        "key": "/works/OL20658324W",
+        "title": "Percy jackson",
+        "ratings_count": 1,
+        "readinglog_count": 16,
+        "want_to_read_count": 14,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27932975M",
+              "title": "Percy jackson",
+              "publisher": [
+                "Penguin"
+              ],
+              "publish_date": [
+                "2013"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL26325057M"
+        ],
+        "first_publish_year": 2010,
+        "key": "/works/OL17723709W",
+        "title": "Percy jackson",
+        "ratings_count": 1,
+        "readinglog_count": 13,
+        "want_to_read_count": 11,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26325057M",
+              "title": "Percy jackson",
+              "publisher": [
+                "Rick riodan"
+              ],
+              "publish_date": [
+                "2010"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL433234A",
+          "OL30765A"
+        ],
+        "author_name": [
+          "Terry Deary",
+          "Rick Riordan"
+        ],
+        "cover_i": 8468992,
+        "edition_count": 1,
+        "edition_key": [
+          "OL26811424M"
+        ],
+        "first_publish_year": 2009,
+        "isbn": [
+          "9780955944680",
+          "0955944686"
+        ],
+        "key": "/works/OL19354995W",
+        "language": [
+          "eng"
+        ],
+        "title": "Horrible Histories - Groovy Greeks / Percy Jackson and the Sword of Hades",
+        "ratings_count": 3,
+        "readinglog_count": 57,
+        "want_to_read_count": 50,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26811424M",
+              "title": "Horrible Histories: Groovy Greeks / Percy Jackson and the Sword of Hades",
+              "cover_i": 13011661,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scholastic",
+                "Penguin (January 16, 2009)"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9780955944680",
+                "0955944686"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 14596377,
+        "edition_count": 1,
+        "edition_key": [
+          "OL51259842M"
+        ],
+        "first_publish_year": 2023,
+        "isbn": [
+          "9788419275660",
+          "8419275662"
+        ],
+        "key": "/works/OL37916844W",
+        "subtitle": "El mar de los monstruos",
+        "title": "Percy Jackson",
+        "readinglog_count": 6,
+        "want_to_read_count": 5,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51259842M",
+              "title": "Percy Jackson: El mar de los monstruos",
+              "cover_i": 14596377,
+              "publisher": [
+                "Salamandra"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9788419275660",
+                "8419275662"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10473552A"
+        ],
+        "author_name": [
+          "Stumpf ADAM"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL38453221M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798791598707"
+        ],
+        "key": "/works/OL28095420W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Quizzes",
+        "readinglog_count": 7,
+        "want_to_read_count": 6,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38453221M",
+              "title": "Percy Jackson Quizzes",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798791598707"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5130425A"
+        ],
+        "author_name": [
+          "Leigh Olsen"
+        ],
+        "cover_i": 8865583,
+        "edition_count": 2,
+        "edition_key": [
+          "OL51643763M",
+          "OL27403246M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "9780515159554",
+          "0593891260",
+          "9780593891261",
+          "0515159557"
+        ],
+        "key": "/works/OL20214130W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Mad Libs",
+        "readinglog_count": 6,
+        "want_to_read_count": 5,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27403246M",
+              "title": "Percy Jackson Mad Libs",
+              "cover_i": 8865583,
+              "publisher": [
+                "Mad Libs"
+              ],
+              "publish_date": [
+                "May 30, 2017"
+              ],
+              "isbn": [
+                "9780515159554",
+                "0515159557"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 11533634,
+        "edition_count": 1,
+        "edition_key": [
+          "OL32905746M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "0678453187",
+          "9780678453186"
+        ],
+        "key": "/works/OL24777884W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson and the Greek Gods / Percy Jackson and the Greek Heroes / The Demigod Diaries / Demigods & Magicians / Percy Jackson and the Singer of Apollo",
+        "ratings_count": 0,
+        "readinglog_count": 12,
+        "want_to_read_count": 10,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32905746M",
+              "title": "Rick Riordan Collection 5 Books Set - Percy Jackson and The Greek Heroes, The Greek Gods, The Demigod Diaries, Demigods and Magicians, Singer of Apollo WBD 2019",
+              "cover_i": 11533634,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin/Disney"
+              ],
+              "publish_date": [
+                "2020-07-28"
+              ],
+              "isbn": [
+                "9780678453186",
+                "0678453187"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL29134583M"
+        ],
+        "first_publish_year": 2005,
+        "key": "/works/OL21495180W",
+        "title": "Percy Jackson y el ladr\u00f3n del rayo",
+        "readinglog_count": 13,
+        "want_to_read_count": 13,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29134583M",
+              "title": "Percy Jackson y el ladr\u00f3n del rayo",
+              "publisher": [
+                "Salamandra"
+              ],
+              "publish_date": [
+                "2005"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 13012029,
+        "edition_count": 19,
+        "edition_key": [
+          "OL26887642M",
+          "OL29161928M",
+          "OL29414873M",
+          "OL27078468M",
+          "OL27462396M",
+          "OL33918673M",
+          "OL28321438M",
+          "OL36665122M",
+          "OL42329131M",
+          "OL37767544M",
+          "OL39633621M",
+          "OL26409854M",
+          "OL35306253M",
+          "OL38793330M",
+          "OL47552552M",
+          "OL47552553M",
+          "OL47552554M",
+          "OL47552555M",
+          "OL26414479M"
+        ],
+        "first_publish_year": 2015,
+        "isbn": [
+          "1484741986",
+          "9781101915868",
+          "9788416310241",
+          "9780141362250",
+          "9781484741986",
+          "1423183657",
+          "8364297635",
+          "2226318712",
+          "9781423183655",
+          "9780141360515",
+          "153640389X",
+          "8416310246",
+          "0141355425",
+          "0141360623",
+          "0606394982",
+          "9786050937053",
+          "9781536403893",
+          "9788364297632",
+          "9781484776438",
+          "6050937052",
+          "0141362251",
+          "9780141355429",
+          "9788498388282",
+          "1101915862",
+          "9780141360621",
+          "9782226318718",
+          "9780606394987",
+          "0141360518",
+          "1484776437",
+          "8498388287"
+        ],
+        "key": "/works/OL17826047W",
+        "language": [
+          "pol",
+          "cat",
+          "eng",
+          "fre",
+          "tur",
+          "spa"
+        ],
+        "title": "Percy Jackson's Greek Heroes",
+        "ratings_count": 0,
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 19,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28321438M",
+              "title": "Percy Jackson's Greek Heroes",
+              "cover_i": 15105579,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "parker"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9780141355429",
+                "0141355425"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9803855A"
+        ],
+        "author_name": [
+          "Perkins BRIDGET"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL34996791M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798531885203"
+        ],
+        "key": "/works/OL25929009W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Trivia Questions : Percy Jackson Knowledge Quiz",
+        "readinglog_count": 5,
+        "want_to_read_count": 5,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34996791M",
+              "title": "Percy Jackson Trivia Questions : Percy Jackson Knowledge Quiz",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798531885203"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9924471A",
+          "OL7629835A",
+          "OL7354349A"
+        ],
+        "author_name": [
+          "Sarah Ellen Burt",
+          "Debbie Ridgard",
+          "Sally Burt"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL46559340M"
+        ],
+        "first_publish_year": 2016,
+        "isbn": [
+          "1407160648",
+          "9781407160641"
+        ],
+        "key": "/works/OL34333042W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson and the Lightning Thief",
+        "readinglog_count": 8,
+        "want_to_read_count": 8,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46559340M",
+              "title": "Percy Jackson and the Lightning Thief",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scholastic"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781407160641",
+                "1407160648"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2639286A"
+        ],
+        "author_name": [
+          "Rick Parker"
+        ],
+        "cover_i": 7792560,
+        "edition_count": 1,
+        "edition_key": [
+          "OL26135471M"
+        ],
+        "first_publish_year": 2011,
+        "isbn": [
+          "1597072648",
+          "9781597072649"
+        ],
+        "key": "/works/OL17545461W",
+        "title": "Percy Jackson And The Ovolactovegetarians",
+        "ratings_count": 0,
+        "readinglog_count": 6,
+        "want_to_read_count": 6,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26135471M",
+              "title": "Percy Jackson And The Ovolactovegetarians",
+              "cover_i": 7792546,
+              "publisher": [
+                "Papercutz"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781597072649",
+                "1597072648"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10411923A"
+        ],
+        "author_name": [
+          "Stephanie McKethan"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL42599054M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798733848549"
+        ],
+        "key": "/works/OL31015612W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson",
+        "readinglog_count": 2,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42599054M",
+              "title": "Percy Jackson",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798733848549"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10368694A"
+        ],
+        "author_name": [
+          "Ken Cooke"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL37946672M"
+        ],
+        "first_publish_year": 2010,
+        "isbn": [
+          "184876460X",
+          "9781848764606"
+        ],
+        "key": "/works/OL27786565W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson's",
+        "readinglog_count": 1,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37946672M",
+              "title": "Percy Jackson's",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Troubador Publishing Limited"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781848764606",
+                "184876460X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 10795329,
+        "edition_count": 1,
+        "edition_key": [
+          "OL32132562M"
+        ],
+        "first_publish_year": 2010,
+        "isbn": [
+          "2226207198",
+          "2226257888",
+          "9782226209528",
+          "9782226207203",
+          "9782226207180",
+          "2226195440",
+          "2226207201",
+          "9782226195449",
+          "2226209522",
+          "222620718X",
+          "9782226257888",
+          "9782226207197"
+        ],
+        "key": "/works/OL24291333W",
+        "language": [
+          "fre"
+        ],
+        "title": "The Lightning Thief / The Sea of Monsters / The Battle of the Labyrinth / The Last Olympian / Percy Jackson's Greek Gods",
+        "ratings_count": 1,
+        "readinglog_count": 26,
+        "want_to_read_count": 25,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32132562M",
+              "title": "Percy Jackson",
+              "cover_i": 15088500,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Albin Michel jeunesse"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9782226195449",
+                "9782226207180",
+                "9782226207197",
+                "9782226207203",
+                "9782226209528",
+                "9782226257888",
+                "2226195440",
+                "222620718X",
+                "2226207198",
+                "2226207201",
+                "2226209522",
+                "2226257888"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A",
+          "OL4309666A"
+        ],
+        "author_name": [
+          "Rick Riordan",
+          "Keith Robinson"
+        ],
+        "cover_i": 14858940,
+        "edition_count": 1,
+        "edition_key": [
+          "OL29749807M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "148478779X",
+          "9781484787793"
+        ],
+        "key": "/works/OL21831283W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson and the Olympians the Percy Jackson Coloring Book",
+        "ratings_count": 0,
+        "readinglog_count": 2,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29749807M",
+              "title": "The Percy Jackson Coloring Book",
+              "cover_i": 14858940,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Hyperion Books for Children"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781484787793",
+                "148478779X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10202806A"
+        ],
+        "author_name": [
+          "Giesela Wetzel"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL37009648M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798579893536"
+        ],
+        "key": "/works/OL27270266W",
+        "language": [
+          "ger"
+        ],
+        "title": "Percy Jackson Malbuch",
+        "readinglog_count": 1,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37009648M",
+              "title": "Percy Jackson Malbuch",
+              "language": [
+                "ger"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798579893536"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11332462A"
+        ],
+        "author_name": [
+          "Hironaka Kawanari"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL42658588M",
+          "OL42608263M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798713185008",
+          "9798713186647"
+        ],
+        "key": "/works/OL31023173W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Trivia Book",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42658588M",
+              "title": "Percy Jackson Trivia Book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798713186647"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL45990536M"
+        ],
+        "first_publish_year": 2011,
+        "isbn": [
+          "1451724853",
+          "9781451724851"
+        ],
+        "key": "/works/OL33996906W",
+        "title": "Percy Jackson and the Oactovegetarians",
+        "readinglog_count": 2,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL45990536M",
+              "title": "Percy Jackson and the Oactovegetarians",
+              "publisher": [
+                "Paw Prints 2011-08-16"
+              ],
+              "publish_date": [
+                "2011-01-01"
+              ],
+              "isbn": [
+                "9781451724851",
+                "1451724853"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8521739A"
+        ],
+        "author_name": [
+          "Staci Verdun"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL42034335M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798667769064"
+        ],
+        "key": "/works/OL30571514W",
+        "language": [
+          "ger"
+        ],
+        "title": "Percy Jackson Malbuch",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42034335M",
+              "title": "Percy Jackson Malbuch",
+              "language": [
+                "ger"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798667769064"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9804111A"
+        ],
+        "author_name": [
+          "Tyree JESSICA"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL48830601M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798528553962"
+        ],
+        "key": "/works/OL36136936W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Trivia : Percy Jackson Facts and Quizzes",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48830601M",
+              "title": "Percy Jackson Trivia : Percy Jackson Facts and Quizzes",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798528553962"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13702314A"
+        ],
+        "author_name": [
+          "Stephen Eastment"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL51853247M",
+          "OL51853237M"
+        ],
+        "first_publish_year": 2014,
+        "isbn": [
+          "1456615882",
+          "9781456615871",
+          "9781456615888",
+          "1456615874"
+        ],
+        "key": "/works/OL38158492W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson",
+        "ratings_count": 0,
+        "readinglog_count": 0,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51853247M",
+              "title": "Percy Jackson",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "eBookit.com"
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9781456615888",
+                "1456615882"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "edition_count": 1,
+        "edition_key": [
+          "OL13365739M"
+        ],
+        "first_publish_year": 1999,
+        "isbn": [
+          "9788498380392",
+          "8498380391"
+        ],
+        "key": "/works/OL15019405W",
+        "subtitle": "El Ladr\u00f3n Del Rayo",
+        "title": "Percy Jackson Y Los Dioses Del Olimpo",
+        "readinglog_count": 3,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL13365739M",
+              "title": "Percy Jackson Y Los Dioses Del Olimpo",
+              "publisher": [
+                "UNKNOWN"
+              ],
+              "publish_date": [
+                "December 31, 1999"
+              ],
+              "isbn": [
+                "9788498380392",
+                "8498380391"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10678453A"
+        ],
+        "author_name": [
+          "Clifford Ostane"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL39748696M"
+        ],
+        "first_publish_year": 2022,
+        "isbn": [
+          "9798825869216"
+        ],
+        "key": "/works/OL28913124W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Trivia Quiz",
+        "readinglog_count": 1,
+        "want_to_read_count": 0,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39748696M",
+              "title": "Percy Jackson Trivia Quiz",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798825869216"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9655841A"
+        ],
+        "author_name": [
+          "Prewitt AMBER"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL34314549M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798510326987"
+        ],
+        "key": "/works/OL25585188W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Trivia Quiz : Percy Jackson Questions and Answers",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34314549M",
+              "title": "Percy Jackson Trivia Quiz : Percy Jackson Questions and Answers",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798510326987"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7909593A"
+        ],
+        "author_name": [
+          "Summer Baker"
+        ],
+        "edition_count": 3,
+        "edition_key": [
+          "OL29927875M",
+          "OL42042093M",
+          "OL29973077M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798646717635",
+          "9798646717673",
+          "9798646717574"
+        ],
+        "key": "/works/OL21943408W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Coloring Book",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29927875M",
+              "title": "Percy Jackson Coloring Book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798646717574"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2965820A"
+        ],
+        "author_name": [
+          "[author not identified]"
+        ],
+        "cover_i": 10720905,
+        "edition_count": 1,
+        "edition_key": [
+          "OL32063574M"
+        ],
+        "first_publish_year": 2014,
+        "isbn": [
+          "8580575435",
+          "9788580575439"
+        ],
+        "key": "/works/OL24241866W",
+        "title": "Percy Jackson e Os Olimpianos - Vol 5 (Ed. Especia",
+        "readinglog_count": 3,
+        "want_to_read_count": 3,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32063574M",
+              "title": "Percy Jackson e Os Olimpianos - Vol 5 (Ed. Especia",
+              "cover_i": 10720905,
+              "publisher": [
+                "Intr\u00ednseca"
+              ],
+              "publish_date": [
+                "Jan 01, 2014"
+              ],
+              "isbn": [
+                "9788580575439",
+                "8580575435"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14424125A"
+        ],
+        "author_name": [
+          "Wacko"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL54668677M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "1544619383",
+          "9781544619385"
+        ],
+        "key": "/works/OL40177949W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL54668677M",
+              "title": "Percy Jackson",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781544619385",
+                "1544619383"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2659537A"
+        ],
+        "author_name": [
+          "Peter James"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL55926725M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "9781979913690",
+          "1979913692"
+        ],
+        "key": "/works/OL41167188W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL55926725M",
+              "title": "Percy Jackson",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781979913690",
+                "1979913692"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14601959A"
+        ],
+        "author_name": [
+          "Artemis Blaziken"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL55796533M"
+        ],
+        "first_publish_year": 2016,
+        "isbn": [
+          "1537682253",
+          "9781537682259"
+        ],
+        "key": "/works/OL41068549W",
+        "language": [
+          "eng"
+        ],
+        "title": "PERCY JACKSON",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL55796533M",
+              "title": "PERCY JACKSON",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781537682259",
+                "1537682253"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14505465A"
+        ],
+        "author_name": [
+          "Plutos Plutos D."
+        ],
+        "edition_count": 3,
+        "edition_key": [
+          "OL55491354M",
+          "OL56345505M",
+          "OL55164973M"
+        ],
+        "first_publish_year": 2016,
+        "isbn": [
+          "1540822176",
+          "9781540825025",
+          "1540825027",
+          "9781540848949",
+          "1540848949",
+          "9781540822178"
+        ],
+        "key": "/works/OL40573655W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson and the Olympians",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL55491354M",
+              "title": "Percy Jackson and the Olympians",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9781540822178",
+                "1540822176"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11257632A"
+        ],
+        "author_name": [
+          "Zach Walsh"
+        ],
+        "edition_count": 3,
+        "edition_key": [
+          "OL48952211M",
+          "OL42585127M",
+          "OL48983204M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798697339398",
+          "9798697339909",
+          "9798697339268"
+        ],
+        "key": "/works/OL31004340W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Color by Number",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48952211M",
+              "title": "Percy Jackson Color by Number",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798697339398"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8521739A"
+        ],
+        "author_name": [
+          "Staci Verdun"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL42034357M"
+        ],
+        "first_publish_year": 2020,
+        "isbn": [
+          "9798667800125"
+        ],
+        "key": "/works/OL30571534W",
+        "language": [
+          "ita"
+        ],
+        "title": "Percy Jackson Libro Da Colorare",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42034357M",
+              "title": "Percy Jackson Libro Da Colorare",
+              "language": [
+                "ita"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798667800125"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13751908A"
+        ],
+        "author_name": [
+          "Jay Menon"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL51958302M"
+        ],
+        "first_publish_year": 2015,
+        "isbn": [
+          "1320574351",
+          "9781320574358"
+        ],
+        "key": "/works/OL38232796W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson and Kane Chronicles",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51958302M",
+              "title": "Percy Jackson and Kane Chronicles",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Blurb"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9781320574358",
+                "1320574351"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1371564A"
+        ],
+        "author_name": [
+          "Sam Johnson"
+        ],
+        "edition_count": 2,
+        "edition_key": [
+          "OL39779864M",
+          "OL39382001M"
+        ],
+        "first_publish_year": 2021,
+        "isbn": [
+          "9798717168663",
+          "9798717168557"
+        ],
+        "key": "/works/OL28693501W",
+        "language": [
+          "eng"
+        ],
+        "title": "Percy Jackson Puzzle Book",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39779864M",
+              "title": "Percy Jackson Puzzle Book",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798717168663"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9312843A"
+        ],
+        "author_name": [
+          "Mattie Hamby"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL41393761M"
+        ],
+        "first_publish_year": 2019,
+        "isbn": [
+          "9781075493218",
+          "1075493218"
+        ],
+        "key": "/works/OL30114817W",
+        "language": [
+          "eng"
+        ],
+        "title": "Study Guide for Percy Jackson the Lightning Thief",
+        "readinglog_count": 2,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL41393761M",
+              "title": "Study Guide for Percy Jackson the Lightning Thief",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781075493218",
+                "1075493218"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.542
+}

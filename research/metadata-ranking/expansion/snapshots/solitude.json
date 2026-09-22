@@ -1,0 +1,945 @@
+{
+  "url": "https://openlibrary.org/search.json?q=one+hundred+years+of+solitude&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:09.982276+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 100,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 100,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "one hundred years of solitude",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "cover_i": 12627383,
+        "first_publish_year": 1967,
+        "key": "/works/OL274505W",
+        "language": [
+          "ger",
+          "jpn",
+          "ara",
+          "tur",
+          "ita",
+          "por",
+          "kor",
+          "pol",
+          "rus",
+          "fre",
+          "guj",
+          "und",
+          "eng",
+          "chi",
+          "gre",
+          "spa"
+        ],
+        "title": "Cien años de soledad",
+        "editions": {
+          "numFound": 75,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL30448691M",
+              "title": "One Hundred Years of Solitude",
+              "cover_i": 10454740,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books"
+              ],
+              "publish_date": [
+                "Nov 01, 1996"
+              ],
+              "isbn": [
+                "9780140157512",
+                "0140157514"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL889136A"
+        ],
+        "author_name": [
+          "Regina Janes"
+        ],
+        "cover_i": 6807555,
+        "first_publish_year": 1991,
+        "key": "/works/OL15844388W",
+        "language": [
+          "eng"
+        ],
+        "title": "One hundred years of solitude",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24753802M",
+              "title": "One hundred years of solitude",
+              "cover_i": 6807555,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Twayne Publishers"
+              ],
+              "publish_date": [
+                "1991"
+              ],
+              "isbn": [
+                "0805779892",
+                "0805780386",
+                "9780805779899",
+                "9780805780383"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2631013A",
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gregory Rabassa",
+          "Gabriel García Márquez"
+        ],
+        "first_publish_year": 2007,
+        "key": "/works/OL29355621W",
+        "language": [
+          "eng"
+        ],
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL40355682M",
+              "title": "One Hundred Years of Solitude",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books, Limited"
+              ],
+              "publish_date": [
+                "2007"
+              ],
+              "isbn": [
+                "9780141032436",
+                "014103243X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL29809A"
+        ],
+        "author_name": [
+          "Harold Bloom"
+        ],
+        "cover_i": 4741119,
+        "first_publish_year": 2002,
+        "key": "/works/OL19162958W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gabriel Garcʹia Mʹarquez's One hundred years of solitude",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3554890M",
+              "title": "Interpretations: One Hundred Years of Solitude",
+              "cover_i": 4741119,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Chelsea House Publishers"
+              ],
+              "publish_date": [
+                "2003"
+              ],
+              "isbn": [
+                "0791070468",
+                "9780791070468"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL15290656A"
+        ],
+        "author_name": [
+          "Gabriel Garcia Marquez"
+        ],
+        "cover_i": 15185412,
+        "first_publish_year": 1971,
+        "key": "/works/OL43108828W",
+        "language": [
+          "eng"
+        ],
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL61417747M",
+              "title": "One Hundred Years of Solitude",
+              "cover_i": 15185412,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "A Bard Book"
+              ],
+              "publish_date": [
+                "1971"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL526239A"
+        ],
+        "author_name": [
+          "Joan Mellen"
+        ],
+        "cover_i": 1480802,
+        "first_publish_year": 2001,
+        "key": "/works/OL3230633W",
+        "language": [
+          "eng"
+        ],
+        "title": "One hundred years of solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3962709M",
+              "title": "One hundred years of solitude",
+              "cover_i": 1480802,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Gale Group"
+              ],
+              "publish_date": [
+                "2001"
+              ],
+              "isbn": [
+                "0787639710",
+                "9780787639716"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL22858A"
+        ],
+        "author_name": [
+          "Gene H. Bell-Villada"
+        ],
+        "cover_i": 125418,
+        "first_publish_year": 2002,
+        "key": "/works/OL18253211W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gabriel García Márquez's One hundred years of solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3947803M",
+              "title": "Gabriel García Márquez's One hundred years of solitude",
+              "cover_i": 14651645,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Oxford University Press"
+              ],
+              "publish_date": [
+                "2002"
+              ],
+              "isbn": [
+                "0195144546",
+                "0195144554",
+                "9780195144543",
+                "9780195144550"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL29809A"
+        ],
+        "author_name": [
+          "Harold Bloom"
+        ],
+        "cover_i": 9871487,
+        "first_publish_year": 2009,
+        "key": "/works/OL16946809W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gabriel García Márquez's One hundred years of solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22685938M",
+              "title": "Gabriel García Márquez's One hundred years of solitude",
+              "cover_i": 9871487,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Chelsea House"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9781604133912",
+                "1604133910"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL22858A"
+        ],
+        "author_name": [
+          "Gene H. Bell-Villada"
+        ],
+        "cover_i": 125416,
+        "first_publish_year": 2001,
+        "key": "/works/OL13908W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gabriel Garcia Marquez's One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7996325M",
+              "title": "Gabriel Garcia Marquez's One Hundred Years of Solitude",
+              "cover_i": 13233340,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Diane Pub Co"
+              ],
+              "publish_date": [
+                "October 30, 2002"
+              ],
+              "isbn": [
+                "9780756791377",
+                "0756791375"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL403232A"
+        ],
+        "author_name": [
+          "Wood, Michael"
+        ],
+        "cover_i": 4658372,
+        "first_publish_year": 1990,
+        "key": "/works/OL2748356W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gabriel García Márquez",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2200724M",
+              "title": "Gabriel García Márquez",
+              "cover_i": 4658372,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Cambridge University Press"
+              ],
+              "publish_date": [
+                "1990"
+              ],
+              "isbn": [
+                "0521328233",
+                "0521316928",
+                "9780521328234",
+                "9780521316927"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL29809A"
+        ],
+        "author_name": [
+          "Harold Bloom"
+        ],
+        "first_publish_year": 1989,
+        "key": "/works/OL14942154W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gabriel Garcia Marquez's One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12025236M",
+              "title": "Gabriel Garcia Marquez's One Hundred Years of Solitude",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Chelsea House Pub (L)"
+              ],
+              "publish_date": [
+                "May 1989"
+              ],
+              "isbn": [
+                "9781555463380",
+                "155546338X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13524430A"
+        ],
+        "author_name": [
+          "BookCaps Study Guides Staff"
+        ],
+        "first_publish_year": 2012,
+        "key": "/works/OL34667087W",
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46999378M",
+              "title": "One Hundred Years of Solitude",
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2012"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL29809A"
+        ],
+        "author_name": [
+          "Harold Bloom"
+        ],
+        "cover_i": 1490283,
+        "first_publish_year": 2006,
+        "key": "/works/OL14942420W",
+        "language": [
+          "eng"
+        ],
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9634030M",
+              "title": "One Hundred Years of Solitude",
+              "cover_i": 1490283,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Chelsea House Publications"
+              ],
+              "publish_date": [
+                "July 30, 2006"
+              ],
+              "isbn": [
+                "9780791085783",
+                "0791085783"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL399286A"
+        ],
+        "author_name": [
+          "Ilan Stavans"
+        ],
+        "cover_i": 6666558,
+        "first_publish_year": 2010,
+        "key": "/works/OL15437553W",
+        "title": "One hundred years of solitude, by Gabriel Garcia Marquez",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24405462M",
+              "title": "One hundred years of solitude, by Gabriel Garcia Marquez",
+              "cover_i": 6666558,
+              "publisher": [
+                "Salem Press"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781587657092",
+                "1587657090"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL636931A"
+        ],
+        "author_name": [
+          "Michael Wood"
+        ],
+        "cover_i": 4658373,
+        "first_publish_year": 1990,
+        "key": "/works/OL3685201W",
+        "language": [
+          "eng"
+        ],
+        "title": "Gabriel García Márquez",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7736643M",
+              "title": "Gabriel García Márquez",
+              "cover_i": 4658373,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Cambridge University Press"
+              ],
+              "publish_date": [
+                "June 29, 1990"
+              ],
+              "isbn": [
+                "9780521316927",
+                "0521316928"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL35660679W",
+        "title": "Cien Anos De Soledad one hundred years of solitude مئة عام من العزلة",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48101458M",
+              "title": "Cien Anos De Soledad one hundred years of solitude مئة عام من العزلة",
+              "isbn": [
+                "9789953582139",
+                "9953582130"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "first_publish_year": 2024,
+        "key": "/works/OL39215842W",
+        "language": [
+          "eng"
+        ],
+        "title": "One Hundred Years of Solitude [tie-In Edition]",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL57778894M",
+              "title": "One Hundred Years of Solitude",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "HarperCollins Publishers"
+              ],
+              "publish_date": [
+                "2025"
+              ],
+              "isbn": [
+                "9780063464452",
+                "0063464454"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27363A"
+        ],
+        "author_name": [
+          "Gabriel García Márquez"
+        ],
+        "cover_i": 10666982,
+        "first_publish_year": 2015,
+        "key": "/works/OL24213362W",
+        "title": "Cien años de soledad / One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL31995573M",
+              "title": "Cien años de soledad / One Hundred Years of Solitude",
+              "cover_i": 10666982,
+              "publisher": [
+                "Blackstone Audio, Inc.",
+                "Blackstone Audiobooks"
+              ],
+              "publish_date": [
+                "Jan 06, 2015"
+              ],
+              "isbn": [
+                "9781481518468",
+                "1481518461"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9157957A"
+        ],
+        "author_name": [
+          "Lydia Gordo Ribas"
+        ],
+        "cover_i": 10864222,
+        "first_publish_year": 2007,
+        "key": "/works/OL24341011W",
+        "title": "Cien Anos De Soledad/ One hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32222326M",
+              "title": "Cien Anos De Soledad/ One hundred Years of Solitude",
+              "cover_i": 10864222,
+              "publisher": [
+                "ToisäN Edit"
+              ],
+              "publish_date": [
+                "Jul 30, 2007"
+              ],
+              "isbn": [
+                "9788495761385",
+                "8495761386"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7479026A"
+        ],
+        "author_name": [
+          "Bright Summaries"
+        ],
+        "cover_i": 13179360,
+        "first_publish_year": 2016,
+        "key": "/works/OL28606389W",
+        "title": "One Hundred Years of Solitude by Gabriel García Marquez",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39223201M",
+              "title": "One Hundred Years of Solitude by Gabriel García Marquez",
+              "cover_i": 13179360,
+              "publisher": [
+                "BrightSummaries.com"
+              ],
+              "publish_date": [
+                "Oct 12, 2016"
+              ],
+              "isbn": [
+                "9782806284174",
+                "2806284171"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL389721A"
+        ],
+        "author_name": [
+          "Geoffrey E. Fox"
+        ],
+        "first_publish_year": 1988,
+        "key": "/works/OL14944263W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "A Critical Commentary",
+        "title": "Gabriel Garcia Marquez's One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7661027M",
+              "title": "Gabriel Garcia Marquez's One Hundred Years of Solitude",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Monarch Press"
+              ],
+              "publish_date": [
+                "May 1988"
+              ],
+              "isbn": [
+                "9780671647568",
+                "0671647563"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3823035A"
+        ],
+        "author_name": [
+          "Prastavna Sinha Mehta"
+        ],
+        "first_publish_year": 2003,
+        "key": "/works/OL9838790W",
+        "language": [
+          "eng"
+        ],
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12120869M",
+              "title": "One Hundred Years of Solitude",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Center for Learning"
+              ],
+              "publish_date": [
+                "November 30, 2003"
+              ],
+              "isbn": [
+                "9781560777335",
+                "1560777338"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14413304A"
+        ],
+        "author_name": [
+          "Top 50 Facts Staff"
+        ],
+        "first_publish_year": 2014,
+        "key": "/works/OL34562148W",
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46876804M",
+              "title": "One Hundred Years of Solitude",
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2014"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14454691A"
+        ],
+        "author_name": [
+          "Gabriel Marquez"
+        ],
+        "first_publish_year": 2018,
+        "key": "/works/OL41815961W",
+        "language": [
+          "eng"
+        ],
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL56780563M",
+              "title": "One Hundred Years of Solitude",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9781726345552",
+                "1726345556"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9781696A"
+        ],
+        "author_name": [
+          "Daily Books Staff"
+        ],
+        "first_publish_year": 2016,
+        "key": "/works/OL33645137W",
+        "title": "One Hundred Years of Solitude",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL45603471M",
+              "title": "One Hundred Years of Solitude",
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2016"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.842
+}

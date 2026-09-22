@@ -1,0 +1,1004 @@
+{
+  "url": "https://openlibrary.org/search.json?q=designing+data+intensive+applications&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:52.575478+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 62,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 62,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "designing data intensive applications",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL7477772A"
+        ],
+        "author_name": [
+          "Martin Kleppmann"
+        ],
+        "cover_i": 8434671,
+        "first_publish_year": 2017,
+        "key": "/works/OL19293745W",
+        "language": [
+          "eng",
+          "chi"
+        ],
+        "subtitle": "The Big Ideas Behind Reliable, Scalable, and Maintainable Systems",
+        "title": "Designing Data-Intensive Applications",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48030878M",
+              "title": "Designing Data Intensive Application",
+              "cover_i": 15096047,
+              "publisher": [
+                "O'Reilly publications"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9789352135240",
+                "9352135245"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10155811A"
+        ],
+        "author_name": [
+          "Saurabh Badhwar"
+        ],
+        "cover_i": 13456259,
+        "first_publish_year": 2018,
+        "key": "/works/OL28333958W",
+        "language": [
+          "eng"
+        ],
+        "title": "Hands-On Enterprise Application Development with Python",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38773383M",
+              "title": "Hands-On Enterprise Application Development with Python",
+              "cover_i": 13456259,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Packt Publishing, Limited",
+                "Packt Publishing"
+              ],
+              "publish_date": [
+                "2018"
+              ],
+              "isbn": [
+                "9781789532364",
+                "1789532361"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7574396A",
+          "OL3039649A",
+          "OL220370A",
+          "OL3039650A",
+          "OL2670234A"
+        ],
+        "author_name": [
+          "Stefano Ceri",
+          "Aldo Bongio",
+          "Marco Brambilla",
+          "Sara Comai",
+          "Piero Fraternali"
+        ],
+        "cover_i": 784299,
+        "first_publish_year": 2002,
+        "key": "/works/OL16926160W",
+        "language": [
+          "eng"
+        ],
+        "title": "Designing data-intensive Web applications",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35772175M",
+              "title": "Designing Data-Intensive Web Applications",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Elsevier Science & Technology Books"
+              ],
+              "publish_date": [
+                "2003"
+              ],
+              "isbn": [
+                "9780080503936",
+                "0080503934"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13113730A",
+          "OL13113731A",
+          "OL2685470A"
+        ],
+        "author_name": [
+          "Manos Athanassoulis",
+          "Stratos Idreos",
+          "Dennis Shasha"
+        ],
+        "first_publish_year": 2023,
+        "key": "/works/OL36495155W",
+        "language": [
+          "eng"
+        ],
+        "title": "Data Structures for Data-Intensive Applications",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49327361M",
+              "title": "Data Structures for Data-Intensive Applications",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Now Publishers"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781638281849",
+                "163828184X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2785292A"
+        ],
+        "author_name": [
+          "John Mylopoulos"
+        ],
+        "first_publish_year": 1979,
+        "key": "/works/OL8362726W",
+        "language": [
+          "eng"
+        ],
+        "title": "A language facility for designing interactive database -intensive applications",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18747809M",
+              "title": "A language facility for designing interactive database -intensive applications",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "computer Systems Research Group, University of Toronto"
+              ],
+              "publish_date": [
+                "1979"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7204967A"
+        ],
+        "author_name": [
+          "Ryan Mayfield"
+        ],
+        "cover_i": 10266769,
+        "first_publish_year": 2010,
+        "key": "/works/OL16944561W",
+        "language": [
+          "eng"
+        ],
+        "title": "Photovoltaic design & installation for dummies",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25547270M",
+              "title": "Photovoltaic design & installation for dummies",
+              "cover_i": 10266769,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Wiley"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9780470598931",
+                "047059893X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL659458A"
+        ],
+        "author_name": [
+          "Mark A. Brown"
+        ],
+        "cover_i": 12578075,
+        "first_publish_year": 2010,
+        "key": "/works/OL18783264W",
+        "language": [
+          "eng"
+        ],
+        "title": "MRI",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24069114M",
+              "title": "MRI",
+              "cover_i": 12578075,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Wiley-Blackwell",
+                "Wiley-Blackwell/John Wiley & Sons"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9780470500989",
+                "0470500980"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2870867A",
+          "OL3280204A"
+        ],
+        "author_name": [
+          "Claude Bathias",
+          "A. Pineau"
+        ],
+        "first_publish_year": 2011,
+        "key": "/works/OL16412638W",
+        "language": [
+          "eng"
+        ],
+        "title": "Fatigue of materials and structures",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25147495M",
+              "title": "Fatigue of materials and structures",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "ISTE",
+                "Wiley"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781848212916",
+                "1848212917"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2870867A",
+          "OL3280204A"
+        ],
+        "author_name": [
+          "Claude Bathias",
+          "A. Pineau"
+        ],
+        "first_publish_year": 2011,
+        "key": "/works/OL16412639W",
+        "language": [
+          "eng"
+        ],
+        "title": "Fatigue of materials and structures",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25147496M",
+              "title": "Fatigue of materials and structures",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "ISTE",
+                "Wiley"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9781848212916",
+                "1848212917"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7100970A",
+          "OL7100971A"
+        ],
+        "author_name": [
+          "Nasrullah Memon",
+          "Reda Alhajj"
+        ],
+        "cover_i": 9605061,
+        "first_publish_year": 2010,
+        "key": "/works/OL16568634W",
+        "language": [
+          "eng"
+        ],
+        "title": "From sociology to computing in social networks",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25256321M",
+              "title": "From sociology to computing in social networks",
+              "cover_i": 9605061,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9783709102930",
+                "3709102936"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6475958A"
+        ],
+        "author_name": [
+          "Basudeb Bhatta"
+        ],
+        "cover_i": 9735590,
+        "first_publish_year": 2010,
+        "key": "/works/OL16686716W",
+        "language": [
+          "eng"
+        ],
+        "title": "Analysis of urban growth and sprawl from remote sensing data",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25359862M",
+              "title": "Analysis of urban growth and sprawl from remote sensing data",
+              "cover_i": 9735590,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9783642052989",
+                "9783642052996",
+                "3642052983",
+                "3642052991"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL544669A"
+        ],
+        "author_name": [
+          "Sanford Bolton"
+        ],
+        "first_publish_year": 2010,
+        "key": "/works/OL15596758W",
+        "language": [
+          "eng"
+        ],
+        "title": "Pharmaceutical statistics",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24547342M",
+              "title": "Pharmaceutical statistics",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Informa Healthcare USA"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781420074222",
+                "1420074229"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 9836746,
+        "first_publish_year": 2009,
+        "key": "/works/OL16977494W",
+        "language": [
+          "eng"
+        ],
+        "title": "Pharmaceutical statistics",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL23928853M",
+              "title": "Pharmaceutical statistics",
+              "cover_i": 9836746,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Informa Healthcare USA"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9781420074222",
+                "1420074229"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7061763A"
+        ],
+        "author_name": [
+          "Aboul Ella Hassanien"
+        ],
+        "cover_i": 8614094,
+        "first_publish_year": 2012,
+        "key": "/works/OL19823966W",
+        "language": [
+          "eng"
+        ],
+        "title": "Advanced Machine Learning Technologies and Applications",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27014611M",
+              "title": "Advanced Machine Learning Technologies and Applications",
+              "cover_i": 8614094,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer Berlin Heidelberg",
+                "Imprint: Springer"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9783642353260",
+                "3642353266"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7559230A"
+        ],
+        "author_name": [
+          "Jan Brocke"
+        ],
+        "cover_i": 8637355,
+        "first_publish_year": 2013,
+        "key": "/works/OL19841462W",
+        "language": [
+          "eng"
+        ],
+        "title": "Design Science at the Intersection of Physical and Virtual Design",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27030695M",
+              "title": "Design Science at the Intersection of Physical and Virtual Design",
+              "cover_i": 8637355,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer Berlin Heidelberg",
+                "Imprint: Springer"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9783642388279",
+                "3642388272"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7203515A"
+        ],
+        "author_name": [
+          "Beniamino Murgante"
+        ],
+        "cover_i": 8631255,
+        "first_publish_year": 2013,
+        "key": "/works/OL19836357W",
+        "language": [
+          "eng"
+        ],
+        "title": "Computational Science and Its Applications – ICCSA 2013",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27025933M",
+              "title": "Computational Science and Its Applications – ICCSA 2013",
+              "cover_i": 8631255,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer Berlin Heidelberg",
+                "Imprint: Springer"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9783642396373",
+                "3642396372"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7278627A"
+        ],
+        "author_name": [
+          "Edelman, Philip E., 1894-"
+        ],
+        "cover_i": 9643712,
+        "first_publish_year": 1912,
+        "key": "/works/OL17319825W",
+        "language": [
+          "eng"
+        ],
+        "title": "Experimental Wireless Stations Their Theory, Design, Construction And Operation",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25894869M",
+              "title": "Experimental Wireless Stations Their Theory, Design, Construction And Operation",
+              "cover_i": 9643712,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "The author"
+              ],
+              "publish_date": [
+                "1912"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5658174A"
+        ],
+        "author_name": [
+          "Xiangdong Wang"
+        ],
+        "cover_i": 8623548,
+        "first_publish_year": 2013,
+        "key": "/works/OL19831208W",
+        "language": [
+          "eng"
+        ],
+        "title": "Bioinformatics of Human Proteomics",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27021272M",
+              "title": "Bioinformatics of Human Proteomics",
+              "cover_i": 8623548,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer Netherlands",
+                "Imprint: Springer"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9789400758117",
+                "9400758111"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7201166A"
+        ],
+        "author_name": [
+          "Selmin Nurcan"
+        ],
+        "cover_i": 8645415,
+        "first_publish_year": 2013,
+        "key": "/works/OL19847683W",
+        "language": [
+          "eng"
+        ],
+        "title": "Enterprise, Business-Process and Information Systems Modeling",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27036545M",
+              "title": "Enterprise, Business-Process and Information Systems Modeling",
+              "cover_i": 8645415,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer Berlin Heidelberg",
+                "Imprint: Springer"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9783642384844",
+                "3642384846"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3158322A"
+        ],
+        "author_name": [
+          "Klaus Pohl"
+        ],
+        "cover_i": 8695700,
+        "first_publish_year": 2012,
+        "key": "/works/OL19888548W",
+        "language": [
+          "eng"
+        ],
+        "title": "Model-Based Engineering of Embedded Systems",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27075316M",
+              "title": "Model-Based Engineering of Embedded Systems",
+              "cover_i": 8695700,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer Berlin Heidelberg",
+                "Imprint: Springer"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9783642346149",
+                "3642346146"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2738554A"
+        ],
+        "author_name": [
+          "James Benya"
+        ],
+        "cover_i": 14491005,
+        "first_publish_year": 2011,
+        "key": "/works/OL16296389W",
+        "language": [
+          "eng"
+        ],
+        "title": "Lighting retrofit and relighting",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25107214M",
+              "title": "Lighting retrofit and relighting",
+              "cover_i": 14491005,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Wiley"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9780470568415",
+                "0470568410"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8100678A"
+        ],
+        "author_name": [
+          "E. Pierre Morenon"
+        ],
+        "first_publish_year": 1986,
+        "key": "/works/OL37426855W",
+        "language": [
+          "eng"
+        ],
+        "title": "Archaeological sites at an ecotone",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL50434405M",
+              "title": "Archaeological sites at an ecotone",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Rhode Island Dept. of Transportation"
+              ],
+              "publish_date": [
+                "1986"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 1981,
+        "key": "/works/OL22680931W",
+        "language": [
+          "eng"
+        ],
+        "title": "Joining of composite materials",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3789488M",
+              "title": "Joining of composite materials",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "ASTM"
+              ],
+              "publish_date": [
+                "1981"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6470384A"
+        ],
+        "author_name": [
+          "Healthgrid 2008 (2008 Chicago, IL)"
+        ],
+        "cover_i": 11790924,
+        "first_publish_year": 2008,
+        "key": "/works/OL13611858W",
+        "language": [
+          "eng"
+        ],
+        "title": "Global healthgrid",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22535549M",
+              "title": "Global healthgrid",
+              "cover_i": 11790924,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "IOS Press"
+              ],
+              "publish_date": [
+                "2008"
+              ],
+              "isbn": [
+                "9781586038748",
+                "1586038745"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7562384A"
+        ],
+        "author_name": [
+          "Kerstin Eder"
+        ],
+        "cover_i": 8657812,
+        "first_publish_year": 2012,
+        "key": "/works/OL19854791W",
+        "language": [
+          "eng"
+        ],
+        "title": "Hardware and Software: Verification and Testing",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27042991M",
+              "title": "Hardware and Software: Verification and Testing",
+              "cover_i": 8657812,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Springer Berlin Heidelberg",
+                "Imprint: Springer"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9783642341885",
+                "3642341888"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.695
+}

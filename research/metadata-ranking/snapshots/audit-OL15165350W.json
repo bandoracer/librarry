@@ -1,0 +1,139 @@
+{
+  "url": "https://openlibrary.org/works/OL15165350W.json",
+  "retrievedAt": "2026-09-21T07:57:33.623045+00:00",
+  "status": 200,
+  "data": {
+    "title": "Pride and Prejudice",
+    "key": "/works/OL15165350W",
+    "authors": [
+      {
+        "author": {
+          "key": "/authors/OL21594A"
+        },
+        "type": {
+          "key": "/type/author_role"
+        }
+      }
+    ],
+    "type": {
+      "key": "/type/work"
+    },
+    "subject_times": [
+      "1789-1820",
+      "19th century"
+    ],
+    "subject_places": [
+      "England",
+      "Brighton",
+      "Derbyshire",
+      "Hertfordshire",
+      "Meryton",
+      "Longbourn",
+      "Netherfield",
+      "Pemberley",
+      "Great Britain",
+      "Ying guo"
+    ],
+    "subjects": [
+      "British and irish fiction (fictional works by one author)",
+      "Brothers and sisters",
+      "Children's fiction",
+      "Courtship",
+      "Drama",
+      "English fiction",
+      "English literature",
+      "Families",
+      "Family",
+      "Family life",
+      "Family relations",
+      "Fiction",
+      "Fiction Classics",
+      "History",
+      "Interpersonal relations",
+      "Juvenile fiction",
+      "Literary Fiction",
+      "love stories",
+      "manners",
+      "Manners and customs",
+      "marriage",
+      "Romance",
+      "Sisters",
+      "Social classes",
+      "Social life and customs",
+      "Upper class",
+      "wealth",
+      "Women in England",
+      "young ladies",
+      "Young women",
+      "entail",
+      "Pride and prejudice (Austen, Jane)",
+      "Austen, jane, 1775-1817",
+      "Bennet, elizabeth (fictitious character), fiction",
+      "England, fiction",
+      "Young women, fiction",
+      "Darcy, fitzwilliam (fictitious character), fiction",
+      "Sisters, fiction",
+      "Austen, jane , 1775-1817",
+      "Bennet, elizabeth",
+      "Darcy, fitzwilliam",
+      "Young women--fiction",
+      "Courtship--fiction",
+      "Sisters--fiction",
+      "Social classes--fiction",
+      "Young women in literature",
+      "Courtship in literature",
+      "Pr4034 .p7 2001",
+      "823/.7",
+      "Mothers and daughters",
+      "Man-woman relationships",
+      "Mate selection",
+      "Rich people",
+      "Gentry",
+      "Economic aspects"
+    ],
+    "subject_people": [
+      "Elizabeth Bennet",
+      "Fitzwilliam Darcy",
+      "Charlotte Lucas",
+      "George Wickham",
+      "Mr. Bennet",
+      "Mrs. Bennet",
+      "Jane Bennet",
+      "Mary Bennet",
+      "Catherine Bennet",
+      "Lydia Bennet",
+      "Charles Bingley",
+      "Caroline Bingley",
+      "William Collins",
+      "Catherine de Bourgh"
+    ],
+    "covers": [
+      13148521,
+      14895847
+    ],
+    "description": {
+      "type": "/type/text",
+      "value": "The first edition of the novel (1813).\r\n\r\nIntroductory materials and revised and expanded footnotes by Donald Gray and Mary A. Favret.\r\n\r\nBiographical portraits of Austen by family members and\u2014 new to this edition\u2014 by Jon Spence (from Becoming Jane Austen) and Paula Byrne (from The Real Jane Austen: A Life in Small Things).\r\n\r\nFourteen critical essays\u2014eleven of them new to this edition. \"Writers on Austen\"\u2014a new section of brief comments by Mark Twain, Virginia Woolf, Henry James, and others.\r\n\r\nA Chronology and a Selected Bibliography."
+    },
+    "links": [
+      {
+        "title": "Pride and Prejudice",
+        "url": "https://love-books-review.com/blog/pride-and-prejudice-by-jane-austen/",
+        "type": {
+          "key": "/type/link"
+        }
+      }
+    ],
+    "latest_revision": 16,
+    "revision": 16,
+    "created": {
+      "type": "/type/datetime",
+      "value": "2010-05-12T22:06:43.002164"
+    },
+    "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-09-17T12:00:44.106171"
+    }
+  },
+  "elapsedSeconds": 0.413
+}

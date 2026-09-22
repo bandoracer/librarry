@@ -14,7 +14,7 @@ remain incomplete. See [current status](docs/status.md) before migrating a libra
 
 ## What it does
 
-- Search metadata with provider provenance and durable manual corrections.
+- Search metadata with provider provenance, coherent edition evidence, and durable manual corrections. Hardcover Series mode uses source-reported positions (requires a token; live qualification pending).
 - Track wanted books, monitor authors, and evaluate releases through Prowlarr.
 - Send book acquisitions to qBittorrent, Transmission or SABnzbd.
 - Import ebooks and chapter-based audiobooks, with explicit review for ambiguous

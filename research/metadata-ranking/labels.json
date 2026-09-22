@@ -1,0 +1,144 @@
+{
+  "percy": {
+    "targets": [
+      "OL492658W",
+      "OL492646W",
+      "OL492647W",
+      "OL492640W",
+      "OL34025404W"
+    ],
+    "preferredStart": "OL492658W",
+    "intent": "series discovery: primary Percy Jackson novels; related guides are secondary",
+    "source": "https://rickriordan.com/series/percy-jackson-and-the-olympians/"
+  },
+  "lightning": {
+    "targets": [
+      "OL492658W"
+    ],
+    "intent": "original Rick Riordan novel, not graphic adaptation or box set",
+    "source": "https://rickriordan.com/series/percy-jackson-and-the-olympians/"
+  },
+  "hail-mary": {
+    "targets": [
+      "OL21745884W"
+    ],
+    "intent": "Andy Weir novel, not summaries or omnibus",
+    "source": "https://global.penguinrandomhouse.com/announcements/new-andy-weir-novel-project-hail-mary-to-be-published-in-may-2021/"
+  },
+  "dune": {
+    "targets": [
+      "OL893414W"
+    ],
+    "intent": "Frank Herbert original novel is best first result for ambiguous title/series query",
+    "source": "https://www.penguinrandomhouse.com/series/AU8/dune/"
+  },
+  "earthsea": {
+    "targets": [
+      "OL59798W",
+      "OL59801W",
+      "OL59855W",
+      "OL15056578W",
+      "OL59812W",
+      "OL59806W",
+      "OL20132736W"
+    ],
+    "preferredStart": "OL59798W",
+    "intent": "Le Guin original books or authorized complete collection",
+    "source": "https://www.ursulakleguin.com/bibliography"
+  },
+  "riordan": {
+    "targets": [
+      "OL30765A"
+    ],
+    "intent": "author with bibliography matching Percy Jackson, not empty same-name identity",
+    "source": "https://rickriordan.com/series/percy-jackson-and-the-olympians/"
+  },
+  "guide": {
+    "targets": [
+      "OL17685821W"
+    ],
+    "intent": "explicit guide request: do not apply blanket guide penalty; subtitle is significant",
+    "source": "https://books.disney.com/book/percy-jackson-and-the-olympians-the-ultimate-guide/",
+    "caveat": "Publisher credits Rick Riordan; Open Library credits Mary-Jane Knight. Preserve disagreement; do not silently rewrite attribution."
+  },
+  "hobbit": {
+    "targets": [
+      "OL27482W"
+    ],
+    "intent": "Tolkien original novel, not movie companion, adaptation or soundtrack",
+    "source": "https://www.tolkienestate.com/writing/john-d-rateliff-the-hobbit/"
+  },
+  "pride": {
+    "targets": [
+      "OL66554W",
+      "OL15165350W"
+    ],
+    "intent": "Jane Austen original work; two catalog work IDs accepted pending duplicate/edition audit",
+    "source": "https://www.penguinrandomhouse.com/books/301713/pride-and-prejudice-by-jane-austen/"
+  },
+  "murderbot": {
+    "targets": [
+      "OL17914663W",
+      "OL19747311W",
+      "OL19753589W",
+      "OL19763338W",
+      "OL20735675W",
+      "OL20805971W",
+      "OL33402895W"
+    ],
+    "preferredStart": "OL17914663W",
+    "intent": "primary Martha Wells series installments; starter order evaluated separately",
+    "source": "https://www.marthawells.com/murderbot.htm"
+  },
+  "left-hand": {
+    "targets": [
+      "OL59800W"
+    ],
+    "intent": "Le Guin original novel, not criticism or unrelated same-title books",
+    "source": "https://www.ursulakleguin.com/bibliography"
+  },
+  "isbn": {
+    "targets": [
+      "OL492646W"
+    ],
+    "editionISBN": "9781423103349",
+    "intent": "exact Sea of Monsters ISBN edition, not merely any edition of work",
+    "source": "https://openlibrary.org/isbn/9781423103349"
+  },
+  "martian": {
+    "targets": [
+      "OL17091839W"
+    ],
+    "intent": "Original Andy Weir novel; preserve unrelated George du Maurier work as separate result",
+    "source": "https://www.penguinrandomhouse.com/books/234102/the-martian-by-andy-weir/"
+  },
+  "watership": {
+    "targets": [
+      "OL2096536W"
+    ],
+    "intent": "Richard Adams original novel, not Judy Allen adaptation",
+    "source": "https://www.simonandschuster.com/books/Watership-Down/Richard-Adams/9780684836058"
+  },
+  "pern": {
+    "targets": [
+      "OL73387W",
+      "OL73344W",
+      "OL10673093W",
+      "OL73382W",
+      "OL73347W",
+      "OL73384W",
+      "OL73356W",
+      "OL73375W"
+    ],
+    "preferredStart": "OL73387W",
+    "intent": "Primary Anne McCaffrey novels or original trilogy collection",
+    "source": "https://www.penguinrandomhouse.com/series/PN2/dragonriders-of-pern/"
+  },
+  "wizard-author": {
+    "targets": [
+      "OL59798W"
+    ],
+    "intent": "Specified novel and author",
+    "source": "https://www.ursulakleguin.com/bibliography"
+  }
+}

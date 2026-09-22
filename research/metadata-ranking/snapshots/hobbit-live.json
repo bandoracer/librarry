@@ -1,0 +1,284 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=the+hobbit&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:16.640504+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "the hobbit",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL20683713W",
+          "title": "The Hobbit",
+          "authors": [
+            {
+              "id": "openlibrary:OL1399851A",
+              "name": "Jude Fisher",
+              "providerIds": [
+                "openlibrary:OL1399851A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2012,
+          "coverUrl": "https://covers.openlibrary.org/b/id/9355823-L.jpg",
+          "providerIds": [
+            "openlibrary:OL20683713W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL39534682M",
+          "workId": "openlibrary:OL20683713W",
+          "title": "The Hobbit",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "0007479867",
+            "9780007556830",
+            "0547898568",
+            "0547899327",
+            "9780547899329",
+            "9780007544110",
+            "0007467958",
+            "9780007479863",
+            "9780007556847",
+            "0007544111",
+            "0007556845",
+            "0007556837",
+            "9780007467952",
+            "9780547898568"
+          ],
+          "providerIds": [
+            "openlibrary:OL39534682M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL20683713W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL19659526W",
+          "title": "The Hobbit",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "firstPublishYear": 1975,
+          "providerIds": [
+            "openlibrary:OL19659526W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL26879090M",
+          "workId": "openlibrary:OL19659526W",
+          "title": "The Hobbit",
+          "format": "any",
+          "providerIds": [
+            "openlibrary:OL26879090M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL19659526W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL24180247W",
+          "title": "The hobbit",
+          "authors": [
+            {
+              "id": "openlibrary:OL9961544A",
+              "name": "Patty Kempshall",
+              "providerIds": [
+                "openlibrary:OL9961544A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2012,
+          "coverUrl": "https://covers.openlibrary.org/b/id/10604230-L.jpg",
+          "providerIds": [
+            "openlibrary:OL24180247W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL31921133M",
+          "workId": "openlibrary:OL24180247W",
+          "title": "The hobbit",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780007488186",
+            "0007488181",
+            "0007487355",
+            "9780007487356"
+          ],
+          "providerIds": [
+            "openlibrary:OL31921133M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL24180247W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL16059606W",
+          "title": "J.R.R. Tolkien's The hobbit",
+          "authors": [
+            {
+              "id": "openlibrary:OL1350963A",
+              "name": "Patsey Gray",
+              "providerIds": [
+                "openlibrary:OL1350963A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1968,
+          "coverUrl": "https://covers.openlibrary.org/b/id/6978417-L.jpg",
+          "providerIds": [
+            "openlibrary:OL16059606W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL9207724M",
+          "workId": "openlibrary:OL16059606W",
+          "title": "J.R.R. Tolkien's The hobbit",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780871294272",
+            "0871294273",
+            "9789995276690",
+            "9995276690"
+          ],
+          "providerIds": [
+            "openlibrary:OL9207724M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL16059606W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL18169548W",
+          "title": "The Hobbit companion",
+          "authors": [
+            {
+              "id": "openlibrary:OL272955A",
+              "name": "David Day",
+              "providerIds": [
+                "openlibrary:OL272955A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1997,
+          "coverUrl": "https://covers.openlibrary.org/b/id/8406773-L.jpg",
+          "providerIds": [
+            "openlibrary:OL18169548W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL30726092M",
+          "workId": "openlibrary:OL18169548W",
+          "title": "The Hobbit companion",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1862059152",
+            "9781862059153",
+            "9781857939378",
+            "1857939379"
+          ],
+          "providerIds": [
+            "openlibrary:OL30726092M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL18169548W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL20365605W",
+          "title": "The Hobbit : The Desolation of Smaug",
+          "authors": [
+            {
+              "id": "openlibrary:OL475982A",
+              "name": "Brian Sibley",
+              "providerIds": [
+                "openlibrary:OL475982A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2013,
+          "coverUrl": "https://covers.openlibrary.org/b/id/9032248-L.jpg",
+          "providerIds": [
+            "openlibrary:OL20365605W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL27577969M",
+          "workId": "openlibrary:OL20365605W",
+          "title": "The Hobbit : The Desolation of Smaug",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780007525485",
+            "0547898703",
+            "9780547898704",
+            "0007525486"
+          ],
+          "providerIds": [
+            "openlibrary:OL27577969M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL20365605W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.349
+}

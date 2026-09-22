@@ -1,0 +1,267 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=murderbot&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:24.730680+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "murderbot",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL36737601W",
+          "title": "Murderbot Diaries",
+          "authors": [
+            {
+              "id": "openlibrary:OL221294A",
+              "name": "Martha Wells",
+              "providerIds": [
+                "openlibrary:OL221294A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2023,
+          "coverUrl": "https://covers.openlibrary.org/b/id/14714448-L.jpg",
+          "providerIds": [
+            "openlibrary:OL36737601W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL49617899M",
+          "workId": "openlibrary:OL36737601W",
+          "title": "Murderbot Diaries",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781250350862",
+            "1250350867"
+          ],
+          "providerIds": [
+            "openlibrary:OL49617899M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL36737601W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL39199442W",
+          "title": "Murderbot Diaries Vol. 1",
+          "authors": [
+            {
+              "id": "openlibrary:OL221294A",
+              "name": "Martha Wells",
+              "providerIds": [
+                "openlibrary:OL221294A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2024,
+          "coverUrl": "https://covers.openlibrary.org/b/id/15126666-L.jpg",
+          "providerIds": [
+            "openlibrary:OL39199442W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL53369315M",
+          "workId": "openlibrary:OL39199442W",
+          "title": "Murderbot Diaries Vol. 1",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1250389828",
+            "9781250389824"
+          ],
+          "providerIds": [
+            "openlibrary:OL53369315M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL39199442W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL39204828W",
+          "title": "Murderbot Diaries Vol. 2",
+          "authors": [
+            {
+              "id": "openlibrary:OL13207078A",
+              "name": "Martha Wells",
+              "providerIds": [
+                "openlibrary:OL13207078A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2024,
+          "coverUrl": "https://covers.openlibrary.org/b/id/15233129-L.jpg",
+          "providerIds": [
+            "openlibrary:OL39204828W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL53376229M",
+          "workId": "openlibrary:OL39204828W",
+          "title": "Murderbot Diaries Vol. 2",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781250389831",
+            "1250389836"
+          ],
+          "providerIds": [
+            "openlibrary:OL53376229M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL39204828W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL41454666W",
+          "title": "Murderbots",
+          "authors": [
+            {
+              "id": "openlibrary:OL14327143A",
+              "name": "Willem Van Dam",
+              "providerIds": [
+                "openlibrary:OL14327143A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2017,
+          "providerIds": [
+            "openlibrary:OL41454666W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL56299269M",
+          "workId": "openlibrary:OL41454666W",
+          "title": "Murderbots",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1548573140",
+            "9781548573140"
+          ],
+          "providerIds": [
+            "openlibrary:OL56299269M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL41454666W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL42398755W",
+          "title": "Murderbot Diaries Vol. 3",
+          "authors": [
+            {
+              "id": "openlibrary:OL13207078A",
+              "name": "Martha Wells",
+              "providerIds": [
+                "openlibrary:OL13207078A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2025,
+          "coverUrl": "https://covers.openlibrary.org/b/id/15233130-L.jpg",
+          "providerIds": [
+            "openlibrary:OL42398755W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL57523660M",
+          "workId": "openlibrary:OL42398755W",
+          "title": "Murderbot Diaries Vol. 3",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1250389844",
+            "9781250389848"
+          ],
+          "providerIds": [
+            "openlibrary:OL57523660M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL42398755W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL42556524W",
+          "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)",
+          "authors": [
+            {
+              "id": "openlibrary:OL13207078A",
+              "name": "Martha Wells",
+              "providerIds": [
+                "openlibrary:OL13207078A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2023,
+          "providerIds": [
+            "openlibrary:OL42556524W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL57767963M",
+          "workId": "openlibrary:OL42556524W",
+          "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798897225712"
+          ],
+          "providerIds": [
+            "openlibrary:OL57767963M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL42556524W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.442
+}

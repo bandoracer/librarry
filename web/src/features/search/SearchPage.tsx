@@ -31,7 +31,7 @@ import {
   type BookMatchCandidate,
   type BookMatch,
   grabRelease,
-  searchMetadata,
+  searchMetadataDetailed,
   searchReleases,
   searchWantedReleases,
   subscribeAuthor,
@@ -63,11 +63,14 @@ import {
   compactStringList,
   confidenceTone,
   firstAuthorName,
+  groupSearchEditions,
+  searchEditionOptionLabel,
   languageLabel,
   searchConfidenceOptions,
   searchFormatOptions,
   searchModeOptions,
   searchResultCanBeWanted,
+  searchResultCover,
   searchResultEvidenceSummary,
   searchResultExistingWanted,
   searchResultIdentifierLabel,
@@ -75,7 +78,7 @@ import {
   searchResultMatchChips,
   searchResultNeedsWantedReview,
   searchResultProviderKey,
-  searchResultScoreLabel,
+  searchResultMatchLabel,
   searchResultSeriesLabel,
   searchResultSourceLabel,
   searchResultSourceNames,
@@ -124,12 +127,12 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // --- URL contract: read ?query= and &mode= once on mount. -----------------
-  const initialModeRef = useRef<SearchMode>(searchParams.get("mode") === "author" ? "author" : "book");
+  const initialModeRef = useRef<SearchMode>(searchParams.get("mode") === "author" ? "author" : searchParams.get("mode") === "series" ? "series" : "book");
   const initialQueryRef = useRef(searchParams.get("query") ?? "");
 
   const [mode, setMode] = useState<SearchMode>(initialModeRef.current);
   const [bookQuery, setBookQuery] = useState(() => {
-    if (initialModeRef.current === "book" && initialQueryRef.current) return initialQueryRef.current;
+    if (initialModeRef.current !== "author" && initialQueryRef.current) return initialQueryRef.current;
     return demoModeEnabled ? "Project Hail Mary" : "";
   });
   const [authorQuery, setAuthorQuery] = useState(() => {
@@ -188,6 +191,7 @@ export default function SearchPage() {
       ),
     [results, providerFilter, confidenceFilter, evidenceFilter]
   );
+  const editionGroups = useMemo(() => groupSearchEditions(visibleResults), [visibleResults]);
   const activeFilterCount = [
     providerFilter,
     confidenceFilter !== "all" ? confidenceFilter : "",
@@ -306,10 +310,12 @@ export default function SearchPage() {
     setSearchParams({ query: activeQuery, mode: activeMode }, { replace: true });
     try {
       const fetcher = withDemoFallback(
-        () => searchMetadata(activeQuery, activeMode === "author" ? "any" : format, activeMode, language),
-        () => demoSeeds.results
+        () => searchMetadataDetailed(activeQuery, activeMode === "author" ? "any" : format, activeMode, language),
+        () => ({ results: demoSeeds.results, providerErrors: [] })
       );
-      const nextResults = await fetcher();
+      const outcome = await fetcher();
+      const nextResults = outcome.results;
+      if (outcome.providerErrors.length) setSearchError(outcome.providerErrors.map(error => `${error.provider}: ${error.message}`).join(" · "));
       setResults(nextResults);
       setSelectedKey(nextResults[0] ? searchResultKey(nextResults[0]) : "");
       setPendingReview(null);
@@ -570,7 +576,7 @@ export default function SearchPage() {
     );
   }
 
-  function renderResultRow(result: SearchResult) {
+  function renderResultRow(result: SearchResult, editionCount = 1) {
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
     const sources = searchResultSourceNames(result);
@@ -582,13 +588,7 @@ export default function SearchPage() {
         onClick={() => selectResult(result)}
       >
         <span className="search-result-thumb" aria-hidden>
-          {result.work.coverUrl ? (
-            <img src={result.work.coverUrl} alt="" loading="lazy" />
-          ) : result.kind === "author" ? (
-            <UserPlus size={20} />
-          ) : (
-            <BookOpen size={20} />
-          )}
+          <SearchCover key={searchResultCover(result)} result={result} size={20} />
         </span>
         <span className="search-result-main">
           <span className="search-result-title">
@@ -598,6 +598,7 @@ export default function SearchPage() {
             ) : null}
           </span>
           <span className="search-result-sub">{searchResultSubtitle(result)}</span>
+          {result.work.seriesId ? <span className="search-result-sub">{searchResultSeriesLabel(result)}</span> : null}
           <span className="search-result-chips">
             {searchResultMatchChips(result).map((chip) => (
               <Badge key={chip.label} tone={chipTone(chip.tone)}>
@@ -611,8 +612,8 @@ export default function SearchPage() {
             {searchResultSourceLabel(result)}
           </Badge>
           <Badge tone={confidenceTone(result.confidence)}>{result.confidence}</Badge>
+          {editionCount > 1 ? <Badge tone="neutral">{editionCount} editions</Badge> : null}
           {existing?.total ? <Badge tone="neutral">{trackingLabel(existing)}</Badge> : null}
-          <span className="search-result-score">{searchResultScoreLabel(result)}</span>
         </span>
       </button>
     );
@@ -624,24 +625,19 @@ export default function SearchPage() {
     const canBeWanted = searchResultCanBeWanted(result) && !existing?.total;
     const reviewReasons = canBeWanted ? searchResultWantedReviewReasons(result) : [];
     const sources = searchResultSourceNames(result);
+    const editions = editionGroups.find(group => group.some(candidate => searchResultKey(candidate) === key)) ?? [result];
     return (
       <>
         <div className="search-detail-head">
           <span className="search-detail-cover" aria-hidden>
-            {result.work.coverUrl ? (
-              <img src={result.work.coverUrl} alt="" />
-            ) : result.kind === "author" ? (
-              <UserPlus size={34} />
-            ) : (
-              <BookOpen size={34} />
-            )}
+            <SearchCover key={searchResultCover(result)} result={result} size={34} />
           </span>
           <div className="search-detail-head-text">
             <h3>{searchResultTitle(result)}</h3>
             <p>{searchResultSubtitle(result)}</p>
             <div className="search-detail-badges">
               <Badge tone={confidenceTone(result.confidence)}>
-                {result.confidence} · {searchResultScoreLabel(result)}
+                {searchResultMatchLabel(result)}
               </Badge>
               <Badge tone="neutral" title={sources.join(", ")}>
                 {searchResultSourceLabel(result)}
@@ -650,6 +646,17 @@ export default function SearchPage() {
             </div>
           </div>
         </div>
+
+        {editions.length > 1 ? (
+          <Field label="Edition" hint="The selected edition supplies the identifiers, language, format and artwork used when adding.">
+            <select aria-label="Edition" value={key} onChange={event => {
+              const edition = editions.find(candidate => searchResultKey(candidate) === event.target.value);
+              if (edition) selectResult(edition);
+            }}>
+              {editions.map(edition => <option key={searchResultKey(edition)} value={searchResultKey(edition)}>{searchEditionOptionLabel(edition)}</option>)}
+            </select>
+          </Field>
+        ) : null}
 
         <div className="search-evidence-grid" aria-label="Selected metadata evidence">
           {searchResultEvidenceSummary(result, format).map((item) => (
@@ -831,15 +838,16 @@ export default function SearchPage() {
     );
   }
 
-  const resultsTitle = mode === "author" ? "Author identities" : "Candidate matches";
+  const resultsTitle = mode === "series" ? "Series books" : mode === "author" ? "Author identities" : "Candidate matches";
   const resultsSubtitle =
     mode === "author"
       ? `${visibleResults.length} of ${results.length} author records shown.`
-      : `${visibleResults.length} of ${results.length} normalized results shown.`;
+      : `${editionGroups.length} books · ${visibleResults.length} of ${results.length} metadata records shown.`;
 
   return (
     <>
       <PageHeader title="Add New" subtitle={searchNav?.subtitle} />
+      {mode === "series" ? <InlineNotice tone="info">Hardcover series order. Up to 3 matching series and 25 books each, excluding collections; at most 50 edition records shown. Missing positions come last. Refine the name to narrow results.</InlineNotice> : null}
 
       <form
         className="search-hero"
@@ -851,7 +859,7 @@ export default function SearchPage() {
       >
         <Segmented<SearchMode>
           ariaLabel="Search type"
-          options={searchModeOptions.map((option) => ({ value: option, label: option === "author" ? "Author" : "Book" }))}
+          options={searchModeOptions.map((option) => ({ value: option, label: option === "author" ? "Author" : option === "series" ? "Series" : "Book" }))}
           value={mode}
           onChange={switchMode}
         />
@@ -866,8 +874,8 @@ export default function SearchPage() {
               }
               setBookQuery(event.target.value);
             }}
-            placeholder={mode === "author" ? "Search author name" : "Search title, author, series, or ISBN"}
-            aria-label={mode === "author" ? "Author query" : "Book query"}
+            placeholder={mode === "series" ? "Search series name" : mode === "author" ? "Search author name" : "Search title, author, series, or ISBN"}
+            aria-label={mode === "series" ? "Series query" : mode === "author" ? "Author query" : "Book query"}
           />
         </div>
         <select
@@ -887,7 +895,7 @@ export default function SearchPage() {
       </form>
 
       {searchError ? (
-        <InlineNotice tone="danger" onDismiss={() => setSearchError("")}>
+        <InlineNotice tone={results.length ? "warn" : "danger"} onDismiss={() => setSearchError("")}>
           {searchError}
         </InlineNotice>
       ) : null}
@@ -954,7 +962,7 @@ export default function SearchPage() {
             <LoadingRow label="Searching metadata providers…" />
           ) : visibleResults.length ? (
             <div className="search-result-list" role="list">
-              {visibleResults.map(renderResultRow)}
+              {editionGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
             </div>
           ) : results.length ? (
             <EmptyState icon={FilterX} title="No metadata candidates match the current filters.">
@@ -1107,4 +1115,11 @@ export default function SearchPage() {
       </datalist>
     </>
   );
+}
+
+function SearchCover({ result, size }: { result: SearchResult; size: number }) {
+  const [failed, setFailed] = useState(false);
+  const url = searchResultCover(result);
+  if (url && !failed) return <img src={url} alt="" loading="lazy" onError={() => setFailed(true)} />;
+  return result.kind === "author" ? <UserPlus size={size} /> : <BookOpen size={size} />;
 }

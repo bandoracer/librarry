@@ -17,10 +17,13 @@ export type SearchResult = {
   work: {
     id: string;
     title: string;
+    subtitle?: string;
+    languages?: string[];
     authors?: Array<{ id: string; name: string; role?: string; providerIds?: string[] }>;
     firstPublishDate?: string;
     firstPublishYear?: number;
     description?: string;
+    seriesId?: string;
     series?: string;
     seriesPosition?: string;
     coverUrl?: string;
@@ -42,6 +45,8 @@ export type SearchResult = {
     publishedDate?: string;
     providerIds?: string[];
   };
+  evidence?: string[];
+  conflicts?: string[];
   score: number;
   confidence: "high" | "medium" | "review";
   matchedOn: string[];
@@ -1153,19 +1158,18 @@ export async function fetchProviderHealth(): Promise<ProviderHealth[]> {
   return arrayPayload(payload.providers);
 }
 
-export async function searchMetadata(query: string, format: string, type: MetadataSearchType = "book", language = "English"): Promise<SearchResult[]> {
-  const params = new URLSearchParams({
-    query,
-    type,
-    format,
-    language
-  });
+export type MetadataSearchOutcome = { results: SearchResult[]; providerErrors: Array<{ provider: string; message: string }> };
+
+export async function searchMetadataDetailed(query: string, format: string, type: MetadataSearchType = "book", language = "English"): Promise<MetadataSearchOutcome> {
+  const params = new URLSearchParams({ query, type, format, language });
   const response = await fetch(`${apiBase}/api/v1/search?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error(`Search failed: ${response.status}`);
-  }
-  const payload = (await response.json()) as { results?: SearchResult[] | null };
-  return arrayPayload(payload.results);
+  if (!response.ok) throw new Error(await releaseSearchError(response, `Search failed: ${response.status}`));
+  const payload = (await response.json()) as Partial<MetadataSearchOutcome>;
+  return { results: arrayPayload(payload.results), providerErrors: arrayPayload(payload.providerErrors) };
+}
+
+export async function searchMetadata(query: string, format: string, type: MetadataSearchType = "book", language = "English"): Promise<SearchResult[]> {
+  return (await searchMetadataDetailed(query, format, type, language)).results;
 }
 
 export async function fetchIntegrationHealth(): Promise<IntegrationHealth[]> {

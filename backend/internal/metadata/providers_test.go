@@ -67,7 +67,7 @@ func TestOpenLibraryAuthorWorksUsesProviderKey(t *testing.T) {
 	if result.Kind != SearchTypeBook || result.Work.ID != "openlibrary:OL1W" || result.Work.Title != "Project Hail Mary" {
 		t.Fatalf("expected normalized author work, got %+v", result)
 	}
-	if result.Work.FirstPublishYear != 2021 || result.Edition.PublishedDate != "May 4, 2021" || result.Edition.Format != FormatEbook {
+	if result.Work.FirstPublishYear != 2021 || result.Edition.PublishedDate != "" || result.Edition.ID != "" || result.Edition.Format != FormatAny {
 		t.Fatalf("expected publication and format metadata, got work=%+v edition=%+v", result.Work, result.Edition)
 	}
 	if result.Work.Authors[0].ID != "openlibrary:OL123A" || result.Work.Authors[0].Name != "Andy Weir" {

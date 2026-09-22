@@ -1,0 +1,354 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=the+lightning+thief&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:52:57.384671+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "the lightning thief",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL20140658W",
+          "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2019,
+          "coverUrl": "https://covers.openlibrary.org/b/id/8788886-L.jpg",
+          "providerIds": [
+            "openlibrary:OL20140658W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL27320503M",
+          "workId": "openlibrary:OL20140658W",
+          "title": "The Lightning Thief / The Lost Hero / The Hidden Oracle",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781368057486",
+            "1368057489"
+          ],
+          "providerIds": [
+            "openlibrary:OL27320503M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL20140658W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL14955042W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2009,
+          "coverUrl": "https://covers.openlibrary.org/b/id/6304834-L.jpg",
+          "providerIds": [
+            "openlibrary:OL14955042W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL62403241M",
+          "workId": "openlibrary:OL14955042W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse / The Battle of the Labyrinth / The Last Olympian",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781423119500",
+            "9782013971034",
+            "2013229801",
+            "8364297783",
+            "2013228198",
+            "2013971052",
+            "9780141352015",
+            "9781423141891",
+            "2013228171",
+            "2013229887",
+            "9780739352687",
+            "9780141352022",
+            "1423136802",
+            "9782013229326",
+            "9788364297786",
+            "9781368055048",
+            "0241754135",
+            "9781423136804",
+            "9782013228176",
+            "9781484707234",
+            "2013971036",
+            "0141352027",
+            "1368055044",
+            "9788418173721",
+            "0739352687",
+            "2013229321",
+            "9782226488398",
+            "9781368098045",
+            "1423119509",
+            "9782013229807",
+            "9782013971058",
+            "9780241754139",
+            "142314189X",
+            "1368098045",
+            "8418173726",
+            "0545565189",
+            "0141352019",
+            "1484707230",
+            "9782013229883",
+            "9780545565189",
+            "9782013228190",
+            "2226488391"
+          ],
+          "providerIds": [
+            "openlibrary:OL62403241M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL14955042W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL22298317W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2009,
+          "coverUrl": "https://covers.openlibrary.org/b/id/10451900-L.jpg",
+          "providerIds": [
+            "openlibrary:OL22298317W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL30373601M",
+          "workId": "openlibrary:OL22298317W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of the Labyrinth",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "054517449X",
+            "9780545174497"
+          ],
+          "providerIds": [
+            "openlibrary:OL30373601M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL22298317W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL24328092W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "coverUrl": "https://covers.openlibrary.org/b/id/10848711-L.jpg",
+          "providerIds": [
+            "openlibrary:OL24328092W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL32199398M",
+          "workId": "openlibrary:OL24328092W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan's Curse / The Battle of The Labyrinth / The Last Olympian / The Demigod Files",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1780810075",
+            "9781780810072"
+          ],
+          "providerIds": [
+            "openlibrary:OL32199398M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL24328092W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL34333042W",
+          "title": "Percy Jackson and the Lightning Thief",
+          "authors": [
+            {
+              "id": "openlibrary:OL9924471A",
+              "name": "Sarah Ellen Burt",
+              "providerIds": [
+                "openlibrary:OL9924471A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2016,
+          "providerIds": [
+            "openlibrary:OL34333042W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL46559340M",
+          "workId": "openlibrary:OL34333042W",
+          "title": "Percy Jackson and the Lightning Thief",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1407160648",
+            "9781407160641"
+          ],
+          "providerIds": [
+            "openlibrary:OL46559340M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL34333042W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL24357177W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2008,
+          "coverUrl": "https://covers.openlibrary.org/b/id/13317995-L.jpg",
+          "providerIds": [
+            "openlibrary:OL24357177W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL46545388M",
+          "workId": "openlibrary:OL24357177W",
+          "title": "The Lightning Thief / The Sea of Monsters / The Titan\u2019s Curse",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781484727218",
+            "1484721470",
+            "1484727215",
+            "9781484721476",
+            "1423113497",
+            "9781423113492"
+          ],
+          "providerIds": [
+            "openlibrary:OL46545388M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL24357177W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL21348376W",
+          "title": "The Lightning Thief / The Lost Hero / The Red Pyramid / The Sword of Summer / The Hidden Oracle",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2019,
+          "coverUrl": "https://covers.openlibrary.org/b/id/13176547-L.jpg",
+          "providerIds": [
+            "openlibrary:OL21348376W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL28915562M",
+          "workId": "openlibrary:OL21348376W",
+          "title": "The Lightning Thief / The Lost Hero / The Red Pyramid / The Sword of Summer / The Hidden Oracle",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781368058117",
+            "1368058116"
+          ],
+          "providerIds": [
+            "openlibrary:OL28915562M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL21348376W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.524
+}

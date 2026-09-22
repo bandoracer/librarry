@@ -1,0 +1,1102 @@
+{
+  "url": "https://openlibrary.org/search.json?q=the+summer+book&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:15.509998+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 4732,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 4732,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "the summer book",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL279921A"
+        ],
+        "author_name": [
+          "Tove Jansson"
+        ],
+        "cover_i": 3099772,
+        "first_publish_year": 1972,
+        "key": "/works/OL2196010W",
+        "language": [
+          "cat",
+          "ger",
+          "eng",
+          "swe",
+          "fre",
+          "spa",
+          "fin",
+          "glg",
+          "ara"
+        ],
+        "title": "Sommarboken",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5058676M",
+              "title": "The Summer book",
+              "cover_i": 8259221,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pantheon Books"
+              ],
+              "publish_date": [
+                "1975"
+              ],
+              "isbn": [
+                "0394492498",
+                "9780394492490"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1425972A"
+        ],
+        "author_name": [
+          "Jenny Han"
+        ],
+        "cover_i": 6971834,
+        "first_publish_year": 2011,
+        "key": "/works/OL16211977W",
+        "language": [
+          "eng",
+          "spa",
+          "ger"
+        ],
+        "title": "We'll Always Have Summer",
+        "editions": {
+          "numFound": 10,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL57536345M",
+              "title": "We'll Always Have Summer",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books, Limited"
+              ],
+              "publish_date": [
+                "2025"
+              ],
+              "isbn": [
+                "9780241735183",
+                "0241735181"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1425972A"
+        ],
+        "author_name": [
+          "Jenny Han"
+        ],
+        "cover_i": 7719210,
+        "first_publish_year": 2009,
+        "key": "/works/OL17508740W",
+        "language": [
+          "spa",
+          "eng"
+        ],
+        "title": "The Summer I Turned Pretty Trilogy",
+        "editions": {
+          "numFound": 9,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26096964M",
+              "title": "The Summer I Turned Pretty",
+              "cover_i": 7719196,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books"
+              ],
+              "publish_date": [
+                "2014"
+              ],
+              "isbn": [
+                "9780141353821",
+                "0141353821"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1425972A"
+        ],
+        "author_name": [
+          "Jenny Han"
+        ],
+        "cover_i": 14428232,
+        "first_publish_year": 2010,
+        "key": "/works/OL15640090W",
+        "language": [
+          "fre",
+          "spa",
+          "eng"
+        ],
+        "title": "It's Not Summer Without You",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39965040M",
+              "title": "It's Not Summer Without You",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books, Limited"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9780241636015",
+                "0241636019"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1425972A"
+        ],
+        "author_name": [
+          "Jenny Han"
+        ],
+        "cover_i": 8783502,
+        "first_publish_year": 2000,
+        "key": "/works/OL5819962W",
+        "language": [
+          "cat",
+          "por",
+          "rus",
+          "eng",
+          "spa",
+          "heb"
+        ],
+        "title": "The Summer I Turned Pretty",
+        "editions": {
+          "numFound": 19,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17029559M",
+              "title": "The Summer I Turned Pretty",
+              "cover_i": 15114373,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Simon & Schuster Books for Young Readers"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9781416968238",
+                "1416968237"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL5152266A"
+        ],
+        "author_name": [
+          "Jim Butcher"
+        ],
+        "cover_i": 1725578,
+        "first_publish_year": 2002,
+        "key": "/works/OL5961786W",
+        "language": [
+          "ger",
+          "eng",
+          "fre"
+        ],
+        "title": "Summer Knight",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3282451M",
+              "title": "Summer knight",
+              "cover_i": 15116631,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Roc"
+              ],
+              "publish_date": [
+                "2002"
+              ],
+              "isbn": [
+                "0451458923",
+                "9780451458926"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL270463A"
+        ],
+        "author_name": [
+          "Susan Branch"
+        ],
+        "cover_i": 187983,
+        "first_publish_year": 1995,
+        "key": "/works/OL2151821W",
+        "language": [
+          "eng"
+        ],
+        "title": "The summer book",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1098961M",
+              "title": "The summer book",
+              "cover_i": 187983,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Little, Brown",
+                "Little, Brown and Company"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "0316106666",
+                "9780316106665"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30765A"
+        ],
+        "author_name": [
+          "Rick Riordan"
+        ],
+        "cover_i": 13012106,
+        "first_publish_year": 2015,
+        "key": "/works/OL17181541W",
+        "language": [
+          "cat",
+          "pol",
+          "por",
+          "eng",
+          "fre",
+          "tur",
+          "spa",
+          "heb",
+          "dut"
+        ],
+        "title": "The Sword of Summer",
+        "editions": {
+          "numFound": 27,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42356518M",
+              "title": "The Sword of Summer",
+              "cover_i": 13011852,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Puffin"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "0141342412",
+                "9780141342412"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL28641A"
+        ],
+        "author_name": [
+          "Robert A. Heinlein"
+        ],
+        "cover_i": 10118264,
+        "first_publish_year": 1957,
+        "key": "/works/OL59733W",
+        "language": [
+          "und",
+          "pol",
+          "rus",
+          "eng",
+          "ger",
+          "fre",
+          "spa",
+          "chi",
+          "jpn"
+        ],
+        "title": "The Door into Summer",
+        "editions": {
+          "numFound": 45,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9318611M",
+              "title": "The Door into Summer",
+              "cover_i": 10118264,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Ballantine Books"
+              ],
+              "publish_date": [
+                "1997"
+              ],
+              "isbn": [
+                "9780345413994",
+                "0345413997"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL808883A"
+        ],
+        "author_name": [
+          "Yvonne Whittal"
+        ],
+        "cover_i": 9851741,
+        "first_publish_year": 1981,
+        "key": "/works/OL20561781W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summer of the Weeping Rain",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10691218M",
+              "title": "Summer of the Weeping Rain (Harlequin Romance, #2412)",
+              "cover_i": 9851741,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Harlequin",
+                "Harlequin Books"
+              ],
+              "publish_date": [
+                "1981"
+              ],
+              "isbn": [
+                "9780373024124",
+                "0373024126"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27450A"
+        ],
+        "author_name": [
+          "Betsy Cromer Byars"
+        ],
+        "cover_i": 7877521,
+        "first_publish_year": 1970,
+        "key": "/works/OL279226W",
+        "language": [
+          "spa",
+          "eng"
+        ],
+        "title": "The Summer of the Swans",
+        "editions": {
+          "numFound": 42,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9872360M",
+              "title": "The Summer of the Swans",
+              "cover_i": 12817722,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Puffin Books",
+                "Turtleback",
+                "Turtleback Books"
+              ],
+              "publish_date": [
+                "1981"
+              ],
+              "isbn": [
+                "9780881032390",
+                "0881032395"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL20188A"
+        ],
+        "author_name": [
+          "Edith Wharton"
+        ],
+        "cover_i": 9329550,
+        "first_publish_year": 1917,
+        "key": "/works/OL98586W",
+        "language": [
+          "fre",
+          "spa",
+          "ara",
+          "eng"
+        ],
+        "title": "Summer",
+        "editions": {
+          "numFound": 82,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37044779M",
+              "title": "Summer",
+              "cover_i": 12622099,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Standard Ebooks"
+              ],
+              "publish_date": [
+                "2021"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1425869A"
+        ],
+        "author_name": [
+          "Markus Zusak"
+        ],
+        "cover_i": 8153054,
+        "first_publish_year": 1998,
+        "key": "/works/OL5819456W",
+        "language": [
+          "fre",
+          "spa",
+          "dan",
+          "pol",
+          "ice",
+          "rum",
+          "dut",
+          "kor",
+          "ita",
+          "rus",
+          "ger",
+          "vie",
+          "chi",
+          "nor",
+          "eng",
+          "por"
+        ],
+        "title": "The Book Thief",
+        "editions": {
+          "numFound": 74,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32840838M",
+              "title": "The Book Thief",
+              "cover_i": 11473474,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Alfred A. Knopf"
+              ],
+              "publish_date": [
+                "2013"
+              ],
+              "isbn": [
+                "9780385754729",
+                "0385754728"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3034237A"
+        ],
+        "author_name": [
+          "Ryan C. Thomas"
+        ],
+        "cover_i": 945139,
+        "first_publish_year": 2006,
+        "key": "/works/OL8847604W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Summer I Died",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8727073M",
+              "title": "The Summer I Died",
+              "cover_i": 945139,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Coscom Entertainment"
+              ],
+              "publish_date": [
+                "January 30, 2006"
+              ],
+              "isbn": [
+                "9781897217405",
+                "1897217404"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL239307A"
+        ],
+        "author_name": [
+          "Guy Gavriel Kay"
+        ],
+        "cover_i": 295003,
+        "first_publish_year": 1984,
+        "key": "/works/OL1988294W",
+        "language": [
+          "eng",
+          "ita",
+          "fre",
+          "dan"
+        ],
+        "title": "The summer tree",
+        "editions": {
+          "numFound": 17,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL6788003M",
+              "title": "The summer tree",
+              "cover_i": 295003,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "ROC"
+              ],
+              "publish_date": [
+                "2001"
+              ],
+              "isbn": [
+                "0451458222",
+                "9780451458223"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL18714A",
+          "OL2865664A"
+        ],
+        "author_name": [
+          "Janette Oke",
+          "Marguerite Gavin"
+        ],
+        "cover_i": 661064,
+        "first_publish_year": 1981,
+        "key": "/works/OL97183W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "Seasons of the Heart Book #1",
+        "title": "Once Upon a Summer",
+        "editions": {
+          "numFound": 17,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL36250M",
+              "title": "Once Upon a Summer",
+              "cover_i": 3696273,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Thorndike Press"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "078621970X",
+                "9780786219704"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL26633A"
+        ],
+        "author_name": [
+          "Lois Duncan"
+        ],
+        "cover_i": 4989782,
+        "first_publish_year": 1976,
+        "key": "/works/OL29698W",
+        "language": [
+          "spa",
+          "eng"
+        ],
+        "title": "Summer of fear",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9656005M",
+              "title": "Summer of Fear",
+              "cover_i": 1636450,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tandem Library",
+                "Turtleback",
+                "Brand: Turtleback",
+                "Turtleback Books"
+              ],
+              "publish_date": [
+                "October 1999"
+              ],
+              "isbn": [
+                "9780881035155",
+                "0881035157"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7834347A"
+        ],
+        "author_name": [
+          "Abby Jimenez"
+        ],
+        "cover_i": 14602781,
+        "first_publish_year": 2024,
+        "key": "/works/OL37575309W",
+        "language": [
+          "eng"
+        ],
+        "title": "Just for the Summer",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL50710338M",
+              "title": "Just for the Summer",
+              "cover_i": 14602781,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Grand Central Publishing"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9781538704431",
+                "1538704439"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1427729A"
+        ],
+        "author_name": [
+          "Daniel Abraham"
+        ],
+        "cover_i": 524624,
+        "first_publish_year": 2006,
+        "key": "/works/OL5825726W",
+        "language": [
+          "eng"
+        ],
+        "title": "A Shadow in Summer",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3402052M",
+              "title": "A shadow in summer",
+              "cover_i": 524624,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Tor"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "0765313405",
+                "9780765313409"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL218707A"
+        ],
+        "author_name": [
+          "Rumer Godden"
+        ],
+        "cover_i": 195973,
+        "first_publish_year": 1958,
+        "key": "/works/OL1825329W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Greengage summer",
+        "editions": {
+          "numFound": 37,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL385588M",
+              "title": "The greengage summer",
+              "cover_i": 3740133,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "G.K. Hall",
+                "Chivers Press"
+              ],
+              "publish_date": [
+                "1999"
+              ],
+              "isbn": [
+                "0783884966",
+                "0754036855",
+                "0754036863",
+                "9780783884967",
+                "9780754036852",
+                "9780754036869"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL79066A",
+          "OL11084400A"
+        ],
+        "author_name": [
+          "Bette Greene",
+          "Bette Greene"
+        ],
+        "cover_i": 12619740,
+        "first_publish_year": 1973,
+        "key": "/works/OL894460W",
+        "language": [
+          "ger",
+          "eng"
+        ],
+        "title": "The Summer of My German Soldier",
+        "editions": {
+          "numFound": 45,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7828905M",
+              "title": "Summer of My German Soldier",
+              "cover_i": 14522614,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam Books"
+              ],
+              "publish_date": [
+                "1988"
+              ],
+              "isbn": [
+                "9780553540505",
+                "0553540505"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL28719A"
+        ],
+        "author_name": [
+          "Connie Rose Porter"
+        ],
+        "cover_i": 795243,
+        "first_publish_year": 1994,
+        "key": "/works/OL67188W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "A Summer Story",
+        "title": "Addy Saves the Day",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL23114064M",
+              "title": "Addy saves the day",
+              "cover_i": 9967347,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Pleasant Co."
+              ],
+              "publish_date": [
+                "2000"
+              ],
+              "isbn": [
+                "1562470841",
+                "1562470833",
+                "9781562470845",
+                "9781562470838"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL664712A"
+        ],
+        "author_name": [
+          "Jill MacLean"
+        ],
+        "cover_i": 8265908,
+        "first_publish_year": 1983,
+        "key": "/works/OL3770771W",
+        "language": [
+          "fre",
+          "eng"
+        ],
+        "title": "The Tides of Summer",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10691342M",
+              "title": "The Tides of Summer",
+              "cover_i": 12560500,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "harlequin",
+                "Harlequin"
+              ],
+              "publish_date": [
+                "September 1, 1983"
+              ],
+              "isbn": [
+                "9780373025770",
+                "0373025777"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL28717A",
+          "OL2959622A",
+          "OL2959621A"
+        ],
+        "author_name": [
+          "Valerie Tripp",
+          "Robert Grace",
+          "Nancy Niles"
+        ],
+        "cover_i": 4141946,
+        "first_publish_year": 1988,
+        "key": "/works/OL67156W",
+        "language": [
+          "eng"
+        ],
+        "title": "Samantha saves the day",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7540871M",
+              "title": "Samantha Saves the Day",
+              "cover_i": 8339313,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scholastic Inc."
+              ],
+              "publish_date": [
+                "1988"
+              ],
+              "isbn": [
+                "9780590450799",
+                "0590450794"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221009A",
+          "OL8158482A"
+        ],
+        "author_name": [
+          "Lois Lowry",
+          "Jenni Oliver"
+        ],
+        "cover_i": 255504,
+        "first_publish_year": 1977,
+        "key": "/works/OL1846156W",
+        "language": [
+          "eng",
+          "spa",
+          "fre",
+          "und"
+        ],
+        "title": "A summer to die",
+        "editions": {
+          "numFound": 23,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24981679M",
+              "title": "A summer to die",
+              "cover_i": 6901402,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Laurel-Leaf Books"
+              ],
+              "publish_date": [
+                "1993"
+              ],
+              "isbn": [
+                "9780440219170",
+                "0440219175"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.899
+}

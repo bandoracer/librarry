@@ -1,0 +1,17 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=a+wizard+of+earthsea+by+ursula+k+le+guin&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:56:59.077524+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "a wizard of earthsea by ursula k le guin",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": []
+  },
+  "elapsedSeconds": 0.403
+}

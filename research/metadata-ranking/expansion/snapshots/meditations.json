@@ -1,0 +1,1051 @@
+{
+  "url": "https://openlibrary.org/search.json?q=meditations&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:58.818796+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 43247,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 43247,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "meditations",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL133986A"
+        ],
+        "author_name": [
+          "Marcus Aurelius"
+        ],
+        "cover_i": 13202688,
+        "first_publish_year": 2006,
+        "key": "/works/OL28521353W",
+        "language": [
+          "eng"
+        ],
+        "title": "Meditations",
+        "editions": {
+          "numFound": 73,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL62588651M",
+              "title": "Meditations",
+              "cover_i": 15256763,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "9780140449334",
+                "0140449337"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL133986A"
+        ],
+        "author_name": [
+          "Marcus Aurelius"
+        ],
+        "cover_i": 211529,
+        "first_publish_year": 1626,
+        "key": "/works/OL1317211W",
+        "language": [
+          "ger",
+          "jpn",
+          "tur",
+          "lat",
+          "slo",
+          "ita",
+          "ukr",
+          "fre",
+          "arm",
+          "grc",
+          "und",
+          "eng",
+          "mul",
+          "cze",
+          "gre",
+          "spa",
+          "dut"
+        ],
+        "title": "Meditations",
+        "editions": {
+          "numFound": 557,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7242701M",
+              "title": "Meditations",
+              "cover_i": 5559829,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Dent",
+                "E.P. Dutton"
+              ],
+              "publish_date": [
+                "1906"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL193029A"
+        ],
+        "author_name": [
+          "Bhagwan Rajneesh"
+        ],
+        "cover_i": 6737318,
+        "first_publish_year": 1970,
+        "key": "/works/OL11752W",
+        "language": [
+          "eng"
+        ],
+        "title": "Meditation",
+        "editions": {
+          "numFound": 17,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL972375M",
+              "title": "Meditation",
+              "cover_i": 6737318,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "St. Martin's Press"
+              ],
+              "publish_date": [
+                "1996"
+              ],
+              "isbn": [
+                "0312148208",
+                "9780312148201"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8224441A"
+        ],
+        "author_name": [
+          "Robert Greene"
+        ],
+        "cover_i": 11532633,
+        "first_publish_year": 2021,
+        "key": "/works/OL24777278W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Daily Laws",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL33923070M",
+              "title": "Daily Laws",
+              "cover_i": 12430598,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "TBS/GBS/Transworld"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9781788168540",
+                "1788168542"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL716188A"
+        ],
+        "author_name": [
+          "Jon Kabat-Zinn"
+        ],
+        "cover_i": 749813,
+        "first_publish_year": 1994,
+        "key": "/works/OL3930534W",
+        "language": [
+          "eng",
+          "spa"
+        ],
+        "subtitle": "Mindfulness Meditation in Everyday Life",
+        "title": "Wherever You Go, There You Are",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24750679M",
+              "title": "Wherever you go, there you are",
+              "cover_i": 6804425,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Hyperion",
+                "Brand: Hyperion"
+              ],
+              "publish_date": [
+                "1994"
+              ],
+              "isbn": [
+                "9781562827694",
+                "9780786880706",
+                "9780965714914",
+                "1562827693",
+                "0786880708",
+                "0965714918"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL455964A",
+          "OL2624593A"
+        ],
+        "author_name": [
+          "Lawrence L. LeShan",
+          "Lawrence Leshan"
+        ],
+        "cover_i": 9504501,
+        "first_publish_year": 1974,
+        "key": "/works/OL2979688W",
+        "language": [
+          "eng"
+        ],
+        "title": "How to meditate",
+        "editions": {
+          "numFound": 7,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5055584M",
+              "title": "How to meditate",
+              "cover_i": 9504501,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "G. K. Hall"
+              ],
+              "publish_date": [
+                "1974"
+              ],
+              "isbn": [
+                "0816162565",
+                "9780816162567"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33732A",
+          "OL2097A"
+        ],
+        "author_name": [
+          "Swami Chetanananda",
+          "Swami Vivekananda"
+        ],
+        "cover_i": 1625995,
+        "first_publish_year": 1976,
+        "key": "/works/OL311859W",
+        "language": [
+          "eng"
+        ],
+        "title": "Meditation and its methods according to Swami Vivekananda",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5209083M",
+              "title": "Meditation and its methods according to Swami Vivekananda",
+              "cover_i": 1625995,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Vedanta Press"
+              ],
+              "publish_date": [
+                "1976"
+              ],
+              "isbn": [
+                "0874810302",
+                "9780874810301"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL224907A"
+        ],
+        "author_name": [
+          "Daniel Goleman"
+        ],
+        "cover_i": 666138,
+        "first_publish_year": 1988,
+        "key": "/works/OL1878296W",
+        "language": [
+          "eng"
+        ],
+        "title": "The meditative mind",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2399126M",
+              "title": "The meditative mind",
+              "cover_i": 7078934,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "J.P. Tarcher, Inc.",
+                "Distributed by St. Martin's Press"
+              ],
+              "publish_date": [
+                "1988"
+              ],
+              "isbn": [
+                "0874774632",
+                "9780874774634"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL766906A",
+          "OL6195799A"
+        ],
+        "author_name": [
+          "Ram Dass.",
+          "Ram Dass"
+        ],
+        "cover_i": 369108,
+        "first_publish_year": 1978,
+        "key": "/works/OL4094212W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "a meditator's guidebook",
+        "title": "Journey of awakening",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL19014981M",
+              "title": "Journey of awakening",
+              "cover_i": 9742059,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam Books"
+              ],
+              "publish_date": [
+                "1978"
+              ],
+              "isbn": [
+                "0553115782",
+                "9780553115789"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL27128A"
+        ],
+        "author_name": [
+          "Shunryū Suzuki"
+        ],
+        "cover_i": 7025011,
+        "first_publish_year": 1970,
+        "key": "/works/OL464662W",
+        "language": [
+          "eng",
+          "jpn",
+          "vie",
+          "fin",
+          "ger"
+        ],
+        "title": "Zen mind, beginner's mind",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8190403M",
+              "title": "Zen Mind, Beginner's Mind",
+              "cover_i": 634977,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Weatherhill"
+              ],
+              "publish_date": [
+                "June 1, 1970"
+              ],
+              "isbn": [
+                "9780834800526",
+                "0834800527"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL133986A",
+          "OL4753211A"
+        ],
+        "author_name": [
+          "Marcus Aurelius",
+          "Robin Waterfield"
+        ],
+        "cover_i": 10872539,
+        "first_publish_year": 2015,
+        "key": "/works/OL24348156W",
+        "language": [
+          "eng"
+        ],
+        "title": "Meditations",
+        "editions": {
+          "numFound": 24,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL33917056M",
+              "title": "Meditations",
+              "cover_i": 12410690,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Book Sales, Incorporated"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9780785839989",
+                "0785839984"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL116826A"
+        ],
+        "author_name": [
+          "René Descartes"
+        ],
+        "cover_i": 345384,
+        "first_publish_year": 1642,
+        "key": "/works/OL1151517W",
+        "language": [
+          "chi",
+          "ger",
+          "lat",
+          "fre",
+          "ita",
+          "mul",
+          "eng"
+        ],
+        "title": "Meditationes de prima philosophia",
+        "editions": {
+          "numFound": 45,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL18551157M",
+              "title": "Meditations on first philosophy",
+              "cover_i": 12643743,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Areté Press"
+              ],
+              "publish_date": [
+                "1986"
+              ],
+              "isbn": [
+                "0941736113",
+                "9780941736114"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7904028A"
+        ],
+        "author_name": [
+          "Mat Auryn"
+        ],
+        "cover_i": 10213384,
+        "first_publish_year": 2020,
+        "key": "/works/OL20756365W",
+        "language": [
+          "eng"
+        ],
+        "title": "Psychic Witch",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28086446M",
+              "title": "Psychic Witch",
+              "cover_i": 10213407,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Llewellyn Publications"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9780738760841",
+                "0738760846"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7099653A"
+        ],
+        "author_name": [
+          "Ryan Holiday"
+        ],
+        "cover_i": 13098570,
+        "first_publish_year": 2016,
+        "key": "/works/OL20046443W",
+        "language": [
+          "eng"
+        ],
+        "title": "The daily stoic",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27226469M",
+              "title": "The daily stoic",
+              "cover_i": 15248159,
+              "language": [
+                "eng"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9780735211735",
+                "0735211736"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2800309A"
+        ],
+        "author_name": [
+          "Frank O'Hara"
+        ],
+        "cover_i": 568785,
+        "first_publish_year": 1967,
+        "key": "/works/OL8398767W",
+        "language": [
+          "eng"
+        ],
+        "title": "Meditations in an emergency",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7874699M",
+              "title": "Meditations in an Emergency",
+              "cover_i": 568785,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Grove Press"
+              ],
+              "publish_date": [
+                "April 1, 1996"
+              ],
+              "isbn": [
+                "9780802134523",
+                "0802134521"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL586554A"
+        ],
+        "author_name": [
+          "Aryeh Kaplan"
+        ],
+        "cover_i": 810747,
+        "first_publish_year": 1982,
+        "key": "/works/OL3508240W",
+        "language": [
+          "eng",
+          "heb"
+        ],
+        "title": "Meditation and Kabbalah",
+        "editions": {
+          "numFound": 11,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL20348670M",
+              "title": "Meditation and Kabbalah",
+              "cover_i": 8524887,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "S. Weiser"
+              ],
+              "publish_date": [
+                "1985"
+              ],
+              "isbn": [
+                "0877286167",
+                "0877283656",
+                "9780877286165",
+                "9780877283652"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1921990A"
+        ],
+        "author_name": [
+          "Grace Cooke"
+        ],
+        "cover_i": 9669782,
+        "first_publish_year": 1955,
+        "key": "/works/OL6934547W",
+        "language": [
+          "eng"
+        ],
+        "title": "Meditation",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8299888M",
+              "title": "Meditation",
+              "cover_i": 9669782,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "White Eagle Publishing Trust"
+              ],
+              "publish_date": [
+                "October 1989"
+              ],
+              "isbn": [
+                "9780854870110",
+                "0854870113"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL115914A"
+        ],
+        "author_name": [
+          "James Hervey"
+        ],
+        "cover_i": 9042942,
+        "first_publish_year": 1748,
+        "key": "/works/OL1137831W",
+        "language": [
+          "fre",
+          "eng"
+        ],
+        "title": "Meditations and contemplations",
+        "editions": {
+          "numFound": 94,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17957997M",
+              "title": "Meditations and contemplations",
+              "cover_i": 8242900,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Brightly and Childs"
+              ],
+              "publish_date": [
+                "1816"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL537461A"
+        ],
+        "author_name": [
+          "Belleruth Naparstek"
+        ],
+        "cover_i": 3024027,
+        "first_publish_year": 1991,
+        "key": "/works/OL3288046W",
+        "language": [
+          "eng"
+        ],
+        "title": "Health Journeys",
+        "editions": {
+          "numFound": 58,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9860153M",
+              "title": "Health Journeys",
+              "cover_i": 2080273,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Health Journeys"
+              ],
+              "publish_date": [
+                "January 1, 1992"
+              ],
+              "isbn": [
+                "9781881405368",
+                "1881405362"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL19157A"
+        ],
+        "author_name": [
+          "Joel S. Goldsmith"
+        ],
+        "cover_i": 4038846,
+        "first_publish_year": 1956,
+        "key": "/works/OL121152W",
+        "language": [
+          "eng"
+        ],
+        "title": "The art of meditation",
+        "editions": {
+          "numFound": 8,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL6203109M",
+              "title": "The art of meditation.",
+              "cover_i": 6892470,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Harper"
+              ],
+              "publish_date": [
+                "1956"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2764337A"
+        ],
+        "author_name": [
+          "John Piper"
+        ],
+        "cover_i": 876658,
+        "first_publish_year": 1987,
+        "key": "/works/OL8318836W",
+        "language": [
+          "eng"
+        ],
+        "title": "Desiring God",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8135219M",
+              "title": "Desiring God",
+              "cover_i": 9452855,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Multnomah",
+                "Multnomah Books"
+              ],
+              "publish_date": [
+                "November 1, 1987"
+              ],
+              "isbn": [
+                "9780880702218",
+                "0880702214"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL37185A"
+        ],
+        "author_name": [
+          "Yogananda Paramahansa"
+        ],
+        "cover_i": 1049089,
+        "first_publish_year": 1967,
+        "key": "/works/OL15146351W",
+        "language": [
+          "ita",
+          "eng",
+          "ger",
+          "spa"
+        ],
+        "title": "Metaphysical meditations",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24213890M",
+              "title": "Metaphysical Meditations",
+              "cover_i": 6539047,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Self-Realization Fellowship Publishers"
+              ],
+              "publish_date": [
+                "1973"
+              ],
+              "isbn": [
+                "9780876120415",
+                "0876120419"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL363720A"
+        ],
+        "author_name": [
+          "Chögyam Trungpa"
+        ],
+        "cover_i": 4037544,
+        "first_publish_year": 1969,
+        "key": "/works/OL2558068W",
+        "language": [
+          "eng",
+          "fre"
+        ],
+        "title": "Meditation in action",
+        "editions": {
+          "numFound": 12,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4724236M",
+              "title": "Meditation in action.",
+              "cover_i": 10988255,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Shambala"
+              ],
+              "publish_date": [
+                "1970"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30443A"
+        ],
+        "author_name": [
+          "Shakti Gawain"
+        ],
+        "cover_i": 711114,
+        "first_publish_year": 1991,
+        "key": "/works/OL487329W",
+        "language": [
+          "eng"
+        ],
+        "title": "Meditations",
+        "editions": {
+          "numFound": 5,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22258012M",
+              "title": "Meditations",
+              "cover_i": 7107326,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "New World Library"
+              ],
+              "publish_date": [
+                "1992"
+              ],
+              "isbn": [
+                "0931432685",
+                "9780931432682"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL133986A"
+        ],
+        "author_name": [
+          "Marcus Aurelius"
+        ],
+        "cover_i": 472824,
+        "first_publish_year": 2002,
+        "key": "/works/OL7981938W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Meditations",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL3570931M",
+              "title": "The emperor's handbook",
+              "cover_i": 472825,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Scribner"
+              ],
+              "publish_date": [
+                "2002"
+              ],
+              "isbn": [
+                "0743233832",
+                "9780743233835"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.732
+}

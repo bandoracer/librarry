@@ -1,0 +1,307 @@
+{
+  "url": "https://openlibrary.org/search.json?title=murderbot&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:53:25.831417+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 6,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 6,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 14714448,
+        "edition_count": 1,
+        "edition_key": [
+          "OL49617899M"
+        ],
+        "first_publish_year": 2023,
+        "isbn": [
+          "9781250350862",
+          "1250350867"
+        ],
+        "key": "/works/OL36737601W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries",
+        "readinglog_count": 15,
+        "want_to_read_count": 14,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49617899M",
+              "title": "Murderbot Diaries",
+              "cover_i": 14714448,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Doherty Associates, LLC, Tom"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781250350862",
+                "1250350867"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL221294A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15126666,
+        "edition_count": 1,
+        "edition_key": [
+          "OL53369315M"
+        ],
+        "first_publish_year": 2024,
+        "isbn": [
+          "1250389828",
+          "9781250389824"
+        ],
+        "key": "/works/OL39199442W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Vol. 1",
+        "readinglog_count": 7,
+        "want_to_read_count": 5,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53369315M",
+              "title": "Murderbot Diaries Vol. 1",
+              "cover_i": 15126666,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Doherty Associates, LLC, Tom"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9781250389824",
+                "1250389828"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13207078A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15233129,
+        "edition_count": 1,
+        "edition_key": [
+          "OL53376229M"
+        ],
+        "first_publish_year": 2024,
+        "isbn": [
+          "9781250389831",
+          "1250389836"
+        ],
+        "key": "/works/OL39204828W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Vol. 2",
+        "readinglog_count": 3,
+        "want_to_read_count": 2,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53376229M",
+              "title": "Murderbot Diaries Vol. 2",
+              "cover_i": 15233129,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Doherty Associates, LLC, Tom"
+              ],
+              "publish_date": [
+                "2024"
+              ],
+              "isbn": [
+                "9781250389831",
+                "1250389836"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL14327143A"
+        ],
+        "author_name": [
+          "Willem Van Dam"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL56299269M"
+        ],
+        "first_publish_year": 2017,
+        "isbn": [
+          "1548573140",
+          "9781548573140"
+        ],
+        "key": "/works/OL41454666W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbots",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL56299269M",
+              "title": "Murderbots",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "CreateSpace Independent Publishing Platform"
+              ],
+              "publish_date": [
+                "2017"
+              ],
+              "isbn": [
+                "9781548573140",
+                "1548573140"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13207078A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "cover_i": 15233130,
+        "edition_count": 1,
+        "edition_key": [
+          "OL57523660M"
+        ],
+        "first_publish_year": 2025,
+        "isbn": [
+          "1250389844",
+          "9781250389848"
+        ],
+        "key": "/works/OL42398755W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Vol. 3",
+        "readinglog_count": 1,
+        "want_to_read_count": 1,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL57523660M",
+              "title": "Murderbot Diaries Vol. 3",
+              "cover_i": 15233130,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Melia Publishing Services Limited"
+              ],
+              "publish_date": [
+                "2025"
+              ],
+              "isbn": [
+                "9781250389848",
+                "1250389844"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13207078A"
+        ],
+        "author_name": [
+          "Martha Wells"
+        ],
+        "edition_count": 1,
+        "edition_key": [
+          "OL57767963M"
+        ],
+        "first_publish_year": 2023,
+        "isbn": [
+          "9798897225712"
+        ],
+        "key": "/works/OL42556524W",
+        "language": [
+          "eng"
+        ],
+        "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL57767963M",
+              "title": "Murderbot Diaries Collection 7 Hardcover Book Set (All Systems Red, Artificial Condition, Rogue Protocol, Exit Strategy,Network Effect, Fugitive Telemetry)",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Generic"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9798897225712"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.285
+}

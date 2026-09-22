@@ -1,0 +1,387 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=percy+jackson&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:52:53.845322+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "percy jackson",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL20658324W",
+          "title": "Percy jackson",
+          "authors": [
+            {
+              "id": "openlibrary:OL7827667A",
+              "name": "Rick riordhan",
+              "providerIds": [
+                "openlibrary:OL7827667A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2013,
+          "providerIds": [
+            "openlibrary:OL20658324W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL27932975M",
+          "workId": "openlibrary:OL20658324W",
+          "title": "Percy jackson",
+          "format": "any",
+          "providerIds": [
+            "openlibrary:OL27932975M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL20658324W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL17723709W",
+          "title": "Percy jackson",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "firstPublishYear": 2010,
+          "providerIds": [
+            "openlibrary:OL17723709W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL26325057M",
+          "workId": "openlibrary:OL17723709W",
+          "title": "Percy jackson",
+          "format": "any",
+          "providerIds": [
+            "openlibrary:OL26325057M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL17723709W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL37916844W",
+          "title": "Percy Jackson",
+          "authors": [
+            {
+              "id": "openlibrary:",
+              "name": "",
+              "providerIds": [
+                "openlibrary:"
+              ]
+            }
+          ],
+          "firstPublishYear": 2023,
+          "coverUrl": "https://covers.openlibrary.org/b/id/14596377-L.jpg",
+          "providerIds": [
+            "openlibrary:OL37916844W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL51259842M",
+          "workId": "openlibrary:OL37916844W",
+          "title": "Percy Jackson",
+          "format": "any",
+          "isbns": [
+            "9788419275660",
+            "8419275662"
+          ],
+          "providerIds": [
+            "openlibrary:OL51259842M"
+          ]
+        },
+        "score": 0.75,
+        "confidence": "medium",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL37916844W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL17685821W",
+          "title": "Percy Jackson & the Olympians",
+          "authors": [
+            {
+              "id": "openlibrary:OL7828467A",
+              "name": "Mary-Jane Knight",
+              "providerIds": [
+                "openlibrary:OL7828467A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2010,
+          "coverUrl": "https://covers.openlibrary.org/b/id/6307924-L.jpg",
+          "providerIds": [
+            "openlibrary:OL17685821W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL24112854M",
+          "workId": "openlibrary:OL17685821W",
+          "title": "Percy Jackson & the Olympians",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "1423121716",
+            "9780141331577",
+            "9781423121718",
+            "0141331577"
+          ],
+          "providerIds": [
+            "openlibrary:OL24112854M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL17685821W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL19794412W",
+          "title": "Percy Jackson and the Singer of Apollo",
+          "authors": [
+            {
+              "id": "openlibrary:OL30765A",
+              "name": "Rick Riordan",
+              "providerIds": [
+                "openlibrary:OL30765A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2013,
+          "coverUrl": "https://covers.openlibrary.org/b/id/8597962-L.jpg",
+          "providerIds": [
+            "openlibrary:OL19794412W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL38796775M",
+          "workId": "openlibrary:OL19794412W",
+          "title": "Percy Jackson and the Singer of Apollo",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "0062289632",
+            "9780241376218",
+            "9780062289636",
+            "0241376211",
+            "9780241380734",
+            "0241380731"
+          ],
+          "providerIds": [
+            "openlibrary:OL38796775M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL19794412W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL26033878W",
+          "title": "Percy Jackson Quizzes : Percy Jackson Trivia",
+          "authors": [
+            {
+              "id": "openlibrary:OL9832280A",
+              "name": "Sims ANN",
+              "providerIds": [
+                "openlibrary:OL9832280A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL26033878W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL35135312M",
+          "workId": "openlibrary:OL26033878W",
+          "title": "Percy Jackson Quizzes : Percy Jackson Trivia",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798506909064"
+          ],
+          "providerIds": [
+            "openlibrary:OL35135312M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL26033878W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL19354995W",
+          "title": "Horrible Histories - Groovy Greeks / Percy Jackson and the Sword of Hades",
+          "authors": [
+            {
+              "id": "openlibrary:OL433234A",
+              "name": "Terry Deary",
+              "providerIds": [
+                "openlibrary:OL433234A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2009,
+          "coverUrl": "https://covers.openlibrary.org/b/id/8468992-L.jpg",
+          "providerIds": [
+            "openlibrary:OL19354995W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL26811424M",
+          "workId": "openlibrary:OL19354995W",
+          "title": "Horrible Histories - Groovy Greeks / Percy Jackson and the Sword of Hades",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780955944680",
+            "0955944686"
+          ],
+          "providerIds": [
+            "openlibrary:OL26811424M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL19354995W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL28095420W",
+          "title": "Percy Jackson Quizzes",
+          "authors": [
+            {
+              "id": "openlibrary:OL10473552A",
+              "name": "Stumpf ADAM",
+              "providerIds": [
+                "openlibrary:OL10473552A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL28095420W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL38453221M",
+          "workId": "openlibrary:OL28095420W",
+          "title": "Percy Jackson Quizzes",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798791598707"
+          ],
+          "providerIds": [
+            "openlibrary:OL38453221M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL28095420W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL20214130W",
+          "title": "Percy Jackson Mad Libs",
+          "authors": [
+            {
+              "id": "openlibrary:OL5130425A",
+              "name": "Leigh Olsen",
+              "providerIds": [
+                "openlibrary:OL5130425A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2017,
+          "coverUrl": "https://covers.openlibrary.org/b/id/8865583-L.jpg",
+          "providerIds": [
+            "openlibrary:OL20214130W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL51643763M",
+          "workId": "openlibrary:OL20214130W",
+          "title": "Percy Jackson Mad Libs",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9780515159554",
+            "0593891260",
+            "9780593891261",
+            "0515159557"
+          ],
+          "providerIds": [
+            "openlibrary:OL51643763M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL20214130W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.451
+}

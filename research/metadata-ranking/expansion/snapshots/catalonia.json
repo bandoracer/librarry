@@ -1,0 +1,906 @@
+{
+  "url": "https://openlibrary.org/search.json?q=homage+to+catalonia&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:19.933858+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 28,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 28,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "homage to catalonia",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "cover_i": 7282177,
+        "first_publish_year": 1938,
+        "key": "/works/OL1168169W",
+        "language": [
+          "spa",
+          "ger",
+          "fre",
+          "swe",
+          "eng",
+          "ita",
+          "rus",
+          "cat",
+          "pol",
+          "tur",
+          "gre"
+        ],
+        "title": "Homage to Catalonia",
+        "editions": {
+          "numFound": 153,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26927856M",
+              "title": "Homage to Catalonia",
+              "cover_i": 12847324,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Mariner Books/Houghton Mifflin Harcourt"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9780544382046",
+                "0544382048"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "cover_i": 14641154,
+        "first_publish_year": 1966,
+        "key": "/works/OL1168187W",
+        "language": [
+          "eng"
+        ],
+        "title": "Homage to Catalonia and Looking back on the Spanish War",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL15983630M",
+              "title": "Homage to Catalonia and Looking back on the Spanish War",
+              "cover_i": 14641154,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin Books in association with Secker & Warburg"
+              ],
+              "publish_date": [
+                "1966"
+              ],
+              "isbn": [
+                "0140016996",
+                "9780140016994"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A",
+          "OL10540872A"
+        ],
+        "author_name": [
+          "George Orwell",
+          "Jaron Murphy"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28626024W",
+        "language": [
+          "eng"
+        ],
+        "title": "Homage to Catalonia",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL39716122M",
+              "title": "Homage to Catalonia",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798845934338"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "cover_i": 6628165,
+        "first_publish_year": 2010,
+        "key": "/works/OL15407410W",
+        "language": [
+          "eng"
+        ],
+        "title": "Homage to Catalonia/Down and Out in Paris and London",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL29740963M",
+              "title": "Homage to Catalonia / down and Out in Paris and London",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Houghton Mifflin Harcourt Publishing Company"
+              ],
+              "publish_date": [
+                "2016"
+              ],
+              "isbn": [
+                "9780544943551",
+                "0544943554"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "cover_i": 13777885,
+        "key": "/works/OL34951736W",
+        "title": "Homage to Catalonia",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47313221M",
+              "title": "Homage to Catalonia",
+              "cover_i": 13777885,
+              "publisher": [
+                "Grapevine India Publishers Pvt Ltd"
+              ],
+              "isbn": [
+                "9789394270916",
+                "9394270914"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9945303A"
+        ],
+        "author_name": [
+          "ORWELL"
+        ],
+        "first_publish_year": 1967,
+        "key": "/works/OL44123236W",
+        "title": "HOMAGE TO CATALONIA",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL60343050M",
+              "title": "HOMAGE TO CATALONIA",
+              "publisher": [
+                "SECKER & WARBURG"
+              ],
+              "publish_date": [
+                "1967"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL35304902W",
+        "title": "Homage to Catalonia (1938)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47717566M",
+              "title": "Homage to Catalonia (1938)",
+              "isbn": [
+                "9798790217494"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "cover_i": 11262153,
+        "first_publish_year": 1980,
+        "key": "/works/OL23745771W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "1931-1940 ; Essays and journalism : 1940-1943 ; Essays and journalism : 1944-1945 ; Essays and journalism : 1945-1949.: The road to Wigan Pier ; Homage to Catalonia ; Essays and journalism : 1931-1940 ; Essays and journalism : 1940-1943 ; Essays and journalism : 1944-1945 ; Essays and journalism : 1945-1949.",
+        "title": "Down and out in Paris and London; The road to Wigan Pier ; Homage to Catalonia ; Essays and journalism",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL22338733M",
+              "title": "Down and out in Paris and London",
+              "cover_i": 11262153,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Secker & Warburg"
+              ],
+              "publish_date": [
+                "1980"
+              ],
+              "isbn": [
+                "0905712455",
+                "9780905712451"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "first_publish_year": 1964,
+        "key": "/works/OL38597025W",
+        "language": [
+          "spa"
+        ],
+        "title": "Cataluña 1937",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL52519615M",
+              "title": "Cataluña 1937",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Editorial Proyección"
+              ],
+              "publish_date": [
+                "1964"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "cover_i": 13775572,
+        "first_publish_year": 2022,
+        "key": "/works/OL34949782W",
+        "title": "Animal Farm & Homage to Catalonia  Combo",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL47310856M",
+              "title": "Animal Farm & Homage to Catalonia  Combo",
+              "cover_i": 13775572,
+              "publisher": [
+                "Pharos Books"
+              ],
+              "publish_date": [
+                "Jun 22, 2022"
+              ],
+              "isbn": [
+                "9789355462145",
+                "935546214X"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL34604068W",
+        "title": "Homage to Catalonia",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46922449M",
+              "title": "Homage to Catalonia",
+              "publisher": [
+                "Harcourt, Brace & World (Harvest)"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10394876A"
+        ],
+        "author_name": [
+          "Irb Media"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28428621W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of George Orwell's Homage to Catalonia",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38936557M",
+              "title": "Summary of George Orwell's Homage to Catalonia",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "IRB MEDIA"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798822544680"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A",
+          "OL5601964A"
+        ],
+        "author_name": [
+          "George Orwell",
+          "ʻIzzat Allāh Fūlādvand"
+        ],
+        "first_publish_year": 1982,
+        "key": "/works/OL42839268W",
+        "language": [
+          "per"
+        ],
+        "title": "Bih yād-i Kātālūniyā",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58356041M",
+              "title": "Bih yād-i Kātālūniyā",
+              "language": [
+                "per"
+              ],
+              "publisher": [
+                "Khvārazmī"
+              ],
+              "publish_date": [
+                "1982"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "first_publish_year": 2012,
+        "key": "/works/OL39291463W",
+        "language": [
+          "heb"
+        ],
+        "title": "מחווה לקטלוניה",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL53484493M",
+              "title": "מחווה לקטלוניה",
+              "language": [
+                "heb"
+              ],
+              "publisher": [
+                "עם עובד"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9789651323423",
+                "9651323426"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "/works/OL27739073W",
+        "title": "Homage to Catalonia;With the Introductory Essay 'Why I Write'",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37869294M",
+              "title": "Homage to Catalonia;With the Introductory Essay 'Why I Write'",
+              "isbn": [
+                "9781528718912",
+                "1528718917"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7207731A"
+        ],
+        "author_name": [
+          "Luke Crane"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28444142W",
+        "language": [
+          "eng"
+        ],
+        "title": "Miseries & Misfortunes Book 5",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38959041M",
+              "title": "Miseries & Misfortunes Book 5",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Crane, Luke"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9780998920603",
+                "0998920606"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8673361A"
+        ],
+        "author_name": [
+          "Hyōgo Kenritsu Kindai Bijutsukan"
+        ],
+        "first_publish_year": 1987,
+        "key": "/works/OL33172519W",
+        "language": [
+          "jpn"
+        ],
+        "title": "Katarunia sanka, Geijutsu no Miyako Baruserona Ten",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL45054870M",
+              "title": "Katarunia sanka, Geijutsu no Miyako Baruserona Ten",
+              "language": [
+                "jpn"
+              ],
+              "publisher": [
+                "Katarunia Sanka-Geijutsu no Miyako Baruseronaten Kokunai Iinkai"
+              ],
+              "publish_date": [
+                "1987"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A",
+          "OL6981279A",
+          "OL7205006A"
+        ],
+        "author_name": [
+          "George Orwell",
+          "Peter Davison",
+          "Christopher Hitchens"
+        ],
+        "cover_i": 5273553,
+        "first_publish_year": 2001,
+        "key": "/works/OL1168101W",
+        "language": [
+          "spa",
+          "eng"
+        ],
+        "title": "Orwell in Spain",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21113054M",
+              "title": "Orwell in Spain",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Penguin"
+              ],
+              "publish_date": [
+                "2001"
+              ],
+              "isbn": [
+                "0141185163",
+                "9780141185163"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A"
+        ],
+        "author_name": [
+          "George Orwell"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL36142007W",
+        "language": [
+          "por"
+        ],
+        "title": "Top 3 Da ColeÇÃo Orwell : 1984 , Animal Farm e Homage to Catalonia",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48838336M",
+              "title": "Top 3 Da ColeÇÃo Orwell : 1984 , Animal Farm e Homage to Catalonia",
+              "language": [
+                "por"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798700821612"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7046263A"
+        ],
+        "author_name": [
+          "Ricardo Marín Ruiz"
+        ],
+        "first_publish_year": 2011,
+        "key": "/works/OL16321575W",
+        "language": [
+          "spa"
+        ],
+        "title": "Tres visiones de España durante la Guerra Civil",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25124715M",
+              "title": "Tres visiones de España durante la Guerra Civil",
+              "language": [
+                "spa"
+              ],
+              "publisher": [
+                "Nausícaä Edición Electrónica"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9788496633674",
+                "8496633675"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1974803A"
+        ],
+        "author_name": [
+          "Michael Raeburn"
+        ],
+        "cover_i": 8500521,
+        "first_publish_year": 1985,
+        "key": "/works/OL18926631W",
+        "language": [
+          "eng"
+        ],
+        "title": "Homage to Barcelona",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL2770595M",
+              "title": "Homage to Barcelona",
+              "cover_i": 8500521,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Arts Council of Great Britain"
+              ],
+              "publish_date": [
+                "1985"
+              ],
+              "isbn": [
+                "0728704781",
+                "9780728704787"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL31700A"
+        ],
+        "author_name": [
+          "Mitzi Brunsdale"
+        ],
+        "cover_i": 6820642,
+        "first_publish_year": 2000,
+        "key": "/works/OL15857865W",
+        "language": [
+          "eng"
+        ],
+        "title": "Student companion to George Orwell",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24766789M",
+              "title": "Student companion to George Orwell",
+              "cover_i": 6820642,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Greenwood Press"
+              ],
+              "publish_date": [
+                "2000"
+              ],
+              "isbn": [
+                "9780313306372",
+                "0313306370"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL118077A",
+          "OL8947347A"
+        ],
+        "author_name": [
+          "George Orwell",
+          "P H Davidson"
+        ],
+        "cover_i": 275371,
+        "first_publish_year": 1997,
+        "key": "/works/OL1168166W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Complete Works of George Orwell",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL13568270M",
+              "title": "The complete works of George Orwell",
+              "cover_i": 275371,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Secker & Warburg",
+                "Penguin Random House"
+              ],
+              "publish_date": [
+                "1997"
+              ],
+              "isbn": [
+                "0436203774",
+                "0436231255",
+                "9780436203770",
+                "9780436231254"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2700384A"
+        ],
+        "author_name": [
+          "Kim Becnel"
+        ],
+        "cover_i": 10060848,
+        "first_publish_year": 2010,
+        "key": "/works/OL15507984W",
+        "language": [
+          "eng"
+        ],
+        "title": "Bloom's how to write about George Orwell",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24468852M",
+              "title": "Bloom's how to write about George Orwell",
+              "cover_i": 10060848,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bloom's Literary Criticism"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9781604137033",
+                "1604137037"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL231247A"
+        ],
+        "author_name": [
+          "John Rodden"
+        ],
+        "first_publish_year": 2012,
+        "key": "/works/OL16464886W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Cambridge introduction to George Orwell",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25173524M",
+              "title": "The Cambridge introduction to George Orwell",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Cambridge University Press"
+              ],
+              "publish_date": [
+                "2012"
+              ],
+              "isbn": [
+                "9780521769235",
+                "052176923X"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.592
+}

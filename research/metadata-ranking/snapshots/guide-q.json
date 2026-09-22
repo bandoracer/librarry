@@ -1,0 +1,109 @@
+{
+  "url": "https://openlibrary.org/search.json?q=percy+jackson+the+ultimate+guide&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Cedition_key%2Clanguage%2Ccover_i%2Cedition_count%2Cratings_count%2Cwant_to_read_count%2Creadinglog_count%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&limit=40&lang=en",
+  "retrievedAt": "2026-09-21T07:53:15.535459+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 2,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 2,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "percy jackson the ultimate guide",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL7828467A"
+        ],
+        "author_name": [
+          "Mary-Jane Knight"
+        ],
+        "cover_i": 6307924,
+        "edition_count": 2,
+        "edition_key": [
+          "OL24112854M",
+          "OL26709317M"
+        ],
+        "first_publish_year": 2010,
+        "isbn": [
+          "1423121716",
+          "9780141331577",
+          "9781423121718",
+          "0141331577"
+        ],
+        "key": "/works/OL17685821W",
+        "language": [
+          "eng"
+        ],
+        "subtitle": "The Ultimate Guide",
+        "title": "Percy Jackson & the Olympians",
+        "ratings_count": 6,
+        "readinglog_count": 173,
+        "want_to_read_count": 154,
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24112854M",
+              "title": "Percy Jackson and the Olympians",
+              "cover_i": 13027683,
+              "language": [
+                "eng"
+              ],
+              "isbn": [
+                "9781423121718",
+                "1423121716"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2693799A"
+        ],
+        "author_name": [
+          "John Coleman"
+        ],
+        "cover_i": 6426475,
+        "edition_count": 1,
+        "edition_key": [
+          "OL24300734M"
+        ],
+        "first_publish_year": 2000,
+        "key": "/works/OL15169002W",
+        "language": [
+          "eng"
+        ],
+        "title": "The Story of The Committee of 300",
+        "ratings_count": 1,
+        "readinglog_count": 24,
+        "want_to_read_count": 22,
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL24300734M",
+              "title": "CONSPIRATORS' HIERARCHY",
+              "cover_i": 6426475,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Internet"
+              ],
+              "publish_date": [
+                "2000"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.511
+}

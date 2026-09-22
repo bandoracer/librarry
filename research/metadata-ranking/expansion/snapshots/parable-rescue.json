@@ -1,0 +1,105 @@
+{
+  "url": "https://openlibrary.org/search.json?lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date&title=Parable+of+the+Sower&author=Octavia+E+Butler",
+  "retrievedAt": "2026-09-21T22:57:05.318500+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 2,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 2,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL30802A"
+        ],
+        "author_name": [
+          "Octavia E. Butler"
+        ],
+        "cover_i": 10466266,
+        "first_publish_year": 1993,
+        "key": "/works/OL35623W",
+        "language": [
+          "ger",
+          "fre",
+          "spa",
+          "eng"
+        ],
+        "title": "Parable of the Sower",
+        "editions": {
+          "numFound": 18,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL1400894M",
+              "title": "Parable of the sower",
+              "cover_i": 8281190,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Four Walls Eight Windows"
+              ],
+              "publish_date": [
+                "1993"
+              ],
+              "isbn": [
+                "0941423999",
+                "9780941423991"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL30802A",
+          "OL2730970A",
+          "OL8121527A",
+          "OL8121528A"
+        ],
+        "author_name": [
+          "Octavia E. Butler",
+          "TK",
+          "Gloria Steinham",
+          "Toshi Reagon"
+        ],
+        "cover_i": 9334924,
+        "first_publish_year": 2019,
+        "key": "/works/OL20667327W",
+        "language": [
+          "eng"
+        ],
+        "title": "Parable of the Sower & Parable of the Talents",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49092214M",
+              "title": "Parable of the Sower and Parable of the Talents",
+              "cover_i": 15176835,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Grand Central Publishing"
+              ],
+              "publish_date": [
+                "2023"
+              ],
+              "isbn": [
+                "9781538767252",
+                "1538767252"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

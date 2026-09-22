@@ -1,0 +1,307 @@
+{
+  "url": "http://192.168.1.221:30200/api/v1/search?query=the+left+hand+of+darkness&type=book&format=any&language=English",
+  "retrievedAt": "2026-09-21T07:53:28.041532+00:00",
+  "status": 200,
+  "data": {
+    "providerErrors": null,
+    "query": {
+      "query": "the left hand of darkness",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "results": [
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL18955388W",
+          "title": "Ursula K. Le Guin's the left hand of darkness",
+          "authors": [
+            {
+              "id": "openlibrary:OL29809A",
+              "name": "Harold Bloom",
+              "providerIds": [
+                "openlibrary:OL29809A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1987,
+          "coverUrl": "https://covers.openlibrary.org/b/id/11038837-L.jpg",
+          "providerIds": [
+            "openlibrary:OL18955388W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL21931391M",
+          "workId": "openlibrary:OL18955388W",
+          "title": "Ursula K. Le Guin's the left hand of darkness",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781555460648",
+            "155546064X"
+          ],
+          "providerIds": [
+            "openlibrary:OL21931391M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL18955388W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL24715772W",
+          "title": "Earthsea & The Left Hand of Darkness",
+          "authors": [
+            {
+              "id": "openlibrary:OL31353A",
+              "name": "Ursula K. Le Guin",
+              "providerIds": [
+                "openlibrary:OL31353A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2016,
+          "coverUrl": "https://covers.openlibrary.org/b/id/11441350-L.jpg",
+          "providerIds": [
+            "openlibrary:OL24715772W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL32809088M",
+          "workId": "openlibrary:OL24715772W",
+          "title": "Earthsea & The Left Hand of Darkness",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781785293412",
+            "1785293419"
+          ],
+          "providerIds": [
+            "openlibrary:OL32809088M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL24715772W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL5922289W",
+          "title": "Ursula Le Guin's the Left Hand of Darkness",
+          "authors": [
+            {
+              "id": "openlibrary:OL1463338A",
+              "name": "Rebecca Rass",
+              "providerIds": [
+                "openlibrary:OL1463338A"
+              ]
+            }
+          ],
+          "firstPublishYear": 1990,
+          "providerIds": [
+            "openlibrary:OL5922289W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL11074787M",
+          "workId": "openlibrary:OL5922289W",
+          "title": "Ursula Le Guin's the Left Hand of Darkness",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "067168759X",
+            "9780671687595"
+          ],
+          "providerIds": [
+            "openlibrary:OL11074787M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL5922289W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL19306603W",
+          "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)",
+          "authors": [
+            {
+              "id": "openlibrary:OL31353A",
+              "name": "Ursula K. Le Guin",
+              "providerIds": [
+                "openlibrary:OL31353A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2017,
+          "coverUrl": "https://covers.openlibrary.org/b/id/8435024-L.jpg",
+          "providerIds": [
+            "openlibrary:OL19306603W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL26781621M",
+          "workId": "openlibrary:OL19306603W",
+          "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9781598535389",
+            "1598535382"
+          ],
+          "providerIds": [
+            "openlibrary:OL26781621M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL19306603W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL24724220W",
+          "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin",
+          "authors": [
+            {
+              "id": "openlibrary:OL9116368A",
+              "name": "Intelligent Education",
+              "providerIds": [
+                "openlibrary:OL9116368A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2020,
+          "coverUrl": "https://covers.openlibrary.org/b/id/11454163-L.jpg",
+          "providerIds": [
+            "openlibrary:OL24724220W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL32821863M",
+          "workId": "openlibrary:OL24724220W",
+          "title": "Study Guide to The Left Hand of Darkness by Ursula Le Guin",
+          "format": "any",
+          "isbns": [
+            "1645425207",
+            "9781645425205"
+          ],
+          "providerIds": [
+            "openlibrary:OL32821863M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL24724220W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL36583944W",
+          "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?",
+          "authors": [
+            {
+              "id": "openlibrary:OL11746610A",
+              "name": "Melanie Walser",
+              "providerIds": [
+                "openlibrary:OL11746610A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2009,
+          "providerIds": [
+            "openlibrary:OL36583944W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL49432610M",
+          "workId": "openlibrary:OL36583944W",
+          "title": "In Her Novel the Left Hand of Darkness , Does Ursula K le Guin Succeed in Depicting a Completely Non-Gendered Society?",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "3640261488",
+            "9783640261482"
+          ],
+          "providerIds": [
+            "openlibrary:OL49432610M"
+          ]
+        },
+        "score": 0.55,
+        "confidence": "review",
+        "matchedOn": [
+          "title"
+        ],
+        "rawSourceKey": "/works/OL36583944W"
+      },
+      {
+        "provider": "Open Library",
+        "kind": "book",
+        "work": {
+          "id": "openlibrary:OL36281353W",
+          "title": "Gender under the Viking Age : Left Hand of Darkness",
+          "authors": [
+            {
+              "id": "openlibrary:OL13058040A",
+              "name": "Rusty Brient",
+              "providerIds": [
+                "openlibrary:OL13058040A"
+              ]
+            }
+          ],
+          "firstPublishYear": 2021,
+          "providerIds": [
+            "openlibrary:OL36281353W"
+          ]
+        },
+        "edition": {
+          "id": "openlibrary:OL49024658M",
+          "workId": "openlibrary:OL36281353W",
+          "title": "Gender under the Viking Age : Left Hand of Darkness",
+          "format": "any",
+          "language": "eng",
+          "isbns": [
+            "9798745605864"
+          ],
+          "providerIds": [
+            "openlibrary:OL49024658M"
+          ]
+        },
+        "score": 0.3944444444444445,
+        "confidence": "review",
+        "matchedOn": [
+          "fuzzy"
+        ],
+        "rawSourceKey": "/works/OL36281353W"
+      }
+    ]
+  },
+  "elapsedSeconds": 0.406
+}

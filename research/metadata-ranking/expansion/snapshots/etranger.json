@@ -1,0 +1,1024 @@
+{
+  "url": "https://openlibrary.org/search.json?q=l%27%C3%A9tranger&lang=fr&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:56:12.193311+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 4814,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 4814,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "l'étranger",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL124171A"
+        ],
+        "author_name": [
+          "Albert Camus"
+        ],
+        "cover_i": 13151269,
+        "first_publish_year": 1942,
+        "key": "/works/OL1230613W",
+        "language": [
+          "ger",
+          "heb",
+          "ita",
+          "kur",
+          "jpn",
+          "wel",
+          "mul",
+          "chi",
+          "swe",
+          "dut",
+          "eng",
+          "por",
+          "vie",
+          "spa",
+          "ara",
+          "jav",
+          "per",
+          "pol",
+          "fre",
+          "hin"
+        ],
+        "title": "L’étranger",
+        "editions": {
+          "numFound": 180,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL58707091M",
+              "title": "L’étranger",
+              "cover_i": 15152916,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Gallimard Folio"
+              ],
+              "publish_date": [
+                "1957"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL22525A"
+        ],
+        "author_name": [
+          "Caroline B. Cooney"
+        ],
+        "cover_i": 384157,
+        "first_publish_year": 1993,
+        "key": "/works/OL12429W",
+        "language": [
+          "fre",
+          "spa",
+          "eng"
+        ],
+        "title": "The Stranger",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26469658M",
+              "title": "L'etranger",
+              "cover_i": 15140982,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Heritage"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "9782762578966",
+                "2762578965"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL119624A"
+        ],
+        "author_name": [
+          "Marc Bloch"
+        ],
+        "cover_i": 249723,
+        "first_publish_year": 1946,
+        "key": "/works/OL1184047W",
+        "language": [
+          "eng",
+          "fre",
+          "spa"
+        ],
+        "subtitle": "témoignage écrit en 1940",
+        "title": "L' étrange défaite",
+        "editions": {
+          "numFound": 40,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL37005780M",
+              "title": "L'Étrange Défaite",
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798749501391"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL33088A"
+        ],
+        "author_name": [
+          "Dean Koontz"
+        ],
+        "cover_i": 7075051,
+        "first_publish_year": 2003,
+        "key": "/works/OL263273W",
+        "language": [
+          "tur",
+          "ger",
+          "fre",
+          "spa",
+          "eng"
+        ],
+        "title": "Odd Thomas",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28173143M",
+              "title": "L'Étrange Odd Thomas",
+              "cover_i": 10110886,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Librairie générale de France"
+              ],
+              "publish_date": [
+                "2009"
+              ],
+              "isbn": [
+                "9782253123187",
+                "2253123188"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3938265A"
+        ],
+        "author_name": [
+          "Pierre-Georges Castex"
+        ],
+        "cover_i": 9296138,
+        "first_publish_year": 1965,
+        "key": "/works/OL9970293W",
+        "language": [
+          "fre"
+        ],
+        "title": "Albert Camus et l'étranger",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12527631M",
+              "title": "Albert Camus et \"L'étranger\"",
+              "cover_i": 9296138,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Jose Corti"
+              ],
+              "publish_date": [
+                "August 1, 1989"
+              ],
+              "isbn": [
+                "9782714301406",
+                "2714301401"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL53305A"
+        ],
+        "author_name": [
+          "Neil Gaiman"
+        ],
+        "cover_i": 7099583,
+        "first_publish_year": 2008,
+        "key": "/works/OL679348W",
+        "language": [
+          "tur",
+          "chi",
+          "ger",
+          "pol",
+          "spa",
+          "eng"
+        ],
+        "title": "The Graveyard Book",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27307725M",
+              "title": "L'Etrange Vie de Nobody Owens (French Edition)",
+              "cover_i": 8780237,
+              "publisher": [
+                "Albin Michel Jeunesse"
+              ],
+              "publish_date": [
+                "Sep 11, 2009"
+              ],
+              "isbn": [
+                "9782226189547",
+                "2226189548"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2057602A"
+        ],
+        "author_name": [
+          "Margot Ryhming"
+        ],
+        "first_publish_year": 1969,
+        "key": "/works/OL7184296W",
+        "language": [
+          "fre"
+        ],
+        "title": "Albert Camus: L'étranger",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5381251M",
+              "title": "Albert Camus: L'étranger.",
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Studentlitteratur"
+              ],
+              "publish_date": [
+                "1969"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3954939A"
+        ],
+        "author_name": [
+          "Michel Mougenot"
+        ],
+        "cover_i": 3126372,
+        "first_publish_year": 2000,
+        "key": "/works/OL9990587W",
+        "language": [
+          "fre"
+        ],
+        "title": "L'Etranger. Albert Camus",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL12595931M",
+              "title": "L'Etranger. Albert Camus",
+              "cover_i": 3126372,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Bertrand Lacoste"
+              ],
+              "publish_date": [
+                "January 1, 2000"
+              ],
+              "isbn": [
+                "9782735203055",
+                "2735203050"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL260961A"
+        ],
+        "author_name": [
+          "Bernard Pingaud"
+        ],
+        "first_publish_year": 1971,
+        "key": "/works/OL2107708W",
+        "language": [
+          "fre"
+        ],
+        "title": "\"L' Étranger\" de Camus",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL5486229M",
+              "title": "\"L' Étranger\" de Camus",
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Hachette"
+              ],
+              "publish_date": [
+                "1972"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL260961A"
+        ],
+        "author_name": [
+          "Bernard Pingaud"
+        ],
+        "cover_i": 15003780,
+        "first_publish_year": 1992,
+        "key": "/works/OL2107695W",
+        "language": [
+          "fre"
+        ],
+        "title": "L' Etranger d'Albert Camus",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21020132M",
+              "title": "L' Etranger d'Albert Camus",
+              "cover_i": 15003780,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Gallimard"
+              ],
+              "publish_date": [
+                "1992"
+              ],
+              "isbn": [
+                "2070385752",
+                "9782070385751"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL239939A"
+        ],
+        "author_name": [
+          "Alan Hollinghurst"
+        ],
+        "cover_i": 7248617,
+        "first_publish_year": 2011,
+        "key": "/works/OL16087104W",
+        "language": [
+          "fre",
+          "eng"
+        ],
+        "title": "The Stranger's Child",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32782382M",
+              "title": "L'enfant de l'étranger",
+              "cover_i": 11414682,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Le Livre de poche"
+              ],
+              "publish_date": [
+                "2015"
+              ],
+              "isbn": [
+                "9782253020424",
+                "2253020427"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL124171A"
+        ],
+        "author_name": [
+          "Albert Camus"
+        ],
+        "cover_i": 8296442,
+        "first_publish_year": 1977,
+        "key": "/works/OL16033130W",
+        "language": [
+          "eng"
+        ],
+        "title": "Novels (La chute / L'Étranger)",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL44636290M",
+              "title": "The stranger ; The fall",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Quality Paperback Book Club"
+              ],
+              "publish_date": [
+                "1995"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3128167A"
+        ],
+        "author_name": [
+          "Amadou Hampaté Bâ"
+        ],
+        "cover_i": 978672,
+        "first_publish_year": 1999,
+        "key": "/works/OL8997202W",
+        "language": [
+          "fre"
+        ],
+        "title": "L'Etrange destin de Wangrin",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8889245M",
+              "title": "L'Etrange destin de Wangrin",
+              "cover_i": 12924694,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Editions 10/18"
+              ],
+              "publish_date": [
+                "September 12, 1999"
+              ],
+              "isbn": [
+                "9782264017581",
+                "2264017589"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3954939A"
+        ],
+        "author_name": [
+          "Michel Mougenot"
+        ],
+        "first_publish_year": 1993,
+        "key": "/works/OL9990589W",
+        "language": [
+          "fre"
+        ],
+        "title": "L' étranger, Albert Camus",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL21793596M",
+              "title": "L' étranger, Albert Camus",
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Bertrand-Lacoste"
+              ],
+              "publish_date": [
+                "1993"
+              ],
+              "isbn": [
+                "2735203055"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL25963A"
+        ],
+        "author_name": [
+          "Robert Louis Stevenson"
+        ],
+        "cover_i": 295773,
+        "first_publish_year": 1875,
+        "key": "/works/OL24156W",
+        "language": [
+          "und",
+          "yid",
+          "epo",
+          "por",
+          "rus",
+          "eng",
+          "ger",
+          "fre",
+          "spa",
+          "ita",
+          "chi",
+          "jpn"
+        ],
+        "title": "The Strange Case of Dr. Jekyll and Mr. Hyde",
+        "editions": {
+          "numFound": 13,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL32119958M",
+              "title": "L' étrange cas du Dr Jekyll et de Mr Hyde",
+              "cover_i": 10780392,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Marabout"
+              ],
+              "publish_date": [
+                "2010"
+              ],
+              "isbn": [
+                "9782501066464",
+                "2501066464"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1452408A"
+        ],
+        "author_name": [
+          "Marc Levy"
+        ],
+        "cover_i": 8360765,
+        "first_publish_year": 2011,
+        "key": "/works/OL18456298W",
+        "language": [
+          "fre"
+        ],
+        "title": "L'etrange voyage de monsieur Daldry",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26691151M",
+              "title": "L'etrange voyage de monsieur Daldry",
+              "cover_i": 8360765,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Robert Laffont"
+              ],
+              "publish_date": [
+                "2011"
+              ],
+              "isbn": [
+                "9782221116791",
+                "2221116798"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL3163839A"
+        ],
+        "author_name": [
+          "Pierre-Emmanuel Martin-Vivier"
+        ],
+        "cover_i": 2663594,
+        "first_publish_year": 2006,
+        "key": "/works/OL9051687W",
+        "language": [
+          "eng",
+          "fre"
+        ],
+        "title": "Jean-Michel Frank",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL16218010M",
+              "title": "Jean-Michel Frank",
+              "cover_i": 13168594,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Norma"
+              ],
+              "publish_date": [
+                "2006"
+              ],
+              "isbn": [
+                "291554204X",
+                "9782915542042"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL90171A"
+        ],
+        "author_name": [
+          "Françoise Bagot"
+        ],
+        "cover_i": 3826315,
+        "first_publish_year": 1993,
+        "key": "/works/OL981400W",
+        "language": [
+          "fre"
+        ],
+        "title": "Albert Camus, L'étranger",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL838440M",
+              "title": "Albert Camus, L'étranger",
+              "cover_i": 3826315,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Presses universitaires de France"
+              ],
+              "publish_date": [
+                "1993"
+              ],
+              "isbn": [
+                "2130450849",
+                "9782130450849"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL224021A"
+        ],
+        "author_name": [
+          "Amadou Hampaté Bâ"
+        ],
+        "first_publish_year": 1973,
+        "key": "/works/OL1870974W",
+        "language": [
+          "fre"
+        ],
+        "title": "L' étrange destin de Wangrin",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4788466M",
+              "title": "L' étrange destin de Wangrin",
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Union générale d'éditions"
+              ],
+              "publish_date": [
+                "1973"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL75851A"
+        ],
+        "author_name": [
+          "Alphonse Boudard"
+        ],
+        "cover_i": 2147239,
+        "first_publish_year": 1998,
+        "key": "/works/OL868908W",
+        "language": [
+          "fre"
+        ],
+        "title": "L' étrange Monsieur Joseph",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9659935M",
+              "title": "L'étrange Monsieur Joseph",
+              "cover_i": 2153894,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Pocket"
+              ],
+              "publish_date": [
+                "January 6, 2000"
+              ],
+              "isbn": [
+                "9782266097901",
+                "2266097903"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL4501126A"
+        ],
+        "author_name": [
+          "Marie Thérèse Jones-Davies"
+        ],
+        "cover_i": 2151400,
+        "first_publish_year": 1996,
+        "key": "/works/OL19225538W",
+        "language": [
+          "eng",
+          "fre"
+        ],
+        "title": "L'Etranger",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL8887071M",
+              "title": "L'Etranger",
+              "cover_i": 2151401,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Klincksieck"
+              ],
+              "publish_date": [
+                "1996"
+              ],
+              "isbn": [
+                "9782252031193",
+                "2252031190"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL6376119A"
+        ],
+        "author_name": [
+          "Louis Masset"
+        ],
+        "first_publish_year": 1978,
+        "key": "/works/OL13507338W",
+        "language": [
+          "fre"
+        ],
+        "title": "L' ÉTRANGE FAMILLE",
+        "editions": {
+          "numFound": 3,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL59839120M",
+              "title": "L'ÉTRANGE FAMILLE",
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "LA PENSEE UNIVERSELLE"
+              ],
+              "publish_date": [
+                "1978"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL50911A"
+        ],
+        "author_name": [
+          "Georges Borgeaud"
+        ],
+        "first_publish_year": 1974,
+        "key": "/works/OL654382W",
+        "language": [
+          "fre"
+        ],
+        "title": "Le voyage à l'étranger",
+        "editions": {
+          "numFound": 2,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL4782668M",
+              "title": "Le voyage à l'étranger",
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "B. Grasset"
+              ],
+              "publish_date": [
+                "1974"
+              ],
+              "isbn": [
+                "2246001285",
+                "2246001293",
+                "9782246001287",
+                "9782246001294"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL925989A"
+        ],
+        "author_name": [
+          "Sir Wilfrid Laurier"
+        ],
+        "cover_i": 6293443,
+        "first_publish_year": 1909,
+        "key": "/works/OL4569378W",
+        "language": [
+          "eng",
+          "fre"
+        ],
+        "title": "Discours à l'étranger et au Canada",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL17492437M",
+              "title": "Discours à l'étranger et au Canada",
+              "cover_i": 9497582,
+              "language": [
+                "fre"
+              ],
+              "publisher": [
+                "Beauchemin"
+              ],
+              "publish_date": [
+                "1995"
+              ],
+              "isbn": [
+                "0665748531",
+                "9780665748530"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL1009222A"
+        ],
+        "author_name": [
+          "Adele King"
+        ],
+        "cover_i": 2367668,
+        "first_publish_year": 1992,
+        "key": "/works/OL4796144W",
+        "language": [
+          "eng"
+        ],
+        "title": "Camus's L'Etranger",
+        "editions": {
+          "numFound": 4,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL10385213M",
+              "title": "Camus's L'Etranger",
+              "cover_i": 2367668,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Palgrave Macmillan"
+              ],
+              "publish_date": [
+                "May 15, 1992"
+              ],
+              "isbn": [
+                "9780312068585",
+                "0312068581"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.469
+}

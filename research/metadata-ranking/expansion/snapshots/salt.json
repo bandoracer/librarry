@@ -1,0 +1,941 @@
+{
+  "url": "https://openlibrary.org/search.json?q=salt+fat+acid+heat&lang=en&limit=25&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Clanguage%2Ccover_i%2Ceditions%2Ceditions.key%2Ceditions.title%2Ceditions.language%2Ceditions.isbn%2Ceditions.cover_i%2Ceditions.publisher%2Ceditions.publish_date",
+  "retrievedAt": "2026-09-21T22:55:53.684586+00:00",
+  "status": 200,
+  "data": {
+    "numFound": 31,
+    "start": 0,
+    "numFoundExact": true,
+    "num_found": 31,
+    "documentation_url": "https://openlibrary.org/dev/docs/api/search",
+    "q": "salt fat acid heat",
+    "offset": null,
+    "docs": [
+      {
+        "author_key": [
+          "OL7442975A"
+        ],
+        "author_name": [
+          "Samin Nosrat"
+        ],
+        "cover_i": 8315567,
+        "first_publish_year": 2017,
+        "key": "/works/OL18147901W",
+        "language": [
+          "eng",
+          "spa"
+        ],
+        "subtitle": "Mastering the Elements of Good Cooking",
+        "title": "Salt, Fat, Acid, Heat",
+        "editions": {
+          "numFound": 6,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL26632002M",
+              "title": "Salt, Fat, Acid, Heat: Mastering the Elements of Good Cooking",
+              "cover_i": 8315567,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Simon and Schuster"
+              ],
+              "publish_date": [
+                "Apr 25, 2017"
+              ],
+              "isbn": [
+                "9781476753836",
+                "1476753830"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7442975A"
+        ],
+        "author_name": [
+          "Samin Nosrat"
+        ],
+        "cover_i": 8809421,
+        "first_publish_year": 2019,
+        "key": "/works/OL20163358W",
+        "subtitle": "A Collection of 20 Prints",
+        "title": "Salt, Fat, Acid, Heat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL27345310M",
+              "title": "Salt, Fat, Acid, Heat",
+              "cover_i": 8809421,
+              "publisher": [
+                "Clarkson Potter"
+              ],
+              "publish_date": [
+                "Mar 26, 2019"
+              ],
+              "isbn": [
+                "9781984824707",
+                "1984824708"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7442975A",
+          "OL7528477A"
+        ],
+        "author_name": [
+          "Samin Nosrat",
+          "Wendy MacNaughton"
+        ],
+        "first_publish_year": 2019,
+        "key": "/works/OL21356285W",
+        "language": [
+          "eng"
+        ],
+        "title": "Salt, Fat, Acid, Heat Postcards",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL28927312M",
+              "title": "Salt, Fat, Acid, Heat Postcards",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Crown Publishing Group"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781984825520",
+                "1984825526"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11225897A"
+        ],
+        "author_name": [
+          "Brandi Hardesty"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL30730345W",
+        "language": [
+          "eng"
+        ],
+        "title": "Paperback - Salt, Fat, Acid, Heat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42234194M",
+              "title": "Paperback - Salt, Fat, Acid, Heat",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798698989820"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8497552A"
+        ],
+        "author_name": [
+          "Claudia Ramirez"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL28429995W",
+        "language": [
+          "eng"
+        ],
+        "title": "Salt Fat Acid Heat Trivia",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38938590M",
+              "title": "Salt Fat Acid Heat Trivia",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798818228266"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9626946A"
+        ],
+        "author_name": [
+          "ePrint"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL25506853W",
+        "language": [
+          "eng"
+        ],
+        "title": "ESUMMARY of Salt, Fat, Acid, Heat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL34213322M",
+              "title": "ESUMMARY of Salt, Fat, Acid, Heat",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798731843904"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9813221A"
+        ],
+        "author_name": [
+          "Richard B. Banks"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL25970651W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary and Analysis of Salt, Fat, Acid, Heat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35052483M",
+              "title": "Summary and Analysis of Salt, Fat, Acid, Heat",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798733763774"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL13039851A"
+        ],
+        "author_name": [
+          "William VISSER"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL36285306W",
+        "language": [
+          "eng"
+        ],
+        "title": "Paperback - Salt, Fat, Acid, Heat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL49029662M",
+              "title": "Paperback - Salt, Fat, Acid, Heat",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798580251332"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL7442975A"
+        ],
+        "author_name": [
+          "Samin Nosrat"
+        ],
+        "first_publish_year": 2019,
+        "key": "/works/OL38113920W",
+        "language": [
+          "eng"
+        ],
+        "title": "Salt, Fat, Acid, Heat Four-Notebook Set",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51790850M",
+              "title": "Salt, Fat, Acid, Heat Four-Notebook Set",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Crown Publishing Group, The"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781984825513",
+                "1984825518"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11465197A"
+        ],
+        "author_name": [
+          "Paul Adams / Bookhabits"
+        ],
+        "first_publish_year": 2019,
+        "key": "/works/OL38152044W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of Salt, Fat, Acid, Heat : Mastering the Elements of Good Cooking by Samin Nosrat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL51845332M",
+              "title": "Summary of Salt, Fat, Acid, Heat : Mastering the Elements of Good Cooking by Samin Nosrat",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Blurb"
+              ],
+              "publish_date": [
+                "2019"
+              ],
+              "isbn": [
+                "9781364040277",
+                "1364040271"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11350681A"
+        ],
+        "author_name": [
+          "Sophia Linda"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL34387628W",
+        "language": [
+          "eng"
+        ],
+        "title": "New Utmost Salt Fat Acid Heat Cookbook",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46648106M",
+              "title": "New Utmost Salt Fat Acid Heat Cookbook",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798849596419"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10035774A"
+        ],
+        "author_name": [
+          "BookNation"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL28085180W",
+        "language": [
+          "eng"
+        ],
+        "title": "Summary of Salt, Fat, Acid, Heat : Mastering the Elements of Good Cooking",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38438372M",
+              "title": "Summary of Salt, Fat, Acid, Heat : Mastering the Elements of Good Cooking",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798694244763"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL8397743A"
+        ],
+        "author_name": [
+          "nicola jusis"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL22214301W",
+        "language": [
+          "eng"
+        ],
+        "title": "Salt, Fat, Acid, Heat",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL30268951M",
+              "title": "Salt, Fat, Acid, Heat",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798646885440"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10426566A"
+        ],
+        "author_name": [
+          "Claypole Josh"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL30711276W",
+        "language": [
+          "eng"
+        ],
+        "title": "Paperback - Cooking Love",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42209167M",
+              "title": "Paperback - Cooking Love",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798559073736"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10426566A"
+        ],
+        "author_name": [
+          "Claypole Josh"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL27948925W",
+        "language": [
+          "eng"
+        ],
+        "title": "Paperback - Lemon TRee Cookbook",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL38199009M",
+              "title": "Paperback - Lemon TRee Cookbook",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798554686313"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11161960A"
+        ],
+        "author_name": [
+          "nahoumi"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL30481353W",
+        "language": [
+          "eng"
+        ],
+        "title": "Eating Vegetarian",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL41904978M",
+              "title": "Eating Vegetarian",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798638260811"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11155898A"
+        ],
+        "author_name": [
+          "Mohamed Raouf"
+        ],
+        "first_publish_year": 2020,
+        "key": "/works/OL30531550W",
+        "language": [
+          "eng"
+        ],
+        "title": "Magnolia Table, Volume 2",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL41976818M",
+              "title": "Magnolia Table, Volume 2",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2020"
+              ],
+              "isbn": [
+                "9798638248154"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL9829211A"
+        ],
+        "author_name": [
+          "Mcbride SCOTTIE"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL26018293W",
+        "language": [
+          "eng"
+        ],
+        "title": "Mastering the Elements of Good Cooking : Salt, Fat, Heat, Acid Cook Guide",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL35116229M",
+              "title": "Mastering the Elements of Good Cooking : Salt, Fat, Heat, Acid Cook Guide",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798506152798"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL10697458A"
+        ],
+        "author_name": [
+          "Marv Aden"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL34411295W",
+        "language": [
+          "eng"
+        ],
+        "title": "FASH Elements of Food",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL46678847M",
+              "title": "FASH Elements of Food",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798354170098"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11345530A"
+        ],
+        "author_name": [
+          "Darley Joseph"
+        ],
+        "first_publish_year": 2022,
+        "key": "/works/OL31074393W",
+        "language": [
+          "eng"
+        ],
+        "title": "Mastering the Elements of Good Cooking",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL42675190M",
+              "title": "Mastering the Elements of Good Cooking",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2022"
+              ],
+              "isbn": [
+                "9798422879755"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL11258819A"
+        ],
+        "author_name": [
+          "Hillow Publishing"
+        ],
+        "first_publish_year": 2021,
+        "key": "/works/OL35818245W",
+        "language": [
+          "eng"
+        ],
+        "title": "Perfecting the Essentials of Healthy Cooking",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL48338939M",
+              "title": "Perfecting the Essentials of Healthy Cooking",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Independently Published"
+              ],
+              "publish_date": [
+                "2021"
+              ],
+              "isbn": [
+                "9798739269973"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2787421A"
+        ],
+        "author_name": [
+          "Ann Louise Phd Cns Gittleman"
+        ],
+        "cover_i": 369502,
+        "first_publish_year": 1991,
+        "key": "/works/OL8368646W",
+        "language": [
+          "eng"
+        ],
+        "title": "SUPER NUTRITION FOR WOMEN",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL7826168M",
+              "title": "Super Nutrition for Women",
+              "cover_i": 369502,
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Bantam"
+              ],
+              "publish_date": [
+                "1991, January 1, 1997"
+              ],
+              "isbn": [
+                "9780553353280",
+                "0553353284"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL2234836A",
+          "OL161989A"
+        ],
+        "author_name": [
+          "Clarence J. West",
+          "Callie Hull"
+        ],
+        "first_publish_year": 1926,
+        "key": "/works/OL18492681W",
+        "language": [
+          "eng",
+          "ger",
+          "fre",
+          "spa"
+        ],
+        "title": "International critical tables of numerical data, physics, chemistry and technology",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL44739182M",
+              "title": "International critical tables of numerical data, physics, chemistry and technology",
+              "language": [
+                "eng"
+              ],
+              "publisher": [
+                "Published for the National Research Council by the McGraw-Hill Book Co."
+              ],
+              "publish_date": [
+                "1926"
+              ],
+              "isbn": [
+                "9781591244912",
+                "1591244919"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "first_publish_year": 2014,
+        "key": "/works/OL17060089W",
+        "title": "Biochemistry",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL25629330M",
+              "title": "Biochemistry",
+              "publisher": [
+                "15projects.com"
+              ],
+              "publish_date": [
+                "2014"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "author_key": [
+          "OL906066A"
+        ],
+        "author_name": [
+          "J. Davies"
+        ],
+        "cover_i": 4980204,
+        "first_publish_year": 1982,
+        "key": "/works/OL4516630W",
+        "title": "Physiological Responses to Burning Injury",
+        "editions": {
+          "numFound": 1,
+          "start": 0,
+          "numFoundExact": true,
+          "docs": [
+            {
+              "key": "/books/OL9479705M",
+              "title": "Physiological Responses to Burning Injury",
+              "cover_i": 4980204,
+              "publisher": [
+                "Academic Press"
+              ],
+              "publish_date": [
+                "September 1982"
+              ],
+              "isbn": [
+                "9780122060809",
+                "0122060806"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "elapsedSeconds": 0.674
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "employees-author",
+    "query": "The Employees by Olga Ravn",
+    "target": "OL25803688W"
+  },
+  {
+    "id": "employees-suffix",
+    "query": "The Employees Olga Ravn",
+    "target": "OL25803688W"
+  },
+  {
+    "id": "percy-typo",
+    "query": "percy jakson",
+    "target": "OL492658W"
+  },
+  {
+    "id": "hail-typo",
+    "query": "project hail maryy",
+    "target": "OL21745884W"
+  },
+  {
+    "id": "hobbit-typo",
+    "query": "the hobbitt",
+    "target": "OL27482W"
+  },
+  {
+    "id": "punctuation",
+    "query": "Project: Hail Mary!",
+    "target": "OL21745884W"
+  },
+  {
+    "id": "nonexistent",
+    "query": "zxqvplm nonexistent book 782643",
+    "empty": true
+  },
+  {
+    "id": "nonexistent-author",
+    "query": "zxqvplm nonexistent book by Qzx Vplm",
+    "empty": true
+  },
+  {
+    "id": "employees-audio",
+    "query": "The Employees by Olga Ravn",
+    "target": "OL25803688W",
+    "format": "audiobook"
+  },
+  {
+    "id": "hail-audio",
+    "query": "Project Hail Mary",
+    "target": "OL21745884W",
+    "format": "audiobook"
+  }
+]

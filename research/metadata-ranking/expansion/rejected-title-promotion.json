@@ -1,0 +1,308 @@
+[
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL16819897W",
+    "firstTitle": "Braiding Sweetgrass",
+    "id": "braiding",
+    "query": "Braiding Sweetgrass",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL24663287W",
+    "firstTitle": "The Dawn of Everything",
+    "id": "dawn",
+    "query": "The Dawn of Everything",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL20758206W",
+    "firstTitle": "Entangled Life",
+    "id": "entangled",
+    "query": "Entangled Life",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL17872278W",
+    "firstTitle": "The Book of Why",
+    "id": "why",
+    "query": "The Book of Why",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL716850W",
+    "firstTitle": "Gödel, Escher, Bach",
+    "id": "godel",
+    "query": "Gödel Escher Bach",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL4617640W",
+    "firstTitle": "The C Programming Language",
+    "id": "c-language",
+    "query": "The C Programming Language",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL19293745W",
+    "firstTitle": "Designing Data-Intensive Applications",
+    "id": "data",
+    "query": "Designing Data-Intensive Applications",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL18147901W",
+    "firstTitle": "Salt, Fat, Acid, Heat",
+    "id": "salt",
+    "query": "Salt Fat Acid Heat",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL18146664W",
+    "firstTitle": "The Food Lab",
+    "id": "food",
+    "query": "The Food Lab",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL18147687W",
+    "firstTitle": "The Body Keeps the Score",
+    "id": "body",
+    "query": "The Body Keeps the Score",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL244537W",
+    "firstTitle": "The Art of War",
+    "id": "war",
+    "query": "The Art of War",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL28521353W",
+    "firstTitle": "Meditations",
+    "id": "meditations",
+    "query": "Meditations",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL24798492W",
+    "firstTitle": "A Room of One's Own",
+    "id": "room",
+    "query": "A Room of One's Own",
+    "requests": 1,
+    "targetRank": 5
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL26860869W",
+    "firstTitle": "Frankenstein",
+    "id": "frankenstein",
+    "query": "Frankenstein",
+    "requests": 1,
+    "targetRank": 9
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL50548W",
+    "firstTitle": "Beloved",
+    "id": "beloved",
+    "query": "Beloved",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL35616W",
+    "firstTitle": "Kindred",
+    "id": "kindred",
+    "query": "Kindred",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL20893680W",
+    "firstTitle": "Piranesi",
+    "id": "piranesi",
+    "query": "Piranesi",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL11690127W",
+    "firstTitle": "密やかな結晶",
+    "id": "memory",
+    "query": "The Memory Police",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL19744024W",
+    "firstTitle": "Convenience store woman",
+    "id": "convenience",
+    "query": "Convenience Store Woman",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL25803688W",
+    "firstTitle": "De ansatte",
+    "id": "employees",
+    "query": "The Employees",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL17351965W",
+    "firstTitle": "Prowadź swój pług przez kości umarłych",
+    "id": "plow",
+    "query": "Drive Your Plow Over the Bones of the Dead",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL274505W",
+    "firstTitle": "Cien años de soledad",
+    "id": "solitude",
+    "query": "One Hundred Years of Solitude",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL274505W",
+    "firstTitle": "Cien años de soledad",
+    "id": "soledad",
+    "query": "Cien años de soledad",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL1230613W",
+    "firstTitle": "L’étranger",
+    "id": "etranger",
+    "query": "L'étranger",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL617847W",
+    "firstTitle": "El túnel",
+    "id": "tunel",
+    "query": "El túnel",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL29316319W",
+    "firstTitle": "Björnstad",
+    "id": "bjorn",
+    "query": "Björnstad",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL2196010W",
+    "firstTitle": "Sommarboken",
+    "id": "summer",
+    "query": "The Summer Book",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL22561871W",
+    "firstTitle": "A Psalm for the Wild-Built",
+    "id": "psalm",
+    "query": "A Psalm for the Wild-Built",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL17363125W",
+    "firstTitle": "The Fifth Season",
+    "id": "fifth",
+    "query": "The Fifth Season",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL17187702W",
+    "firstTitle": "A Brief History of Seven Killings",
+    "id": "seven",
+    "query": "A Brief History of Seven Killings",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL1168169W",
+    "firstTitle": "Homage to Catalonia",
+    "id": "catalonia",
+    "query": "Homage to Catalonia",
+    "requests": 1,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL7910145W",
+    "firstTitle": "The Tale of Genji",
+    "id": "genji",
+    "query": "The Tale of Genji",
+    "requests": 1,
+    "targetRank": 0
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL35623W",
+    "firstTitle": "Parable of the Sower",
+    "id": "parable",
+    "query": "Parable of the Sower by Octavia E Butler",
+    "requests": 2,
+    "targetRank": 1
+  },
+  {
+    "errors": null,
+    "firstID": "openlibrary:OL19720501W",
+    "firstTitle": "Devotions",
+    "id": "devotions",
+    "query": "Devotions Mary Oliver",
+    "requests": 1,
+    "targetRank": 1
+  }
+]

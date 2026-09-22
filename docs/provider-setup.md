@@ -11,8 +11,26 @@ is normalized so it is not sent twice. Regular successful searches also establis
 request evidence. GraphQL/HTTP errors are shown as degraded, rejected credentials,
 forbidden access, rate limiting or an unavailable provider as appropriate. Typesense book/author results are decoded. Author search retains numeric provider
 IDs, and monitoring traverses the selected author's book contributions with
-pagination. These Hardcover paths have contract-fixture coverage; real-token and
-rich edition/series/list qualification remain pending. Open Library continues to work independently.
+pagination. These Hardcover paths have contract-fixture coverage. On September 21, 2026,
+the maintainer NAS passed authentication and a title search with covers. A local
+credentialed title probe returned coherent work/ebook metadata; series discovery initially failed on a forbidden substring operator. The corrected
+search-by-ID path now returns numbered Percy Jackson memberships. Exact ebook
+ISBN lookup succeeds; one paperback ISBN returned no edition results.
+Broader edition/series/list qualification remains pending; see the
+[credential setup record](reviews/2026-09-21-hardcover-credentials.md). Open Library
+continues to work independently.
+
+Series mode discovers up to three identities with Hardcover's dedicated Series
+search, then queries their explicit memberships and numbered positions.
+It returns a bounded discovery window: up to three matching series, 25
+non-compilation books each, and at most 50 displayed edition records. Exact names
+lead within the returned set. Retrieval prioritizes provider-featured memberships
+within its bound; this flag is not proof of a primary novel. Verified ebook/audio
+editions lead work-only records, with numbered order retained within each group
+and missing positions last. It does not enumerate a
+complete series. A missing token is surfaced instead of using unrelated title
+results. The corrected query passed a live credentialed Percy Jackson check on September 21;
+this is bounded discovery evidence, not proof of complete series coverage.
 
 ## Open Library
 
@@ -23,6 +41,21 @@ endpoint and checks the declared count. A name-only or synthetic legacy identity
 cannot establish a complete bibliography: select the correct author from search
 and replace the old subscription, preserving its desired settings. Existing
 wanted books are retained.
+
+Book discovery uses one general `q` search, up to 25 work candidates, with the
+configured language preference passed to edition selection (`lang=en` for English).
+The displayed page remains ten results. Explicit `title by author` queries with no
+matching candidate can make one additional general `q` title search constrained by
+`author` (including translated edition titles), also
+capped at 25. A failed rescue preserves primary results and reports the error.
+ISBN and author searches use their specific
+routes; connection checks remain one-result ISBN requests. Only `editions.docs`
+supplies edition ISBN, language, cover, publisher and publication date. A work's
+language array is kept separately. The search endpoint does not verify media
+format, so Open Library results show **Format unknown** and require add review.
+General searches exclude known nonpreferred edition languages; an exact ISBN
+edition is retained with an explicit conflict so a different edition is not
+silently substituted. These are discovery rules, not acquisition authorization.
 
 ## Google Books
 
@@ -44,8 +77,9 @@ Results retain provider IDs, original identifiers, contributors, language and
 source keys. Known incompatible languages/formats are excluded; unknown evidence
 stays unknown. Google results are marked ebook only when the provider says so;
 requesting audiobook never invents audiobook metadata. A title match identifies
-a candidate, not proof of the right author or edition. Real-key qualification is
-still pending.
+a candidate, not proof of the right author or edition. The maintainer NAS passed
+a credentialed Google Books health lookup on September 21, 2026. Broader fallback
+and ranking qualification remains pending; see the [setup record](reviews/2026-09-21-google-books-credentials.md).
 
 ## Local Metadata
 
@@ -78,7 +112,8 @@ request backoff, not a scheduled background retry. Observations are in memory;
 restarting or constructing providers with different credentials resets them.
 
 Connection checks do not certify rich metadata coverage or author/list traversal.
-Real Hardcover and Google credential qualification remains pending. The probe
+Hardcover and Google authentication checks have passed on the maintainer NAS;
+that does not qualify all search paths or catalog coverage. The probe
 contracts follow [Hardcover's getting-started example](https://docs.hardcover.app/api/getting-started/)
 and [Google Books volumes search](https://developers.google.com/books/docs/v1/using#PerformingSearch).
 

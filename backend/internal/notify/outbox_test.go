@@ -220,12 +220,15 @@ func TestOutboxRejectsRedirectAndBoundsRateRetries(t *testing.T) {
 func TestOutboxConcurrentSendAndLostSession(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	var sends atomic.Int32
+	var releaseOnce sync.Once
 	s, db, _ := outboxFixture(t, func(w http.ResponseWriter, r *http.Request) {
 		sends.Add(1)
 		close(entered)
 		<-release
 		w.WriteHeader(204)
 	})
+	// Release the receiver even when an assertion fails, before server cleanup.
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 	fixtureHistory(t, db, "release_grabbed")
 	d := onlyDelivery(t, s)
 	done := make(chan error, 1)
@@ -237,16 +240,17 @@ func TestOutboxConcurrentSendAndLostSession(t *testing.T) {
 	if err := s.ResolveDelivery(context.Background(), d.ID, resolution(d, "cancel")); !errors.Is(err, ErrDeliveryConflict) {
 		t.Fatal("active delivery resolved", err)
 	}
+	// Wait for termination, not just signal delivery, before checking recovery.
 	// Kill only the database session holding this fixture's advisory lock.
 	var killed bool
-	if err := db.QueryRow(`select pg_terminate_backend(pid) from pg_locks where locktype='advisory' and database=(select oid from pg_database where datname=current_database()) and classid::bigint=((hashtextextended('librarry-notification:'||$1,0)>>32)&4294967295) and objid::bigint=(hashtextextended('librarry-notification:'||$1,0)&4294967295) and objsubid=1`, d.ID).Scan(&killed); err != nil || !killed {
+	if err := db.QueryRow(`select pg_terminate_backend(pid, 5000) from pg_locks where locktype='advisory' and database=(select oid from pg_database where datname=current_database()) and classid::bigint=((hashtextextended('librarry-notification:'||$1,0)>>32)&4294967295) and objid::bigint=(hashtextextended('librarry-notification:'||$1,0)&4294967295) and objsubid=1`, d.ID).Scan(&killed); err != nil || !killed {
 		t.Fatal(err)
 	}
 	runOutbox(t, NewService(NewStore(db), nil))
 	if onlyDelivery(t, s).State != "uncertain" {
 		t.Fatal("lost sender not recognized")
 	}
-	close(release)
+	releaseOnce.Do(func() { close(release) })
 	if err := <-done; err == nil {
 		t.Fatal("stale sender saved result")
 	}
