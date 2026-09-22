@@ -5,6 +5,12 @@ what is published, deployed and qualified. A candidate tag is not a stable relea
 
 ## Unreleased
 
+- Discovery favors coherent matching editions over empty catalog stubs and groups
+  related authors, companion material and incomplete records below primary results.
+  Verified work aliases share an edition chooser without merging namesakes.
+- Interactive Hardcover book search preserves healthy records and sibling editions
+  when some default-edition data is invalid; the warning remains visible.
+
 - Add New puts **Download ebook/audiobook** first: save the selected book, search
   releases, and start the best approved result with existing quality settings.
   Add Book saves without an immediate search. Advanced options and provider

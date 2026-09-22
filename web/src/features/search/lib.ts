@@ -412,20 +412,34 @@ export function chipTone(tone: SearchEvidenceTone | undefined): "success" | "war
 /** Group only the same provider-backed work; names and covers are not identity.
  * Each option retains its complete SearchResult for library checks and add. */
 export function groupSearchEditions(results: SearchResult[]): SearchResult[][] {
-  const groups: SearchResult[][] = [];
-  const indexes = new Map<string, number>();
+  const groups: Array<{ keys: Set<string>; results: SearchResult[] }> = [];
   for (const result of results) {
-    // Require a typed work ID. An edition-only or unknown identity gets its own row.
-    const id = result.work.id;
-    const workKey = result.kind === "book" && (/^openlibrary:OL\d+W$/.test(id) || /^hardcover:\d+$/.test(id)) ? `${id}:${result.work.seriesId ?? ""}` : "";
-    const index = workKey ? indexes.get(workKey) : undefined;
-    if (index !== undefined) groups[index].push(result);
+    // Aliases here were verified by the backend using provider identities or a
+    // shared edition ISBN. Titles, author names and covers never create a link.
+    const keys = new Set(result.kind === "book" ? [result.work.id, ...(result.work.providerIds ?? [])]
+      .filter(id => /^openlibrary:OL\d+W$/.test(id) || /^hardcover:\d+$/.test(id))
+      .map(id => `${id}:${result.work.seriesId ?? ""}`) : []);
+    const matches = groups.filter(group => [...keys].some(key => group.keys.has(key)));
+    if (!matches.length) groups.push({ keys, results: [result] });
     else {
-      if (workKey) indexes.set(workKey, groups.length);
-      groups.push([result]);
+      const target = matches[0];
+      // A verified alias can bridge two groups discovered earlier. Keep their
+      // original order and every complete selected-edition payload.
+      for (const match of matches.slice(1)) {
+        match.keys.forEach(key => target.keys.add(key));
+        target.results.push(...match.results);
+        groups.splice(groups.indexOf(match), 1);
+      }
+      keys.forEach(key => target.keys.add(key));
+      target.results.push(result);
     }
   }
-  return groups;
+  return groups.map(group => group.results);
+}
+
+export function searchGroupSection(group: SearchResult[]): "primary" | "related" | "incomplete" {
+  if (group.some(result => !result.discoverySection)) return "primary";
+  return group.some(result => result.discoverySection === "related") ? "related" : "incomplete";
 }
 
 export function searchEditionOptionLabel(result: SearchResult) {

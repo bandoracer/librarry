@@ -66,18 +66,20 @@ type Edition struct {
 }
 
 type SearchResult struct {
+	DiscoverySection string `json:"discoverySection,omitempty"`
 	// discoveryRank is assigned after the provider cache; it is not confidence.
-	discoveryRank int
-	Evidence      []string   `json:"evidence,omitempty"`
-	Conflicts     []string   `json:"conflicts,omitempty"`
-	Provider      string     `json:"provider"`
-	Kind          SearchType `json:"kind"`
-	Work          Work       `json:"work"`
-	Edition       Edition    `json:"edition,omitempty"`
-	Score         float64    `json:"score"`
-	Confidence    string     `json:"confidence"`
-	MatchedOn     []string   `json:"matchedOn"`
-	RawSourceKey  string     `json:"rawSourceKey,omitempty"`
+	discoveryPreferred bool
+	discoveryRank      int
+	Evidence           []string   `json:"evidence,omitempty"`
+	Conflicts          []string   `json:"conflicts,omitempty"`
+	Provider           string     `json:"provider"`
+	Kind               SearchType `json:"kind"`
+	Work               Work       `json:"work"`
+	Edition            Edition    `json:"edition,omitempty"`
+	Score              float64    `json:"score"`
+	Confidence         string     `json:"confidence"`
+	MatchedOn          []string   `json:"matchedOn"`
+	RawSourceKey       string     `json:"rawSourceKey,omitempty"`
 }
 
 type ProviderHealth struct {

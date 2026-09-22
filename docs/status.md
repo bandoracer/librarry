@@ -41,6 +41,15 @@ desktop/mobile browser checks. Browser tests use intercepted acquisition respons
 no live downloads were submitted. This change is not yet deployed; the live
 metadata rollout above remains current.
 
+## Discovery cleanup (source only)
+
+The next ranking pass addresses the live DDIA empty-record and typo/noise cases,
+adds expandable related/incomplete sections, and preserves healthy Hardcover
+records during partial edition validation failures. It also groups verified work
+aliases while retaining selected edition identity. The 24-query credentialed live probe, 50-query captured benchmark, metadata race
+tests, full Go suite and 42 desktop/mobile checks passed. Source-only evidence and
+the remaining gaps are in the [cleanup review](reviews/2026-09-21-discovery-cleanup.md).
+
 ## Kindle delivery
 
 Manual native EPUB/PDF delivery is deployed on the maintainer NAS. Settings,

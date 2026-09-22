@@ -133,15 +133,22 @@ func (s *Service) SearchDetailed(ctx context.Context, query Query) SearchOutcome
 		}
 	}
 	merged = eligible
+	assignDiscoverySections(query, merged)
 
 	sort.SliceStable(merged, func(i, j int) bool {
 		if query.Type == SearchTypeSeries {
 			return merged[i].discoveryRank < merged[j].discoveryRank
 		}
 		if query.Type == SearchTypeBook {
+			if left, right := discoverySectionRank(merged[i].DiscoverySection), discoverySectionRank(merged[j].DiscoverySection); left != right {
+				return left < right
+			}
 			left, right := discoveryTier(query, merged[i]), discoveryTier(query, merged[j])
 			if left != right {
 				return left > right
+			}
+			if merged[i].discoveryPreferred != merged[j].discoveryPreferred {
+				return merged[i].discoveryPreferred
 			}
 			if merged[i].discoveryRank != merged[j].discoveryRank {
 				return merged[i].discoveryRank < merged[j].discoveryRank

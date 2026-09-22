@@ -74,3 +74,18 @@ describe("routine book selection", () => {
     expect(searchResultWantedReviewReasons({ ...book, work: { ...book.work, authors: [] }, conflicts: ["Wrong language"] })).toEqual(["Wrong language", "This record has no author. Check that it is the book you want."]);
   });
 });
+
+
+import { searchGroupSection } from "./lib";
+it("groups verified work aliases without replacing the selected edition or joining namesakes", () => {
+  const base: SearchResult = { provider: "Hardcover", kind: "book", work: { id: "hardcover:1", title: "Novel", providerIds: ["hardcover:1", "openlibrary:OL1W"] }, edition: { id: "hardcover-edition:1", title: "Novel", format: "ebook" }, confidence: "medium", score: 0.75, matchedOn: [] };
+  const alias = { ...base, provider: "Open Library", work: { id: "openlibrary:OL1W", title: "Novel" }, edition: { ...base.edition!, id: "openlibrary:OL1M" }, discoverySection: "incomplete" as const };
+  const namesake = { ...alias, work: { id: "openlibrary:OL2W", title: "Novel" } };
+  const groups = groupSearchEditions([base, alias, namesake]);
+  expect(groups.map(group => group.length)).toEqual([2, 1]);
+  expect(groups[0][1]).toBe(alias);
+  expect(searchGroupSection(groups[0])).toBe("primary");
+  expect(searchGroupSection(groups[1])).toBe("incomplete");
+  const otherMembership = { ...alias, work: { ...alias.work, seriesId: "hardcover-series:2" } };
+  expect(groupSearchEditions([base, otherMembership])).toHaveLength(2);
+});

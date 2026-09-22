@@ -241,3 +241,13 @@ The implementation follows the documented
 and [edition](https://github.com/hardcoverapp/hardcover-docs/blob/main/src/content/docs/api/GraphQL/Schemas/Editions.mdx)
 fields. Contract tests cover these shapes; a live Hardcover token is still needed
 before claiming provider qualification.
+
+## Partial Hardcover catalog data
+
+The source candidate preserves independently validated results when an interactive
+book search encounters malformed default-edition data. A healthy sibling edition
+can still be used; if only the work validates, its media format remains unknown.
+Invalid work identities and conflicting edition identities are never accepted.
+The response still reports a provider warning and is not cached as complete.
+Exact ISBN lookup and automated author bibliography traversal retain strict
+validation. Series membership validation also remains strict.

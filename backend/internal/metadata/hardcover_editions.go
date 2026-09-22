@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -181,6 +182,61 @@ func hardcoverResult(query Query, work Work, edition Edition) SearchResult {
 	}
 	return SearchResult{Provider: "Hardcover", Kind: SearchTypeBook, Work: work, Edition: edition, Score: score, Confidence: confidence(score), MatchedOn: []string{"hardcover work and edition records"}, RawSourceKey: work.ID}
 }
+
+// Interactive discovery may keep a validated work and independent healthy
+// editions when a default relationship is malformed. Bibliography and exact
+// edition lookups keep their strict validation contracts.
+func hardcoverDiscoveryResults(book hardcoverGraphBook, query Query) ([]SearchResult, error) {
+	rows, err := hardcoverResults(book, query)
+	if err == nil {
+		return rows, nil
+	}
+	work, workErr := hardcoverWork(book)
+	if workErr != nil {
+		return nil, workErr
+	}
+	healthy := []SearchResult{}
+	duplicate := map[string]bool{}
+	seen := map[string]bool{}
+	for _, format := range []MediaFormat{FormatEbook, FormatAudiobook} {
+		if concreteFormat(query.Format) != FormatAny && query.Format != format {
+			continue
+		}
+		subset, request := book, query
+		request.Format = format
+		if format == FormatEbook {
+			subset.DefaultAudio = nil
+		} else {
+			subset.DefaultEbook = nil
+		}
+		candidates, editionErr := hardcoverResults(subset, request)
+		if editionErr != nil {
+			continue
+		}
+		for _, candidate := range candidates {
+			id := candidate.Edition.ID
+			if id == "" {
+				continue
+			}
+			if seen[id] {
+				duplicate[id] = true
+			}
+			seen[id] = true
+			healthy = append(healthy, candidate)
+		}
+	}
+	valid := healthy[:0]
+	for _, result := range healthy {
+		if !duplicate[result.Edition.ID] {
+			valid = append(valid, result)
+		}
+	}
+	if len(valid) == 0 {
+		valid = append(valid, hardcoverResult(query, work, Edition{WorkID: work.ID, Title: work.Title, Format: FormatAny}))
+	}
+	return valid, err
+}
+
 func (p *HardcoverProvider) enrichBookSearch(ctx Context, query Query, ids []int64) ([]SearchResult, error) {
 	if len(ids) == 0 {
 		return []SearchResult{}, nil
@@ -189,6 +245,7 @@ func (p *HardcoverProvider) enrichBookSearch(ctx Context, query Query, ids []int
 		Books []hardcoverGraphBook `json:"books"`
 	}
 	results := []SearchResult{}
+	var invalid []error
 	err := p.graphQL(ctx, `query SearchBookDetails($ids:[Int!]!) { books(where:{id:{_in:$ids}}) { `+hardcoverWorkFields+hardcoverDefaultEditions+` } }`, map[string]any{"ids": ids}, &data, func() error {
 		byID := map[int64]hardcoverGraphBook{}
 		for _, book := range data.Books {
@@ -201,19 +258,28 @@ func (p *HardcoverProvider) enrichBookSearch(ctx Context, query Query, ids []int
 			return providerValidationError("Hardcover search details are incomplete")
 		}
 		for _, id := range ids {
-			book, ok := byID[id]
-			if !ok {
+			if _, ok := byID[id]; !ok {
 				return providerValidationError("Hardcover returned details for an unexpected work")
 			}
-			rows, err := hardcoverResults(book, query)
+		}
+		for _, id := range ids {
+			rows, err := hardcoverDiscoveryResults(byID[id], query)
 			if err != nil {
-				return err
+				invalid = append(invalid, err)
 			}
 			results = append(results, rows...)
+		}
+		if len(invalid) > 0 {
+			return errors.Join(invalid...)
 		}
 		return nil
 	})
 	if err != nil {
+		// Observation classifies the underlying provider failure, so attach the
+		// partial-result marker afterwards to preserve it at the service/cache.
+		if len(results) > 0 && len(invalid) > 0 {
+			return results, &partialSearchError{fmt.Errorf("Ignored invalid edition or work data in %d Hardcover records: %w", len(invalid), err)}
+		}
 		return nil, err
 	}
 	return results, nil

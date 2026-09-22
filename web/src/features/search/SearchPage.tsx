@@ -64,6 +64,7 @@ import {
   compactStringList,
   firstAuthorName,
   groupSearchEditions,
+  searchGroupSection,
   searchEditionOptionLabel,
   languageLabel,
   searchFormatOptions,
@@ -183,6 +184,9 @@ export default function SearchPage() {
     [results, providerFilter, evidenceFilter]
   );
   const editionGroups = useMemo(() => groupSearchEditions(visibleResults), [visibleResults]);
+  const primaryGroups = editionGroups.filter(group => searchGroupSection(group) === "primary");
+  const relatedGroups = editionGroups.filter(group => searchGroupSection(group) === "related");
+  const incompleteGroups = editionGroups.filter(group => searchGroupSection(group) === "incomplete");
   const activeFilterCount = [
     providerFilter,
     evidenceFilter !== "all" ? evidenceFilter : ""
@@ -219,6 +223,7 @@ export default function SearchPage() {
   const selected = useMemo(
     () =>
       visibleResults.find((result) => searchResultKey(result) === selectedKey || result.work.id === selectedKey) ??
+      visibleResults.find(result => !result.discoverySection) ??
       visibleResults[0] ??
       results[0],
     [visibleResults, results, selectedKey]
@@ -304,7 +309,8 @@ export default function SearchPage() {
       const nextResults = outcome.results;
       if (outcome.providerErrors.length) setSearchError(outcome.providerErrors.map(error => `${error.provider}: ${error.message}`).join(" · "));
       setResults(nextResults);
-      setSelectedKey(nextResults[0] ? searchResultKey(nextResults[0]) : "");
+      const first = nextResults.find(result => !result.discoverySection) ?? nextResults[0];
+      setSelectedKey(first ? searchResultKey(first) : "");
       setPendingReview(null);
       setReleases([]);
       setReleasesSearched(false);
@@ -851,7 +857,7 @@ export default function SearchPage() {
   return (
     <>
       <PageHeader title="Add New" subtitle={searchNav?.subtitle} />
-      {mode === "series" ? <InlineNotice tone="info">Hardcover series order. Up to 3 matching series and 25 books each, excluding collections; at most 50 edition records shown. Missing positions come last. Refine the name to narrow results.</InlineNotice> : null}
+      {mode === "series" ? <InlineNotice tone="info">Hardcover series order. Companion material and incomplete records are grouped below.</InlineNotice> : null}
 
       <form
         className="search-hero"
@@ -953,7 +959,19 @@ export default function SearchPage() {
             <LoadingRow label="Searching metadata providers…" />
           ) : visibleResults.length ? (
             <div className="search-result-list" role="list">
-              {editionGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+              {primaryGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+              {relatedGroups.length ? (
+                <details className="search-disclosure search-secondary-results" key={`related:${query}`} open={!primaryGroups.length || undefined}>
+                  <summary>Related books and companion material ({relatedGroups.length})</summary>
+                  {relatedGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+                </details>
+              ) : null}
+              {incompleteGroups.length ? (
+                <details className="search-disclosure search-secondary-results" key={`incomplete:${query}`} open={!primaryGroups.length && !relatedGroups.length || undefined}>
+                  <summary>Incomplete catalog records ({incompleteGroups.length})</summary>
+                  {incompleteGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+                </details>
+              ) : null}
             </div>
           ) : results.length ? (
             <EmptyState icon={FilterX} title="No metadata candidates match the current filters.">

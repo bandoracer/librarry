@@ -12,6 +12,7 @@ export type ProviderHealth = {
 };
 
 export type SearchResult = {
+  discoverySection?: "related" | "incomplete";
   provider: string;
   kind: "book" | "author" | "author_works" | "series";
   work: {

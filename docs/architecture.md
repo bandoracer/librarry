@@ -47,13 +47,24 @@ See [metadata contracts](reference/metadata.md) and
 
 Provider search responses pass through bounded caches, coherent edition mapping,
 identity-based merging, preference checks, and discovery ordering. Exact ISBNs
-lead; explicit title/author agreement and exact Google fallback follow; general
-results retain provider order. Across providers equal ordinal positions use the
-existing Hardcover/Open Library preference. This is a conservative baseline, not
-a calibrated multi-provider relevance model. Search relevance is separate from
-release evaluation and auto-grab policy.
+remain primary. Ordinary book discovery separates related/companion material and
+incomplete records before ordering candidates. Explicit title/author agreement
+and exact Google fallback retain their identity tiers. Coherent digital editions
+with a matching title (including subtitle variants) precede unspecified records;
+remaining ties use provider position and Hardcover/Open Library preference.
+
+A known author and coherent title-matching edition can anchor the primary list:
+other authors remain available as related results. Without that strong anchor,
+only zero-overlap hits unrelated to returned authors move to the secondary list.
+Descriptions never establish title relevance. Companion terms are secondary
+unless requested; source scores remain compatibility data, not probabilities.
+Search relevance is separate from release evaluation and auto-grab policy.
 
 `SearchResult.evidence` and `conflicts` expose match facts and review reasons.
+Optional `discoverySection` is `related` or `incomplete`; omission means primary.
+The UI collapses those secondary sections when primary records exist. It groups
+only typed work IDs or verified provider aliases, preserving every edition payload.
+A presentation group never creates a new identity or collapses series memberships.
 `Work.languages` and `subtitle` retain work-level evidence; edition fields belong
 to one selected edition. Discovery order is recomputed after cache reads, so warm
 and cold requests agree. See [the design](metadata-ranking-design.md) and
