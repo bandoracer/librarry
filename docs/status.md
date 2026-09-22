@@ -40,7 +40,7 @@ tests, the production web build, deployment configuration checks and 38 targeted
 desktop/mobile browser checks. Browser tests use intercepted acquisition responses;
 no live downloads were submitted. This change is deployed with the [discovery release](reviews/2026-09-21-discovery-rollout.md).
 
-## Concurrent search downloads (candidate)
+## Concurrent search downloads (deployed)
 
 The follow-up UI tracks each book and format independently, keeps search open,
 and shows per-row progress and outcome indicators. Alternate editions and verified
@@ -48,7 +48,9 @@ aliases share duplicate protection; saved books recover through **Open book**.
 The full Go suite against disposable PostgreSQL, 35 frontend tests, production
 web build and 46 targeted desktop/mobile checks pass. Concurrency checks use
 intercepted responses, including slow saves, out-of-order completion and isolated
-failures. This follow-up is not yet deployed.
+failures. This follow-up is merged, deployed on the maintainer NAS and promoted
+to `latest`. CI passed 175 browser tests with one existing skip; live row states
+and library preservation were verified. See the [release record](reviews/2026-09-21-concurrent-downloads.md).
 
 ## Discovery cleanup (deployed)
 
