@@ -72,7 +72,7 @@ func (s *Service) CompatibilityBookPage(ctx context.Context, q CompatibilityBook
 	}
 	result.Unknown = result.StateCounts["unknown"]
 	query := bookCollectionSQL + `, paged as materialized (select * from stateful b where b.monitored and b.derived_state=$4 order by ` + order + ` limit $5 offset $6)
-	 select ` + wantedDetailColumns + `,b.derived_state,b.file_state,b.file_reason,b.present_files,b.required_files
+	 select ` + wantedDetailColumns + `,b.derived_state,b.download_state,b.file_state,b.file_reason,b.present_files,b.required_files
 	 from paged b join wanted_items wi on wi.id=b.id left join works w on w.id=wi.work_id order by ` + order
 	args = append(args, q.PageSize, int64(q.Page-1)*int64(q.PageSize))
 	result.Books, err = readCompatibilityBooks(ctx, tx, query, args)

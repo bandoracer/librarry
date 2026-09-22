@@ -104,7 +104,7 @@ func TestAcquisitionQueueItemStatesReadarrWorkflow(t *testing.T) {
 		Progress: 0.42,
 		Tags:     []string{"librarry", "wanted:" + item.ID},
 	}})
-	if row.State != "downloading" || row.NextAction != "Wait for external client" {
+	if row.State != "paused" || row.NextAction != "Resume in download queue" {
 		t.Fatalf("expected external-client wait row, got %+v", row)
 	}
 

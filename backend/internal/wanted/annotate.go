@@ -29,7 +29,28 @@ func (s *Service) AnnotateDownloads(ctx context.Context, downloads []acquisition
 	if err != nil {
 		return downloads
 	}
-	return annotateDownloadsWithItems(downloads, items)
+	downloads = annotateDownloadsWithItems(downloads, items)
+	ids := make([]string, len(downloads))
+	for i, download := range downloads {
+		ids[i] = download.ID
+	}
+	rows, err := s.store.db.QueryContext(ctx, `select download_id,coalesce(metadata->>'downloadClient',''),id::text,reason from import_reviews where status='pending' and download_id=any($1::text[]) order by created_at,id`, ids)
+	if err != nil {
+		return downloads
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var downloadID, client, reviewID, reason string
+		if rows.Scan(&downloadID, &client, &reviewID, &reason) != nil {
+			return downloads
+		}
+		for i := range downloads {
+			if downloads[i].ID == downloadID && strings.EqualFold(downloads[i].Client, client) && downloads[i].ImportStatus != "imported" {
+				downloads[i].ImportReviewID, downloads[i].ImportReviewReason = reviewID, reason
+			}
+		}
+	}
+	return downloads
 }
 
 func annotateDownloadsWithItems(downloads []acquisition.DownloadStatus, items []WantedItem) []acquisition.DownloadStatus {

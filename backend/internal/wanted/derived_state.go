@@ -72,6 +72,7 @@ func (s *Service) AnnotateWantedStates(ctx context.Context, items []WantedItem) 
 		if profileErr != nil {
 			evidence.Quality = "unavailable"
 		}
+		item.DownloadState = downloadPhase(inFlight[item.ID])
 		downloading := false
 		for _, d := range inFlight[item.ID] {
 			if downloadSupportsInFlight(d) {

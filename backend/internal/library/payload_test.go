@@ -439,3 +439,24 @@ func TestBookDirectoryReservationsKeepPackBooksSeparate(t *testing.T) {
 		t.Fatal("reservation wrote to disk")
 	}
 }
+
+func TestPendingPayloadReviewKeepsOriginalReason(t *testing.T) {
+	service, download, _ := audiobookFixture(t)
+	service.inspector.(*fixtureInspector).files[0].Selected = new(false)
+	ctx := context.Background()
+	first, err := service.ImportCompletedDownloads(ctx, []acquisition.DownloadStatus{download}, CompletedImportRequest{})
+	if err != nil || first.ReviewQueued != 1 {
+		t.Fatal(first, err)
+	}
+	original := first.Results[0].Review
+	if original.Reason == "" || original.Reason == "download awaits an explicit import review decision" {
+		t.Fatal(original)
+	}
+	second, err := service.ImportCompletedDownloads(ctx, []acquisition.DownloadStatus{download}, CompletedImportRequest{})
+	if err != nil || second.ReviewQueued != 1 {
+		t.Fatal(second, err)
+	}
+	if got := second.Results[0].Review; got.ID != original.ID || got.Reason != original.Reason {
+		t.Fatal(got, original)
+	}
+}

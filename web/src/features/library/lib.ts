@@ -1,3 +1,4 @@
+import { bookProgressLabel } from "../../lib/book-progress";
 import type { AuthorSubscription, LibraryFile, WantedItem } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 
@@ -252,7 +253,9 @@ export function libraryPresenceRank(presence?: WantedPresence): number {
   }
 }
 
-export function presenceLabel(presence: WantedPresence): string {
+export function presenceLabel(presence: WantedPresence, item?: WantedItem): string {
+  const progress = bookProgressLabel(item);
+  if (progress) return progress;
   switch (presence) {
     case "unknown":
       return "Unknown";
@@ -271,7 +274,9 @@ export function presenceLabel(presence: WantedPresence): string {
   }
 }
 
-export function presenceTone(presence: WantedPresence): "danger" | "info" | "success" | "warn" | "neutral" {
+export function presenceTone(presence: WantedPresence, item?: WantedItem): "danger" | "info" | "success" | "warn" | "neutral" {
+  const progress = bookProgressLabel(item);
+  if (progress) return ["Stalled", "Needs attention", "Needs import review", "Paused"].includes(progress) ? "warn" : "info";
   switch (presence) {
     case "downloaded":
       return "success";

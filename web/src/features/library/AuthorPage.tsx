@@ -272,7 +272,7 @@ export default function AuthorPage() {
                 { label: "Books", value: detail.data?.totalBooks ?? 0 },
                 { label: "Monitored on page", value: monitoredCount },
                 { label: "Missing on page", value: stats.missing, tone: stats.missing > 0 ? "danger" : "neutral" },
-                { label: "Downloading on page", value: stats.downloading, tone: stats.downloading > 0 ? "info" : "neutral" },
+                { label: "Acquiring on page", value: stats.downloading, tone: stats.downloading > 0 ? "info" : "neutral" },
                 { label: "Downloaded on page", value: stats.downloaded, tone: stats.downloaded > 0 ? "success" : "neutral" },
                 { label: "Incomplete on page", value: stats.incomplete, tone: stats.incomplete > 0 ? "warn" : "neutral" },
                 { label: "Unknown on page", value: stats.unknown, tone: stats.unknown > 0 ? "warn" : "neutral" }
@@ -376,7 +376,7 @@ export default function AuthorPage() {
                             <Badge>{item.format}</Badge>
                           </td>
                           <td>
-                            <Badge tone={presenceTone(state)}>{presenceLabel(state)}</Badge>
+                            <Badge tone={presenceTone(state, item)}>{presenceLabel(state, item)}</Badge>
                           </td>
                           <td>
                             <label className="library-monitor-toggle" title={item.monitored ? "Unmonitor" : "Monitor"}>

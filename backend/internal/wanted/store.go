@@ -1516,6 +1516,7 @@ func attachWantedDetails(ctx context.Context, reader wantedDetailReader, items [
 		ids[i], positions[items[i].ID] = items[i].ID, i
 		items[i].ManualOverrides = nil
 		items[i].Authors = nil
+		items[i].ImportReviewID, items[i].ImportReviewReason = "", ""
 	}
 	rows, err := reader.QueryContext(ctx, `select entity_id::text,field_name,value,coalesce(reason,''),created_at,updated_at
 		from manual_overrides where entity_type='wanted_item' and entity_id=any($1::uuid[]) order by entity_id,field_name`, ids)
@@ -1555,6 +1556,25 @@ func attachWantedDetails(ctx context.Context, reader wantedDetailReader, items [
 		}
 		i := positions[id]
 		items[i].Authors = append(items[i].Authors, author)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	rows, err = reader.QueryContext(ctx, `select distinct on(wanted_item_id) wanted_item_id::text,id::text,reason from import_reviews where wanted_item_id=any($1::uuid[]) and status='pending' order by wanted_item_id,created_at,id`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, reviewID, reason string
+		if err = rows.Scan(&id, &reviewID, &reason); err != nil {
+			return nil, err
+		}
+		i := positions[id]
+		items[i].ImportReviewID = reviewID
+		items[i].ImportReviewReason = reason
 	}
 	return items, rows.Err()
 }

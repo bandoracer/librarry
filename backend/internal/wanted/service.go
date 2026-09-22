@@ -884,7 +884,7 @@ func (s *Service) AcquisitionQueue(ctx context.Context, query AcquisitionQueueQu
 			return AcquisitionQueue{}, err
 		}
 		row := acquisitionQueueItem(item, releases, downloadsByWanted[item.ID])
-		if (evidence == "partial" || evidence == "unavailable") && len(row.Downloads) == 0 && item.Status != "imported" {
+		if (evidence == "partial" || evidence == "unavailable") && len(row.Downloads) == 0 && item.Status != "imported" && item.ImportReviewID == "" {
 			row.State = "unknown"
 			row.NextAction = "Restore download-client visibility"
 		}
@@ -1358,7 +1358,15 @@ func (s *Service) RecoverFailedDownloads(ctx context.Context, request FailedDown
 			continue
 		}
 		result.WantedItem = item
-		_ = s.store.MarkWantedStatus(ctx, item.ID, "wanted")
+		if err = s.store.MarkWantedStatus(ctx, item.ID, "wanted"); err == nil {
+			item, err = s.store.GetWanted(ctx, item.ID)
+		}
+		if err != nil {
+			result.Error = err.Error()
+			run.ErrorCount++
+			run.Items = append(run.Items, result)
+			continue
+		}
 		_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
 			EventType:  "download_failed",
 			EntityType: "wanted_item",
@@ -1796,11 +1804,19 @@ func acquisitionQueueState(item WantedItem, row AcquisitionQueueItem) (string, s
 	switch {
 	case item.Status == "imported" || downloadsHaveImportStatus(row.Downloads, "imported"):
 		return "imported", "Complete"
-	case downloadsHaveFailure(row.Downloads):
+	case item.ImportReviewID != "":
+		return "import_review", "Review completed download"
+	case downloadPhase(row.Downloads) == "failed":
 		return "blocked", "Recover failed download"
 	case downloadsHaveImportReady(row.Downloads):
 		return "import_ready", "Import completed download"
-	case downloadsHaveActiveState(row.Downloads):
+	case downloadPhase(row.Downloads) == "stalled":
+		return "stalled", "Recover stalled download"
+	case downloadPhase(row.Downloads) == "waiting_metadata":
+		return "waiting_metadata", "Wait for torrent metadata"
+	case downloadPhase(row.Downloads) == "paused":
+		return "paused", "Resume in download queue"
+	case downloadPhase(row.Downloads) == "downloading":
 		return "downloading", "Wait for external client"
 	case len(row.Downloads) > 0:
 		return "queued", "Monitor external client"
@@ -2205,7 +2221,7 @@ func failedDownloadReason(download acquisition.DownloadStatus, stalledAge time.D
 	if download.Progress >= 1 {
 		return ""
 	}
-	if !strings.Contains(state, "stalled") || !strings.Contains(state, "dl") {
+	if !(strings.Contains(state, "stalled") && strings.Contains(state, "dl")) && state != "metadl" && state != "forcedmetadl" {
 		return ""
 	}
 	if download.Seeders > 0 || download.DownloadRate > 0 {
@@ -2224,6 +2240,9 @@ func failedDownloadReason(download acquisition.DownloadStatus, stalledAge time.D
 	stalledFor := now.Sub(reference.UTC())
 	if stalledFor < stalledAge {
 		return ""
+	}
+	if state == "metadl" || state == "forcedmetadl" {
+		return fmt.Sprintf("torrent metadata unavailable with no seeders for %s", roundDuration(stalledFor))
 	}
 	return fmt.Sprintf("stalled with no seeders for %s", roundDuration(stalledFor))
 }

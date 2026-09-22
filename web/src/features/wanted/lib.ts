@@ -465,6 +465,8 @@ export function metadataConfidenceLabel(confidence: number) {
 /* --------------------------- Acquisition queue ----------------------------- */
 
 export function acquisitionQueueStateLabel(state: string) {
+  const detailed: Record<string,string> = { import_review: "Needs import review", stalled: "Stalled", waiting_metadata: "Waiting for metadata", paused: "Paused" };
+  if (detailed[state]) return detailed[state];
   switch (state) {
     case "needs_search":
       return "Needs search";
@@ -488,6 +490,8 @@ export function acquisitionQueueStateLabel(state: string) {
 export type AcquisitionTone = "ready" | "active" | "done" | "blocked" | "idle";
 
 export function acquisitionQueueStateTone(state: string): AcquisitionTone {
+  if (["import_review", "stalled"].includes(state)) return "blocked";
+  if (["waiting_metadata", "paused"].includes(state)) return "active";
   switch (state) {
     case "ready_to_grab":
     case "import_ready":
@@ -524,6 +528,9 @@ export function acquisitionQueueActionID(item: AcquisitionQueueItem) {
 }
 
 export function acquisitionQueueActionLabel(item: AcquisitionQueueItem) {
+  if (item.state === "import_review") return "Review import";
+  if (item.state === "stalled") return "Recover";
+  if (["waiting_metadata", "paused"].includes(item.state)) return "View queue";
   switch (item.state) {
     case "needs_search":
       return "Search";

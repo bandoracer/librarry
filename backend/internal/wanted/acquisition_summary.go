@@ -19,7 +19,7 @@ func (s *Store) acquisitionSummary(ctx context.Context, status string, downloads
 	defer tx.Rollback()
 	rows, err := tx.QueryContext(ctx, `with release_counts as (
  select wanted_item_id,count(*) as total,count(*) filter(where approved) as approved from releases group by wanted_item_id
- ) select wi.id::text,wi.status,wi.last_search_at,coalesce(r.total,0),coalesce(r.approved,0)
+ ) select wi.id::text,wi.status,wi.last_search_at,coalesce(r.total,0),coalesce(r.approved,0),coalesce((select id::text from import_reviews ir where ir.wanted_item_id=wi.id and ir.status='pending' order by created_at,id limit 1),'')
  from wanted_items wi left join release_counts r on r.wanted_item_id=wi.id
  where wi.status not in ('removed','ignored') and ($1='' or wi.status=$1)`, strings.TrimSpace(status))
 	if err != nil {
@@ -28,7 +28,7 @@ func (s *Store) acquisitionSummary(ctx context.Context, status string, downloads
 	for rows.Next() {
 		var item WantedItem
 		var row AcquisitionQueueItem
-		if err = rows.Scan(&item.ID, &item.Status, &item.LastSearchAt, &row.ReleaseCount, &row.ApprovedCount); err != nil {
+		if err = rows.Scan(&item.ID, &item.Status, &item.LastSearchAt, &row.ReleaseCount, &row.ApprovedCount, &item.ImportReviewID); err != nil {
 			rows.Close()
 			return result, err
 		}
@@ -36,7 +36,7 @@ func (s *Store) acquisitionSummary(ctx context.Context, status string, downloads
 		state, _ := acquisitionQueueState(item, row)
 		// Missing client evidence must not turn a possibly queued acquisition into
 		// an invitation to regrab. Positive observations remain useful during a partial read.
-		if (evidence == "partial" || evidence == "unavailable") && len(row.Downloads) == 0 && item.Status != "imported" {
+		if (evidence == "partial" || evidence == "unavailable") && len(row.Downloads) == 0 && item.Status != "imported" && item.ImportReviewID == "" {
 			state = "unknown"
 		}
 		result.Total++
@@ -45,13 +45,13 @@ func (s *Store) acquisitionSummary(ctx context.Context, status string, downloads
 			result.NeedsSearch++
 		case "ready_to_grab":
 			result.ReadyToGrab++
-		case "queued", "downloading":
+		case "queued", "downloading", "waiting_metadata", "paused":
 			result.Queued++
 		case "import_ready":
 			result.ImportReady++
 		case "imported":
 			result.Imported++
-		case "blocked":
+		case "blocked", "stalled", "import_review":
 			result.Blocked++
 		default:
 			result.Unknown++

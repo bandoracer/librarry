@@ -760,7 +760,7 @@ function QueueTab() {
                     <td>
                       <div className="activity-state-cell">
                         <Badge tone={stateBadgeTone(download.state)}>{download.state}</Badge>
-                        <span className="cell-muted">import {download.importStatus || "pending"}</span>
+                        {download.importReviewId ? <Link to="/imports" title={download.importReviewReason}>Needs import review</Link> : <span className="cell-muted">import {download.importStatus || "pending"}</span>}
                       </div>
                     </td>
                     <td>

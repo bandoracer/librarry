@@ -94,6 +94,10 @@ type DownloadStatus struct {
 	WantedID     string `json:"wantedId,omitempty"`
 	WantedTitle  string `json:"wantedTitle,omitempty"`
 	WantedAuthor string `json:"wantedAuthor,omitempty"`
+
+	// Pending review linkage is read-only API enrichment, scoped to client and download.
+	ImportReviewID     string `json:"importReviewId,omitempty"`
+	ImportReviewReason string `json:"importReviewReason,omitempty"`
 }
 
 type DownloadDetails struct {

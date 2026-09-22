@@ -156,7 +156,7 @@ func (s *Service) BookCollection(ctx context.Context, query BookCollectionQuery)
  , paged as materialized (select * from ordered b
  where not $8::boolean or (b.sort_index,b.sort_first,b.sort_second,b.id)>($9::bigint,$10::text collate "C",$11::text collate "C",nullif($12,'')::uuid)
  order by b.sort_index,b.sort_first,b.sort_second,b.id limit $13)
- select `+wantedDetailColumns+`,b.derived_state,b.file_state,b.file_reason,b.present_files,b.required_files,b.sort_index,b.sort_first,b.sort_second
+ select `+wantedDetailColumns+`,b.derived_state,b.download_state,b.file_state,b.file_reason,b.present_files,b.required_files,b.sort_index,b.sort_first,b.sort_second
  from paged b join wanted_items wi on wi.id=b.id left join works w on w.id=wi.work_id
  order by b.sort_index,b.sort_first,b.sort_second,b.id`, args...)
 	if err != nil {
@@ -164,15 +164,16 @@ func (s *Service) BookCollection(ctx context.Context, query BookCollectionQuery)
 	}
 	var last bookCursor
 	for rows.Next() {
-		var state string
+		var state, phase string
 		var evidence FileEvidence
 		var next bookCursor
-		item, err := scanWanted(wantedWithExtra{row: rows, extra: []any{&state, &evidence.State, &evidence.Reason, &evidence.PresentFiles, &evidence.RequiredFiles, &next.Index, &next.First, &next.Second}})
+		item, err := scanWanted(wantedWithExtra{row: rows, extra: []any{&state, &phase, &evidence.State, &evidence.Reason, &evidence.PresentFiles, &evidence.RequiredFiles, &next.Index, &next.First, &next.Second}})
 		if err != nil {
 			rows.Close()
 			return page, err
 		}
 		item.DerivedState = state
+		item.DownloadState = phase
 		item.StateEvidence = &BookStateEvidence{Files: evidence, Downloads: page.Downloads, Quality: "available"}
 		if evidence.State != "present" && evidence.State != "missing" {
 			item.StateEvidence.Message = evidence.Reason
@@ -220,7 +221,9 @@ const bookFilterSQL = `($4='' or strpos(lower(title||' '||author_name||' '||qual
 // Join evidence to wanted IDs before enriching works/profiles. Otherwise new
 // work indexes can make a misestimated evidence projection rescan every wanted
 // row for every book. Materialize derived states before cursor filtering too.
-const bookCollectionSQL = `with profiles as (
+const bookCollectionSQL = `with live_downloads as (
+ select * from jsonb_to_recordset($2::jsonb) as d(id uuid,phase text,active boolean)
+), profiles as (
  select * from jsonb_to_recordset($1::jsonb) as p(name text,format text,cutoff double precision,upgrade boolean)
 ), tracked as materialized (
  select wi.id,wi.work_id,wi.title,wi.author_name,wi.wanted_format,wi.quality_profile,
@@ -238,12 +241,12 @@ const bookCollectionSQL = `with profiles as (
  left join profiles p on p.name=coalesce(nullif(lower(btrim(wi.quality_profile)),''),'standard') and p.format=wi.wanted_format
  join profiles d on d.name='' and d.format=wi.wanted_format
 ), stateful as materialized (
- select *,case
+ select base.*,coalesce(ld.phase,'') as download_state,case
  when file_state='present' then case when monitored and upgrade and not(score>0 and score<1000) and score<cutoff then 'cutoffUnmet' else 'downloaded' end
- when id=any($2::uuid[]) then 'downloading'
+ when ld.active then 'downloading'
  when file_state='incomplete' then 'incomplete'
  when file_state in ('unknown','unavailable') or $3 in ('partial','unavailable') then 'unknown'
- when not monitored then 'unmonitored' else 'missing' end as derived_state from base
+ when not monitored then 'unmonitored' else 'missing' end as derived_state from base left join live_downloads ld on ld.id=base.id
 ) `
 
 // collectionSnapshot shares quality and client evidence across native collection reads.
@@ -255,18 +258,22 @@ func (s *Service) collectionSnapshot(ctx context.Context) (*sql.Tx, []any, error
 		downloads.Status = "unavailable"
 	}
 
-	var inFlight []string
+	type livePhase struct {
+		ID     string `json:"id"`
+		Phase  string `json:"phase"`
+		Active bool   `json:"active"`
+	}
+	inFlight := []livePhase{}
 	for id, items := range groupDownloadsByWantedID(downloads.Downloads) {
 		var parsed pgtype.UUID
 		if parsed.Scan(id) != nil || !parsed.Valid {
 			continue
 		}
+		active := false
 		for _, item := range items {
-			if downloadSupportsInFlight(item) {
-				inFlight = append(inFlight, id)
-				break
-			}
+			active = active || downloadSupportsInFlight(item)
 		}
+		inFlight = append(inFlight, livePhase{ID: id, Phase: downloadPhase(items), Active: active})
 	}
 	tx, err := s.store.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
@@ -312,5 +319,9 @@ func (s *Service) collectionSnapshot(ctx context.Context) (*sql.Tx, []any, error
 		return nil, nil, err
 	}
 	completed = true
-	return tx, []any{string(profileJSON), inFlight, downloads.Status}, nil
+	phases, err := json.Marshal(inFlight)
+	if err != nil {
+		return nil, nil, err
+	}
+	return tx, []any{string(profileJSON), string(phases), downloads.Status}, nil
 }

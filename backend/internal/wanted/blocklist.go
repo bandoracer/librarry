@@ -294,7 +294,14 @@ func (s *Service) MarkDownloadFailedManually(ctx context.Context, request Manual
 	outcome := ManualFailOutcome{}
 	item, found := s.wantedItemForDownload(ctx, download)
 	if found {
-		_ = s.store.MarkWantedStatus(ctx, item.ID, "wanted")
+		if err := s.store.MarkWantedStatus(ctx, item.ID, "wanted"); err != nil {
+			return outcome, err
+		}
+		refreshed, err := s.store.GetWanted(ctx, item.ID)
+		if err != nil {
+			return outcome, err
+		}
+		item = refreshed
 	}
 	_, _ = s.store.InsertHistoryEvent(ctx, HistoryEvent{
 		EventType:  "download_marked_failed",

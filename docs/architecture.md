@@ -40,6 +40,16 @@ book identity; ebook and audiobook targets remain distinct.
 Relational file/book/download links preserve ownership independently of display
 metadata. Book status is derived from recorded file presence and complete import
 manifests. An unavailable root or client cannot establish that a book is missing.
+Search identity responses, book collections and detail views also expose a
+`downloadState` from one bounded live client read and pending `importReviewId` /
+`importReviewReason` from persistence. These complement the coarse compatible
+presence states: stalled, paused, waiting for metadata, waiting for import, and
+review are distinct user-facing outcomes. Client outages clear observed progress;
+a persisted pending review remains actionable. Completed file evidence takes
+precedence over an old acquisition state. Import review reasons survive worker
+retries. Exact book titles may carry a verified series prefix, and conventional
+surname-first author names normalize without loosening ISBN/format conflicts.
+
 See [metadata contracts](reference/metadata.md) and
 [collection/evidence contracts](reference/collections.md).
 

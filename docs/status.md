@@ -9,6 +9,17 @@ Librarry is early alpha. The stabilization candidate is qualified for a
 qualified as an unattended replacement for
 an existing Readarr installation.
 
+## Download recovery follow-up (candidate)
+
+The recovery candidate distinguishes stalled transfers, metadata waits, paused
+jobs, import-ready files and pending import reviews in search, library and the
+acquisition queue. Review reasons survive repeated worker ticks. A recovery search
+reloads the book revision after changing its status, avoiding a false concurrent
+settings-change rejection. Idle metadata retrieval now uses the existing 24-hour
+failed-download threshold. Series-prefixed exact titles and surname-first authors
+are accepted with recorded series evidence; conflicting ISBNs and volumes still
+require review. Production qualification is recorded after deployment below.
+
 ## Metadata discovery rollout
 
 The September 21 retrieval/edition fixes, evidence UI, edition chooser and bounded
