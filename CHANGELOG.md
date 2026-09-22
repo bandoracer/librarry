@@ -5,6 +5,10 @@ what is published, deployed and qualified. A candidate tag is not a stable relea
 
 ## Unreleased
 
+- Search downloads run independently per book, with progress and outcome badges
+  on result rows. Starting another book no longer waits for the first; completion
+  keeps search open, and alternate editions share duplicate protection.
+
 - Label provider-backed graphic novels, possible graphic adaptations and abridgments in search, keeping them secondary when an original is available.
 
 - Discovery favors coherent matching editions over empty catalog stubs and groups

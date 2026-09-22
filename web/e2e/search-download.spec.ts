@@ -40,7 +40,8 @@ test("medium title match downloads with one action and keeps advanced options ou
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.screenshot({ path: `../output/playwright/simple-download-${testInfo.project.name}.png`, fullPage: true });
   await page.getByRole("button", { name: "Download ebook", exact: true }).click();
-  await expect(page).toHaveURL(/\/library\/book\/time-book$/);
+  await expect(page).toHaveURL(/\/search\?/);
+  await expect(page.locator(".search-result-row")).toContainText("Queued");
   expect(calls.adds).toHaveLength(1);
   expect(calls.adds[0]).toMatchObject({ result: { edition: result.edition }, format: "ebook", qualityProfile: "standard", rootFolderId: "ebook-root", preserveExisting: true });
   expect(calls.searches).toEqual([{ limit: 20, language: "English" }]);
@@ -50,7 +51,8 @@ test("medium title match downloads with one action and keeps advanced options ou
 test("add-only never searches or grabs", async ({ page }) => {
   const calls = await setup(page);
   await page.getByRole("button", { name: "Add Book", exact: true }).click();
-  await expect(page).toHaveURL(/\/library\/book\/time-book$/);
+  await expect(page).toHaveURL(/\/search\?/);
+  await expect(page.locator(".search-result-row")).toContainText("Saved");
   expect(calls.adds).toHaveLength(1);
   expect(calls.searches).toHaveLength(0);
   expect(calls.grabs).toHaveLength(0);
@@ -67,6 +69,10 @@ for (const outcome of ["empty", "rejected", "search-failure", "grab-failure"] as
         : { json: { item: saved, releases: outcome === "empty" ? [] : [{ id: "rejected", approved: false, title: "Rejected" }] } }));
     }
     await page.getByRole("button", { name: "Download ebook", exact: true }).click();
+    await expect(page).toHaveURL(/\/search\?/);
+    await expect(page.locator(".search-result-row")).toContainText(outcome.endsWith("failure") ? "Needs attention" : "No download found");
+    await page.locator(".search-result-row").click();
+    await page.getByRole("button", { name: "Open book", exact: true }).click();
     await expect(page).toHaveURL(/\/library\/book\/time-book$/);
     expect(calls.adds).toHaveLength(1);
     expect(calls.grabs).toHaveLength(outcome === "grab-failure" ? 1 : 0);
@@ -82,7 +88,8 @@ test("real conflicts require confirmation and preserve the download intent", asy
   await expect(review).toContainText("Edition language differs from your preference");
   expect(calls.adds).toHaveLength(0);
   await review.getByRole("button", { name: "Download anyway", exact: true }).click();
-  await expect(page).toHaveURL(/\/library\/book\/time-book$/);
+  await expect(page).toHaveURL(/\/search\?/);
+  await expect(page.locator(".search-result-row")).toContainText("Queued");
   expect(calls.adds).toHaveLength(1);
   expect(calls.grabs).toEqual([{ releaseId: "best", paused: false, force: false }]);
 });
@@ -98,11 +105,87 @@ test("in-flight search disables duplicate actions across the whole sequence", as
   });
   try {
     await page.getByRole("button", { name: "Download ebook", exact: true }).click();
+    await expect(page.locator(".search-result-row")).toContainText("Finding download");
+    await page.locator(".search-result-row").click();
     await expect(page.getByRole("button", { name: "Finding download", exact: true })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Add Book", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Add Book", exact: true })).toHaveCount(0);
     expect(calls.adds).toHaveLength(1);
     expect(calls.searches).toHaveLength(1);
   } finally { finishSearch(); }
-  await expect(page).toHaveURL(/\/library\/book\/time-book$/);
+  await expect(page).toHaveURL(/\/search\?/);
+  await expect(page.locator(".search-result-row")).toContainText("Queued");
   expect(calls.grabs).toHaveLength(1);
 });
+
+for (const secondFails of [false, true]) {
+  test(`two books run independently and retain row status (${secondFails ? "one fails" : "both queue"})`, async ({ page }, testInfo) => {
+    const calls = await setup(page);
+    const second = { ...result, work: { ...result.work, id: "hardcover:2", title: "Another Book" }, edition: { ...result.edition, id: "hardcover-edition:2", workId: "hardcover:2", title: "Another Book", format: "audiobook" } };
+    const alternate = { ...result, edition: { ...result.edition, id: "hardcover-edition:3", title: "Alternate edition" } };
+    const secondSaved = { ...saved, id: "another-book", title: "Another Book", format: "audiobook" };
+    await page.route("**/api/v1/search?**", route => route.fulfill({ json: { results: [result, alternate, second] } }));
+    await page.route("**/api/v1/library/root-folders", route => route.fulfill({ json: { rootFolders: [
+      { id: "ebook-root", name: "Ebooks", path: "/ebooks", mediaFormat: "ebook", isDefault: true },
+      { id: "audio-root", name: "Audio", path: "/audio", mediaFormat: "audiobook", isDefault: true }
+    ] } }));
+    let finishSaveFirst!: () => void;
+    const saveGate = new Promise<void>(resolve => { finishSaveFirst = resolve; });
+    await page.route("**/api/v1/wanted", async route => {
+      const payload = route.request().postDataJSON(); calls.adds.push(payload);
+      if (payload.result.work.id === result.work.id) await saveGate;
+      return route.fulfill({ json: payload.result.work.id === result.work.id ? saved : secondSaved });
+    });
+    let finishFirst!: () => void, finishSecond!: () => void;
+    const firstGate = new Promise<void>(resolve => { finishFirst = resolve; });
+    const secondGate = new Promise<void>(resolve => { finishSecond = resolve; });
+    await page.route("**/api/v1/wanted/time-book/search", async route => {
+      calls.searches.push("time-book"); await firstGate;
+      await route.fulfill({ json: { item: saved, releases: [{ id: "first-release", approved: true }] } });
+    });
+    await page.route("**/api/v1/wanted/another-book/search", async route => {
+      calls.searches.push("another-book"); await secondGate;
+      await route.fulfill(secondFails ? { status: 502, json: { error: "Fixture second search failed" } } : { json: { item: secondSaved, releases: [{ id: "second-release", approved: true }] } });
+    });
+    await page.route("**/api/v1/wanted/*/grab", route => {
+      calls.grabs.push({ url: route.request().url(), ...route.request().postDataJSON() });
+      return route.fulfill({ json: { id: "fixture-download" } });
+    });
+    await page.goto("/search?query=books");
+    const firstRow = page.locator(".search-result-row").filter({ hasText: "A Brief History of Time" });
+    const secondRow = page.locator(".search-result-row").filter({ hasText: "Another Book" });
+    try {
+      await firstRow.click();
+      await page.getByRole("button", { name: "Download ebook", exact: true }).click();
+      await expect(firstRow).toContainText("Adding");
+      // The mobile detail closes on submission, so the next row is immediately usable.
+      await secondRow.click();
+      await expect(page.getByRole("button", { name: "Download audiobook", exact: true })).toBeEnabled();
+      await page.getByRole("button", { name: "Download audiobook", exact: true }).click();
+      await expect(secondRow).toContainText("Finding download");
+      await expect(firstRow).toContainText("Adding");
+      finishSaveFirst();
+      await expect(firstRow).toContainText("Finding download");
+      expect(calls.searches).toEqual(["another-book", "time-book"]);
+      expect(calls.adds).toHaveLength(2);
+      expect(calls.adds[0]).toMatchObject({ format: "ebook", rootFolderId: "ebook-root", result: { edition: result.edition } });
+      expect(calls.adds[1]).toMatchObject({ format: "audiobook", rootFolderId: "audio-root", result: { edition: second.edition } });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: `../output/playwright/concurrent-downloads-${testInfo.project.name}.png`, fullPage: true });
+      await firstRow.click();
+      await page.getByLabel("Edition", { exact: true }).selectOption({ index: 1 });
+      await expect(page.getByRole("button", { name: "Finding download", exact: true })).toBeDisabled();
+      expect(calls.adds).toHaveLength(2);
+      finishSecond();
+      await expect(secondRow).toContainText(secondFails ? "Needs attention" : "Queued");
+      await expect(page.getByRole("button", { name: "Finding download", exact: true })).toBeDisabled();
+      await expect(page).toHaveURL(/\/search\?/);
+      finishFirst();
+      await expect(firstRow).toContainText("Queued");
+      await expect(page.getByRole("button", { name: "Open book", exact: true })).toBeVisible();
+      expect(calls.adds).toHaveLength(2); // stale empty book-matches cannot re-enable Add/Download
+      expect(calls.grabs.map(g => [g.url.split("/").at(-2), g.releaseId, g.paused, g.force])).toEqual(secondFails
+        ? [["time-book", "first-release", false, false]]
+        : [["another-book", "second-release", false, false], ["time-book", "first-release", false, false]]);
+    } finally { finishSaveFirst(); finishFirst(); finishSecond(); }
+  });
+}

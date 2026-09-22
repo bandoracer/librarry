@@ -341,3 +341,13 @@
 .search-disclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .search-disclosure > .btn { margin-top: 12px; }
 .search-detail-form select { max-width: 100%; }
+
+.search-book-activity { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.search-book-activity .badge { display: inline-flex; align-items: center; gap: 4px; }
+
+@media (max-width: 600px) {
+  .search-result-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 6px 12px; }
+  .search-result-thumb { grid-row: 1 / 3; }
+  .search-result-side { grid-column: 2; flex-direction: row; flex-wrap: wrap; }
+  .search-result-title strong, .search-result-sub { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+}
