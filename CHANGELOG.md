@@ -5,6 +5,8 @@ what is published, deployed and qualified. A candidate tag is not a stable relea
 
 ## Unreleased
 
+- Label provider-backed graphic novels, possible graphic adaptations and abridgments in search, keeping them secondary when an original is available.
+
 - Discovery favors coherent matching editions over empty catalog stubs and groups
   related authors, companion material and incomplete records below primary results.
   Verified work aliases share an edition chooser without merging namesakes.

@@ -53,7 +53,10 @@ func TestDiscoveryCapturedEdgeCases(t *testing.T) {
 				if err != nil || snapshot.Status != 200 {
 					t.Fatal("invalid fixture")
 				}
-				if captured.Path != req.URL.Path || captured.Query().Encode() != req.URL.Query().Encode() {
+				// Historical captures predate the optional subject projection.
+				actual := req.URL.Query()
+				actual.Set("fields", strings.ReplaceAll(actual.Get("fields"), ",subject,", ","))
+				if captured.Path != req.URL.Path || captured.Query().Encode() != actual.Encode() {
 					t.Fatalf("wrong fixture request %s", req.URL)
 				}
 				return jsonResponse(string(snapshot.Data)), nil

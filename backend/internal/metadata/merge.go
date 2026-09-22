@@ -234,6 +234,10 @@ func mergeSearchResult(base SearchResult, candidate SearchResult) SearchResult {
 }
 
 func mergeWork(base Work, candidate Work) Work {
+	base.Subjects = appendUniqueStrings(base.Subjects, candidate.Subjects...)
+	if base.ContentType == "" {
+		base.ContentType = candidate.ContentType
+	}
 	base.Languages = appendUniqueStrings(base.Languages, candidate.Languages...)
 	if base.Subtitle == "" {
 		base.Subtitle = candidate.Subtitle
@@ -326,6 +330,9 @@ func authorsCanMerge(left, right Author) bool {
 }
 
 func mergeEdition(base Edition, candidate Edition) Edition {
+	if base.EditionInformation == "" {
+		base.EditionInformation = candidate.EditionInformation
+	}
 	if base.CoverURL == "" {
 		base.CoverURL = candidate.CoverURL
 	}

@@ -12,6 +12,7 @@ import (
 // Search returns works and a nested, query-matching edition. The work-level
 // language, ISBN and edition-key arrays must never be zipped into an edition.
 type openLibrarySearchDocument struct {
+	Subjects         []string `json:"subject"`
 	Key              string   `json:"key"`
 	Title            string   `json:"title"`
 	Subtitle         string   `json:"subtitle"`
@@ -35,7 +36,7 @@ type openLibrarySearchEdition struct {
 	PublishDate []string `json:"publish_date"`
 }
 
-const openLibrarySearchFields = "key,title,subtitle,author_name,author_key,first_publish_year,language,cover_i,editions,editions.key,editions.title,editions.language,editions.isbn,editions.cover_i,editions.publisher,editions.publish_date"
+const openLibrarySearchFields = "key,title,subtitle,subject,author_name,author_key,first_publish_year,language,cover_i,editions,editions.key,editions.title,editions.language,editions.isbn,editions.cover_i,editions.publisher,editions.publish_date"
 
 func (p *OpenLibraryProvider) searchBooks(ctx Context, query Query) ([]SearchResult, error) {
 	results, err := p.searchBookBranch(ctx, query, false)
@@ -126,7 +127,7 @@ func (p *OpenLibraryProvider) searchBookBranch(ctx Context, query Query, structu
 		}
 		workID := "openlibrary:" + workKey
 		result := SearchResult{Provider: p.Name(), Kind: SearchTypeBook, RawSourceKey: doc.Key,
-			Work: Work{ID: workID, Title: doc.Title, Subtitle: doc.Subtitle,
+			Work: Work{Subjects: compactStrings(doc.Subjects), ID: workID, Title: doc.Title, Subtitle: doc.Subtitle,
 				FirstPublishYear: doc.FirstPublishYear, Languages: compactStrings(doc.Language),
 				CoverURL: openLibraryCoverURL(doc.CoverID), ProviderIDs: []string{workID}},
 			Edition: Edition{Format: FormatAny},

@@ -50,6 +50,14 @@ aliases while retaining selected edition identity. The 24-query credentialed liv
 tests, full Go suite and 42 desktop/mobile checks passed. Source-only evidence and
 the remaining gaps are in the [cleanup review](reviews/2026-09-21-discovery-cleanup.md).
 
+## Adaptation evidence (source only)
+
+Provider categories, subjects/genres and edition abridgment evidence now support
+concise graphic/abridgment labels and secondary placement when a coherent original
+exists. Explicit comic searches, exact ISBNs and standalone graphic works retain
+primary placement. See the [adaptation review](reviews/2026-09-21-adaptation-ranking.md).
+This pass is awaiting packaging and deployment with the two changes above.
+
 ## Kindle delivery
 
 Manual native EPUB/PDF delivery is deployed on the maintainer NAS. Settings,

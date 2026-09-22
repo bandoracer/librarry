@@ -9,9 +9,9 @@ import (
 
 // Work and edition fields are deliberately queried independently: book-level
 // ISBN collections and format summaries do not identify a published edition.
-const hardcoverWorkFields = `id title description release_year release_date image { url }
+const hardcoverWorkFields = `id title book_category_id genres: cached_tags(path:"Genre") description release_year release_date image { url }
  contributions(where:{contributable_type:{_eq:"Book"}}) { contribution author { id name } }`
-const hardcoverEditionFields = `id book_id title subtitle reading_format_id isbn_10 isbn_13 asin pages audio_seconds release_date release_year
+const hardcoverEditionFields = `id book_id title subtitle edition_information reading_format_id isbn_10 isbn_13 asin pages audio_seconds release_date release_year
  language { language } publisher { name } image { url }
  contributions(where:{contributable_type:{_eq:"Edition"}}) { contribution author { id name } }`
 const hardcoverDefaultEditions = `default_ebook_edition { ` + hardcoverEditionFields + ` }
@@ -25,19 +25,20 @@ type hardcoverContribution struct {
 	} `json:"author"`
 }
 type hardcoverGraphEdition struct {
-	ID              int64  `json:"id"`
-	BookID          int64  `json:"book_id"`
-	Title           string `json:"title"`
-	Subtitle        string `json:"subtitle"`
-	ReadingFormatID int    `json:"reading_format_id"`
-	ISBN10          string `json:"isbn_10"`
-	ISBN13          string `json:"isbn_13"`
-	ASIN            string `json:"asin"`
-	Pages           int    `json:"pages"`
-	AudioSeconds    int    `json:"audio_seconds"`
-	ReleaseDate     string `json:"release_date"`
-	ReleaseYear     int    `json:"release_year"`
-	Language        struct {
+	EditionInformation string `json:"edition_information"`
+	ID                 int64  `json:"id"`
+	BookID             int64  `json:"book_id"`
+	Title              string `json:"title"`
+	Subtitle           string `json:"subtitle"`
+	ReadingFormatID    int    `json:"reading_format_id"`
+	ISBN10             string `json:"isbn_10"`
+	ISBN13             string `json:"isbn_13"`
+	ASIN               string `json:"asin"`
+	Pages              int    `json:"pages"`
+	AudioSeconds       int    `json:"audio_seconds"`
+	ReleaseDate        string `json:"release_date"`
+	ReleaseYear        int    `json:"release_year"`
+	Language           struct {
 		Language string `json:"language"`
 	} `json:"language"`
 	Publisher struct {
@@ -82,7 +83,16 @@ func hardcoverWork(book hardcoverGraphBook) (Work, error) {
 		return Work{}, err
 	}
 	key := fmt.Sprintf("hardcover:%d", book.ID)
-	return Work{ID: key, Title: strings.TrimSpace(book.Title), Description: book.Description, Authors: authors,
+	// Category 4 is Graphic Novel in Hardcover's book_categories catalog.
+	contentType := ""
+	if book.BookCategoryID == 4 {
+		contentType = "graphic_novel"
+	}
+	subjects := []string{}
+	for _, genre := range book.Genres {
+		subjects = appendUniqueStrings(subjects, genre.Tag)
+	}
+	return Work{Subjects: subjects, ContentType: contentType, ID: key, Title: strings.TrimSpace(book.Title), Description: book.Description, Authors: authors,
 		FirstPublishYear: book.ReleaseYear, FirstPublishDate: book.ReleaseDate, CoverURL: book.Image.URL, ProviderIDs: []string{key}}, nil
 }
 func hardcoverEdition(raw hardcoverGraphEdition, work Work) (Edition, error) {
@@ -118,7 +128,7 @@ func hardcoverEdition(raw hardcoverGraphEdition, work Work) (Edition, error) {
 	if published == "" && raw.ReleaseYear > 0 {
 		published = strconv.Itoa(raw.ReleaseYear)
 	}
-	return Edition{ID: key, WorkID: work.ID, Title: title, Format: format, Language: raw.Language.Language,
+	return Edition{EditionInformation: raw.EditionInformation, ID: key, WorkID: work.ID, Title: title, Format: format, Language: raw.Language.Language,
 		ISBNs: isbns, ASIN: raw.ASIN, Publisher: raw.Publisher.Name, PublishedDate: published, Pages: max(0, raw.Pages),
 		AudioSeconds: max(0, raw.AudioSeconds), CoverURL: raw.Image.URL, Contributors: contributors, ProviderIDs: []string{key}}, nil
 }

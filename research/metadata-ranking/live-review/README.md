@@ -20,3 +20,8 @@ ranking regression; after its fix it is a regression case, not an untouched hold
 No library items or downloads were created. Credentials are not included. Search
 results and provider availability can change. See the [review](../../../docs/reviews/2026-09-21-discovery-cleanup.md)
 for qualification boundaries and remaining issues.
+
+`adaptation-live.json` records the subsequent 28-query adaptation pass as compact
+identity/label/section readbacks. It adds Watchmen, Maus, The Hobbit graphic novel
+and The Stand comics to the 24-query cohort. These are diagnostic checks; the
+explicit Stand comics case was corrected during this pass and is not a holdout.

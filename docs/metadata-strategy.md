@@ -103,3 +103,20 @@ aliases may share one UI row, but text-only duplicates remain separate.
 See the [live follow-up](reviews/2026-09-21-discovery-cleanup.md). This follow-up is
 source-only until a separate deployment; the preceding retrieval/edition rollout
 is already live as recorded in [status](status.md).
+
+### Adaptation evidence
+
+Discovery labels Hardcover category 4 as **Graphic novel**, and edition-level
+`edition_information` containing the word `abridged` as **Abridged** (not
+`unabridged`). These alternatives move to related results when a coherent original
+is present; explicit comic/graphic/manga or abridgment queries retain them. A
+standalone graphic work is not demoted just for being a comic. Exact ISBN lookups
+always stay visible.
+
+Open Library work subjects and Hardcover genres aggregate many editions and are not a reliable format
+claim: even the original Hobbit and Sapiens contain comic subjects. A comic subject
+plus an additional credited author, corroborated against a coherent Hardcover
+original with a shared author, earns only **Possible graphic adaptation**. Subjects
+alone do not demote the original. Source subjects and edition information survive
+normalization and identity merging. No new provider requests or identity guesses
+are introduced. Missing or incorrect provider evidence remains a limitation.

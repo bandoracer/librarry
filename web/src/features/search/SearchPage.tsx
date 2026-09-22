@@ -587,6 +587,7 @@ export default function SearchPage() {
           <span className="search-result-sub">{searchResultSubtitle(result)}</span>
           {result.work.seriesId ? <span className="search-result-sub">{searchResultSeriesLabel(result)}</span> : null}
           <span className="search-result-chips">
+            {result.contentLabel ? <Badge tone="neutral">{result.contentLabel}</Badge> : null}
             {searchResultMatchChips(result).map((chip) => (
               <Badge key={chip.label} tone={chipTone(chip.tone)}>
                 {chip.label}
@@ -675,6 +676,7 @@ export default function SearchPage() {
             <h3>{searchResultTitle(result)}</h3>
             <p>{searchResultSubtitle(result)}</p>
             <div className="search-detail-badges">
+              {result.contentLabel ? <Badge tone="neutral">{result.contentLabel}</Badge> : null}
               <Badge tone="neutral" title={sources.join(", ")}>
                 {searchResultSourceLabel(result)}
               </Badge>

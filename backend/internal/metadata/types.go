@@ -33,6 +33,8 @@ type Author struct {
 }
 
 type Work struct {
+	ContentType      string   `json:"contentType,omitempty"`
+	Subjects         []string `json:"subjects,omitempty"`
 	Languages        []string `json:"languages,omitempty"`
 	Subtitle         string   `json:"subtitle,omitempty"`
 	FirstPublishDate string   `json:"firstPublishDate,omitempty"`
@@ -49,23 +51,25 @@ type Work struct {
 }
 
 type Edition struct {
-	CoverURL      string      `json:"coverUrl,omitempty"`
-	AudioSeconds  int         `json:"audioSeconds,omitempty"`
-	Contributors  []Author    `json:"contributors,omitempty"`
-	ID            string      `json:"id"`
-	WorkID        string      `json:"workId,omitempty"`
-	Title         string      `json:"title"`
-	Format        MediaFormat `json:"format"`
-	Language      string      `json:"language,omitempty"`
-	ISBNs         []string    `json:"isbns,omitempty"`
-	ASIN          string      `json:"asin,omitempty"`
-	Publisher     string      `json:"publisher,omitempty"`
-	PublishedDate string      `json:"publishedDate,omitempty"`
-	Pages         int         `json:"pages,omitempty"`
-	ProviderIDs   []string    `json:"providerIds,omitempty"`
+	EditionInformation string      `json:"editionInformation,omitempty"`
+	CoverURL           string      `json:"coverUrl,omitempty"`
+	AudioSeconds       int         `json:"audioSeconds,omitempty"`
+	Contributors       []Author    `json:"contributors,omitempty"`
+	ID                 string      `json:"id"`
+	WorkID             string      `json:"workId,omitempty"`
+	Title              string      `json:"title"`
+	Format             MediaFormat `json:"format"`
+	Language           string      `json:"language,omitempty"`
+	ISBNs              []string    `json:"isbns,omitempty"`
+	ASIN               string      `json:"asin,omitempty"`
+	Publisher          string      `json:"publisher,omitempty"`
+	PublishedDate      string      `json:"publishedDate,omitempty"`
+	Pages              int         `json:"pages,omitempty"`
+	ProviderIDs        []string    `json:"providerIds,omitempty"`
 }
 
 type SearchResult struct {
+	ContentLabel     string `json:"contentLabel,omitempty"`
 	DiscoverySection string `json:"discoverySection,omitempty"`
 	// discoveryRank is assigned after the provider cache; it is not confidence.
 	discoveryPreferred bool

@@ -125,3 +125,9 @@ are described in the [Kindle guide](guides/kindle.md). Configure it under
 Settings → Kindle. Delivery is disabled by default; it requires Postgres and an
 authenticated TLS SMTP sender. New source builds include migration 0059; older
 published images do not include this feature.
+
+Search results can include `contentLabel` for concise adaptation/abridgment
+presentation. Its evidence is preserved in `work.contentType` (Hardcover graphic
+category), `work.subjects` (Open Library subjects or Hardcover genres), and `edition.editionInformation`
+(Hardcover). Labels and discovery sections are presentation hints; they do not
+change identity, media format, release approval, or manual overrides.

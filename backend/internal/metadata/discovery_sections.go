@@ -15,7 +15,7 @@ func assignDiscoverySections(query Query, results []SearchResult) {
 	hasExactSeries := false
 	for i, result := range results {
 		hasExactSeries = hasExactSeries || query.Type == SearchTypeSeries && normalize(result.Work.Series) == normalize(query.Query)
-		if firstAuthorName(result) == "" || discoveryCompanion(query, result) {
+		if firstAuthorName(result) == "" || discoveryCompanion(query, result) || discoveryContentKind(result) != "" || discoveryRequestsContent(query, "graphic") {
 			continue
 		}
 		if discoveryPreferredResult(query, result) && (focus == nil || providerRank(result.Provider) < providerRank(focus.Provider) || result.Provider == focus.Provider && result.discoveryRank < focus.discoveryRank) {
@@ -32,6 +32,12 @@ func assignDiscoverySections(query Query, results []SearchResult) {
 	for i := range results {
 		r := &results[i]
 		r.DiscoverySection = ""
+		kind := discoveryContentKind(*r)
+		r.ContentLabel = discoveryContentLabel(kind)
+		if kind == "" && focus != nil && discoveryPossibleGraphic(*focus, *r) {
+			kind = "graphic"
+			r.ContentLabel = "Possible graphic adaptation"
+		}
 		// A coherent digital edition with strong title evidence can precede an
 		// unspecified source record. This does not boost bare exact-title stubs.
 		r.discoveryPreferred = discoveryPreferredResult(query, *r)
@@ -39,6 +45,8 @@ func assignDiscoverySections(query Query, results []SearchResult) {
 			continue // An explicit edition lookup always remains visible.
 		}
 		switch {
+		case kind != "" && !discoveryRequestsContent(query, kind) && (focus != nil || query.Type == SearchTypeSeries):
+			r.DiscoverySection = "related"
 		case discoveryCompanion(query, *r):
 			r.DiscoverySection = "related"
 		case firstAuthorName(*r) == "" || (query.Type == SearchTypeSeries && concreteFormat(r.Edition.Format) == FormatAny):
@@ -98,7 +106,7 @@ func discoveryTermHits(terms []string, value string) int {
 func discoveryCompanion(query Query, result SearchResult) bool {
 	title := " " + normalize(result.Work.Title+" "+result.Edition.Title) + " "
 	requested := " " + normalize(query.Query) + " "
-	for _, marker := range []string{"summary", "summaries", "study guide", "workbook", "companion", "coloring book", "colouring book", "boxed set", "box set", "graphic novel", "graphic history", "journal", "tracker", "collection set", "complete series", "omnibus", "book guide"} {
+	for _, marker := range []string{"summary", "summaries", "study guide", "workbook", "companion", "coloring book", "colouring book", "boxed set", "box set", "journal", "tracker", "collection set", "complete series", "omnibus", "book guide"} {
 		if strings.Contains(title, " "+marker+" ") && !strings.Contains(requested, " "+marker+" ") {
 			return true
 		}
@@ -114,6 +122,10 @@ func discoveryTitleFocus(query Query, result SearchResult) bool {
 		title = explicit
 	}
 	wanted := normalize(title)
+	// Explicit content suffixes describe the requested form, not the title.
+	for _, suffix := range []string{" graphic novel", " graphic novels", " graphic history", " comics", " comic", " manga", " abridged", " abridgment", " abridgement"} {
+		wanted = strings.TrimSuffix(wanted, suffix)
+	}
 	if wanted == "" {
 		return false
 	}
@@ -143,5 +155,87 @@ func discoveryPreferredResult(query Query, result SearchResult) bool {
 	if _, _, explicit := explicitTitleAuthor(query.Query); explicit && !discoveryAuthorAgreement(query, result) {
 		return false
 	}
+	if firstAuthorName(result) != "" && discoveryTitleFocus(query, result) && discoveryRequestsContent(query, "graphic") && (discoveryContentKind(result) == "graphic" || discoveryGraphicSubjects(result)) {
+		return true
+	}
 	return firstAuthorName(result) != "" && result.Edition.ID != "" && concreteFormat(result.Edition.Format) != FormatAny && result.Edition.Language != "" && resultMatchesPreferredLanguage(result, query.PreferredLanguage) && discoveryTitleFocus(query, result)
+}
+
+// Content evidence changes presentation only, never provider or edition identity.
+func discoveryContentKind(result SearchResult) string {
+	if result.Work.ContentType == "graphic_novel" || discoveryHasPhrase(result.Work.Title+" "+result.Edition.Title, "graphic novel", "graphic history") {
+		return "graphic"
+	}
+	// Word boundaries keep "unabridged" from matching "abridged". Do not infer
+	// abridgment from page count, duration, or work-level edition summaries.
+	if discoveryHasPhrase(result.Edition.EditionInformation+" "+result.Edition.Title, "abridged") {
+		return "abridged"
+	}
+	return ""
+}
+
+func discoveryContentLabel(kind string) string {
+	switch kind {
+	case "graphic":
+		return "Graphic novel"
+	case "abridged":
+		return "Abridged"
+	}
+	return ""
+}
+
+func discoveryRequestsContent(query Query, kind string) bool {
+	if kind == "graphic" {
+		return discoveryHasPhrase(query.Query, "graphic", "comic", "comics", "manga")
+	}
+	return discoveryHasPhrase(query.Query, "abridged", "abridgment", "abridgement")
+}
+
+func discoveryHasPhrase(value string, phrases ...string) bool {
+	value = " " + normalize(value) + " "
+	for _, phrase := range phrases {
+		if strings.Contains(value, " "+phrase+" ") {
+			return true
+		}
+	}
+	return false
+}
+
+func discoveryPossibleGraphic(focus, result SearchResult) bool {
+	// Work subjects and genres aggregate editions: the original Hobbit and
+	// Sapiens both have comic subjects. Require a separate work with a shared
+	// original author AND an additional credited author before suggesting an
+	// adaptation. Even this is a qualified hint, not an asserted format.
+	if focus.Provider != "Hardcover" || (result.Provider != "Open Library" && result.Provider != "Hardcover") || !discoverySharesAuthor(focus, result) {
+		return false
+	}
+	for _, left := range append([]string{focus.Work.ID}, focus.Work.ProviderIDs...) {
+		for _, right := range append([]string{result.Work.ID}, result.Work.ProviderIDs...) {
+			if left != "" && left == right {
+				return false
+			}
+		}
+	}
+	if !discoveryGraphicSubjects(result) {
+		return false
+	}
+	for _, author := range result.Work.Authors {
+		known := false
+		for _, original := range focus.Work.Authors {
+			known = known || normalize(original.Name) == normalize(author.Name)
+		}
+		if !known && normalize(author.Name) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func discoveryGraphicSubjects(result SearchResult) bool {
+	for _, subject := range result.Work.Subjects {
+		if discoveryHasPhrase(subject, "graphic novels", "graphic novel", "comic books", "comics") {
+			return true
+		}
+	}
+	return false
 }

@@ -251,3 +251,10 @@ Invalid work identities and conflicting edition identities are never accepted.
 The response still reports a provider warning and is not cached as complete.
 Exact ISBN lookup and automated author bibliography traversal retain strict
 validation. Series membership validation also remains strict.
+
+Book queries also retrieve Hardcover's `book_category_id`, `cached_tags(path: "Genre")` and edition-level
+`edition_information`, plus Open Library's work-level `subject` projection.
+Hardcover category 4 was verified as Graphic Novel against its live
+`book_categories` catalog. Open Library subjects are aggregated work evidence,
+not proof that a selected edition is a comic. See the
+[adaptation policy](metadata-strategy.md#adaptation-evidence).
