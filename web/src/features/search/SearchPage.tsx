@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -31,6 +31,7 @@ import {
   type BookMatchCandidate,
   type BookMatch,
   grabRelease,
+  grabWanted,
   searchMetadataDetailed,
   searchReleases,
   searchWantedReleases,
@@ -61,12 +62,11 @@ import {
   authorMissingPolicyOptions,
   chipTone,
   compactStringList,
-  confidenceTone,
   firstAuthorName,
   groupSearchEditions,
+  searchGroupSection,
   searchEditionOptionLabel,
   languageLabel,
-  searchConfidenceOptions,
   searchFormatOptions,
   searchModeOptions,
   searchResultCanBeWanted,
@@ -78,7 +78,6 @@ import {
   searchResultMatchChips,
   searchResultNeedsWantedReview,
   searchResultProviderKey,
-  searchResultMatchLabel,
   searchResultSeriesLabel,
   searchResultSourceLabel,
   searchResultSourceNames,
@@ -90,21 +89,12 @@ import {
   searchResultWantedReviewReasons,
   uniqueSearchProviders,
   wantedFormat,
-  type SearchConfidenceFilter,
   type SearchEvidenceFilter,
   type SearchMode
 } from "./lib";
 import "./search.css";
 
 const searchNav = navItems.find((item) => item.id === "search");
-
-/** Persisted "Start search for missing book" choice for the add flow. */
-const searchOnAddStorageKey = "librarry.searchOnAdd";
-
-function storedSearchOnAdd(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(searchOnAddStorageKey) === "true";
-}
 
 /** Desktop breakpoint mirrors the .search-layout media query in search.css. */
 function useIsDesktop() {
@@ -122,6 +112,7 @@ function useIsDesktop() {
 
 export default function SearchPage() {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -150,7 +141,6 @@ export default function SearchPage() {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [providerFilter, setProviderFilter] = useState("");
-  const [confidenceFilter, setConfidenceFilter] = useState<SearchConfidenceFilter>("all");
   const [evidenceFilter, setEvidenceFilter] = useState<SearchEvidenceFilter>("all");
 
   const [pendingReview, setPendingReview] = useState<SearchResult | null>(null);
@@ -160,7 +150,9 @@ export default function SearchPage() {
   // "" = use the format's default root folder; ids are validated per format.
   const [rootFolderID, setRootFolderID] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [searchOnAdd, setSearchOnAdd] = useState(storedSearchOnAdd);
+  const [pendingDownload, setPendingDownload] = useState(false);
+  const [downloadPhase, setDownloadPhase] = useState("");
+  const addingRef = useRef(false);
 
   const [releases, setReleases] = useState<Release[]>([]);
   const [releasesSearched, setReleasesSearched] = useState(false);
@@ -185,16 +177,18 @@ export default function SearchPage() {
       results.filter((result) =>
         searchResultVisibleForFilters(result, {
           provider: providerFilter,
-          confidence: confidenceFilter,
+          confidence: "all",
           evidence: evidenceFilter
         })
       ),
-    [results, providerFilter, confidenceFilter, evidenceFilter]
+    [results, providerFilter, evidenceFilter]
   );
   const editionGroups = useMemo(() => groupSearchEditions(visibleResults), [visibleResults]);
+  const primaryGroups = editionGroups.filter(group => searchGroupSection(group) === "primary");
+  const relatedGroups = editionGroups.filter(group => searchGroupSection(group) === "related");
+  const incompleteGroups = editionGroups.filter(group => searchGroupSection(group) === "incomplete");
   const activeFilterCount = [
     providerFilter,
-    confidenceFilter !== "all" ? confidenceFilter : "",
     evidenceFilter !== "all" ? evidenceFilter : ""
   ].filter(Boolean).length;
 
@@ -229,16 +223,14 @@ export default function SearchPage() {
   const selected = useMemo(
     () =>
       visibleResults.find((result) => searchResultKey(result) === selectedKey || result.work.id === selectedKey) ??
+      visibleResults.find(result => !result.discoverySection) ??
       visibleResults[0] ??
       results[0],
     [visibleResults, results, selectedKey]
   );
   const selectedSearchKey = selected ? searchResultKey(selected) : "";
-  const selectedExistingWanted = selectedSearchKey ? wantedBySearchKey.get(selectedSearchKey)?.total : 0;
   const selectedIsBookCandidate = Boolean(selected && searchResultCanBeWanted(selected));
-  const selectedCanBeWanted = selectedIsBookCandidate && !selectedExistingWanted;
   const selectedCanSearchReleases = selectedIsBookCandidate;
-  const selectedWantedReviewReasons = selected && selectedCanBeWanted ? searchResultWantedReviewReasons(selected) : [];
 
   const selectedAuthorFormat = selected ? searchResultWantedFormat(selected, format) : wantedFormat(format);
   const selectedAuthorSubscription = useMemo(() => {
@@ -317,7 +309,8 @@ export default function SearchPage() {
       const nextResults = outcome.results;
       if (outcome.providerErrors.length) setSearchError(outcome.providerErrors.map(error => `${error.provider}: ${error.message}`).join(" · "));
       setResults(nextResults);
-      setSelectedKey(nextResults[0] ? searchResultKey(nextResults[0]) : "");
+      const first = nextResults.find(result => !result.discoverySection) ?? nextResults[0];
+      setSelectedKey(first ? searchResultKey(first) : "");
       setPendingReview(null);
       setReleases([]);
       setReleasesSearched(false);
@@ -363,7 +356,6 @@ export default function SearchPage() {
 
   function clearFilters() {
     setProviderFilter("");
-    setConfidenceFilter("all");
     setEvidenceFilter("all");
   }
 
@@ -377,13 +369,6 @@ export default function SearchPage() {
 
   function openWanted(item: WantedItem) {
     navigate(`/library/book/${encodeURIComponent(item.id)}`);
-  }
-
-  function updateSearchOnAdd(next: boolean) {
-    setSearchOnAdd(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(searchOnAddStorageKey, String(next));
-    }
   }
 
   // --- Mutations --------------------------------------------------------------
@@ -415,8 +400,8 @@ export default function SearchPage() {
     [keys.downloads()]
   );
 
-  function requestAddBook(result: SearchResult, options: { force?: boolean } = {}) {
-    if (!searchResultCanBeWanted(result)) return;
+  async function requestAddBook(result: SearchResult, options: { force?: boolean; download?: boolean } = {}) {
+    if (!searchResultCanBeWanted(result) || addingRef.current) return;
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
     if (!matchesReady || !existing) return;
@@ -427,51 +412,53 @@ export default function SearchPage() {
     }
     if (!options.force && searchResultNeedsWantedReview(result)) {
       setSelectedKey(key);
+      setPendingDownload(Boolean(options.download));
       setPendingReview(result);
       return;
     }
+    addingRef.current = true;
     setSelectedKey(key);
-    addWanted.mutate(
-      {
+    setDownloadPhase("Adding");
+    let item: WantedItem | undefined;
+    try {
+      item = await addWanted.mutateAsync({
         result,
         format: searchResultWantedFormat(result, format),
         profile: effectiveProfile,
         tags: tagLabels,
         rootFolderId: effectiveRootFolderID || undefined
-      },
-      {
-        onSuccess: async (item) => {
-          void bookMatches.refetch();
-          setPendingReview(null);
-          if (!searchOnAdd) {
-            toast.success(`Added "${item.title}" to Wanted — open its book page to search and grab releases.`);
-            return;
-          }
-          // Search-on-add: review-first rule intact — releases are evaluated
-          // and stored, never grabbed.
-          try {
-            const outcome = await searchWantedReleases(item.id, language);
-            const approved = outcome.releases.filter((release) => release.approved).length;
-            toast.success(
-              `Added "${item.title}" to Wanted · release search: ${outcome.releases.length} found, ${approved} approved, ${
-                outcome.releases.length - approved
-              } rejected.`
-            );
-          } catch (error) {
-            toast.notify(
-              `Added "${item.title}" to Wanted, but the release search failed: ${
-                error instanceof Error ? error.message : "Wanted release search failed"
-              }`,
-              "warn"
-            );
-          }
-        },
-        onError: (error) => {
-          void bookMatches.refetch();
-          toast.error(error instanceof Error ? error.message : "Mark wanted failed");
+      });
+      setPendingReview(null);
+      if (options.download) {
+        setDownloadPhase("Finding download");
+        const outcome = await searchWantedReleases(item.id, language);
+        // Search returns ranked, persisted decisions. Grab only a fresh approved
+        // decision; the server still requires approval on grab.
+        const best = outcome.releases.find(release => release.approved && release.id);
+        if (best) {
+          setDownloadPhase("Starting download");
+          await grabWanted(item.id, best.id, { paused: false, force: false });
+          toast.success(`Download queued: ${item.title}`);
+        } else {
+          toast.notify(`Saved "${item.title}". No suitable download found yet.`, "info");
         }
+      } else {
+        toast.success(`Added "${item.title}" to your library.`);
       }
-    );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Please try again.";
+      toast.error(item ? `Saved "${item.title}", but couldn't start the download: ${message}` : message);
+    } finally {
+      void bookMatches.refetch();
+      for (const queryKey of [keys.wanted, keys.acquisitionQueue, keys.downloads(), keys.history()]) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+      addingRef.current = false;
+      setDownloadPhase("");
+      // A saved book is the recovery destination too: retry there without
+      // creating another record or replaying an uncertain download request.
+      if (item) openWanted(item);
+    }
   }
 
   function requestMonitorAuthor(result: SearchResult | undefined) {
@@ -600,6 +587,7 @@ export default function SearchPage() {
           <span className="search-result-sub">{searchResultSubtitle(result)}</span>
           {result.work.seriesId ? <span className="search-result-sub">{searchResultSeriesLabel(result)}</span> : null}
           <span className="search-result-chips">
+            {result.contentLabel ? <Badge tone="neutral">{result.contentLabel}</Badge> : null}
             {searchResultMatchChips(result).map((chip) => (
               <Badge key={chip.label} tone={chipTone(chip.tone)}>
                 {chip.label}
@@ -611,7 +599,6 @@ export default function SearchPage() {
           <Badge tone="neutral" title={sources.join(", ")}>
             {searchResultSourceLabel(result)}
           </Badge>
-          <Badge tone={confidenceTone(result.confidence)}>{result.confidence}</Badge>
           {editionCount > 1 ? <Badge tone="neutral">{editionCount} editions</Badge> : null}
           {existing?.total ? <Badge tone="neutral">{trackingLabel(existing)}</Badge> : null}
         </span>
@@ -623,9 +610,62 @@ export default function SearchPage() {
     const key = searchResultKey(result);
     const existing = wantedBySearchKey.get(key);
     const canBeWanted = searchResultCanBeWanted(result) && !existing?.total;
-    const reviewReasons = canBeWanted ? searchResultWantedReviewReasons(result) : [];
     const sources = searchResultSourceNames(result);
     const editions = editionGroups.find(group => group.some(candidate => searchResultKey(candidate) === key)) ?? [result];
+    const renderOptions = () => (
+      <div className="search-detail-form">
+        {canBeWanted || !selectedAuthorSubscription ? (
+          <>
+            <Field label="Quality profile" hint="Applied to newly added books.">
+              <select aria-label="Quality profile" value={effectiveProfile} onChange={event => setQualityProfile(event.target.value)}>
+                {profileOptions.length ? profileOptions.map(profile => (
+                  <option key={profile.name} value={profile.name}>{profile.name}</option>
+                )) : <option value="standard">standard</option>}
+              </select>
+            </Field>
+            {renderAddBookFields()}
+          </>
+        ) : null}
+      </div>
+    );
+    const renderAuthorFields = () => (
+      <>
+        <Field label="Missing books" hint="Which existing books to add when monitoring this author.">
+          <select
+            value={selectedAuthorSubscription?.missingBookPolicy ?? authorPolicy}
+            disabled={Boolean(selectedAuthorSubscription)}
+            onChange={event => setAuthorPolicy(event.target.value as AuthorMissingBookPolicy)}
+          >
+            {authorMissingPolicyOptions.map(policy => (
+              <option key={policy} value={policy}>{authorMissingPolicyLabel(policy)}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Metadata profile" hint="Filter set applied when monitoring this author.">
+          <select
+            value={selectedAuthorSubscription?.metadataProfileId ?? authorMetadataProfileID}
+            disabled={Boolean(selectedAuthorSubscription)}
+            onChange={event => setAuthorMetadataProfileID(event.target.value)}
+            aria-label="Author metadata profile"
+          >
+            <option value="">None</option>
+            {metadataProfiles.map(profile => (
+              <option key={profile.id} value={profile.id}>{profile.name}</option>
+            ))}
+          </select>
+        </Field>
+      </>
+    );
+    const renderMonitorAuthor = () => (
+      <Button
+        icon={UserPlus}
+        disabled={!result.work.authors?.length}
+        busy={monitorAuthor.isPending}
+        onClick={() => requestMonitorAuthor(result)}
+      >
+        {monitorAuthor.isPending ? "Saving" : selectedAuthorSubscription ? "Refresh Author" : "Monitor Author"}
+      </Button>
+    );
     return (
       <>
         <div className="search-detail-head">
@@ -636,9 +676,7 @@ export default function SearchPage() {
             <h3>{searchResultTitle(result)}</h3>
             <p>{searchResultSubtitle(result)}</p>
             <div className="search-detail-badges">
-              <Badge tone={confidenceTone(result.confidence)}>
-                {searchResultMatchLabel(result)}
-              </Badge>
+              {result.contentLabel ? <Badge tone="neutral">{result.contentLabel}</Badge> : null}
               <Badge tone="neutral" title={sources.join(", ")}>
                 {searchResultSourceLabel(result)}
               </Badge>
@@ -648,7 +686,7 @@ export default function SearchPage() {
         </div>
 
         {editions.length > 1 ? (
-          <Field label="Edition" hint="The selected edition supplies the identifiers, language, format and artwork used when adding.">
+          <Field label="Edition">
             <select aria-label="Edition" value={key} onChange={event => {
               const edition = editions.find(candidate => searchResultKey(candidate) === event.target.value);
               if (edition) selectResult(edition);
@@ -657,16 +695,6 @@ export default function SearchPage() {
             </select>
           </Field>
         ) : null}
-
-        <div className="search-evidence-grid" aria-label="Selected metadata evidence">
-          {searchResultEvidenceSummary(result, format).map((item) => (
-            <article className="search-evidence-item" key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-              <small>{item.detail}</small>
-            </article>
-          ))}
-        </div>
 
         {searchResultCanBeWanted(result) && !matchesReady ? (
           bookMatches.isError ? <InlineNotice tone="danger">
@@ -685,169 +713,153 @@ export default function SearchPage() {
           </div>
         ) : null}
 
-        <dl className="search-detail-list">
-          <div>
-            <dt>Sources</dt>
-            <dd>{sources.join(", ") || result.provider}</dd>
-          </div>
-          {result.kind === "author" ? (
-            <div>
-              <dt>Provider ID</dt>
-              <dd>{searchResultProviderKey(result)}</dd>
-            </div>
-          ) : (
-            <div>
-              <dt>First published</dt>
-              <dd>{result.work.firstPublishYear ?? "Unknown"}</dd>
-            </div>
-          )}
-          <div>
-            <dt>{result.kind === "author" ? "Target format" : "Format"}</dt>
-            <dd>{result.kind === "author" ? wantedFormat(format) : result.edition?.format ?? "Any"}</dd>
-          </div>
-          {result.kind === "author" ? null : (
-            <div>
-              <dt>Edition</dt>
-              <dd>{result.edition?.title || result.work.title}</dd>
-            </div>
-          )}
-          {result.kind === "author" ? null : (
-            <div>
-              <dt>Language</dt>
-              <dd>{languageLabel(result.edition?.language) || "Unknown"}</dd>
-            </div>
-          )}
-          {result.kind === "author" ? null : (
-            <div>
-              <dt>Published</dt>
-              <dd>
-                {compactStringList([result.edition?.publishedDate, result.edition?.publisher]).join(" · ") ||
-                  result.work.firstPublishYear ||
-                  "Unknown"}
-              </dd>
-            </div>
-          )}
-          {result.kind === "author" ? (
-            <div>
-              <dt>Top work</dt>
-              <dd>{result.work.description || "Unknown"}</dd>
-            </div>
-          ) : (
-            <div>
-              <dt>Identifiers</dt>
-              <dd>{searchResultIdentifierLabel(result, 4)}</dd>
-            </div>
-          )}
-          {result.kind === "author" ? null : (
-            <div>
-              <dt>Series</dt>
-              <dd>{searchResultSeriesLabel(result) || "None"}</dd>
-            </div>
-          )}
-          <div>
-            <dt>Matched on</dt>
-            <dd>{result.matchedOn.join(", ")}</dd>
-          </div>
-        </dl>
-
-        <div className="search-detail-form">
-          {canBeWanted || !selectedAuthorSubscription ? (
-            <Field label="Quality profile" hint="Applied to newly added books.">
-              <select aria-label="Quality profile" value={effectiveProfile} onChange={(event) => setQualityProfile(event.target.value)}>
-                {profileOptions.length ? (
-                  profileOptions.map((profile) => (
-                    <option key={profile.name} value={profile.name}>
-                      {profile.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="standard">standard</option>
-                )}
-              </select>
-            </Field>
-          ) : null}
-          {canBeWanted || !selectedAuthorSubscription ? renderAddBookFields() : null}
-          <Field label="Missing books" hint="Which existing books to add when monitoring this author.">
-            <select
-              value={selectedAuthorSubscription?.missingBookPolicy ?? authorPolicy}
-              disabled={Boolean(selectedAuthorSubscription)}
-              onChange={(event) => setAuthorPolicy(event.target.value as AuthorMissingBookPolicy)}
-            >
-              {authorMissingPolicyOptions.map((policy) => (
-                <option key={policy} value={policy}>
-                  {authorMissingPolicyLabel(policy)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Metadata profile" hint="Filter set applied when monitoring this author.">
-            <select
-              value={selectedAuthorSubscription?.metadataProfileId ?? authorMetadataProfileID}
-              disabled={Boolean(selectedAuthorSubscription)}
-              onChange={(event) => setAuthorMetadataProfileID(event.target.value)}
-              aria-label="Author metadata profile"
-            >
-              <option value="">None</option>
-              {metadataProfiles.map((profile) => (
-                <option key={profile.id} value={profile.id}>
-                  {profile.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-
         {canBeWanted ? (
-          <label className="search-add-search-toggle" title="After adding, run a release search for the new wanted item (paused review-first — nothing is grabbed).">
-            <input type="checkbox" checked={searchOnAdd} onChange={(event) => updateSearchOnAdd(event.target.checked)} />
-            <span>Start search for missing book</span>
-          </label>
+          <div className="search-download-summary">
+            {result.edition?.format && result.edition.format !== "any" ? (
+              <p>{selectedWantedFormat === "audiobook" ? "Audiobook" : "Ebook"}{result.edition.language ? ` · ${languageLabel(result.edition.language)}` : ""}</p>
+            ) : (
+              <Field label="Download format">
+                <select aria-label="Download format" value={selectedWantedFormat} onChange={event => setFormat(event.target.value)}>
+                  <option value="ebook">Ebook</option>
+                  <option value="audiobook">Audiobook</option>
+                </select>
+              </Field>
+            )}
+            <small>Finds and starts the best download that meets your quality settings.</small>
+          </div>
         ) : null}
-
         <div className="search-detail-actions">
           {existing?.total === 1 ? (
-            <Button icon={HardDriveDownload} onClick={() => openWanted(existing.books[0])}>
-              Open book
-            </Button>
+            <Button icon={HardDriveDownload} onClick={() => openWanted(existing.books[0])}>Open book</Button>
           ) : canBeWanted ? (
-            <Button
-              variant="primary"
-              icon={HardDriveDownload}
-              busy={addWanted.isPending}
-              disabled={!matchesReady}
-              onClick={() => requestAddBook(result)}
-            >
-              {addWanted.isPending ? "Adding" : reviewReasons.length ? "Review & Add Book" : "Add Book"}
-            </Button>
-          ) : null}
-          <Button
-            icon={UserPlus}
-            disabled={!result.work.authors?.length}
-            busy={monitorAuthor.isPending}
-            onClick={() => requestMonitorAuthor(result)}
-          >
-            {monitorAuthor.isPending ? "Saving" : selectedAuthorSubscription ? "Refresh Author" : "Monitor Author"}
-          </Button>
-          {searchResultCanBeWanted(result) ? (
-            <Button icon={Download} busy={isSearchingReleases} onClick={() => void runReleaseSearch()}>
-              {isSearchingReleases ? "Searching releases" : "Search Releases"}
-            </Button>
+            <>
+              <Button variant="primary" icon={Download} busy={Boolean(downloadPhase)} disabled={!matchesReady}
+                onClick={() => void requestAddBook(result, { download: true })}>
+                {downloadPhase || `Download ${selectedWantedFormat}`}
+              </Button>
+              <Button disabled={!matchesReady || Boolean(downloadPhase)} onClick={() => void requestAddBook(result)}>
+                Add Book
+              </Button>
+            </>
           ) : null}
         </div>
+
+        {result.kind === "author" ? (
+          <>
+            {renderOptions()}
+
+            <div className="search-detail-form">
+              {renderAuthorFields()}
+            </div>
+            {renderMonitorAuthor()}
+          </>
+        ) : (
+          <details className="search-disclosure">
+            <summary>Options</summary>
+            {renderOptions()}
+
+            <Button icon={Search} busy={isSearchingReleases} onClick={() => void runReleaseSearch()}>Search Releases</Button>
+            <details className="search-disclosure">
+              <summary>Monitor this author</summary>
+              <div className="search-detail-form">
+                {renderAuthorFields()}
+              </div>
+              {renderMonitorAuthor()}
+            </details>
+          </details>
+        )}
+        <details className="search-disclosure">
+          <summary>Book details and sources</summary>
+          <div className="search-evidence-grid" aria-label="Selected metadata evidence">
+            {searchResultEvidenceSummary(result, format).map((item) => (
+              <article className="search-evidence-item" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+              </article>
+            ))}
+          </div>
+
+          <dl className="search-detail-list">
+            <div>
+              <dt>Sources</dt>
+              <dd>{sources.join(", ") || result.provider}</dd>
+            </div>
+            {result.kind === "author" ? (
+              <div>
+                <dt>Provider ID</dt>
+                <dd>{searchResultProviderKey(result)}</dd>
+              </div>
+            ) : (
+              <div>
+                <dt>First published</dt>
+                <dd>{result.work.firstPublishYear ?? "Unknown"}</dd>
+              </div>
+            )}
+            <div>
+              <dt>{result.kind === "author" ? "Target format" : "Format"}</dt>
+              <dd>{result.kind === "author" ? wantedFormat(format) : result.edition?.format ?? "Any"}</dd>
+            </div>
+            {result.kind === "author" ? null : (
+              <div>
+                <dt>Edition</dt>
+                <dd>{result.edition?.title || result.work.title}</dd>
+              </div>
+            )}
+            {result.kind === "author" ? null : (
+              <div>
+                <dt>Language</dt>
+                <dd>{languageLabel(result.edition?.language) || "Unknown"}</dd>
+              </div>
+            )}
+            {result.kind === "author" ? null : (
+              <div>
+                <dt>Published</dt>
+                <dd>
+                  {compactStringList([result.edition?.publishedDate, result.edition?.publisher]).join(" · ") ||
+                    result.work.firstPublishYear ||
+                    "Unknown"}
+                </dd>
+              </div>
+            )}
+            {result.kind === "author" ? (
+              <div>
+                <dt>Top work</dt>
+                <dd>{result.work.description || "Unknown"}</dd>
+              </div>
+            ) : (
+              <div>
+                <dt>Identifiers</dt>
+                <dd>{searchResultIdentifierLabel(result, 4)}</dd>
+              </div>
+            )}
+            {result.kind === "author" ? null : (
+              <div>
+                <dt>Series</dt>
+                <dd>{searchResultSeriesLabel(result) || "None"}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Matched on</dt>
+              <dd>{result.matchedOn.join(", ")}</dd>
+            </div>
+          </dl>
+
+        </details>
       </>
     );
   }
 
-  const resultsTitle = mode === "series" ? "Series books" : mode === "author" ? "Author identities" : "Candidate matches";
+  const resultsTitle = mode === "series" ? "Series books" : mode === "author" ? "Author identities" : "Search results";
   const resultsSubtitle =
     mode === "author"
       ? `${visibleResults.length} of ${results.length} author records shown.`
-      : `${editionGroups.length} books · ${visibleResults.length} of ${results.length} metadata records shown.`;
+      : `${editionGroups.length} ${editionGroups.length === 1 ? "book" : "books"}`;
 
   return (
     <>
       <PageHeader title="Add New" subtitle={searchNav?.subtitle} />
-      {mode === "series" ? <InlineNotice tone="info">Hardcover series order. Up to 3 matching series and 25 books each, excluding collections; at most 50 edition records shown. Missing positions come last. Refine the name to narrow results.</InlineNotice> : null}
+      {mode === "series" ? <InlineNotice tone="info">Hardcover series order. Companion material and incomplete records are grouped below.</InlineNotice> : null}
 
       <form
         className="search-hero"
@@ -928,19 +940,6 @@ export default function SearchPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Confidence">
-                <select
-                  value={confidenceFilter}
-                  onChange={(event) => setConfidenceFilter(event.target.value as SearchConfidenceFilter)}
-                >
-                  <option value="all">All confidence</option>
-                  {searchConfidenceOptions.map((confidence) => (
-                    <option key={confidence} value={confidence}>
-                      {confidence}
-                    </option>
-                  ))}
-                </select>
-              </Field>
               <Field label="Evidence">
                 <select
                   value={evidenceFilter}
@@ -962,7 +961,19 @@ export default function SearchPage() {
             <LoadingRow label="Searching metadata providers…" />
           ) : visibleResults.length ? (
             <div className="search-result-list" role="list">
-              {editionGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+              {primaryGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+              {relatedGroups.length ? (
+                <details className="search-disclosure search-secondary-results" key={`related:${query}`} open={!primaryGroups.length || undefined}>
+                  <summary>Related books and companion material ({relatedGroups.length})</summary>
+                  {relatedGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+                </details>
+              ) : null}
+              {incompleteGroups.length ? (
+                <details className="search-disclosure search-secondary-results" key={`incomplete:${query}`} open={!primaryGroups.length && !relatedGroups.length || undefined}>
+                  <summary>Incomplete catalog records ({incompleteGroups.length})</summary>
+                  {incompleteGroups.map(group => renderResultRow(group.find(result => searchResultKey(result) === selectedSearchKey) ?? group[0], group.length))}
+                </details>
+              ) : null}
             </div>
           ) : results.length ? (
             <EmptyState icon={FilterX} title="No metadata candidates match the current filters.">
@@ -988,7 +999,7 @@ export default function SearchPage() {
         ) : null}
       </div>
 
-      {mode !== "author" && selectedCanSearchReleases ? (
+      {mode !== "author" && selectedCanSearchReleases && (isSearchingReleases || releasesSearched) ? (
         <Card
           title="Release search"
           subtitle={
@@ -1073,17 +1084,17 @@ export default function SearchPage() {
         onClose={() => setPendingReview(null)}
         footer={
           <>
-            <Button variant="ghost" disabled={addWanted.isPending} onClick={() => setPendingReview(null)}>
+            <Button variant="ghost" disabled={Boolean(downloadPhase)} onClick={() => setPendingReview(null)}>
               Cancel
             </Button>
             <Button
               variant="primary"
               icon={HardDriveDownload}
-              busy={addWanted.isPending}
+              busy={Boolean(downloadPhase)}
               disabled={!matchesReady}
-              onClick={() => pendingReview && requestAddBook(pendingReview, { force: true })}
+              onClick={() => pendingReview && void requestAddBook(pendingReview, { force: true, download: pendingDownload })}
             >
-              {addWanted.isPending ? "Adding" : "Add anyway"}
+              {downloadPhase || (pendingDownload ? "Download anyway" : "Add anyway")}
             </Button>
           </>
         }
@@ -1093,17 +1104,13 @@ export default function SearchPage() {
             <p>
               <strong>{searchResultTitle(pendingReview)}</strong> — {firstAuthorName(pendingReview)}
             </p>
-            <p>This candidate can become wanted, but the match evidence is not strong enough for a blind add.</p>
+            <p>Check these details before continuing:</p>
             <ul className="search-review-reasons">
               {searchResultWantedReviewReasons(pendingReview).map((reason) => (
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
             <div className="search-detail-form">{renderAddBookFields()}</div>
-            <label className="search-add-search-toggle" title="After adding, run a release search for the new wanted item (paused review-first — nothing is grabbed).">
-              <input type="checkbox" checked={searchOnAdd} onChange={(event) => updateSearchOnAdd(event.target.checked)} />
-              <span>Start search for missing book</span>
-            </label>
           </>
         ) : null}
       </Modal>

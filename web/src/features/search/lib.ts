@@ -89,19 +89,17 @@ export function searchResultCover(result: SearchResult) {
 }
 
 export function searchResultMatchChips(result: SearchResult) {
-  const chips: SearchEvidenceChip[] = [
-    { label: searchResultMatchLabel(result), tone: "neutral" }
-  ];
-  const sourceCount = searchResultSourceNames(result).length;
-  if (sourceCount > 1) chips.push({ label: `${sourceCount} sources`, tone: "high" });
-  if (result.evidence?.length) result.evidence.slice(1).forEach((label) => chips.push({ label, tone: "neutral" }));
-  else result.matchedOn.forEach((field) => chips.push({ label: searchMatchFieldLabel(field), tone: "neutral" }));
-  if (result.conflicts?.length) chips.unshift({ label: "Edition needs review", tone: "review" });
-  if (result.kind !== "author" && searchResultIdentifierSummary(result, 1)) chips.push({ label: "identifier", tone: "high" });
-  if (result.kind !== "author" && searchResultPublishedLabel(result)) chips.push({ label: "published", tone: "neutral" });
-  if (result.kind !== "author" && searchResultSeriesLabel(result)) chips.push({ label: "series", tone: "neutral" });
-  if (result.kind === "author" && searchResultProviderKey(result)) chips.push({ label: "author id", tone: "neutral" });
-  return uniqueEvidenceChips(chips).slice(0, 5);
+  const chips: SearchEvidenceChip[] = [];
+  if (result.conflicts?.length) chips.push({ label: "Edition conflict", tone: "review" });
+  if (result.matchedOn.includes("isbn") || result.evidence?.includes("Exact ISBN")) {
+    chips.push({ label: "Exact ISBN", tone: "neutral" });
+  }
+  if (result.edition?.format && result.edition.format !== "any") {
+    chips.push({ label: result.edition.format, tone: "neutral" });
+  }
+  const language = languageLabel(result.edition?.language);
+  if (language) chips.push({ label: language, tone: "neutral" });
+  return chips;
 }
 
 export function searchResultEvidenceSummary(result: SearchResult, currentFormat: string): SearchEvidenceItem[] {
@@ -157,7 +155,7 @@ export function searchResultEvidenceSummary(result: SearchResult, currentFormat:
 
 export function searchResultConfidenceDescription(result: SearchResult) {
   if (result.conflicts?.length) return result.conflicts.join(". ");
-  return "Search relevance is not acquisition confidence. Check the selected edition, language and format.";
+  return result.evidence?.join(" · ") || "Returned by the metadata provider.";
 }
 
 export function searchResultMatchedFieldsLabel(result: SearchResult) {
@@ -196,24 +194,8 @@ export function uniqueEvidenceChips(chips: SearchEvidenceChip[]) {
 export function searchResultWantedReviewReasons(result: SearchResult) {
   if (!searchResultCanBeWanted(result)) return [];
   const reasons: string[] = [...(result.conflicts ?? [])];
-  if (!result.edition?.format || result.edition.format === "any") {
-    reasons.push("The edition's media format is unknown; confirm your acquisition format.");
-  }
-  const matched = new Set(result.matchedOn.map((field) => field.toLowerCase()));
-  const hasIdentifier = Boolean(result.edition?.asin || result.edition?.isbns?.length);
-  const matchedIdentifier = matched.has("isbn") || matched.has("asin") || matched.has("identifier");
-  const matchedTitleAndAuthor = matched.has("title") && matched.has("author");
-
-  if (result.confidence === "review") {
-    reasons.push("Provider match is low confidence.");
-  } else if (result.confidence === "medium") {
-    reasons.push("Provider match is medium confidence.");
-  }
-  if (!hasIdentifier && !matchedIdentifier) {
-    reasons.push("No ISBN or ASIN evidence is attached to this edition.");
-  }
-  if (!matchedIdentifier && !matchedTitleAndAuthor) {
-    reasons.push("The match did not include both title and author evidence.");
+  if (!result.work.authors?.some(author => author.name?.trim() && author.name.trim().toLowerCase() !== "unknown author")) {
+    reasons.push("This record has no author. Check that it is the book you want.");
   }
   return Array.from(new Set(reasons));
 }
@@ -430,20 +412,34 @@ export function chipTone(tone: SearchEvidenceTone | undefined): "success" | "war
 /** Group only the same provider-backed work; names and covers are not identity.
  * Each option retains its complete SearchResult for library checks and add. */
 export function groupSearchEditions(results: SearchResult[]): SearchResult[][] {
-  const groups: SearchResult[][] = [];
-  const indexes = new Map<string, number>();
+  const groups: Array<{ keys: Set<string>; results: SearchResult[] }> = [];
   for (const result of results) {
-    // Require a typed work ID. An edition-only or unknown identity gets its own row.
-    const id = result.work.id;
-    const workKey = result.kind === "book" && (/^openlibrary:OL\d+W$/.test(id) || /^hardcover:\d+$/.test(id)) ? `${id}:${result.work.seriesId ?? ""}` : "";
-    const index = workKey ? indexes.get(workKey) : undefined;
-    if (index !== undefined) groups[index].push(result);
+    // Aliases here were verified by the backend using provider identities or a
+    // shared edition ISBN. Titles, author names and covers never create a link.
+    const keys = new Set(result.kind === "book" ? [result.work.id, ...(result.work.providerIds ?? [])]
+      .filter(id => /^openlibrary:OL\d+W$/.test(id) || /^hardcover:\d+$/.test(id))
+      .map(id => `${id}:${result.work.seriesId ?? ""}`) : []);
+    const matches = groups.filter(group => [...keys].some(key => group.keys.has(key)));
+    if (!matches.length) groups.push({ keys, results: [result] });
     else {
-      if (workKey) indexes.set(workKey, groups.length);
-      groups.push([result]);
+      const target = matches[0];
+      // A verified alias can bridge two groups discovered earlier. Keep their
+      // original order and every complete selected-edition payload.
+      for (const match of matches.slice(1)) {
+        match.keys.forEach(key => target.keys.add(key));
+        target.results.push(...match.results);
+        groups.splice(groups.indexOf(match), 1);
+      }
+      keys.forEach(key => target.keys.add(key));
+      target.results.push(result);
     }
   }
-  return groups;
+  return groups.map(group => group.results);
+}
+
+export function searchGroupSection(group: SearchResult[]): "primary" | "related" | "incomplete" {
+  if (group.some(result => !result.discoverySection)) return "primary";
+  return group.some(result => result.discoverySection === "related") ? "related" : "incomplete";
 }
 
 export function searchEditionOptionLabel(result: SearchResult) {

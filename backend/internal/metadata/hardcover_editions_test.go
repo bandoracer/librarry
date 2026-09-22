@@ -82,7 +82,7 @@ func TestHardcoverDefaultEditionSelectionDoesNotInventFormat(t *testing.T) {
 	}
 }
 func TestHardcoverEditionValidationRejectsUnrelatedOrConflictingDetails(t *testing.T) {
-	for _, book := range []string{
+	for i, book := range []string{
 		strings.Replace(richBookFixture, `"book_id":1`, `"book_id":2`, 1),
 		strings.Replace(richBookFixture, `"reading_format_id":4`, `"reading_format_id":2`, 1),
 		strings.Replace(richBookFixture, `"isbn_13":"9780142437247"`, `"isbn_13":"9780593135204"`, 1),
@@ -93,8 +93,19 @@ func TestHardcoverEditionValidationRejectsUnrelatedOrConflictingDetails(t *testi
 	} {
 		p, _ := editionFixtureProvider(t, book)
 		rows, err := p.Search(context.Background(), Query{Query: "Fixture Book"})
-		if err == nil || rows != nil || p.Health(context.Background()).Status != "degraded" {
+		if err == nil || p.Health(context.Background()).Status != "degraded" {
 			t.Fatal(rows, err)
+		}
+		if i < 4 {
+			if len(rows) != 1 || rows[0].Edition.ID != "hardcover-edition:102" {
+				t.Fatal("healthy audio lost or bad ebook retained", rows)
+			}
+		} else if i == 4 {
+			if len(rows) != 1 || rows[0].Edition.ID != "" || rows[0].Edition.Format != FormatAny {
+				t.Fatal("conflicting edition identity retained", rows)
+			}
+		} else if len(rows) != 0 {
+			t.Fatal("invalid work retained", rows)
 		}
 	}
 }
@@ -234,5 +245,39 @@ func TestEditionContributorMergesPreserveRolesAndSameNameIdentities(t *testing.T
 	merged := mergeEdition(base, Edition{Contributors: []Author{{ID: "hardcover-author:7", Name: "Alex", Role: "Narrator"}, {ID: "hardcover-author:8", Name: "Alex", Role: "Author"}}})
 	if len(merged.Contributors) != 3 {
 		t.Fatal(merged)
+	}
+}
+
+func TestHardcoverSearchKeepsHealthyRecordsAndDoesNotCachePartialDetails(t *testing.T) {
+	calls := 0
+	p := NewHardcoverProvider(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		var body struct{ Query string }
+		if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(body.Query, "SearchBookDetails") {
+			// Healthy work 1 must survive a conflicting default format on work 2.
+			return jsonResponse(`{"data":{"books":[` + richBookFixture + `,{"id":2,"title":"Bad relationship","default_ebook_edition":{"id":201,"book_id":2,"reading_format_id":2}}]}}`), nil
+		}
+		return jsonResponse(`{"data":{"search":{"results":{"hits":[{"document":{"id":"1","title":"Fixture Book"}},{"document":{"id":"2","title":"Bad relationship"}}]}}}}`), nil
+	})}, "fixture")
+	s := NewService([]Provider{p})
+	for attempt := 0; attempt < 2; attempt++ {
+		outcome := s.SearchDetailed(context.Background(), Query{Query: "Fixture Book", Type: SearchTypeBook})
+		if len(outcome.Results) != 3 || len(outcome.ProviderErrors) != 1 || !strings.Contains(outcome.ProviderErrors[0].Message, "Ignored invalid edition or work data in 1") {
+			t.Fatalf("%+v", outcome)
+		}
+		for _, r := range outcome.Results {
+			if r.Work.ID == "hardcover:2" && (r.Edition.ID != "" || r.Edition.Format != FormatAny) {
+				t.Fatal("invalid edition retained")
+			}
+		}
+	}
+	if calls != 4 {
+		t.Fatalf("partial result cached: %d calls", calls)
+	}
+	if p.Health(context.Background()).Status != "degraded" {
+		t.Fatal("validation failure hidden from provider health")
 	}
 }

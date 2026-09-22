@@ -27,7 +27,7 @@ Exact identifiers beat fuzzy matching:
 
 - ISBN, ASIN, and provider IDs are high-confidence matches.
 - Search results from different providers are clustered before ranking when
-  they share an exact ISBN or compatible normalized title/author evidence.
+  they share an exact edition ISBN or verified work/edition identity.
   The primary result keeps the best provider identity while merged provider IDs,
   identifiers, dates, publisher fields, covers, and match evidence are retained
   as provenance.
@@ -38,7 +38,7 @@ Exact identifiers beat fuzzy matching:
 - Original publication dates are separate from edition dates and drive whole-work
   first/latest policies when available. Non-writing or unknown Hardcover credits
   enter review before policies select eligible works.
-- Ambiguous title-only matches go to manual review.
+- Ambiguous title-only associations in import and metadata correction go to manual review. Explicit user selection in Add New follows the separate discovery contract below.
 - Format selection is explicit: ebook and audiobook editions must not silently
   collapse into the same file target.
 
@@ -66,13 +66,57 @@ retrieval, coherent edition selection, relevance, and metadata quality. Its froz
 the measured gains; extra ranking weights did not outperform provider relevance.
 The initial retrieval/normalization baseline is now implemented in source, with
 identity tiers and evidence labels. Provider relevance determines discovery order;
-legacy scores remain compatibility/review evidence and are not probabilities.
+legacy scores remain in the API for compatibility and are not probabilities.
+The Add New UI omits confidence badges and does not use those scores to gate an
+explicit user selection. Only concrete edition conflicts or a missing author
+require add confirmation. Unknown source formats remain unknown; the visible
+acquisition format controls the wanted item. Provider evidence and identifiers
+remain available in an expandable details section.
 Search records merge only with shared edition ISBN or identical work/edition
 identity, preserving source IDs. Text-only enrichment of persisted records follows
 its existing separate review contract. The custom weighted ranker remains future qualification work. Explicit Series
 mode uses stable Hardcover series IDs and numbered memberships, without deriving
-order from publication years. It remains pending credentialed live qualification.
+order from publication years. Credentialed live qualification is recorded in the
+[metadata rollout](reviews/2026-09-21-metadata-rollout.md).
 A bounded explicit-author rescue and chooser for returned editions are implemented;
 see the [expanded iteration](reviews/2026-09-21-metadata-discovery-iteration.md). See the
-[implementation checks](reviews/2026-09-21-metadata-discovery.md). This has not been
-deployed to the maintainer NAS.
+[implementation checks](reviews/2026-09-21-metadata-discovery.md). That retrieval
+baseline is deployed; the UI simplification and cleanup below remain source-only.
+
+## Candidate discovery cleanup
+
+The follow-up to the credentialed rollout adds primary, related and incomplete
+presentation sections. A bare exact-title stub with no author cannot outrank a
+coherent matching digital edition. Verified title focus accepts subtitle variants;
+a keyword inside an unrelated title does not qualify. When that strong evidence
+exists, records by unrelated authors move to the expandable related section.
+Otherwise provider relevance remains the baseline, with zero-overlap unrelated
+hits demoted only when another result supplies a credible title anchor.
+
+Summaries, workbooks and clearly labeled companion/collection material move to
+related results unless explicitly requested. Exact ISBN results remain primary,
+including conflicts. Series retains source order; unnumbered supplements, other
+matching series and work-only records are separated from numbered usable editions.
+These sections do not modify provider facts or acquisition policy. Verified work
+aliases may share one UI row, but text-only duplicates remain separate.
+
+See the [live follow-up](reviews/2026-09-21-discovery-cleanup.md). This follow-up is
+source-only until a separate deployment; the preceding retrieval/edition rollout
+is already live as recorded in [status](status.md).
+
+### Adaptation evidence
+
+Discovery labels Hardcover category 4 as **Graphic novel**, and edition-level
+`edition_information` containing the word `abridged` as **Abridged** (not
+`unabridged`). These alternatives move to related results when a coherent original
+is present; explicit comic/graphic/manga or abridgment queries retain them. A
+standalone graphic work is not demoted just for being a comic. Exact ISBN lookups
+always stay visible.
+
+Open Library work subjects and Hardcover genres aggregate many editions and are not a reliable format
+claim: even the original Hobbit and Sapiens contain comic subjects. A comic subject
+plus an additional credited author, corroborated against a coherent Hardcover
+original with a shared author, earns only **Possible graphic adaptation**. Subjects
+alone do not demote the original. Source subjects and edition information survive
+normalization and identity merging. No new provider requests or identity guesses
+are introduced. Missing or incorrect provider evidence remains a limitation.

@@ -28,6 +28,36 @@ and broad credentialed catalog qualification remain outstanding. Live title, aut
 ebook-ISBN and Percy Jackson series probes passed, as did combined-provider search.
 See the [release and preservation record](reviews/2026-09-21-metadata-rollout.md).
 
+## Search-to-download simplification (source only)
+
+The next UI change removes legacy confidence badges and routine add confirmations.
+A selected book has a **Download ebook/audiobook** action that saves, searches,
+and starts the best approved release; **Add Book** saves without an immediate
+search. Options and provider evidence are expandable. Explicit edition conflicts,
+missing authors, saved-identity checks and release approval remain enforced.
+Verified locally with the full Go suite against disposable PostgreSQL, 32 frontend
+tests, the production web build, deployment configuration checks and 38 targeted
+desktop/mobile browser checks. Browser tests use intercepted acquisition responses;
+no live downloads were submitted. This change is not yet deployed; the live
+metadata rollout above remains current.
+
+## Discovery cleanup (source only)
+
+The next ranking pass addresses the live DDIA empty-record and typo/noise cases,
+adds expandable related/incomplete sections, and preserves healthy Hardcover
+records during partial edition validation failures. It also groups verified work
+aliases while retaining selected edition identity. The 24-query credentialed live probe, 50-query captured benchmark, metadata race
+tests, full Go suite and 42 desktop/mobile checks passed. Source-only evidence and
+the remaining gaps are in the [cleanup review](reviews/2026-09-21-discovery-cleanup.md).
+
+## Adaptation evidence (source only)
+
+Provider categories, subjects/genres and edition abridgment evidence now support
+concise graphic/abridgment labels and secondary placement when a coherent original
+exists. Explicit comic searches, exact ISBNs and standalone graphic works retain
+primary placement. See the [adaptation review](reviews/2026-09-21-adaptation-ranking.md).
+This pass is awaiting packaging and deployment with the two changes above.
+
 ## Kindle delivery
 
 Manual native EPUB/PDF delivery is deployed on the maintainer NAS. Settings,

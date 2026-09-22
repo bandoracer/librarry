@@ -1,0 +1,3804 @@
+[
+  {
+    "query": {
+      "query": "A Brief History of Time",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:465017",
+        "title": "A Brief History of Time",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "hardcover-edition:32171966",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:465017",
+        "title": "A Brief History of Time",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "hardcover-edition:30930966",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL1892617W",
+        "title": "A Brief History of Time",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "openlibrary:OL361722M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL39599473W",
+        "title": "The Illustrated A Brief History of Time / The Universe in a Nutshell",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "openlibrary:OL26337933M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:303973",
+        "title": "The Illustrated A Brief History of Time",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL42966859W",
+        "title": "A Brief History of Time",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "openlibrary:OL58538792M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL43039040W",
+        "title": "a brief history of time",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "openlibrary:OL58630014M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2513365",
+        "title": "Stephen Hawking's a Brief History of Time",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL43021932W",
+        "title": "a brief history of time ",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "openlibrary:OL58608896M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL19552275W",
+        "title": "Brief Answers to the Big Questions",
+        "authors": [
+          "Stephen Hawking"
+        ],
+        "editionID": "openlibrary:OL26967814M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Project Hail Mary",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:427578",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "hardcover-edition:30405492",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:427578",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "hardcover-edition:31878554",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL21745884W",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "openlibrary:OL29597011M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2247463",
+        "title": "Project Hail Mary / Artemis/ The Martian",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL36735881W",
+        "title": "The Martian / Artemis / Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "openlibrary:OL49615465M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:687862",
+        "title": "SUMMARY AND ANALYSIS OF PROJECT HAIL MARY BY ANDY WEIR",
+        "authors": [
+          "Good Reads Publishing"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL25960717W",
+        "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+        "authors": [
+          "Unique Summary"
+        ],
+        "editionID": "openlibrary:OL35039072M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL26086346W",
+        "title": "Summary of Andy Weir's Project Hail Mary",
+        "authors": [
+          "Irb Media"
+        ],
+        "editionID": "openlibrary:OL35207035M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:510288",
+        "title": "Summary of Project Hail Mary",
+        "authors": [
+          "Alexander Cooper"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL27881734W",
+        "title": "Summary of Project Hail Mary by Andy Weir",
+        "authors": [
+          "Antoine McCallan"
+        ],
+        "editionID": "openlibrary:OL38106832M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "percy jackson",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:219252",
+        "title": "The Lightning Thief",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30553813",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL492658W",
+        "title": "The Lightning Thief",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "openlibrary:OL27284483M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:219252",
+        "title": "The Lightning Thief",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:1297453",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17054790W",
+        "title": "Percy Jackson's Greek Gods",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "openlibrary:OL32782884M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:159698",
+        "title": "The Sea of Monsters",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30441985",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL492646W",
+        "title": "The Sea of Monsters",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "openlibrary:OL26709236M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:159698",
+        "title": "The Sea of Monsters",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:31563105",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL492647W",
+        "title": "The Titan's Curse",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "openlibrary:OL27280673M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL492640W",
+        "title": "The Battle of the Labyrinth",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "openlibrary:OL25613307M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:537926",
+        "title": "Percy Jackson and the Olympians 1-3",
+        "authors": [
+          "Rick Riordan",
+          "John Rocco"
+        ],
+        "editionID": "hardcover-edition:31972202",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Dune",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:312460",
+        "title": "Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "hardcover-edition:30400610",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:312460",
+        "title": "Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "hardcover-edition:31863489",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893414W",
+        "title": "Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL7500941M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893461W",
+        "title": "Dune Messiah",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL7525229M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:427393",
+        "title": "Dune Messiah",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "hardcover-edition:30773861",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893516W",
+        "title": "Children of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL7524870M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:427393",
+        "title": "Dune Messiah",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "hardcover-edition:31476382",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893515W",
+        "title": "God Emperor of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL7501667M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:427314",
+        "title": "Children of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "hardcover-edition:30511515",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893502W",
+        "title": "Heretics of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL7525590M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Hobbit",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:2459845",
+        "title": "The Hobbit, or There and Back Again",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "hardcover-edition:26682938",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2459845",
+        "title": "The Hobbit, or There and Back Again",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "hardcover-edition:30397615",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL27482W",
+        "title": "The Hobbit",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "openlibrary:OL51709286M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:485045",
+        "title": "The History of the Hobbit, Part One: Mr. Baggins",
+        "authors": [
+          "John D. Rateliff",
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:503281",
+        "title": "The History of the Hobbit",
+        "authors": [
+          "J.R.R. Tolkien",
+          "John D. Rateliff"
+        ],
+        "editionID": "hardcover-edition:32539566",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:213209",
+        "title": "The Hobbit: An Unexpected Journey - The Movie Storybook",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:485044",
+        "title": "The History of the Hobbit, Part Two: Return to Bag-End",
+        "authors": [
+          "J.R.R. Tolkien",
+          "John D. Rateliff"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL27496W",
+        "title": "Novels (Fellowship of the Ring / Hobbit)",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "openlibrary:OL7759784M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL14933471W",
+        "title": "Poems from The hobbit",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "openlibrary:OL40769M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:503279",
+        "title": "The Hobbit: An Unexpected Journey - Visual Companion",
+        "authors": [
+          "Jude Fisher"
+        ],
+        "editionID": "hardcover-edition:32776392",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Atomic Habits",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:428023",
+        "title": "Atomic habits: An Easy & Proven Way to Build Good Habits & Break Bad Ones",
+        "authors": [
+          "James Clear"
+        ],
+        "editionID": "hardcover-edition:31309551",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:428023",
+        "title": "Atomic habits: An Easy & Proven Way to Build Good Habits & Break Bad Ones",
+        "authors": [
+          "James Clear"
+        ],
+        "editionID": "hardcover-edition:30401466",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17930368W",
+        "title": "Atomic Habits",
+        "authors": [
+          "James Clear"
+        ],
+        "editionID": "openlibrary:OL27918581M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL30048054W",
+        "title": "Companion Workbook : Atomic Habits",
+        "authors": [
+          "Julie Ann Price"
+        ],
+        "editionID": "openlibrary:OL41304541M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2371632",
+        "title": "The Atomic Habits Workbook: Simple Exercises for Building the Life You Want",
+        "authors": [
+          "James Clear"
+        ],
+        "editionID": "hardcover-edition:32265584",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL25953594W",
+        "title": "Atomic Habits Journal",
+        "authors": [
+          "Atomic Habit Journal"
+        ],
+        "editionID": "openlibrary:OL35028489M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2371632",
+        "title": "The Atomic Habits Workbook: Simple Exercises for Building the Life You Want",
+        "authors": [
+          "James Clear"
+        ],
+        "editionID": "hardcover-edition:32953797",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL26072826W",
+        "title": "Atomic Habits Daily Journal",
+        "authors": [
+          "Rondyy Rondyy Roo"
+        ],
+        "editionID": "openlibrary:OL35188503M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2085574",
+        "title": "Deep Work By Cal Newport, Hyperfocus By Chris Bailey, Atomic Habits By James Clear 3 Books Collection Set",
+        "authors": [
+          "Cal Newport",
+          "Chris Bailey",
+          "James Clear"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL27928969W",
+        "title": "Summary of Atomic Habits by James Clear",
+        "authors": [
+          "James C. Scott"
+        ],
+        "editionID": "openlibrary:OL38171388M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Employees",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:443866",
+        "title": "The Employees",
+        "authors": [
+          "Olga Ravn",
+          "Martin Aitken"
+        ],
+        "editionID": "hardcover-edition:30849350",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL25803688W",
+        "title": "De ansatte",
+        "authors": [
+          "Olga Ravn"
+        ],
+        "editionID": "openlibrary:OL35547833M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL20017568W",
+        "title": "The employee performance handbook",
+        "authors": [
+          "Marjorie Mader-Clark"
+        ],
+        "editionID": "openlibrary:OL27197636M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:500406",
+        "title": "Necessary Endings: The Employees, Businesses, and Relationships That All of Us Have to Give Up in Order to Move Forward",
+        "authors": [
+          "Henry Cloud"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL15655778W",
+        "title": "Necessary Endings",
+        "authors": [
+          "Henry Cloud"
+        ],
+        "editionID": "openlibrary:OL24592619M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1516021",
+        "title": "The Employee Experience Advantage: How to Win the War for Talent by Giving Employees the Workspaces they Want, the Tools they Need, and a Culture They Can Celebrate",
+        "authors": [
+          "Jacob Morgan",
+          "Marshall Goldsmith"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL2158899W",
+        "title": "Mindshift",
+        "authors": [
+          "Price Pritchett"
+        ],
+        "editionID": "openlibrary:OL22952402M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2800773",
+        "title": "Manage Difficult Employees: The How-To Guide",
+        "authors": [
+          "Charles River Editors"
+        ],
+        "editionID": "hardcover-edition:33124650",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL2158904W",
+        "title": "The Employee Guide to Mergers and Acquisitions",
+        "authors": [
+          "Price Pritchett"
+        ],
+        "editionID": "openlibrary:OL9533555M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2800769",
+        "title": "Motivate Your Employees: The How-To Guide",
+        "authors": [
+          "Charles River Editors"
+        ],
+        "editionID": "hardcover-edition:33124646",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Room",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:382550",
+        "title": "Room",
+        "authors": [
+          "Emma Donoghue"
+        ],
+        "editionID": "hardcover-edition:31709538",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL15212619W",
+        "title": "Room",
+        "authors": [
+          "Emma Donoghue"
+        ],
+        "editionID": "openlibrary:OL46540191M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:82353",
+        "title": "Room a novel",
+        "authors": [
+          "Emma Donoghue",
+          "Ellen Archer",
+          "Suzanne Toren",
+          "Robert Petkoff",
+          "Michal Friedman"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL228702W",
+        "title": "Giovanni's Room",
+        "authors": [
+          "James Baldwin"
+        ],
+        "editionID": "openlibrary:OL24737293M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:237472",
+        "title": "Clean Room, Vol. 1: Immaculate Conception",
+        "authors": [
+          "Gail Simone"
+        ],
+        "editionID": "hardcover-edition:33236088",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL39379W",
+        "title": "A Room of One's Own",
+        "authors": [
+          "Virginia Woolf"
+        ],
+        "editionID": "openlibrary:OL58393454M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:615721",
+        "title": "The Cutting Room",
+        "authors": [
+          "Louise Welsh"
+        ],
+        "editionID": "hardcover-edition:32635786",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL88813W",
+        "title": "A Room with a View",
+        "authors": [
+          "E. M. Forster"
+        ],
+        "editionID": "openlibrary:OL37044791M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:615721",
+        "title": "The Cutting Room",
+        "authors": [
+          "Louise Welsh"
+        ],
+        "editionID": "hardcover-edition:31801465",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL1938251W",
+        "title": "Room on the Broom",
+        "authors": [
+          "Julia Donaldson"
+        ],
+        "editionID": "openlibrary:OL28638309M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Way of Kings",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": [
+      {
+        "provider": "Hardcover",
+        "message": "Ignored invalid edition or work data in 1 Hardcover records: Hardcover default edition format conflicts with its relationship"
+      }
+    ],
+    "results": [
+      {
+        "workID": "hardcover:386446",
+        "title": "The Way of Kings",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:17223351",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:386446",
+        "title": "The Way of Kings",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:23037154",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL15358691W",
+        "title": "The Way of Kings",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "openlibrary:OL24383834M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL22983697W",
+        "title": "The Way of Kings, Part One",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "openlibrary:OL34798664M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2463800",
+        "title": "The Way of Kings (3 of 5) [Dramatized Adaptation]",
+        "authors": [
+          "Brandon Sanderson",
+          "Dylan Lynch"
+        ],
+        "editionID": "hardcover-edition:30692561",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:484948",
+        "title": "The Way of Kings Prime",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:32909934",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1386734",
+        "title": "The Way of Kings, Part 2",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:32745157",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL36466672W",
+        "title": "Brandon Sanderson Sampler",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "openlibrary:OL49282196M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:993856",
+        "title": "The Stormlight Archive, Books 1-3: The Way of Kings, Words of Radiance, Oathbringer",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:31018612",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:973729",
+        "title": "The Stormlight Archive, Books 1-4: The Way of Kings, Words of Radiance, Oathbringer, Rhythm of War",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:30763718",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Left Hand of Darkness",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:377842",
+        "title": "The Left Hand of Darkness",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "hardcover-edition:30448268",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:377842",
+        "title": "The Left Hand of Darkness",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "hardcover-edition:17378677",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1995085",
+        "title": "The Left Hand of Darkness: BBC Radio 4 Full-Cast Dramatisation",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "hardcover-edition:32162707",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL59800W",
+        "title": "The Left Hand of Darkness",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "openlibrary:OL58688990M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL24715772W",
+        "title": "Earthsea & The Left Hand of Darkness",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "openlibrary:OL32809088M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1122538",
+        "title": "Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of Darkness",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1841730",
+        "title": "Ursula Le Guin Collection: Left Hand of Darkness, The Earthsea Quartet & The Dispossessed",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL19306603W",
+        "title": "Ursula K. Le Guin: Hainish Novels and Stories Vol. 1 (LOA #296): Rocannon's World / Planet of Exile / City of Illusions / The Left Hand of  Darkness / ... of America Ursula K. Le Guin Edition)",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "openlibrary:OL26781621M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2077378",
+        "title": "The Complete Earthsea Series & The Left Hand of Darkness: A BBC Radio 3 full-cast dramatisation",
+        "authors": [
+          "Ursula K. Le Guin"
+        ],
+        "editionID": "hardcover-edition:32266402",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1297191",
+        "title": "Earthsea & The Left Hand of Darkness: Two BBC Radio 4 Full-Cast Dramatisations",
+        "authors": [
+          "Ursula K. Le Guin",
+          "James McArdle",
+          "Toby Jones"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Designing Data-Intensive Applications",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:441376",
+        "title": "Designing Data-Intensive Applications: The Big Ideas Behind Reliable, Scalable, and Maintainable Systems",
+        "authors": [
+          "Martin Kleppmann"
+        ],
+        "editionID": "hardcover-edition:30405692",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:441376",
+        "title": "Designing Data-Intensive Applications: The Big Ideas Behind Reliable, Scalable, and Maintainable Systems",
+        "authors": [
+          "Martin Kleppmann"
+        ],
+        "editionID": "hardcover-edition:30408092",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL19293745W",
+        "title": "Designing Data-Intensive Applications",
+        "authors": [
+          "Martin Kleppmann"
+        ],
+        "editionID": "openlibrary:OL48030878M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2794277",
+        "title": "Designing Data-Intensive Applications: The Big Ideas Behind Reliable, Scalable, and Maintainable Systems; Second Edition",
+        "authors": [
+          "Martin Kleppmann",
+          "Chris Riccomini"
+        ],
+        "editionID": "hardcover-edition:33116660",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL28333958W",
+        "title": "Hands-On Enterprise Application Development with Python",
+        "authors": [
+          "Saurabh Badhwar"
+        ],
+        "editionID": "openlibrary:OL38773383M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL16926160W",
+        "title": "Designing data-intensive Web applications",
+        "authors": [
+          "Stefano Ceri",
+          "Aldo Bongio",
+          "Marco Brambilla",
+          "Sara Comai",
+          "Piero Fraternali"
+        ],
+        "editionID": "openlibrary:OL35772175M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL36495155W",
+        "title": "Data Structures for Data-Intensive Applications",
+        "authors": [
+          "Manos Athanassoulis",
+          "Stratos Idreos",
+          "Dennis Shasha"
+        ],
+        "editionID": "openlibrary:OL49327361M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL8362726W",
+        "title": "A language facility for designing interactive database -intensive applications",
+        "authors": [
+          "John Mylopoulos"
+        ],
+        "editionID": "openlibrary:OL18747809M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL16944561W",
+        "title": "Photovoltaic design & installation for dummies",
+        "authors": [
+          "Ryan Mayfield"
+        ],
+        "editionID": "openlibrary:OL25547270M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL18783264W",
+        "title": "MRI",
+        "authors": [
+          "Mark A. Brown"
+        ],
+        "editionID": "openlibrary:OL24069114M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Employees by Olga Ravn",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:443866",
+        "title": "The Employees",
+        "authors": [
+          "Olga Ravn",
+          "Martin Aitken"
+        ],
+        "editionID": "hardcover-edition:30849350",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL25803688W",
+        "title": "De ansatte",
+        "authors": [
+          "Olga Ravn"
+        ],
+        "editionID": "openlibrary:OL35547833M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "project hail marry",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:427578",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "hardcover-edition:30405492",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:427578",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "hardcover-edition:31878554",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2247463",
+        "title": "Project Hail Mary / Artemis/ The Martian",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL259026W",
+        "title": "King Lear",
+        "authors": [
+          "William Shakespeare"
+        ],
+        "editionID": "openlibrary:OL32235465M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL362427W",
+        "title": "Romeo and Juliet",
+        "authors": [
+          "William Shakespeare"
+        ],
+        "editionID": "openlibrary:OL26501332M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:687862",
+        "title": "SUMMARY AND ANALYSIS OF PROJECT HAIL MARY BY ANDY WEIR",
+        "authors": [
+          "Good Reads Publishing"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL258850W",
+        "title": "Othello",
+        "authors": [
+          "William Shakespeare"
+        ],
+        "editionID": "openlibrary:OL32234910M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL258656W",
+        "title": "Cymbeline",
+        "authors": [
+          "William Shakespeare"
+        ],
+        "editionID": "openlibrary:OL32232711M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:510288",
+        "title": "Summary of Project Hail Mary",
+        "authors": [
+          "Alexander Cooper"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL361595W",
+        "title": "The Merry Wives of Windsor",
+        "authors": [
+          "William Shakespeare"
+        ],
+        "editionID": "openlibrary:OL32222697M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Percy Jackson and the Olympians",
+      "type": "series",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 50
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:219252",
+        "title": "The Lightning Thief",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30553813",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:219252",
+        "title": "The Lightning Thief",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:1297453",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:159698",
+        "title": "The Sea of Monsters",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30441985",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:159698",
+        "title": "The Sea of Monsters",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:31563105",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:430941",
+        "title": "The Titan's Curse",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:9190622",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:430941",
+        "title": "The Titan's Curse",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:31507882",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:58025",
+        "title": "The Battle of the Labyrinth",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30426382",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:58025",
+        "title": "The Battle of the Labyrinth",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30649548",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:434268",
+        "title": "The Last Olympian",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30553818",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:434268",
+        "title": "The Last Olympian",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:27389350",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:593589",
+        "title": "The Chalice of the Gods",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30903629",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:593589",
+        "title": "The Chalice of the Gods",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:32292813",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:884310",
+        "title": "Wrath of the Triple Goddess",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:31548533",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:884310",
+        "title": "Wrath of the Triple Goddess",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:32496713",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:496546",
+        "title": "The Sword of Hades",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30684102",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1582059",
+        "title": "The Demigod Files",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:31527709",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1582059",
+        "title": "The Demigod Files",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:31663389",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2013645",
+        "title": "Percy Jackson & The Olympians Boxed Set The Complete Series 1-5",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2228004",
+        "title": "\u30d1\u30fc\u30b7\u30fc\u30fb\u30b8\u30e3\u30af\u30bd\u30f3\u3068\u30aa\u30ea\u30f3\u30dd\u30b9\u306e\u795e\u3005",
+        "authors": [
+          "Rick Riordan",
+          "\u30ea\u30c3\u30af\u30fb\u30ea\u30aa\u30fc\u30c0\u30f3"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2254202",
+        "title": "Le voleur de foudre",
+        "authors": [
+          "Rick Riordan",
+          "Mona de Pracontal"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Possible graphic adaptation",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1884028",
+        "title": "NEW-Percy Jackson and the Olympians, Book One The Lightning Thief",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:1934640",
+        "title": "DOWNLOAD PERCY JACKSON AND THE LIGHTNING THIEF (CLASSIC BOOK): Illustrated",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:1938640",
+        "title": "\u0e40\u0e1e\u0e2d\u0e23\u0e4c\u0e0b\u0e35\u0e22\u0e4c \u0e41\u0e08\u0e47\u0e01\u0e2a\u0e31\u0e19 \u0e01\u0e31\u0e1a\u0e2a\u0e32\u0e22\u0e1f\u0e49\u0e32\u0e17\u0e35\u0e48\u0e2b\u0e32\u0e22\u0e44\u0e1b",
+        "authors": [
+          "Rick Riordan",
+          "\u0e14\u0e32\u0e27\u0e34\u0e29 \u0e0a\u0e32\u0e0d\u0e0a\u0e31\u0e22\u0e27\u0e32\u0e19\u0e34\u0e0a"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:1945414",
+        "title": "[THE PERCY JACKSON AND THE OLYMPIANS, BOOK ONE]The Percy Jackson and the Olympians, Book One by Riordan, Rick(Author)Hardcover{The Percy Jackson and the Olympians, Book One: Lightning Thief Deluxe Edition (Collector's)}01 12-2009",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2034212",
+        "title": "Percy Jackson et les Olympiens - tome 1 - Le Voleur de foudre",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2068677",
+        "title": "Percy Jackson and the Lightning Thief (Book 1): Deluxe Collector's Edition",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2131041",
+        "title": "Percy Jackson",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2159253",
+        "title": "Percy Jackson: o ladr\u00e3o de raios",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2180953",
+        "title": "\u041f\u043e\u0445\u0438\u0442\u0438\u0442\u0435\u043b\u044f\u0442 \u043d\u0430 \u043c\u044a\u043b\u043d\u0438\u0438",
+        "authors": [
+          "Rick Riordan",
+          "\u0412\u043b\u0430\u0434\u0438\u043c\u0438\u0440 \u041c\u043e\u043b\u0435\u0432"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2193342",
+        "title": "Percy Jackson e gli Dei dell'Olimpo - Il Ladro di Fulmini",
+        "authors": [
+          "Rick Riordan",
+          "Loredana Baldinucci"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2217497",
+        "title": "Ho\u021bul Fulgerului",
+        "authors": [
+          "Rick Riordan",
+          "Alexandru Moldovan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:1927191",
+        "title": "Untitled Percy Jackson and the Olympians #8",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2012409",
+        "title": "The Percy Jackson Coloring Book",
+        "authors": [
+          "Rick Riordan",
+          "Keith Robinson"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Possible graphic adaptation",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1358074",
+        "title": "The Lightning Thief: The Graphic Novel",
+        "authors": [
+          "Rick Riordan",
+          "Robert Venditti",
+          "Jos\u00e9 Villarrubia",
+          "Attila Futaki"
+        ],
+        "editionID": "hardcover-edition:30702571",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:893921",
+        "title": "The Titan's Curse: The Graphic Novel",
+        "authors": [
+          "Rick Riordan",
+          "Chris Dickey",
+          "Robert Venditti",
+          "Attila Futaki",
+          "Greg Guilhaumond"
+        ],
+        "editionID": "hardcover-edition:30681542",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:590555",
+        "title": "The Last Olympian: The Graphic Novel",
+        "authors": [
+          "Rick Riordan",
+          "Robert Venditti"
+        ],
+        "editionID": "hardcover-edition:30558025",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1973078",
+        "title": "Percy Jackson and The Lightning Thief: The Graphic Novel",
+        "authors": [
+          "Rick Riordan",
+          "Robert Venditti",
+          "Attila Futaki",
+          "Jos\u00e9 Villarrubia"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1978035",
+        "title": "Percy Jackson: Zlod\u011bj blesku, grafick\u00fd rom\u00e1n",
+        "authors": [
+          "Rick Riordan",
+          "Robert Venditti",
+          "Jos\u00e9 Villarrubia",
+          "Attila Futaki",
+          "Dana Chodilov\u00e1"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Possible graphic adaptation",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2226602",
+        "title": "Percy Jackson: Le voleur de foudre, Graphic Novel",
+        "authors": [
+          "Rick Riordan",
+          "Robert Venditti",
+          "Attila Futaki",
+          "Jos\u00e9 Villarrubia"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:551952",
+        "title": "The Sea of Monsters: The Graphic Novel",
+        "authors": [
+          "Tamas Gaspar",
+          "Rick Riordan",
+          "Attila Futaki",
+          "Robert Venditti"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2473618",
+        "title": "Percy Jackson 03. La Maldici\u00f3n del Tit\u00e1n",
+        "authors": [
+          "Rick Riordan",
+          "Robert Venditti"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Possible graphic adaptation",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:692228",
+        "title": "The Battle of the Labyrinth: The Graphic Novel",
+        "authors": [
+          "Attila Futaki",
+          "Tamas Gaspar",
+          "Rick Riordan",
+          "Robert Venditti"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2397017",
+        "title": "Battle of the Labyrinth The Graphic Novel",
+        "authors": [
+          "Rick Riordan",
+          "Robert Venditti"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:593589",
+        "title": "The Chalice of the Gods",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:30903629",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:593589",
+        "title": "The Chalice of the Gods",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:32292813",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:884310",
+        "title": "Wrath of the Triple Goddess",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:31548533",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:884310",
+        "title": "Wrath of the Triple Goddess",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "hardcover-edition:32496713",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:1883288",
+        "title": "Puchar bog\u00f3w",
+        "authors": [
+          "Rick Riordan",
+          "Marta Duda-Gryc"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2384098",
+        "title": "Percy Jackson et les olympiens - tome 6 - Le Calice des dieux",
+        "authors": [
+          "Rick Riordan",
+          "Mona de Pracontal"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      },
+      {
+        "workID": "hardcover:2735402",
+        "title": "Kalich bohov",
+        "authors": [
+          "Rick Riordan"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "incomplete"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Project Hail Mary",
+      "type": "book",
+      "format": "audiobook",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:427578",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "hardcover-edition:31878554",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL21745884W",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "openlibrary:OL29597011M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2247463",
+        "title": "Project Hail Mary / Artemis/ The Martian",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:687862",
+        "title": "SUMMARY AND ANALYSIS OF PROJECT HAIL MARY BY ANDY WEIR",
+        "authors": [
+          "Good Reads Publishing"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL36735881W",
+        "title": "The Martian / Artemis / Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "openlibrary:OL49615465M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL25960717W",
+        "title": "SUMMARY and REVIEW : PROJECT HAIL MARY",
+        "authors": [
+          "Unique Summary"
+        ],
+        "editionID": "openlibrary:OL35039072M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:510288",
+        "title": "Summary of Project Hail Mary",
+        "authors": [
+          "Alexander Cooper"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL26086346W",
+        "title": "Summary of Andy Weir's Project Hail Mary",
+        "authors": [
+          "Irb Media"
+        ],
+        "editionID": "openlibrary:OL35207035M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:510290",
+        "title": "Summary of Andy Weir\u2019s Project Hail Mary",
+        "authors": [
+          "Milkyway Media"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL27881734W",
+        "title": "Summary of Project Hail Mary by Andy Weir",
+        "authors": [
+          "Antoine McCallan"
+        ],
+        "editionID": "openlibrary:OL38106832M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "9780593135204",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "openlibrary:OL21745884W",
+        "title": "Project Hail Mary",
+        "authors": [
+          "Andy Weir"
+        ],
+        "editionID": "openlibrary:OL30036715M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Mistborn",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:369692",
+        "title": "Mistborn: The Final Empire",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:31440008",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:369692",
+        "title": "Mistborn: The Final Empire",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:30654942",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:543687",
+        "title": "Brandon Sanderson Sampler: The Way of Kings and Mistborn",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:32972005",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1289485",
+        "title": "Mistborn: The Wax & Wayne Series: Alloy of Law, Shadows of Self, Bands of Mourning, The Lost Metal",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:30447186",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1507851",
+        "title": "Mistborn: Collected Tales",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:31561000",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL5738148W",
+        "title": "The Final Empire",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "openlibrary:OL60101225M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL5738150W",
+        "title": "The Well of Ascension",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "openlibrary:OL26804536M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL16044142W",
+        "title": "Mistborn",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "openlibrary:OL48159311M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:427881",
+        "title": "Mistborn: Secret History",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "hardcover-edition:32061339",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL16597059W",
+        "title": "The Alloy of Law",
+        "authors": [
+          "Brandon Sanderson"
+        ],
+        "editionID": "openlibrary:OL25280450M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Foundation",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:188628",
+        "title": "Foundation",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "hardcover-edition:15198128",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL46125W",
+        "title": "Foundation",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "openlibrary:OL51566464M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL46390W",
+        "title": "The Foundation Trilogy",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "openlibrary:OL18383124M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:347189",
+        "title": "Foundation and Empire",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "hardcover-edition:8692763",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL46309W",
+        "title": "Second Foundation",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "openlibrary:OL47314617M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL46224W",
+        "title": "Foundation and Empire",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "openlibrary:OL43003836M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:136548",
+        "title": "Second Foundation",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "hardcover-edition:13187605",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL46299W",
+        "title": "Forward the Foundation",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "openlibrary:OL22503321M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL46347W",
+        "title": "Foundation and Earth",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "openlibrary:OL7883219M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:94363",
+        "title": "Foundation and Earth",
+        "authors": [
+          "Isaac Asimov"
+        ],
+        "editionID": "hardcover-edition:30550457",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Sapiens",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:375634",
+        "title": "Sapiens: A Brief History of Humankind",
+        "authors": [
+          "Yuval Noah Harari"
+        ],
+        "editionID": "hardcover-edition:30403870",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL43336900W",
+        "title": "Sapiens",
+        "authors": [
+          "Yuval Noah Harari"
+        ],
+        "editionID": "openlibrary:OL59027276M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2943221",
+        "title": "Sapiens: Das Spiel der Welten",
+        "authors": [
+          "Yuval Noah Harari",
+          "Andreas Wirthensohn",
+          "David Vandermeulen",
+          "Daniel Casanave"
+        ],
+        "editionID": "hardcover-edition:33281368",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:375634",
+        "title": "Sapiens: A Brief History of Humankind",
+        "authors": [
+          "Yuval Noah Harari"
+        ],
+        "editionID": "hardcover-edition:30438436",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:436358",
+        "title": "Sapiens: A Graphic History, Volume 1 - The Birth of Humankind",
+        "authors": [
+          "Yuval Noah Harari",
+          "David Vandermeulen",
+          "Daniel Casanave"
+        ],
+        "editionID": "hardcover-edition:30529136",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:503185",
+        "title": "Sapiens: A Graphic History, Volume 2: The Pillars of Civilization",
+        "authors": [
+          "Yuval Noah Harari",
+          "David Casanave",
+          "David Vandermeulen"
+        ],
+        "editionID": "hardcover-edition:30453181",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:2130654",
+        "title": "Sapiens: A Graphic History: The Birth of Humankind",
+        "authors": [
+          "David Vandermeulen"
+        ],
+        "editionID": "hardcover-edition:32333979",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL17357353W",
+        "title": "Simon vs. the Homo Sapiens Agenda",
+        "authors": [
+          "Becky Albertalli",
+          "Victoria Sim\u00f3 Perales",
+          "Kineret Higins-Da\u1e7fidi"
+        ],
+        "editionID": "openlibrary:OL25935278M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:378152",
+        "title": "Simon vs. the Homo Sapiens Agenda",
+        "authors": [
+          "Becky Albertalli"
+        ],
+        "editionID": "hardcover-edition:30510142",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:378152",
+        "title": "Simon vs. the Homo Sapiens Agenda",
+        "authors": [
+          "Becky Albertalli"
+        ],
+        "editionID": "hardcover-edition:30590862",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Educated",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": [
+      {
+        "provider": "Hardcover",
+        "message": "Ignored invalid edition or work data in 1 Hardcover records: Hardcover edition has conflicting ISBN identities"
+      }
+    ],
+    "results": [
+      {
+        "workID": "hardcover:44186",
+        "title": "Educated: A Memoir",
+        "authors": [
+          "Tara Westover"
+        ],
+        "editionID": "hardcover-edition:20297664",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL18139176W",
+        "title": "Educated",
+        "authors": [
+          "Tara Westover"
+        ],
+        "editionID": "openlibrary:OL45153788M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL20881237W",
+        "title": "A Deadly Education",
+        "authors": [
+          "Naomi Novik"
+        ],
+        "editionID": "openlibrary:OL29514724M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:123382",
+        "title": "The Amazing Maurice and His Educated Rodents",
+        "authors": [
+          "Terry Pratchett"
+        ],
+        "editionID": "hardcover-edition:15789451",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL2651233W",
+        "title": "Educational psychology",
+        "authors": [
+          "Anita Woolfolk Hoy",
+          "Philip H. Winne",
+          "Nancy E. Perry",
+          "Beth Popiel"
+        ],
+        "editionID": "openlibrary:OL32348890M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:123382",
+        "title": "The Amazing Maurice and His Educated Rodents",
+        "authors": [
+          "Terry Pratchett"
+        ],
+        "editionID": "hardcover-edition:33247395",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL111359W",
+        "title": "Democracy and Education",
+        "authors": [
+          "John Dewey"
+        ],
+        "editionID": "openlibrary:OL51733510M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:202129",
+        "title": "Street-Fighting Mathematics: The Art of Educated Guessing and Opportunistic Problem Solving",
+        "authors": [
+          "Sanjoy Mahajan",
+          "Carver A. Mead"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL453885W",
+        "title": "The Amazing Maurice and His Educated Rodents",
+        "authors": [
+          "Terry Pratchett"
+        ],
+        "editionID": "openlibrary:OL30596478M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:375236",
+        "title": "The educated imagination",
+        "authors": [
+          "Northrop Frye"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Piranesi",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:175280",
+        "title": "Piranesi",
+        "authors": [
+          "Susanna Clarke"
+        ],
+        "editionID": "hardcover-edition:30480425",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:175280",
+        "title": "Piranesi",
+        "authors": [
+          "Susanna Clarke"
+        ],
+        "editionID": "hardcover-edition:30654922",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL15088155W",
+        "title": "The dark brain of Piranesi and other essays",
+        "authors": [
+          "Marguerite Yourcenar"
+        ],
+        "editionID": "openlibrary:OL2851483M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:512739",
+        "title": "Piranesi",
+        "authors": [
+          "Giovanni Battista Piranesi",
+          "John Wilton-Ely"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL12523946W",
+        "title": "Piranesi",
+        "authors": [
+          "Arthur Samuel"
+        ],
+        "editionID": "openlibrary:OL18759568M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:564447",
+        "title": "Piranesi",
+        "authors": [
+          "Nicholas Penny"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL18438555W",
+        "title": "Piranesi as designer",
+        "authors": [
+          "John Wilton-Ely",
+          "Peter Eisenman",
+          "Alvar Gonzalez-Palacios",
+          "Michael Graves"
+        ],
+        "editionID": "openlibrary:OL11381152M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:583634",
+        "title": "Piranesi",
+        "authors": [
+          "Miranda Harvey"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:583633",
+        "title": "Piranesi",
+        "authors": [
+          "Avery Library"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "openlibrary:OL2827133W",
+        "title": "Piranesi",
+        "authors": [
+          "Giovanni Battista Piranesi"
+        ],
+        "editionID": "openlibrary:OL8596539M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Pride and Prejudice",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:379647",
+        "title": "Pride and Prejudice",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "hardcover-edition:2897461",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:379647",
+        "title": "Pride and Prejudice",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "hardcover-edition:13243351",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL66554W",
+        "title": "Pride and Prejudice",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "openlibrary:OL26394550M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL15165350W",
+        "title": "Pride and Prejudice",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "openlibrary:OL58994672M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL15093171W",
+        "title": "Pride and Prejudice and Zombies",
+        "authors": [
+          "Seth Grahame-Smith",
+          "Jane Austen",
+          "Katherine Kellgren"
+        ],
+        "editionID": "openlibrary:OL47830280M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL66597W",
+        "title": "Novels (Pride and Prejudice / Sense and Sensibility)",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "openlibrary:OL16072740M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17737918W",
+        "title": "Pride and Prejudice [adaptation]",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "openlibrary:OL26337259M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL66518W",
+        "title": "Novels (Emma / Pride and Prejudice / Sense and Sensibility)",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "openlibrary:OL787669M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL27025377W",
+        "title": "Pride and Prejudice [1/2]",
+        "authors": [
+          "Jane Austen"
+        ],
+        "editionID": "openlibrary:OL37023681M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2202491",
+        "title": "Pride and Prejudice",
+        "authors": [
+          "Clare West"
+        ],
+        "editionID": "hardcover-edition:32426256",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Stand",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:376341",
+        "title": "The Stand",
+        "authors": [
+          "Stephen King"
+        ],
+        "editionID": "hardcover-edition:26687271",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:376341",
+        "title": "The Stand",
+        "authors": [
+          "Stephen King"
+        ],
+        "editionID": "hardcover-edition:14974680",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL81618W",
+        "title": "The Stand",
+        "authors": [
+          "Stephen King"
+        ],
+        "editionID": "openlibrary:OL58142869M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1594485",
+        "title": "The End of the World As We Know It: New Tales of Stephen King's The Stand",
+        "authors": [
+          "Christopher Golden",
+          "Brian Keene",
+          "Stephen King"
+        ],
+        "editionID": "hardcover-edition:32265473",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:746192",
+        "title": "The Stand, Part II",
+        "authors": [
+          "Stephen King",
+          "\u0421\u0435\u0440\u0433\u0456\u0439 \u041a\u0440\u0438\u043a\u0443\u043d",
+          "Bernie Wrightson",
+          "\u0413\u0430\u043d\u043d\u0430 \u042f\u043d\u043e\u0432\u0441\u044c\u043a\u0430"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL14917542W",
+        "title": "Stephen King 8",
+        "authors": [
+          "Stephen King"
+        ],
+        "editionID": "openlibrary:OL37935600M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL14917290W",
+        "title": "The Stand [1/2]",
+        "authors": [
+          "Stephen King"
+        ],
+        "editionID": "openlibrary:OL9045237M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL35621998W",
+        "title": "The Stand",
+        "authors": [
+          "Stephen King",
+          "Roberto Aguirre-Sacasa"
+        ],
+        "editionID": "openlibrary:OL48061013M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17813399W",
+        "title": "The Stand-In Bride",
+        "authors": [
+          "Christine Sparks"
+        ],
+        "editionID": "openlibrary:OL26402782M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "related"
+      },
+      {
+        "workID": "hardcover:543681",
+        "title": "The Stand: Captain Trips",
+        "authors": [
+          "Roberto Aguirre-Sacasa",
+          "Stephen King",
+          "Laura Martin",
+          "Mike Perkins"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "related"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Dune Messiah",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:427393",
+        "title": "Dune Messiah",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "hardcover-edition:30773861",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893461W",
+        "title": "Dune Messiah",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL24226501M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:427393",
+        "title": "Dune Messiah",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "hardcover-edition:31476382",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893444W",
+        "title": "Dune, Dune Messiah, Children of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL58639792M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1342920",
+        "title": "Dune Messiah & Children Of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893425W",
+        "title": "Dune messiah & Children of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL7915984M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2837549",
+        "title": "Dune, Dune Messiah, Children of Dune",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL893474W",
+        "title": "The road to Dune",
+        "authors": [
+          "Frank Herbert",
+          "Kevin J. Anderson",
+          "Brian Herbert",
+          "Scott Brick"
+        ],
+        "editionID": "openlibrary:OL26331601M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL45587569W",
+        "title": "Dune Messiah (1 of 2)",
+        "authors": [
+          "Frank Herbert"
+        ],
+        "editionID": "openlibrary:OL62084110M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2341217",
+        "title": "Dune Messiah (2 of 2)",
+        "authors": [
+          "Frank Herbert",
+          "\u041b\u044e\u0431\u043e\u043c\u0438\u0440 \u041d\u0438\u043a\u043e\u043b\u043e\u0432-\u041d\u0430\u0440\u0432\u0438"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Watchmen",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:308",
+        "title": "Watchmen",
+        "authors": [
+          "Alan Moore"
+        ],
+        "editionID": "hardcover-edition:31892683",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL2897798W",
+        "title": "Watchmen",
+        "authors": [
+          "Alan Moore",
+          "Dave Gibbons",
+          "John Higgins",
+          "DC Comics"
+        ],
+        "editionID": "openlibrary:OL28692051M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:439183",
+        "title": "Watchmen #1: At Midnight, All the Agents...",
+        "authors": [
+          "Alan Moore",
+          "Dave Gibbons",
+          "Jean-Patrick Manchette"
+        ],
+        "editionID": "hardcover-edition:32266617",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL763128W",
+        "title": "Watching the watchmen",
+        "authors": [
+          "Dave Gibbons",
+          "Chip Kidd"
+        ],
+        "editionID": "openlibrary:OL23123623M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:977811",
+        "title": "Watchmen #2: Absent Friends",
+        "authors": [
+          "Alan Moore",
+          "Dave Gibbons"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL8050258W",
+        "title": "The Watchmen",
+        "authors": [
+          "Bova"
+        ],
+        "editionID": "openlibrary:OL7667205M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:470648",
+        "title": "Watchmen #11: Look on My Works, Ye Mighty\u2026",
+        "authors": [
+          "Alan Moore"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL16469784W",
+        "title": "Watchmen",
+        "authors": [
+          "Peter Aperlo"
+        ],
+        "editionID": "openlibrary:OL25175898M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:470642",
+        "title": "Watchmen #3: The Judge of All the Earth",
+        "authors": [
+          "Alan Moore",
+          "Dave Gibbons",
+          "John    Higgins"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL15845820W",
+        "title": "The watchmen",
+        "authors": [
+          "Michael Allegretto"
+        ],
+        "editionID": "openlibrary:OL1543504M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "Maus",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "hardcover:427347",
+        "title": "The Complete Maus",
+        "authors": [
+          "Art Spiegelman"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:164979",
+        "title": "Maus: A Survivor's Tale: My Father Bleeds History",
+        "authors": [
+          "Art Spiegelman"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL2056808W",
+        "title": "Maus II",
+        "authors": [
+          "Art Spiegelman"
+        ],
+        "editionID": "openlibrary:OL22816079M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:693",
+        "title": "Maus II: A Survivor's Tale: And Here My Troubles Began",
+        "authors": [
+          "Art Spiegelman"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:350863",
+        "title": "MetaMaus",
+        "authors": [
+          "Art Spiegelman",
+          "\u00c9rico Assis"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL67333W",
+        "title": "Katz und Maus",
+        "authors": [
+          "G\u00fcnter Grass"
+        ],
+        "editionID": "openlibrary:OL5717790M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1896623",
+        "title": "Maus",
+        "authors": [
+          "Art Spiegelman",
+          "J\u016brat\u0117 Ju\u0161kien\u0117",
+          "Olga Lempert"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1199708",
+        "title": "Katz und Maus",
+        "authors": [
+          "G\u00fcnter Grass"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2833172",
+        "title": "Maus",
+        "authors": [
+          "Art Spiegelman",
+          "Judith Ertel"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL14945W",
+        "title": "A Mouse Called Wolf",
+        "authors": [
+          "Dick King-Smith"
+        ],
+        "editionID": "openlibrary:OL29056618M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Hobbit graphic novel",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "googlebooks:DttB0QEACAAJ",
+        "title": "The Hobbit: Graphic Novel",
+        "authors": [
+          "J. R. R. Tolkien"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2459845",
+        "title": "The Hobbit, or There and Back Again",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "hardcover-edition:26682938",
+        "format": "ebook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL27482W",
+        "title": "The Hobbit",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "openlibrary:OL50718853M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2459845",
+        "title": "The Hobbit, or There and Back Again",
+        "authors": [
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "hardcover-edition:30397615",
+        "format": "audiobook",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL19622663W",
+        "title": "The Hobbit",
+        "authors": [
+          "Charles Dixon"
+        ],
+        "editionID": "openlibrary:OL26843694M",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1683808",
+        "title": "The Hobbit: A Graphic Novel",
+        "authors": [
+          "J.R.R. Tolkien",
+          "Chuck Dixon",
+          "David Wenzel"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2636317",
+        "title": "The Hobbit: A Graphic Novel: A Graphic Novel Edition of Tolkien's Masterful Fantasy Novel",
+        "authors": [
+          "Chuck Dixon",
+          "J.R.R. Tolkien"
+        ],
+        "editionID": "hardcover-edition:32941882",
+        "format": "ebook",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2789369",
+        "title": "The Hobbit: A Graphic Novel (Revised and Expanded): A Graphic Novel Edition of Tolkien's Masterful Fantasy Novel",
+        "authors": [
+          "Chuck Dixon",
+          "J.R.R. Tolkien",
+          "David Wenzel",
+          "David Wenzel"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": "Graphic novel",
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL16557616W",
+        "title": "Fantasy media in the classroom",
+        "authors": [
+          "Emily Dial-Driver",
+          "Sally L. A. Emmons",
+          "Jim Ford"
+        ],
+        "editionID": "openlibrary:OL25246584M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17597290W",
+        "title": "American Film",
+        "authors": [
+          "American Film Institute"
+        ],
+        "editionID": "openlibrary:OL26200947M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "The Stand comics",
+      "type": "book",
+      "format": "any",
+      "preferredLanguage": "English",
+      "limit": 10
+    },
+    "providerErrors": null,
+    "results": [
+      {
+        "workID": "openlibrary:OL16619489W",
+        "title": "The stand",
+        "authors": [
+          "Roberto Aguirre-Sacasa"
+        ],
+        "editionID": "openlibrary:OL25300874M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL35660883W",
+        "title": "The Stand",
+        "authors": [
+          "Stephen King",
+          "Roberto Aguirre-Sacasa"
+        ],
+        "editionID": "openlibrary:OL48101754M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17515918W",
+        "title": "The Stand",
+        "authors": [
+          "Mike Perkins"
+        ],
+        "editionID": "openlibrary:OL26104560M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17489711W",
+        "title": "The Stand",
+        "authors": [
+          "Roberto Aguirre-Sacasa"
+        ],
+        "editionID": "openlibrary:OL26076565M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL17425320W",
+        "title": "The Stand",
+        "authors": [
+          "Mike Perkins"
+        ],
+        "editionID": "openlibrary:OL26008126M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:1122459",
+        "title": "Ultimate Comics: Divided We Fall, United We Stand",
+        "authors": [
+          "Brian Wood",
+          "Sam Humphries",
+          "Brian Michael Bendis",
+          "Carlo Barberi",
+          "Paco Medina"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:526495",
+        "title": "The Ultimates' last stand",
+        "authors": [
+          "Joshua Hale Fialkov",
+          "Brian Michael Bendis",
+          "Mark Bagley",
+          "Carmine Di Giandomenico",
+          "David  Marquez",
+          "\u00c1lvaro Mart\u00ednez Bueno",
+          "Joe Qui\u00f1ones"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL1885465W",
+        "title": "The last laugh",
+        "authors": [
+          "Phil Berger"
+        ],
+        "editionID": "openlibrary:OL5057524M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "hardcover:2529171",
+        "title": "Transformers, The, More Than Meets the Eye Comic #4 1984",
+        "authors": [
+          "Marvel Comics",
+          "The Autobots Last Stand"
+        ],
+        "editionID": "",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      },
+      {
+        "workID": "openlibrary:OL3272027W",
+        "title": "Stand-up comedy",
+        "authors": [
+          "Judy Carter"
+        ],
+        "editionID": "openlibrary:OL1797578M",
+        "format": "any",
+        "contentLabel": null,
+        "discoverySection": "primary"
+      }
+    ]
+  }
+]

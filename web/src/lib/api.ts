@@ -12,6 +12,8 @@ export type ProviderHealth = {
 };
 
 export type SearchResult = {
+  contentLabel?: string;
+  discoverySection?: "related" | "incomplete";
   provider: string;
   kind: "book" | "author" | "author_works" | "series";
   work: {
@@ -19,6 +21,8 @@ export type SearchResult = {
     title: string;
     subtitle?: string;
     languages?: string[];
+    contentType?: string;
+    subjects?: string[];
     authors?: Array<{ id: string; name: string; role?: string; providerIds?: string[] }>;
     firstPublishDate?: string;
     firstPublishYear?: number;
@@ -35,6 +39,7 @@ export type SearchResult = {
     pages?: number;
     coverUrl?: string;
     audioSeconds?: number;
+    editionInformation?: string;
     contributors?: Array<{ id: string; name: string; role?: string; providerIds?: string[] }>;
     title: string;
     format: "any" | "ebook" | "audiobook";

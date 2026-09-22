@@ -5,6 +5,20 @@ what is published, deployed and qualified. A candidate tag is not a stable relea
 
 ## Unreleased
 
+- Label provider-backed graphic novels, possible graphic adaptations and abridgments in search, keeping them secondary when an original is available.
+
+- Discovery favors coherent matching editions over empty catalog stubs and groups
+  related authors, companion material and incomplete records below primary results.
+  Verified work aliases share an edition chooser without merging namesakes.
+- Interactive Hardcover book search preserves healthy records and sibling editions
+  when some default-edition data is invalid; the warning remains visible.
+
+- Add New puts **Download ebook/audiobook** first: save the selected book, search
+  releases, and start the best approved result with existing quality settings.
+  Add Book saves without an immediate search. Advanced options and provider
+  evidence are collapsed; routine title selections no longer require a second
+  confirmation because of legacy confidence scores or missing ISBNs.
+
 - Use Hardcover's supported series-search endpoint and explicit IDs instead of
   forbidden substring filters; prioritize usable editions over sparse work records.
 
@@ -25,7 +39,7 @@ what is published, deployed and qualified. A candidate tag is not a stable relea
   stay unknown. Text similarity alone no longer merges search identities.
 - Add New shows match evidence instead of percentage scores, prefers edition
   covers, handles failed images, and shows provider errors alongside usable results.
-  Unknown edition formats require the existing add-review step.
+  Unknown source formats remain explicit; the selected download format determines the target.
 
 ## September 16, 2026 — stabilization release
 

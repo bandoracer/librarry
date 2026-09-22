@@ -110,12 +110,16 @@ func (p *HardcoverProvider) searchAuthors(ctx Context, query Query) ([]SearchRes
 }
 
 type hardcoverGraphBook struct {
-	ID          int64  `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	ReleaseYear int    `json:"release_year"`
-	ReleaseDate string `json:"release_date"`
-	Image       struct {
+	Genres []struct {
+		Tag string `json:"tag"`
+	} `json:"genres"`
+	BookCategoryID int    `json:"book_category_id"`
+	ID             int64  `json:"id"`
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	ReleaseYear    int    `json:"release_year"`
+	ReleaseDate    string `json:"release_date"`
+	Image          struct {
 		URL string `json:"url"`
 	} `json:"image"`
 	Contributions []hardcoverContribution `json:"contributions"`
