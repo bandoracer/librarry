@@ -5,7 +5,7 @@ configuration and recovery instructions are in the [guides](README.md#operate).
 
 ## Requirements
 
-- Go 1.26.8 and Node.js 22, pinned in [`.mise.toml`](../.mise.toml).
+- Go 1.26.10 and Node.js 22, pinned in [`.mise.toml`](../.mise.toml).
 - Docker with Compose and a context permitted to run disposable containers.
 - PostgreSQL 16 for persisted application and integration-test behavior.
 

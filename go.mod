@@ -1,6 +1,6 @@
 module github.com/bandoracer/librarry
 
-go 1.26.8
+go 1.26.10
 
 require (
 	github.com/icholy/digest v1.2.0

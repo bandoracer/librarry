@@ -6,7 +6,7 @@ RUN npm ci
 COPY web ./
 RUN npm run build
 
-FROM nginx:1.30.4-alpine
+FROM nginx:1.30.6-alpine
 RUN apk upgrade --no-cache
 LABEL org.opencontainers.image.title="Librarry Web" \
   org.opencontainers.image.description="React web UI and nginx reverse proxy for Librarry." \
