@@ -4,9 +4,11 @@ A self-hosted ebook and audiobook manager built around reliable metadata,
 explainable release decisions, and recoverable library operations.
 
 **Early alpha.** Librarry is intended to become a modern Readarr replacement.
-The latest images contain the qualified stabilization update deployed on the
-maintainer NAS. Longer-term observation and full Readarr migration qualification
-remain incomplete. See [current status](docs/status.md) before migrating a library.
+The `latest` images contain the stabilization update that runs on the
+maintainer's NAS. It passed the project's release checks for a controlled
+rollout. A longer observation period and a real Readarr migration have not been
+completed, so it is not yet an unattended replacement for an existing Readarr
+install. See [current status](docs/status.md) before migrating a library.
 
 ![Librarry Library view showing book status and review controls](docs/assets/library.png)
 
@@ -28,6 +30,30 @@ credential-free backbone, Google Books an exact-match fallback, and embedded
 file metadata import evidence. Download clients remain responsible for torrent
 and Usenet administration. Readarr migration and full compatibility are not yet
 qualified; see [limitations](docs/status.md#known-gaps).
+
+## How this is built
+
+Librarry is built with coding agents (Codex and Claude). The maintainer directs
+the work and makes the release decisions. The agents work under
+[AGENTS.md](AGENTS.md), and these practices keep their output checkable:
+
+- Integrations are tested against real servers. The Calibre client runs against
+  a real Calibre Content Server in a container that is created and removed for
+  each run ([test-calibre.py](scripts/test-calibre.py)). Database tests use a
+  throwaway PostgreSQL 16 container ([test-integration.sh](scripts/test-integration.sh)).
+- [docs/status.md](docs/status.md) keeps merged source, published images and the
+  live deployment apart. A merged commit or a passing build is not a deployment
+  claim.
+- Merged metadata keeps each provider's IDs and match evidence, and manual
+  overrides always win ([metadata strategy](docs/metadata-strategy.md)).
+- Replace and rename keep the original file until the new one is verified and
+  committed ([imports guide](docs/guides/imports.md)).
+- Rollouts and qualification runs are written up as dated records in
+  [docs/reviews](docs/reviews/).
+
+As of October 21, 2026, `main` had 259 commits, 861 Go test functions and 29
+Playwright spec files. Passing them does not close the
+[known gaps](docs/status.md#known-gaps).
 
 ## Install with Docker Compose
 
